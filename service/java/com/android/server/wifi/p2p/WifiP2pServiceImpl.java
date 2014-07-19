@@ -2391,7 +2391,14 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         } else {
                             mSavedPeerConfig.wps.setup = WpsInfo.PBC;
                         }
-                        transitionTo(mUserAuthorizingJoinState);
+
+                        // According to section 3.2.3 in SPEC, only GO can handle group join.
+                        // Multiple groups is not supported, ignore this discovery for GC.
+                        if (mGroup.isGroupOwner()) {
+                            transitionTo(mUserAuthorizingJoinState);
+                        } else {
+                            if (DBG) logd("Ignore provision discovery for GC");
+                        }
                         break;
                     case WifiP2pMonitor.P2P_GROUP_STARTED_EVENT:
                         loge("Duplicate group creation event notice, ignore");
