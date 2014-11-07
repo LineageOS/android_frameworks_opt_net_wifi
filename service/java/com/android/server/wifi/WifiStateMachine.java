@@ -826,17 +826,9 @@ public class WifiStateMachine extends StateMachine {
         int networkId;
         int protocol;
         String ssid;
-        String[] challenges;
-    }
-
-    public static class SimAuthResponseData {
-        int id;
-        String Kc1;
-        String SRES1;
-        String Kc2;
-        String SRES2;
-        String Kc3;
-        String SRES3;
+        // EAP-SIM: data[] contains the 3 rand, one for each of the 3 challenges
+        // EAP-AKA: data[] contains rand & authn couple for the single challenge
+        String[] data;
     }
 
     /**
@@ -6622,19 +6614,55 @@ public class WifiStateMachine extends StateMachine {
                             mWifiConfigStore.getConfiguredNetworks());
                     break;
                 case WifiMonitor.SUP_REQUEST_IDENTITY:
-                    // Supplicant lacks credentials to connect to that network, hence black list
-                    ssid = (String) message.obj;
+                    int networkId = message.arg2;
+                    boolean identitySent = false;
+                    int eapMethod = WifiEnterpriseConfig.Eap.NONE;
 
-                    if (targetWificonfiguration != null && ssid != null
-                            && targetWificonfiguration.SSID != null
-                            && targetWificonfiguration.SSID.equals("\"" + ssid + "\"")) {
-                        mWifiConfigStore.handleSSIDStateChange(targetWificonfiguration.networkId,
-                                false, "AUTH_FAILED no identity", null);
+                    if (targetWificonfiguration != null
+                            && targetWificonfiguration.enterpriseConfig != null) {
+                        eapMethod = targetWificonfiguration.enterpriseConfig.getEapMethod();
                     }
-                    // Disconnect now, as we don't have any way to fullfill the  supplicant request.
-                    mWifiConfigStore.setLastSelectedConfiguration
-                            (WifiConfiguration.INVALID_NETWORK_ID);
-                    mWifiNative.disconnect();
+
+                    // For SIM & AKA EAP method Only, get identity from ICC
+                    if (targetWificonfiguration != null
+                            && targetWificonfiguration.networkId == networkId
+                            && targetWificonfiguration.allowedKeyManagement
+                                    .get(WifiConfiguration.KeyMgmt.IEEE8021X)
+                            &&  (eapMethod == WifiEnterpriseConfig.Eap.SIM
+                            || eapMethod == WifiEnterpriseConfig.Eap.AKA)) {
+                        TelephonyManager tm = (TelephonyManager)
+                                mContext.getSystemService(Context.TELEPHONY_SERVICE);
+                        if (tm != null) {
+                            String imsi = tm.getSubscriberId();
+                            String mccMnc = "";
+
+                            if (tm.getSimState() == TelephonyManager.SIM_STATE_READY)
+                                 mccMnc = tm.getSimOperator();
+
+                            String identity = buildIdentity(eapMethod, imsi, mccMnc);
+
+                            if (!identity.isEmpty()) {
+                                mWifiNative.simIdentityResponse(networkId, identity);
+                                identitySent = true;
+                            }
+                        }
+                    }
+                    if (!identitySent) {
+                        // Supplicant lacks credentials to connect to that network, hence black list
+                        ssid = (String) message.obj;
+                        if (targetWificonfiguration != null && ssid != null
+                                && targetWificonfiguration.SSID != null
+                                && targetWificonfiguration.SSID.equals("\"" + ssid + "\"")) {
+                            mWifiConfigStore.handleSSIDStateChange(
+                                    targetWificonfiguration.networkId, false,
+                                    "AUTH_FAILED no identity", null);
+                        }
+                        // Disconnect now, as we don't have any way to fullfill
+                        // the  supplicant request.
+                        mWifiConfigStore.setLastSelectedConfiguration(
+                                WifiConfiguration.INVALID_NETWORK_ID);
+                        mWifiNative.disconnect();
+                    }
                     break;
                 case WifiMonitor.SUP_REQUEST_SIM_AUTH:
                     logd("Received SUP_REQUEST_SIM_AUTH");
@@ -7057,6 +7085,41 @@ public class WifiStateMachine extends StateMachine {
 
     void doNetworkStatus(int status) {
         sendMessage(CMD_NETWORK_STATUS, status);
+    }
+
+    // rfc4186 & rfc4187:
+    // create Permanent Identity base on IMSI,
+    // identity = usernam@realm
+    // with username = prefix | IMSI
+    // and realm is derived MMC/MNC tuple according 3GGP spec(TS23.003)
+    private String buildIdentity(int eapMethod, String imsi, String mccMnc) {
+        String mcc;
+        String mnc;
+        String prefix;
+
+        if (imsi == null || imsi.isEmpty())
+            return "";
+
+        if (eapMethod == WifiEnterpriseConfig.Eap.SIM)
+            prefix = "1";
+        else if (eapMethod == WifiEnterpriseConfig.Eap.AKA)
+            prefix = "0";
+        else  // not a valide EapMethod
+            return "";
+
+        /* extract mcc & mnc from mccMnc */
+        if (mccMnc != null && !mccMnc.isEmpty()) {
+            mcc = mccMnc.substring(0, 3);
+            mnc = mccMnc.substring(3);
+            if (mnc.length() == 2)
+                mnc = "0" + mnc;
+        } else {
+            // extract mcc & mnc from IMSI, assume mnc size is 3
+            mcc = imsi.substring(0, 3);
+            mnc = imsi.substring(3, 6);
+        }
+
+        return prefix + imsi + "@wlan.mnc" + mnc + ".mcc" + mcc + ".3gppnetwork.org";
     }
 
     boolean startScanForConfiguration(WifiConfiguration config, boolean restrictChannelList) {
@@ -8766,7 +8829,6 @@ public class WifiStateMachine extends StateMachine {
         return sb.toString();
     }
 
-
     private static byte[] concat(byte[] array1, byte[] array2, byte[] array3) {
 
         int len = array1.length + array2.length + array3.length;
@@ -8815,6 +8877,30 @@ public class WifiStateMachine extends StateMachine {
         return result;
     }
 
+    private static byte[] concatHex(byte[] array1, byte[] array2) {
+
+        int len = array1.length + array2.length;
+
+        byte[] result = new byte[len];
+
+        int index = 0;
+        if (array1.length != 0) {
+            for (byte b : array1) {
+                result[index] = b;
+                index++;
+            }
+        }
+
+        if (array2.length != 0) {
+            for (byte b : array2) {
+                result[index] = b;
+                index++;
+            }
+        }
+
+        return result;
+    }
+
     void handleGsmAuthRequest(SimAuthRequestData requestData) {
         if (targetWificonfiguration == null
                 || targetWificonfiguration.networkId == requestData.networkId) {
@@ -8829,8 +8915,10 @@ public class WifiStateMachine extends StateMachine {
 
         if (tm != null) {
             StringBuilder sb = new StringBuilder();
-            for (String challenge : requestData.challenges) {
+            for (String challenge : requestData.data) {
 
+                if (challenge == null || challenge.isEmpty())
+                    continue;
                 logd("RAND = " + challenge);
 
                 byte[] rand = null;
@@ -8844,11 +8932,18 @@ public class WifiStateMachine extends StateMachine {
                 String base64Challenge = android.util.Base64.encodeToString(
                         rand, android.util.Base64.NO_WRAP);
                 /*
-                 * appType = 1 => SIM, 2 => USIM according to
+                 * First, try with appType = 2 => USIM according to
                  * com.android.internal.telephony.PhoneConstants#APPTYPE_xxx
                  */
                 int appType = 2;
                 String tmResponse = tm.getIccSimChallengeResponse(appType, base64Challenge);
+                if (tmResponse == null) {
+                    /* Then, in case of failure, issue may be due to sim type, retry as a simple sim
+                     * appType = 1 => SIM
+                     */
+                    appType = 1;
+                    tmResponse = tm.getIccSimChallengeResponse(appType, base64Challenge);
+                }
                 logv("Raw Response - " + tmResponse);
 
                 if (tmResponse != null && tmResponse.length() > 4) {
@@ -8869,14 +8964,86 @@ public class WifiStateMachine extends StateMachine {
 
             String response = sb.toString();
             logv("Supplicant Response -" + response);
-            mWifiNative.simAuthResponse(requestData.networkId, response);
+            mWifiNative.simAuthResponse(requestData.networkId, "GSM-AUTH", response);
         } else {
             loge("could not get telephony manager");
         }
     }
 
     void handle3GAuthRequest(SimAuthRequestData requestData) {
+        StringBuilder sb = new StringBuilder();
+        byte[] rand = null;
+        byte[] authn = null;
+        String res_type = "UMTS-AUTH";
 
+        if (targetWificonfiguration == null
+                || targetWificonfiguration.networkId == requestData.networkId) {
+            logd("id matches targetWifiConfiguration");
+        } else {
+            logd("id does not match targetWifiConfiguration");
+            return;
+        }
+        if (requestData.data.length == 2) {
+            try {
+                rand = parseHex(requestData.data[0]);
+                authn = parseHex(requestData.data[1]);
+            } catch (NumberFormatException e) {
+                loge("malformed challenge");
+            }
+        } else {
+               loge("malformed challenge");
+        }
+
+        String tmResponse = "";
+        if (rand != null && authn != null) {
+            String base64Challenge = android.util.Base64.encodeToString(
+                    concatHex(rand,authn), android.util.Base64.NO_WRAP);
+
+            TelephonyManager tm = (TelephonyManager)
+                    mContext.getSystemService(Context.TELEPHONY_SERVICE);
+            if (tm != null) {
+                int appType = 2; // 2 => USIM
+                tmResponse = tm.getIccSimChallengeResponse(appType, base64Challenge);
+                logv("Raw Response - " + tmResponse);
+            } else {
+                loge("could not get telephony manager");
+            }
+        }
+
+        if (tmResponse != null && tmResponse.length() > 4) {
+            byte[] result = android.util.Base64.decode(tmResponse,
+                    android.util.Base64.DEFAULT);
+            loge("Hex Response - " + makeHex(result));
+            byte tag = result[0];
+            if (tag == (byte) 0xdb) {
+                logv("successful 3G authentication ");
+                int res_len = result[1];
+                String res = makeHex(result, 2, res_len);
+                int ck_len = result[res_len + 2];
+                String ck = makeHex(result, res_len + 3, ck_len);
+                int ik_len = result[res_len + ck_len + 3];
+                String ik = makeHex(result, res_len + ck_len + 4, ik_len);
+                sb.append(":" + ik + ":" + ck + ":" + res);
+                logv("ik:" + ik + "ck:" + ck + " res:" + res);
+            } else if (tag == (byte) 0xdc) {
+                loge("synchronisation failure");
+                int auts_len = result[1];
+                String auts = makeHex(result, 2, auts_len);
+                res_type = "UMTS-AUTS";
+                sb.append(":" + auts);
+                logv("auts:" + auts);
+            } else {
+                loge("bad response - unknown tag = " + tag);
+                return;
+            }
+        } else {
+            loge("bad response - " + tmResponse);
+            return;
+        }
+
+        String response = sb.toString();
+        logv("Supplicant Response -" + response);
+        mWifiNative.simAuthResponse(requestData.networkId, res_type, response);
     }
     private void setScanIntevelOnMiracastModeChange(int mode) {
         if ((mode == WifiP2pManager.MIRACAST_SOURCE)
