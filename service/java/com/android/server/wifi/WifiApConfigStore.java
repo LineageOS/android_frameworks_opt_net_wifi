@@ -49,7 +49,7 @@ class WifiApConfigStore extends StateMachine {
     private static final String TAG = "WifiApConfigStore";
 
     private static final String AP_CONFIG_FILE = Environment.getDataDirectory() +
-        "/misc/wifi/softap.conf";
+        "/misc/wifi/hostapd.conf";
 
     private static final int AP_CONFIG_FILE_VERSION = 1;
 
