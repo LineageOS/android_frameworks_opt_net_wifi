@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7aa08908_1fcf89b1",
+        "filename": "service/Android.mk",
+        "patchSetId": 2
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 2195
+      },
+      "writtenOn": "2014-12-18T06:39:38Z",
+      "side": 1,
+      "message": "a s/TARGET/BOARD/ would make more sense, and follow the rest of the defines here.",
+      "revId": "9f73315c7a73db18ad225cea4de28f350a1ce75e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
