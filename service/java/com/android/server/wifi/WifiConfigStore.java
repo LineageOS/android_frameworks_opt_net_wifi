@@ -319,6 +319,24 @@ public class WifiConfigStore {
             }
         }
 
+        value = mWifiNative.getNetworkVariable(netId, WifiConfiguration.modeVarName);
+        config.isIBSS = false;
+        if (!TextUtils.isEmpty(value)) {
+            try {
+                config.isIBSS = Integer.parseInt(value) != 0;
+            } catch (NumberFormatException ignore) {
+            }
+        }
+
+        value = mWifiNative.getNetworkVariable(netId, WifiConfiguration.frequencyVarName);
+        config.frequency = 0;
+        if (!TextUtils.isEmpty(value)) {
+            try {
+                config.frequency = Integer.parseInt(value);
+            } catch (NumberFormatException ignore) {
+            }
+        }
+
         value = mWifiNative.getNetworkVariable(netId, WifiConfiguration.wepTxKeyIdxVarName);
         config.wepTxKeyIndex = -1;
         if (!TextUtils.isEmpty(value)) {
@@ -652,6 +670,22 @@ public class WifiConfigStore {
             String bssid = config.getNetworkSelectionStatus().getNetworkSelectionBSSID();
             if (!mWifiNative.setNetworkVariable(netId, WifiConfiguration.bssidVarName, bssid)) {
                 loge("failed to set BSSID: " + bssid);
+                return false;
+            }
+        }
+        if (config.isIBSS) {
+            if(!mWifiNative.setNetworkVariable(
+                    netId,
+                    WifiConfiguration.modeVarName,
+                    "1")) {
+                loge("failed to set adhoc mode");
+                return false;
+            }
+            if(!mWifiNative.setNetworkVariable(
+                    netId,
+                    WifiConfiguration.frequencyVarName,
+                    Integer.toString(config.frequency))) {
+                loge("failed to set frequency");
                 return false;
             }
         }

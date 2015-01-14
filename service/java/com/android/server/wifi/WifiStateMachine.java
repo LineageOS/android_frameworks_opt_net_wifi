@@ -197,6 +197,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
     private BaseWifiLogger mWifiLogger;
     private WifiApConfigStore mWifiApConfigStore;
     private final boolean mP2pSupported;
+    private boolean mIbssSupported;
     private final AtomicBoolean mP2pConnected = new AtomicBoolean(false);
     private boolean mTemporarilyDisconnectWifi = false;
     private final String mPrimaryDeviceType;
@@ -856,6 +857,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
 
     /* Enable/disable Neighbor Discovery offload functionality. */
     static final int CMD_CONFIG_ND_OFFLOAD                              = BASE + 204;
+
+    /* Is IBSS mode supported by the driver? */
+    static final int CMD_GET_IBSS_SUPPORTED                             = BASE + 205;
 
     // For message logging.
     private static final Class[] sMessageClasses = {
@@ -2342,6 +2346,12 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
     }
 
+    public int syncIsIbssSupported(AsyncChannel channel) {
+        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_IBSS_SUPPORTED);
+        int result = resultMsg.arg1;
+        resultMsg.recycle();
+        return result;
+    }
 
     /**
      * Set the operational frequency band
@@ -4219,6 +4229,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 case CMD_ADD_OR_UPDATE_NETWORK:
                 case CMD_REMOVE_NETWORK:
                 case CMD_SAVE_CONFIG:
+                case CMD_GET_IBSS_SUPPORTED:
                     replyToMessage(message, message.what, FAILURE);
                     break;
                 case CMD_GET_CAPABILITY_FREQ:
@@ -4623,6 +4634,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     mWifiNative.disableScanOffload();
                     mWifiNative.setP2pDisable();
 
+                    mIbssSupported = mWifiNative.getModeCapability("IBSS");
+
                     sendSupplicantConnectionChangedBroadcast(true);
                     transitionTo(mDriverStartedState);
                     break;
@@ -4648,6 +4661,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 case CMD_STOP_DRIVER:
                 case CMD_SET_OPERATIONAL_MODE:
                 case CMD_SET_FREQUENCY_BAND:
+                case CMD_GET_IBSS_SUPPORTED:
                     messageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     break;
@@ -4751,6 +4765,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 case CMD_RESET_SIM_NETWORKS:
                     log("resetting EAP-SIM/AKA/AKA' networks since SIM was changed");
                     mWifiConfigManager.resetSimNetworks();
+                    break;
+                case CMD_GET_IBSS_SUPPORTED:
+                    deferMessage(message);
                     break;
                 default:
                     return NOT_HANDLED;
@@ -5114,6 +5131,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                             mWifiConnectivityManager.forceConnectivityScan();
                         }
                     }
+                    break;
+                case CMD_GET_IBSS_SUPPORTED:
+                    replyToMessage(message, message.what, mIbssSupported ? 1 : 0);
                     break;
                 default:
                     return NOT_HANDLED;
