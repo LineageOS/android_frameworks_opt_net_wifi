@@ -365,6 +365,8 @@ public class WifiConfigStore extends IpConfigStore {
     public boolean enable5GHzPreference = true;
     public boolean enableWifiCellularHandoverUserTriggeredAdjustment = true;
 
+    private int mConfiguredBand = 0;
+
     /**
      * Regex pattern for extracting a connect choice.
      * Matches a strings like the following:
@@ -633,7 +635,7 @@ public class WifiConfigStore extends IpConfigStore {
             }
 
             // Calculate the RSSI for scan results that are more recent than milli
-            config.setVisibility(milli);
+            config.setVisibility(milli, mConfiguredBand);
             if (config.visibility == null) {
                 continue;
             }
@@ -1805,6 +1807,10 @@ public class WifiConfigStore extends IpConfigStore {
 
     public String getLastSelectedConfiguration() {
         return lastSelectedConfiguration;
+    }
+
+    public void setConfiguredBand(int band) {
+       mConfiguredBand = band;
     }
 
     public boolean isLastSelectedConfiguration(WifiConfiguration config) {
