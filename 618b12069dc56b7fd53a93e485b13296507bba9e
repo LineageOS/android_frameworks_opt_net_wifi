@@ -16,6 +16,24 @@
       "revId": "618b12069dc56b7fd53a93e485b13296507bba9e",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5ac665da_ce11d2b1",
+        "filename": "service/java/com/android/server/wifi/WifiStateMachine.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 551,
+      "author": {
+        "id": 444
+      },
+      "writtenOn": "2015-03-19T12:19:12Z",
+      "side": 0,
+      "message": "Look further down. CMD_ROAM_WATCHDOG_TIMER \u003d BASE + 94, meaning there\u0027s a conflict.",
+      "parentUuid": "5ac665da_4e72027e",
+      "revId": "618b12069dc56b7fd53a93e485b13296507bba9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
