@@ -711,6 +711,11 @@ public class WifiMonitor {
         public void run() {
             //noinspection InfiniteLoopStatement
             for (;;) {
+                if (!mWifiMonitorSingleton.mConnected) {
+                    Log.d(TAG, "MonitorThread exit because mConnected is false");
+                    break;
+                }
+
                 String eventStr = mWifiNative.waitForEvent();
 
                 // Skip logging the common but mostly uninteresting scan-results event
