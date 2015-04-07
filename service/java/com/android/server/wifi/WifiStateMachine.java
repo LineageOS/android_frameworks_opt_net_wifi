@@ -4928,6 +4928,11 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case CMD_START_AP:
                     if (mWifiNative.loadDriver()) {
+                        try {
+                            mNwService.wifiFirmwareReload(mInterfaceName, "AP");
+                        } catch (Exception e) {
+                            loge("Failed to reload AP firmware " + e);
+                        }
                         setWifiApState(WIFI_AP_STATE_ENABLING);
                         transitionTo(mSoftApStartingState);
                     } else {
