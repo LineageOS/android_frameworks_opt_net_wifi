@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "9a89bdaa_3a9a5e15",
+        "filename": "service/java/com/android/server/wifi/WifiNative.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 577,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2015-05-19T04:23:47Z",
+      "side": 1,
+      "message": "You probably want these to be Log.d if you\u0027re doing this.",
+      "revId": "cd2913924e6c40b3e688c12925f53a21ee140d72",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
