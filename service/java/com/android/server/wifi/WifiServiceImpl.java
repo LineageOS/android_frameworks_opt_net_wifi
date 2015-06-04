@@ -1131,6 +1131,14 @@ public final class WifiServiceImpl extends IWifiManager.Stub {
         return country;
     }
     /**
+     * Get the operational country code
+     */
+    public String getCountryCode() {
+        enforceAccessPermission();
+        return mWifiStateMachine.getCountryCode();
+    }
+
+    /**
      * Set the operational frequency band
      * @param band One of
      *     {@link WifiManager#WIFI_FREQUENCY_BAND_AUTO},
