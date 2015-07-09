@@ -194,7 +194,7 @@ final class WifiNotificationController {
         }
 
         // No open networks in range, remove the notification
-        setNotificationVisible(false, 0, false, 0);
+        resetNotification();
     }
 
     /**
