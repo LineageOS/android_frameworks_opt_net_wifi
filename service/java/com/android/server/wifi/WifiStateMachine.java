@@ -8536,7 +8536,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
             // cause the roam to faile and the device to disconnect
             clearCurrentConfigBSSID("L2ConnectedState");
 
-            try {
+            if (mIsWiFiIpReachabilityEnabled) {
+              try {
                 mIpReachabilityMonitor = new IpReachabilityMonitor(
                         mContext,
                         mInterfaceName,
@@ -8546,8 +8547,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
                                 sendMessage(CMD_IP_REACHABILITY_LOST, logMsg);
                             }
                         });
-            } catch (IllegalArgumentException e) {
+              } catch (IllegalArgumentException e) {
                 Log.wtf("Failed to create IpReachabilityMonitor", e);
+              }
             }
         }
 
