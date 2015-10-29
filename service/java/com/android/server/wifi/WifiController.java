@@ -38,6 +38,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.WorkSource;
 import android.provider.Settings;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.util.Slog;
 
@@ -46,6 +47,7 @@ import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.WifiServiceImpl.LockList;
+import org.jivesoftware.smackx.pubsub.Subscription;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -613,13 +615,29 @@ class WifiController extends StateMachine {
         public void enter() {
             mSubListener = new SubscriptionManager.OnSubscriptionsChangedListener() {
                     boolean firstChange = true;
+                    SubscriptionInfo lastSub;
                     @Override
                     public void onSubscriptionsChanged() {
+                        final SubscriptionInfo currentSub = SubscriptionManager.from(mContext)
+                                .getDefaultDataSubscriptionInfo();
                         if (firstChange) {
+                            lastSub = currentSub;
                             // we always get a state change on registration.
                             firstChange = false;
                             return;
                         }
+                        if (currentSub == null) {
+                            // don't disable when we're not sure yet.
+                            return;
+                        }
+                        android.util.Log.w("ro", "lastSub: " + lastSub);
+                        android.util.Log.w("ro", "currentSub: " + currentSub);
+                        if (currentSub.getMcc() == lastSub.getMcc()
+                                && currentSub.getMnc() == lastSub.getMnc()) {
+                            // don't disable if it's the same subscription
+                            return;
+                        }
+                        lastSub = currentSub;
                         Toast.makeText(mContext,
                                 com.android.internal.R.string.subscription_change_disabled_wifi_ap,
                                 Toast.LENGTH_SHORT).show();
