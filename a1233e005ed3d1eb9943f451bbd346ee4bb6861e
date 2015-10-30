@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5f2577a7_dd09b2dd",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 50,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2015-10-30T16:09:30Z",
+      "side": 1,
+      "message": "This doesn\u0027t look correct.",
+      "revId": "a1233e005ed3d1eb9943f451bbd346ee4bb6861e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5f2577a7_fd046ec8",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 634,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2015-10-30T16:09:30Z",
+      "side": 1,
+      "message": "This should be killed.",
+      "revId": "a1233e005ed3d1eb9943f451bbd346ee4bb6861e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
