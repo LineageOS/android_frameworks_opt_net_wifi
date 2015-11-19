@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7f515b1d_2c6f97c6",
+        "filename": "service/java/com/android/server/wifi/WifiServiceImpl.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 1136,
+      "author": {
+        "id": 13589
+      },
+      "writtenOn": "2015-11-19T05:11:52Z",
+      "side": 1,
+      "message": "This function is duplicated too.",
+      "revId": "cc4170d22824bb8c74264c3958cb9cbd88c1f606",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
