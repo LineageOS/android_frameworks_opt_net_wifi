@@ -1392,11 +1392,10 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                         BluetoothAdapter.STATE_DISCONNECTED);
                 mWifiStateMachine.sendBluetoothAdapterStateChange(state);
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
-                boolean emergencyMode = intent.getBooleanExtra("phoneinECMState", false);
-                mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0, 0);
-            } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
-                boolean inCall = intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, inCall ? 1 : 0, 0);
+                if (mContext.getResources().getBoolean(R.bool.config_wifi_ecbm_mode_change)) {
+                    boolean emergencyMode = intent.getBooleanExtra("phoneinECMState", false);
+                    mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0, 0);
+                }
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
             }
@@ -1430,13 +1429,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
         intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
         intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
-
-        boolean trackEmergencyCallState = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_wifi_turn_off_during_emergency_call);
-        if (trackEmergencyCallState) {
-            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
-        }
-
+        intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
         mContext.registerReceiver(mReceiver, intentFilter);
     }
 
