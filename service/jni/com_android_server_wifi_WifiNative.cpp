@@ -1578,6 +1578,7 @@ static jobject android_net_wifi_get_driver_version(JNIEnv *env, jclass cls, jint
     ALOGD("android_net_wifi_get_driver_version = %p", handle);
 
     if (handle == 0) {
+        free(buffer);
         return NULL;
     }
 
@@ -1608,6 +1609,7 @@ static jobject android_net_wifi_get_firmware_version(JNIEnv *env, jclass cls, ji
     ALOGD("android_net_wifi_get_firmware_version = %p", handle);
 
     if (handle == 0) {
+        free(buffer);
         return NULL;
     }
 
