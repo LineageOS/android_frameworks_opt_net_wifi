@@ -619,6 +619,11 @@ class WifiController extends StateMachine {
                     public void onSubscriptionsChanged() {
                         final SubscriptionInfo currentSub = SubscriptionManager.from(mContext)
                                 .getDefaultDataSubscriptionInfo();
+
+                        Slog.d(TAG, String.format("onSubscriptionsChanged():\n" +
+                                "      last: %s\n" +
+                                "   current: %s\n",
+                                lastSub, currentSub));
                         if (firstChange) {
                             lastSub = currentSub;
                             // we always get a state change on registration.
