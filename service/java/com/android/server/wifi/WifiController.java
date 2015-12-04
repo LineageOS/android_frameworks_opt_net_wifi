@@ -633,6 +633,14 @@ class WifiController extends StateMachine {
                         String currentSubscriberId =
                             tm.getSubscriberId(currentSub.getSubscriptionId());
 
+                        Slog.d(TAG, String.format("onSubscriptionsChanged():\n" +
+                                "      last subscription : %s\n" +
+                                "      last subscriber id: %s\n" +
+                                "   current subscription : %s\n" +
+                                "   current subscriber id: %s\n",
+                                lastSub, lastSubscriberId,
+                                currentSub, currentSubscriberId));
+
                         if (firstChange) {
                             lastSub = currentSub;
                             lastSubscriberId = currentSubscriberId;
