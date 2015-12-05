@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "bf8cb3f7_d6c43943",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 634,
+      "author": {
+        "id": 68
+      },
+      "writtenOn": "2015-12-05T02:48:19Z",
+      "side": 1,
+      "message": "Let\u0027s also return here if currentSubscriberId is null. I think it shouldn\u0027t happen but this is RPC and a slight delay between getting the data subscription info and the subscriber id might cause it to not exist anymore and telephony would crash.",
+      "revId": "fafea14bbbcf8e3a4c3fa237b54c4ab6c7973608",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "bf8cb3f7_f6c13d30",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 658,
+      "author": {
+        "id": 68
+      },
+      "writtenOn": "2015-12-05T02:48:19Z",
+      "side": 1,
+      "message": "We shouldn\u0027t be logging user-identifying information.",
+      "revId": "fafea14bbbcf8e3a4c3fa237b54c4ab6c7973608",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
