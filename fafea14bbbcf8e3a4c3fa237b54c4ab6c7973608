@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "9f91af0f_3fba27de",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 634,
+      "author": {
+        "id": 14090
+      },
+      "writtenOn": "2015-12-05T08:41:50Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "bf8cb3f7_d6c43943",
+      "revId": "fafea14bbbcf8e3a4c3fa237b54c4ab6c7973608",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "bf8cb3f7_f6c13d30",
         "filename": "service/java/com/android/server/wifi/WifiController.java",
         "patchSetId": 1
@@ -30,6 +48,24 @@
       "writtenOn": "2015-12-05T02:48:19Z",
       "side": 1,
       "message": "We shouldn\u0027t be logging user-identifying information.",
+      "revId": "fafea14bbbcf8e3a4c3fa237b54c4ab6c7973608",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9f91af0f_dfce9b82",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 658,
+      "author": {
+        "id": 14090
+      },
+      "writtenOn": "2015-12-05T08:41:50Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "bf8cb3f7_f6c13d30",
       "revId": "fafea14bbbcf8e3a4c3fa237b54c4ab6c7973608",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
