@@ -254,6 +254,7 @@ public class WifiConfigStore extends IpConfigStore {
     private static final String USER_APPROVED_KEY = "USER_APPROVED";
     private static final String CREATION_TIME_KEY = "CREATION_TIME";
     private static final String UPDATE_TIME_KEY = "UPDATE_TIME";
+    private static final String INACTIVITY_TIMEOUT_KEY = "INACTIVITY_TIMEOUT";
 
     private static final String SEPARATOR = ":  ";
     private static final String NL = "\n";
