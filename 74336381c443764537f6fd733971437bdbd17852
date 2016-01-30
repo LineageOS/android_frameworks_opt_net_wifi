@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1fcbff3d_43893373",
+        "filename": "service/java/com/android/server/wifi/WifiConfigStore.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 257,
+      "author": {
+        "id": 9199
+      },
+      "writtenOn": "2016-01-30T03:32:42Z",
+      "side": 1,
+      "message": "unused",
+      "revId": "74336381c443764537f6fd733971437bdbd17852",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
