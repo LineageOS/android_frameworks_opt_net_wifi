@@ -961,7 +961,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             mSettings.report_threshold_percent = DEFAULT_REPORT_THRESHOLD_PERCENT;
             mSettings.report_threshold_num_scans = DEFAULT_REPORT_THRESHOLD_NUM_SCANS;
 
-            mSettings.buckets = new WifiNative.BucketSettings[mScanCapabilities.max_scan_buckets];
+            int max_buckets = mScanCapabilities.max_scan_buckets;
+            if (max_buckets < mTimeBuckets.length) max_buckets = mTimeBuckets.length;
+
+            mSettings.buckets = new WifiNative.BucketSettings[max_buckets];
             for (int i = 0; i < mSettings.buckets.length; i++) {
                 WifiNative.BucketSettings bucketSettings = new WifiNative.BucketSettings();
                 bucketSettings.bucket = i;
