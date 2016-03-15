@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "dfbec78f_03cda25c",
+        "filename": "service/java/com/android/server/wifi/WifiScanningServiceImpl.java",
+        "patchSetId": 4
+      },
+      "lineNbr": 1018,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-03-15T09:02:41Z",
+      "side": 1,
+      "message": "Nits:\n- braces missing\n- the check can be added as an additional condition to the for loop above",
+      "revId": "1b02579212c193e5c347204b06a7c75476d43002",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
