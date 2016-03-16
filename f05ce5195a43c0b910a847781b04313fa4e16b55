@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7faddb67_46309208",
+        "filename": "service/java/com/android/server/wifi/WifiScanningServiceImpl.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 1008,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-03-16T22:51:50Z",
+      "side": 1,
+      "message": "I think Danny meant to add the check here:\n\nif (i \u003e\u003d mSettings.buckets.length) {\n\n    break;\n\n}",
+      "revId": "f05ce5195a43c0b910a847781b04313fa4e16b55",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
