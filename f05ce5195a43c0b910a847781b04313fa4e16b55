@@ -16,6 +16,24 @@
       "revId": "f05ce5195a43c0b910a847781b04313fa4e16b55",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7faddb67_69c241ec",
+        "filename": "service/java/com/android/server/wifi/WifiScanningServiceImpl.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 1008,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-03-17T07:03:03Z",
+      "side": 1,
+      "message": "Yeah, or this:\n\nfor (int i \u003d 0; i \u003c mTimeBuckets.length \u0026\u0026 i \u003c mSettings.buckets.length; i++) {",
+      "parentUuid": "7faddb67_46309208",
+      "revId": "f05ce5195a43c0b910a847781b04313fa4e16b55",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
