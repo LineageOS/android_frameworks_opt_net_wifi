@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_7c450f17",
+        "filename": "service/jni/com_android_server_wifi_Gbk2Utf.cpp",
+        "patchSetId": 3
+      },
+      "lineNbr": 522,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-04-22T20:50:21Z",
+      "side": 1,
+      "message": "Seems like the intent is to return JNI_TRUE even if g_pItemList is NULL.",
+      "range": {
+        "startLine": 522,
+        "startChar": 11,
+        "endLine": 522,
+        "endChar": 19
+      },
+      "revId": "ec6481f8b2a76f940a0c045a0528cb27e661b285",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
