@@ -2417,6 +2417,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiPno
     }
 
     boolean enableBackgroundScan(boolean enable) {
+        if (!mWifiNative.isDriverLoaded()) {
+            return false;
+        }
         if (enable) {
             if (mContext.getResources().getBoolean(R.bool.wifi_autocon)
                 && !shouldAutoConnect()) {
