@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3fa7e38b_cc1eca6f",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 654,
+      "author": {
+        "id": 14090
+      },
+      "writtenOn": "2016-07-11T16:14:40Z",
+      "side": 1,
+      "message": "What happens when you turn off cell service (Airplane mode \u003d on, wifi \u003d on)?",
+      "revId": "41ada58f12e770903137746e17cc0fafa2a5d42a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3fa7e38b_6c131668",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 660,
+      "author": {
+        "id": 14090
+      },
+      "writtenOn": "2016-07-11T16:14:40Z",
+      "side": 1,
+      "message": "Any point in tracking lastSub?",
+      "revId": "41ada58f12e770903137746e17cc0fafa2a5d42a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3fa7e38b_0c2b8294",
+        "filename": "service/java/com/android/server/wifi/WifiController.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 667,
+      "author": {
+        "id": 14090
+      },
+      "writtenOn": "2016-07-11T16:14:40Z",
+      "side": 1,
+      "message": "move this comment up to line 650",
+      "revId": "41ada58f12e770903137746e17cc0fafa2a5d42a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
