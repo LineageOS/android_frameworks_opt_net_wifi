@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1fa4df85_ce70b2a8",
+        "filename": "service/jni/com_android_server_wifi_WifiNative.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 1581,
+      "author": {
+        "id": 341
+      },
+      "writtenOn": "2016-09-16T14:41:50Z",
+      "side": 1,
+      "message": "Why not just make it a char array and eliminate malloc:\nchar buffer[256];\n\nYou will then need to remove the other calls to free()",
+      "revId": "88cbd1f6cab961ad5f42e23640dd9fa8cf821c04",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
