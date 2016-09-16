@@ -16,6 +16,24 @@
       "revId": "88cbd1f6cab961ad5f42e23640dd9fa8cf821c04",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "1fa4df85_ae6536e3",
+        "filename": "service/jni/com_android_server_wifi_WifiNative.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 1581,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-09-16T14:45:54Z",
+      "side": 1,
+      "message": "This comes from AOSP (merged last year) https://android-review.googlesource.com/184561",
+      "parentUuid": "1fa4df85_ce70b2a8",
+      "revId": "88cbd1f6cab961ad5f42e23640dd9fa8cf821c04",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
