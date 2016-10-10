@@ -205,6 +205,10 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
     private boolean mStaAndAPConcurrency = false;
     private SoftApStateMachine mSoftApStateMachine = null;
 
+
+    private int mNumSelectiveChannelScan = 0;
+    private int mMaxInitialSavedChannelScan;
+
     /* Scan results handling */
     private List<ScanDetail> mScanResults = new ArrayList<>();
     private final Object mScanResultsLock = new Object();
@@ -411,6 +415,17 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
 
     public void autoRoamSetBSSID(int netId, String bssid) {
         autoRoamSetBSSID(mWifiConfigManager.getWifiConfiguration(netId), bssid);
+    }
+
+    public int getScanCount() {
+        return mNumSelectiveChannelScan;
+    }
+
+    public int getMaxConfiguredScanCount() {
+        return mMaxInitialSavedChannelScan;
+    }
+    public void setScanCount(int count) {
+        mNumSelectiveChannelScan = count;
     }
 
     public boolean autoRoamSetBSSID(WifiConfiguration config, String bssid) {
@@ -1109,6 +1124,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         mPrimaryDeviceType = mContext.getResources().getString(
                 R.string.config_wifi_p2p_device_type);
 
+        mMaxInitialSavedChannelScan = mContext.getResources().getInteger(
+                R.integer.config_max_initial_scans_on_selective_channels);
+
         mCountryCode = countryCode;
 
         mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
@@ -1679,13 +1697,20 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
 
         Set<Integer> freqs = null;
-        if (settings != null && settings.channelSet != null) {
-            freqs = new HashSet<Integer>();
-            for (WifiChannel channel : settings.channelSet) {
-                freqs.add(channel.freqMHz);
+        freqs = new HashSet<Integer>();
+        if (mNumSelectiveChannelScan <  mMaxInitialSavedChannelScan) {
+           freqs = mWifiConfigManager.getConfiguredChannelList();
+        }
+        if (freqs != null && (freqs.size() == 0)) {
+            freqs = null;
+        }
+        if (freqs == null) {
+            if (settings != null && settings.channelSet != null) {
+                for (WifiChannel channel : settings.channelSet) {
+                    freqs.add(channel.freqMHz);
+                }
             }
         }
-
         // Retrieve the list of hidden networkId's to scan for.
         Set<Integer> hiddenNetworkIds = mWifiConfigManager.getHiddenConfiguredNetworkIds();
 
@@ -1769,6 +1794,12 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         WifiScanner.ScanListener nativeScanListener = new WifiScanner.ScanListener() {
                 // ignore all events since WifiStateMachine is registered for the supplicant events
                 public void onSuccess() {
+                    /* As part of optimizing time for initial scans for
+                     * saved profiles, increment the  scan trigger count
+                     * upon receiving a success.
+                     */
+                    if (mNumSelectiveChannelScan < mMaxInitialSavedChannelScan)
+                        mNumSelectiveChannelScan++;
                 }
                 public void onFailure(int reason, String description) {
                     mIsScanOngoing = false;
@@ -4783,6 +4814,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
             mWifiLogger.startLogging(DBG);
             mIsRunning = true;
             updateBatteryWorkSource(null);
+            mNumSelectiveChannelScan = 0;
             /**
              * Enable bluetooth coexistence scan mode when bluetooth connection is active.
              * When this mode is on, some of the low-level scan parameters used by the

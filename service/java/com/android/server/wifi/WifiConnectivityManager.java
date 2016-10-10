@@ -179,7 +179,7 @@ public class WifiConnectivityManager {
     // if the start scan command failed. An timer is used here to make it a deferred retry.
     private class RestartSingleScanListener implements AlarmManager.OnAlarmListener {
         private final boolean mIsWatchdogTriggered;
-        private final boolean mIsFullBandScan;
+        private boolean mIsFullBandScan;
 
         RestartSingleScanListener(boolean isWatchdogTriggered, boolean isFullBandScan) {
             mIsWatchdogTriggered = isWatchdogTriggered;
@@ -188,6 +188,9 @@ public class WifiConnectivityManager {
 
         @Override
         public void onAlarm() {
+            if (mStateMachine.getScanCount()  < mStateMachine.getMaxConfiguredScanCount()) {
+                mIsFullBandScan = false;
+            }
             startSingleScan(mIsWatchdogTriggered, mIsFullBandScan);
         }
     }
@@ -316,7 +319,15 @@ public class WifiConnectivityManager {
         @Override
         public void onSuccess() {
             localLog("SingleScanListener onSuccess");
-
+            /* As part of optimizing time for initial scans for
+             * saved profiles, increment the  scan trigger count
+             * upon receiving a success.
+             */
+            int mScanCount = 0;
+            mScanCount = mStateMachine.getScanCount();
+            if (mScanCount < mStateMachine.getMaxConfiguredScanCount()) {
+                mStateMachine.setScanCount(++mScanCount);
+            }
             // reset the count
             mSingleScanRestartCount = 0;
         }
@@ -629,6 +640,19 @@ public class WifiConnectivityManager {
         }
     }
 
+    private boolean  populateFreqList(ScanSettings settings) {
+        Set<Integer> freqs =  mConfigManager.getConfiguredChannelList();
+        if (freqs != null && freqs.size() != 0) {
+            int index = 0;
+            settings.channels = new WifiScanner.ChannelSpec[freqs.size()];
+            for (Integer freq : freqs) {
+                settings.channels[index++] = new WifiScanner.ChannelSpec(freq);
+            }
+            return true;
+        }
+        return false;
+    }
+
     // Helper for setting the channels for connectivity scan when band is unspecified. Returns
     // false if we can't retrieve the info.
     private boolean setScanChannels(ScanSettings settings) {
@@ -697,6 +721,9 @@ public class WifiConnectivityManager {
         }
 
         mLastPeriodicSingleScanTimeStamp = currentTimeStamp;
+        if (mStateMachine.getScanCount()  < mStateMachine.getMaxConfiguredScanCount()) {
+            isFullBandScan = false;
+        }
         startSingleScan(false, isFullBandScan);
         schedulePeriodicScanTimer(mPeriodicSingleScanInterval);
 
@@ -733,7 +760,11 @@ public class WifiConnectivityManager {
 
         ScanSettings settings = new ScanSettings();
         if (!isFullBandScan) {
-            if (!setScanChannels(settings)) {
+            if (mStateMachine.getScanCount()  < mStateMachine.getMaxConfiguredScanCount()) {
+                if (!populateFreqList(settings)) {
+                    isFullBandScan = true;
+                }
+            } else if (!setScanChannels(settings)) {
                 isFullBandScan = true;
             }
         }
