@@ -5502,6 +5502,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                             WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
+                    Intent intent = new Intent(WifiManager.ACTION_AUTH_PASSWORD_WRONG);
+                    mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
                     mWifiLogger.captureBugReportData(WifiLogger.REPORT_REASON_AUTH_FAILURE);
                     mSupplicantStateTracker.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT);
                     if (mTargetNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
