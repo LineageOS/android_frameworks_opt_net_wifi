@@ -794,7 +794,11 @@ class WifiController extends StateMachine {
             switch (msg.what) {
                 case CMD_AIRPLANE_TOGGLED:
                     if (mSettingsStore.isAirplaneModeOn()) {
-                        mWifiStateMachine.setHostApRunning(null, false);
+                        if (mStaAndApConcurrency) {
+                            mSoftApStateMachine.setHostApRunning(null, false);
+                        } else {
+                            mWifiStateMachine.setHostApRunning(null, false);
+                        }
                         mPendingState = mApStaDisabledState;
                     }
                     break;

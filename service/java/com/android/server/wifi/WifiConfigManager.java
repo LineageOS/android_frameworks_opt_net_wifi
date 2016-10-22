@@ -415,6 +415,23 @@ public class WifiConfigManager {
         mAnqpCache.clear(all, DBG);
     }
 
+    public HashSet<Integer> getConfiguredChannelList() {
+    /* Hashset will avoid any duplicate frequency to be added in hashmap */
+        HashSet<Integer> freqs = new HashSet<Integer>();
+        for(WifiConfiguration config : mConfiguredNetworks.valuesForAllUsers()) {
+            if (getScanDetailCache(config) != null) {
+                for(ScanDetail scanDetail : getScanDetailCache(config).values()) {
+                    ScanResult result = scanDetail.getScanResult();
+                    freqs.add(result.frequency);
+                }
+            }
+        }
+        if (freqs.isEmpty())
+            return null;
+        else
+            return freqs;
+    }
+
     void enableVerboseLogging(int verbose) {
         mEnableVerboseLogging.set(verbose);
         if (verbose > 0) {
