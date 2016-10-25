@@ -1,0 +1,67 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ff2e2bb8_760f232e",
+        "filename": "service/java/com/android/server/wifi/WifiNative.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1549,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-10-25T16:03:11Z",
+      "side": 1,
+      "message": "Newline above this.",
+      "revId": "dc7ce794c72f23a9397ee135cfffb2fa860a5d97",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ff2e2bb8_d61c2f6c",
+        "filename": "service/java/com/android/server/wifi/WifiStateMachine.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1796,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-10-25T16:03:11Z",
+      "side": 1,
+      "message": "What do modes 0 and 1 correspond to?",
+      "range": {
+        "startLine": 1796,
+        "startChar": 31,
+        "endLine": 1796,
+        "endChar": 32
+      },
+      "revId": "dc7ce794c72f23a9397ee135cfffb2fa860a5d97",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ff2e2bb8_b619ab7a",
+        "filename": "service/jni/com_android_server_wifi_WifiNative.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 139,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-10-25T16:03:11Z",
+      "side": 1,
+      "message": "Wait, why not make this a jboolean then?",
+      "range": {
+        "startLine": 139,
+        "startChar": 63,
+        "endLine": 139,
+        "endChar": 67
+      },
+      "revId": "dc7ce794c72f23a9397ee135cfffb2fa860a5d97",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
