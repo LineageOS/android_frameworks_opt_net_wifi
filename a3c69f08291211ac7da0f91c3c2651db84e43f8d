@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ff2e2bb8_b6b52b34",
+        "filename": "service/jni/com_android_server_wifi_WifiNative.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 139,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2016-10-25T16:59:59Z",
+      "side": 1,
+      "message": "Can we please do something about this type then? There\u0027s no reason for it to be an int if you are passing it something like 0/1. Alternately define some constants if you\u0027re going to keep the type an int so it\u0027s obvious what the mode corresponds to.",
+      "range": {
+        "startLine": 139,
+        "startChar": 63,
+        "endLine": 139,
+        "endChar": 72
+      },
+      "revId": "a3c69f08291211ac7da0f91c3c2651db84e43f8d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
