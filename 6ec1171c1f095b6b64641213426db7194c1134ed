@@ -1,0 +1,9 @@
+Code-Review+1: David Vandenburgh <davidvandenburgh@linux.com>
+Code-Review+1: Domenic Schaller <schallerdomenic@gmail.com>
+Code-Review+2: Steve Kondik <shade@chemlab.org>
+Verified+1: Steve Kondik <shade@chemlab.org>
+Submitted-by: Steve Kondik <shade@chemlab.org>
+Submitted-at: Wed, 26 Oct 2016 14:12:34 -0700
+Reviewed-on: http://review.cyanogenmod.org/167377
+Project: CyanogenMod/android_frameworks_opt_net_wifi
+Branch: refs/heads/cm-14.1
