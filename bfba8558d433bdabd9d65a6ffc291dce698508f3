@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ff2e2bb8_379bbcc9",
+        "filename": "service/jni/com_android_server_wifi_WifiNative.cpp",
+        "patchSetId": 6
+      },
+      "lineNbr": 2613,
+      "author": {
+        "id": 8005
+      },
+      "writtenOn": "2016-11-04T02:04:37Z",
+      "side": 1,
+      "message": "Think { \"setMode\", should be { \"setApMode\",\n\nWas getting this before: \"art     : Failed to register native method com.android.server.wifi.WifiNative.setMode(Z)Z in /system/framework/wifi-service.jar\"",
+      "revId": "bfba8558d433bdabd9d65a6ffc291dce698508f3",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
