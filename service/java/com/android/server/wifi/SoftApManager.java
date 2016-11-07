@@ -41,6 +41,7 @@ import com.android.server.wifi.util.ApConfigUtil;
 
 import java.util.ArrayList;
 import java.util.Locale;
+import android.os.UserHandle;
 
 /**
  * Manage WiFi in AP mode.
@@ -48,7 +49,6 @@ import java.util.Locale;
  */
 public class SoftApManager {
     private static final String TAG = "SoftApManager";
-    private boolean restartSap = false;
 
     private final Context mContext;
     private final INetworkManagementService mNmService;
@@ -388,15 +388,9 @@ public class SoftApManager {
                         /* Already started, ignore this command. */
                         break;
                     case CMD_STOP:
-                        if (restartSap) {
-                            stopSoftAp();
-                            updateApState(WifiManager.WIFI_AP_STATE_RESTART, 0);
-                            restartSap = false;
-                        } else {
-                            updateApState(WifiManager.WIFI_AP_STATE_DISABLING, 0);
-                            stopSoftAp();
-                            updateApState(WifiManager.WIFI_AP_STATE_DISABLED, 0);
-                        }
+                        updateApState(WifiManager.WIFI_AP_STATE_DISABLING, 0);
+                        stopSoftAp();
+                        updateApState(WifiManager.WIFI_AP_STATE_DISABLED, 0);
                         transitionTo(mIdleState);
                         break;
                     case CMD_TETHER_STATE_CHANGE:
@@ -458,9 +452,9 @@ public class SoftApManager {
                     case CMD_TETHER_STATE_CHANGE:
                         TetherStateChange stateChange = (TetherStateChange) message.obj;
                         if (!isWifiTethered(stateChange.active)) {
-                            Log.e(TAG, "Tether State Change : Restart (Stop and Start) Soft AP");
-                            restartSap = true;
-                            sendMessage(CMD_STOP);
+                            Log.e(TAG, "Tethering reports wifi as untethered!, "
+                                    + "Restart SoftAP");
+                            sendSubSystemRestartBroadcast();
                         }
                         break;
                     case CMD_STOP:
@@ -519,5 +513,11 @@ public class SoftApManager {
                 return HANDLED;
             }
         }
+    }
+
+    private void sendSubSystemRestartBroadcast() {
+        Intent intent = new Intent(WifiManager.WIFI_AP_SUB_SYSTEM_RESTART);
+        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
     }
 }
