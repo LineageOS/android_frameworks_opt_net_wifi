@@ -271,6 +271,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
     private boolean testNetworkDisconnect = false;
 
     private boolean mEnableRssiPolling = false;
+    private boolean mIsRandomMacCleared = false;
     private int mRssiPollToken = 0;
     /* 3 operational states for STA operation: CONNECT_MODE, SCAN_ONLY_MODE, SCAN_ONLY_WIFI_OFF_MODE
     * In CONNECT_MODE, the STA can scan and connect to an access point
@@ -1482,6 +1483,11 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         ouiBytes[2] = (byte) (Integer.parseInt(ouiParts[2], 16) & 0xFF);
 
         logd("Setting OUI to " + oui);
+        return mWifiNative.setScanningMacOui(ouiBytes);
+    }
+    private boolean clearRandomMacOui() {
+        byte[] ouiBytes = new byte[]{0,0,0};
+        logd("Clear random OUI");
         return mWifiNative.setScanningMacOui(ouiBytes);
     }
 
@@ -6284,6 +6290,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     WpsResult wpsResult;
                     switch (wpsInfo.setup) {
                         case WpsInfo.PBC:
+                            clearRandomMacOui();
+                            mIsRandomMacCleared = true;
                             wpsResult = mWifiConfigManager.startWpsPbc(wpsInfo);
                             break;
                         case WpsInfo.KEYPAD:
@@ -7852,6 +7860,10 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         public void exit() {
             mWifiConfigManager.enableAllNetworks();
             mWifiConfigManager.loadConfiguredNetworks();
+            if (mIsRandomMacCleared) {
+                setRandomMacOui();
+                mIsRandomMacCleared = false;
+            }
         }
     }
 
