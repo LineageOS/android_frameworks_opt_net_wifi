@@ -90,7 +90,8 @@ public class WifiConnectivityManager {
     private static final int LOW_RSSI_NETWORK_RETRY_START_DELAY_MS = 20 * 1000; // 20 seconds
     private static final int LOW_RSSI_NETWORK_RETRY_MAX_DELAY_MS = 80 * 1000; // 80 seconds
     // Maximum number of retries when starting a scan failed
-    private static final int MAX_SCAN_RESTART_ALLOWED = 5;
+    @VisibleForTesting
+    public static final int MAX_SCAN_RESTART_ALLOWED = 5;
     // Number of milli-seconds to delay before retry starting
     // a previously failed scan
     private static final int RESTART_SCAN_DELAY_MS = 2 * 1000; // 2 seconds
@@ -132,7 +133,7 @@ public class WifiConnectivityManager {
     private final Handler mEventHandler;
     private final Clock mClock;
     private final LocalLog mLocalLog =
-            new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 1024);
+            new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 128 : 256);
     private final LinkedList<Long> mConnectionAttemptTimeStamps;
 
     private boolean mDbg = false;
@@ -147,6 +148,9 @@ public class WifiConnectivityManager {
     private String mLastConnectionAttemptBssid = null;
     private int mPeriodicSingleScanInterval = PERIODIC_SCAN_INTERVAL_MS;
     private long mLastPeriodicSingleScanTimeStamp = RESET_TIME_STAMP;
+    private boolean mPnoScanStarted = false;
+    private boolean mPeriodicScanTimerSet = false;
+    private boolean mWaitForFullBandScanResults = false;
 
     // PNO settings
     private int mMin5GHzRssi;
@@ -178,11 +182,9 @@ public class WifiConnectivityManager {
     // A single scan will be rescheduled up to MAX_SCAN_RESTART_ALLOWED times
     // if the start scan command failed. An timer is used here to make it a deferred retry.
     private class RestartSingleScanListener implements AlarmManager.OnAlarmListener {
-        private final boolean mIsWatchdogTriggered;
         private boolean mIsFullBandScan;
 
-        RestartSingleScanListener(boolean isWatchdogTriggered, boolean isFullBandScan) {
-            mIsWatchdogTriggered = isWatchdogTriggered;
+        RestartSingleScanListener(boolean isFullBandScan) {
             mIsFullBandScan = isFullBandScan;
         }
 
@@ -191,7 +193,7 @@ public class WifiConnectivityManager {
             if (mStateMachine.getScanCount()  < mStateMachine.getMaxConfiguredScanCount()) {
                 mIsFullBandScan = false;
             }
-            startSingleScan(mIsWatchdogTriggered, mIsFullBandScan);
+            startSingleScan(mIsFullBandScan);
         }
     }
 
@@ -231,6 +233,7 @@ public class WifiConnectivityManager {
                 mStateMachine.isSupplicantTransientState());
         mWifiLastResortWatchdog.updateAvailableNetworks(
                 mQualifiedNetworkSelector.getFilteredScanDetails());
+        mWifiMetrics.countScanResults(scanDetails);
         if (candidate != null) {
             localLog(listenerName + ": QNS candidate-" + candidate.SSID);
             connectToNetwork(candidate);
@@ -252,9 +255,6 @@ public class WifiConnectivityManager {
         @Override
         public void onSuccess() {
             localLog("PeriodicScanListener onSuccess");
-
-            // reset the count
-            mScanRestartCount = 0;
         }
 
         @Override
@@ -283,6 +283,7 @@ public class WifiConnectivityManager {
         public void onResults(WifiScanner.ScanData[] results) {
             handleScanResults(mScanDetails, "PeriodicScanListener");
             clearScanDetails();
+            mScanRestartCount = 0;
         }
 
         @Override
@@ -299,21 +300,99 @@ public class WifiConnectivityManager {
 
     private final PeriodicScanListener mPeriodicScanListener = new PeriodicScanListener();
 
-    // Single scan results listener. A single scan is initiated when
-    // Disconnected/ConnectedPNO scan found a valid network and woke up
-    // the system, or by the watchdog timer.
-    private class SingleScanListener implements WifiScanner.ScanListener {
+    // All single scan results listener.
+    //
+    // Note: This is the listener for all the available single scan results,
+    //       including the ones initiated by WifiConnectivityManager and
+    //       other modules.
+    private class AllSingleScanListener implements WifiScanner.ScanListener {
         private List<ScanDetail> mScanDetails = new ArrayList<ScanDetail>();
-        private final boolean mIsWatchdogTriggered;
-        private final boolean mIsFullBandScan;
-
-        SingleScanListener(boolean isWatchdogTriggered, boolean isFullBandScan) {
-            mIsWatchdogTriggered = isWatchdogTriggered;
-            mIsFullBandScan = isFullBandScan;
-        }
 
         public void clearScanDetails() {
             mScanDetails.clear();
+        }
+
+        @Override
+        public void onSuccess() {
+            localLog("registerScanListener onSuccess");
+        }
+
+        @Override
+        public void onFailure(int reason, String description) {
+            Log.e(TAG, "registerScanListener onFailure:"
+                          + " reason: " + reason
+                          + " description: " + description);
+        }
+
+        @Override
+        public void onPeriodChanged(int periodInMs) {
+        }
+
+        @Override
+        public void onResults(WifiScanner.ScanData[] results) {
+            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+                clearScanDetails();
+                mWaitForFullBandScanResults = false;
+                return;
+            }
+
+            // Full band scan results only.
+            if (mWaitForFullBandScanResults) {
+                if (!results[0].isAllChannelsScanned()) {
+                    localLog("AllSingleScanListener waiting for full band scan results.");
+                    clearScanDetails();
+                    return;
+                } else {
+                    mWaitForFullBandScanResults = false;
+                }
+            }
+
+            boolean wasConnectAttempted = handleScanResults(mScanDetails, "AllSingleScanListener");
+            clearScanDetails();
+
+            // Update metrics to see if a single scan detected a valid network
+            // while PNO scan didn't.
+            // Note: We don't update the background scan metrics any more as it is
+            //       not in use.
+            if (mPnoScanStarted) {
+                if (wasConnectAttempted) {
+                    mWifiMetrics.incrementNumConnectivityWatchdogPnoBad();
+                } else {
+                    mWifiMetrics.incrementNumConnectivityWatchdogPnoGood();
+                }
+            }
+        }
+
+        @Override
+        public void onFullResult(ScanResult fullScanResult) {
+            if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
+                return;
+            }
+
+            if (mDbg) {
+                localLog("AllSingleScanListener onFullResult: "
+                            + fullScanResult.SSID + " capabilities "
+                            + fullScanResult.capabilities);
+            }
+
+            mScanDetails.add(ScanDetailUtil.toScanDetail(fullScanResult));
+        }
+    }
+
+    private final AllSingleScanListener mAllSingleScanListener = new AllSingleScanListener();
+
+    // Single scan results listener. A single scan is initiated when
+    // Disconnected/ConnectedPNO scan found a valid network and woke up
+    // the system, or by the watchdog timer, or to form the timer based
+    // periodic scan.
+    //
+    // Note: This is the listener for the single scans initiated by the
+    //        WifiConnectivityManager.
+    private class SingleScanListener implements WifiScanner.ScanListener {
+        private final boolean mIsFullBandScan;
+
+        SingleScanListener(boolean isFullBandScan) {
+            mIsFullBandScan = isFullBandScan;
         }
 
         @Override
@@ -340,7 +419,7 @@ public class WifiConnectivityManager {
 
             // reschedule the scan
             if (mSingleScanRestartCount++ < MAX_SCAN_RESTART_ALLOWED) {
-                scheduleDelayedSingleScan(mIsWatchdogTriggered, mIsFullBandScan);
+                scheduleDelayedSingleScan(mIsFullBandScan);
             } else {
                 mSingleScanRestartCount = 0;
                 Log.e(TAG, "Failed to successfully start single scan for "
@@ -356,35 +435,10 @@ public class WifiConnectivityManager {
 
         @Override
         public void onResults(WifiScanner.ScanData[] results) {
-            boolean wasConnectAttempted = handleScanResults(mScanDetails, "SingleScanListener");
-            clearScanDetails();
-            // update metrics if this was a watchdog triggered single scan
-            if (mIsWatchdogTriggered) {
-                if (wasConnectAttempted) {
-                    if (mScreenOn) {
-                        mWifiMetrics.incrementNumConnectivityWatchdogBackgroundBad();
-                    } else {
-                        mWifiMetrics.incrementNumConnectivityWatchdogPnoBad();
-                    }
-                } else {
-                    if (mScreenOn) {
-                        mWifiMetrics.incrementNumConnectivityWatchdogBackgroundGood();
-                    } else {
-                        mWifiMetrics.incrementNumConnectivityWatchdogPnoGood();
-                    }
-                }
-            }
         }
 
         @Override
         public void onFullResult(ScanResult fullScanResult) {
-            if (mDbg) {
-                localLog("SingleScanListener onFullResult: "
-                            + fullScanResult.SSID + " capabilities "
-                            + fullScanResult.capabilities);
-            }
-
-            mScanDetails.add(ScanDetailUtil.toScanDetail(fullScanResult));
         }
     }
 
@@ -416,9 +470,6 @@ public class WifiConnectivityManager {
         @Override
         public void onSuccess() {
             localLog("PnoScanListener onSuccess");
-
-            // reset the count
-            mScanRestartCount = 0;
         }
 
         @Override
@@ -465,6 +516,7 @@ public class WifiConnectivityManager {
             boolean wasConnectAttempted;
             wasConnectAttempted = handleScanResults(mScanDetails, "PnoScanListener");
             clearScanDetails();
+            mScanRestartCount = 0;
 
             if (!wasConnectAttempted) {
                 // The scan results were rejected by QNS due to low RSSI values
@@ -489,7 +541,7 @@ public class WifiConnectivityManager {
     public WifiConnectivityManager(Context context, WifiStateMachine stateMachine,
                 WifiScanner scanner, WifiConfigManager configManager, WifiInfo wifiInfo,
                 WifiQualifiedNetworkSelector qualifiedNetworkSelector,
-                WifiInjector wifiInjector, Looper looper) {
+                WifiInjector wifiInjector, Looper looper, boolean enable) {
         mStateMachine = stateMachine;
         mScanner = scanner;
         mConfigManager = configManager;
@@ -521,7 +573,13 @@ public class WifiConnectivityManager {
                     + " secureNetworkBonus " + mSecureBonus
                     + " initialScoreMax " + mInitialScoreMax);
 
-        Log.i(TAG, "ConnectivityScanManager initialized ");
+        // Register for all single scan results
+        mScanner.registerScanListener(mAllSingleScanListener);
+
+        mWifiConnectivityManagerEnabled = enable;
+
+        Log.i(TAG, "ConnectivityScanManager initialized and "
+                + (enable ? "enabled" : "disabled"));
     }
 
     /**
@@ -688,7 +746,7 @@ public class WifiConnectivityManager {
             Log.i(TAG, "start a single scan from watchdogHandler");
 
             scheduleWatchdogTimer();
-            startSingleScan(true, true);
+            startSingleScan(true);
         }
     }
 
@@ -724,7 +782,7 @@ public class WifiConnectivityManager {
         if (mStateMachine.getScanCount()  < mStateMachine.getMaxConfiguredScanCount()) {
             isFullBandScan = false;
         }
-        startSingleScan(false, isFullBandScan);
+        startSingleScan(isFullBandScan);
         schedulePeriodicScanTimer(mPeriodicSingleScanInterval);
 
         // Set up the next scan interval in an exponential backoff fashion.
@@ -751,7 +809,7 @@ public class WifiConnectivityManager {
     }
 
     // Start a single scan
-    private void startSingleScan(boolean isWatchdogTriggered, boolean isFullBandScan) {
+    private void startSingleScan(boolean isFullBandScan) {
         if (!mWifiEnabled || !mWifiConnectivityManagerEnabled) {
             return;
         }
@@ -787,13 +845,19 @@ public class WifiConnectivityManager {
         // mSingleScanListener.clearScanDetails();
         // mScanner.startScan(settings, mSingleScanListener, WIFI_WORK_SOURCE);
         SingleScanListener singleScanListener =
-                new SingleScanListener(isWatchdogTriggered, isFullBandScan);
+                new SingleScanListener(isFullBandScan);
         mScanner.startScan(settings, singleScanListener, WIFI_WORK_SOURCE);
     }
 
     // Start a periodic scan when screen is on
     private void startPeriodicScan(boolean scanImmediately) {
         mPnoScanListener.resetLowRssiNetworkRetryDelay();
+
+        // No connectivity scan if auto roaming is disabled.
+        if (mWifiState == WIFI_STATE_CONNECTED
+                && !mConfigManager.getEnableAutoJoinWhenAssociated()) {
+            return;
+        }
 
         // Due to b/28020168, timer based single scan will be scheduled
         // to provide periodic scan in an exponential backoff fashion.
@@ -852,6 +916,7 @@ public class WifiConnectivityManager {
         mPnoScanListener.clearScanDetails();
 
         mScanner.startDisconnectedPnoScan(scanSettings, pnoSettings, mPnoScanListener);
+        mPnoScanStarted = true;
     }
 
     // Start a ConnectedPNO scan when screen is off and Wifi is connected
@@ -895,6 +960,16 @@ public class WifiConnectivityManager {
         mPnoScanListener.clearScanDetails();
 
         mScanner.startConnectedPnoScan(scanSettings, pnoSettings, mPnoScanListener);
+        mPnoScanStarted = true;
+    }
+
+    // Stop a PNO scan. This includes both DisconnectedPNO and ConnectedPNO scans.
+    private void stopPnoScan() {
+        if (mPnoScanStarted) {
+            mScanner.stopPnoScan(mPnoScanListener);
+        }
+
+        mPnoScanStarted = false;
     }
 
     // Set up watchdog timer
@@ -913,14 +988,23 @@ public class WifiConnectivityManager {
                             mClock.elapsedRealtime() + intervalMs,
                             PERIODIC_SCAN_TIMER_TAG,
                             mPeriodicScanTimerListener, mEventHandler);
+        mPeriodicScanTimerSet = true;
+    }
+
+    // Cancel periodic scan timer
+    private void cancelPeriodicScanTimer() {
+        if (mPeriodicScanTimerSet) {
+            mAlarmManager.cancel(mPeriodicScanTimerListener);
+            mPeriodicScanTimerSet = false;
+        }
     }
 
     // Set up timer to start a delayed single scan after RESTART_SCAN_DELAY_MS
-    private void scheduleDelayedSingleScan(boolean isWatchdogTriggered, boolean isFullBandScan) {
+    private void scheduleDelayedSingleScan(boolean isFullBandScan) {
         localLog("scheduleDelayedSingleScan");
 
         RestartSingleScanListener restartSingleScanListener =
-                new RestartSingleScanListener(isWatchdogTriggered, isFullBandScan);
+                new RestartSingleScanListener(isFullBandScan);
         mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                             mClock.elapsedRealtime() + RESTART_SCAN_DELAY_MS,
                             RESTART_SINGLE_SCAN_TIMER_TAG,
@@ -977,11 +1061,11 @@ public class WifiConnectivityManager {
         // Due to b/28020168, timer based single scan will be scheduled
         // to provide periodic scan in an exponential backoff fashion.
         if (!ENABLE_BACKGROUND_SCAN) {
-            mAlarmManager.cancel(mPeriodicScanTimerListener);
+            cancelPeriodicScanTimer();
         } else {
             mScanner.stopBackgroundScan(mPeriodicScanListener);
         }
-        mScanner.stopPnoScan(mPnoScanListener);
+        stopPnoScan();
         mScanRestartCount = 0;
     }
 
@@ -1004,8 +1088,10 @@ public class WifiConnectivityManager {
 
         mWifiState = state;
 
-        // Kick off the watchdog timer if entering disconnected state
+        // Reset BSSID of last connection attempt and kick off
+        // the watchdog timer if entering disconnected state.
         if (mWifiState == WIFI_STATE_DISCONNECTED) {
+            mLastConnectionAttemptBssid = null;
             scheduleWatchdogTimer();
         }
 
@@ -1042,7 +1128,8 @@ public class WifiConnectivityManager {
     public void forceConnectivityScan() {
         Log.i(TAG, "forceConnectivityScan");
 
-        startConnectivityScan(SCAN_IMMEDIATELY);
+        mWaitForFullBandScanResults = true;
+        startSingleScan(true);
     }
 
     /**
@@ -1085,6 +1172,10 @@ public class WifiConnectivityManager {
         if (!mWifiEnabled) {
             stopConnectivityScan();
             resetLastPeriodicSingleScanTimeStamp();
+            mLastConnectionAttemptBssid = null;
+            mWaitForFullBandScanResults = false;
+        } else if (mWifiConnectivityManagerEnabled) {
+           startConnectivityScan(SCAN_IMMEDIATELY);
         }
     }
 
@@ -1099,6 +1190,10 @@ public class WifiConnectivityManager {
         if (!mWifiConnectivityManagerEnabled) {
             stopConnectivityScan();
             resetLastPeriodicSingleScanTimeStamp();
+            mLastConnectionAttemptBssid = null;
+            mWaitForFullBandScanResults = false;
+        } else if (mWifiEnabled) {
+           startConnectivityScan(SCAN_IMMEDIATELY);
         }
     }
 
