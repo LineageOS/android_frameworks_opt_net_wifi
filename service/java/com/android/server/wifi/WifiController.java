@@ -779,7 +779,9 @@ class WifiController extends StateMachine {
          */
         private State getNextWifiState() {
             if (mSettingsStore.getWifiSavedState() == WifiSettingsStore.WIFI_ENABLED) {
-                return mDeviceActiveState;
+                if (!mStaAndApConcurrency) {
+                    return mDeviceActiveState;
+                }
             }
 
             if (mSettingsStore.isScanAlwaysAvailable()) {

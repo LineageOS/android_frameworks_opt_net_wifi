@@ -136,6 +136,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
     private boolean mIsFactoryResetOn = false;
+    private boolean mSubSystemRestart = false;
     private static final String BOOT_DEFAULT_WIFI_COUNTRY_CODE = "ro.boot.wificountrycode";
 
     final WifiStateMachine mWifiStateMachine;
@@ -1449,7 +1450,38 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                        resetWifiNetworks();
                        mIsFactoryResetOn = false;
                    }
+                   if (mSubSystemRestart) {
+                       setWifiApEnabled(null, true);
+                   }
+               } else if ( state ==  WifiManager.WIFI_STATE_DISABLED) {
+                   if (mSubSystemRestart) {
+                       setWifiEnabled(true);
+                   }
                }
+            } else if (action.equals(WifiManager.WIFI_AP_STATE_CHANGED_ACTION)) {
+               int wifiApState = intent.getIntExtra(WifiManager.EXTRA_WIFI_AP_STATE,
+                        WifiManager.WIFI_AP_STATE_FAILED);
+               if (mSubSystemRestart) {
+                   if (wifiApState == WifiManager.WIFI_AP_STATE_DISABLED) {
+                       if (getWifiEnabledState() == WifiManager.WIFI_STATE_ENABLED) {
+                           setWifiEnabled(false);
+                       } else {
+                           /**
+                            * STA in DISABLED state, hence just restart SAP.
+                            * This should cover two scenarios
+                            * 1. Only SAP ON ( before SSR ) in STA + SAP.
+                            * 2. No STA + SAP.
+                            */
+                           setWifiApEnabled(null, true);
+                           mSubSystemRestart = false;
+                       }
+                   } else if (wifiApState == WifiManager.WIFI_AP_STATE_ENABLED) {
+                       mSubSystemRestart = false;
+                   }
+                }
+
+            } else if (action.equals(WifiManager.WIFI_AP_SUB_SYSTEM_RESTART)) {
+               handleSubSystemRestart();
             }
         }
     };
@@ -1482,7 +1514,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
         intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
         intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
-
+        intentFilter.addAction(WifiManager.WIFI_AP_SUB_SYSTEM_RESTART);
+        intentFilter.addAction(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
         boolean trackEmergencyCallState = mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_wifi_turn_off_during_emergency_call);
         if (trackEmergencyCallState) {
@@ -2297,4 +2330,9 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         }
         return true;
     }
+
+    private void handleSubSystemRestart() {
+       mSubSystemRestart = true;
+       setWifiApEnabled(null, false);
+   }
 }
