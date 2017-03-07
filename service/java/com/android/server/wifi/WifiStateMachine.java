@@ -5646,7 +5646,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     // If we have COMPLETED a connection to a BSSID, start doing
                     // DNAv4/DNAv6 -style probing for on-link neighbors of
                     // interest (e.g. routers); harmless if none are configured.
-                    if (state == SupplicantState.COMPLETED) {
+                    if (isRoaming() && state == SupplicantState.COMPLETED) {
                         mIpManager.confirmConfiguration();
                     }
                     break;
