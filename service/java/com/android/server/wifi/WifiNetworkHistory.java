@@ -347,6 +347,8 @@ public class WifiNetworkHistory {
                 String line = in.readUTF();
                 if (line == null) {
                     break;
+                } else if (line.isEmpty()) {
+                    continue;
                 }
                 int colon = line.indexOf(':');
                 char slash = line.charAt(0);
