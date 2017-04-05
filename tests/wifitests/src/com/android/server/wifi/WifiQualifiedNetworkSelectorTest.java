@@ -23,9 +23,12 @@ import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConf
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import org.mockito.AdditionalAnswers;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.validateMockitoUsage;
@@ -41,11 +44,14 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
 import android.os.SystemClock;
+import android.os.UserManager;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
+import com.android.server.wifi.NetworkUpdateResult;
 
 import com.android.internal.R;
 import com.android.server.wifi.MockAnswerUtil.AnswerWithArguments;
+import com.android.server.wifi.util.ScanDetailUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -79,6 +85,31 @@ public class WifiQualifiedNetworkSelectorTest {
         mWifiQualifiedNetworkSelector.setUserPreferredBand(1);
         mWifiQualifiedNetworkSelector.setWifiNetworkScoreCache(mScoreCache);
         when(mClock.elapsedRealtime()).thenReturn(SystemClock.elapsedRealtime());
+
+        //setup Carrier Networks
+        int eapType = 4;
+
+        WifiConfiguration wifiConfig = new WifiConfiguration();
+        wifiConfig.SSID = "\"TEST1\"";
+        wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+        wifiConfig.enterpriseConfig = new WifiEnterpriseConfig();
+        wifiConfig.enterpriseConfig.setEapMethod(eapType);
+        mCarrierConfiguredNetworks.add(wifiConfig);
+
+        WifiConfiguration wifiConfig1 = new WifiConfiguration();
+        wifiConfig1.SSID = "\"TEST2\"";
+        wifiConfig1.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+        wifiConfig1.enterpriseConfig = new WifiEnterpriseConfig();
+        wifiConfig1.enterpriseConfig.setEapMethod(eapType);
+        mCarrierConfiguredNetworks.add(wifiConfig1);
+
+        WifiConfiguration wifiConfig2 = new WifiConfiguration();
+        wifiConfig2.SSID = "\"TEST3\"";
+        wifiConfig2.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+        wifiConfig2.enterpriseConfig = new WifiEnterpriseConfig();
+        wifiConfig2.enterpriseConfig.setEapMethod(eapType);
+        mCarrierConfiguredNetworks.add(wifiConfig2);
+        mWifiQualifiedNetworkSelector.setCarrierConfiguredNetworks(mCarrierConfiguredNetworks);
     }
 
     @After
@@ -98,6 +129,7 @@ public class WifiQualifiedNetworkSelectorTest {
     private static final String[] DEFAULT_SSIDS = {"\"test1\"", "\"test2\""};
     private static final String[] DEFAULT_BSSIDS = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
     private static final String TAG = "QNS Unit Test";
+    List<WifiConfiguration> mCarrierConfiguredNetworks = new ArrayList<WifiConfiguration>();
 
     private List<ScanDetail> getScanDetails(String[] ssids, String[] bssids, int[] frequencies,
                                             String[] caps, int[] levels) {
@@ -1070,6 +1102,10 @@ public class WifiQualifiedNetworkSelectorTest {
         //first QNS
         mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false, false, scanDetails, false,
                 false, true, false);
+        when(mWifiInfo.getNetworkId()).thenReturn(1);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[1]);
+        when(mWifiInfo.is24GHz()).thenReturn(false);
+        when(mWifiConfigManager.getEnableAutoJoinWhenAssociated()).thenReturn(true);
         //immediately second QNS
         WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(true,
                 false, scanDetails, false, true, false, false);
@@ -1879,10 +1915,12 @@ public class WifiQualifiedNetworkSelectorTest {
 
         // The second scan result is for an ephemeral network which was previously deleted
         when(mWifiConfigManager
-                .wasEphemeralNetworkDeleted(scanDetails.get(0).getScanResult().SSID))
+                .wasEphemeralNetworkDeleted(ScanDetailUtil.createQuotedSSID(
+                        scanDetails.get(0).getScanResult().SSID)))
                 .thenReturn(false);
         when(mWifiConfigManager
-                .wasEphemeralNetworkDeleted(scanDetails.get(1).getScanResult().SSID))
+                .wasEphemeralNetworkDeleted(ScanDetailUtil.createQuotedSSID(
+                        scanDetails.get(1).getScanResult().SSID)))
                 .thenReturn(true);
 
         WifiConfiguration.NetworkSelectionStatus selectionStatus =
@@ -2324,5 +2362,324 @@ public class WifiQualifiedNetworkSelectorTest {
         candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(true,
                 false, scanDetails, false, true, false, false);
         verifySelectedResult(chosenScanResult, candidate);
+    }
+
+    /**
+     * Case #48    no new QNS if current network doesn't show up in the
+     *             scan results.
+     *
+     * In this test. we simulate following scenario:
+     * WifiStateMachine is under connected state and 2.4GHz test1 is connected.
+     * The second scan results contains test2 which is 5GHz but no test1. Skip
+     * QNS to avoid aggressive network switching.
+     *
+     * expected return null
+     */
+    @Test
+    public void noNewQNSCurrentNetworkNotInScanResults() {
+        //Prepare saved network configurations.
+        String[] ssidsConfig = DEFAULT_SSIDS;
+        int[] security = {SECURITY_PSK, SECURITY_PSK};
+        WifiConfiguration[] savedConfigs = generateWifiConfigurations(ssidsConfig, security);
+        prepareConfigStore(savedConfigs);
+        final List<WifiConfiguration> savedNetwork = Arrays.asList(savedConfigs);
+        when(mWifiConfigManager.getSavedNetworks()).thenReturn(savedNetwork);
+
+        //Prepare the first scan results.
+        String[] ssids = {DEFAULT_SSIDS[0]};
+        String[] bssids = {DEFAULT_BSSIDS[0]};
+        int[] frequencies = {2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-78};
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        scanResultLinkConfiguration(savedConfigs, scanDetails);
+
+        //Connect to test1.
+        mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false, false, scanDetails, false,
+                false, true, false);
+
+        when(mWifiInfo.getNetworkId()).thenReturn(1);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
+        when(mWifiInfo.is24GHz()).thenReturn(true);
+        mWifiQualifiedNetworkSelector.setWifiNetworkScoreCache(null);
+        when(mWifiConfigManager.getEnableAutoJoinWhenAssociated()).thenReturn(true);
+        when(mClock.elapsedRealtime()).thenReturn(SystemClock.elapsedRealtime() + 11 * 1000);
+
+        //Prepare the second scan results which doesn't contain test1.
+        ssids[0] = DEFAULT_SSIDS[1];
+        bssids[0] = DEFAULT_BSSIDS[1];
+        frequencies[0] = 5180;
+        caps[0] = "[WPA2-EAP-CCMP][ESS]";
+        levels[0] = WifiQualifiedNetworkSelector.QUALIFIED_RSSI_5G_BAND;
+        scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        scanResultLinkConfiguration(savedConfigs, scanDetails);
+
+        //Skip the second network selection since current connected network is
+        //missing from the scan results.
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                false, scanDetails, false, true, false, false);
+        assertEquals("Expect no network selection", null, candidate);
+    }
+
+    boolean compareCarrierConfigs(WifiConfiguration candidate, WifiConfiguration carrierConfig) {
+        if (!candidate.SSID.equals(carrierConfig.SSID)) {
+            return false;
+        }
+        if (!candidate.ephemeral || carrierConfig.ephemeral) {
+            return false;
+        }
+        if (!candidate.isCarrierNetwork || carrierConfig.isCarrierNetwork) {
+            return false;
+        }
+        if (candidate.enterpriseConfig.getEapMethod() !=
+                carrierConfig.enterpriseConfig.getEapMethod()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Case #49 Between two 2G Carrier networks, choose the one with stronger RSSI value
+     * if other conditions are the same and the RSSI values are not staturated.
+     */
+    @Test
+    public void chooseStrongerRssi2GCarrierNetwork()  {
+
+        String[] ssids = {"TEST1", "TEST2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] frequencies = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-65,-55};
+        int[] security = {SECURITY_PSK, SECURITY_PSK};
+
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
+        when(mWifiConfigManager.updateSavedNetworkWithNewScanDetail(any(ScanDetail.class),
+                any(Boolean.class))).thenReturn(null);
+        when(mWifiConfigManager.saveNetworkAndSetCandidate(any(WifiConfiguration.class),
+                any(ScanResult.class))).then(AdditionalAnswers.returnsFirstArg());
+        when(mWifiConfigManager.getScanResultCandidate(any(WifiConfiguration.class)))
+                .thenReturn(chosenScanResult);
+        when(mWifiConfigManager.getIsCarrierNetworkEnabledByUser()).thenReturn(true);
+
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                false, scanDetails, false, false, true, false);
+        assertTrue(compareCarrierConfigs(candidate, mCarrierConfiguredNetworks.get(1)));
+    }
+
+
+    /**
+     * Case #50 Choose 5G over 2G.
+     */
+    @Test
+    public void choose5GNetworkOver2GNetwork()  {
+
+        String[] ssids = {"TEST1", "TEST2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] frequencies = {2437, 5240};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-65,-55};
+
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
+        when(mWifiConfigManager.updateSavedNetworkWithNewScanDetail(any(ScanDetail.class),
+                any(Boolean.class))).thenReturn(null);
+        when(mWifiConfigManager.saveNetworkAndSetCandidate(any(WifiConfiguration.class),
+                any(ScanResult.class))).then(AdditionalAnswers.returnsFirstArg());
+        when(mWifiConfigManager.getScanResultCandidate(any(WifiConfiguration.class)))
+                .thenReturn(chosenScanResult);
+        when(mWifiConfigManager.getIsCarrierNetworkEnabledByUser()).thenReturn(true);
+
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                false, scanDetails, false, false, true, false);
+        assertTrue(compareCarrierConfigs(candidate, mCarrierConfiguredNetworks.get(1)));
+    }
+
+    /**
+     * Case #51 Stay on same BSSID & SSID.
+     */
+    @Test
+    public void chooseSameNetwork()  {
+
+        String[] ssids = {"TEST1", "TEST2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] frequencies = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-65,-55};
+        int[] security = {SECURITY_PSK, SECURITY_PSK};
+
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        WifiConfiguration[] savedConfigs = generateWifiConfigurations(ssids, security);
+        prepareConfigStore(savedConfigs);
+
+        ScanResult chosenScanResult = scanDetails.get(0).getScanResult();
+        when(mWifiConfigManager.updateSavedNetworkWithNewScanDetail(any(ScanDetail.class),
+                any(Boolean.class))).thenReturn(null);
+        when(mWifiConfigManager.saveNetworkAndSetCandidate(any(WifiConfiguration.class),
+                any(ScanResult.class))).then(AdditionalAnswers.returnsFirstArg());
+        when(mWifiConfigManager.getScanResultCandidate(any(WifiConfiguration.class)))
+                .thenReturn(chosenScanResult);
+        when(mWifiInfo.getNetworkId()).thenReturn(0);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
+        when(mWifiConfigManager.getIsCarrierNetworkEnabledByUser()).thenReturn(true);
+
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                false, scanDetails, false, true, false, false);
+
+        assertTrue(compareCarrierConfigs(candidate, mCarrierConfiguredNetworks.get(0)));
+    }
+
+    /**
+     * Case #52 Test condition where no Carrier networks are defined.
+     */
+    @Test
+    public void testNoCarrierNetworks()  {
+
+        String[] ssids = {"TEST1", "TEST2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] frequencies = {5200, 5240};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        // test2 has slightly stronger RSSI value than test1
+        int[] levels = {-65,-53};
+
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+
+        List<WifiConfiguration> nullCarrierConfiguredNetworks = new ArrayList<WifiConfiguration>();
+        mWifiQualifiedNetworkSelector.setCarrierConfiguredNetworks(nullCarrierConfiguredNetworks);
+        when(mWifiConfigManager.getIsCarrierNetworkEnabledByUser()).thenReturn(true);
+
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                true, scanDetails, false, false, true, false);
+        assertEquals("Expect no network selection", null, candidate);
+    }
+
+    /**
+     * Case #53 Test condition where no Carrier networks are defined.
+     */
+    @Test
+    public void testParseCarrierInfoSuccess()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2|4";
+        wifiArray[1] = "R29vZ2xlLUE=|2|4";
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|4";
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right number of etnries", configList.size(), 3);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Wifi Extra\"");
+        assertEquals("Expect right network", configList.get(1).SSID, "\"Google-A\"");
+        assertEquals("Expect right network", configList.get(2).SSID, "\"Google-Guest\"");
+        assertTrue("Expect right key",
+                configList.get(0).allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
+        assertEquals("Expect right EAP method",
+                configList.get(0).enterpriseConfig.getEapMethod(), 4);
+    }
+
+    /**
+     * Case #54 Test condition where string has non-numerics.
+     */
+    @Test
+    public void testParseCarrierInfoBadEntries1()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2|4";
+        wifiArray[1] = "R29vZ2xlLUE=|2|A"; //Invalid entry. Non-numeric.
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|4";
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right number of etnries", configList.size(), 2);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Wifi Extra\"");
+        assertEquals("Expect right network", configList.get(1).SSID, "\"Google-Guest\"");
+    }
+
+    /**
+     * Case #55 Test condition where the config does not have the right number of entries.
+     */
+    @Test
+    public void testParseCarrierInfoBadEntries2()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2"; //Invalid number of entries
+        wifiArray[1] = "R29vZ2xlLUE=|2|4";
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|4";
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Google-A\"");
+        assertEquals("Expect right network", configList.get(1).SSID, "\"Google-Guest\"");
+    }
+
+    /**
+     * Case #56 Test invalid base-64.
+     */
+    @Test
+    public void testParseCarrierInfoBadBase64()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2|4";
+        wifiArray[1] = "xyz==|2|4"; //Invalid base64
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|4";
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Wifi Extra\"");
+        assertEquals("Expect right network", configList.get(1).SSID, "\"Google-Guest\"");
+    }
+
+    /**
+     * Case #56 Test invalid eap-method
+     */
+    @Test
+    public void testParseCarrierInfoBadEapMethod()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2|4";
+        wifiArray[1] = "R29vZ2xlLUE=|2|4";
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|11"; //Invalid eap-method
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Wifi Extra\"");
+        assertEquals("Expect right network", configList.get(1).SSID, "\"Google-A\"");
+    }
+
+    /**
+     * Case #56 Test invalid key
+     */
+    @Test
+    public void testParseCarrierInfoBadKey()  {
+        String[] wifiArray = new String[3];
+        wifiArray[0] = "V2lmaSBFeHRyYQ==|2|4";
+        wifiArray[1] = "R29vZ2xlLUE=|9|4";  //Invalid key
+        wifiArray[2] = "R29vZ2xlLUd1ZXN0|2|4";
+
+        List<WifiConfiguration> configList =
+                mWifiQualifiedNetworkSelector.parseCarrierSuppliedWifiInfo(wifiArray);
+        assertEquals("Expect right network", configList.get(0).SSID, "\"Wifi Extra\"");
+        assertEquals("Expect right network", configList.get(2).SSID, "\"Google-Guest\"");
+    }
+
+    /**
+     * Case #57 Test condition where no Carrier networks are defined.
+     */
+    @Test
+    public void testCarrierNotEnabledByUser()  {
+
+        String[] ssids = {"TEST1", "TEST2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] frequencies = {2437, 5240};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-65,-55};
+
+        List<ScanDetail> scanDetails = getScanDetails(ssids, bssids, frequencies, caps, levels);
+        ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
+        when(mWifiConfigManager.updateSavedNetworkWithNewScanDetail(any(ScanDetail.class),
+                any(Boolean.class))).thenReturn(null);
+        when(mWifiConfigManager.saveNetworkAndSetCandidate(any(WifiConfiguration.class),
+                any(ScanResult.class))).then(AdditionalAnswers.returnsFirstArg());
+        when(mWifiConfigManager.getScanResultCandidate(any(WifiConfiguration.class)))
+                .thenReturn(chosenScanResult);
+        when(mWifiConfigManager.getIsCarrierNetworkEnabledByUser()).thenReturn(false);
+
+        WifiConfiguration candidate = mWifiQualifiedNetworkSelector.selectQualifiedNetwork(false,
+                false, scanDetails, false, false, true, false);
+        assertEquals("Expect no network selection", null, candidate);
     }
 }
