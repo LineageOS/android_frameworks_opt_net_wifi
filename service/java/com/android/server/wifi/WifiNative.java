@@ -1083,6 +1083,10 @@ public class WifiNative {
         return doBooleanCommand("WPS_CANCEL");
     }
 
+    public boolean cancelWps(String iface) {
+        return doBooleanCommandNative("IFNAME=" + iface + " WPS_CANCEL");
+    }
+
     public boolean setPersistentReconnect(boolean enabled) {
         int value = (enabled == true) ? 1 : 0;
         return doBooleanCommand("SET persistent_reconnect " + value);
