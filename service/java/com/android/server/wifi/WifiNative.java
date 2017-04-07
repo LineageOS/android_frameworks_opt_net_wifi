@@ -579,6 +579,10 @@ public class WifiNative {
         return mSupplicantStaIfaceHal.cancelWps();
     }
 
+    public boolean cancelWps(String iface) {
+        return mSupplicantStaIfaceHal.cancelWps(iface);
+    }
+
     /**
      * Set WPS device name.
      *
