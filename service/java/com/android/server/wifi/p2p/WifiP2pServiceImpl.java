@@ -605,6 +605,13 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         mP2pStateMachine.sendMessage(SET_MIRACAST_MODE, mode);
     }
 
+    /** This is used to provide the information that there is an active autonomous GO and
+      * applications should call create/remove p2p interface accordingly
+      */
+    public boolean isAutonomousGroupOwner() {
+        return mAutonomousGroup;
+    }
+
     @Override
     public void checkConfigureWifiDisplayPermission() {
         if (!getWfdPermission(Binder.getCallingUid())) {
@@ -2253,6 +2260,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.REMOVE_GROUP:
                         if (DBG) logd(getName() + " remove group");
                         if (mWifiNative.p2pGroupRemove(mGroup.getInterface())) {
+                            mAutonomousGroup = false;
                             transitionTo(mOngoingGroupRemovalState);
                             replyToMessage(message, WifiP2pManager.REMOVE_GROUP_SUCCEEDED);
                         } else {
