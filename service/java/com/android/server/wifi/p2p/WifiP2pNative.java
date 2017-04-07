@@ -336,6 +336,10 @@ public class WifiP2pNative {
         return mSupplicantP2pIfaceHal.startWpsPinDisplay(iface, bssid);
     }
 
+    public boolean cancelWps(String iface) {
+        return mSupplicantP2pIfaceHal.cancelWps(iface);
+    }
+
     /**
      * Remove network with provided id.
      *

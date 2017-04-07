@@ -399,6 +399,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.STOP_LISTEN:
                 case WifiP2pManager.SET_CHANNEL:
                 case WifiP2pManager.START_WPS:
+                case WifiP2pManager.CANCEL_WPS:
                 case WifiP2pManager.ADD_LOCAL_SERVICE:
                 case WifiP2pManager.REMOVE_LOCAL_SERVICE:
                 case WifiP2pManager.CLEAR_LOCAL_SERVICES:
@@ -1130,6 +1131,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         replyToMessage(message, WifiP2pManager.START_WPS_FAILED,
                                 WifiP2pManager.BUSY);
                         break;
+                    case WifiP2pManager.CANCEL_WPS:
+                        replyToMessage(message, WifiP2pManager.CANCEL_WPS_FAILED,
+                                WifiP2pManager.BUSY);
+                        break;
                     case WifiP2pManager.GET_HANDOVER_REQUEST:
                     case WifiP2pManager.GET_HANDOVER_SELECT:
                         replyToMessage(message, WifiP2pManager.RESPONSE_GET_HANDOVER_MESSAGE, null);
@@ -1342,6 +1347,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case WifiP2pManager.START_WPS:
                         replyToMessage(message, WifiP2pManager.START_WPS_FAILED,
+                                WifiP2pManager.P2P_UNSUPPORTED);
+                        break;
+                    case WifiP2pManager.CANCEL_WPS:
+                        replyToMessage(message, WifiP2pManager.CANCEL_WPS_FAILED,
                                 WifiP2pManager.P2P_UNSUPPORTED);
                         break;
                     case WifiP2pManager.START_LISTEN:
@@ -2873,6 +2882,13 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         replyToMessage(message, ret ? WifiP2pManager.START_WPS_SUCCEEDED :
                                 WifiP2pManager.START_WPS_FAILED);
+                        break;
+                    case WifiP2pManager.CANCEL_WPS:
+                        if (mWifiNative.cancelWps(mGroup.getInterface())) {
+                            replyToMessage(message, WifiP2pManager.CANCEL_WPS_SUCCEEDED);
+                        } else {
+                            replyToMessage(message, WifiP2pManager.CANCEL_WPS_FAILED);
+                        }
                         break;
                     case WifiP2pManager.CONNECT:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
