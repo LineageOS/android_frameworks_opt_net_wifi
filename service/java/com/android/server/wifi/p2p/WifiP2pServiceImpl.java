@@ -1962,6 +1962,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                                         null);
                                 ret = mWifiNative.p2pGroupAdd(true);
                             }
+                        } else if (netId >= 0) {
+                            ret = mWifiNative.p2pGroupAdd(netId);
                         } else {
                             mWifiP2pMetrics.startConnectionEvent(
                                     P2pConnectionEvent.CONNECTION_LOCAL,
