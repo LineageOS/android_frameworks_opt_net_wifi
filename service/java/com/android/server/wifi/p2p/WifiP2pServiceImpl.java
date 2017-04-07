@@ -207,6 +207,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     // is invoked
     private boolean mAutonomousGroup;
 
+    // Even if creation of the group fails, we need to know if the interface
+    // exists
+    private boolean mAutonomousGroupCreated = false;
+
     // Invitation to join an existing p2p group
     private boolean mJoinExistingGroup;
 
@@ -2264,6 +2268,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 // after a client joins. For autonomous, send now
                 if (mAutonomousGroup) {
                     sendP2pConnectionChangedBroadcast();
+                    mAutonomousGroupCreated = true;
                 }
             }
 
@@ -2361,6 +2366,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.REMOVE_GROUP:
                         if (DBG) logd(getName() + " remove group");
                         if (mWifiNative.p2pGroupRemove(mGroup.getInterface())) {
+                            mAutonomousGroup = false;
+                            mAutonomousGroupCreated = false;
                             transitionTo(mOngoingGroupRemovalState);
                             replyToMessage(message, WifiP2pManager.REMOVE_GROUP_SUCCEEDED);
                         } else {
@@ -3206,6 +3213,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void handleGroupCreationFailure() {
+            mAutonomousGroup = false;
+            mAutonomousGroupCreated = false;
             resetWifiP2pInfo();
             mNetworkInfo.setDetailedState(NetworkInfo.DetailedState.FAILED, null, null);
             sendP2pConnectionChangedBroadcast();
@@ -3227,6 +3236,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void handleGroupRemoved() {
+            mAutonomousGroup = false;
+            mAutonomousGroupCreated = false;
             if (mGroup.isGroupOwner()) {
                 stopDhcpServer(mGroup.getInterface());
             } else {
