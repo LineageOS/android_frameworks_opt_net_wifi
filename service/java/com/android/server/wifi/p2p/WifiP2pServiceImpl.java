@@ -499,6 +499,13 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         mP2pStateMachine.sendMessage(SET_MIRACAST_MODE, mode);
     }
 
+    /** This is used to provide the information that there is an active autonomous GO and
+      * applications should call create/remove p2p interface accordingly
+      */
+    public boolean isAutonomousGroupOwner() {
+        return mAutonomousGroup;
+    }
+
     @Override
     protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         if (mContext.checkCallingOrSelfPermission(android.Manifest.permission.DUMP)
