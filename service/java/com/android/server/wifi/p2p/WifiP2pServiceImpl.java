@@ -1582,8 +1582,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             } else {
                                 ret = mWifiNative.p2pGroupAdd(true);
                             }
-                        } else {
+                        } else if (netId == -1) {
                             ret = mWifiNative.p2pGroupAdd(false);
+                        } else {
+                            ret = mWifiNative.p2pGroupAdd(netId);
                         }
 
                         if (ret) {
