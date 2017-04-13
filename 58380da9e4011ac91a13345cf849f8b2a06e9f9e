@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7a51691d_721d5d73",
+        "filename": "service/java/com/android/server/wifi/WifiNetworkHistory.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 354,
+      "author": {
+        "id": 16023
+      },
+      "writtenOn": "2017-04-13T17:23:58Z",
+      "side": 1,
+      "message": "Problem might be here.\nSince line is empty, there is no char at index 0",
+      "revId": "58380da9e4011ac91a13345cf849f8b2a06e9f9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
