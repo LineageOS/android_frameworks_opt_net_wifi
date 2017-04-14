@@ -16,6 +16,24 @@
       "revId": "58380da9e4011ac91a13345cf849f8b2a06e9f9e",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "7a51691d_3426b217",
+        "filename": "service/java/com/android/server/wifi/WifiNetworkHistory.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 354,
+      "author": {
+        "id": 3671
+      },
+      "writtenOn": "2017-04-14T10:27:03Z",
+      "side": 1,
+      "message": "index 0 will be the first char in the string (assuming the string\u0027s length is greater than 0)",
+      "parentUuid": "7a51691d_721d5d73",
+      "revId": "58380da9e4011ac91a13345cf849f8b2a06e9f9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
