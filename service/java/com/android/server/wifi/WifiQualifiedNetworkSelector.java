@@ -325,8 +325,10 @@ public class WifiQualifiedNetworkSelector {
             return false;
         }
 
+        int currentBand = mWifiInfo.is24GHz() ?
+                 WifiManager.WIFI_FREQUENCY_BAND_2GHZ : WifiManager.WIFI_FREQUENCY_BAND_5GHZ;
         // Current network band must match with user preference selection
-        if (mWifiInfo.is24GHz() && (mUserPreferedBand != WifiManager.WIFI_FREQUENCY_BAND_2GHZ)) {
+        if (currentBand != mUserPreferedBand) {
             localLog("Current band does not match user preference. Start Qualified Network"
                     + " Selection Current band = " + (mWifiInfo.is24GHz() ? "2.4GHz band"
                     : "5GHz band") + "UserPreference band = " + mUserPreferedBand);
