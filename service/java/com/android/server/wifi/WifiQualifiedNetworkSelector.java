@@ -436,11 +436,15 @@ public class WifiQualifiedNetworkSelector {
             WifiConfiguration currentNetwork, boolean sameBssid, boolean sameSelect,
             StringBuffer sbuf) {
 
-        int score = 0;
-        //calculate the RSSI score
-        int rssi = scanResult.level <= mWifiConfigManager.mThresholdSaturatedRssi24.get()
-                ? scanResult.level : mWifiConfigManager.mThresholdSaturatedRssi24.get();
-        score += (rssi + mRssiScoreOffset) * mRssiScoreSlope;
+        // get the band-specific saturation threshold
+        int saturationThreshold = scanResult.is24GHz() ?
+                mWifiConfigManager.mThresholdSaturatedRssi24.get() :
+                mWifiConfigManager.mThresholdSaturatedRssi5.get();
+
+        // calculate the RSSI score, capped by the saturation threshold
+        int rssi = Math.min(scanResult.level, saturationThreshold);
+
+        int score = (rssi + mRssiScoreOffset) * mRssiScoreSlope;
         sbuf.append(" RSSI score: " +  score);
         if (scanResult.is5GHz()) {
             //5GHz band
