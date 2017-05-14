@@ -87,6 +87,7 @@ import android.util.ArraySet;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.PhoneConstants;
@@ -113,6 +114,7 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -159,6 +161,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     // Debug counter tracking scan requests sent by WifiManager
     private int scanRequestCounter = 0;
 
+    /* Tracks the open wi-fi network notification */
+    private WifiNotificationController mNotificationController;
     /* Polls traffic stats and notifies clients */
     private WifiTrafficPoller mTrafficPoller;
     /* Tracks the persisted states for wi-fi & airplane mode */
@@ -189,6 +193,11 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     private WifiPermissionsUtil mWifiPermissionsUtil;
 
     private final ConcurrentHashMap<String, Integer> mIfaceIpModes;
+
+    @GuardedBy("mLocalOnlyHotspotRequests")
+    private final HashMap<Integer, LocalOnlyHotspotRequestInfo> mLocalOnlyHotspotRequests;
+    @GuardedBy("mLocalOnlyHotspotRequests")
+    private WifiConfiguration mLocalOnlyHotspotConfig = null;
 
     /**
      * Handles client connections
@@ -363,6 +372,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mAppOps = (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE);
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
         mCertManager = mWifiInjector.getWifiCertManager();
+        mNotificationController = mWifiInjector.getWifiNotificationController();
         mWifiLockManager = mWifiInjector.getWifiLockManager();
         mWifiMulticastLockManager = mWifiInjector.getWifiMulticastLockManager();
         HandlerThread wifiServiceHandlerThread = mWifiInjector.getWifiServiceHandlerThread();
@@ -381,6 +391,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         updateBackgroundThrottleInterval();
         updateBackgroundThrottlingWhitelist();
         mIfaceIpModes = new ConcurrentHashMap<>();
+        mLocalOnlyHotspotRequests = new HashMap<>();
         enableVerboseLoggingInternal(getVerboseLoggingLevel());
     }
 
@@ -822,6 +833,10 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         return startSoftApInternal(wifiConfig, STATE_TETHERED);
     }
 
+    /**
+     * Internal method to start softap mode. Callers of this method should have already checked
+     * proper permissions beyond the NetworkStack permission.
+     */
     private boolean startSoftApInternal(WifiConfiguration wifiConfig, int mode) {
         mLog.trace("startSoftApInternal uid=% mode=%")
                 .c(Binder.getCallingUid()).c(mode).flush();
@@ -861,6 +876,11 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     private boolean stopSoftApInternal() {
         mLog.trace("stopSoftApInternal uid=%").c(Binder.getCallingUid()).flush();
 
+        // we have an allowed caller - clear local only hotspot if it was enabled
+        synchronized (mLocalOnlyHotspotRequests) {
+            mLocalOnlyHotspotRequests.clear();
+            mLocalOnlyHotspotConfig = null;
+        }
         mWifiController.sendMessage(CMD_SET_AP, 0, 0);
         return true;
     }
@@ -1897,6 +1917,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             pw.println("mScanPending " + mScanPending);
             mWifiController.dump(fd, pw, args);
             mSettingsStore.dump(fd, pw, args);
+            mNotificationController.dump(fd, pw, args);
             mTrafficPoller.dump(fd, pw, args);
             pw.println();
             pw.println("Locks held:");
