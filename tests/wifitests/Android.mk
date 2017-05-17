@@ -49,6 +49,7 @@ jacoco_include := com.android.server.wifi.*
 LOCAL_JACK_COVERAGE_INCLUDE_FILTER := $(jacoco_include)
 LOCAL_JACK_COVERAGE_EXCLUDE_FILTER := $(jacoco_exclude)
 
+LOCAL_DX_FLAGS := --multi-dex
 LOCAL_JACK_FLAGS := --multi-dex native
 
 # wifi-service and services must be included here so that the latest changes
@@ -67,6 +68,7 @@ LOCAL_JAVA_LIBRARIES := \
 	android.test.runner \
 	wifi-service \
 	services \
+	android.hidl.manager-V1.0-java
 
 # These must be explicitly included because they are not normally accessible
 # from apps.

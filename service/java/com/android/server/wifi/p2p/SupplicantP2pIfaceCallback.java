@@ -33,6 +33,7 @@ import com.android.server.wifi.util.NativeUtil;
 import libcore.util.HexEncoding;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -413,11 +414,18 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
                 event.event = WifiP2pProvDiscEvent.PBC_RSP;
                 mMonitor.broadcastP2pProvisionDiscoveryPbcResponse(mInterface, event);
             }
-        } else if ((configMethods & WpsConfigMethods.DISPLAY) != 0) {
+        } else if (!isRequest && (configMethods & WpsConfigMethods.KEYPAD) != 0) {
             event.event = WifiP2pProvDiscEvent.SHOW_PIN;
             event.pin = generatedPin;
             mMonitor.broadcastP2pProvisionDiscoveryShowPin(mInterface, event);
-        } else if ((configMethods & WpsConfigMethods.KEYPAD) != 0) {
+        } else if (!isRequest && (configMethods & WpsConfigMethods.DISPLAY) != 0) {
+            event.event = WifiP2pProvDiscEvent.ENTER_PIN;
+            mMonitor.broadcastP2pProvisionDiscoveryEnterPin(mInterface, event);
+        } else if (isRequest && (configMethods & WpsConfigMethods.DISPLAY) != 0) {
+            event.event = WifiP2pProvDiscEvent.SHOW_PIN;
+            event.pin = generatedPin;
+            mMonitor.broadcastP2pProvisionDiscoveryShowPin(mInterface, event);
+        } else if (isRequest && (configMethods & WpsConfigMethods.KEYPAD) != 0) {
             event.event = WifiP2pProvDiscEvent.ENTER_PIN;
             mMonitor.broadcastP2pProvisionDiscoveryEnterPin(mInterface, event);
         } else {
@@ -455,6 +463,24 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
         mMonitor.broadcastP2pServiceDiscoveryResponse(mInterface, response);
     }
 
+    private WifiP2pDevice createStaEventDevice(byte[] srcAddress, byte[] p2pDeviceAddress) {
+        WifiP2pDevice device = new WifiP2pDevice();
+        byte[] deviceAddressBytes;
+        // Legacy STAs may not supply a p2pDeviceAddress (signaled by a zero'd p2pDeviceAddress)
+        // In this case, use srcAddress instead
+        if (!Arrays.equals(NativeUtil.ANY_MAC_BYTES, p2pDeviceAddress)) {
+            deviceAddressBytes = p2pDeviceAddress;
+        } else {
+            deviceAddressBytes = srcAddress;
+        }
+        try {
+            device.deviceAddress = NativeUtil.macAddressFromByteArray(deviceAddressBytes);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not decode MAC address", e);
+            return null;
+        }
+        return device;
+    }
 
     /**
      * Used to indicate when a STA device is connected to this device.
@@ -464,11 +490,8 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
      */
     public void onStaAuthorized(byte[] srcAddress, byte[] p2pDeviceAddress) {
         logd("STA authorized on " + mInterface);
-        WifiP2pDevice device = new WifiP2pDevice();
-        try {
-            device.deviceAddress = NativeUtil.macAddressFromByteArray(p2pDeviceAddress);
-        } catch (Exception e) {
-            Log.e(TAG, "Could not decode MAC address.", e);
+        WifiP2pDevice device = createStaEventDevice(srcAddress, p2pDeviceAddress);
+        if (device == null) {
             return;
         }
         mMonitor.broadcastP2pApStaConnected(mInterface, device);
@@ -483,11 +506,8 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
      */
     public void onStaDeauthorized(byte[] srcAddress, byte[] p2pDeviceAddress) {
         logd("STA deauthorized on " + mInterface);
-        WifiP2pDevice device = new WifiP2pDevice();
-        try {
-            device.deviceAddress = NativeUtil.macAddressFromByteArray(p2pDeviceAddress);
-        } catch (Exception e) {
-            Log.e(TAG, "Could not decode MAC address.", e);
+        WifiP2pDevice device = createStaEventDevice(srcAddress, p2pDeviceAddress);
+        if (device == null) {
             return;
         }
         mMonitor.broadcastP2pApStaDisconnected(mInterface, device);

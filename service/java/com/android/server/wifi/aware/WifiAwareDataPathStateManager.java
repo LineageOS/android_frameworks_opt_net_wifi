@@ -311,14 +311,14 @@ public class WifiAwareDataPathStateManager {
             if (DBG) {
                 Log.d(TAG, "onDataPathRequest: network request cache = " + mNetworkRequestsCache);
             }
-            mMgr.respondToDataPathRequest(false, ndpId, "", null, null);
+            mMgr.respondToDataPathRequest(false, ndpId, "", null, null, false);
             return null;
         }
 
         if (nnri.state != AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_REQUEST) {
             Log.w(TAG, "onDataPathRequest: request " + networkSpecifier + " is incorrect state="
                     + nnri.state);
-            mMgr.respondToDataPathRequest(false, ndpId, "", null, null);
+            mMgr.respondToDataPathRequest(false, ndpId, "", null, null, false);
             mNetworkRequestsCache.remove(networkSpecifier);
             return null;
         }
@@ -327,7 +327,7 @@ public class WifiAwareDataPathStateManager {
         nnri.ndpId = ndpId;
         nnri.interfaceName = selectInterfaceForRequest(nnri);
         mMgr.respondToDataPathRequest(true, ndpId, nnri.interfaceName, nnri.networkSpecifier.pmk,
-                nnri.networkSpecifier.passphrase);
+                nnri.networkSpecifier.passphrase, nnri.networkSpecifier.isOutOfBand());
 
         return networkSpecifier;
     }
@@ -639,7 +639,7 @@ public class WifiAwareDataPathStateManager {
                 mMgr.initiateDataPathSetup(networkSpecifier, nnri.networkSpecifier.peerId,
                         NanDataPathChannelCfg.REQUEST_CHANNEL_SETUP, selectChannelForRequest(nnri),
                         nnri.peerDiscoveryMac, nnri.interfaceName, nnri.networkSpecifier.pmk,
-                        nnri.networkSpecifier.passphrase);
+                        nnri.networkSpecifier.passphrase, nnri.networkSpecifier.isOutOfBand());
                 nnri.state =
                         AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE;
             } else {

@@ -32,6 +32,8 @@ import android.os.Binder;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
+import android.os.ShellCallback;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -53,6 +55,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
 
     private Context mContext;
     private WifiAwareStateManager mStateManager;
+    private WifiAwareShellCommand mShellCommand;
 
     private final Object mLock = new Object();
     private final SparseArray<IBinder.DeathRecipient> mDeathRecipientsByClientId =
@@ -77,10 +80,12 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
      * Start the service: allocate a new thread (for now), start the handlers of
      * the components of the service.
      */
-    public void start(HandlerThread handlerThread, WifiAwareStateManager awareStateManager) {
+    public void start(HandlerThread handlerThread, WifiAwareStateManager awareStateManager,
+            WifiAwareShellCommand awareShellCommand) {
         Log.i(TAG, "Starting Wi-Fi Aware service");
 
         mStateManager = awareStateManager;
+        mShellCommand = awareShellCommand;
         mStateManager.start(mContext, handlerThread.getLooper());
     }
 
@@ -368,6 +373,12 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
         }
         mStateManager.startRanging(clientId, sessionId, params.mParams, rangingId);
         return rangingId;
+    }
+
+    @Override
+    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
+            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
+        mShellCommand.exec(this, in, out, err, args, callback, resultReceiver);
     }
 
     @Override
