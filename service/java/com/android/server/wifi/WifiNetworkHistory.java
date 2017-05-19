@@ -345,7 +345,7 @@ public class WifiNetworkHistory {
             WifiConfiguration config = null;
             while (true) {
                 String line = in.readUTF();
-                if (line == null) {
+                if (line == null || "".equals(line)) {
                     break;
                 }
                 int colon = line.indexOf(':');
