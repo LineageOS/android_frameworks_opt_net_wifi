@@ -1247,7 +1247,7 @@ public class SupplicantP2pIfaceHal {
                     if ("upnp".equals(data[0])) {
                         int version = 0;
                         try {
-                            version = Integer.parseInt(data[1]);
+                            version = Integer.parseInt(data[1], 16);
                         } catch (NumberFormatException e) {
                             Log.e(TAG, "UPnP Service specification invalid: " + s, e);
                             return false;
@@ -1323,7 +1323,7 @@ public class SupplicantP2pIfaceHal {
                     if ("upnp".equals(data[0])) {
                         int version = 0;
                         try {
-                            version = Integer.parseInt(data[1]);
+                            version = Integer.parseInt(data[1], 16);
                         } catch (NumberFormatException e) {
                             Log.e(TAG, "UPnP Service specification invalid: " + s, e);
                             return false;
@@ -1434,9 +1434,9 @@ public class SupplicantP2pIfaceHal {
                 return false;
             }
 
-            int id = 0;
+            long id = 0;
             try {
-                id = Integer.parseInt(identifier);
+                id = Long.parseLong(identifier);
             } catch (NumberFormatException e) {
                 Log.e(TAG, "Service discovery identifier invalid: " + identifier, e);
                 return false;

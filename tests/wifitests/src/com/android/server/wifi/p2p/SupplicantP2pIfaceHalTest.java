@@ -116,8 +116,8 @@ public class SupplicantP2pIfaceHalTest {
     final String mInvalidBonjourService2 = "bonjour 123456";
     final String mInvalidBonjourService3 = "bonjour invalid_hex 123456";
     final String mInvalidBonjourService4 = "bonjour 123456 invalid_hex";
-    final String mValidUpnpService = "upnp 1 serviceName";
-    final int mValidUpnpServiceVersion = 1;
+    final String mValidUpnpService = "upnp 10 serviceName";
+    final int mValidUpnpServiceVersion = 16;
     final String mValidUpnpServiceName = "serviceName";
     final String mValidBonjourService = "bonjour 30313233 34353637";
     final ArrayList<Byte> mValidBonjourServiceRequest = new ArrayList<Byte>() {{
@@ -1777,18 +1777,21 @@ public class SupplicantP2pIfaceHalTest {
         assertFalse(mDut.isInitializationComplete());
     }
 
+    // Test constant used in cancelServiceDiscovery tests
+    static final String SERVICE_IDENTIFIER_STR = "521918410304";
+    static final long SERVICE_IDENTIFIER_LONG = 521918410304L;
 
     /**
      * Sunny day scenario for cancelServiceDiscovery()
      */
     @Test
     public void testCancelServiceDiscovery_success() throws Exception {
-        when(mISupplicantP2pIfaceMock.cancelServiceDiscovery(1234))
+        when(mISupplicantP2pIfaceMock.cancelServiceDiscovery(SERVICE_IDENTIFIER_LONG))
                 .thenReturn(mStatusSuccess);
         // Default value when service is not initialized.
-        assertFalse(mDut.cancelServiceDiscovery("1234"));
+        assertFalse(mDut.cancelServiceDiscovery(SERVICE_IDENTIFIER_STR));
         executeAndValidateInitializationSequence(false, false, false);
-        assertTrue(mDut.cancelServiceDiscovery("1234"));
+        assertTrue(mDut.cancelServiceDiscovery(SERVICE_IDENTIFIER_STR));
     }
 
     /**
@@ -1811,7 +1814,7 @@ public class SupplicantP2pIfaceHalTest {
         executeAndValidateInitializationSequence(false, false, false);
         when(mISupplicantP2pIfaceMock.cancelServiceDiscovery(anyLong()))
                 .thenReturn(mStatusFailure);
-        assertFalse(mDut.cancelServiceDiscovery("1234"));
+        assertFalse(mDut.cancelServiceDiscovery(SERVICE_IDENTIFIER_STR));
         // Check that service is still alive.
         assertTrue(mDut.isInitializationComplete());
     }
@@ -1824,7 +1827,7 @@ public class SupplicantP2pIfaceHalTest {
         executeAndValidateInitializationSequence(false, false, false);
         when(mISupplicantP2pIfaceMock.cancelServiceDiscovery(anyLong()))
                 .thenThrow(mRemoteException);
-        assertFalse(mDut.cancelServiceDiscovery("1234"));
+        assertFalse(mDut.cancelServiceDiscovery(SERVICE_IDENTIFIER_STR));
         // Check service is dead.
         assertFalse(mDut.isInitializationComplete());
     }

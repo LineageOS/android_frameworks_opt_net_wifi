@@ -16,17 +16,34 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.HOTSPOT_FAILED;
+import static android.net.wifi.WifiManager.HOTSPOT_STARTED;
+import static android.net.wifi.WifiManager.HOTSPOT_STOPPED;
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR;
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_LOCAL_ONLY;
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_TETHERED;
+import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_GENERIC;
 import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_NO_CHANNEL;
 import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED;
+import static android.net.wifi.WifiManager.SAP_START_FAILURE_GENERAL;
+import static android.net.wifi.WifiManager.SAP_START_FAILURE_NO_CHANNEL;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.provider.Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
 import static android.provider.Settings.Secure.LOCATION_MODE_OFF;
 
+import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
 import static com.android.server.wifi.WifiController.CMD_SET_AP;
 import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -35,13 +52,16 @@ import static org.mockito.Mockito.*;
 
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.net.IpConfiguration;
 import android.net.wifi.ScanSettings;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -50,6 +70,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
+import android.os.Process;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -64,6 +85,8 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
@@ -89,14 +112,24 @@ public class WifiServiceImplTest {
     private static final String TEST_PACKAGE_NAME = "TestPackage";
     private static final String SETTINGS_PACKAGE_NAME = "com.android.settings";
     private static final String SYSUI_PACKAGE_NAME = "com.android.systemui";
-    private static final int TEST_UID = 6789;
+    private static final int TEST_PID = 6789;
+    private static final int TEST_PID2 = 9876;
+    private static final String WIFI_IFACE_NAME = "wlan0";
 
     private WifiServiceImpl mWifiServiceImpl;
     private TestLooper mLooper;
     private PowerManager mPowerManager;
     private Handler mHandler;
     private Messenger mAppMessenger;
-    private int mUid;
+    private int mPid;
+    private int mPid2 = Process.myPid();
+
+    final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
+            ArgumentCaptor.forClass(BroadcastReceiver.class);
+    final ArgumentCaptor<IntentFilter> mIntentFilterCaptor =
+            ArgumentCaptor.forClass(IntentFilter.class);
+
+    final ArgumentCaptor<Message> mMessageCaptor = ArgumentCaptor.forClass(Message.class);
 
     @Mock Context mContext;
     @Mock WifiInjector mWifiInjector;
@@ -123,6 +156,7 @@ public class WifiServiceImplTest {
     @Mock IBinder mAppBinder;
     @Mock WifiNotificationController mWifiNotificationController;
     @Mock LocalOnlyHotspotRequestInfo mRequestInfo;
+    @Mock LocalOnlyHotspotRequestInfo mRequestInfo2;
 
     @Spy FakeWifiLog mLog;
 
@@ -182,10 +216,11 @@ public class WifiServiceImplTest {
     @Before public void setUp() {
         MockitoAnnotations.initMocks(this);
         mLooper = new TestLooper();
-        mHandler = new Handler(mLooper.getLooper());
+        mHandler = spy(new Handler(mLooper.getLooper()));
         mAppMessenger = new Messenger(mHandler);
 
-        when(mRequestInfo.getUid()).thenReturn(mUid);
+        when(mRequestInfo.getPid()).thenReturn(mPid);
+        when(mRequestInfo2.getPid()).thenReturn(mPid2);
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
         when(mWifiInjector.getWifiController()).thenReturn(mWifiController);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
@@ -710,19 +745,23 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt(), (ScanSettings) eq(null), any(WorkSource.class));
     }
 
-    /**
-     * Verify that the call to startLocalOnlyHotspot throws the UnsupportedOperationException
-     * until the implementation is complete.
-     */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testStartLocalOnlyHotspotNotSupported() {
+    private void registerLOHSRequestFull() {
         // allow test to proceed without a permission check failure
         when(mSettingsStore.getLocationModeSetting(mContext))
                 .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
-        when(mWifiStateMachine.syncGetWifiApState()).thenReturn(WifiManager.WIFI_AP_STATE_DISABLED);
-        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder);
+        assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
+    }
+
+    /**
+     * Verify that the call to startLocalOnlyHotspot returns REQUEST_REGISTERED when successfully
+     * called.
+     */
+    @Test
+    public void testStartLocalOnlyHotspotSingleRegistrationReturnsRequestRegistered() {
+        registerLOHSRequestFull();
     }
 
     /**
@@ -767,7 +806,8 @@ public class WifiServiceImplTest {
     public void testHotspotDoesNotStartWhenAlreadyTethering() {
         when(mSettingsStore.getLocationModeSetting(mContext))
                             .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
-        when(mWifiStateMachine.syncGetWifiApState()).thenReturn(WifiManager.WIFI_AP_STATE_ENABLED);
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder);
         assertEquals(ERROR_INCOMPATIBLE_MODE, returnCode);
     }
@@ -781,19 +821,63 @@ public class WifiServiceImplTest {
                 .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(true);
-        when(mWifiStateMachine.syncGetWifiApState()).thenReturn(WifiManager.WIFI_AP_STATE_ENABLED);
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder);
         assertEquals(ERROR_TETHERING_DISALLOWED, returnCode);
     }
 
     /**
-     * Verify that the call to stopLocalOnlyHotspot throws the UnsupportedOperationException until
-     * the implementation is complete.
+     * Verify that callers can only have one registered LOHS request.
      */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testStopLocalOnlyHotspotNotSupported() {
+    @Test(expected = IllegalStateException.class)
+    public void testStartLocalOnlyHotspotThrowsExceptionWhenCallerAlreadyRegistered() {
+        registerLOHSRequestFull();
+
+        // now do the second request that will fail
+        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder);
+    }
+
+    /**
+     * Verify that the call to stopLocalOnlyHotspot does not do anything when there aren't any
+     * registered callers.
+     */
+    @Test
+    public void testStopLocalOnlyHotspotDoesNothingWithoutRegisteredRequests() {
         // allow test to proceed without a permission check failure
         mWifiServiceImpl.stopLocalOnlyHotspot();
+        // there is nothing registered, so this shouldn't do anything
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), anyInt(), anyInt());
+    }
+
+    /**
+     * Verify that the call to stopLocalOnlyHotspot does not do anything when one caller unregisters
+     * but there is still an active request
+     */
+    @Test
+    public void testStopLocalOnlyHotspotDoesNothingWithARemainingRegisteredRequest() {
+        // register a request that will remain after the stopLOHS call
+        mWifiServiceImpl.registerLOHSForTest(mPid, mRequestInfo);
+
+        registerLOHSRequestFull();
+
+        // Since we are calling with the same pid, the second register call will be removed
+        mWifiServiceImpl.stopLocalOnlyHotspot();
+        // there is still a valid registered request - do not tear down LOHS
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), anyInt(), anyInt());
+    }
+
+    /**
+     * Verify that the call to stopLocalOnlyHotspot sends a message to WifiController to stop
+     * the softAp when there is one registered caller when that caller is removed.
+     */
+    @Test
+    public void testStopLocalOnlyHotspotTriggersSoftApStopWithOneRegisteredRequest() {
+        registerLOHSRequestFull();
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(WifiConfiguration.class));
+
+        mWifiServiceImpl.stopLocalOnlyHotspot();
+        // there is was only one request registered, we should tear down softap
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
     }
 
     /**
@@ -811,9 +895,6 @@ public class WifiServiceImplTest {
     /**
      * Verify that WifiServiceImpl does not send the stop ap message if there were no
      * pending LOHS requests upon a binder death callback.
-     *
-     * TODO: add a test verifying it is not called when there are remaining requests.
-     * TODO: add a test verifying it is called when the last request was removed.
      */
     @Test
     public void testServiceImplNotCalledWhenBinderDeathTriggeredNoRequests() {
@@ -825,12 +906,537 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that WifiServiceImpl does not send the stop ap message if there are remaining
+     * registered LOHS requests upon a binder death callback.  Additionally verify that softap mode
+     * will be stopped if that remaining request is removed (to verify the binder death properly
+     * cleared the requestor that died).
+     */
+    @Test
+    public void testServiceImplNotCalledWhenBinderDeathTriggeredWithRegisteredRequests() {
+        LocalOnlyRequestorCallback binderDeathCallback =
+                mWifiServiceImpl.new LocalOnlyRequestorCallback();
+
+        // registering a request directly from the test will not trigger a message to start
+        // softap mode
+        mWifiServiceImpl.registerLOHSForTest(mPid, mRequestInfo);
+
+        registerLOHSRequestFull();
+
+        binderDeathCallback.onLocalOnlyHotspotRequestorDeath(mRequestInfo);
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), anyInt(), anyInt());
+
+        reset(mWifiController);
+
+        // now stop as the second request and confirm CMD_SET_AP will be sent to make sure binder
+        // death requestor was removed
+        mWifiServiceImpl.stopLocalOnlyHotspot();
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+    }
+
+    private class IntentFilterMatcher implements ArgumentMatcher<IntentFilter> {
+        @Override
+        public boolean matches(IntentFilter filter) {
+            return filter.hasAction(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
+        }
+    }
+
+    /**
+     * Verify that onFailed is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
+     * broadcast is received.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnSoftApFailureGeneric() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_DISABLED, SAP_START_FAILURE_GENERAL);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_GENERIC, message.arg1);
+    }
+
+    /**
+     * Verify that onFailed is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
+     * broadcast is received with the SAP_START_FAILURE_NO_CHANNEL error.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnSoftApFailureNoChannel() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_DISABLED, SAP_START_FAILURE_NO_CHANNEL);
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_NO_CHANNEL, message.arg1);
+    }
+
+    /**
+     * Verify that onStopped is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
+     * broadcast is received with WIFI_AP_STATE_DISABLING and LOHS was active.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnSoftApDisabling() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        reset(mHandler);
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STOPPED, message.what);
+    }
+
+
+    /**
+     * Verify that onStopped is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
+     * broadcast is received with WIFI_AP_STATE_DISABLED and LOHS was enabled.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnSoftApDisabled() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        reset(mHandler);
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STOPPED, message.what);
+    }
+
+    /**
+     * Verify that no callbacks are called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
+     * broadcast is received and the softap started.
+     */
+    @Test
+    public void testRegisteredCallbacksNotTriggeredOnSoftApStart() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
+
+        mLooper.dispatchAll();
+        verifyNoMoreInteractions(mHandler);
+    }
+
+    /**
+     * Verify that onStopped is called only once for registered LOHS callers when
+     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_DISABLING and
+     * WIFI_AP_STATE_DISABLED when LOHS was enabled.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnlyOnceWhenSoftApDisabling() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        reset(mHandler);
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STOPPED, message.what);
+    }
+
+    /**
+     * Verify that onFailed is called only once for registered LOHS callers when
+     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_FAILED twice.
+     */
+    @Test
+    public void testRegisteredCallbacksTriggeredOnlyOnceWhenSoftApFailsTwice() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        registerLOHSRequestFull();
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_FAILED, ERROR_GENERIC);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_FAILED, ERROR_GENERIC);
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_GENERIC, message.arg1);
+    }
+
+    /**
+     * Verify that onFailed is called for all registered LOHS callers when
+     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_FAILED.
+     */
+    @Test
+    public void testAllRegisteredCallbacksTriggeredWhenSoftApFails() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        // make an additional request for this test
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+
+        registerLOHSRequestFull();
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_FAILED, ERROR_GENERIC);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_FAILED, WIFI_AP_STATE_FAILED, ERROR_GENERIC);
+
+        verify(mRequestInfo).sendHotspotFailedMessage(ERROR_GENERIC);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_GENERIC, message.arg1);
+    }
+
+    /**
+     * Verify that onStopped is called for all registered LOHS callers when
+     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_DISABLED when LOHS was
+     * active.
+     */
+    @Test
+    public void testAllRegisteredCallbacksTriggeredWhenSoftApStops() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mRequestInfo).sendHotspotStartedMessage(any());
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        reset(mHandler);
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
+
+        verify(mRequestInfo).sendHotspotStoppedMessage();
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STOPPED, message.what);
+    }
+
+    /**
+     * Verify that onFailed is called for all registered LOHS callers when
+     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_DISABLED when LOHS was
+     * not active.
+     */
+    @Test
+    public void testAllRegisteredCallbacksTriggeredWhenSoftApStopsLOHSNotActive() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID2, mRequestInfo2);
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
+
+        verify(mRequestInfo).sendHotspotFailedMessage(ERROR_GENERIC);
+        verify(mRequestInfo2).sendHotspotFailedMessage(ERROR_GENERIC);
+    }
+
+    /**
+     * Verify that if we do not have registered LOHS requestors and we receive an update that LOHS
+     * is up and ready for use, we tell WifiController to tear it down.  This can happen if softap
+     * mode fails to come up properly and we get an onFailed message for a tethering call and we
+     * had registered callers for LOHS.
+     */
+    @Test
+    public void testLOHSReadyWithoutRegisteredRequestsStopsSoftApMode() {
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+    }
+
+    /**
+     * Verify that all registered LOHS requestors are notified via a HOTSPOT_STARTED message that
+     * the hotspot is up and ready to use.
+     */
+    @Test
+    public void testRegisteredLocalOnlyHotspotRequestorsGetOnStartedCallbackWhenReady()
+            throws Exception {
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mRequestInfo).sendHotspotStartedMessage(any(WifiConfiguration.class));
+
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        assertNotNull((WifiConfiguration) message.obj);
+    }
+
+    /**
+     * Verify that if a LOHS is already active, a new call to register a request will trigger the
+     * onStarted callback.
+     */
+    @Test
+    public void testRegisterLocalOnlyHotspotRequestAfterAlreadyStartedGetsOnStartedCallback()
+            throws Exception {
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+
+        registerLOHSRequestFull();
+
+        mLooper.dispatchAll();
+
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_STARTED, message.what);
+        // since the first request was registered out of band, the config will be null
+        assertNull((WifiConfiguration) message.obj);
+    }
+
+    /**
+     * Verify that if a LOHS request is active and we receive an update with an ip mode
+     * configuration error, callers are notified via the onFailed callback with the generic
+     * error and are unregistered.
+     */
+    @Test
+    public void testCallOnFailedLocalOnlyHotspotRequestWhenIpConfigFails() throws Exception {
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
+        mLooper.dispatchAll();
+
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_GENERIC, message.arg1);
+
+        // sendMessage should only happen once since the requestor should be unregistered
+        reset(mHandler);
+
+        // send HOTSPOT_FAILED message should only happen once since the requestor should be
+        // unregistered
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
+        mLooper.dispatchAll();
+        verify(mHandler, never()).handleMessage(any(Message.class));
+    }
+
+    /**
+     * Verify that if a LOHS request is active and tethering starts, callers are notified on the
+     * incompatible mode and are unregistered.
+     */
+    @Test
+    public void testCallOnFailedLocalOnlyHotspotRequestWhenTetheringStarts() throws Exception {
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(HOTSPOT_FAILED, message.what);
+        assertEquals(ERROR_INCOMPATIBLE_MODE, message.arg1);
+
+        // sendMessage should only happen once since the requestor should be unregistered
+        reset(mHandler);
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+        verify(mHandler, never()).handleMessage(any(Message.class));
+    }
+
+    /**
+     * Verify that if LOHS is disabled, a new call to register a request will not trigger the
+     * onStopped callback.
+     */
+    @Test
+    public void testRegisterLocalOnlyHotspotRequestWhenStoppedDoesNotGetOnStoppedCallback()
+            throws Exception {
+        registerLOHSRequestFull();
+        mLooper.dispatchAll();
+
+        verify(mHandler, never()).handleMessage(any(Message.class));
+    }
+
+    /**
+     * Verify that if a LOHS was active and then stopped, a new call to register a request will
+     * not trigger the onStarted callback.
+     */
+    @Test
+    public void testRegisterLocalOnlyHotspotRequestAfterStoppedNoOnStartedCallback()
+            throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        // register a request so we don't drop the LOHS interface ip update
+        mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+
+        registerLOHSRequestFull();
+        mLooper.dispatchAll();
+
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
+
+        reset(mHandler);
+
+        // now stop the hotspot
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        assertEquals(HOTSPOT_STOPPED, mMessageCaptor.getValue().what);
+
+        reset(mHandler);
+
+        // now register a new caller - they should not get the onStarted callback
+        Messenger messenger2 = new Messenger(mHandler);
+        IBinder binder2 = mock(IBinder.class);
+
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(messenger2, binder2);
+        assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
+        mLooper.dispatchAll();
+
+        verify(mHandler, never()).handleMessage(any(Message.class));
+    }
+
+    /**
+     * Verify that a call to startWatchLocalOnlyHotspot is only allowed from callers with the
+     * signature only NETWORK_SETTINGS permission.
+     *
+     * This test is expecting the permission check to enforce the permission and throw a
+     * SecurityException for callers without the permission.  This exception should be bubbled up to
+     * the caller of startLocalOnlyHotspot.
+     */
+    @Test(expected = SecurityException.class)
+    public void testStartWatchLocalOnlyHotspotNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                                                eq("WifiService"));
+        mWifiServiceImpl.startWatchLocalOnlyHotspot(mAppMessenger, mAppBinder);
+    }
+
+    /**
      * Verify that the call to startWatchLocalOnlyHotspot throws the UnsupportedOperationException
-     * until the implementation is complete.
+     * when called until the implementation is complete.
      */
     @Test(expected = UnsupportedOperationException.class)
     public void testStartWatchLocalOnlyHotspotNotSupported() {
         mWifiServiceImpl.startWatchLocalOnlyHotspot(mAppMessenger, mAppBinder);
+    }
+
+    /**
+     * Verify that a call to stopWatchLocalOnlyHotspot is only allowed from callers with the
+     * signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testStopWatchLocalOnlyHotspotNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                                                eq("WifiService"));
+        mWifiServiceImpl.stopWatchLocalOnlyHotspot();
     }
 
     /**

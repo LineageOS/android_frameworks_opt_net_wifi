@@ -51,6 +51,9 @@ import com.android.internal.util.WakeupMessage;
 
 import libcore.util.HexEncoding;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.Arrays;
@@ -235,7 +238,8 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      */
     @Override
     public int onCommand(ShellCommand parentShell) {
-        final PrintWriter pw = parentShell.getErrPrintWriter();
+        final PrintWriter pw_err = parentShell.getErrPrintWriter();
+        final PrintWriter pw_out = parentShell.getOutPrintWriter();
 
         String subCmd = parentShell.getNextArgRequired();
         if (VDBG) Log.v(TAG, "onCommand: subCmd='" + subCmd + "'");
@@ -244,7 +248,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
                 String name = parentShell.getNextArgRequired();
                 if (VDBG) Log.v(TAG, "onCommand: name='" + name + "'");
                 if (!mSettableParameters.containsKey(name)) {
-                    pw.println("Unknown parameter name -- '" + name + "'");
+                    pw_err.println("Unknown parameter name -- '" + name + "'");
                     return -1;
                 }
 
@@ -254,14 +258,42 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
                 try {
                     value = Integer.valueOf(valueStr);
                 } catch (NumberFormatException e) {
-                    pw.println("Can't convert value to integer -- '" + valueStr + "'");
+                    pw_err.println("Can't convert value to integer -- '" + valueStr + "'");
                     return -1;
                 }
                 mSettableParameters.put(name, value);
                 return 0;
             }
+            case "get_capabilities": {
+                JSONObject j = new JSONObject();
+                if (mCapabilities != null) {
+                    try {
+                        j.put("maxConcurrentAwareClusters",
+                                mCapabilities.maxConcurrentAwareClusters);
+                        j.put("maxPublishes", mCapabilities.maxPublishes);
+                        j.put("maxSubscribes", mCapabilities.maxSubscribes);
+                        j.put("maxServiceNameLen", mCapabilities.maxServiceNameLen);
+                        j.put("maxMatchFilterLen", mCapabilities.maxMatchFilterLen);
+                        j.put("maxTotalMatchFilterLen", mCapabilities.maxTotalMatchFilterLen);
+                        j.put("maxServiceSpecificInfoLen", mCapabilities.maxServiceSpecificInfoLen);
+                        j.put("maxExtendedServiceSpecificInfoLen",
+                                mCapabilities.maxExtendedServiceSpecificInfoLen);
+                        j.put("maxNdiInterfaces", mCapabilities.maxNdiInterfaces);
+                        j.put("maxNdpSessions", mCapabilities.maxNdpSessions);
+                        j.put("maxAppInfoLen", mCapabilities.maxAppInfoLen);
+                        j.put("maxQueuedTransmitMessages", mCapabilities.maxQueuedTransmitMessages);
+                        j.put("maxSubscribeInterfaceAddresses",
+                                mCapabilities.maxSubscribeInterfaceAddresses);
+                        j.put("supportedCipherSuites", mCapabilities.supportedCipherSuites);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "onCommand: get_capabilities e=" + e);
+                    }
+                }
+                pw_out.println(j.toString());
+                return 0;
+            }
             default:
-                pw.println("Unknown 'wifiaware state_mgr <cmd>'");
+                pw_err.println("Unknown 'wifiaware state_mgr <cmd>'");
         }
 
         return -1;
@@ -274,6 +306,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         pw.println("  " + command);
         pw.println("    set <name> <value>: sets named parameter to value. Names: "
                 + mSettableParameters.keySet());
+        pw.println("    get_capabilities: prints out the capabilities as a JSON string");
     }
 
     /**
@@ -684,7 +717,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      * configuration (new or update) request succeeded.
      */
     public void onSessionConfigSuccessResponse(short transactionId, boolean isPublish,
-            int pubSubId) {
+            byte pubSubId) {
         Message msg = mSm.obtainMessage(MESSAGE_TYPE_RESPONSE);
         msg.arg1 = RESPONSE_TYPE_ON_SESSION_CONFIG_SUCCESS;
         msg.arg2 = transactionId;
@@ -794,7 +827,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
 
     /**
      * Response from firmware to
-     * {@link #respondToDataPathRequest(boolean, int, String, byte[], String)}.
+     * {@link #respondToDataPathRequest(boolean, int, String, byte[], String, boolean)}
      */
     public void onRespondToDataPathSetupRequestResponse(short transactionId, boolean success,
             int reasonOnFailure) {
@@ -1582,7 +1615,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
                     break;
                 }
                 case RESPONSE_TYPE_ON_SESSION_CONFIG_SUCCESS: {
-                    int pubSubId = (Integer) msg.obj;
+                    byte pubSubId = (Byte) msg.obj;
                     boolean isPublish = msg.getData().getBoolean(MESSAGE_BUNDLE_KEY_SESSION_TYPE);
 
                     onSessionConfigSuccessLocal(mCurrentCommand, pubSubId, isPublish);
@@ -2055,7 +2088,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             return false;
         }
 
-        boolean success = mWifiAwareNativeApi.publish(transactionId, 0, publishConfig);
+        boolean success = mWifiAwareNativeApi.publish(transactionId, (byte) 0, publishConfig);
         if (!success) {
             try {
                 callback.onSessionConfigFail(NanStatusType.INTERNAL_FAILURE);
@@ -2103,7 +2136,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             return false;
         }
 
-        boolean success = mWifiAwareNativeApi.subscribe(transactionId, 0, subscribeConfig);
+        boolean success = mWifiAwareNativeApi.subscribe(transactionId, (byte) 0, subscribeConfig);
         if (!success) {
             try {
                 callback.onSessionConfigFail(NanStatusType.INTERNAL_FAILURE);
@@ -2392,7 +2425,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         }
     }
 
-    private void onSessionConfigSuccessLocal(Message completedCommand, int pubSubId,
+    private void onSessionConfigSuccessLocal(Message completedCommand, byte pubSubId,
             boolean isPublish) {
         if (VDBG) {
             Log.v(TAG, "onSessionConfigSuccessLocal: completedCommand=" + completedCommand
