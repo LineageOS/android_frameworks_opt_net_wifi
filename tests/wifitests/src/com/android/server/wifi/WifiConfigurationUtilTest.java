@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static org.junit.Assert.*;
 
 import android.content.pm.UserInfo;
+import android.net.IpConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiScanner;
@@ -41,6 +42,8 @@ public class WifiConfigurationUtilTest {
     static final int CURRENT_USER_ID = 0;
     static final int CURRENT_USER_MANAGED_PROFILE_USER_ID = 10;
     static final int OTHER_USER_ID = 11;
+    static final String TEST_SSID = "test_ssid";
+    static final String TEST_SSID_1 = "test_ssid_1";
     static final List<UserInfo> PROFILES = Arrays.asList(
             new UserInfo(CURRENT_USER_ID, "owner", 0),
             new UserInfo(CURRENT_USER_MANAGED_PROFILE_USER_ID, "managed profile", 0));
@@ -187,6 +190,193 @@ public class WifiConfigurationUtilTest {
     }
 
     /**
+     * Verify that the validate method successfully validates good WifiConfigurations with ASCII
+     * values.
+     */
+    @Test
+    public void testValidatePositiveCases_Ascii() {
+        assertTrue(WifiConfigurationUtil.validate(WifiConfigurationTestUtil.createOpenNetwork()));
+        assertTrue(WifiConfigurationUtil.validate(WifiConfigurationTestUtil.createPskNetwork()));
+        assertTrue(WifiConfigurationUtil.validate(WifiConfigurationTestUtil.createWepNetwork()));
+        assertTrue(WifiConfigurationUtil.validate(WifiConfigurationTestUtil.createEapNetwork()));
+    }
+
+    /**
+     * Verify that the validate method successfully validates good WifiConfigurations with hex
+     * values.
+     */
+    @Test
+    public void testValidatePositiveCases_Hex() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        config.SSID = "abcd1234555a";
+        config.preSharedKey = "abcd1234551512345567889900345566673323456673223445566767432334454"
+                + "abcd12345515123455678899003455666733234566732234455667674323344";
+        assertTrue(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad ssid length.
+     */
+    @Test
+    public void testValidateNegativeCases_BadAsciiSsidLength() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.SSID = "\"abcdfefeeretretyetretetetetetrertertrsreqwrwe\"";
+        assertFalse(WifiConfigurationUtil.validate(config));
+        config.SSID = "\"\"";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed ssid
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedAsciiSsidString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.SSID = "\"ab";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad ssid length.
+     */
+    @Test
+    public void testValidateNegativeCases_BadHexSsidLength() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.SSID = "abcdfe012345632423343543453456464545656464545646454ace34534545634535";
+        assertFalse(WifiConfigurationUtil.validate(config));
+        config.SSID = "";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed ssid
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedHexSsidString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.SSID = "hello";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad psk length.
+     */
+    @Test
+    public void testValidateNegativeCases_BadAsciiPskLength() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.preSharedKey = "\"abcdffeeretretyetreteteteabe34tetrertertrsraaaaaaaaaaa345eqwrweewq"
+                + "weqe\"";
+        assertFalse(WifiConfigurationUtil.validate(config));
+        config.preSharedKey = "\"454\"";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed psk
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedAsciiPskString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.preSharedKey = "\"abcdfefeeretrety";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad psk length.
+     */
+    @Test
+    public void testValidateNegativeCases_BadHexPskLength() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.preSharedKey = "abcd123456788990013453445345465465476546";
+        assertFalse(WifiConfigurationUtil.validate(config));
+        config.preSharedKey = "";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed psk
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedHexPskString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.preSharedKey = "adbdfgretrtyrtyrty";
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad key mgmt values.
+     */
+    @Test
+    public void testValidateNegativeCases_BadKeyMgmtPskEap() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad key mgmt values.
+     */
+    @Test
+    public void testValidateNegativeCases_BadKeyMgmtOpenPsk() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad key mgmt values.
+     */
+    @Test
+    public void testValidateNegativeCases_BadKeyMgmt() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad ipconfiguration
+     * values.
+     */
+    @Test
+    public void testValidateNegativeCases_BadIpconfiguration() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        IpConfiguration ipConfig =
+                WifiConfigurationTestUtil.createStaticIpConfigurationWithPacProxy();
+        config.setIpConfiguration(ipConfig);
+        assertTrue(WifiConfigurationUtil.validate(config));
+
+        ipConfig.setStaticIpConfiguration(null);
+        config.setIpConfiguration(ipConfig);
+        assertFalse(WifiConfigurationUtil.validate(config));
+    }
+
+    /**
      * Verify the instance of {@link android.net.wifi.WifiScanner.PnoSettings.PnoNetwork} created
      * for an open network using {@link WifiConfigurationUtil#createPnoNetwork(
      * WifiConfiguration, int)}.
@@ -237,6 +427,40 @@ public class WifiConfigurationUtilTest {
                         | WifiScanner.PnoSettings.PnoNetwork.FLAG_G_BAND, pnoNetwork.flags);
         assertEquals(WifiScanner.PnoSettings.PnoNetwork.AUTH_CODE_PSK, pnoNetwork.authBitField);
     }
+
+    /**
+     * Verify that WifiConfigurationUtil.isSameNetwork returns true when two WifiConfiguration
+     * objects have the same parameters.
+     */
+    @Test
+    public void testIsSameNetworkReturnsTrueOnSameNetwork() {
+        WifiConfiguration network = WifiConfigurationTestUtil.createPskNetwork(TEST_SSID);
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createPskNetwork(TEST_SSID);
+        assertTrue(WifiConfigurationUtil.isSameNetwork(network, network1));
+    }
+
+    /**
+     * Verify that WifiConfigurationUtil.isSameNetwork returns false when two WifiConfiguration
+     * objects have the different SSIDs.
+     */
+    @Test
+    public void testIsSameNetworkReturnsFalseOnDifferentSSID() {
+        WifiConfiguration network = WifiConfigurationTestUtil.createPskNetwork(TEST_SSID);
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createPskNetwork(TEST_SSID_1);
+        assertFalse(WifiConfigurationUtil.isSameNetwork(network, network1));
+    }
+
+    /**
+     * Verify that WifiConfigurationUtil.isSameNetwork returns false when two WifiConfiguration
+     * objects have the different security type.
+     */
+    @Test
+    public void testIsSameNetworkReturnsFalseOnDifferentSecurityType() {
+        WifiConfiguration network = WifiConfigurationTestUtil.createPskNetwork(TEST_SSID);
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork(TEST_SSID);
+        assertFalse(WifiConfigurationUtil.isSameNetwork(network, network1));
+    }
+
 
     /**
      * Verify the instance of {@link android.net.wifi.WifiScanner.PnoSettings.PnoNetwork} created
