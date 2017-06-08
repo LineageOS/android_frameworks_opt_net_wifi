@@ -16,7 +16,9 @@
 
 package com.android.server.wifi.aware;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.hardware.wifi.V1_0.NanDataPathChannelCfg;
 import android.net.ConnectivityManager;
 import android.net.IpPrefix;
@@ -32,14 +34,17 @@ import android.net.NetworkSpecifier;
 import android.net.RouteInfo;
 import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
+import android.net.wifi.aware.WifiAwareUtils;
 import android.os.IBinder;
 import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.ServiceManager;
+import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.WifiPermissionsWrapper;
 
 import libcore.util.HexEncoding;
 
@@ -85,6 +90,7 @@ public class WifiAwareDataPathStateManager {
             mNetworkRequestsCache = new ArrayMap<>();
     private Context mContext;
     private WifiAwareMetrics mAwareMetrics;
+    private WifiPermissionsWrapper mPermissionsWrapper;
     private Looper mLooper;
     private WifiAwareNetworkFactory mNetworkFactory;
     private INetworkManagementService mNwService;
@@ -97,11 +103,13 @@ public class WifiAwareDataPathStateManager {
      * Initialize the Aware data-path state manager. Specifically register the network factory with
      * connectivity service.
      */
-    public void start(Context context, Looper looper, WifiAwareMetrics awareMetrics) {
+    public void start(Context context, Looper looper, WifiAwareMetrics awareMetrics,
+            WifiPermissionsWrapper permissionsWrapper) {
         if (VDBG) Log.v(TAG, "start");
 
         mContext = context;
         mAwareMetrics = awareMetrics;
+        mPermissionsWrapper = permissionsWrapper;
         mLooper = looper;
 
         mNetworkCapabilitiesFilter.clearAll();
@@ -600,7 +608,8 @@ public class WifiAwareDataPathStateManager {
                 return true;
             }
 
-            nnri = AwareNetworkRequestInformation.processNetworkSpecifier(networkSpecifier, mMgr);
+            nnri = AwareNetworkRequestInformation.processNetworkSpecifier(networkSpecifier, mMgr,
+                    mPermissionsWrapper);
             if (nnri == null) {
                 Log.e(TAG, "WifiAwareNetworkFactory.acceptRequest: request=" + request
                         + " - can't parse network specifier");
@@ -824,7 +833,7 @@ public class WifiAwareDataPathStateManager {
         public WifiAwareNetworkAgent networkAgent;
 
         static AwareNetworkRequestInformation processNetworkSpecifier(WifiAwareNetworkSpecifier ns,
-                WifiAwareStateManager mgr) {
+                WifiAwareStateManager mgr, WifiPermissionsWrapper permissionWrapper) {
             int uid, pubSubId = 0;
             byte[] peerMac = ns.peerMac;
 
@@ -914,6 +923,30 @@ public class WifiAwareDataPathStateManager {
             if (ns.requestorUid != uid) {
                 Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
                         + " -- UID mismatch to clientId's uid=" + uid);
+                return null;
+            }
+
+            // validate permission if PMK is used (SystemApi)
+            if (ns.pmk != null && ns.pmk.length != 0) {
+                if (permissionWrapper.getUidPermission(Manifest.permission.CONNECTIVITY_INTERNAL,
+                        ns.requestorUid) != PackageManager.PERMISSION_GRANTED) {
+                    Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
+                            + " -- UID doesn't have permission to use PMK API");
+                    return null;
+                }
+            }
+
+            // validate passphrase & PMK (if provided)
+            if (!TextUtils.isEmpty(ns.passphrase)) { // non-null indicates usage
+                if (!WifiAwareUtils.validatePassphrase(ns.passphrase)) {
+                    Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
+                            + " -- invalid passphrase length: " + ns.passphrase.length());
+                    return null;
+                }
+            }
+            if (ns.pmk != null && !WifiAwareUtils.validatePmk(ns.pmk)) { // non-null indicates usage
+                Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
+                        + " -- invalid pmk length: " + ns.pmk.length);
                 return null;
             }
 

@@ -74,14 +74,18 @@ public class TestUtil {
      * Send {@link WifiManager#WIFI_AP_STATE_CHANGED} broadcast.
      */
     public static void sendWifiApStateChanged(BroadcastReceiver broadcastReceiver,
-            Context context, int apState, int previousState, int error) {
+            Context context, int apState, int previousState, int error, String ifaceName,
+            int mode) {
         Intent intent = new Intent(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
         intent.putExtra(WifiManager.EXTRA_WIFI_AP_STATE, apState);
         intent.putExtra(WifiManager.EXTRA_PREVIOUS_WIFI_AP_STATE, previousState);
         if (apState == WifiManager.WIFI_AP_STATE_FAILED) {
-            //only set reason number when softAP start failed
+            // only set reason number when softAP start failed
             intent.putExtra(WifiManager.EXTRA_WIFI_AP_FAILURE_REASON, error);
         }
+        intent.putExtra(WifiManager.EXTRA_WIFI_AP_INTERFACE_NAME, ifaceName);
+        intent.putExtra(WifiManager.EXTRA_WIFI_AP_MODE, mode);
+
         broadcastReceiver.onReceive(context, intent);
     }
 
