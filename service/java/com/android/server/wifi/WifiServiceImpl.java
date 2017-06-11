@@ -1159,6 +1159,16 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             return LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED;
         }
 
+        // the app should be in the foreground
+        try {
+            if (!mFrameworkFacade.isAppForeground(uid)) {
+                return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+            }
+        } catch (RemoteException e) {
+            mLog.trace("RemoteException during isAppForeground when calling startLOHS");
+            return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+        }
+
         mLog.trace("startLocalOnlyHotspot uid=% pid=%").c(uid).c(pid).flush();
 
         synchronized (mLocalOnlyHotspotRequests) {
@@ -2511,8 +2521,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      */
     @Override
     public byte[] retrieveBackupData() {
-        enforceReadCredentialPermission();
-        enforceAccessPermission();
+        enforceNetworkSettingsPermission();
         mLog.trace("retrieveBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mWifiStateMachineChannel == null) {
             Slog.e(TAG, "mWifiStateMachineChannel is not initialized");
@@ -2557,7 +2566,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      */
     @Override
     public void restoreBackupData(byte[] data) {
-        enforceChangePermission();
+        enforceNetworkSettingsPermission();
         mLog.trace("restoreBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mWifiStateMachineChannel == null) {
             Slog.e(TAG, "mWifiStateMachineChannel is not initialized");
@@ -2579,7 +2588,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      * @param ipConfigData Raw byte stream of ipconfig.txt
      */
     public void restoreSupplicantBackupData(byte[] supplicantData, byte[] ipConfigData) {
-        enforceChangePermission();
+        enforceNetworkSettingsPermission();
         mLog.trace("restoreSupplicantBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mWifiStateMachineChannel == null) {
             Slog.e(TAG, "mWifiStateMachineChannel is not initialized");

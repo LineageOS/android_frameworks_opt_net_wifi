@@ -74,6 +74,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
+import android.os.RemoteException;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -97,6 +98,7 @@ import org.mockito.Spy;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 
 /**
  * Unit tests for {@link WifiServiceImpl}.
@@ -760,6 +762,9 @@ public class WifiServiceImplTest {
         // allow test to proceed without a permission check failure
         when(mSettingsStore.getLocationModeSetting(mContext))
                 .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        try {
+            when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
+        } catch (RemoteException e) { }
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
@@ -812,12 +817,43 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Only start LocalOnlyHotspot if the caller is the foreground app at the time of the request.
+     */
+    @Test
+    public void testStartLocalOnlyHotspotFailsIfRequestorNotForegroundApp() throws Exception {
+        when(mSettingsStore.getLocationModeSetting(mContext))
+                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
+                TEST_PACKAGE_NAME);
+        assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
+    }
+
+    /**
+     * Do not register the LocalOnlyHotspot request if the caller app cannot be verified as the
+     * foreground app at the time of the request (ie, throws an exception in the check).
+     */
+    @Test
+    public void testStartLocalOnlyHotspotFailsIfForegroundAppCheckThrowsRemoteException()
+            throws Exception {
+        when(mSettingsStore.getLocationModeSetting(mContext))
+                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenThrow(new RemoteException());
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
+                TEST_PACKAGE_NAME);
+        assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
+    }
+
+    /**
      * Only start LocalOnlyHotspot if we are not tethering.
      */
     @Test
-    public void testHotspotDoesNotStartWhenAlreadyTethering() {
+    public void testHotspotDoesNotStartWhenAlreadyTethering() throws Exception {
         when(mSettingsStore.getLocationModeSetting(mContext))
                             .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
@@ -829,9 +865,10 @@ public class WifiServiceImplTest {
      * Only start LocalOnlyHotspot if admin setting does not disallow tethering.
      */
     @Test
-    public void testHotspotDoesNotStartWhenTetheringDisallowed() {
+    public void testHotspotDoesNotStartWhenTetheringDisallowed() throws Exception {
         when(mSettingsStore.getLocationModeSetting(mContext))
                 .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(true);
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
@@ -1502,5 +1539,45 @@ public class WifiServiceImplTest {
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config));
         verify(mWifiStateMachine).syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt());
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#restoreBackupData(byte[])} is only allowed from
+     * callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRestoreBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.restoreBackupData(null);
+        verify(mWifiBackupRestore, never()).retrieveConfigurationsFromBackupData(any(byte[].class));
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#restoreSupplicantBackupData(byte[], byte[])} is
+     * only allowed from callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRestoreSupplicantBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.restoreSupplicantBackupData(null, null);
+        verify(mWifiBackupRestore, never()).retrieveConfigurationsFromSupplicantBackupData(
+                any(byte[].class), any(byte[].class));
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#retrieveBackupData()} is only allowed from
+     * callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRetrieveBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.retrieveBackupData();
+        verify(mWifiBackupRestore, never()).retrieveBackupDataFromConfigurations(any(List.class));
     }
 }
