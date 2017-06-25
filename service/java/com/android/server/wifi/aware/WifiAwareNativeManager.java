@@ -57,6 +57,7 @@ public class WifiAwareNativeManager {
     }
 
     public void start() {
+        mHalDeviceManager.initialize();
         mHalDeviceManager.registerStatusListener(
                 new HalDeviceManager.ManagerStatusListener() {
                     @Override
@@ -171,6 +172,7 @@ public class WifiAwareNativeManager {
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("WifiAwareNativeManager:");
         pw.println("  mWifiNanIface: " + mWifiNanIface);
+        mWifiAwareNativeCallback.dump(fd, pw, args);
         mHalDeviceManager.dump(fd, pw, args);
     }
 }
