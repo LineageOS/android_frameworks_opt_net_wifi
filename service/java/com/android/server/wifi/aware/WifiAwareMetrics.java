@@ -17,6 +17,8 @@
 package com.android.server.wifi.aware;
 
 import android.hardware.wifi.V1_0.NanStatusType;
+import android.net.wifi.aware.WifiAwareNetworkSpecifier;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -27,6 +29,7 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -76,9 +79,9 @@ public class WifiAwareMetrics {
     private SparseIntArray mHistogramAttachDuration = new SparseIntArray();
 
     // discovery data
-    private SparseIntArray mMaxPublishByUid = new SparseIntArray();
-    private SparseIntArray mMaxSubscribeByUid = new SparseIntArray();
-    private SparseIntArray mMaxDiscoveryByUid = new SparseIntArray();
+    private int mMaxPublishInApp = 0;
+    private int mMaxSubscribeInApp = 0;
+    private int mMaxDiscoveryInApp = 0;
     private int mMaxPublishInSystem = 0;
     private int mMaxSubscribeInSystem = 0;
     private int mMaxDiscoveryInSystem = 0;
@@ -87,6 +90,26 @@ public class WifiAwareMetrics {
     private SparseIntArray mHistogramPublishDuration = new SparseIntArray();
     private SparseIntArray mHistogramSubscribeDuration = new SparseIntArray();
     private Set<Integer> mAppsWithDiscoverySessionResourceFailure = new HashSet<>();
+
+    // data-path (NDI/NDP) data
+    private int mMaxNdiInApp = 0;
+    private int mMaxNdpInApp = 0;
+    private int mMaxSecureNdpInApp = 0;
+    private int mMaxNdiInSystem = 0;
+    private int mMaxNdpInSystem = 0;
+    private int mMaxSecureNdpInSystem = 0;
+    private int mMaxNdpPerNdi = 0;
+    private SparseIntArray mInBandNdpStatusData = new SparseIntArray();
+    private SparseIntArray mOutOfBandNdpStatusData = new SparseIntArray();
+
+    private SparseIntArray mNdpCreationTimeDuration = new SparseIntArray();
+    private long mNdpCreationTimeMin = -1;
+    private long mNdpCreationTimeMax = 0;
+    private long mNdpCreationTimeSum = 0;
+    private long mNdpCreationTimeSumSq = 0;
+    private long mNdpCreationTimeNumSamples = 0;
+
+    private SparseIntArray mHistogramNdpDuration = new SparseIntArray();
 
     public WifiAwareMetrics(Clock clock) {
         mClock = clock;
@@ -238,10 +261,10 @@ public class WifiAwareMetrics {
         }
 
         synchronized (mLock) {
-            mMaxPublishByUid.put(uid, Math.max(mMaxPublishByUid.get(uid), numPublishesOnUid));
-            mMaxSubscribeByUid.put(uid, Math.max(mMaxSubscribeByUid.get(uid), numSubscribesOnUid));
-            mMaxDiscoveryByUid.put(uid,
-                    Math.max(mMaxDiscoveryByUid.get(uid), numPublishesOnUid + numSubscribesOnUid));
+            mMaxPublishInApp = Math.max(mMaxPublishInApp, numPublishesOnUid);
+            mMaxSubscribeInApp = Math.max(mMaxSubscribeInApp, numSubscribesOnUid);
+            mMaxDiscoveryInApp = Math.max(mMaxDiscoveryInApp,
+                    numPublishesOnUid + numSubscribesOnUid);
             mMaxPublishInSystem = Math.max(mMaxPublishInSystem, numPublishesInSystem);
             mMaxSubscribeInSystem = Math.max(mMaxSubscribeInSystem, numSubscribesInSystem);
             mMaxDiscoveryInSystem = Math.max(mMaxDiscoveryInSystem,
@@ -275,6 +298,113 @@ public class WifiAwareMetrics {
             addLogValueToHistogram(mClock.getElapsedSinceBootMillis() - creationTime,
                     isPublish ? mHistogramPublishDuration : mHistogramSubscribeDuration,
                     DURATION_LOG_HISTOGRAM);
+        }
+    }
+
+    /**
+     * Record NDP (and by extension NDI) usage - on successful creation of an NDP.
+     */
+    public void recordNdpCreation(int uid,
+            Map<WifiAwareNetworkSpecifier, WifiAwareDataPathStateManager
+                    .AwareNetworkRequestInformation> networkRequestCache) {
+        int numNdpInApp = 0;
+        int numSecureNdpInApp = 0;
+        int numNdpInSystem = 0;
+        int numSecureNdpInSystem = 0;
+
+        Map<String, Integer> ndpPerNdiMap = new HashMap<>();
+        Set<String> ndiInApp = new HashSet<>();
+        Set<String> ndiInSystem = new HashSet<>();
+
+        for (WifiAwareDataPathStateManager.AwareNetworkRequestInformation anri :
+                networkRequestCache.values()) {
+            if (anri.state
+                    != WifiAwareDataPathStateManager.AwareNetworkRequestInformation
+                    .STATE_INITIATOR_CONFIRMED
+                    && anri.state
+                    != WifiAwareDataPathStateManager.AwareNetworkRequestInformation
+                    .STATE_RESPONDER_CONFIRMED) {
+                continue; // only count completed (up-and-running) NDPs
+            }
+
+            boolean sameUid = anri.uid == uid;
+            boolean isSecure = !TextUtils.isEmpty(anri.networkSpecifier.passphrase) || (
+                    anri.networkSpecifier.pmk != null && anri.networkSpecifier.pmk.length != 0);
+
+            // in-app stats
+            if (sameUid) {
+                numNdpInApp += 1;
+                if (isSecure) {
+                    numSecureNdpInApp += 1;
+                }
+
+                ndiInApp.add(anri.interfaceName);
+            }
+
+            // system stats
+            numNdpInSystem += 1;
+            if (isSecure) {
+                numSecureNdpInSystem += 1;
+            }
+
+            // ndp/ndi stats
+            Integer ndpCount = ndpPerNdiMap.get(anri.interfaceName);
+            if (ndpCount == null) {
+                ndpPerNdiMap.put(anri.interfaceName, 1);
+            } else {
+                ndpPerNdiMap.put(anri.interfaceName, ndpCount + 1);
+            }
+
+            // ndi stats
+            ndiInSystem.add(anri.interfaceName);
+        }
+
+        synchronized (mLock) {
+            mMaxNdiInApp = Math.max(mMaxNdiInApp, ndiInApp.size());
+            mMaxNdpInApp = Math.max(mMaxNdpInApp, numNdpInApp);
+            mMaxSecureNdpInApp = Math.max(mMaxSecureNdpInApp, numSecureNdpInApp);
+            mMaxNdiInSystem = Math.max(mMaxNdiInSystem, ndiInSystem.size());
+            mMaxNdpInSystem = Math.max(mMaxNdpInSystem, numNdpInSystem);
+            mMaxSecureNdpInSystem = Math.max(mMaxSecureNdpInSystem, numSecureNdpInSystem);
+            mMaxNdpPerNdi = Math.max(mMaxNdpPerNdi, Collections.max(ndpPerNdiMap.values()));
+        }
+    }
+
+    /**
+     * Record the completion status of NDP negotiation. There are multiple steps in NDP negotiation
+     * a failure on any aborts the process and is recorded. A success on intermediate stages is
+     * not recorded - only the final success.
+     */
+    public void recordNdpStatus(int status, boolean isOutOfBand, long startTimestamp) {
+        synchronized (mLock) {
+            if (isOutOfBand) {
+                mOutOfBandNdpStatusData.put(status, mOutOfBandNdpStatusData.get(status) + 1);
+            } else {
+                mInBandNdpStatusData.put(status, mOutOfBandNdpStatusData.get(status) + 1);
+            }
+
+            if (status == NanStatusType.SUCCESS) {
+                long creationTime = mClock.getElapsedSinceBootMillis() - startTimestamp;
+                addLogValueToHistogram(creationTime, mNdpCreationTimeDuration,
+                        DURATION_LOG_HISTOGRAM);
+                mNdpCreationTimeMin = (mNdpCreationTimeMin == -1) ? creationTime : Math.min(
+                        mNdpCreationTimeMin, creationTime);
+                mNdpCreationTimeMax = Math.max(mNdpCreationTimeMax, creationTime);
+                mNdpCreationTimeSum += creationTime;
+                mNdpCreationTimeSumSq += creationTime * creationTime;
+                mNdpCreationTimeNumSamples += 1;
+            }
+        }
+    }
+
+    /**
+     * Record the duration of the NDP session. The creation time is assumed to be the time at
+     * which a confirm message was received (i.e. the end of the setup negotiation).
+     */
+    public void recordNdpSessionDuration(long creationTime) {
+        synchronized (mLock) {
+            addLogValueToHistogram(mClock.getElapsedSinceBootMillis() - creationTime,
+                    mHistogramNdpDuration, DURATION_LOG_HISTOGRAM);
         }
     }
 
@@ -313,9 +443,9 @@ public class WifiAwareMetrics {
             log.histogramAttachDurationMs = histogramToProtoArray(mHistogramAttachDuration,
                     DURATION_LOG_HISTOGRAM);
 
-            log.maxConcurrentPublishInApp = max(mMaxPublishByUid);
-            log.maxConcurrentSubscribeInApp = max(mMaxSubscribeByUid);
-            log.maxConcurrentDiscoverySessionsInApp = max(mMaxDiscoveryByUid);
+            log.maxConcurrentPublishInApp = mMaxPublishInApp;
+            log.maxConcurrentSubscribeInApp = mMaxSubscribeInApp;
+            log.maxConcurrentDiscoverySessionsInApp = mMaxDiscoveryInApp;
             log.maxConcurrentPublishInSystem = mMaxPublishInSystem;
             log.maxConcurrentSubscribeInSystem = mMaxSubscribeInSystem;
             log.maxConcurrentDiscoverySessionsInSystem = mMaxDiscoveryInSystem;
@@ -327,6 +457,27 @@ public class WifiAwareMetrics {
                     DURATION_LOG_HISTOGRAM);
             log.histogramSubscribeSessionDurationMs = histogramToProtoArray(
                     mHistogramSubscribeDuration, DURATION_LOG_HISTOGRAM);
+
+            log.maxConcurrentNdiInApp = mMaxNdiInApp;
+            log.maxConcurrentNdiInSystem = mMaxNdiInSystem;
+            log.maxConcurrentNdpInApp = mMaxNdpInApp;
+            log.maxConcurrentNdpInSystem = mMaxNdpInSystem;
+            log.maxConcurrentSecureNdpInApp = mMaxSecureNdpInApp;
+            log.maxConcurrentSecureNdpInSystem = mMaxSecureNdpInSystem;
+            log.maxConcurrentNdpPerNdi = mMaxNdpPerNdi;
+            log.histogramRequestNdpStatus = histogramToProtoArray(mInBandNdpStatusData);
+            log.histogramRequestNdpOobStatus = histogramToProtoArray(mOutOfBandNdpStatusData);
+
+            log.histogramNdpCreationTimeMs = histogramToProtoArray(mNdpCreationTimeDuration,
+                    DURATION_LOG_HISTOGRAM);
+            log.ndpCreationTimeMsMin = mNdpCreationTimeMin;
+            log.ndpCreationTimeMsMax = mNdpCreationTimeMax;
+            log.ndpCreationTimeMsSum = mNdpCreationTimeSum;
+            log.ndpCreationTimeMsSumOfSq = mNdpCreationTimeSumSq;
+            log.ndpCreationTimeMsNumSamples = mNdpCreationTimeNumSamples;
+
+            log.histogramNdpSessionDurationMs = histogramToProtoArray(mHistogramNdpDuration,
+                    DURATION_LOG_HISTOGRAM);
         }
         return log;
     }
@@ -355,9 +506,9 @@ public class WifiAwareMetrics {
             mAttachStatusData.clear();
             mHistogramAttachDuration.clear();
 
-            mMaxPublishByUid.clear();
-            mMaxSubscribeByUid.clear();
-            mMaxDiscoveryByUid.clear();
+            mMaxPublishInApp = 0;
+            mMaxSubscribeInApp = 0;
+            mMaxDiscoveryInApp = 0;
             mMaxPublishInSystem = 0;
             mMaxSubscribeInSystem = 0;
             mMaxDiscoveryInSystem = 0;
@@ -366,6 +517,25 @@ public class WifiAwareMetrics {
             mHistogramPublishDuration.clear();
             mHistogramSubscribeDuration.clear();
             mAppsWithDiscoverySessionResourceFailure.clear();
+
+            mMaxNdiInApp = 0;
+            mMaxNdpInApp = 0;
+            mMaxSecureNdpInApp = 0;
+            mMaxNdiInSystem = 0;
+            mMaxNdpInSystem = 0;
+            mMaxSecureNdpInSystem = 0;
+            mMaxNdpPerNdi = 0;
+            mInBandNdpStatusData.clear();
+            mOutOfBandNdpStatusData.clear();
+
+            mNdpCreationTimeDuration.clear();
+            mNdpCreationTimeMin = -1;
+            mNdpCreationTimeMax = 0;
+            mNdpCreationTimeSum = 0;
+            mNdpCreationTimeSumSq = 0;
+            mNdpCreationTimeNumSamples = 0;
+
+            mHistogramNdpDuration.clear();
         }
     }
 
@@ -379,15 +549,26 @@ public class WifiAwareMetrics {
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         synchronized (mLock) {
-            pw.println("mLastEnableUsage:" + mLastEnableUsageMs);
+            pw.println("mLastEnableUsageMs:" + mLastEnableUsageMs);
             pw.println(
-                    "mLastEnableUsageInThisSampleWindow:" + mLastEnableUsageInThisSampleWindowMs);
-            pw.println("mAvailableTime:" + mAvailableTimeMs);
+                    "mLastEnableUsageInThisSampleWindowMs:" + mLastEnableUsageInThisSampleWindowMs);
+            pw.println("mAvailableTimeMs:" + mAvailableTimeMs);
             pw.println("mHistogramAwareAvailableDurationMs:");
             for (int i = 0; i < mHistogramAwareAvailableDurationMs.size(); ++i) {
                 pw.println("  " + mHistogramAwareAvailableDurationMs.keyAt(i) + ": "
                         + mHistogramAwareAvailableDurationMs.valueAt(i));
             }
+
+            pw.println("mLastEnableAwareMs:" + mLastEnableAwareMs);
+            pw.println(
+                    "mLastEnableAwareInThisSampleWindowMs:" + mLastEnableAwareInThisSampleWindowMs);
+            pw.println("mEnabledTimeMs:" + mEnabledTimeMs);
+            pw.println("mHistogramAwareEnabledDurationMs:");
+            for (int i = 0; i < mHistogramAwareEnabledDurationMs.size(); ++i) {
+                pw.println("  " + mHistogramAwareEnabledDurationMs.keyAt(i) + ": "
+                        + mHistogramAwareEnabledDurationMs.valueAt(i));
+            }
+
             pw.println("mAttachDataByUid:");
             for (Map.Entry<Integer, AttachData> ade: mAttachDataByUid.entrySet()) {
                 pw.println("  " + "uid=" + ade.getKey() + ": identity="
@@ -403,6 +584,72 @@ public class WifiAwareMetrics {
             for (int i = 0; i < mHistogramAttachDuration.size(); ++i) {
                 pw.println("  " + mHistogramAttachDuration.keyAt(i) + ": "
                         + mHistogramAttachDuration.valueAt(i));
+            }
+
+            pw.println("mMaxPublishInApp:" + mMaxPublishInApp);
+            pw.println("mMaxSubscribeInApp:" + mMaxSubscribeInApp);
+            pw.println("mMaxDiscoveryInApp:" + mMaxDiscoveryInApp);
+            pw.println("mMaxPublishInSystem:" + mMaxPublishInSystem);
+            pw.println("mMaxSubscribeInSystem:" + mMaxSubscribeInSystem);
+            pw.println("mMaxDiscoveryInSystem:" + mMaxDiscoveryInSystem);
+            pw.println("mPublishStatusData:");
+            for (int i = 0; i < mPublishStatusData.size(); ++i) {
+                pw.println("  " + mPublishStatusData.keyAt(i) + ": "
+                        + mPublishStatusData.valueAt(i));
+            }
+            pw.println("mSubscribeStatusData:");
+            for (int i = 0; i < mSubscribeStatusData.size(); ++i) {
+                pw.println("  " + mSubscribeStatusData.keyAt(i) + ": "
+                        + mSubscribeStatusData.valueAt(i));
+            }
+            pw.println("mHistogramPublishDuration:");
+            for (int i = 0; i < mHistogramPublishDuration.size(); ++i) {
+                pw.println("  " + mHistogramPublishDuration.keyAt(i) + ": "
+                        + mHistogramPublishDuration.valueAt(i));
+            }
+            pw.println("mHistogramSubscribeDuration:");
+            for (int i = 0; i < mHistogramSubscribeDuration.size(); ++i) {
+                pw.println("  " + mHistogramSubscribeDuration.keyAt(i) + ": "
+                        + mHistogramSubscribeDuration.valueAt(i));
+            }
+            pw.println("mAppsWithDiscoverySessionResourceFailure:");
+            for (Integer uid: mAppsWithDiscoverySessionResourceFailure) {
+                pw.println("  " + uid);
+            }
+
+            pw.println("mMaxNdiInApp:" + mMaxNdiInApp);
+            pw.println("mMaxNdpInApp:" + mMaxNdpInApp);
+            pw.println("mMaxSecureNdpInApp:" + mMaxSecureNdpInApp);
+            pw.println("mMaxNdiInSystem:" + mMaxNdiInSystem);
+            pw.println("mMaxNdpInSystem:" + mMaxNdpInSystem);
+            pw.println("mMaxSecureNdpInSystem:" + mMaxSecureNdpInSystem);
+            pw.println("mMaxNdpPerNdi:" + mMaxNdpPerNdi);
+            pw.println("mInBandNdpStatusData:");
+            for (int i = 0; i < mInBandNdpStatusData.size(); ++i) {
+                pw.println("  " + mInBandNdpStatusData.keyAt(i) + ": "
+                        + mInBandNdpStatusData.valueAt(i));
+            }
+            pw.println("mOutOfBandNdpStatusData:");
+            for (int i = 0; i < mOutOfBandNdpStatusData.size(); ++i) {
+                pw.println("  " + mOutOfBandNdpStatusData.keyAt(i) + ": "
+                        + mOutOfBandNdpStatusData.valueAt(i));
+            }
+
+            pw.println("mNdpCreationTimeDuration:");
+            for (int i = 0; i < mNdpCreationTimeDuration.size(); ++i) {
+                pw.println("  " + mNdpCreationTimeDuration.keyAt(i) + ": "
+                        + mNdpCreationTimeDuration.valueAt(i));
+            }
+            pw.println("mNdpCreationTimeMin:" + mNdpCreationTimeMin);
+            pw.println("mNdpCreationTimeMax:" + mNdpCreationTimeMax);
+            pw.println("mNdpCreationTimeSum:" + mNdpCreationTimeSum);
+            pw.println("mNdpCreationTimeSumSq:" + mNdpCreationTimeSumSq);
+            pw.println("mNdpCreationTimeNumSamples:" + mNdpCreationTimeNumSamples);
+
+            pw.println("mHistogramNdpDuration:");
+            for (int i = 0; i < mHistogramNdpDuration.size(); ++i) {
+                pw.println("  " + mHistogramNdpDuration.keyAt(i) + ": "
+                        + mHistogramNdpDuration.valueAt(i));
             }
         }
     }
@@ -578,13 +825,5 @@ public class WifiAwareMetrics {
                 Log.e(TAG, "Unrecognized NanStatusType: " + nanStatusType);
                 return WifiMetricsProto.WifiAwareLog.UNKNOWN_HAL_STATUS;
         }
-    }
-
-    private int max(SparseIntArray array) {
-        int max = 0;
-        for (int i = 0; i < array.size(); ++i) {
-            max = Math.max(max, array.valueAt(i));
-        }
-        return max;
     }
 }
