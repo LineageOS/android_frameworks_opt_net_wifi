@@ -26,6 +26,8 @@ import static android.net.wifi.WifiManager.WIFI_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
+import static android.telephony.TelephonyManager.CALL_STATE_IDLE;
+import static android.telephony.TelephonyManager.CALL_STATE_OFFHOOK;
 
 import android.Manifest;
 import android.app.ActivityManager;
@@ -93,6 +95,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.provider.Settings;
+import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -275,7 +278,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 // the rssi thresholds and raised event to host. This would be eggregious if this
                 // value is invalid
                 mWifiInfo.setRssi(curRssi);
-                updateCapabilities(getCurrentWifiConfiguration());
+                updateCapabilities();
                 int ret = startRssiMonitoringOffload(maxRssi, minRssi);
                 Log.d(TAG, "Re-program RSSI thresholds for " + smToString(reason) +
                         ": [" + minRssi + ", " + maxRssi + "], curRssi=" + curRssi + " ret=" + ret);
@@ -729,6 +732,12 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
     /* Indicates that diagnostics should time out a connection start event. */
     private static final int CMD_DIAGS_CONNECT_TIMEOUT                  = BASE + 252;
 
+    /* Used to set the tx power limit for SAR during the start of a phone call. */
+    private static final int CMD_SET_SAR_TX_POWER_LIMIT                 = BASE + 253;
+
+    /* Used to reset the tx power limit for SAR at end of a phone call. */
+    private static final int CMD_RESET_SAR_TX_POWER_LIMIT               = BASE + 254;
+
     // For message logging.
     private static final Class[] sMessageClasses = {
             AsyncChannel.class, WifiStateMachine.class, DhcpClient.class };
@@ -786,6 +795,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
     private final boolean mEnableLinkDebouncing;
     private final boolean mEnableChipWakeUpWhenAssociated;
     private final boolean mEnableRssiPollWhenAssociated;
+    private final boolean mEnableVoiceCallSarTxPowerLimit;
+    private final int mVoiceCallSarTxPowerLimitInDbm;
 
     int mRunningBeaconCount = 0;
 
@@ -875,6 +886,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
         return mTelephonyManager;
     }
+    private final WifiPhoneStateListener mPhoneStateListener;
 
     private final IBatteryStats mBatteryStats;
 
@@ -928,6 +940,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
 
         mLinkProperties = new LinkProperties();
+        mPhoneStateListener = new WifiPhoneStateListener();
 
         mNetworkInfo.setIsAvailable(false);
         mLastBssid = null;
@@ -1025,6 +1038,10 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 R.integer.config_wifi_framework_wifi_score_bad_rssi_threshold_24GHz);
         mEnableLinkDebouncing = mContext.getResources().getBoolean(
                 R.bool.config_wifi_enable_disconnection_debounce);
+        mEnableVoiceCallSarTxPowerLimit = mContext.getResources().getBoolean(
+                R.bool.config_wifi_framework_enable_voice_call_sar_tx_power_limit);
+        mVoiceCallSarTxPowerLimitInDbm = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_voice_call_sar_tx_power_limit_in_dbm);
         mEnableChipWakeUpWhenAssociated = true;
         mEnableRssiPollWhenAssociated = true;
 
@@ -2954,13 +2971,13 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
              */
             int newSignalLevel = WifiManager.calculateSignalLevel(newRssi, WifiManager.RSSI_LEVELS);
             if (newSignalLevel != mLastSignalLevel) {
-                updateCapabilities(getCurrentWifiConfiguration());
+                updateCapabilities();
                 sendRssiChangeBroadcast(newRssi);
             }
             mLastSignalLevel = newSignalLevel;
         } else {
             mWifiInfo.setRssi(WifiInfo.INVALID_RSSI);
-            updateCapabilities(getCurrentWifiConfiguration());
+            updateCapabilities();
         }
 
         if (newLinkSpeed != null) {
@@ -3234,12 +3251,13 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
 
         mWifiInfo.setBSSID(stateChangeResult.BSSID);
-
         mWifiInfo.setSSID(stateChangeResult.wifiSsid);
-        WifiConfiguration config = getCurrentWifiConfiguration();
+
+        final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
-            // Set meteredHint to true if the access network type of the connecting/connected AP
-            // is a chargeable public network.
+            mWifiInfo.setEphemeral(config.ephemeral);
+
+            // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
                     config.networkId);
             if (scanDetailCache != null) {
@@ -3252,15 +3270,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     }
                 }
             }
-
-            mWifiInfo.setEphemeral(config.ephemeral);
-            if (!mWifiInfo.getMeteredHint()) { // don't override the value if already set.
-                mWifiInfo.setMeteredHint(config.meteredHint);
-            }
         }
 
         mSupplicantStateTracker.sendMessage(Message.obtain(message));
-
         return state;
     }
 
@@ -3450,11 +3462,20 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                         mWifiInfo + " got: " + addr);
             }
         }
+
         mWifiInfo.setInetAddress(addr);
-        if (!mWifiInfo.getMeteredHint()) { // don't override the value if already set.
-            mWifiInfo.setMeteredHint(dhcpResults.hasMeteredHint());
-            updateCapabilities(getCurrentWifiConfiguration());
+
+        final WifiConfiguration config = getCurrentWifiConfiguration();
+        if (config != null) {
+            mWifiInfo.setEphemeral(config.ephemeral);
+
+            // Set meteredHint if DHCP result says network is metered
+            if (dhcpResults.hasMeteredHint()) {
+                mWifiInfo.setMeteredHint(true);
+            }
         }
+
+        updateCapabilities();
     }
 
     private void handleSuccessfulIpConfiguration() {
@@ -3466,7 +3487,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     WifiConfiguration.NetworkSelectionStatus.DISABLED_DHCP_FAILURE);
 
             // Tell the framework whether the newly connected network is trusted or untrusted.
-            updateCapabilities(c);
+            updateCapabilities();
         }
         if (c != null) {
             ScanResult result = getCurrentScanResult();
@@ -3733,6 +3754,34 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
     }
 
+    /**
+     * Register the phone listener if we need to set/reset the power limits during voice call for
+     * this device.
+     */
+    private void maybeRegisterPhoneListener() {
+        if (mEnableVoiceCallSarTxPowerLimit) {
+            logd("Registering for telephony call state changes");
+            getTelephonyManager().listen(
+                    mPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+        }
+    }
+
+    /**
+     * Listen for phone call state events to set/reset TX power limits for SAR requirements.
+     */
+    private class WifiPhoneStateListener extends PhoneStateListener {
+        @Override
+        public void onCallStateChanged(int state, String incomingNumber) {
+            if (mEnableVoiceCallSarTxPowerLimit) {
+                if (state == CALL_STATE_OFFHOOK) {
+                    sendMessage(CMD_SET_SAR_TX_POWER_LIMIT, mVoiceCallSarTxPowerLimitInDbm);
+                } else if (state == CALL_STATE_IDLE) {
+                    sendMessage(CMD_RESET_SAR_TX_POWER_LIMIT);
+                }
+            }
+        }
+    }
+
     /********************************************************
      * HSM states
      *******************************************************/
@@ -3835,6 +3884,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                         Log.e(TAG, "Failed to load from config store");
                     }
                     maybeRegisterNetworkFactory();
+                    maybeRegisterPhoneListener();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
                     handleScreenStateChanged(message.arg1 != 0);
@@ -3884,6 +3934,8 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 case CMD_ROAM_WATCHDOG_TIMER:
                 case CMD_DISABLE_P2P_WATCHDOG_TIMER:
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
+                case CMD_SET_SAR_TX_POWER_LIMIT:
+                case CMD_RESET_SAR_TX_POWER_LIMIT:
                     messageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
                 case CMD_SET_SUSPEND_OPT_ENABLED:
@@ -4272,6 +4324,16 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
              * driver are changed to reduce interference with bluetooth
              */
             mWifiNative.setBluetoothCoexistenceScanMode(mBluetoothConnectionActive);
+            // Check if there is a voice call on-going and set/reset the tx power limit
+            // appropriately.
+            if (mEnableVoiceCallSarTxPowerLimit) {
+                if (getTelephonyManager().isOffhook()) {
+                    sendMessage(CMD_SET_SAR_TX_POWER_LIMIT, mVoiceCallSarTxPowerLimitInDbm);
+                } else if (getTelephonyManager().isIdle()) {
+                    sendMessage(CMD_RESET_SAR_TX_POWER_LIMIT);
+                }
+            }
+
             // initialize network state
             setNetworkDetailedState(DetailedState.DISCONNECTED);
 
@@ -4451,6 +4513,19 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     if (!old_state && allowed && mScreenOn
                             && getCurrentState() == mConnectedState) {
                         mWifiConnectivityManager.forceConnectivityScan();
+                    }
+                    break;
+                case CMD_SET_SAR_TX_POWER_LIMIT:
+                    int txPowerLevelInDbm = message.arg1;
+                    logd("Setting Tx power limit to " + txPowerLevelInDbm);
+                    if (!mWifiNative.setTxPowerLimit(txPowerLevelInDbm)) {
+                        loge("Failed to set TX power limit");
+                    }
+                    break;
+                case CMD_RESET_SAR_TX_POWER_LIMIT:
+                    logd("Resetting Tx power limit");
+                    if (!mWifiNative.resetTxPowerLimit()) {
+                        loge("Failed to reset TX power limit");
                     }
                     break;
                 default:
@@ -5406,28 +5481,28 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         }
     }
 
-    private void updateCapabilities(WifiConfiguration config) {
-        NetworkCapabilities networkCapabilities = new NetworkCapabilities(mDfltNetworkCapabilities);
-        if (config != null) {
-            if (config.ephemeral) {
-                networkCapabilities.removeCapability(
-                        NetworkCapabilities.NET_CAPABILITY_TRUSTED);
-            } else {
-                networkCapabilities.addCapability(
-                        NetworkCapabilities.NET_CAPABILITY_TRUSTED);
-            }
+    private void updateCapabilities() {
+        final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-            networkCapabilities.setSignalStrength(
-                    (mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI)
-                    ? mWifiInfo.getRssi()
-                    : NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
+        if (mWifiInfo != null && !mWifiInfo.isEphemeral()) {
+            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
+        } else {
+            result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
-        if (mWifiInfo.getMeteredHint()) {
-            networkCapabilities.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
+        if (mWifiInfo != null && !mWifiInfo.getMeteredHint()) {
+            result.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
+        } else {
+            result.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         }
 
-        mNetworkAgent.sendNetworkCapabilities(networkCapabilities);
+        if (mWifiInfo != null && mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI) {
+            result.setSignalStrength(mWifiInfo.getRssi());
+        } else {
+            result.setSignalStrength(NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
+        }
+
+        mNetworkAgent.sendNetworkCapabilities(result);
     }
 
     /**
