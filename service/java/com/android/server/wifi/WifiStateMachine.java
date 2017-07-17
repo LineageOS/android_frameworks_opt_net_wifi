@@ -149,6 +149,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * TODO:
  * Deprecate WIFI_STATE_UNKNOWN
@@ -256,6 +258,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         sendMessage(CMD_VENDOR_HAL_HWBINDER_DEATH);
     };
     private boolean mIpReachabilityDisconnectEnabled = true;
+    public NvWifi mNvWifi;
 
     @Override
     public void onRssiThresholdBreached(byte curRssi) {
@@ -945,6 +948,11 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         mWifiDiagnostics = mWifiInjector.makeWifiDiagnostics(mWifiNative);
 
         mWifiInfo = new WifiInfo();
+        if (mNvWifi == null) {
+            // create one instance only
+            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
+                    mWifiConfigManager, mWifiConnectivityManager);
+        }
         mSupplicantStateTracker =
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
 
@@ -4131,6 +4139,12 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                 case CMD_DIAGS_CONNECT_TIMEOUT:
                     mWifiDiagnostics.reportConnectionEvent(
                             (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, message.obj);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    message.arg1 = -1;
+                    replyToMessage(message, message.what, message.arg1);
                     break;
                 case 0:
                     // We want to notice any empty messages (with what == 0) that might crop up.
@@ -4550,6 +4564,12 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
                     if (!mWifiNative.selectTxPowerScenario(txPowerScenario)) {
                         loge("Failed to set TX power scenario");
                     }
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.setProp(message));
+                    break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.getProp(message));
                     break;
                 default:
                     return NOT_HANDLED;
@@ -7345,5 +7365,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
+    }
+
+    public NvWifi getNvWifi() {
+        return mNvWifi;
     }
 }
