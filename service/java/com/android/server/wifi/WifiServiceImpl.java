@@ -140,6 +140,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+
+import vendor.nvidia.hardware.server.wifi.NvWifi;
 
 /**
  * WifiService handles remote WiFi operation requests by implementing
@@ -492,6 +495,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
         mWifiStaStateNotifier = mWifiInjector.getWifiStaStateNotifier();
+        mNvWifi = mWifiStateMachine.getNvWifi();
     }
 
     /**
@@ -3643,5 +3647,93 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiInjector.getClientModeImplHandler().post(
                 () -> mClientModeImpl.updateWifiUsabilityScore(seqNum, score,
                         predictionHorizonSec));
+    }
+
+    final NvWifi mNvWifi;
+    /**
+     * Wifi Application Property
+     */
+    private List<WifiAppPropOnDeath> mAppPropOnDeathList = new ArrayList<WifiAppPropOnDeath>();
+
+    class WifiAppProperty {
+        public String key;
+        public String value;
+
+        WifiAppProperty(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    class WifiAppPropOnDeath implements IBinder.DeathRecipient {
+        IBinder mBinder;
+        HashMap<String, String> mProperties = new HashMap<String, String>();
+
+        WifiAppPropOnDeath(IBinder binder) {
+            mBinder = binder;
+
+            try {
+                mBinder.linkToDeath(this, 0);
+            } catch (RemoteException e) {
+                binderDied();
+            }
+        }
+
+        void addProperty(String key, String value) {
+            mProperties.put(key, value);
+        }
+
+        void removeProperty(String key) {
+            mProperties.remove(key);
+        }
+
+        public void binderDied() {
+            synchronized(mAppPropOnDeathList) {
+                mAppPropOnDeathList.remove(this);
+                for(HashMap.Entry<String, String> entry : mProperties.entrySet()) {
+                    mNvWifi.setAppProperty(entry.getKey(), entry.getValue(), mWifiStateMachineChannel);
+
+                }
+                mProperties = null;
+                mBinder = null;
+            }
+        }
+    }
+
+    public int setAppPropertyOnDeath(IBinder binder, String key, String value) {
+        WifiAppPropOnDeath propOnDeath = null;
+        synchronized(mAppPropOnDeathList) {
+            for(WifiAppPropOnDeath tmpPropOnDeath : mAppPropOnDeathList) {
+                if(tmpPropOnDeath.mBinder == binder) {
+                    propOnDeath = tmpPropOnDeath;
+                    break;
+                }
+            }
+
+            if(value != null) {
+                // add or replace
+                if(propOnDeath == null) {
+                    propOnDeath = new WifiAppPropOnDeath(binder);
+                    mAppPropOnDeathList.add(propOnDeath);
+                }
+                if(propOnDeath != null) {
+                    propOnDeath.addProperty(key, value);
+                }
+            } else {
+                //  delete
+                if(propOnDeath != null) {
+                    propOnDeath.removeProperty(key);
+                }
+            }
+        }
+        return 0;
+    }
+
+    public String getAppProperty(String key) {
+        return mNvWifi.getAppProperty(key, mWifiStateMachineChannel);
+    }
+
+    public int setAppProperty(String key, String value) {
+        return mNvWifi.setAppProperty(key, value, mWifiStateMachineChannel);
     }
 }
