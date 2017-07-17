@@ -124,6 +124,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * Track the state of Wifi connectivity. All event handling is done here,
  * and all changes in connectivity state are initiated here.
@@ -212,6 +214,8 @@ public class WifiStateMachine extends StateMachine {
     private int mLastNetworkId; // The network Id we successfully joined
 
     private boolean mIpReachabilityDisconnectEnabled = true;
+
+    public NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -805,6 +809,11 @@ public class WifiStateMachine extends StateMachine {
         mWifiPermissionsWrapper = mWifiInjector.getWifiPermissionsWrapper();
 
         mWifiInfo = new ExtendedWifiInfo();
+        if (mNvWifi == null) {
+            // create one instance only
+            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
+                    mWifiConfigManager, mWifiConnectivityManager);
+        }
         mSupplicantStateTracker =
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
 
@@ -3543,6 +3552,13 @@ public class WifiStateMachine extends StateMachine {
                     mWifiDiagnostics.reportConnectionEvent(
                             (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
                     break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, message.obj);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    message.arg1 = -1;
+                    replyToMessage(message, message.what, message.arg1);
+                    break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what, new ArrayList<WifiConfiguration>());
                     break;
@@ -4475,6 +4491,12 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER:
                     mWifiConnectivityManager.enable(message.arg1 == 1 ? true : false);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.setProp(message));
+                    break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.getProp(message));
                     break;
                 default:
                     return NOT_HANDLED;
@@ -5913,5 +5935,9 @@ public class WifiStateMachine extends StateMachine {
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
+    }
+
+    public NvWifi getNvWifi() {
+        return mNvWifi;
     }
 }
