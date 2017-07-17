@@ -139,6 +139,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * Implementation of ClientMode.  Event handling for Client mode logic is done here,
  * and all changes in connectivity state are initiated here.
@@ -228,6 +230,8 @@ public class ClientModeImpl extends StateMachine {
     private int mLastNetworkId; // The network Id we successfully joined
 
     private boolean mIpReachabilityDisconnectEnabled = true;
+
+    public NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -816,6 +820,11 @@ public class ClientModeImpl extends StateMachine {
         mWifiDataStall = mWifiInjector.getWifiDataStall();
 
         mWifiInfo = new ExtendedWifiInfo();
+        if (mNvWifi == null) {
+            // create one instance only
+            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
+                    mWifiConfigManager, mWifiConnectivityManager);
+        }
         mSupplicantStateTracker =
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
@@ -3750,6 +3759,15 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS:
                     replyToMessage(message, message.what, new HashMap<>());
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, message.obj);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    message.arg1 = -1;
+                    replyToMessage(message, message.what, message.arg1);
+                    break;
+                case CMD_GET_ALL_MATCHING_CONFIGS:
+                    replyToMessage(message, message.what, new ArrayList<WifiConfiguration>());
                     break;
                 case 0:
                     // We want to notice any empty messages (with what == 0) that might crop up.
@@ -4660,6 +4678,12 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER:
                     mWifiConnectivityManager.enable(message.arg1 == 1 ? true : false);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.setProp(message));
+                    break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.getProp(message));
                     break;
                 default:
                     handleStatus = NOT_HANDLED;
@@ -6446,5 +6470,9 @@ public class ClientModeImpl extends StateMachine {
     public void probeLink(WifiNative.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
+    }
+
+    public NvWifi getNvWifi() {
+        return mNvWifi;
     }
 }
