@@ -154,6 +154,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * Implementation of ClientMode.  Event handling for Client mode logic is done here,
  * and all changes in connectivity state are initiated here.
@@ -256,6 +258,8 @@ public class ClientModeImpl extends StateMachine {
     private String mLastSimBasedConnectionCarrierName;
 
     private boolean mIpReachabilityDisconnectEnabled = true;
+
+    public NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -793,6 +797,11 @@ public class ClientModeImpl extends StateMachine {
         mWifiDataStall = mWifiInjector.getWifiDataStall();
 
         mWifiInfo = new ExtendedWifiInfo(context);
+        if (mNvWifi == null) {
+            // create one instance only
+            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
+                    mWifiConfigManager, mWifiConnectivityManager);
+        }
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
@@ -3578,6 +3587,13 @@ public class ClientModeImpl extends StateMachine {
                     mWifiDiagnostics.reportConnectionEvent(
                             BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
                     break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, message.obj);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    message.arg1 = -1;
+                    replyToMessage(message, message.what, message.arg1);
+                    break;
                 case 0:
                     // We want to notice any empty messages (with what == 0) that might crop up.
                     // For example, we may have recycled a message sent to multiple handlers.
@@ -4401,6 +4417,12 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_IP_CONFIGURATION_SUCCESSFUL:
                 case CMD_IPV4_PROVISIONING_FAILURE:
                     handleStatus = handleL3MessagesWhenNotConnected(message);
+                    break;
+                case NvWifi.CMD_NV_SET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.setProp(message));
+                    break;
+                case NvWifi.CMD_NV_GET_APP_PROP:
+                    replyToMessage(message, message.what, mNvWifi.getProp(message));
                     break;
                 default:
                     handleStatus = NOT_HANDLED;
@@ -6610,4 +6632,7 @@ public class ClientModeImpl extends StateMachine {
         return true;
     }
 
+    public NvWifi getNvWifi() {
+        return mNvWifi;
+    }
 }
