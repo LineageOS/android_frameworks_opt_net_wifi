@@ -1492,6 +1492,35 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that the list of PNO networks does not contain ephemeral or passpoint networks
+     * {@link WifiConfigManager#retrievePnoNetworkList()}.
+     */
+    @Test
+    public void testRetrievePnoListDoesNotContainEphemeralOrPasspointNetworks() throws Exception {
+        WifiConfiguration savedOpenNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration ephemeralNetwork = WifiConfigurationTestUtil.createEphemeralNetwork();
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+
+        verifyAddNetworkToWifiConfigManager(savedOpenNetwork);
+        verifyAddEphemeralNetworkToWifiConfigManager(ephemeralNetwork);
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+
+        // Enable all of them.
+        assertTrue(mWifiConfigManager.enableNetwork(
+                savedOpenNetwork.networkId, false, TEST_CREATOR_UID));
+        assertTrue(mWifiConfigManager.enableNetwork(
+                ephemeralNetwork.networkId, false, TEST_CREATOR_UID));
+        assertTrue(mWifiConfigManager.enableNetwork(
+                passpointNetwork.networkId, false, TEST_CREATOR_UID));
+
+        // Retrieve the Pno network list & verify the order of the networks returned.
+        List<WifiScanner.PnoSettings.PnoNetwork> pnoNetworks =
+                mWifiConfigManager.retrievePnoNetworkList();
+        assertEquals(1, pnoNetworks.size());
+        assertEquals(savedOpenNetwork.SSID, pnoNetworks.get(0).ssid);
+    }
+
+    /**
      * Verifies the linking of networks when they have the same default GW Mac address in
      * {@link WifiConfigManager#getOrCreateScanDetailCacheForNetwork(WifiConfiguration)}.
      */
@@ -2712,6 +2741,40 @@ public class WifiConfigManagerTest {
         // This should have triggered 2 buffered writes. 1 for setting the connect choice, 1 for
         // clearing it after network removal.
         mContextConfigStoreMockOrder.verify(mWifiConfigStore, times(2)).write(eq(false));
+    }
+
+    /**
+     * Verifies that all the ephemeral and passpoint networks are removed when
+     * {@link WifiConfigManager#removeAllEphemeralOrPasspointConfiguredNetworks()} is invoked.
+     */
+    @Test
+    public void testRemoveAllEphemeralOrPasspointConfiguredNetworks() throws Exception {
+        WifiConfiguration savedOpenNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration ephemeralNetwork = WifiConfigurationTestUtil.createEphemeralNetwork();
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+
+        verifyAddNetworkToWifiConfigManager(savedOpenNetwork);
+        verifyAddEphemeralNetworkToWifiConfigManager(ephemeralNetwork);
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+
+        List<WifiConfiguration> expectedConfigsBeforeRemove = new ArrayList<WifiConfiguration>() {{
+                add(savedOpenNetwork);
+                add(ephemeralNetwork);
+                add(passpointNetwork);
+            }};
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                expectedConfigsBeforeRemove, mWifiConfigManager.getConfiguredNetworks());
+
+        assertTrue(mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks());
+
+        List<WifiConfiguration> expectedConfigsAfterRemove = new ArrayList<WifiConfiguration>() {{
+                add(savedOpenNetwork);
+            }};
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                expectedConfigsAfterRemove, mWifiConfigManager.getConfiguredNetworks());
+
+        // No more ephemeral or passpoint networks to remove now.
+        assertFalse(mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks());
     }
 
     /**
