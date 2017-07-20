@@ -42,6 +42,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
+import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
 import android.net.LinkProperties;
@@ -344,6 +345,7 @@ public class WifiStateMachineTest {
     @Mock SelfRecovery mSelfRecovery;
     @Mock IpManager mIpManager;
     @Mock TelephonyManager mTelephonyManager;
+    @Mock WrongPasswordNotifier mWrongPasswordNotifier;
 
     public WifiStateMachineTest() throws Exception {
     }
@@ -436,7 +438,8 @@ public class WifiStateMachineTest {
 
     private void initializeWsm() throws Exception {
         mWsm = new WifiStateMachine(mContext, mFrameworkFacade, mLooper.getLooper(),
-                mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative);
+                mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
+                mWrongPasswordNotifier);
         mWsmThread = getWsmHandlerThread(mWsm);
 
         final AsyncChannel channel = new AsyncChannel();
@@ -820,6 +823,7 @@ public class WifiStateMachineTest {
                 .thenReturn(new NetworkUpdateResult(0));
         when(mWifiConfigManager.getSavedNetworks()).thenReturn(Arrays.asList(config));
         when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
+        when(mWifiConfigManager.getConfiguredNetworkWithPassword(0)).thenReturn(config);
 
         mLooper.startAutoDispatch();
         mWsm.syncAddOrUpdateNetwork(mWsmAsyncChannel, config);
@@ -1113,6 +1117,7 @@ public class WifiStateMachineTest {
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
 
+        verify(mWrongPasswordNotifier, never()).onWrongPasswordError(anyString());
         verify(mWifiConfigManager).updateNetworkSelectionStatus(anyInt(),
                 eq(WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE));
 
@@ -1138,6 +1143,7 @@ public class WifiStateMachineTest {
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
 
         WifiConfiguration config = new WifiConfiguration();
+        config.SSID = sSSID;
         config.getNetworkSelectionStatus().setHasEverConnected(false);
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
 
@@ -1145,6 +1151,7 @@ public class WifiStateMachineTest {
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
 
+        verify(mWrongPasswordNotifier).onWrongPasswordError(eq(sSSID));
         verify(mWifiConfigManager).updateNetworkSelectionStatus(anyInt(),
                 eq(WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WRONG_PASSWORD));
 
@@ -2030,5 +2037,42 @@ public class WifiStateMachineTest {
     public void testDisconnectionRemovesEphemeralAndPasspointNetworks() throws Exception {
         disconnect();
         verify(mWifiConfigManager).removeAllEphemeralOrPasspointConfiguredNetworks();
+    }
+
+    /**
+     * Verifies that WifiStateMachine sets and unsets appropriate 'RecentFailureReason' values
+     * on a WifiConfiguration when it fails association, authentication, or successfully connects
+     */
+    @Test
+    public void testExtraFailureReason_ApIsBusy() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE);
+        mLooper.dispatchAll();
+        // Trigger a connection to this (CMD_START_CONNECT will actually fail, but it sets up
+        // targetNetworkId state)
+        mWsm.sendMessage(WifiStateMachine.CMD_START_CONNECT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        // Simulate an ASSOCIATION_REJECTION_EVENT, due to the AP being busy
+        mWsm.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
+                ISupplicantStaIfaceCallback.StatusCode.AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).setRecentFailureAssociationStatus(eq(0),
+                eq(WifiConfiguration.RecentFailure.STATUS_AP_UNABLE_TO_HANDLE_NEW_STA));
+        assertEquals("DisconnectedState", getCurrentState().getName());
+
+        // Simulate an AUTHENTICATION_FAILURE_EVENT, which should clear the ExtraFailureReason
+        reset(mWifiConfigManager);
+        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT, 0, 0, null);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).clearRecentFailureReason(eq(0));
+        verify(mWifiConfigManager, never()).setRecentFailureAssociationStatus(anyInt(), anyInt());
+
+        // Simulate a NETWORK_CONNECTION_EVENT which should clear the ExtraFailureReason
+        reset(mWifiConfigManager);
+        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null);
+        mLooper.dispatchAll();
+        verify(mWifiConfigManager).clearRecentFailureReason(eq(0));
+        verify(mWifiConfigManager, never()).setRecentFailureAssociationStatus(anyInt(), anyInt());
     }
 }
