@@ -85,7 +85,7 @@ public class WifiAwareDataPathStateManager {
     private static final int NETWORK_FACTORY_SIGNAL_STRENGTH_AVAIL = 1;
 
     private final WifiAwareStateManager mMgr;
-    private final NetworkInterfaceWrapper mNiWrapper = new NetworkInterfaceWrapper();
+    public NetworkInterfaceWrapper mNiWrapper = new NetworkInterfaceWrapper();
     private final NetworkCapabilities mNetworkCapabilitiesFilter = new NetworkCapabilities();
     private final Set<String> mInterfaces = new HashSet<>();
     private final Map<WifiAwareNetworkSpecifier, AwareNetworkRequestInformation>
@@ -95,7 +95,7 @@ public class WifiAwareDataPathStateManager {
     private WifiPermissionsWrapper mPermissionsWrapper;
     private Looper mLooper;
     private WifiAwareNetworkFactory mNetworkFactory;
-    private INetworkManagementService mNwService;
+    public INetworkManagementService mNwService;
 
     public WifiAwareDataPathStateManager(WifiAwareStateManager mgr) {
         mMgr = mgr;
@@ -247,7 +247,7 @@ public class WifiAwareDataPathStateManager {
             return;
         }
 
-        nnri.state = AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_CONFIRM;
+        nnri.state = AwareNetworkRequestInformation.STATE_WAIT_FOR_CONFIRM;
         nnri.ndpId = ndpId;
     }
 
@@ -411,7 +411,7 @@ public class WifiAwareDataPathStateManager {
             return;
         }
 
-        nnri.state = AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_CONFIRM;
+        nnri.state = AwareNetworkRequestInformation.STATE_WAIT_FOR_CONFIRM;
     }
 
     /**
@@ -452,18 +452,8 @@ public class WifiAwareDataPathStateManager {
         AwareNetworkRequestInformation nnri = nnriE.getValue();
 
         // validate state
-        if (nnri.networkSpecifier.role == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR
-                && nnri.state != AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_CONFIRM) {
-            Log.w(TAG, "onDataPathConfirm: INITIATOR in invalid state=" + nnri.state);
-            mNetworkRequestsCache.remove(networkSpecifier);
-            if (accept) {
-                mMgr.endDataPath(ndpId);
-            }
-            return networkSpecifier;
-        }
-        if (nnri.networkSpecifier.role == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_RESPONDER
-                && nnri.state != AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_CONFIRM) {
-            Log.w(TAG, "onDataPathConfirm: RESPONDER in invalid state=" + nnri.state);
+        if (nnri.state != AwareNetworkRequestInformation.STATE_WAIT_FOR_CONFIRM) {
+            Log.w(TAG, "onDataPathConfirm: invalid state=" + nnri.state);
             mNetworkRequestsCache.remove(networkSpecifier);
             if (accept) {
                 mMgr.endDataPath(ndpId);
@@ -472,10 +462,7 @@ public class WifiAwareDataPathStateManager {
         }
 
         if (accept) {
-            nnri.state = (nnri.networkSpecifier.role
-                    == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR)
-                    ? AwareNetworkRequestInformation.STATE_INITIATOR_CONFIRMED
-                    : AwareNetworkRequestInformation.STATE_RESPONDER_CONFIRMED;
+            nnri.state = AwareNetworkRequestInformation.STATE_CONFIRMED;
             nnri.peerDataMac = mac;
 
             NetworkInfo networkInfo = new NetworkInfo(ConnectivityManager.TYPE_NONE, 0,
@@ -484,14 +471,23 @@ public class WifiAwareDataPathStateManager {
                     mNetworkCapabilitiesFilter);
             LinkProperties linkProperties = new LinkProperties();
 
-            try {
-                mNwService.setInterfaceUp(nnri.interfaceName);
-                mNwService.enableIpv6(nnri.interfaceName);
-            } catch (Exception e) { // NwService throws runtime exceptions for errors
-                Log.e(TAG, "onDataPathConfirm: ACCEPT nnri=" + nnri + ": can't configure network - "
-                        + e);
-                mMgr.endDataPath(ndpId);
-                return networkSpecifier;
+            boolean interfaceUsedByAnotherNdp = isInterfaceUpAndUsedByAnotherNdp(nnri);
+            if (!interfaceUsedByAnotherNdp) {
+                try {
+                    mNwService.setInterfaceUp(nnri.interfaceName);
+                    mNwService.enableIpv6(nnri.interfaceName);
+                } catch (Exception e) { // NwService throws runtime exceptions for errors
+                    Log.e(TAG, "onDataPathConfirm: ACCEPT nnri=" + nnri
+                            + ": can't configure network - "
+                            + e);
+                    mMgr.endDataPath(ndpId);
+                    return networkSpecifier;
+                }
+            } else {
+                if (VDBG) {
+                    Log.v(TAG, "onDataPathConfirm: interface already configured: "
+                            + nnri.interfaceName);
+                }
             }
 
             if (!mNiWrapper.configureAgentProperties(nnri, networkSpecifier, ndpId, networkInfo,
@@ -541,10 +537,8 @@ public class WifiAwareDataPathStateManager {
             return;
         }
 
-        tearDownInterface(nnriE.getValue());
-        if (nnriE.getValue().state == AwareNetworkRequestInformation.STATE_RESPONDER_CONFIRMED
-                || nnriE.getValue().state
-                == AwareNetworkRequestInformation.STATE_INITIATOR_CONFIRMED) {
+        tearDownInterfaceIfPossible(nnriE.getValue());
+        if (nnriE.getValue().state == AwareNetworkRequestInformation.STATE_CONFIRMED) {
             mAwareMetrics.recordNdpSessionDuration(nnriE.getValue().startTimestamp);
         }
         mNetworkRequestsCache.remove(nnriE.getKey());
@@ -557,7 +551,7 @@ public class WifiAwareDataPathStateManager {
         if (VDBG) Log.v(TAG, "onAwareDownCleanupDataPaths");
 
         for (AwareNetworkRequestInformation nnri : mNetworkRequestsCache.values()) {
-            tearDownInterface(nnri);
+            tearDownInterfaceIfPossible(nnri);
         }
         mNetworkRequestsCache.clear();
     }
@@ -644,13 +638,6 @@ public class WifiAwareDataPathStateManager {
                 return false;
             }
 
-            // TODO (b/63635780) support more then a single concurrent NDP
-            if (mNetworkRequestsCache.size() > 0) {
-                Log.e(TAG, "WifiAwareNetworkFactory.acceptRequest: request=" + request
-                        + " - >1 concurrent NDPs aren't supported (yet).");
-                return false;
-            }
-
             mNetworkRequestsCache.put(networkSpecifier, nnri);
 
             return true;
@@ -676,18 +663,17 @@ public class WifiAwareDataPathStateManager {
                 return;
             }
 
+            if (nnri.state != AwareNetworkRequestInformation.STATE_IDLE) {
+                if (DBG) {
+                    Log.d(TAG, "WifiAwareNetworkFactory.needNetworkFor: networkRequest="
+                            + networkRequest + " - already in progress");
+                    // TODO: understand how/when can be called again/while in progress (seems
+                    // to be related to score re-calculation after a network agent is created)
+                }
+                return;
+            }
             if (nnri.networkSpecifier.role
                     == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR) {
-                if (nnri.state != AwareNetworkRequestInformation.STATE_INITIATOR_IDLE) {
-                    if (DBG) {
-                        Log.d(TAG, "WifiAwareNetworkFactory.needNetworkFor: networkRequest="
-                                + networkRequest + " - already in progress");
-                        // TODO: understand how/when can be called again/while in progress (seems
-                        // to be related to score re-calculation after a network agent is created)
-                    }
-                    return;
-                }
-
                 nnri.interfaceName = selectInterfaceForRequest(nnri);
                 if (nnri.interfaceName == null) {
                     Log.w(TAG, "needNetworkFor: request " + networkSpecifier
@@ -704,16 +690,6 @@ public class WifiAwareDataPathStateManager {
                         AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE;
                 nnri.startTimestamp = SystemClock.elapsedRealtime();
             } else {
-                if (nnri.state != AwareNetworkRequestInformation.STATE_RESPONDER_IDLE) {
-                    if (DBG) {
-                        Log.d(TAG, "WifiAwareNetworkFactory.needNetworkFor: networkRequest="
-                                + networkRequest + " - already in progress");
-                        // TODO: understand how/when can be called again/while in progress (seems
-                        // to be related to score re-calculation after a network agent is created)
-                    }
-                    return;
-                }
-
                 nnri.state = AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_REQUEST;
             }
         }
@@ -804,21 +780,44 @@ public class WifiAwareDataPathStateManager {
         }
     }
 
-    private void tearDownInterface(AwareNetworkRequestInformation nnri) {
-        if (VDBG) Log.v(TAG, "tearDownInterface: nnri=" + nnri);
+    private void tearDownInterfaceIfPossible(AwareNetworkRequestInformation nnri) {
+        if (VDBG) Log.v(TAG, "tearDownInterfaceIfPossible: nnri=" + nnri);
 
-        if (nnri.interfaceName != null && !nnri.interfaceName.isEmpty()) {
-            try {
-                mNwService.setInterfaceDown(nnri.interfaceName);
-            } catch (Exception e) { // NwService throws runtime exceptions for errors
-                Log.e(TAG,
-                        "tearDownInterface: nnri=" + nnri + ": can't bring interface down - " + e);
+        if (!TextUtils.isEmpty(nnri.interfaceName)) {
+            boolean interfaceUsedByAnotherNdp = isInterfaceUpAndUsedByAnotherNdp(nnri);
+            if (interfaceUsedByAnotherNdp) {
+                if (VDBG) {
+                    Log.v(TAG, "tearDownInterfaceIfPossible: interfaceName=" + nnri.interfaceName
+                            + ", still in use - not turning down");
+                }
+            } else {
+                try {
+                    mNwService.setInterfaceDown(nnri.interfaceName);
+                } catch (Exception e) { // NwService throws runtime exceptions for errors
+                    Log.e(TAG, "tearDownInterfaceIfPossible: nnri=" + nnri
+                            + ": can't bring interface down - " + e);
+                }
             }
         }
 
         if (nnri.networkAgent != null) {
             nnri.networkAgent.reconfigureAgentAsDisconnected();
         }
+    }
+
+    private boolean isInterfaceUpAndUsedByAnotherNdp(AwareNetworkRequestInformation nri) {
+        for (AwareNetworkRequestInformation lnri : mNetworkRequestsCache.values()) {
+            if (lnri == nri) {
+                continue;
+            }
+
+            if (nri.interfaceName.equals(lnri.interfaceName)
+                    && lnri.state == AwareNetworkRequestInformation.STATE_CONFIRMED) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -853,16 +852,12 @@ public class WifiAwareDataPathStateManager {
      */
     @VisibleForTesting
     public static class AwareNetworkRequestInformation {
-        static final int STATE_INITIATOR_IDLE = 100;
-        static final int STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE = 101;
-        static final int STATE_INITIATOR_WAIT_FOR_CONFIRM = 102;
-        static final int STATE_INITIATOR_CONFIRMED = 103;
-
-        static final int STATE_RESPONDER_IDLE = 200;
-        static final int STATE_RESPONDER_WAIT_FOR_REQUEST = 201;
-        static final int STATE_RESPONDER_WAIT_FOR_RESPOND_RESPONSE = 202;
-        static final int STATE_RESPONDER_WAIT_FOR_CONFIRM = 203;
-        static final int STATE_RESPONDER_CONFIRMED = 204;
+        static final int STATE_IDLE = 100;
+        static final int STATE_WAIT_FOR_CONFIRM = 101;
+        static final int STATE_CONFIRMED = 102;
+        static final int STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE = 103;
+        static final int STATE_RESPONDER_WAIT_FOR_REQUEST = 104;
+        static final int STATE_RESPONDER_WAIT_FOR_RESPOND_RESPONSE = 105;
 
         public int state;
 
@@ -1001,9 +996,7 @@ public class WifiAwareDataPathStateManager {
 
             // create container and populate
             AwareNetworkRequestInformation nnri = new AwareNetworkRequestInformation();
-            nnri.state = (ns.role == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR)
-                    ? AwareNetworkRequestInformation.STATE_INITIATOR_IDLE
-                    : AwareNetworkRequestInformation.STATE_RESPONDER_IDLE;
+            nnri.state = AwareNetworkRequestInformation.STATE_IDLE;
             nnri.uid = uid;
             nnri.pubSubId = pubSubId;
             nnri.peerInstanceId = peerInstanceId;
