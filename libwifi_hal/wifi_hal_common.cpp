@@ -27,6 +27,10 @@
 extern "C" int init_module(void *, unsigned long, const char *);
 extern "C" int delete_module(const char *, unsigned int);
 
+#ifndef WIFI_FIRMWARE_LOADER
+#define WIFI_FIRMWARE_LOADER    ""
+#endif
+
 #ifndef WIFI_DRIVER_FW_PATH_STA
 #define WIFI_DRIVER_FW_PATH_STA NULL
 #endif
@@ -41,6 +45,7 @@ extern "C" int delete_module(const char *, unsigned int);
 #define WIFI_DRIVER_MODULE_ARG ""
 #endif
 
+static const char FIRMWARE_LOADER[] = WIFI_FIRMWARE_LOADER;
 static const char DRIVER_PROP_NAME[] = "wlan.driver.status";
 #ifdef WIFI_DRIVER_MODULE_PATH
 static const char DRIVER_MODULE_NAME[] = WIFI_DRIVER_MODULE_NAME;
@@ -142,6 +147,9 @@ int is_wifi_driver_loaded() {
 }
 
 int wifi_load_driver() {
+  char driver_status[PROPERTY_VALUE_MAX];
+  int count = 100; /* wait 20 seconds for completion */
+
 #ifdef WIFI_DRIVER_MODULE_PATH
   if (is_wifi_driver_loaded()) {
     return 0;
@@ -157,8 +165,29 @@ int wifi_load_driver() {
 
   if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
 #endif
-  property_set(DRIVER_PROP_NAME, "ok");
-  return 0;
+
+  if (strcmp(FIRMWARE_LOADER,"") == 0) {
+    property_set(DRIVER_PROP_NAME, "ok");
+    return 0;
+  }
+
+  property_set("ctl.start", FIRMWARE_LOADER);
+
+  sched_yield();
+  while (count-- > 0) {
+    if (property_get(DRIVER_PROP_NAME, driver_status, NULL)) {
+      if (strcmp(driver_status, "ok") == 0)
+        return 0;
+      else if (strcmp(driver_status, "failed") == 0) {
+        wifi_unload_driver();
+        return -1;
+      }
+    }
+    usleep(200000);
+  }
+
+  wifi_unload_driver();
+  return -1;
 }
 
 int wifi_unload_driver() {

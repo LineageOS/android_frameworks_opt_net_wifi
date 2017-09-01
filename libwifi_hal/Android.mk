@@ -33,6 +33,9 @@ endif
 ifdef WIFI_DRIVER_MODULE_NAME
 wifi_hal_cflags += -DWIFI_DRIVER_MODULE_NAME=\"$(WIFI_DRIVER_MODULE_NAME)\"
 endif
+ifdef WIFI_FIRMWARE_LOADER
+wifi_hal_cflags += -DWIFI_FIRMWARE_LOADER=\"$(WIFI_FIRMWARE_LOADER)\"
+endif
 ifdef WIFI_DRIVER_FW_PATH_STA
 wifi_hal_cflags += -DWIFI_DRIVER_FW_PATH_STA=\"$(WIFI_DRIVER_FW_PATH_STA)\"
 endif
