@@ -64,7 +64,8 @@ LOCAL_JAVA_LIBRARIES := \
 LOCAL_STATIC_JAVA_LIBRARIES := \
 	android.hardware.wifi-V1.0-java \
 	android.hardware.wifi-V1.1-java \
-	android.hardware.wifi.supplicant-V1.0-java
+	android.hardware.wifi.supplicant-V1.0-java \
+	libnvwifi
 LOCAL_REQUIRED_MODULES := services
 LOCAL_MODULE_TAGS :=
 LOCAL_MODULE := wifi-service
@@ -82,4 +83,10 @@ LOCAL_JACK_COVERAGE_INCLUDE_FILTER := com.android.server.wifi.*
 
 include $(BUILD_JAVA_LIBRARY)
 
+# Make NV Wifi lib
+# ============================================================
+include $(CLEAR_VARS)
+LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
+	libnvwifi:libs/nvwifi.jar
+include $(BUILD_MULTI_PREBUILT)
 endif  # !TARGET_BUILD_PDK
