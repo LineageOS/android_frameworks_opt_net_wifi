@@ -68,7 +68,8 @@ LOCAL_STATIC_JAVA_LIBRARIES := \
 	android.hardware.wifi-V1.2-java \
 	android.hardware.wifi.hostapd-V1.0-java \
 	android.hardware.wifi.supplicant-V1.0-java \
-	android.hardware.wifi.supplicant-V1.1-java
+	android.hardware.wifi.supplicant-V1.1-java \
+	libnvwifi
 LOCAL_REQUIRED_MODULES := \
 	services \
 	libwifi-service \
@@ -84,4 +85,10 @@ LOCAL_ERROR_PRONE_FLAGS := -Xep:CheckReturnValue:ERROR
 
 include $(BUILD_JAVA_LIBRARY)
 
+# Make NV Wifi lib
+# ============================================================
+include $(CLEAR_VARS)
+LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := \
+	libnvwifi:libs/nvwifi.jar
+include $(BUILD_MULTI_PREBUILT)
 endif  # !TARGET_BUILD_PDK
