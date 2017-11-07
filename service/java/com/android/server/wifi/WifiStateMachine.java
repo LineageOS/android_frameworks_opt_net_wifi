@@ -1838,6 +1838,10 @@ public class WifiStateMachine extends StateMachine {
         }
     }
 
+    public void updateChannelList() {
+        sendMessage(NvWifi.CMD_NV_UPDATE_CHANNEL_LIST);
+    }
+
     /**
      * Enable TDLS for a specific MAC address
      */
@@ -3579,6 +3583,13 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_DIAGS_CONNECT_TIMEOUT:
                     mWifiDiagnostics.reportConnectionEvent(
                             (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+                    break;
+                case NvWifi.CMD_NV_UPDATE_CHANNEL_LIST:
+                    //int currentBand = Global.getInt(mContext.getContentResolver(), "wifi_frequency_band", 0);
+                    if (!mNvWifi.updateChannelList()) {
+                        Log.e(TAG, "Failed to update channel list");
+                        break;
+                    }
                     break;
                 case NvWifi.CMD_NV_GET_APP_PROP:
                     replyToMessage(message, message.what, message.obj);
