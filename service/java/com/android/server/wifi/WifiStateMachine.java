@@ -1179,6 +1179,34 @@ public class WifiStateMachine extends StateMachine {
         return new Messenger(getHandler());
     }
 
+    public List<WifiChannel> syncGetChannelList(AsyncChannel channel) {
+        String resultMsg = mNvWifi.getFreqCapability();
+        List<WifiChannel> list = null;
+        if (resultMsg != null) {
+            list = new ArrayList();
+            String freqs = resultMsg;
+            for (String line : resultMsg.split("\n")) {
+                if (line.contains("MHz")) {
+                    WifiChannel c = new WifiChannel();
+                    String[] prop = line.split(" ");
+                    if (prop.length >= 5) {
+                        try {
+                            c.channelNum = Integer.parseInt(prop[1]);
+                            c.freqMHz = Integer.parseInt(prop[3]);
+                        } catch (NumberFormatException e) {
+                        }
+                        c.isDFS = line.contains("(DFS)");
+                        c.isRestricted = line.contains("(NO_IBSS)");
+                        list.add(c);
+                    }
+                } else if (line.contains("Mode[B] Channels:")) {
+                    break;
+                }
+            }
+        }
+        return (list == null || list.size() <= 0) ? null : list;
+    }
+
     private long mDisconnectedTimeStamp = 0;
 
     public long getDisconnectedTimeMilli() {
