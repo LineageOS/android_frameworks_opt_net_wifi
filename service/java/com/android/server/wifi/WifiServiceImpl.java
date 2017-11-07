@@ -2782,4 +2782,15 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
 	return reply.createTypedArrayList(WifiChannel.CREATOR);
     }
+
+    public void updateChannelList() {
+        Parcel data = Parcel.obtain();
+        Parcel reply = Parcel.obtain();
+        //IBinder s1 = mFacade.getService(Context.WIFI_SERVICE);
+
+        data.writeInterfaceToken("android.net.wifi.IWifiManager");
+        //s1.transact(70, data, reply, 0);
+
+	reply.readException();
+    }
 }
