@@ -612,6 +612,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         return mAutonomousGroup;
     }
 
+    /** Not entirely certain how this is supposed to differ from isAutonomousGroupOwner  */
+    public boolean isAutonomousGroupOwnerInitiated() {
+        return isAutonomousGroupOwner(); // Need to figure out how to really handle this
+    }
+
     @Override
     public void checkConfigureWifiDisplayPermission() {
         if (!getWfdPermission(Binder.getCallingUid())) {
