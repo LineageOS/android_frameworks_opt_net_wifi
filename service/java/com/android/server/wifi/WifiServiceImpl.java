@@ -2819,4 +2819,9 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
         return mWifiStateMachine.syncGetChannelList(this.mWifiStateMachineChannel);
     }
+
+    @Override
+    public void updateChannelList() {
+        mWifiStateMachine.updateChannelList();
+    }
 }
