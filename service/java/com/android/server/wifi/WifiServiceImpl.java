@@ -2202,4 +2202,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     public List<WifiChannel> getChannelList() {
         return new ArrayList<WifiChannel>(); // need to really implement
     }
+
+    public void updateChannelList() {
+        // need to really implement
+    }
 }
