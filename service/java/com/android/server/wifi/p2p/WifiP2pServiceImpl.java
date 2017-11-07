@@ -506,6 +506,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         return mAutonomousGroup;
     }
 
+    public boolean isAutonomousGroupOwnerInitiated() {
+        return true; // Need to really implement
+    }
+
     @Override
     protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         if (mContext.checkCallingOrSelfPermission(android.Manifest.permission.DUMP)
