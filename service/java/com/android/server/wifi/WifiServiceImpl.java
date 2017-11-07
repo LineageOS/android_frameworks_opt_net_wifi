@@ -66,6 +66,7 @@ import android.net.wifi.IWifiManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.ScanSettings;
 import android.net.wifi.WifiActivityEnergyInfo;
+import android.net.wifi.WifiChannel;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConnectionStatistics;
 import android.net.wifi.WifiInfo;
@@ -85,6 +86,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.Parcel;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
@@ -2766,5 +2768,16 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
     public int setAppProperty(String key, String value) {
         return mNvWifi.setAppProperty(key, value, mWifiStateMachineChannel);
+    }
+
+    public List<WifiChannel> getChannelList() {
+        enforceAccessPermission();
+
+        if (mWifiStateMachineChannel == null) {
+            Slog.e(TAG, "mWifiStateMachineChannel is not initialized");
+            return null;
+        }
+
+        return mWifiStateMachine.syncGetChannelList(this.mWifiStateMachineChannel);
     }
 }
