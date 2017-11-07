@@ -55,6 +55,7 @@ import android.net.ip.IpClient;
 import android.net.wifi.RssiPacketCountInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiChannel;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
@@ -1177,6 +1178,34 @@ public class WifiStateMachine extends StateMachine {
 
     public Messenger getMessenger() {
         return new Messenger(getHandler());
+    }
+
+    public List<WifiChannel> syncGetChannelList(AsyncChannel channel) {
+        String resultMsg = mNvWifi.getFreqCapability();
+        List<WifiChannel> list = null;
+        if (resultMsg != null) {
+            list = new ArrayList();
+            String freqs = resultMsg;
+            for (String line : resultMsg.split("\n")) {
+                if (line.contains("MHz")) {
+                    WifiChannel c = new WifiChannel();
+                    String[] prop = line.split(" ");
+                    if (prop.length >= 5) {
+                        try {
+                            c.channelNum = Integer.parseInt(prop[1]);
+                            c.freqMHz = Integer.parseInt(prop[3]);
+                        } catch (NumberFormatException e) {
+                        }
+                        c.isDFS = line.contains("(DFS)");
+                        c.isRestricted = line.contains("(NO_IBSS)");
+                        list.add(c);
+                    }
+                } else if (line.contains("Mode[B] Channels:")) {
+                    break;
+                }
+            }
+        }
+        return (list == null || list.size() <= 0) ? null : list;
     }
 
     private long mDisconnectedTimeStamp = 0;
