@@ -54,6 +54,7 @@ import android.net.wifi.PasspointManagementObjectDefinition;
 import android.net.wifi.ScanResult;
 import android.net.wifi.ScanSettings;
 import android.net.wifi.WifiActivityEnergyInfo;
+import android.net.wifi.WifiChannel;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConnectionStatistics;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -2197,4 +2198,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
        mSubSystemRestart = true;
        setWifiApEnabled(null, false);
    }
+
+    public List<WifiChannel> getChannelList() {
+        return new ArrayList<WifiChannel>(); // need to really implement
+    }
 }
