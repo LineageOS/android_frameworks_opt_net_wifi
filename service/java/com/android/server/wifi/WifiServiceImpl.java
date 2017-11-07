@@ -2203,4 +2203,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         Parcel wcParcel = Parcel.obtain();
         return wcParcel.createTypedArrayList(WifiChannel.CREATOR);
     }
+
+    public void updateChannelList() {
+        // need to really implement
+    }
 }
