@@ -2197,4 +2197,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
        mSubSystemRestart = true;
        setWifiApEnabled(null, false);
    }
+
+    public List<WifiChannel> getChannelList() {
+        return new ArrayList<WifiChannel>(); // need to really implement
+    }
 }
