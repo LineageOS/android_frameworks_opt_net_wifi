@@ -2589,10 +2589,10 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     }
 
     @Override
-    public void releaseMulticastLock() {
+    public void releaseMulticastLock(String tag) {
         enforceMulticastChangePermission();
         mLog.info("releaseMulticastLock uid=%").c(Binder.getCallingUid()).flush();
-        mWifiMulticastLockManager.releaseLock();
+        mWifiMulticastLockManager.releaseLock(tag);
     }
 
     @Override
