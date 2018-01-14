@@ -157,6 +157,14 @@ int wifi_load_driver() {
 
   if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
 #endif
+
+#ifdef WIFI_DRIVER_PROBE_DELAY
+  int count = atoi(WIFI_DRIVER_PROBE_DELAY);
+  while (count-- > 0) {
+    if (is_wifi_driver_loaded()) break;
+    usleep(1000000);
+  }
+#endif
   property_set(DRIVER_PROP_NAME, "ok");
   return 0;
 }
