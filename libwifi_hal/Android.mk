@@ -60,6 +60,11 @@ ifdef WIFI_DRIVER_STATE_OFF
 wifi_hal_cflags += -DWIFI_DRIVER_STATE_OFF=\"$(WIFI_DRIVER_STATE_OFF)\"
 endif
 
+# Wifi driver probe delay in seconds
+ifdef WIFI_DRIVER_PROBE_DELAY
+wifi_hal_cflags += -DWIFI_DRIVER_PROBE_DELAY=\"$(WIFI_DRIVER_PROBE_DELAY)\"
+endif
+
 # Common code shared between the HALs.
 # ============================================================
 include $(CLEAR_VARS)
