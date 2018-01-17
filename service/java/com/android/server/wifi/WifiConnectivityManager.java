@@ -23,6 +23,7 @@ import static com.android.server.wifi.WifiStateMachine.WIFI_WORK_SOURCE;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -152,6 +153,7 @@ public class WifiConnectivityManager {
     private boolean mWifiEnabled = false;
     private boolean mWifiConnectivityManagerEnabled = true;
     private boolean mScreenOn = false;
+    private int mMiracastMode = WifiP2pManager.MIRACAST_DISABLED;
     private int mWifiState = WIFI_STATE_UNKNOWN;
     private boolean mUntrustedConnectionAllowed = false;
     private int mScanRestartCount = 0;
@@ -902,6 +904,17 @@ public class WifiConnectivityManager {
             return;
         }
 
+        // Any scans will impact Wifi performance including WFD performance,
+        // So at least ignore scans triggered internally by ConnectivityManager
+        // when WFD session is active. We still allow connectivity scans initiated
+        // by other work source.
+        if (WIFI_WORK_SOURCE.equals(workSource) &&
+                (mMiracastMode == WifiP2pManager.MIRACAST_SOURCE ||
+                mMiracastMode == WifiP2pManager.MIRACAST_SINK)) {
+            localLog("Ignore connectivity scan, MiracastMode:" + mMiracastMode);
+            return;
+        }
+
         mPnoScanListener.resetLowRssiNetworkRetryDelay();
 
         ScanSettings settings = new ScanSettings();
@@ -1096,6 +1109,15 @@ public class WifiConnectivityManager {
         mCarrierNetworkNotifier.handleScreenStateChanged(screenOn);
 
         startConnectivityScan(SCAN_ON_SCHEDULE);
+    }
+
+    /**
+     * Save current miracast mode, it will be used to ignore
+     * connectivity scan during the time when miracast is enabled.
+     */
+    public void saveMiracastMode(int mode) {
+        localLog("saveMiracastMode: mode=" + mode);
+        mMiracastMode = mode;
     }
 
     /**
