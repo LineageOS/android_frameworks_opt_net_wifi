@@ -3431,6 +3431,10 @@ public class WifiStateMachine extends StateMachine {
                     mTemporarilyDisconnectWifi = (message.arg1 == 1);
                     replyToMessage(message, WifiP2pServiceImpl.DISCONNECT_WIFI_RESPONSE);
                     break;
+                case WifiP2pServiceImpl.SET_MIRACAST_MODE:
+                    if (mVerboseLoggingEnabled) logd("SET_MIRACAST_MODE: " + (int)message.arg1);
+                    mWifiConnectivityManager.saveMiracastMode((int)message.arg1);
+                    break;
                 /* Link configuration (IP address, DNS, ...) changes notified via netlink */
                 case CMD_UPDATE_LINKPROPERTIES:
                     updateLinkProperties((LinkProperties) message.obj);
