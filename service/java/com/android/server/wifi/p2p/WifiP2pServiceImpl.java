@@ -706,6 +706,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     public void setMiracastMode(int mode) {
         checkConfigureWifiDisplayPermission();
         mP2pStateMachine.sendMessage(SET_MIRACAST_MODE, mode);
+        if (mWifiChannel != null) {
+            mWifiChannel.sendMessage(WifiP2pServiceImpl.SET_MIRACAST_MODE, mode);
+        } else {
+            Log.e(TAG, "setMiracastMode(): WifiChannel is null");
+        }
     }
 
     @Override
