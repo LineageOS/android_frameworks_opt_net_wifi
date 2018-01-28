@@ -2061,6 +2061,7 @@ public class WifiConfigManager {
                 currentConfig.creationTime = config.creationTime;
                 currentConfig.shared = config.shared;
                 currentConfig.isCarrierNetwork = config.isCarrierNetwork;
+                currentConfig.autoConnect = config.autoConnect;
             }
             if (DBG) {
                 log("created new config netId=" + Integer.toString(netId)

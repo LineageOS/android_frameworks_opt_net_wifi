@@ -888,6 +888,9 @@ public class WifiQualifiedNetworkSelector {
                 }
                 if (!status.isNetworkEnabled()) {
                     continue;
+                } else if (network.autoConnect != WifiConfiguration.AUTOCONNECT_ENABLED
+                        && !TextUtils.equals(scanResult.BSSID, mCurrentBssid)) {
+                    continue;
                 } else if (network.BSSID != null && !network.BSSID.equals("any")
                         && !network.BSSID.equals(scanResult.BSSID)) {
                     //in such scenario, user (APP) has specified the only BSSID to connect for this

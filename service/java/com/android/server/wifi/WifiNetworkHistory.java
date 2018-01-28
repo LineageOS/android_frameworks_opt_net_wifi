@@ -104,6 +104,7 @@ public class WifiNetworkHistory {
     private static final String NETWORK_SELECTION_DISABLE_REASON_KEY =
             "NETWORK_SELECTION_DISABLE_REASON";
     private static final String HAS_EVER_CONNECTED_KEY = "HAS_EVER_CONNECTED";
+    private static final String AUTO_CONNECT_KEY = "AUTO_CONNECT";
 
     private static final String SEPARATOR = ":  ";
     private static final String NL = "\n";
@@ -297,6 +298,8 @@ public class WifiNetworkHistory {
                     }
                     out.writeUTF(HAS_EVER_CONNECTED_KEY + SEPARATOR
                             + Boolean.toString(status.getHasEverConnected()) + NL);
+                    out.writeUTF(AUTO_CONNECT_KEY + SEPARATOR
+                            + Integer.toString(config.autoConnect) + NL);
                     out.writeUTF(NL);
                     // Add extra blank lines for clarity
                     out.writeUTF(NL);
@@ -553,6 +556,9 @@ public class WifiNetworkHistory {
                             break;
                         case HAS_EVER_CONNECTED_KEY:
                             networkStatus.setHasEverConnected(Boolean.parseBoolean(value));
+                            break;
+                        case AUTO_CONNECT_KEY:
+                            config.autoConnect = Integer.parseInt(value);
                             break;
                     }
                 }
