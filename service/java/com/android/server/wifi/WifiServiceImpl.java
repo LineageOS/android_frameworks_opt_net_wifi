@@ -89,6 +89,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.MutableInt;
 import android.util.Slog;
@@ -494,6 +495,39 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mClientHandler.setWifiLog(log);
     }
 
+    // Return true if it is DUAL SIM and either SIM is active.
+    private boolean checkDualSimActive() {
+        TelephonyManager tm = (TelephonyManager)
+                mContext.getSystemService(Context.TELEPHONY_SERVICE);
+
+        if (tm == null) {
+            Log.i(TAG, "checkDualSimActive() is false, tm == null");
+            return false;
+        }
+
+        int phoneCount = tm.getPhoneCount();
+        if (phoneCount < 2) {
+            Log.i(TAG, "checkDualSimActive() is false, phoneCount="
+                    + phoneCount + " slot0State=" + tm.getSimState(0));
+            return false;
+        }
+
+        int slot0State = tm.getSimState(0);
+        int slot1State = tm.getSimState(1);
+        if (slot0State != TelephonyManager.SIM_STATE_READY &&
+                slot1State != TelephonyManager.SIM_STATE_READY) {
+            Log.i(TAG, "checkDualSimActive() is false, slot0State="
+                     + slot0State + " slot1State=" + slot1State);
+            return false;
+        }
+
+        Log.i(TAG, "checkDualSimActive() is true, phoneCount="
+                + phoneCount
+                + " slot0State=" + slot0State + " slot1State=" + slot1State);
+
+        return true;
+    }
+
     /**
      * Check if we are ready to start wifi.
      *
@@ -536,6 +570,10 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                     public void onReceive(Context context, Intent intent) {
                         String state = intent.getStringExtra(IccCardConstants.INTENT_KEY_ICC_STATE);
                         if (IccCardConstants.INTENT_VALUE_ICC_ABSENT.equals(state)) {
+                            if (checkDualSimActive()) {
+                                Log.d(TAG, "Not resetting networks as other SIM may active");
+                                return;
+                            }
                             Log.d(TAG, "resetting networks because SIM was removed");
                             mWifiStateMachine.resetSimAuthNetworks(false);
                         } else if (IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(state)) {
