@@ -331,6 +331,39 @@ public class WifiServiceImpl extends BaseWifiService {
                 mWifiScoreCard,  mWifiInjector.getWifiHealthMonitor());
     }
 
+    // Return true if it is DUAL SIM and either SIM is active.
+    private boolean checkDualSimActive() {
+        TelephonyManager tm = (TelephonyManager)
+                mContext.getSystemService(Context.TELEPHONY_SERVICE);
+
+        if (tm == null) {
+            Log.i(TAG, "checkDualSimActive() is false, tm == null");
+            return false;
+        }
+
+        int phoneCount = tm.getPhoneCount();
+        if (phoneCount < 2) {
+            Log.i(TAG, "checkDualSimActive() is false, phoneCount="
+                    + phoneCount + " slot0State=" + tm.getSimState(0));
+            return false;
+        }
+
+        int slot0State = tm.getSimState(0);
+        int slot1State = tm.getSimState(1);
+        if (slot0State != TelephonyManager.SIM_STATE_READY &&
+                slot1State != TelephonyManager.SIM_STATE_READY) {
+            Log.i(TAG, "checkDualSimActive() is false, slot0State="
+                     + slot0State + " slot1State=" + slot1State);
+            return false;
+        }
+
+        Log.i(TAG, "checkDualSimActive() is true, phoneCount="
+                + phoneCount
+                + " slot0State=" + slot0State + " slot1State=" + slot1State);
+
+        return true;
+    }
+
     /**
      * Check if we are ready to start wifi.
      *
@@ -370,6 +403,10 @@ public class WifiServiceImpl extends BaseWifiService {
                             int state = intent.getIntExtra(TelephonyManager.EXTRA_SIM_STATE,
                                     TelephonyManager.SIM_STATE_UNKNOWN);
                             if (TelephonyManager.SIM_STATE_ABSENT == state) {
+                                if (checkDualSimActive()) {
+                                    Log.d(TAG, "Not resetting networks as other SIM may active");
+                                    return;
+                                }
                                 Log.d(TAG, "resetting networks because SIM was removed");
                                 mClientModeImpl.resetSimAuthNetworks(
                                         ClientModeImpl.RESET_SIM_REASON_SIM_REMOVED);
