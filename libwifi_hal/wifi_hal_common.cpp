@@ -42,6 +42,12 @@ extern "C" int delete_module(const char *, unsigned int);
 #define WIFI_DRIVER_MODULE_ARG ""
 #endif
 
+#ifdef WIFI_DRIVER_OPERSTATE_PATH
+#include <sys/stat.h>
+#define OPERSTATE_UP "up"
+#define OPERSTATE_DOWN "down"
+#endif
+
 static const char DRIVER_PROP_NAME[] = "wlan.driver.status";
 #ifdef WIFI_DRIVER_MODULE_PATH
 static const char DRIVER_MODULE_NAME[] = WIFI_DRIVER_MODULE_NAME;
@@ -147,6 +153,40 @@ int is_wifi_driver_loaded() {
 #endif
 }
 
+#ifdef WIFI_DRIVER_OPERSTATE_PATH
+int is_wifi_driver_ready() {
+  struct stat sbuf;
+  FILE *fstate;
+  char operstate[8];
+  int open_count = 25, read_count = 25;
+  while (open_count-- >= 0) {
+    if (stat(WIFI_DRIVER_OPERSTATE_PATH, &sbuf) == 0) {
+      if ((fstate = fopen(WIFI_DRIVER_OPERSTATE_PATH, "r")) == NULL) {
+        usleep(500000);
+      } else {
+        break;
+      }
+    } else {
+      usleep(500000);
+    }
+  }
+  if (fstate != NULL) {
+    while (read_count-- >= 0) {
+      fgets(operstate, sizeof(operstate), fstate);
+      if (strncmp(operstate, OPERSTATE_UP, strlen(OPERSTATE_UP)) == 0 ||
+          strncmp(operstate, OPERSTATE_DOWN, strlen(OPERSTATE_DOWN)) == 0) {
+        PLOG(INFO) << "Wifi driver is ready";
+        return 1;
+      }
+      PLOG(WARNING) << "Waiting for Wifi driver to get ready. (" << read_count << ")";
+      usleep(500000);
+    }
+    fclose(fstate);
+  }
+  return 0;
+}
+#endif
+
 int wifi_load_driver() {
 #ifdef WIFI_DRIVER_MODULE_PATH
   if (is_wifi_driver_loaded()) {
@@ -162,6 +202,13 @@ int wifi_load_driver() {
   }
 
   if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
+#endif
+
+#ifdef WIFI_DRIVER_OPERSTATE_PATH
+  if (!is_wifi_driver_ready()) {
+    PLOG(ERROR) << "Wifi driver didn't get ready in time, giving up!";
+    return -1;
+  }
 #endif
   property_set(DRIVER_PROP_NAME, "ok");
   return 0;
