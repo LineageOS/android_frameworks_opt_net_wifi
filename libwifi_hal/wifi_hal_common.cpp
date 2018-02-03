@@ -157,6 +157,26 @@ int wifi_load_driver() {
 
   if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
 #endif
+
+#ifdef WIFI_DRIVER_STATE_PATH
+  FILE *fstate;
+  char state_probe[2];
+  int count = 40;
+  if ((fstate = fopen(WIFI_DRIVER_STATE_PATH, "r")) == NULL) {
+    PLOG(WARNING) << "Could not open " << WIFI_DRIVER_STATE_PATH;
+    return 0;
+  }
+  while (count-- > 0) {
+    fgets(state_probe, sizeof(state_probe), fstate);
+    if (strncmp(state_probe, WIFI_DRIVER_STATE_ON, strlen(WIFI_DRIVER_STATE_ON)) == 0) {
+      PLOG(WARNING) << "Wifi driver is ready";
+      break;
+    }
+    PLOG(WARNING) << "Waiting for Wifi driver to get ready";
+    usleep(500000);
+  }
+  fclose(fstate);
+#endif
   property_set(DRIVER_PROP_NAME, "ok");
   return 0;
 }

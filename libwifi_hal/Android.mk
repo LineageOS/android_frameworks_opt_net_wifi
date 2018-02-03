@@ -59,6 +59,9 @@ endif
 ifdef WIFI_DRIVER_STATE_OFF
 wifi_hal_cflags += -DWIFI_DRIVER_STATE_OFF=\"$(WIFI_DRIVER_STATE_OFF)\"
 endif
+ifdef WIFI_DRIVER_STATE_PATH
+wifi_hal_cflags += -DWIFI_DRIVER_STATE_PATH=\"$(WIFI_DRIVER_STATE_PATH)\"
+endif
 
 # Common code shared between the HALs.
 # ============================================================
