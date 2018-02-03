@@ -60,6 +60,12 @@ ifdef WIFI_DRIVER_STATE_OFF
 wifi_hal_cflags += -DWIFI_DRIVER_STATE_OFF=\"$(WIFI_DRIVER_STATE_OFF)\"
 endif
 
+# Wait for Wifi driver to get ready
+# Example: WIFI_DRIVER_OPERSTATE_PATH := "/sys/class/net/wlan0/operstate"
+ifdef WIFI_DRIVER_OPERSTATE_PATH
+wifi_hal_cflags += -DWIFI_DRIVER_OPERSTATE_PATH=\"$(WIFI_DRIVER_OPERSTATE_PATH)\"
+endif
+
 # Common code shared between the HALs.
 # ============================================================
 include $(CLEAR_VARS)
