@@ -510,6 +510,26 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
+     * Start the supplicant daemon.
+     *
+     * @return true on success, false otherwise.
+     */
+    public boolean startDaemon() {
+        synchronized (mLock) {
+            try {
+                // This should startup supplicant daemon using the lazy start HAL mechanism.
+                getSupplicantMockable();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Exception while trying to start supplicant: "
+                        + e);
+                supplicantServiceDiedHandler();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /**
      * Terminate the supplicant daemon.
      */
     public void terminate() {

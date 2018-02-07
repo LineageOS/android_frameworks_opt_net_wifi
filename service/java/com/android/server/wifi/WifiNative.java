@@ -335,10 +335,14 @@ public class WifiNative {
      *
      * @return true if connection is established, false otherwise.
      */
-    private boolean waitForSupplicantConnection() {
+    private boolean startAndWaitForSupplicantConnection() {
         // Start initialization if not already started.
         if (!mSupplicantStaIfaceHal.isInitializationStarted()
                 && !mSupplicantStaIfaceHal.initialize()) {
+            return false;
+        }
+        if (!mSupplicantStaIfaceHal.startDaemon()) {
+            Log.e(TAG, "Failed to startup supplicant");
             return false;
         }
         boolean connected = false;
@@ -361,11 +365,7 @@ public class WifiNative {
     private boolean startSupplicant() {
         synchronized (mLock) {
             if (!mIfaceMgr.hasAnyStaIfaceForConnectivity()) {
-                if (!mWificondControl.enableSupplicant()) {
-                    Log.e(TAG, "Failed to enable supplicant");
-                    return false;
-                }
-                if (!waitForSupplicantConnection()) {
+                if (!startAndWaitForSupplicantConnection()) {
                     Log.e(TAG, "Failed to connect to supplicant");
                     return false;
                 }
@@ -386,9 +386,37 @@ public class WifiNative {
                 if (!mSupplicantStaIfaceHal.deregisterDeathHandler()) {
                     Log.e(TAG, "Failed to deregister supplicant death handler");
                 }
-                if (!mWificondControl.disableSupplicant()) {
-                    Log.e(TAG, "Failed to disable supplicant");
+                mSupplicantStaIfaceHal.terminate();
+            }
+        }
+    }
+
+    /** Helper method invoked to start hostapd if there were no AP ifaces */
+    private boolean startHostapd() {
+        synchronized (mLock) {
+            if (!mIfaceMgr.hasAnyApIface()) {
+                if (!startAndWaitForHostapdConnection()) {
+                    Log.e(TAG, "Failed to connect to hostapd");
+                    return false;
                 }
+                if (!mHostapdHal.registerDeathHandler(
+                        new HostapdDeathHandlerInternal())) {
+                    Log.e(TAG, "Failed to register hostapd death handler");
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    /** Helper method invoked to stop hostapd if there are no more AP ifaces */
+    private void stopHostapdIfNecessary() {
+        synchronized (mLock) {
+            if (!mIfaceMgr.hasAnyApIface()) {
+                if (!mHostapdHal.deregisterDeathHandler()) {
+                    Log.e(TAG, "Failed to deregister hostapd death handler");
+                }
+                mHostapdHal.terminate();
             }
         }
     }
@@ -458,16 +486,10 @@ public class WifiNative {
             if (!mHostapdHal.removeAccessPoint(iface.name)) {
                 Log.e(TAG, "Failed to remove access point on " + iface);
             }
-            if (!mHostapdHal.deregisterDeathHandler()) {
-                Log.e(TAG, "Failed to deregister supplicant death handler");
-            }
-            // TODO(b/71513606): Move this to a global operation.
-            if (!mWificondControl.stopHostapd(iface.name)) {
-                Log.e(TAG, "Failed to stop hostapd on " + iface);
-            }
             if (!mWificondControl.tearDownSoftApInterface(iface.name)) {
                 Log.e(TAG, "Failed to teardown iface in wificond on " + iface);
             }
+            stopHostapdIfNecessary();
             stopHalAndWificondIfNecessary();
         }
     }
@@ -1007,6 +1029,11 @@ public class WifiNative {
                 mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHal();
                 return null;
             }
+            if (!startHostapd()) {
+                Log.e(TAG, "Failed to start hostapd");
+                mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
+                return null;
+            }
             Iface iface = mIfaceMgr.allocateIface(Iface.IFACE_TYPE_AP);
             if (iface == null) {
                 Log.e(TAG, "Failed to allocate new AP iface");
@@ -1311,10 +1338,14 @@ public class WifiNative {
      *
      * @return true if connection is established, false otherwise.
      */
-    private boolean waitForHostapdConnection() {
+    private boolean startAndWaitForHostapdConnection() {
         // Start initialization if not already started.
         if (!mHostapdHal.isInitializationStarted()
                 && !mHostapdHal.initialize()) {
+            return false;
+        }
+        if (!mHostapdHal.startDaemon()) {
+            Log.e(TAG, "Failed to startup hostapd");
             return false;
         }
         boolean connected = false;
@@ -1343,21 +1374,6 @@ public class WifiNative {
      */
     public boolean startSoftAp(
             @NonNull String ifaceName, WifiConfiguration config, SoftApListener listener) {
-        if (!mWificondControl.startHostapd(ifaceName, listener)) {
-            Log.e(TAG, "Failed to start hostapd");
-            mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
-            return false;
-        }
-        if (!waitForHostapdConnection()) {
-            Log.e(TAG, "Failed to establish connection to hostapd");
-            mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
-            return false;
-        }
-        if (!mHostapdHal.registerDeathHandler(new HostapdDeathHandlerInternal())) {
-            Log.e(TAG, "Failed to register hostapd death handler");
-            mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
-            return false;
-        }
         if (!mHostapdHal.addAccessPoint(ifaceName, config)) {
             Log.e(TAG, "Failed to add acccess point");
             mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
