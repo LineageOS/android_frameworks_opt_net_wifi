@@ -1374,25 +1374,16 @@ public class WifiNative {
      */
     public boolean startSoftAp(
             @NonNull String ifaceName, WifiConfiguration config, SoftApListener listener) {
+        if (!mWificondControl.registerApListener(ifaceName, listener)) {
+            Log.e(TAG, "Failed to register ap listener");
+            return false;
+        }
         if (!mHostapdHal.addAccessPoint(ifaceName, config)) {
             Log.e(TAG, "Failed to add acccess point");
             mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
             return false;
         }
         return true;
-    }
-
-    /**
-     * Stop the ongoing Soft AP operation.
-     *
-     * @param ifaceName Name of the interface.
-     * @return true on success, false otherwise.
-     */
-    public boolean stopSoftAp(@NonNull String ifaceName) {
-        if (!mHostapdHal.removeAccessPoint(ifaceName)) {
-            Log.e(TAG, "Failed to remove access point");
-        }
-        return mWificondControl.stopHostapd(ifaceName);
     }
 
     /**

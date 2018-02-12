@@ -130,6 +130,7 @@ public class WifiNativeInterfaceManagementTest {
         when(mWificondControl.tearDownClientInterface(any())).thenReturn(true);
         when(mWificondControl.tearDownSoftApInterface(any())).thenReturn(true);
         when(mWificondControl.tearDownInterfaces()).thenReturn(true);
+        when(mWificondControl.registerApListener(any(), any())).thenReturn(true);
 
         when(mSupplicantStaIfaceHal.registerDeathHandler(mSupplicantDeathHandlerCaptor.capture()))
             .thenReturn(true);
@@ -772,6 +773,7 @@ public class WifiNativeInterfaceManagementTest {
         assertTrue(mWifiNative.startSoftAp(IFACE_NAME_0, new WifiConfiguration(),
                 mock(WifiNative.SoftApListener.class)));
 
+        mInOrder.verify(mWificondControl).registerApListener(any(), any());
         mInOrder.verify(mHostapdHal).addAccessPoint(any(), any());
 
         // Trigger vendor HAL death

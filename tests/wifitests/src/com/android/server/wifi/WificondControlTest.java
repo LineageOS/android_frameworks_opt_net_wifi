@@ -392,9 +392,9 @@ public class WificondControlTest {
     public void testTeardownSoftApInterfaceClearsHandles() throws Exception {
         testTeardownSoftApInterface();
 
-        assertFalse(mWificondControl.startHostapd(
+        assertFalse(mWificondControl.registerApListener(
                 TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface, never()).startHostapd(any());
+        verify(mApInterface, never()).registerCallback(any());
     }
 
     /**
@@ -425,74 +425,6 @@ public class WificondControlTest {
 
         verify(mWificond).tearDownClientInterface(TEST_INTERFACE_NAME);
         verify(mWificond).tearDownApInterface(TEST_INTERFACE_NAME1);
-    }
-
-    /**
-     * Verifies that enableSupplicant() calls wificond.
-     */
-    @Test
-    public void testEnableSupplicant() throws Exception {
-        when(mWifiInjector.makeWificond()).thenReturn(mWificond);
-        when(mWificond.enableSupplicant()).thenReturn(true);
-
-        assertTrue(mWificondControl.enableSupplicant());
-        verify(mWifiInjector).makeWificond();
-        verify(mWificond).enableSupplicant();
-    }
-
-    /**
-     * Verifies that enableSupplicant() returns false when there is no configured
-     * client interface.
-     */
-    @Test
-    public void testEnableSupplicantErrorWhenNoClientInterfaceConfigured() throws Exception {
-        when(mWifiInjector.makeWificond()).thenReturn(mWificond);
-        when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
-
-        // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
-
-        // Tear down interfaces.
-        assertTrue(mWificondControl.tearDownInterfaces());
-
-        // Enabling supplicant should fail.
-        assertFalse(mWificondControl.enableSupplicant());
-    }
-
-    /**
-     * Verifies that disableSupplicant() calls wificond.
-     */
-    @Test
-    public void testDisableSupplicant() throws Exception {
-        when(mWifiInjector.makeWificond()).thenReturn(mWificond);
-        when(mWificond.disableSupplicant()).thenReturn(true);
-
-        assertTrue(mWificondControl.disableSupplicant());
-        verify(mWifiInjector).makeWificond();
-        verify(mWificond).disableSupplicant();
-    }
-
-    /**
-     * Verifies that disableSupplicant() returns false when there is no configured
-     * client interface.
-     */
-    @Test
-    public void testDisableSupplicantErrorWhenNoClientInterfaceConfigured() throws Exception {
-        when(mWifiInjector.makeWificond()).thenReturn(mWificond);
-        when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
-
-        // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
-
-        // Tear down interfaces.
-        assertTrue(mWificondControl.tearDownInterfaces());
-
-        // Disabling supplicant should fail.
-        assertFalse(mWificondControl.disableSupplicant());
     }
 
     /**
@@ -911,19 +843,6 @@ public class WificondControlTest {
     }
 
     /**
-     * Verifies successful soft ap start.
-     */
-    @Test
-    public void testStartHostapdWithPskConfig() throws Exception {
-        testSetupInterfaceForSoftApMode();
-        when(mApInterface.startHostapd(any())).thenReturn(true);
-
-        assertTrue(mWificondControl.startHostapd(
-                TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface).startHostapd(any());
-    }
-
-    /**
      * Ensures that the Ap interface callbacks are forwarded to the
      * SoftApListener used for starting soft AP.
      */
@@ -934,14 +853,14 @@ public class WificondControlTest {
         WifiConfiguration config = new WifiConfiguration();
         config.SSID = new String(TEST_SSID, StandardCharsets.UTF_8);
 
-        when(mApInterface.startHostapd(any())).thenReturn(true);
+        when(mApInterface.registerCallback(any())).thenReturn(true);
 
         final ArgumentCaptor<IApInterfaceEventCallback> apInterfaceCallbackCaptor =
                 ArgumentCaptor.forClass(IApInterfaceEventCallback.class);
 
-        assertTrue(mWificondControl.startHostapd(
+        assertTrue(mWificondControl.registerApListener(
                 TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface).startHostapd(apInterfaceCallbackCaptor.capture());
+        verify(mApInterface).registerCallback(apInterfaceCallbackCaptor.capture());
 
         int numStations = 5;
         apInterfaceCallbackCaptor.getValue().onNumAssociatedStationsChanged(numStations);
@@ -952,97 +871,6 @@ public class WificondControlTest {
         apInterfaceCallbackCaptor.getValue().onSoftApChannelSwitched(channelFrequency,
                 channelBandwidth);
         verify(mSoftApListener).onSoftApChannelSwitched(eq(channelFrequency), eq(channelBandwidth));
-    }
-
-    /**
-     * Ensure that soft ap start fails when the interface is not setup.
-     */
-    @Test
-    public void testStartHostapdWithoutSetupInterface() throws Exception {
-        assertFalse(mWificondControl.startHostapd(
-                TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface, never()).startHostapd(any());
-    }
-
-    /**
-     * Verifies soft ap start failure.
-     */
-    @Test
-    public void testStartHostapdFailDueToStartError() throws Exception {
-        testSetupInterfaceForSoftApMode();
-        WifiConfiguration config = new WifiConfiguration();
-        config.SSID = new String(TEST_SSID, StandardCharsets.UTF_8);
-
-        when(mApInterface.startHostapd(any())).thenReturn(false);
-
-        assertFalse(mWificondControl.startHostapd(
-                TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface).startHostapd(any());
-    }
-
-    /**
-     * Verifies soft ap start failure.
-     */
-    @Test
-    public void testStartHostapdFailDueToExceptionInStart() throws Exception {
-        testSetupInterfaceForSoftApMode();
-        WifiConfiguration config = new WifiConfiguration();
-        config.SSID = new String(TEST_SSID, StandardCharsets.UTF_8);
-
-        doThrow(new RemoteException()).when(mApInterface).startHostapd(any());
-
-        assertFalse(mWificondControl.startHostapd(
-                TEST_INTERFACE_NAME, mSoftApListener));
-        verify(mApInterface).startHostapd(any());
-    }
-
-    /**
-     * Verifies soft ap stop success.
-     */
-    @Test
-    public void testStopSoftAp() throws Exception {
-        testSetupInterfaceForSoftApMode();
-
-        when(mApInterface.stopHostapd()).thenReturn(true);
-
-        assertTrue(mWificondControl.stopHostapd(TEST_INTERFACE_NAME));
-        verify(mApInterface).stopHostapd();
-    }
-
-    /**
-     * Ensure that soft ap stop fails when the interface is not setup.
-     */
-    @Test
-    public void testStopSoftApWithOutSetupInterface() throws Exception {
-        when(mApInterface.stopHostapd()).thenReturn(true);
-        assertFalse(mWificondControl.stopHostapd(TEST_INTERFACE_NAME));
-        verify(mApInterface, never()).stopHostapd();
-    }
-
-    /**
-     * Verifies soft ap stop failure.
-     */
-    @Test
-    public void testStopSoftApFailDueToStopError() throws Exception {
-        testSetupInterfaceForSoftApMode();
-
-        when(mApInterface.stopHostapd()).thenReturn(false);
-
-        assertFalse(mWificondControl.stopHostapd(TEST_INTERFACE_NAME));
-        verify(mApInterface).stopHostapd();
-    }
-
-    /**
-     * Verifies soft ap stop failure.
-     */
-    @Test
-    public void testStopSoftApFailDueToExceptionInStop() throws Exception {
-        testSetupInterfaceForSoftApMode();
-
-        doThrow(new RemoteException()).when(mApInterface).stopHostapd();
-
-        assertFalse(mWificondControl.stopHostapd(TEST_INTERFACE_NAME));
-        verify(mApInterface).stopHostapd();
     }
 
     /**
@@ -1073,11 +901,9 @@ public class WificondControlTest {
         mWificondControl.binderDied();
         verify(handler).onDeath();
 
-        // The handles should be cleared after death, so these should retrieve new handles.
-        when(mWificond.enableSupplicant()).thenReturn(true);
-        assertTrue(mWificondControl.enableSupplicant());
-        verify(mWifiInjector, times(2)).makeWificond();
-        verify(mWificond).enableSupplicant();
+        // The handles should be cleared after death.
+        assertNull(mWificondControl.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));
+        verify(mWificond, never()).getAvailable5gNonDFSChannels();
     }
 
     /**
