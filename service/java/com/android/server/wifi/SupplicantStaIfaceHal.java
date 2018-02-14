@@ -54,6 +54,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.SupplicantDeathEventHandler;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
@@ -87,6 +88,14 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class SupplicantStaIfaceHal {
     private static final String TAG = "SupplicantStaIfaceHal";
+    @VisibleForTesting
+    public static final String HAL_INSTANCE_NAME = "default";
+    @VisibleForTesting
+    public static final String INIT_START_PROPERTY = "ctl.start";
+    @VisibleForTesting
+    public static final String INIT_STOP_PROPERTY = "ctl.stop";
+    @VisibleForTesting
+    public static final String INIT_SERVICE_NAME = "wpa_supplicant";
     /**
      * Regex pattern for extracting the wps device type bytes.
      * Matches a strings like the following: "<categ>-<OUI>-<subcateg>";
@@ -108,6 +117,7 @@ public class SupplicantStaIfaceHal {
     private SupplicantDeathEventHandler mDeathEventHandler;
     private final Context mContext;
     private final WifiMonitor mWifiMonitor;
+    private final PropertyService mPropertyService;
 
     private final IServiceNotification mServiceNotificationCallback =
             new IServiceNotification.Stub() {
@@ -143,9 +153,11 @@ public class SupplicantStaIfaceHal {
             };
 
 
-    public SupplicantStaIfaceHal(Context context, WifiMonitor monitor) {
+    public SupplicantStaIfaceHal(Context context, WifiMonitor monitor,
+                                 PropertyService propertyService) {
         mContext = context;
         mWifiMonitor = monitor;
+        mPropertyService = propertyService;
     }
 
     /**
@@ -509,12 +521,13 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+
     /**
-     * Start the supplicant daemon.
+     * Start the supplicant daemon for V1_1 service.
      *
      * @return true on success, false otherwise.
      */
-    public boolean startDaemon() {
+    private boolean startDaemon_V1_1() {
         synchronized (mLock) {
             try {
                 // This should startup supplicant daemon using the lazy start HAL mechanism.
@@ -530,18 +543,49 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
-     * Terminate the supplicant daemon.
+     * Start the supplicant daemon.
+     *
+     * @return true on success, false otherwise.
      */
-    public void terminate() {
+    public boolean startDaemon() {
+        synchronized (mLock) {
+            if (isV1_1()) {
+                Log.i(TAG, "Starting supplicant using HIDL");
+                return startDaemon_V1_1();
+            } else {
+                Log.i(TAG, "Starting supplicant using init");
+                mPropertyService.set(INIT_START_PROPERTY, INIT_SERVICE_NAME);
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Terminate the supplicant daemon for V1_1 service.
+     */
+    private void terminate_V1_1() {
         synchronized (mLock) {
             final String methodStr = "terminate";
             if (!checkSupplicantAndLogFailure(methodStr)) return;
             try {
-                if (isV1_1()) {
-                    getSupplicantMockableV1_1().terminate();
-                }
+                getSupplicantMockableV1_1().terminate();
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
+            }
+        }
+    }
+
+    /**
+     * Terminate the supplicant daemon.
+     */
+    public void terminate() {
+        synchronized (mLock) {
+            if (isV1_1()) {
+                Log.i(TAG, "Terminating supplicant using HIDL");
+                terminate_V1_1();
+            } else {
+                Log.i(TAG, "Terminating supplicant using init");
+                mPropertyService.set(INIT_STOP_PROPERTY, INIT_SERVICE_NAME);
             }
         }
     }
@@ -594,16 +638,24 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
-     * Check if the device is running V1_1 supplicant service.
-     * @return
+     * Uses the IServiceManager to check if the device is running V1_1 of the HAL from the VINTF for
+     * the device.
+     * @return true if supported, false otherwise.
      */
     private boolean isV1_1() {
         synchronized (mLock) {
+            if (mIServiceManager == null) {
+                Log.e(TAG, "isV1_1: called but mServiceManager is null!?");
+                return false;
+            }
             try {
-                return (getSupplicantMockableV1_1() != null);
+                return (mIServiceManager.getTransport(
+                            android.hardware.wifi.supplicant.V1_1.ISupplicant.kInterfaceName,
+                            HAL_INSTANCE_NAME)
+                        != IServiceManager.Transport.EMPTY);
             } catch (RemoteException e) {
-                Log.e(TAG, "ISupplicant.getService exception: " + e);
-                handleRemoteException(e, "getSupplicantMockable");
+                Log.e(TAG, "Exception while operating on IServiceManager: " + e);
+                handleRemoteException(e, "getTransport");
                 return false;
             }
         }
