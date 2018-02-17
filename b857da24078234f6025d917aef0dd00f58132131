@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "a7b7e91a_8e8f1fa7",
+        "filename": "libwifi_hal/wifi_hal_common.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 91,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-02-17T19:44:02Z",
+      "side": 1,
+      "message": "Does using this to force WLAN on not work for you?",
+      "range": {
+        "startLine": 91,
+        "startChar": 7,
+        "endLine": 91,
+        "endChar": 35
+      },
+      "revId": "b857da24078234f6025d917aef0dd00f58132131",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "aba67150_54f9abd0",
+        "filename": "libwifi_hal/wifi_hal_common.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 170,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-02-17T19:44:02Z",
+      "side": 1,
+      "message": "trailing whitespace",
+      "revId": "b857da24078234f6025d917aef0dd00f58132131",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
