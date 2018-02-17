@@ -25,6 +25,29 @@
     },
     {
       "key": {
+        "uuid": "86474055_bd9cdc25",
+        "filename": "libwifi_hal/wifi_hal_common.cpp",
+        "patchSetId": 1
+      },
+      "lineNbr": 158,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-02-17T20:23:51Z",
+      "side": 1,
+      "message": "Spacing is really inconsistent in this code block, make sure it aligns to 2 space.",
+      "range": {
+        "startLine": 158,
+        "startChar": 4,
+        "endLine": 158,
+        "endChar": 8
+      },
+      "revId": "b857da24078234f6025d917aef0dd00f58132131",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "aba67150_54f9abd0",
         "filename": "libwifi_hal/wifi_hal_common.cpp",
         "patchSetId": 1
