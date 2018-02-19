@@ -93,14 +93,14 @@ int wifi_change_driver_state(const char *state) {
   int len;
   int fd;
   int ret = 0;
-  int count = 5; /* wait at most 1 second for completion */
+  int count = 10; /* wait at most 5 second for completion */
 
   if (!state) return -1;
 
   do {
     if (access(WIFI_DRIVER_STATE_CTRL_PARAM, R_OK|W_OK) == 0)
       break;
-    usleep(200000);
+    usleep(500000);
   } while (--count > 0);
     if (count == 0) {
       PLOG(ERROR) << "Failed to access driver state control param " << strerror(errno) << ", " << errno;
