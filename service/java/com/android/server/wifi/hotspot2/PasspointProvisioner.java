@@ -28,6 +28,8 @@ import android.util.Log;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Locale;
+
 /**
  * Provides methods to carry out provisioning flow
  */
@@ -165,7 +167,7 @@ public class PasspointProvisioner {
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
                 return;
             }
-            URL serverUrl = null;
+            URL serverUrl;
             try {
                 serverUrl = new URL(provider.getServerUri().toString());
             } catch (MalformedURLException e) {
@@ -252,7 +254,9 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Validating provider in state=" + mState);
             }
-            if (!mOsuServerConnection.validateProvider(mOsuProvider.getFriendlyName())) {
+            if (!mOsuServerConnection.validateProvider(
+                    mObjectFactory.getASN1SubjectAltNamesParser(),
+                    Locale.getDefault(), mOsuProvider.getFriendlyName())) {
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVIDER_VERIFICATION);
                 return;
             }

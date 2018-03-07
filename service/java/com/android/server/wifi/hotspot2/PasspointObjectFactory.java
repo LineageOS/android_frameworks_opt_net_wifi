@@ -167,4 +167,13 @@ public class PasspointObjectFactory{
     public TrustManagerImpl getTrustManagerImpl(KeyStore ks) {
         return new TrustManagerImpl(ks);
     }
+
+    /**
+     * Create an instance of ASN1SubjectAltNamesParser
+     *
+     * @return ASN1SubjectAltNamesParser an instance of the parser
+     */
+    public ASN1SubjectAltNamesParser getASN1SubjectAltNamesParser() {
+        return ASN1SubjectAltNamesParser.getInstance();
+    }
 }
