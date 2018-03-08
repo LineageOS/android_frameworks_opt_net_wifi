@@ -17,9 +17,12 @@
 package com.android.server.wifi.hotspot2;
 
 import android.net.Network;
+import android.text.TextUtils;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.org.conscrypt.TrustManagerImpl;
+import com.android.server.wifi.hotspot2.anqp.I18Name;
 
 import java.io.IOException;
 import java.net.URL;
@@ -29,6 +32,7 @@ import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -125,16 +129,39 @@ public class OsuServerConnection {
     }
 
     /**
-     * Validate the OSU server
+     * Validate the service provider by comparing its identities found in OSU Server cert
+     * to the friendlyName obtained from ANQP exchange that is displayed to the user.
+     *
+     * @param parser       {@link ASN1SubjectAltNamesParser} to extract provider identities from
+     *                     X509Certificate
+     * @param locale       a {@link Locale} object used for matching the friendly name in
+     *                     subjectAltName section of the certificate along with
+     *                     {@param friendlyName}.
+     * @param friendlyName a string of the friendly name used for finding the same name in
+     *                     subjectAltName section of the certificate.
+     * @return boolean true if friendlyName shows up as one of the identities in the cert
      */
-    public boolean validateProvider(String friendlyName) {
-        X509Certificate providerCert = mTrustManager.getProviderCert();
-        // TODO : Validate friendly name
-        if (providerCert == null) {
-            Log.e(TAG, "Provider doesn't have valid certs");
+    public boolean validateProvider(ASN1SubjectAltNamesParser parser, Locale locale,
+            String friendlyName) {
+
+        if (locale == null || TextUtils.isEmpty(friendlyName)) {
             return false;
         }
-        return true;
+
+        for (Pair<Locale, String> identity : parser.getProviderNames(
+                mTrustManager.getProviderCert())) {
+            if (identity.first == null) continue;
+            // Compare the language code for ISO-639.
+            if (identity.first.getISO3Language().equals(locale.getISO3Language()) &&
+                    TextUtils.equals(identity.second, friendlyName)) {
+                if (mVerboseLoggingEnabled) {
+                    Log.v(TAG, "OSU certificate is valid for "
+                            + identity.first.getISO3Language() + "/" + identity.second);
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

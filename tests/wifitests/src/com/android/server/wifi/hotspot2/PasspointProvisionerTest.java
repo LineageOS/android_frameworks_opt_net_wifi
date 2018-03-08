@@ -39,6 +39,7 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.support.test.filters.SmallTest;
+import android.util.Pair;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -48,6 +49,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.net.URL;
 import java.security.KeyStore;
+import java.util.Locale;
 
 import javax.net.ssl.SSLContext;
 /**
@@ -83,6 +85,7 @@ public class PasspointProvisionerTest {
     @Mock WfaKeyStore mWfaKeyStore;
     @Mock KeyStore mKeyStore;
     @Mock SSLContext mTlsContext;
+    @Mock ASN1SubjectAltNamesParser mParser;
 
     @Before
     public void setUp() throws Exception {
@@ -94,12 +97,15 @@ public class PasspointProvisionerTest {
         when(mWfaKeyStore.get()).thenReturn(mKeyStore);
         when(mObjectFactory.makeWfaKeyStore()).thenReturn(mWfaKeyStore);
         when(mObjectFactory.getSSLContext(any(String.class))).thenReturn(mTlsContext);
+        when(mObjectFactory.getTrustManagerImpl(any(KeyStore.class))).thenReturn(mDelegate);
+        when(mObjectFactory.getASN1SubjectAltNamesParser()).thenReturn(mParser);
         doReturn(mWifiManager).when(mContext)
                 .getSystemService(eq(Context.WIFI_SERVICE));
         mPasspointProvisioner = new PasspointProvisioner(mContext, mObjectFactory);
         when(mOsuNetworkConnection.connect(any(WifiSsid.class), any())).thenReturn(true);
         when(mOsuServerConnection.connect(any(URL.class), any(Network.class))).thenReturn(true);
-        when(mOsuServerConnection.validateProvider(any(String.class))).thenReturn(true);
+        when(mOsuServerConnection.validateProvider(any(ASN1SubjectAltNamesParser.class),
+                any(Locale.class), any(String.class))).thenReturn(true);
         when(mOsuServerConnection.canValidateServer()).thenReturn(true);
         mPasspointProvisioner.enableVerboseLogging(1);
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
@@ -177,7 +183,7 @@ public class PasspointProvisionerTest {
     @Test
     public void verifyProvisioningFlow() throws RemoteException {
         initAndStartProvisioning();
-        // state exptected is WAITING_TO_CONNECT
+        // state expected is WAITING_TO_CONNECT
         verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_AP_CONNECTING);
         // Connection to OSU AP successful
         mOsuNetworkCallbacks.onConnected(mNetwork);
@@ -397,7 +403,9 @@ public class PasspointProvisionerTest {
     @Test
     public void verifyProviderVerificationFailure() throws RemoteException {
         initAndStartProvisioning();
-        when(mOsuServerConnection.validateProvider(any(String.class))).thenReturn(false);
+
+        when(mOsuServerConnection.validateProvider(any(ASN1SubjectAltNamesParser.class),
+                any(Locale.class), any(String.class))).thenReturn(false);
         // state expected is WAITING_TO_CONNECT
         verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_AP_CONNECTING);
         // Connection to OSU AP successful
