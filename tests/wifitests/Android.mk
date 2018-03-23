@@ -55,7 +55,7 @@ LOCAL_JACK_FLAGS := --multi-dex native
 # since neither is declared a static java library.
 LOCAL_STATIC_JAVA_LIBRARIES := \
 	android-support-test \
-	mockito-target-minus-junit4 \
+	mockito-target-extended-minus-junit4 \
 	frameworks-base-testutils \
 	services \
 	wifi-service \
@@ -104,6 +104,8 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libunwindstack \
 	libutils \
 	libvndksupport \
+	libdexmakerjvmtiagent \
+	libstaticjvmtiagent
 
 ifdef WPA_SUPPLICANT_VERSION
 LOCAL_JNI_SHARED_LIBRARIES += libwpa_client
