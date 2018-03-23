@@ -22,9 +22,13 @@ import static com.android.server.wifi.ScanTestUtil.setupMockChannels;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.net.wifi.WifiScanner;
 import android.support.test.filters.SmallTest;
 
+import com.android.server.wifi.ScanResults;
+import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 
@@ -34,6 +38,7 @@ import org.junit.Test;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -42,15 +47,16 @@ import java.util.regex.Pattern;
  */
 @SmallTest
 public class WificondScannerTest extends BaseWifiScannerImplTest {
-
+    WifiMonitor mWifiMonitorSpy;
     @Before
     public void setup() throws Exception {
         setupMockChannels(mWifiNative,
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
                 new int[]{5600, 5650});
+        mWifiMonitorSpy = spy(mWifiMonitor);
         mScanner = new WificondScannerImpl(mContext, BaseWifiScannerImplTest.IFACE_NAME,
-                mWifiNative, mWifiMonitor, new WificondChannelHelper(mWifiNative),
+                mWifiNative, mWifiMonitorSpy, new WificondChannelHelper(mWifiNative),
                 mLooper.getLooper(), mClock);
     }
 
@@ -87,6 +93,73 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
         verify(eventHandler).onScanStatus(WifiNative.WIFI_SCAN_FAILED);
     }
 
+    @Test
+    public void externalScanResultsDoNotCauseSpuriousTimerCancellationOrCrash() {
+        mWifiMonitor.sendMessage(IFACE_NAME, WifiMonitor.SCAN_RESULTS_EVENT);
+        mLooper.dispatchAll();
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(any(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(isNull(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(isNull(AlarmManager.OnAlarmListener.class));
+    }
+
+    @Test
+    public void externalScanResultsAfterOurScanDoNotCauseSpuriousTimerCancellationOrCrash() {
+        WifiNative.ScanSettings settings = new NativeScanSettingsBuilder()
+                .withBasePeriod(10000) // ms
+                .withMaxApPerScan(10)
+                .addBucketWithBand(10000 /* ms */, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN,
+                        WifiScanner.WIFI_BAND_24_GHZ)
+                .build();
+
+        doSuccessfulSingleScanTest(settings,
+                expectedBandScanFreqs(WifiScanner.WIFI_BAND_24_GHZ),
+                new HashSet<String>(),
+                ScanResults.create(0, isAllChannelsScanned(WifiScanner.WIFI_BAND_24_GHZ),
+                        2400, 2450, 2450, 2400, 2450, 2450, 2400, 2450, 2450), false);
+
+        mWifiMonitor.sendMessage(IFACE_NAME, WifiMonitor.SCAN_RESULTS_EVENT);
+        mLooper.dispatchAll();
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(any(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), times(1))
+                .cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(isNull(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(isNull(AlarmManager.OnAlarmListener.class));
+    }
+
+    @Test
+    public void lateScanResultsDoNotCauseSpuriousTimerCancellationOrCrash() {
+        WifiNative.ScanSettings settings = new NativeScanSettingsBuilder()
+                .withBasePeriod(10000) // ms
+                .withMaxApPerScan(10)
+                .addBucketWithBand(10000 /* ms */, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN,
+                        WifiScanner.WIFI_BAND_24_GHZ)
+                .build();
+
+        // Kick off a scan
+        when(mWifiNative.scan(eq(IFACE_NAME), anyInt(), any(), any(Set.class))).thenReturn(true);
+        WifiNative.ScanEventHandler eventHandler = mock(WifiNative.ScanEventHandler.class);
+        assertTrue(mScanner.startSingleScan(settings, eventHandler));
+        mLooper.dispatchAll();
+
+        // Report a timeout
+        mAlarmManager.dispatch(WificondScannerImpl.TIMEOUT_ALARM_TAG);
+        mLooper.dispatchAll();
+
+        // Now report scan results (results lost the race with timeout)
+        mWifiMonitor.sendMessage(IFACE_NAME, WifiMonitor.SCAN_RESULTS_EVENT);
+        mLooper.dispatchAll();
+
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(any(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mAlarmManager.getAlarmManager(), never()).cancel(isNull(PendingIntent.class));
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(isNull(AlarmManager.OnAlarmListener.class));
+    }
 
     /**
      * Test that dump() of WificondScannerImpl dumps native scan results.
@@ -94,6 +167,17 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
     @Test
     public void dumpContainsNativeScanResults() {
         assertDumpContainsRequestLog("Latest native scan results:");
+    }
+
+    @Test
+    public void cleanupDeregistersHandlers() {
+        mScanner.cleanup();
+        verify(mWifiMonitorSpy, times(1)).deregisterHandler(anyString(),
+                eq(WifiMonitor.SCAN_FAILED_EVENT), any());
+        verify(mWifiMonitorSpy, times(1)).deregisterHandler(anyString(),
+                eq(WifiMonitor.PNO_SCAN_RESULTS_EVENT), any());
+        verify(mWifiMonitorSpy, times(1)).deregisterHandler(anyString(),
+                eq(WifiMonitor.SCAN_RESULTS_EVENT), any());
     }
 
     private void assertDumpContainsRequestLog(String log) {
@@ -109,5 +193,4 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
                 new String[0]);
         return stringWriter.toString();
     }
-
 }

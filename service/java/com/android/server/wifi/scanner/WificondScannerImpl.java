@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.concurrent.GuardedBy;
+
 /**
  * Implementation of the WifiScanner HAL API that uses wificond to perform all scans
  * @see com.android.server.wifi.scanner.WifiScannerImpl for more details on each method.
@@ -61,6 +63,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     private final Context mContext;
     private final String mIfaceName;
     private final WifiNative mWifiNative;
+    private final WifiMonitor mWifiMonitor;
     private final AlarmManager mAlarmManager;
     private final Handler mEventHandler;
     private final ChannelHelper mChannelHelper;
@@ -88,13 +91,8 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
      */
     private static final long SCAN_TIMEOUT_MS = 15000;
 
-    AlarmManager.OnAlarmListener mScanTimeoutListener = new AlarmManager.OnAlarmListener() {
-            public void onAlarm() {
-                synchronized (mSettingsLock) {
-                    handleScanTimeout();
-                }
-            }
-        };
+    @GuardedBy("mSettingsLock")
+    private AlarmManager.OnAlarmListener mScanTimeoutListener;
 
     public WificondScannerImpl(Context context, String ifaceName, WifiNative wifiNative,
                                WifiMonitor wifiMonitor, ChannelHelper channelHelper,
@@ -102,6 +100,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mContext = context;
         mIfaceName = ifaceName;
         mWifiNative = wifiNative;
+        mWifiMonitor = wifiMonitor;
         mChannelHelper = channelHelper;
         mAlarmManager = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
         mEventHandler = new Handler(looper, this);
@@ -125,6 +124,12 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
             stopHwPnoScan();
             mLastScanSettings = null; // finally clear any active scan
             mLastPnoScanSettings = null; // finally clear any active scan
+            mWifiMonitor.deregisterHandler(mIfaceName,
+                    WifiMonitor.SCAN_FAILED_EVENT, mEventHandler);
+            mWifiMonitor.deregisterHandler(mIfaceName,
+                    WifiMonitor.PNO_SCAN_RESULTS_EVENT, mEventHandler);
+            mWifiMonitor.deregisterHandler(mIfaceName,
+                    WifiMonitor.SCAN_RESULTS_EVENT, mEventHandler);
         }
     }
 
@@ -200,13 +205,19 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                     Log.d(TAG, "Starting wifi scan for freqs=" + freqs);
                 }
 
+                mScanTimeoutListener = new AlarmManager.OnAlarmListener() {
+                    @Override public void onAlarm() {
+                        handleScanTimeout();
+                    }
+                };
+
                 mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                         mClock.getElapsedSinceBootMillis() + SCAN_TIMEOUT_MS,
                         TIMEOUT_ALARM_TAG, mScanTimeoutListener, mEventHandler);
             } else {
                 // indicate scan failure async
                 mEventHandler.post(new Runnable() {
-                        public void run() {
+                        @Override public void run() {
                             reportScanFailure();
                         }
                     });
@@ -244,8 +255,11 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     }
 
     private void handleScanTimeout() {
-        Log.e(TAG, "Timed out waiting for scan result from wificond");
-        reportScanFailure();
+        synchronized (mSettingsLock) {
+            Log.e(TAG, "Timed out waiting for scan result from wificond");
+            reportScanFailure();
+            mScanTimeoutListener = null;
+        }
     }
 
     @Override
@@ -253,20 +267,29 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         switch(msg.what) {
             case WifiMonitor.SCAN_FAILED_EVENT:
                 Log.w(TAG, "Scan failed");
-                mAlarmManager.cancel(mScanTimeoutListener);
+                cancelScanTimeout();
                 reportScanFailure();
                 break;
             case WifiMonitor.PNO_SCAN_RESULTS_EVENT:
                 pollLatestScanDataForPno();
                 break;
             case WifiMonitor.SCAN_RESULTS_EVENT:
-                mAlarmManager.cancel(mScanTimeoutListener);
+                cancelScanTimeout();
                 pollLatestScanData();
                 break;
             default:
                 // ignore unknown event
         }
         return true;
+    }
+
+    private void cancelScanTimeout() {
+        synchronized (mSettingsLock) {
+            if (mScanTimeoutListener != null) {
+                mAlarmManager.cancel(mScanTimeoutListener);
+                mScanTimeoutListener = null;
+            }
+        }
     }
 
     private void reportScanFailure() {
@@ -401,7 +424,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
      * @return true if HW PNO scan is required, false otherwise.
      */
     private boolean isHwPnoScanRequired(boolean isConnectedPno) {
-        return (!isConnectedPno & mHwPnoScanSupported);
+        return (!isConnectedPno && mHwPnoScanSupported);
     }
 
     @Override

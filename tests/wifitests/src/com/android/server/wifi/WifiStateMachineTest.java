@@ -139,6 +139,8 @@ public class WifiStateMachineTest {
     private static final int TEST_UID = Process.SYSTEM_UID + 1000;
     private static final MacAddress TEST_GLOBAL_MAC_ADDRESS =
             MacAddress.fromString("10:22:34:56:78:92");
+    private static final MacAddress TEST_LOCAL_MAC_ADDRESS =
+            MacAddress.fromString("2a:53:43:c3:56:21");
 
     // NetworkAgent creates threshold ranges with Integers
     private static final int RSSI_THRESHOLD_MAX = -30;
@@ -414,7 +416,7 @@ public class WifiStateMachineTest {
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
-
+        when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
         when(mWifiNative.setupInterfaceForClientMode(anyBoolean(), any()))
                 .thenReturn(WIFI_IFACE_NAME);
         when(mWifiNative.initialize()).thenReturn(true);
@@ -1042,8 +1044,23 @@ public class WifiStateMachineTest {
         assertEquals(sBSSID, wifiInfo.getBSSID());
         assertEquals(sFreq, wifiInfo.getFrequency());
         assertTrue(sWifiSsid.equals(wifiInfo.getWifiSsid()));
+        // Ensure the connection stats for the network is updated.
+        verify(mWifiConfigManager).updateNetworkAfterConnect(FRAMEWORK_NETWORK_ID);
 
+        verify(mWifiStateTracker).updateState(eq(WifiStateTracker.CONNECTED));
         assertEquals("ConnectedState", getCurrentState().getName());
+    }
+
+    /**
+     * Verify that WifiStateTracker is called if wifi is disabled while connected.
+     */
+    @Test
+    public void verifyWifiStateTrackerUpdatedWhenDisabled() throws Exception {
+        connect();
+
+        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE);
+        mLooper.dispatchAll();
+        verify(mWifiStateTracker).updateState(eq(WifiStateTracker.DISCONNECTED));
     }
 
     /**
@@ -1200,6 +1217,7 @@ public class WifiStateMachineTest {
                 eq(WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE));
 
         assertEquals("DisconnectedState", getCurrentState().getName());
+
     }
 
     /**
@@ -1300,6 +1318,7 @@ public class WifiStateMachineTest {
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
         mLooper.dispatchAll();
 
+        verify(mWifiStateTracker).updateState(eq(WifiStateTracker.DISCONNECTED));
         assertEquals("DisconnectedState", getCurrentState().getName());
     }
 
@@ -1732,8 +1751,9 @@ public class WifiStateMachineTest {
         // Now trigger the death notification.
         mStatusListenerCaptor.getValue().onStatusChanged(false);
         mLooper.dispatchAll();
-        verify(mSelfRecovery).trigger(eq(SelfRecovery.REASON_WIFICOND_CRASH));
-        verify(mWifiDiagnostics).captureBugReportData(WifiDiagnostics.REPORT_REASON_WIFICOND_CRASH);
+        verify(mSelfRecovery).trigger(eq(SelfRecovery.REASON_WIFINATIVE_FAILURE));
+        verify(mWifiDiagnostics).captureBugReportData(
+                WifiDiagnostics.REPORT_REASON_WIFINATIVE_FAILURE);
     }
 
     /**
@@ -1883,6 +1903,7 @@ public class WifiStateMachineTest {
         // WifiInfo is reset() and state set to DISCONNECTED
         mWsm.setOperationalMode(WifiStateMachine.SCAN_ONLY_MODE);
         mLooper.dispatchAll();
+
         assertEquals(WifiStateMachine.SCAN_ONLY_MODE, mWsm.getOperationalModeForTest());
         assertEquals("ScanModeState", getCurrentState().getName());
         assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
@@ -2370,11 +2391,37 @@ public class WifiStateMachineTest {
     }
 
     /**
+     * Verifies that WifiInfo returns DEFAULT_MAC_ADDRESS as mac address when Connected MAC
+     * Randomization is on and the device is not connected to a wifi network.
+     */
+    @Test
+    public void testWifiInfoReturnDefaultMacWhenDisconnectedWithRandomization() throws Exception {
+        when(mFrameworkFacade.getIntegerSetting(mContext,
+                Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0)).thenReturn(1);
+        mContentObserver.onChange(false);
+        when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
+                .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
+
+        connect();
+        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+
+        mWsm.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
+        mLooper.dispatchAll();
+        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectedState", getCurrentState().getName());
+        assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, mWsm.getWifiInfo().getMacAddress());
+        assertFalse(mWsm.getWifiInfo().hasRealMacAddress());
+    }
+
+    /**
      * Verifies that connected MAC randomization methods are not called
      * when the feature is off.
      */
     @Test
-    public void testConnectedMacRandomizationOff() throws Exception {
+    public void testConnectedMacRandomizationWhenFeatureOff() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
         assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
