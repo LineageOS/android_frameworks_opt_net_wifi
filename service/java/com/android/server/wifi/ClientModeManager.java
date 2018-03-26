@@ -223,8 +223,9 @@ public class ClientModeManager implements ActiveModeManager {
                         updateWifiState(WifiManager.WIFI_STATE_ENABLING,
                                         WifiManager.WIFI_STATE_DISABLED);
 
-                        mClientInterfaceName = mWifiNative.setupInterfaceForClientMode(
-                                false /* not low priority */, mWifiNativeInterfaceCallback);
+                        mClientInterfaceName =
+                                mWifiNative.setupInterfaceForClientInConnectivityMode(
+                                mWifiNativeInterfaceCallback);
                         if (TextUtils.isEmpty(mClientInterfaceName)) {
                             Log.e(TAG, "Failed to create ClientInterface. Sit in Idle");
                             updateWifiState(WifiManager.WIFI_STATE_UNKNOWN,

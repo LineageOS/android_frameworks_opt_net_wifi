@@ -23,7 +23,6 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
@@ -91,12 +90,12 @@ public class ScanOnlyModeManagerTest {
     }
 
     private void startScanOnlyModeAndVerifyEnabled() throws Exception {
-        when(mWifiNative.setupInterfaceForClientMode(anyBoolean(), any())).thenReturn(
+        when(mWifiNative.setupInterfaceForClientInScanMode(any())).thenReturn(
                 TEST_INTERFACE_NAME);
         mScanOnlyModeManager.start();
         mLooper.dispatchAll();
 
-        verify(mWifiNative).setupInterfaceForClientMode(eq(true),
+        verify(mWifiNative).setupInterfaceForClientInScanMode(
                 mInterfaceCallbackCaptor.capture());
 
         // now mark the interface as up
@@ -141,7 +140,7 @@ public class ScanOnlyModeManagerTest {
     @Test
     public void scanModeStartDoesNotSendScanningActiveWhenClientInterfaceNameIsEmpty()
             throws Exception {
-        when(mWifiNative.setupInterfaceForClientMode(anyBoolean(), any())).thenReturn("");
+        when(mWifiNative.setupInterfaceForClientInScanMode(any())).thenReturn("");
         mScanOnlyModeManager.start();
         mLooper.dispatchAll();
 

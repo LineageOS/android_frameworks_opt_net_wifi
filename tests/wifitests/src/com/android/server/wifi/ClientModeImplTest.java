@@ -418,8 +418,6 @@ public class ClientModeImplTest {
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
         when(mWifiInjector.getWifiDataStall()).thenReturn(mWifiDataStall);
-        when(mWifiNative.setupInterfaceForClientMode(anyBoolean(), any()))
-                .thenReturn(WIFI_IFACE_NAME);
         when(mWifiNative.initialize()).thenReturn(true);
 
         mFrameworkFacade = getFrameworkFacade();
