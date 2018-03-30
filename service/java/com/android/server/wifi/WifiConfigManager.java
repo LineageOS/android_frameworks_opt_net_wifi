@@ -431,11 +431,12 @@ public class WifiConfigManager {
     /**
      * Helper method to mask randomized MAC address from the provided WifiConfiguration Object.
      * This is needed when the network configurations are being requested via the public
-     * WifiManager API's. This method puts "0:0:0:0:0:0" as the MAC address.
+     * WifiManager API's. This method puts "02:00:00:00:00:00" as the MAC address.
      * @param configuration WifiConfiguration to hide the MAC address
      */
     private void maskRandomizedMacAddressInWifiConfiguration(WifiConfiguration configuration) {
-        configuration.setRandomizedMacAddress(MacAddress.ALL_ZEROS_ADDRESS);
+        MacAddress defaultMac = MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS);
+        configuration.setRandomizedMacAddress(defaultMac);
     }
 
     /**
@@ -2353,8 +2354,7 @@ public class WifiConfigManager {
      * So, re-sort the network list based on the frequency of connection to those networks
      * and whether it was last seen in the scan results.
      *
-     * TODO (b/30399964): Recalculate the list whenever network status changes.
-     * @return list of networks with updated priorities.
+     * @return list of networks in the order of priority.
      */
     public List<WifiScanner.PnoSettings.PnoNetwork> retrievePnoNetworkList() {
         List<WifiScanner.PnoSettings.PnoNetwork> pnoList = new ArrayList<>();
@@ -2370,12 +2370,9 @@ public class WifiConfigManager {
             }
         }
         Collections.sort(networks, sScanListComparator);
-        // Let's use the network list size - 1 as the highest priority and then go down from there.
-        // So, the most frequently connected network has the highest priority now.
-        int priority = networks.size() - 1;
+        // The most frequently connected network has the highest priority now.
         for (WifiConfiguration config : networks) {
-            pnoList.add(WifiConfigurationUtil.createPnoNetwork(config, priority));
-            priority--;
+            pnoList.add(WifiConfigurationUtil.createPnoNetwork(config));
         }
         return pnoList;
     }
@@ -2389,7 +2386,7 @@ public class WifiConfigManager {
      * So, re-sort the network list based on the frequency of connection to those networks
      * and whether it was last seen in the scan results.
      *
-     * @return list of networks with updated priorities.
+     * @return list of networks in the order of priority.
      */
     public List<WifiScanner.ScanSettings.HiddenNetwork> retrieveHiddenNetworkList() {
         List<WifiScanner.ScanSettings.HiddenNetwork> hiddenList = new ArrayList<>();
@@ -2403,13 +2400,10 @@ public class WifiConfigManager {
             }
         }
         Collections.sort(networks, sScanListComparator);
-        // Let's use the network list size - 1 as the highest priority and then go down from there.
-        // So, the most frequently connected network has the highest priority now.
-        int priority = networks.size() - 1;
+        // The most frequently connected network has the highest priority now.
         for (WifiConfiguration config : networks) {
             hiddenList.add(
                     new WifiScanner.ScanSettings.HiddenNetwork(config.SSID));
-            priority--;
         }
         return hiddenList;
     }
