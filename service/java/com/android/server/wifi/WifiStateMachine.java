@@ -229,15 +229,23 @@ public class WifiStateMachine extends StateMachine {
     private final InterfaceCallback mWifiNativeInterfaceCallback = new InterfaceCallback() {
         @Override
         public void onDestroyed(String ifaceName) {
-            sendMessage(CMD_INTERFACE_DESTROYED);
+            if (mInterfaceName != null && mInterfaceName.equals(ifaceName)) {
+                sendMessage(CMD_INTERFACE_DESTROYED);
+            }
         }
 
         @Override
         public void onUp(String ifaceName) {
+            if (mInterfaceName != null && mInterfaceName.equals(ifaceName)) {
+                sendMessage(CMD_INTERFACE_STATUS_CHANGED, 1);
+            }
         }
 
         @Override
         public void onDown(String ifaceName) {
+            if (mInterfaceName != null && mInterfaceName.equals(ifaceName)) {
+                sendMessage(CMD_INTERFACE_STATUS_CHANGED, 0);
+            }
         }
     };
     private boolean mIpReachabilityDisconnectEnabled = true;
@@ -325,8 +333,6 @@ public class WifiStateMachine extends StateMachine {
      * a specific AP.
      */
     public static final String SUPPLICANT_BSSID_ANY = "any";
-
-    private int mSupplicantRestartCount = 0;
 
     /**
      * The link properties of the wifi interface.
@@ -459,12 +465,14 @@ public class WifiStateMachine extends StateMachine {
     static final int CMD_STOP_SUPPLICANT                                = BASE + 12;
     /* STA interface destroyed */
     static final int CMD_INTERFACE_DESTROYED                            = BASE + 13;
+    /* STA interface down */
+    static final int CMD_INTERFACE_DOWN                                 = BASE + 14;
     /* Indicates Static IP succeeded */
     static final int CMD_STATIC_IP_SUCCESS                              = BASE + 15;
     /* Indicates Static IP failed */
     static final int CMD_STATIC_IP_FAILURE                              = BASE + 16;
-    /* A delayed message sent to start driver when it fail to come up */
-    static final int CMD_DRIVER_START_TIMED_OUT                         = BASE + 19;
+    /* Interface status change */
+    static final int CMD_INTERFACE_STATUS_CHANGED                       = BASE + 20;
 
     /* Start the soft access point */
     static final int CMD_START_AP                                       = BASE + 21;
@@ -769,8 +777,6 @@ public class WifiStateMachine extends StateMachine {
     private State mDefaultState = new DefaultState();
     /* Temporary initial state */
     private State mInitialState = new InitialState();
-    /* Driver loaded, waiting for supplicant to start */
-    private State mSupplicantStartingState = new SupplicantStartingState();
     /* Driver loaded and supplicant ready */
     private State mSupplicantStartedState = new SupplicantStartedState();
     /* Scan for networks, no connection will be established */
@@ -992,7 +998,6 @@ public class WifiStateMachine extends StateMachine {
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
             addState(mInitialState, mDefaultState);
-                addState(mSupplicantStartingState, mInitialState);
                 addState(mSupplicantStartedState, mInitialState);
                     addState(mConnectModeState, mSupplicantStartedState);
                         addState(mL2ConnectedState, mConnectModeState);
@@ -1044,9 +1049,6 @@ public class WifiStateMachine extends StateMachine {
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.NETWORK_DISCONNECTION_EVENT,
                 getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.RX_HS20_ANQP_ICON_EVENT,
-                getHandler());
-        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUP_CONNECTION_EVENT, getHandler());
-        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUP_DISCONNECTION_EVENT,
                 getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT,
                 getHandler());
@@ -2890,17 +2892,6 @@ public class WifiStateMachine extends StateMachine {
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
     }
 
-    private void handleSupplicantConnectionLoss(boolean killSupplicant) {
-        /* Socket connection can be lost when we do a graceful shutdown
-        * or when the driver is hung. Ensure supplicant is stopped here.
-        */
-        if (killSupplicant) {
-            mWifiMonitor.stopAllMonitoring();
-        }
-        sendSupplicantConnectionChangedBroadcast(false);
-        setWifiState(WIFI_STATE_DISABLED);
-    }
-
     void handlePreDhcpSetup() {
         if (!mBluetoothConnectionActive) {
             /*
@@ -3380,6 +3371,25 @@ public class WifiStateMachine extends StateMachine {
                 + macRandomizationEnabled);
     }
 
+    /**
+     * Handle the error case where our underlying interface went down (if we do not have mac
+     * randomization enabled (b/72459123).
+     *
+     * This method triggers SelfRecovery with the error of REASON_STA_IFACE_DOWN.  SelfRecovery then
+     * decides if wifi should be restarted or disabled.
+     */
+    private void handleInterfaceDown() {
+        if (mEnableConnectedMacRandomization.get()) {
+            // interface will go down when mac randomization is active, skip
+            Log.d(TAG, "MacRandomization enabled, ignoring iface down");
+            return;
+        }
+
+        Log.e(TAG, "Detected an interface down, report failure to SelfRecovery");
+        // report a failure
+        mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_STA_IFACE_DOWN);
+    }
+
     /********************************************************
      * HSM states
      *******************************************************/
@@ -3488,7 +3498,6 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case CMD_START_SUPPLICANT:
                 case CMD_STOP_SUPPLICANT:
-                case CMD_DRIVER_START_TIMED_OUT:
                 case CMD_START_AP_FAILURE:
                 case CMD_STOP_AP:
                 case CMD_AP_STOPPED:
@@ -3496,8 +3505,6 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_RECONNECT:
                 case CMD_REASSOCIATE:
                 case CMD_RELOAD_TLS_AND_RECONNECT:
-                case WifiMonitor.SUP_CONNECTION_EVENT:
-                case WifiMonitor.SUP_DISCONNECTION_EVENT:
                 case WifiMonitor.NETWORK_CONNECTION_EVENT:
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
@@ -3524,6 +3531,8 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_SELECT_TX_POWER_SCENARIO:
                 case CMD_WIFINATIVE_FAILURE:
                 case CMD_INTERFACE_DESTROYED:
+                case CMD_INTERFACE_DOWN:
+                case CMD_INTERFACE_STATUS_CHANGED:
                     messageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
                 case CMD_START_AP:
@@ -3712,13 +3721,27 @@ public class WifiStateMachine extends StateMachine {
     }
 
     class InitialState extends State {
+        private boolean mIfaceIsUp;
+
+        private void onUpChanged(boolean isUp) {
+            if (isUp == mIfaceIsUp) {
+                return;  // no change
+            }
+            mIfaceIsUp = isUp;
+            if (isUp) {
+                Log.d(TAG, "Client mode interface is up");
+                // for now, do nothing - client mode has never waited for iface up
+            } else {
+                // A driver/firmware hang can now put the interface in a down state.
+                // We detect the interface going down and recover from it
+                handleInterfaceDown();
+            }
+        }
+
         private void cleanup() {
             // tell scanning service that scans are not available - about to kill the interface and
             // supplicant
             sendWifiScanAvailable(false);
-
-            // Tearing down the client interfaces below is going to stop our supplicant.
-            mWifiMonitor.stopAllMonitoring();
 
             mWifiNative.registerStatusListener(mWifiNativeStatusListener);
             // TODO: This teardown should ideally be handled in STOP_SUPPLICANT to be consistent
@@ -3727,11 +3750,12 @@ public class WifiStateMachine extends StateMachine {
             // TODO: Remove this big hammer. We cannot support concurrent interfaces with this!
             mWifiNative.teardownAllInterfaces();
             mInterfaceName = null;
+            mIfaceIsUp = false;
         }
 
         @Override
         public void enter() {
-            mWifiMonitor.stopAllMonitoring();
+            mIfaceIsUp = false;
             mWifiStateTracker.updateState(WifiStateTracker.INVALID);
             cleanup();
             sendMessage(CMD_START_SUPPLICANT);
@@ -3751,15 +3775,17 @@ public class WifiStateMachine extends StateMachine {
                         transitionTo(mDefaultState);
                         break;
                     }
+                    // now that we have the interface, initialize our up/down status
+                    onUpChanged(mWifiNative.isInterfaceUp(mInterfaceName));
+
                     mIpClient = mFacade.makeIpClient(
                             mContext, mInterfaceName, new IpClientCallback());
                     mIpClient.setMulticastFilter(true);
                     if (mVerboseLoggingEnabled) log("Supplicant start successful");
                     registerForWifiMonitorEvents();
-                    mWifiMonitor.startMonitoring(mInterfaceName);
                     mWifiInjector.getWifiLastResortWatchdog().clearAllFailureCounts();
                     setSupplicantLogLevel();
-                    transitionTo(mSupplicantStartingState);
+                    transitionTo(mSupplicantStartedState);
                     break;
                 case CMD_SET_OPERATIONAL_MODE:
                     if (message.arg1 == CONNECT_MODE) {
@@ -3773,46 +3799,20 @@ public class WifiStateMachine extends StateMachine {
                             WifiDiagnostics.REPORT_REASON_WIFINATIVE_FAILURE);
                     mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
                     break;
-                default:
-                    return NOT_HANDLED;
-            }
-            return HANDLED;
-        }
-    }
-
-    class SupplicantStartingState extends State {
-
-        @Override
-        public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
-
-            switch(message.what) {
-                case WifiMonitor.SUP_CONNECTION_EVENT:
-                    if (mVerboseLoggingEnabled) log("Supplicant connection established");
-
-                    mSupplicantRestartCount = 0;
-                    /* Reset the supplicant state to indicate the supplicant
-                     * state is not known at this time */
-                    mSupplicantStateTracker.sendMessage(CMD_RESET_SUPPLICANT_STATE);
-                    /* Initialize data structures */
-                    mLastBssid = null;
-                    mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
-                    mLastSignalLevel = -1;
-                    mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
-                    // Attempt to migrate data out of legacy store.
-                    if (!mWifiConfigManager.migrateFromLegacyStore()) {
-                        Log.e(TAG, "Failed to migrate from legacy config store");
+                case CMD_INTERFACE_STATUS_CHANGED:
+                    boolean isUp = message.arg1 == 1;
+                    // For now, this message can be triggered due to link state and/or interface
+                    // status changes (b/77218676).  First check if we really see an iface down by
+                    // consulting our view of supplicant state.
+                    if (!isUp && SupplicantState.isDriverActive(mWifiInfo.getSupplicantState())) {
+                        // the driver is active, so this could just be part of normal operation, do
+                        // not disable wifi in these cases (ex, a network was removed) or worry
+                        // about the link status
+                        break;
                     }
-                    sendSupplicantConnectionChangedBroadcast(true);
-                    transitionTo(mSupplicantStartedState);
+
+                    onUpChanged(isUp);
                     break;
-                case WifiMonitor.SUP_DISCONNECTION_EVENT:
-                    // since control is split between WSM and WSMP - do not worry about supplicant
-                    // dying if we haven't seen it up yet
-                    break;
-                case CMD_START_SUPPLICANT:
-                case CMD_STOP_SUPPLICANT:
-                case CMD_STOP_AP:
                 default:
                     return NOT_HANDLED;
             }
@@ -3826,6 +3826,19 @@ public class WifiStateMachine extends StateMachine {
             if (mVerboseLoggingEnabled) {
                 logd("SupplicantStartedState enter");
             }
+
+            // reset state related to supplicant starting
+            mSupplicantStateTracker.sendMessage(CMD_RESET_SUPPLICANT_STATE);
+            // Initialize data structures
+            mLastBssid = null;
+            mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+            mLastSignalLevel = -1;
+            mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
+            // Attempt to migrate data out of legacy store.
+            if (!mWifiConfigManager.migrateFromLegacyStore()) {
+                Log.e(TAG, "Failed to migrate from legacy config store");
+            }
+            sendSupplicantConnectionChangedBroadcast(true);
 
             mWifiNative.setExternalSim(mInterfaceName, true);
 
@@ -3897,19 +3910,6 @@ public class WifiStateMachine extends StateMachine {
             logStateAndMessage(message, this);
 
             switch(message.what) {
-                case WifiMonitor.SUP_DISCONNECTION_EVENT:  /* Supplicant connection lost */
-                    // first check if we are expecting a mode switch
-                    if (mModeChange) {
-                        logd("expecting a mode change, do not restart supplicant");
-                        return HANDLED;
-                    }
-                    loge("Connection lost, restart supplicant");
-                    handleSupplicantConnectionLoss(true);
-                    handleNetworkDisconnect();
-                    mSupplicantStateTracker.sendMessage(CMD_RESET_SUPPLICANT_STATE);
-                    sendMessage(CMD_START_SUPPLICANT);
-                    transitionTo(mInitialState);
-                    break;
                 case CMD_TARGET_BSSID:
                     // Trying to associate to this BSSID
                     if (message.obj != null) {
@@ -4081,12 +4081,6 @@ public class WifiStateMachine extends StateMachine {
                 break;
             case WifiManager.FORGET_NETWORK:
                 s = "FORGET_NETWORK";
-                break;
-            case WifiMonitor.SUP_CONNECTION_EVENT:
-                s = "SUP_CONNECTION_EVENT";
-                break;
-            case WifiMonitor.SUP_DISCONNECTION_EVENT:
-                s = "SUP_DISCONNECTION_EVENT";
                 break;
             case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                 s = "SUPPLICANT_STATE_CHANGE_EVENT";
@@ -4295,7 +4289,9 @@ public class WifiStateMachine extends StateMachine {
                     mSupplicantStateTracker.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT);
                     // If rejection occurred while Metrics is tracking a ConnnectionEvent, end it.
                     reportConnectionAttemptEnd(
-                            WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
+                            timedOut
+                                    ? WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT
+                                    : WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE);
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
@@ -4336,20 +4332,6 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     SupplicantState state = handleSupplicantStateChange(message);
-                    // A driver/firmware hang can now put the interface in a down state.
-                    // We detect the interface going down and recover from it
-                    if (!SupplicantState.isDriverActive(state) && !mModeChange
-                            && !mEnableConnectedMacRandomization.get()) {
-                        if (mNetworkInfo.getState() != NetworkInfo.State.DISCONNECTED) {
-                            handleNetworkDisconnect();
-                        }
-                        log("Detected an interface down, restart driver");
-                        // Rely on the fact that this will force us into killing supplicant and then
-                        // restart supplicant from a clean state.
-                        sendMessage(CMD_START_SUPPLICANT);
-                        transitionTo(mInitialState);
-                        break;
-                    }
 
                     // Supplicant can fail to report a NETWORK_DISCONNECTION_EVENT
                     // when authentication times out after a successful connection,
@@ -4371,6 +4353,18 @@ public class WifiStateMachine extends StateMachine {
                     if (state == SupplicantState.COMPLETED) {
                         mIpClient.confirmConfiguration();
                     }
+
+                    if (!SupplicantState.isDriverActive(state)) {
+                        // still use supplicant to detect interface down while work to
+                        // mitigate b/77218676 is in progress
+                        // note: explicitly using this command to dedup iface down notification
+                        // paths (onUpChanged filters out duplicate updates)
+                        sendMessage(CMD_INTERFACE_STATUS_CHANGED, 0);
+                        if (mVerboseLoggingEnabled) {
+                            Log.d(TAG, "detected interface down via supplicant");
+                        }
+                    }
+
                     break;
                 case WifiP2pServiceImpl.DISCONNECT_WIFI_REQUEST:
                     if (message.arg1 == 1) {

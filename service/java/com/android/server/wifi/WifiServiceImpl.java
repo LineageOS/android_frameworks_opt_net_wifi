@@ -54,10 +54,8 @@ import android.content.pm.ParceledListSlice;
 import android.database.ContentObserver;
 import android.net.DhcpInfo;
 import android.net.DhcpResults;
-import android.net.IpConfiguration;
 import android.net.Network;
 import android.net.NetworkUtils;
-import android.net.StaticIpConfiguration;
 import android.net.Uri;
 import android.net.ip.IpClient;
 import android.net.wifi.ISoftApCallback;
@@ -999,7 +997,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                 .c(Binder.getCallingUid()).c(mode).flush();
 
         // null wifiConfig is a meaningful input for CMD_SET_AP
-        if (wifiConfig == null || isValid(wifiConfig)) {
+        if (wifiConfig == null || WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
             SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(mode, wifiConfig);
             mWifiController.sendMessage(CMD_SET_AP, 1, 0, softApConfig);
             return true;
@@ -1520,12 +1518,13 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     /**
      * see {@link WifiManager#setWifiApConfiguration(WifiConfiguration)}
      * @param wifiConfig WifiConfiguration details for soft access point
-     * @throws SecurityException if the caller does not have permission to write the sotap config
+     * @return boolean indicating success or failure of the operation
+     * @throws SecurityException if the caller does not have permission to write the softap config
      */
     @Override
-    public void setWifiApConfiguration(WifiConfiguration wifiConfig, String packageName) {
+    public boolean setWifiApConfiguration(WifiConfiguration wifiConfig, String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
-            return;
+            return false;
         }
         int uid = Binder.getCallingUid();
         // only allow Settings UI to write the stored SoftApConfig
@@ -1536,13 +1535,15 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         }
         mLog.info("setWifiApConfiguration uid=%").c(uid).flush();
         if (wifiConfig == null)
-            return;
-        if (isValid(wifiConfig)) {
+            return false;
+        if (WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
             mWifiStateMachineHandler.post(() -> {
                 mWifiApConfigStore.setApConfiguration(wifiConfig);
             });
+            return true;
         } else {
             Slog.e(TAG, "Invalid WifiConfiguration");
+            return false;
         }
     }
 
@@ -1942,13 +1943,13 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                         == PackageManager.PERMISSION_GRANTED) {
                     hideDefaultMacAddress = false;
                 }
-                if (mWifiPermissionsUtil.canAccessScanResults(callingPackage, uid)) {
-                    hideBssidAndSsid = false;
-                }
+                mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
+                hideBssidAndSsid = false;
             } catch (RemoteException e) {
                 Log.e(TAG, "Error checking receiver permission", e);
             } catch (SecurityException e) {
-                Log.e(TAG, "Security exception checking receiver permission", e);
+                Log.e(TAG, "Security exception checking receiver permission"
+                        + ", hiding ssid and bssid", e);
             }
             if (hideDefaultMacAddress) {
                 result.setMacAddress(WifiInfo.DEFAULT_MAC_ADDRESS);
@@ -1974,9 +1975,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         int uid = Binder.getCallingUid();
         long ident = Binder.clearCallingIdentity();
         try {
-            if (!mWifiPermissionsUtil.canAccessScanResults(callingPackage, uid)) {
-                return new ArrayList<ScanResult>();
-            }
+            mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
             final List<ScanResult> scanResults = new ArrayList<>();
             boolean success = mWifiInjector.getWifiStateMachineHandler().runWithScissors(() -> {
                 scanResults.addAll(mScanRequestProxy.getScanResults());
@@ -1985,6 +1984,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                 Log.e(TAG, "Failed to post runnable to fetch scan results");
             }
             return scanResults;
+        } catch (SecurityException e) {
+            return new ArrayList<ScanResult>();
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
@@ -2597,39 +2598,6 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     static boolean logAndReturnFalse(String s) {
         Log.d(TAG, s);
         return false;
-    }
-
-    public static boolean isValid(WifiConfiguration config) {
-        String validity = checkValidity(config);
-        return validity == null || logAndReturnFalse(validity);
-    }
-
-    public static String checkValidity(WifiConfiguration config) {
-        if (config.allowedKeyManagement == null)
-            return "allowed kmgmt";
-
-        if (config.allowedKeyManagement.cardinality() > 1) {
-            if (config.allowedKeyManagement.cardinality() != 2) {
-                return "cardinality != 2";
-            }
-            if (!config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP)) {
-                return "not WPA_EAP";
-            }
-            if ((!config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X))
-                    && (!config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK))) {
-                return "not PSK or 8021X";
-            }
-        }
-        if (config.getIpAssignment() == IpConfiguration.IpAssignment.STATIC) {
-            StaticIpConfiguration staticIpConf = config.getStaticIpConfiguration();
-            if (staticIpConf == null) {
-                return "null StaticIpConfiguration";
-            }
-            if (staticIpConf.ipAddress == null) {
-                return "null static ip Address";
-            }
-        }
-        return null;
     }
 
     @Override
