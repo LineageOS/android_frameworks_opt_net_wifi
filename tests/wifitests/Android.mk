@@ -96,7 +96,6 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libnl \
 	libpowermanager \
 	libsonivox \
-	libspeexresampler \
 	libstagefright_foundation \
 	libstdc++ \
 	libsync \
