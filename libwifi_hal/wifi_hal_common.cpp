@@ -172,7 +172,19 @@ int wifi_load_driver() {
     return 0;
   }
 
-  if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
+  if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) {
+#ifdef WIFI_DRIVER_MODULE_PATH
+    PLOG(WARNING) << "Driver unloading, err='fail to change driver state'";
+    if (rmmod(DRIVER_MODULE_NAME) == 0) {
+      PLOG(DEBUG) << "Driver unloaded";
+    } else {
+      // Set driver prop to "ok", expect HL to restart Wi-Fi.
+      PLOG(DEBUG) << "Driver unload failed! set driver prop to 'ok'.";
+      property_set(DRIVER_PROP_NAME, "ok");
+    }
+#endif
+    return -1;
+  }
 #endif
   is_driver_loaded = true;
   return 0;
