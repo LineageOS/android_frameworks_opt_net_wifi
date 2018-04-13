@@ -105,6 +105,7 @@ public class PasspointManager {
 
     // Counter used for assigning unique identifier to each provider.
     private long mProviderIndex;
+    private boolean mVerboseLoggingEnabled = false;
 
     private class CallbackHandler implements PasspointEventHandler.Callbacks {
         private final Context mContext;
@@ -231,6 +232,7 @@ public class PasspointManager {
      * @param verbose more than 0 enables verbose logging
      */
     public void enableVerboseLogging(int verbose) {
+        mVerboseLoggingEnabled = (verbose > 0) ? true : false;
         mPasspointProvisioner.enableVerboseLogging(verbose);
     }
 
@@ -367,7 +369,9 @@ public class PasspointManager {
                     bestMatch.second == PasspointMatch.HomeProvider ? "Home Provider"
                             : "Roaming Provider"));
         } else {
-            Log.d(TAG, "Match not found for " + scanResult.SSID);
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "No service provider found for " + scanResult.SSID);
+            }
         }
         return bestMatch;
     }
@@ -411,7 +415,7 @@ public class PasspointManager {
 
         for (Map.Entry<String, PasspointProvider> entry : mProviders.entrySet()) {
             PasspointProvider provider = entry.getValue();
-            PasspointMatch matchStatus = provider.match(anqpEntry.getElements());
+            PasspointMatch matchStatus = provider.match(anqpEntry.getElements(), roamingConsortium);
             if (matchStatus == PasspointMatch.HomeProvider
                     || matchStatus == PasspointMatch.RoamingProvider) {
                 allMatches.add(Pair.create(provider, matchStatus));
@@ -426,7 +430,9 @@ public class PasspointManager {
                                 : "Roaming Provider"));
             }
         } else {
-            Log.d(TAG, "No matches not found for " + scanResult.SSID);
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "No service providers found for " + scanResult.SSID);
+            }
         }
 
         return allMatches;
