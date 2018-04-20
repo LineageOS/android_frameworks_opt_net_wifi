@@ -44,6 +44,7 @@ public class WifiLastResortWatchdogTest {
     @Mock WifiMetrics mWifiMetrics;
     @Mock SelfRecovery mSelfRecovery;
     @Mock WifiStateMachine mWifiStateMachine;
+    @Mock Clock mClock;
 
     private String[] mSsids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
     private String[] mBssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
@@ -60,7 +61,7 @@ public class WifiLastResortWatchdogTest {
     public void setUp() throws Exception {
         initMocks(this);
         mLooper = new TestLooper();
-        mLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mWifiMetrics,
+        mLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock, mWifiMetrics,
                 mWifiStateMachine, mLooper.getLooper());
         mLastResortWatchdog.setBugReportProbability(1);
     }
@@ -1456,6 +1457,11 @@ public class WifiLastResortWatchdogTest {
             assertFailureCountEquals(bssids[i], 0, 0, 0);
         }
 
+        final long timeAtFailure = 100;
+        final long timeAtReconnect = 5000;
+        final long expectedDuration = timeAtReconnect - timeAtFailure;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure, timeAtReconnect);
+
         //Increment failure counts
         for (int i = 0; i < WifiLastResortWatchdog.FAILURE_THRESHOLD; i++) {
             mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
@@ -1490,6 +1496,8 @@ public class WifiLastResortWatchdogTest {
 
         // Verify that WifiMetrics counted this as a Watchdog success
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
+        verify(mWifiMetrics, times(1)).setWatchdogSuccessTimeDurationMs(eq(expectedDuration));
+
         // Verify takeBugReport is called
         mLooper.dispatchAll();
         verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
@@ -1499,6 +1507,7 @@ public class WifiLastResortWatchdogTest {
 
         // Verify that WifiMetrics has still only counted one success
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
+        verify(mWifiMetrics, times(1)).setWatchdogSuccessTimeDurationMs(eq(expectedDuration));
         // Verify takeBugReport not called again
         mLooper.dispatchAll();
         verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
@@ -1542,6 +1551,7 @@ public class WifiLastResortWatchdogTest {
         // Verify that WifiMetrics did not count another success, as the connection could be due
         // to the newly available network #5
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
+        verify(mWifiMetrics, times(1)).setWatchdogSuccessTimeDurationMs(eq(expectedDuration));
     }
 
     /**
@@ -1809,5 +1819,45 @@ public class WifiLastResortWatchdogTest {
         // Verify takeBugReport is not called again
         mLooper.dispatchAll();
         verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
+    }
+
+
+    /**
+     * Test metrics incrementing connection failure count after watchdog has already been triggered
+     */
+    @Test
+    public void testIncrementingWatchdogConnectionFailuresAfterTrigger() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] frequencies = {2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-60};
+        boolean[] isEphemeral = {false};
+        boolean[] hasEverConnected = {true};
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < ssids.length; i++) {
+            assertFailureCountEquals(bssids[i], 0, 0, 0);
+        }
+
+        //Increment failure counts
+        for (int i = 0; i < WifiLastResortWatchdog.FAILURE_THRESHOLD; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                    ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+
+        // Verify relevant WifiMetrics calls were made once with appropriate arguments
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
+
+        // Verify that failure count after trigger is not incremented yet
+        verify(mWifiMetrics, never()).incrementWatchdogTotalConnectionFailureCountAfterTrigger();
+
+        // Fail 1 more time and verify this time it's counted
+        mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        verify(mWifiMetrics, times(1)).incrementWatchdogTotalConnectionFailureCountAfterTrigger();
     }
 }

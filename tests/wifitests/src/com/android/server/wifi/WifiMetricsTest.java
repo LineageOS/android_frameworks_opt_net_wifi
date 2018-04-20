@@ -229,6 +229,7 @@ public class WifiMetricsTest {
     private static final int NUM_LAST_RESORT_WATCHDOG_TRIGGERS_WITH_BAD_DHCP = 9;
     private static final int NUM_LAST_RESORT_WATCHDOG_TRIGGERS_WITH_BAD_OTHER = 10;
     private static final int NUM_LAST_RESORT_WATCHDOG_SUCCESSES = 5;
+    private static final int WATCHDOG_TOTAL_CONNECTION_FAILURE_COUNT_AFTER_TRIGGER = 6;
     private static final int NUM_RSSI_LEVELS_TO_INCREMENT = 20;
     private static final int FIRST_RSSI_LEVEL = -80;
     private static final int NUM_OPEN_NETWORK_SCAN_RESULTS = 1;
@@ -285,6 +286,7 @@ public class WifiMetricsTest {
     private static final int NUM_WPS_OTHER_CONNECTION_FAILURE = 16;
     private static final int NUM_WPS_SUPPLICANT_FAILURE = 12;
     private static final int NUM_WPS_CANCELLATION = 11;
+    private static final long NUM_WATCHDOG_SUCCESS_DURATION_MS = 65;
 
     /** Number of notifications per "Connect to Network" notification type. */
     private static final int[] NUM_CONNECT_TO_NETWORK_NOTIFICATIONS = {0, 10, 20, 30, 40};
@@ -475,6 +477,9 @@ public class WifiMetricsTest {
         for (int i = 0; i < NUM_LAST_RESORT_WATCHDOG_SUCCESSES; i++) {
             mWifiMetrics.incrementNumLastResortWatchdogSuccesses();
         }
+        for (int i = 0; i < WATCHDOG_TOTAL_CONNECTION_FAILURE_COUNT_AFTER_TRIGGER; i++) {
+            mWifiMetrics.incrementWatchdogTotalConnectionFailureCountAfterTrigger();
+        }
         for (int i = 0; i < NUM_RSSI_LEVELS_TO_INCREMENT; i++) {
             for (int j = 0; j <= i; j++) {
                 mWifiMetrics.incrementRssiPollRssiCount(MIN_RSSI_LEVEL + i);
@@ -655,6 +660,8 @@ public class WifiMetricsTest {
         for (int i = 0; i < NUM_WPS_CANCELLATION; i++) {
             mWifiMetrics.incrementWpsCancellationCount();
         }
+
+        mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
     }
 
     private void addSoftApEventsToMetrics() {
@@ -777,6 +784,8 @@ public class WifiMetricsTest {
                 mDecodedProto.numLastResortWatchdogTriggersWithBadOther);
         assertEquals(NUM_LAST_RESORT_WATCHDOG_SUCCESSES,
                 mDecodedProto.numLastResortWatchdogSuccesses);
+        assertEquals(WATCHDOG_TOTAL_CONNECTION_FAILURE_COUNT_AFTER_TRIGGER,
+                mDecodedProto.watchdogTotalConnectionFailureCountAfterTrigger);
         assertEquals(TEST_RECORD_DURATION_SEC,
                 mDecodedProto.recordDurationSec);
         for (int i = 0; i < NUM_RSSI_LEVELS_TO_INCREMENT; i++) {
@@ -918,6 +927,9 @@ public class WifiMetricsTest {
         assertEquals(NUM_WPS_OTHER_CONNECTION_FAILURE, wps_metrics.numWpsOtherConnectionFailure);
         assertEquals(NUM_WPS_SUPPLICANT_FAILURE, wps_metrics.numWpsSupplicantFailure);
         assertEquals(NUM_WPS_CANCELLATION, wps_metrics.numWpsCancellation);
+
+        assertEquals(NUM_WATCHDOG_SUCCESS_DURATION_MS,
+                mDecodedProto.watchdogTriggerToConnectionSuccessDurationMs);
     }
 
     /**
