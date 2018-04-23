@@ -31,6 +31,7 @@ import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -44,6 +45,7 @@ import com.android.server.wifi.hotspot2.Utils;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
@@ -88,6 +90,8 @@ public class WifiMetrics {
     private static final int MIN_RSSI_POLL = -127;
     public static final int MAX_RSSI_DELTA = 127;
     public static final int MIN_RSSI_DELTA = -127;
+    /** Minimum link speed (Mbps) to count for link_speed_counts */
+    public static final int MIN_LINK_SPEED_MBPS = 0;
     /** Maximum time period between ScanResult and RSSI poll to generate rssi delta datapoint */
     public static final long TIMEOUT_RSSI_DELTA_MILLIS =  3000;
     private static final int MIN_WIFI_SCORE = 0;
@@ -114,6 +118,7 @@ public class WifiMetrics {
     // Minimum time wait before generating next WifiIsUnusableEvent from data stall
     public static final int MIN_DATA_STALL_WAIT_MS = 120 * 1000; // 2 minutes
     private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 0; // 0 = false
+    private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 0; // 0 = false
 
     private Clock mClock;
     private boolean mScreenOn;
@@ -134,6 +139,8 @@ public class WifiMetrics {
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
+    /** Tracks if we should be logging LinkSpeedCounts */
+    private boolean mLinkSpeedCountsLogging = true;
 
     /**
      * Metrics are stored within an instance of the WifiLog proto during runtime,
@@ -163,6 +170,8 @@ public class WifiMetrics {
     private final Map<Integer, SparseIntArray> mRssiPollCountsMap = new HashMap<>();
     /** Mapping of RSSI scan-poll delta values to counts. */
     private final SparseIntArray mRssiDeltaCounts = new SparseIntArray();
+    /** Mapping of link speed values to LinkSpeedCount objects. */
+    private final SparseArray<LinkSpeedCount> mLinkSpeedCounts = new SparseArray<>();
     /** RSSI of the scan result for the last connection event*/
     private int mScanResultRssi = 0;
     /** Boot-relative timestamp when the last candidate scanresult was received, used to calculate
@@ -490,6 +499,11 @@ public class WifiMetrics {
                 WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT);
         mUnusableEventLogging = (unusableEventFlag == 1);
         setWifiIsUnusableLoggingEnabled(mUnusableEventLogging);
+        int linkSpeedCountsFlag = mFacade.getIntegerSetting(
+                mContext, Settings.Global.WIFI_LINK_SPEED_METRICS_ENABLED,
+                WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT);
+        mLinkSpeedCountsLogging = (linkSpeedCountsFlag == 1);
+        setLinkSpeedCountsLoggingEnabled(mLinkSpeedCountsLogging);
         if (mWifiDataStall != null) {
             mWifiDataStall.loadSettings();
         }
@@ -1143,6 +1157,7 @@ public class WifiMetrics {
         mLastPollLinkSpeed = wifiInfo.getLinkSpeed();
         mLastPollFreq = wifiInfo.getFrequency();
         incrementRssiPollRssiCount(mLastPollFreq, mLastPollRssi);
+        incrementLinkSpeedCount(mLastPollLinkSpeed, mLastPollRssi);
     }
 
     /**
@@ -1182,6 +1197,32 @@ public class WifiMetrics {
                 }
             }
             mScanResultRssiTimestampMillis = -1;
+        }
+    }
+
+    /**
+     * Increment occurrence count of link speed.
+     * Ignores link speed values that are lower than MIN_LINK_SPEED_MBPS
+     * and rssi values outside the bounds of [MIN_RSSI_POLL, MAX_RSSI_POLL]
+     */
+    @VisibleForTesting
+    public void incrementLinkSpeedCount(int linkSpeed, int rssi) {
+        if (!(mLinkSpeedCountsLogging
+                && linkSpeed >= MIN_LINK_SPEED_MBPS
+                && rssi >= MIN_RSSI_POLL
+                && rssi <= MAX_RSSI_POLL)) {
+            return;
+        }
+        synchronized (mLock) {
+            LinkSpeedCount linkSpeedCount = mLinkSpeedCounts.get(linkSpeed);
+            if (linkSpeedCount == null) {
+                linkSpeedCount = new LinkSpeedCount();
+                linkSpeedCount.linkSpeedMbps = linkSpeed;
+                mLinkSpeedCounts.put(linkSpeed, linkSpeedCount);
+            }
+            linkSpeedCount.count++;
+            linkSpeedCount.rssiSumDbm += Math.abs(rssi);
+            linkSpeedCount.rssiSumOfSquaresDbmSq += rssi * rssi;
         }
     }
 
@@ -1997,6 +2038,18 @@ public class WifiMetrics {
                     sb.append(mRssiDeltaCounts.get(i) + " ");
                 }
                 pw.println("  " + sb.toString());
+                pw.println("mWifiLogProto.linkSpeedCounts: ");
+                sb.setLength(0);
+                for (int i = 0; i < mLinkSpeedCounts.size(); i++) {
+                    LinkSpeedCount linkSpeedCount = mLinkSpeedCounts.valueAt(i);
+                    sb.append(linkSpeedCount.linkSpeedMbps).append(":{")
+                            .append(linkSpeedCount.count).append(", ")
+                            .append(linkSpeedCount.rssiSumDbm).append(", ")
+                            .append(linkSpeedCount.rssiSumOfSquaresDbmSq).append("} ");
+                }
+                if (sb.length() > 0) {
+                    pw.println(sb.toString());
+                }
                 pw.print("mWifiLogProto.alertReasonCounts=");
                 sb.setLength(0);
                 for (int i = WifiLoggerHal.WIFI_ALERT_REASON_MIN;
@@ -2206,6 +2259,8 @@ public class WifiMetrics {
                         + mExperimentValues.wifiDataStallMinTxBad);
                 pw.println("mExperimentValues.wifiDataStallMinTxSuccessWithoutRx="
                         + mExperimentValues.wifiDataStallMinTxSuccessWithoutRx);
+                pw.println("mExperimentValues.linkSpeedCountsLoggingEnabled="
+                        + mExperimentValues.linkSpeedCountsLoggingEnabled);
                 pw.println("WifiIsUnusableEventList: ");
                 for (WifiIsUnusableWithTime event : mWifiIsUnusableList) {
                     pw.println(event);
@@ -2275,6 +2330,7 @@ public class WifiMetrics {
         List<WifiMetricsProto.ConnectionEvent> events = new ArrayList<>();
         List<WifiMetricsProto.RssiPollCount> rssis = new ArrayList<>();
         List<WifiMetricsProto.RssiPollCount> rssiDeltas = new ArrayList<>();
+        List<WifiMetricsProto.LinkSpeedCount> linkSpeeds = new ArrayList<>();
         List<WifiMetricsProto.AlertReasonCount> alertReasons = new ArrayList<>();
         List<WifiMetricsProto.WifiScoreCount> scores = new ArrayList<>();
         synchronized (mLock) {
@@ -2325,7 +2381,7 @@ public class WifiMetrics {
 
             /**
              * Convert the SparseIntArrays of RSSI poll rssi, counts, and frequency to the
-             * proto's repeated ntKeyVal array.
+             * proto's repeated IntKeyVal array.
              */
             for (Map.Entry<Integer, SparseIntArray> entry : mRssiPollCountsMap.entrySet()) {
                 int frequency = entry.getKey();
@@ -2353,6 +2409,14 @@ public class WifiMetrics {
             mWifiLogProto.rssiPollDeltaCount = rssiDeltas.toArray(mWifiLogProto.rssiPollDeltaCount);
 
 
+
+            /**
+             * Add LinkSpeedCount objects from mLinkSpeedCounts to proto.
+             */
+            for (int i = 0; i < mLinkSpeedCounts.size(); i++) {
+                linkSpeeds.add(mLinkSpeedCounts.valueAt(i));
+            }
+            mWifiLogProto.linkSpeedCounts = linkSpeeds.toArray(mWifiLogProto.linkSpeedCounts);
 
             /**
              * Convert the SparseIntArray of alert reasons and counts to the proto's repeated
@@ -2563,6 +2627,7 @@ public class WifiMetrics {
             mRecordStartTimeSec = mClock.getElapsedSinceBootMillis() / 1000;
             mRssiPollCountsMap.clear();
             mRssiDeltaCounts.clear();
+            mLinkSpeedCounts.clear();
             mWifiAlertReasonCounts.clear();
             mWifiScoreCounts.clear();
             mWifiLogProto.clear();
@@ -3212,6 +3277,16 @@ public class WifiMetrics {
     public void setWifiIsUnusableLoggingEnabled(boolean enabled) {
         synchronized (mLock) {
             mExperimentValues.wifiIsUnusableLoggingEnabled = enabled;
+        }
+    }
+
+    /**
+     * Sets whether or not LinkSpeedCounts is logged in metrics
+     */
+    @VisibleForTesting
+    public void setLinkSpeedCountsLoggingEnabled(boolean enabled) {
+        synchronized (mLock) {
+            mExperimentValues.linkSpeedCountsLoggingEnabled = enabled;
         }
     }
 

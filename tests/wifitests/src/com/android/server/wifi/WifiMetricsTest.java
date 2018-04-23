@@ -244,7 +244,6 @@ public class WifiMetricsTest {
     private static final int WATCHDOG_TOTAL_CONNECTION_FAILURE_COUNT_AFTER_TRIGGER = 6;
     private static final int RSSI_POLL_FREQUENCY = 5150;
     private static final int NUM_RSSI_LEVELS_TO_INCREMENT = 20;
-    private static final int FIRST_RSSI_LEVEL = -80;
     private static final int NUM_OPEN_NETWORK_SCAN_RESULTS = 1;
     private static final int NUM_PERSONAL_NETWORK_SCAN_RESULTS = 4;
     private static final int NUM_ENTERPRISE_NETWORK_SCAN_RESULTS = 3;
@@ -308,6 +307,7 @@ public class WifiMetricsTest {
     private static final long WIFI_POWER_METRICS_LOGGING_DURATION = 280;
     private static final long WIFI_POWER_METRICS_SCAN_TIME = 33;
     private static final boolean WIFI_IS_UNUSABLE_EVENT_LOGGING_SETTING = true;
+    private static final boolean LINK_SPEED_COUNTS_LOGGING_SETTING = true;
     private static final int DATA_STALL_MIN_TX_BAD_SETTING = 5;
     private static final int DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING = 75;
 
@@ -331,6 +331,8 @@ public class WifiMetricsTest {
     private static final int SOFT_AP_CHANNEL_FREQUENCY = 2437;
     private static final int SOFT_AP_CHANNEL_BANDWIDTH = SoftApConnectedClientsEvent.BANDWIDTH_20;
     private static final boolean IS_MAC_RANDOMIZATION_ON = true;
+    private static final int NUM_LINK_SPEED_LEVELS_TO_INCREMENT = 30;
+    private static final int TEST_RSSI_LEVEL = -80;
 
     private ScanDetail buildMockScanDetail(boolean hidden, NetworkDetail.HSRelease hSRelease,
             String capabilities) {
@@ -707,6 +709,7 @@ public class WifiMetricsTest {
         addWifiPowerMetrics();
 
         mWifiMetrics.setWifiIsUnusableLoggingEnabled(WIFI_IS_UNUSABLE_EVENT_LOGGING_SETTING);
+        mWifiMetrics.setLinkSpeedCountsLoggingEnabled(LINK_SPEED_COUNTS_LOGGING_SETTING);
         mWifiMetrics.setWifiDataStallMinTxBad(DATA_STALL_MIN_TX_BAD_SETTING);
         mWifiMetrics.setWifiDataStallMinRxWithoutTx(DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING);
     }
@@ -999,6 +1002,8 @@ public class WifiMetricsTest {
                 mDecodedProto.wifiRadioUsage.scanTimeMs);
         assertEquals(WIFI_IS_UNUSABLE_EVENT_LOGGING_SETTING,
                 mDecodedProto.experimentValues.wifiIsUnusableLoggingEnabled);
+        assertEquals(LINK_SPEED_COUNTS_LOGGING_SETTING,
+                mDecodedProto.experimentValues.linkSpeedCountsLoggingEnabled);
         assertEquals(DATA_STALL_MIN_TX_BAD_SETTING,
                 mDecodedProto.experimentValues.wifiDataStallMinTxBad);
         assertEquals(DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING,
@@ -2078,5 +2083,81 @@ public class WifiMetricsTest {
         verifyUnusableEvent(mDecodedProto.wifiIsUnusableEventList[0], 0);
         verifyUnusableEvent(mDecodedProto.wifiIsUnusableEventList[1], 2);
         verifyUnusableEvent(mDecodedProto.wifiIsUnusableEventList[2], 3);
+    }
+
+    /**
+     * Verify that LinkSpeedCounts is correctly logged in metrics
+     */
+    @Test
+    public void testLinkSpeedCounts() throws Exception {
+        when(mFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_SPEED_METRICS_ENABLED), anyInt())).thenReturn(1);
+        mWifiMetrics.loadSettings();
+        for (int i = 0; i < NUM_LINK_SPEED_LEVELS_TO_INCREMENT; i++) {
+            for (int j = 0; j <= i; j++) {
+                mWifiMetrics.incrementLinkSpeedCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS + i, TEST_RSSI_LEVEL);
+            }
+        }
+        dumpProtoAndDeserialize();
+        assertEquals(NUM_LINK_SPEED_LEVELS_TO_INCREMENT, mDecodedProto.linkSpeedCounts.length);
+        for (int i = 0; i < NUM_LINK_SPEED_LEVELS_TO_INCREMENT; i++) {
+            assertEquals("Incorrect link speed", WifiMetrics.MIN_LINK_SPEED_MBPS + i,
+                    mDecodedProto.linkSpeedCounts[i].linkSpeedMbps);
+            assertEquals("Incorrect count of link speed",
+                    i + 1, mDecodedProto.linkSpeedCounts[i].count);
+            assertEquals("Incorrect sum of absolute values of rssi values",
+                    Math.abs(TEST_RSSI_LEVEL) * (i + 1),
+                    mDecodedProto.linkSpeedCounts[i].rssiSumDbm);
+            assertEquals("Incorrect sum of squares of rssi values",
+                    TEST_RSSI_LEVEL * TEST_RSSI_LEVEL * (i + 1),
+                    mDecodedProto.linkSpeedCounts[i].rssiSumOfSquaresDbmSq);
+        }
+    }
+
+    /**
+     * Verify that LinkSpeedCounts is not logged when disabled in settings
+     */
+    @Test
+    public void testNoLinkSpeedCountsWhenDisabled() throws Exception {
+        when(mFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_SPEED_METRICS_ENABLED), anyInt())).thenReturn(0);
+        mWifiMetrics.loadSettings();
+        for (int i = 0; i < NUM_LINK_SPEED_LEVELS_TO_INCREMENT; i++) {
+            for (int j = 0; j <= i; j++) {
+                mWifiMetrics.incrementLinkSpeedCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS + i, TEST_RSSI_LEVEL);
+            }
+        }
+        dumpProtoAndDeserialize();
+        assertEquals("LinkSpeedCounts should not be logged when disabled in settings",
+                0, mDecodedProto.linkSpeedCounts.length);
+    }
+
+    /**
+     * Verify that LinkSpeedCounts is not logged when the link speed value is lower than
+     * MIN_LINK_SPEED_MBPS or when the rssi value is outside of
+     * [MIN_RSSI_LEVEL, MAX_RSSI_LEVEL]
+     */
+    @Test
+    public void testNoLinkSpeedCountsForOutOfBoundValues() throws Exception {
+        when(mFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_SPEED_METRICS_ENABLED), anyInt())).thenReturn(1);
+        mWifiMetrics.loadSettings();
+        for (int i = 1; i < NUM_OUT_OF_BOUND_ENTRIES; i++) {
+            mWifiMetrics.incrementLinkSpeedCount(
+                    WifiMetrics.MIN_LINK_SPEED_MBPS - i, MIN_RSSI_LEVEL);
+        }
+        for (int i = 1; i < NUM_OUT_OF_BOUND_ENTRIES; i++) {
+            mWifiMetrics.incrementLinkSpeedCount(
+                    WifiMetrics.MIN_LINK_SPEED_MBPS, MIN_RSSI_LEVEL - i);
+        }
+        for (int i = 1; i < NUM_OUT_OF_BOUND_ENTRIES; i++) {
+            mWifiMetrics.incrementLinkSpeedCount(
+                    WifiMetrics.MIN_LINK_SPEED_MBPS, MAX_RSSI_LEVEL + i);
+        }
+        dumpProtoAndDeserialize();
+        assertEquals("LinkSpeedCounts should not be logged for out of bound values",
+                0, mDecodedProto.linkSpeedCounts.length);
     }
 }
