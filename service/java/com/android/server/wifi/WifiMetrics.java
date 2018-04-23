@@ -2013,6 +2013,10 @@ public class WifiMetrics {
                         + mWifiLogProto.numLastResortWatchdogTriggersWithBadOther);
                 pw.println("mWifiLogProto.numLastResortWatchdogSuccesses="
                         + mWifiLogProto.numLastResortWatchdogSuccesses);
+                pw.println("mWifiLogProto.watchdogTotalConnectionFailureCountAfterTrigger="
+                        + mWifiLogProto.watchdogTotalConnectionFailureCountAfterTrigger);
+                pw.println("mWifiLogProto.watchdogTriggerToConnectionSuccessDurationMs="
+                        + mWifiLogProto.watchdogTriggerToConnectionSuccessDurationMs);
                 pw.println("mWifiLogProto.recordDurationSec="
                         + ((mClock.getElapsedSinceBootMillis() / 1000) - mRecordStartTimeSec));
 
