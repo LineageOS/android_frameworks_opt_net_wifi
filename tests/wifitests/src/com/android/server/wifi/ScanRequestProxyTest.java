@@ -111,6 +111,26 @@ public class ScanRequestProxyTest {
     }
 
     /**
+     * Verify scan enable sequence.
+     */
+    @Test
+    public void testEnableScanning() {
+        mScanRequestProxy.enableScanning(true, true);
+        verify(mWifiScanner).setScanningEnabled(true);
+        validateScanAvailableBroadcastSent(true);
+    }
+
+    /**
+     * Verify scan disable sequence.
+     */
+    @Test
+    public void testDisableScanning() {
+        mScanRequestProxy.enableScanning(false, false);
+        verify(mWifiScanner).setScanningEnabled(false);
+        validateScanAvailableBroadcastSent(false);
+    }
+
+    /**
      * Verify scan request will be rejected if we cannot get a handle to wifiscanner.
      */
     @Test
@@ -165,7 +185,10 @@ public class ScanRequestProxyTest {
      */
     @Test
     public void testStartScanWithHiddenNetworkScanningDisabled() {
-        mScanRequestProxy.enableScanningForHiddenNetworks(false);
+        mScanRequestProxy.enableScanning(true, false);
+        verify(mWifiScanner).setScanningEnabled(true);
+        validateScanAvailableBroadcastSent(true);
+
         assertTrue(mScanRequestProxy.startScan(TEST_UID, TEST_PACKAGE_NAME_1));
         mInOrder.verify(mWifiConfigManager, never()).retrieveHiddenNetworkList();
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
@@ -181,7 +204,10 @@ public class ScanRequestProxyTest {
      */
     @Test
     public void testStartScanWithHiddenNetworkScanningEnabled() {
-        mScanRequestProxy.enableScanningForHiddenNetworks(true);
+        mScanRequestProxy.enableScanning(true, true);
+        verify(mWifiScanner).setScanningEnabled(true);
+        validateScanAvailableBroadcastSent(true);
+
         assertTrue(mScanRequestProxy.startScan(TEST_UID, TEST_PACKAGE_NAME_1));
         mInOrder.verify(mWifiConfigManager).retrieveHiddenNetworkList();
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
@@ -429,10 +455,15 @@ public class ScanRequestProxyTest {
     }
 
     /**
-     * Verify that clear scan results invocation clears all stored scan results.
+     * Verify that we clear scan results when scan state is toggled.
      */
     @Test
-    public void testClearScanResults() {
+    public void testToggleScanStateClearsScanResults() {
+        // Enable scanning
+        mScanRequestProxy.enableScanning(true, false);
+        verify(mWifiScanner).setScanningEnabled(true);
+        validateScanAvailableBroadcastSent(true);
+
         // Make scan request 1.
         assertTrue(mScanRequestProxy.startScan(TEST_UID, TEST_PACKAGE_NAME_1));
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
@@ -444,7 +475,11 @@ public class ScanRequestProxyTest {
                 mTestScanDatas1[0].getResults(),
                 mScanRequestProxy.getScanResults().stream().toArray(ScanResult[]::new));
 
-        mScanRequestProxy.clearScanResults();
+        // Disable scanning
+        mScanRequestProxy.enableScanning(false, false);
+        verify(mWifiScanner).setScanningEnabled(false);
+        validateScanAvailableBroadcastSent(false);
+
         assertTrue(mScanRequestProxy.getScanResults().isEmpty());
 
         verify(mWifiMetrics).incrementExternalAppOneshotScanRequestsCount();
@@ -763,5 +798,22 @@ public class ScanRequestProxyTest {
         assertFalse(scanSucceeded);
         String packageName = intent.getPackage();
         assertEquals(expectedPackageName, packageName);
+    }
+
+    private void validateScanAvailableBroadcastSent(boolean expectedScanAvailable) {
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<UserHandle> userHandleCaptor = ArgumentCaptor.forClass(UserHandle.class);
+        mInOrder.verify(mContext).sendStickyBroadcastAsUser(
+                intentCaptor.capture(), userHandleCaptor.capture());
+
+        assertEquals(userHandleCaptor.getValue(), UserHandle.ALL);
+
+        Intent intent = intentCaptor.getValue();
+        assertEquals(WifiManager.WIFI_SCAN_AVAILABLE, intent.getAction());
+        assertEquals(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT, intent.getFlags());
+        int scanState = intent.getIntExtra(WifiManager.EXTRA_SCAN_AVAILABLE,
+                WifiManager.WIFI_STATE_DISABLED);
+        boolean scanAvailable = scanState == WifiManager.WIFI_STATE_ENABLED;
+        assertEquals(expectedScanAvailable, scanAvailable);
     }
 }

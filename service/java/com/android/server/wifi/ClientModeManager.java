@@ -47,7 +47,6 @@ public class ClientModeManager implements ActiveModeManager {
 
     private final WifiMetrics mWifiMetrics;
     private final Listener mListener;
-    private final ScanRequestProxy mScanRequestProxy;
     private final ClientModeImpl mClientModeImpl;
 
     private String mClientInterfaceName;
@@ -56,13 +55,11 @@ public class ClientModeManager implements ActiveModeManager {
     private boolean mExpectedStop = false;
 
     ClientModeManager(Context context, @NonNull Looper looper, WifiNative wifiNative,
-            Listener listener, WifiMetrics wifiMetrics, ScanRequestProxy scanRequestProxy,
-            ClientModeImpl clientModeImpl) {
+            Listener listener, WifiMetrics wifiMetrics, ClientModeImpl clientModeImpl) {
         mContext = context;
         mWifiNative = wifiNative;
         mListener = listener;
         mWifiMetrics = wifiMetrics;
-        mScanRequestProxy = scanRequestProxy;
         mClientModeImpl = clientModeImpl;
         mStateMachine = new ClientModeStateMachine(looper);
     }
@@ -238,9 +235,6 @@ public class ClientModeManager implements ActiveModeManager {
                                             WifiManager.WIFI_STATE_UNKNOWN);
                             break;
                         }
-                        sendScanAvailableBroadcast(false);
-                        mScanRequestProxy.enableScanningForHiddenNetworks(false);
-                        mScanRequestProxy.clearScanResults();
                         transitionTo(mStartedState);
                         break;
                     default:
@@ -260,9 +254,8 @@ public class ClientModeManager implements ActiveModeManager {
                 mIfaceIsUp = isUp;
                 if (isUp) {
                     Log.d(TAG, "Wifi is ready to use for client mode");
-                    sendScanAvailableBroadcast(true);
                     mClientModeImpl.setOperationalMode(ClientModeImpl.CONNECT_MODE,
-                                                         mClientInterfaceName);
+                                                       mClientInterfaceName);
                     updateWifiState(WifiManager.WIFI_STATE_ENABLED,
                                     WifiManager.WIFI_STATE_ENABLING);
                 } else {
@@ -284,7 +277,6 @@ public class ClientModeManager implements ActiveModeManager {
                 Log.d(TAG, "entering StartedState");
                 mIfaceIsUp = false;
                 onUpChanged(mWifiNative.isInterfaceUp(mClientInterfaceName));
-                mScanRequestProxy.enableScanningForHiddenNetworks(true);
             }
 
             @Override
@@ -338,18 +330,6 @@ public class ClientModeManager implements ActiveModeManager {
                 // once we leave started, nothing else to do...  stop the state machine
                 mStateMachine.quitNow();
             }
-        }
-
-        private void sendScanAvailableBroadcast(boolean available) {
-            Log.d(TAG, "sending scan available broadcast: " + available);
-            final Intent intent = new Intent(WifiManager.WIFI_SCAN_AVAILABLE);
-            intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-            if (available) {
-                intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_ENABLED);
-            } else {
-                intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_DISABLED);
-            }
-            mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
         }
     }
 }

@@ -53,15 +53,12 @@ import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
-import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -76,7 +73,6 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.ScanResults;
-import com.android.server.wifi.TestUtil;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
@@ -410,13 +406,8 @@ public class WifiScanningServiceTest {
                             return true;
                         }
                     });
-        ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
-                ArgumentCaptor.forClass(BroadcastReceiver.class);
-        verify(mContext)
-                .registerReceiver(broadcastReceiverCaptor.capture(), any(IntentFilter.class));
-        mBroadcastReceiver = broadcastReceiverCaptor.getValue();
-        TestUtil.sendWifiScanAvailable(broadcastReceiverCaptor.getValue(), mContext,
-                WifiManager.WIFI_STATE_ENABLED);
+        BidirectionalAsyncChannel controlChannel = connectChannel(mock(Handler.class));
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
     }
 
@@ -499,15 +490,15 @@ public class WifiScanningServiceTest {
     }
 
     /**
-     * Verifies that duplicate SCAN_AVAILABLE broadcast with |WIFI_STATE_ENABLED| is ignored.
+     * Verifies that duplicate scan enable is ignored.
      */
     @Test
-    public void duplicateScanAvailableBroadcastIsIgnored() throws RemoteException {
+    public void duplicateScanEnableIsIgnored() throws RemoteException {
         startServiceAndLoadDriver();
 
-        // Send scan available again.
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_ENABLED);
+        // Send scan enable again.
+        BidirectionalAsyncChannel controlChannel = connectChannel(mock(Handler.class));
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
 
         // Ensure we didn't create scanner instance twice.
@@ -946,8 +937,7 @@ public class WifiScanningServiceTest {
         verifySuccessfulResponse(order, handler, requestId);
 
         // disable wifi
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_DISABLED);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_DISABLE));
 
         // validate failed response
         mLooper.dispatchAll();
@@ -998,8 +988,7 @@ public class WifiScanningServiceTest {
         verifySuccessfulResponse(order, handler, listenerRequestId);
 
         // disable wifi
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_DISABLED);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_DISABLE));
 
         // validate failed response
         mLooper.dispatchAll();
@@ -1760,9 +1749,7 @@ public class WifiScanningServiceTest {
         assertEquals(results.size(), expectedResults.getRawScanResults().length);
 
         // disable wifi
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver,
-                                       mContext,
-                                       WifiManager.WIFI_STATE_DISABLED);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_DISABLE));
         // Now get scan results again. The returned list should be empty since we
         // clear the cache when exiting the DriverLoaded state.
         controlChannel.sendMessage(
@@ -2295,42 +2282,22 @@ public class WifiScanningServiceTest {
     }
 
     /**
-     * Verifies that null msg.replyTo is handled properly
+     * Verifies that background scan works after duplicate scan enable.
      */
     @Test
-    public void nullReplyToInMsgIsHandled() throws RemoteException {
-        startServiceAndLoadDriver();
-        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
-        final Message message = Message.obtain();
-        message.what = AsyncChannel.CMD_CHANNEL_FULL_CONNECTION;
-        message.replyTo = null;
-
-        //  can't use BidirectionalAsyncChannel to send message because that
-        //  will override message.replyTo to non-null
-        Messenger messenger = mWifiScanningServiceImpl.getMessenger();
-        messenger.send(message);
-        verify(mFrameworkFacade, never()).makeWifiAsyncChannel(anyString());
-    }
-
-    /**
-     * Verifies that background scan works after duplicate SCAN_AVAILABLE broadcast with
-     * |WIFI_STATE_ENABLED|.
-     */
-    @Test
-    public void backgroundScanAfterDuplicateScanAvailableBroadcast() throws RemoteException {
+    public void backgroundScanAfterDuplicateScanEnable() throws RemoteException {
         startServiceAndLoadDriver();
 
-        // Send scan available again.
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_ENABLED);
+        // Send scan enable again.
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
                 .create(any(), any(), any());
 
-        Handler handler = mock(Handler.class);
-        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
         InOrder order = inOrder(handler);
         when(mWifiScannerImpl.startBatchedScan(any(WifiNative.ScanSettings.class),
                 any(WifiNative.ScanEventHandler.class))).thenReturn(true);
@@ -2341,24 +2308,22 @@ public class WifiScanningServiceTest {
     }
 
     /**
-     * Verifies that single scan works after duplicate SCAN_AVAILABLE broadcast with
-     * |WIFI_STATE_ENABLED|.
+     * Verifies that single scan works after duplicate scan enable.
      */
     @Test
-    public void singleScanScanAfterDuplicateScanAvailableBroadcast() throws RemoteException {
+    public void singleScanScanAfterDuplicateScanEnable() throws RemoteException {
         startServiceAndLoadDriver();
 
-        // Send scan available again.
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_ENABLED);
+        // Send scan enable again.
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
                 .create(any(), any(), any());
 
-        Handler handler = mock(Handler.class);
-        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
         InOrder order = inOrder(handler, mWifiScannerImpl);
 
         int requestId = 12;
@@ -2393,24 +2358,22 @@ public class WifiScanningServiceTest {
     }
 
     /**
-     * Verifies that pno scan works after duplicate SCAN_AVAILABLE broadcast with
-     * |WIFI_STATE_ENABLED|.
+     * Verifies that pno scan works after duplicate scan enable.
      */
     @Test
-    public void hwPnoScanScanAfterDuplicateScanAvailableBroadcast() throws Exception {
+    public void hwPnoScanScanAfterDuplicateScanEnable() throws Exception {
         startServiceAndLoadDriver();
 
-        // Send scan available again.
-        TestUtil.sendWifiScanAvailable(mBroadcastReceiver, mContext,
-                WifiManager.WIFI_STATE_ENABLED);
+        // Send scan enable again.
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
                 .create(any(), any(), any());
 
-        Handler handler = mock(Handler.class);
-        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
         InOrder order = inOrder(handler, mWifiScannerImpl);
         int requestId = 12;
 

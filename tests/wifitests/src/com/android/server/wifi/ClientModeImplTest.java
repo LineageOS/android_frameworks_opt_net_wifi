@@ -369,7 +369,6 @@ public class ClientModeImplTest {
     @Mock HandlerThread mWifiServiceHandlerThread;
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
     @Mock WakeupController mWakeupController;
-    @Mock ScanRequestProxy mScanRequestProxy;
     @Mock WifiDataStall mWifiDataStall;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
@@ -415,7 +414,6 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mWifiServiceHandlerThread);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
-        when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
         when(mWifiInjector.getWifiDataStall()).thenReturn(mWifiDataStall);
         when(mWifiNative.initialize()).thenReturn(true);
@@ -866,7 +864,6 @@ public class ClientModeImplTest {
                 eq(config.networkId))).thenReturn(config);
 
         verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
-        verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
         assertTrue(mCmi.syncEnableNetwork(mCmiAsyncChannel, config.networkId, true));
@@ -1061,7 +1058,6 @@ public class ClientModeImplTest {
         when(mWifiConfigManager.getConfiguredNetwork(eq(0))).thenReturn(null);
 
         verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
-        verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
         assertFalse(mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true));
@@ -1083,7 +1079,6 @@ public class ClientModeImplTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
-        verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
         mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
@@ -1690,7 +1685,6 @@ public class ClientModeImplTest {
         when(mWifiConfigManager.updateLastConnectUid(eq(0), anyInt())).thenReturn(true);
 
         verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
-        verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
         assertTrue(mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true));
