@@ -412,7 +412,7 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
 
     synchronized void onWifiAlert(int errorCode, @NonNull byte[] buffer) {
         captureAlertData(errorCode, buffer);
-        mWifiMetrics.incrementAlertReasonCount(errorCode);
+        mWifiMetrics.logFirmwareAlert(errorCode);
     }
 
     private boolean isVerboseLoggingEnabled() {

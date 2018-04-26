@@ -139,6 +139,7 @@ public class WifiInjector {
     private final ScanRequestProxy mScanRequestProxy;
     private final SarManager mSarManager;
     private final BaseWifiDiagnostics mWifiDiagnostics;
+    private final WifiDataStall mWifiDataStall;
 
     private final boolean mUseRealLogger;
 
@@ -180,8 +181,8 @@ public class WifiInjector {
             mWifiServiceHandlerThread.getLooper(), mFrameworkFacade);
         WifiAwareMetrics awareMetrics = new WifiAwareMetrics(mClock);
         RttMetrics rttMetrics = new RttMetrics(mClock);
-        mWifiMetrics = new WifiMetrics(mClock, wifiStateMachineLooper, awareMetrics, rttMetrics,
-            new WifiPowerMetrics());
+        mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, wifiStateMachineLooper,
+                awareMetrics, rttMetrics, new WifiPowerMetrics());
         // Modules interacting with Native.
         mWifiMonitor = new WifiMonitor(this);
         mHalDeviceManager = new HalDeviceManager(mClock);
@@ -263,6 +264,8 @@ public class WifiInjector {
         } else {
             mWifiDiagnostics = new BaseWifiDiagnostics(mWifiNative);
         }
+        mWifiDataStall = new WifiDataStall(mContext, mFrameworkFacade, mWifiMetrics);
+        mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mWifiStateMachine = new WifiStateMachine(mContext, mFrameworkFacade,
                 wifiStateMachineLooper, UserManager.get(mContext),
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
@@ -614,5 +617,9 @@ public class WifiInjector {
 
     public ActivityManagerService getActivityManagerService() {
         return (ActivityManagerService) ActivityManager.getService();
+    }
+
+    public WifiDataStall getWifiDataStall() {
+        return mWifiDataStall;
     }
 }

@@ -370,6 +370,7 @@ public class WifiStateMachineTest {
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
     @Mock WakeupController mWakeupController;
     @Mock ScanRequestProxy mScanRequestProxy;
+    @Mock WifiDataStall mWifiDataStall;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -416,6 +417,7 @@ public class WifiStateMachineTest {
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
+        when(mWifiInjector.getWifiDataStall()).thenReturn(mWifiDataStall);
         when(mWifiNative.setupInterfaceForClientMode(anyBoolean(), any()))
                 .thenReturn(WIFI_IFACE_NAME);
         when(mWifiNative.initialize()).thenReturn(true);
@@ -2566,5 +2568,24 @@ public class WifiStateMachineTest {
                 .setNetworkValidatedInternetAccess(FRAMEWORK_NETWORK_ID, true);
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
+    }
+
+    /**
+     * Verify that we check for data stall during rssi poll
+     */
+    @Test
+    public void verifyRssiPollChecksDataStall() throws Exception {
+        mWsm.enableRssiPolling(true);
+        connect();
+
+        WifiLinkLayerStats oldLLStats = new WifiLinkLayerStats();
+        when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(oldLLStats);
+        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL, 1);
+        mLooper.dispatchAll();
+        WifiLinkLayerStats newLLStats = new WifiLinkLayerStats();
+        when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(newLLStats);
+        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL, 1);
+        mLooper.dispatchAll();
+        verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats);
     }
 }

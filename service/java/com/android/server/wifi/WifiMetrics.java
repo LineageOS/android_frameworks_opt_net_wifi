@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.content.Context;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.NetworkAgent;
 import android.net.wifi.ScanResult;
@@ -26,6 +27,7 @@ import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
@@ -41,10 +43,12 @@ import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.hotspot2.Utils;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -105,6 +109,12 @@ public class WifiMetrics {
     private static final int CONNECT_TO_NETWORK_NOTIFICATION_ACTION_KEY_MULTIPLIER = 1000;
     // Max limit for number of soft AP related events, extra events will be dropped.
     private static final int MAX_NUM_SOFT_AP_EVENTS = 256;
+    // Maximum number of WifiIsUnusableEvent
+    public static final int MAX_UNUSABLE_EVENTS = 20;
+    // Minimum time wait before generating next WifiIsUnusableEvent from data stall
+    public static final int MIN_DATA_STALL_WAIT_MS = 120 * 1000; // 2 minutes
+    private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 0; // 0 = false
+
     private Clock mClock;
     private boolean mScreenOn;
     private int mWifiState;
@@ -112,11 +122,19 @@ public class WifiMetrics {
     private RttMetrics mRttMetrics;
     private final PnoScanMetrics mPnoScanMetrics = new PnoScanMetrics();
     private final WpsMetrics mWpsMetrics = new WpsMetrics();
+    private final ExperimentValues mExperimentValues = new ExperimentValues();
     private Handler mHandler;
     private ScoringParams mScoringParams;
     private WifiConfigManager mWifiConfigManager;
     private WifiNetworkSelector mWifiNetworkSelector;
     private PasspointManager mPasspointManager;
+    private Context mContext;
+    private FrameworkFacade mFacade;
+    private WifiDataStall mWifiDataStall;
+
+    /** Tracks if we should be logging WifiIsUnusableEvent */
+    private boolean mUnusableEventLogging = false;
+
     /**
      * Metrics are stored within an instance of the WifiLog proto during runtime,
      * The ConnectionEvent, SystemStateEntries & ScanReturnEntries metrics are stored during
@@ -438,8 +456,11 @@ public class WifiMetrics {
         }
     }
 
-    public WifiMetrics(Clock clock, Looper looper, WifiAwareMetrics awareMetrics,
-            RttMetrics rttMetrics, WifiPowerMetrics wifiPowerMetrics) {
+    public WifiMetrics(Context context, FrameworkFacade facade, Clock clock, Looper looper,
+            WifiAwareMetrics awareMetrics, RttMetrics rttMetrics,
+            WifiPowerMetrics wifiPowerMetrics) {
+        mContext = context;
+        mFacade = facade;
         mClock = clock;
         mCurrentConnectionEvent = null;
         mScreenOn = true;
@@ -449,6 +470,7 @@ public class WifiMetrics {
         mRttMetrics = rttMetrics;
         mWifiPowerMetrics = wifiPowerMetrics;
 
+        loadSettings();
         mHandler = new Handler(looper) {
             public void handleMessage(Message msg) {
                 synchronized (mLock) {
@@ -456,6 +478,21 @@ public class WifiMetrics {
                 }
             }
         };
+    }
+
+    /**
+     * Load setting values related to metrics logging.
+     */
+    @VisibleForTesting
+    public void loadSettings() {
+        int unusableEventFlag = mFacade.getIntegerSetting(
+                mContext, Settings.Global.WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED,
+                WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT);
+        mUnusableEventLogging = (unusableEventFlag == 1);
+        setWifiIsUnusableLoggingEnabled(mUnusableEventLogging);
+        if (mWifiDataStall != null) {
+            mWifiDataStall.loadSettings();
+        }
     }
 
     /** Sets internal ScoringParams member */
@@ -476,6 +513,11 @@ public class WifiMetrics {
     /** Sets internal PasspointManager member */
     public void setPasspointManager(PasspointManager passpointManager) {
         mPasspointManager = passpointManager;
+    }
+
+    /** Sets internal WifiDataStall member */
+    public void setWifiDataStall(WifiDataStall wifiDataStall) {
+        mWifiDataStall = wifiDataStall;
     }
 
     /**
@@ -1177,7 +1219,7 @@ public class WifiMetrics {
      *
      * @param reason The cause of the alert. The reason values are driver-specific.
      */
-    public void incrementAlertReasonCount(int reason) {
+    private void incrementAlertReasonCount(int reason) {
         if (reason > WifiLoggerHal.WIFI_ALERT_REASON_MAX
                 || reason < WifiLoggerHal.WIFI_ALERT_REASON_MIN) {
             reason = WifiLoggerHal.WIFI_ALERT_REASON_RESERVED;
@@ -1265,6 +1307,7 @@ public class WifiMetrics {
                 wifiWins = true;
             }
             mLastScore = score;
+            mLastScoreNoReset = score;
             if (wifiWins != mWifiWins) {
                 mWifiWins = wifiWins;
                 StaEvent event = new StaEvent();
@@ -1778,6 +1821,12 @@ public class WifiMetrics {
         }
     }
 
+    /** Log firmware alert related metrics */
+    public void logFirmwareAlert(int errorCode) {
+        incrementAlertReasonCount(errorCode);
+        logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, errorCode);
+    }
+
     public static final String PROTO_DUMP_ARG = "wifiMetricsProto";
     public static final String CLEAN_DUMP_ARG = "clean";
 
@@ -2151,6 +2200,16 @@ public class WifiMetrics {
 
                 pw.println("mWifiLogProto.isMacRandomizationOn=" + mIsMacRandomizationOn);
                 pw.println("mWifiLogProto.scoreExperimentId=" + mWifiLogProto.scoreExperimentId);
+                pw.println("mExperimentValues.wifiIsUnusableLoggingEnabled="
+                        + mExperimentValues.wifiIsUnusableLoggingEnabled);
+                pw.println("mExperimentValues.wifiDataStallMinTxBad="
+                        + mExperimentValues.wifiDataStallMinTxBad);
+                pw.println("mExperimentValues.wifiDataStallMinTxSuccessWithoutRx="
+                        + mExperimentValues.wifiDataStallMinTxSuccessWithoutRx);
+                pw.println("WifiIsUnusableEventList: ");
+                for (WifiIsUnusableWithTime event : mWifiIsUnusableList) {
+                    pw.println(event);
+                }
             }
         }
     }
@@ -2451,6 +2510,12 @@ public class WifiMetrics {
             mWifiLogProto.wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
             mWifiLogProto.wifiWakeStats = mWifiWakeMetrics.buildProto();
             mWifiLogProto.isMacRandomizationOn = mIsMacRandomizationOn;
+            mWifiLogProto.experimentValues = mExperimentValues;
+            mWifiLogProto.wifiIsUnusableEventList =
+                    new WifiIsUnusableEvent[mWifiIsUnusableList.size()];
+            for (int i = 0; i < mWifiIsUnusableList.size(); i++) {
+                mWifiLogProto.wifiIsUnusableEventList[i] = mWifiIsUnusableList.get(i).event;
+            }
         }
     }
 
@@ -2488,6 +2553,7 @@ public class WifiMetrics {
      */
     private void clear() {
         synchronized (mLock) {
+            loadSettings();
             mConnectionEventList.clear();
             if (mCurrentConnectionEvent != null) {
                 mConnectionEventList.add(mCurrentConnectionEvent);
@@ -2531,6 +2597,7 @@ public class WifiMetrics {
             mWpsMetrics.clear();
             mWifiWakeMetrics.clear();
             mObserved80211mcApInScanHistogram.clear();
+            mWifiIsUnusableList.clear();
         }
     }
 
@@ -2782,7 +2849,7 @@ public class WifiMetrics {
         if ((mask & (1 << StaEvent.STATE_DORMANT)) > 0) sb.append(" DORMANT");
         if ((mask & (1 << StaEvent.STATE_UNINITIALIZED)) > 0) sb.append(" UNINITIALIZED");
         if ((mask & (1 << StaEvent.STATE_INVALID)) > 0) sb.append(" INVALID");
-        sb.append("}");
+        sb.append(" }");
         return sb.toString();
     }
 
@@ -2989,6 +3056,181 @@ public class WifiMetrics {
             }
             sb.append(" ").append(staEventToString(staEvent));
             return sb.toString();
+        }
+    }
+
+    private LinkedList<WifiIsUnusableWithTime> mWifiIsUnusableList =
+            new LinkedList<WifiIsUnusableWithTime>();
+    private long mTxScucessDelta = 0;
+    private long mTxRetriesDelta = 0;
+    private long mTxBadDelta = 0;
+    private long mRxSuccessDelta = 0;
+    private long mLlStatsUpdateTimeDelta = 0;
+    private long mLlStatsLastUpdateTime = 0;
+    private int mLastScoreNoReset = -1;
+    private long mLastDataStallTime = Long.MIN_VALUE;
+
+    private static class WifiIsUnusableWithTime {
+        public WifiIsUnusableEvent event;
+        public long wallClockMillis;
+
+        WifiIsUnusableWithTime(WifiIsUnusableEvent event, long wallClockMillis) {
+            this.event = event;
+            this.wallClockMillis = wallClockMillis;
+        }
+
+        public String toString() {
+            if (event == null) return "<NULL>";
+            StringBuilder sb = new StringBuilder();
+            if (wallClockMillis != 0) {
+                Calendar c = Calendar.getInstance();
+                c.setTimeInMillis(wallClockMillis);
+                sb.append(String.format("%tm-%td %tH:%tM:%tS.%tL", c, c, c, c, c, c));
+            } else {
+                sb.append("                  ");
+            }
+            sb.append(" ");
+
+            switch(event.type) {
+                case WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX:
+                    sb.append("DATA_STALL_BAD_TX");
+                    break;
+                case WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX:
+                    sb.append("DATA_STALL_TX_WITHOUT_RX");
+                    break;
+                case WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH:
+                    sb.append("DATA_STALL_BOTH");
+                    break;
+                case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
+                    sb.append("FIRMWARE_ALERT");
+                    break;
+                default:
+                    sb.append("UNKNOWN " + event.type);
+                    break;
+            }
+
+            sb.append(" lastScore=").append(event.lastScore);
+            sb.append(" txSuccessDelta=").append(event.txSuccessDelta);
+            sb.append(" txRetriesDelta=").append(event.txRetriesDelta);
+            sb.append(" txBadDelta=").append(event.txBadDelta);
+            sb.append(" rxSuccessDelta=").append(event.rxSuccessDelta);
+            sb.append(" packetUpdateTimeDelta=").append(event.packetUpdateTimeDelta)
+                    .append("ms");
+            if (event.firmwareAlertCode != -1) {
+                sb.append(" firmwareAlertCode=").append(event.firmwareAlertCode);
+            }
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Update the difference between the last two WifiLinkLayerStats for WifiIsUnusableEvent
+     */
+    public void updateWifiIsUnusableLinkLayerStats(long txSuccessDelta, long txRetriesDelta,
+            long txBadDelta, long rxSuccessDelta, long updateTimeDelta) {
+        mTxScucessDelta = txSuccessDelta;
+        mTxRetriesDelta = txRetriesDelta;
+        mTxBadDelta = txBadDelta;
+        mRxSuccessDelta = rxSuccessDelta;
+        mLlStatsUpdateTimeDelta = updateTimeDelta;
+        mLlStatsLastUpdateTime = mClock.getElapsedSinceBootMillis();
+    }
+
+    /**
+     * Clear the saved difference between the last two WifiLinkLayerStats
+     */
+    public void resetWifiIsUnusableLinkLayerStats() {
+        mTxScucessDelta = 0;
+        mTxRetriesDelta = 0;
+        mTxBadDelta = 0;
+        mRxSuccessDelta = 0;
+        mLlStatsUpdateTimeDelta = 0;
+        mLlStatsLastUpdateTime = 0;
+        mLastDataStallTime = Long.MIN_VALUE;
+    }
+
+    /**
+     * Log a WifiIsUnusableEvent
+     * @param triggerType WifiIsUnusableEvent.type describing the event
+     */
+    public void logWifiIsUnusableEvent(int triggerType) {
+        logWifiIsUnusableEvent(triggerType, -1);
+    }
+
+    /**
+     * Log a WifiIsUnusableEvent
+     * @param triggerType WifiIsUnusableEvent.type describing the event
+     * @param firmwareAlertCode WifiIsUnusableEvent.firmwareAlertCode for firmware alert code
+     */
+    public void logWifiIsUnusableEvent(int triggerType, int firmwareAlertCode) {
+        if (!mUnusableEventLogging) {
+            return;
+        }
+
+        long currentBootTime = mClock.getElapsedSinceBootMillis();
+        switch (triggerType) {
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX:
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX:
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH:
+                // Have a time-based throttle for generating WifiIsUnusableEvent from data stalls
+                if (currentBootTime < mLastDataStallTime + MIN_DATA_STALL_WAIT_MS) {
+                    return;
+                }
+                mLastDataStallTime = currentBootTime;
+                break;
+            case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
+                break;
+            default:
+                Log.e(TAG, "Unknown WifiIsUnusableEvent: " + triggerType);
+                return;
+        }
+
+        WifiIsUnusableEvent event = new WifiIsUnusableEvent();
+        event.type = triggerType;
+        if (triggerType == WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT) {
+            event.firmwareAlertCode = firmwareAlertCode;
+        }
+        event.startTimeMillis = currentBootTime;
+        event.lastScore = mLastScoreNoReset;
+        event.txSuccessDelta = mTxScucessDelta;
+        event.txRetriesDelta = mTxRetriesDelta;
+        event.txBadDelta = mTxBadDelta;
+        event.rxSuccessDelta = mRxSuccessDelta;
+        event.packetUpdateTimeDelta = mLlStatsUpdateTimeDelta;
+        event.lastLinkLayerStatsUpdateTime = mLlStatsLastUpdateTime;
+
+        mWifiIsUnusableList.add(new WifiIsUnusableWithTime(event, mClock.getWallClockMillis()));
+        if (mWifiIsUnusableList.size() > MAX_UNUSABLE_EVENTS) {
+            mWifiIsUnusableList.removeFirst();
+        }
+    }
+
+    /**
+     * Sets whether or not WifiIsUnusableEvent is logged in metrics
+     */
+    @VisibleForTesting
+    public void setWifiIsUnusableLoggingEnabled(boolean enabled) {
+        synchronized (mLock) {
+            mExperimentValues.wifiIsUnusableLoggingEnabled = enabled;
+        }
+    }
+
+    /**
+     * Sets the minimum number of txBad to trigger a data stall
+     */
+    public void setWifiDataStallMinTxBad(int minTxBad) {
+        synchronized (mLock) {
+            mExperimentValues.wifiDataStallMinTxBad = minTxBad;
+        }
+    }
+
+    /**
+     * Sets the minimum number of txSuccess to trigger a data stall
+     * when rxSuccess is 0
+     */
+    public void setWifiDataStallMinRxWithoutTx(int minTxSuccessWithoutRx) {
+        synchronized (mLock) {
+            mExperimentValues.wifiDataStallMinTxSuccessWithoutRx = minTxSuccessWithoutRx;
         }
     }
 }
