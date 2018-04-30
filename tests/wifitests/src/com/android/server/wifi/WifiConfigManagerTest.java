@@ -43,6 +43,7 @@ import android.text.TextUtils;
 import android.util.Pair;
 
 import com.android.internal.R;
+import com.android.server.wifi.WifiConfigStoreLegacy.WifiConfigStoreDataLegacy;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -100,6 +101,7 @@ public class WifiConfigManagerTest {
     @Mock private TelephonyManager mTelephonyManager;
     @Mock private WifiKeyStore mWifiKeyStore;
     @Mock private WifiConfigStore mWifiConfigStore;
+    @Mock private WifiConfigStoreLegacy mWifiConfigStoreLegacy;
     @Mock private PackageManager mPackageManager;
     @Mock private DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
@@ -2619,6 +2621,74 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies the loading of networks using {@link WifiConfigManager#migrateFromLegacyStore()} ()}
+     * attempts to migrate data from legacy stores when the legacy store files are present.
+     */
+    @Test
+    public void testMigrationFromLegacyStore() throws Exception {
+        // Create the store data to be returned from legacy stores.
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(WifiConfigurationTestUtil.createPskNetwork());
+        networks.add(WifiConfigurationTestUtil.createEapNetwork());
+        networks.add(WifiConfigurationTestUtil.createWepNetwork());
+        String deletedEphemeralSSID = "EphemeralSSID";
+        Set<String> deletedEphermalSSIDs = new HashSet<>(Arrays.asList(deletedEphemeralSSID));
+        WifiConfigStoreDataLegacy storeData =
+                new WifiConfigStoreDataLegacy(networks, deletedEphermalSSIDs);
+
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(true);
+        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
+        when(mWifiConfigStoreLegacy.read()).thenReturn(storeData);
+
+        // Now trigger the migration from legacy store. This should populate the in memory list with
+        // all the networks above from the legacy store.
+        assertTrue(mWifiConfigManager.migrateFromLegacyStore());
+
+        verify(mWifiConfigStoreLegacy).read();
+        verify(mWifiConfigStoreLegacy).removeStores();
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+        assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(deletedEphemeralSSID));
+    }
+
+    /**
+     * Verifies the loading of networks using {@link WifiConfigManager#migrateFromLegacyStore()} ()}
+     * does not attempt to migrate data from legacy stores when the legacy store files are absent
+     * (i.e migration was already done once).
+     */
+    @Test
+    public void testNoDuplicateMigrationFromLegacyStore() throws Exception {
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
+
+        // Now trigger a migration from legacy store.
+        assertTrue(mWifiConfigManager.migrateFromLegacyStore());
+
+        verify(mWifiConfigStoreLegacy, never()).read();
+        verify(mWifiConfigStoreLegacy, never()).removeStores();
+    }
+
+    /**
+     * Verifies the loading of networks using {@link WifiConfigManager#migrateFromLegacyStore()} ()}
+     * does not attempt to migrate data from legacy stores when the new store files are present
+     * (i.e migration was already done once).
+     */
+    @Test
+    public void testNewStoreFilesPresentNoMigrationFromLegacyStore() throws Exception {
+        when(mWifiConfigStore.areStoresPresent()).thenReturn(true);
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(true);
+
+        // Now trigger a migration from legacy store.
+        assertTrue(mWifiConfigManager.migrateFromLegacyStore());
+
+        verify(mWifiConfigStoreLegacy, never()).read();
+        // Verify that we went ahead and deleted the old store files.
+        verify(mWifiConfigStoreLegacy).removeStores();
+    }
+
+    /**
      * Verifies the loading of networks using {@link WifiConfigManager#loadFromStore()} does
      * not attempt to read from any of the stores (new or legacy) when the store files are
      * not present.
@@ -2626,10 +2696,12 @@ public class WifiConfigManagerTest {
     @Test
     public void testFreshInstallDoesNotLoadFromStore() throws Exception {
         when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
 
         verify(mWifiConfigStore, never()).read();
+        verify(mWifiConfigStoreLegacy, never()).read();
 
         assertTrue(mWifiConfigManager.getConfiguredNetworksWithPasswords().isEmpty());
     }
@@ -2642,9 +2714,11 @@ public class WifiConfigManagerTest {
     public void testHandleUserSwitchAfterFreshInstall() throws Exception {
         int user2 = TEST_DEFAULT_USER + 1;
         when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore, never()).read();
+        verify(mWifiConfigStoreLegacy, never()).read();
 
         setupStoreDataForUserRead(new ArrayList<WifiConfiguration>(), new HashSet<String>());
         // Now switch the user to user 2.
@@ -3403,7 +3477,7 @@ public class WifiConfigManagerTest {
         mWifiConfigManager =
                 new WifiConfigManager(
                         mContext, mClock, mUserManager, mTelephonyManager,
-                        mWifiKeyStore, mWifiConfigStore,
+                        mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy,
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mNetworkListStoreData,
                         mDeletedEphemeralSsidsStoreData);
         mWifiConfigManager.enableVerboseLogging(1);
