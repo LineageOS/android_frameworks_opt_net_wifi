@@ -101,7 +101,6 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libsync \
 	libwifi-system \
 	libui \
-	libunwind \
 	libunwindstack \
 	libutils \
 	libvndksupport \
