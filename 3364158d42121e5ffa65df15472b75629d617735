@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "207d8a8f_b17aeca4",
+        "filename": "service/java/com/android/server/wifi/p2p/WifiP2pServiceImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 1584,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-05-13T18:15:15Z",
+      "side": 1,
+      "message": "Wait a sec... isn\u0027t the codepath being added in this patch mostly the same as this highlighted block?",
+      "range": {
+        "startLine": 1579,
+        "startChar": 28,
+        "endLine": 1584,
+        "endChar": 29
+      },
+      "revId": "3364158d42121e5ffa65df15472b75629d617735",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
