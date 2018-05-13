@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "221288c7_59a58711",
+        "filename": "service/java/com/android/server/wifi/p2p/WifiP2pServiceImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 2263,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-05-13T18:16:41Z",
+      "side": 1,
+      "message": "This looks unrelated to this patch, was this supposed to go with the autonomous group patch instead?",
+      "range": {
+        "startLine": 2263,
+        "startChar": 28,
+        "endLine": 2263,
+        "endChar": 53
+      },
+      "revId": "76f5c5fae3c081b0dad263ad0e579b7ff094ae38",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "efb76a75_1e51f4f3",
+        "filename": "service/java/com/android/server/wifi/p2p/WifiP2pServiceImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 2340,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-05-13T18:16:41Z",
+      "side": 1,
+      "message": "nit: line length",
+      "range": {
+        "startLine": 2340,
+        "startChar": 86,
+        "endLine": 2340,
+        "endChar": 108
+      },
+      "revId": "76f5c5fae3c081b0dad263ad0e579b7ff094ae38",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
