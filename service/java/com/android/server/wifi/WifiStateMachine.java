@@ -1142,7 +1142,7 @@ public class WifiStateMachine extends StateMachine {
                 || !mWifiConfigManager.updateLastConnectUid(netId, uid)) {
             logi("connectToUserSelectNetwork Allowing uid " + uid
                     + " with insufficient permissions to connect=" + netId);
-        } else {
+        } else if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
             // Note user connect choice here, so that it will be considered in the next network
             // selection.
             mWifiConnectivityManager.setUserConnectChoice(netId);
@@ -4297,6 +4297,7 @@ public class WifiStateMachine extends StateMachine {
                     if (config != null) {
                         mWifiInfo.setBSSID(mLastBssid);
                         mWifiInfo.setNetworkId(mLastNetworkId);
+                        mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
 
                         ScanDetailCache scanDetailCache =
                                 mWifiConfigManager.getScanDetailCacheForNetwork(config.networkId);
@@ -4848,6 +4849,7 @@ public class WifiStateMachine extends StateMachine {
                     mWifiInfo.setBSSID((String) message.obj);
                     mLastNetworkId = message.arg1;
                     mWifiInfo.setNetworkId(mLastNetworkId);
+                    mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
                     if(!mLastBssid.equals(message.obj)) {
                         mLastBssid = (String) message.obj;
                         sendNetworkStateChangeBroadcast(mLastBssid);
