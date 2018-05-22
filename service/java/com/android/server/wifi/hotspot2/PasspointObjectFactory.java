@@ -176,4 +176,15 @@ public class PasspointObjectFactory{
     public ASN1SubjectAltNamesParser getASN1SubjectAltNamesParser() {
         return ASN1SubjectAltNamesParser.getInstance();
     }
+
+    /**
+     * Create an instance of {@link SystemInfo}.
+     *
+     * @param context Instance of {@link Context}
+     * @param wifiNative Instance of {@link WifiNative}
+     * @return {@Link Systeminfo} that is used for getting system related info.
+     */
+    public SystemInfo getSystemInfo(Context context, WifiNative wifiNative) {
+        return SystemInfo.getInstance(context, wifiNative);
+    }
 }
