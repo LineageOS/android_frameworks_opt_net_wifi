@@ -198,7 +198,7 @@ public class WifiMetrics {
     private final SparseIntArray mObserved80211mcApInScanHistogram = new SparseIntArray();
 
     /** Wifi power metrics*/
-    private WifiPowerMetrics mWifiPowerMetrics = new WifiPowerMetrics();
+    private WifiPowerMetrics mWifiPowerMetrics;
 
     /** Wifi Wake metrics */
     private final WifiWakeMetrics mWifiWakeMetrics = new WifiWakeMetrics();
@@ -439,7 +439,7 @@ public class WifiMetrics {
     }
 
     public WifiMetrics(Clock clock, Looper looper, WifiAwareMetrics awareMetrics,
-            RttMetrics rttMetrics) {
+            RttMetrics rttMetrics, WifiPowerMetrics wifiPowerMetrics) {
         mClock = clock;
         mCurrentConnectionEvent = null;
         mScreenOn = true;
@@ -447,6 +447,7 @@ public class WifiMetrics {
         mRecordStartTimeSec = mClock.getElapsedSinceBootMillis() / 1000;
         mWifiAwareMetrics = awareMetrics;
         mRttMetrics = rttMetrics;
+        mWifiPowerMetrics = wifiPowerMetrics;
 
         mHandler = new Handler(looper) {
             public void handleMessage(Message msg) {
@@ -2447,6 +2448,7 @@ public class WifiMetrics {
 
             mWifiLogProto.wpsMetrics = mWpsMetrics;
             mWifiLogProto.wifiPowerStats = mWifiPowerMetrics.buildProto();
+            mWifiLogProto.wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
             mWifiLogProto.wifiWakeStats = mWifiWakeMetrics.buildProto();
             mWifiLogProto.isMacRandomizationOn = mIsMacRandomizationOn;
         }
