@@ -25,6 +25,8 @@ import org.w3c.dom.Element;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import android.annotation.NonNull;
+
 /**
  * Provides serialization API for DevInfo MO (Management Object).
  *
@@ -45,19 +47,13 @@ public class DevInfoMo {
     private static final String TAG_DM_VERSION = "DmV";
     private static final String TAG_LANGUAGE = "Lang";
 
-    private final SystemInfo mSystemInfo;
-
-    public DevInfoMo(SystemInfo systemInfo) {
-        mSystemInfo = systemInfo;
-    }
-
     /**
      * Make a format of XML based on the DDF(Data Definition Format) of DevInfo MO.
      *
      * @return the XML that has format of OMA DM DevInfo Management Object, <code>null</code> in
      * case of any failure.
      */
-    public String serializeToXml() {
+    public static String serializeToXml(@NonNull SystemInfo systemInfo) {
         MoSerializer moSerializer;
         try {
             moSerializer = new MoSerializer();
@@ -73,16 +69,16 @@ public class DevInfoMo {
         moNode.appendChild(moSerializer.createNodeForUrn(doc, URN));
         rootElement.appendChild(moNode);
         rootElement.appendChild(
-                moSerializer.createNodeForValue(doc, TAG_DEVID, mSystemInfo.getDeviceId()));
+                moSerializer.createNodeForValue(doc, TAG_DEVID, systemInfo.getDeviceId()));
 
         rootElement.appendChild(moSerializer.createNodeForValue(doc, TAG_MANUFACTURE,
-                mSystemInfo.getDeviceManufacturer()));
+                systemInfo.getDeviceManufacturer()));
         rootElement.appendChild(
-                moSerializer.createNodeForValue(doc, TAG_MODEL, mSystemInfo.getDeviceModel()));
+                moSerializer.createNodeForValue(doc, TAG_MODEL, systemInfo.getDeviceModel()));
         rootElement.appendChild(
                 moSerializer.createNodeForValue(doc, TAG_DM_VERSION, MoSerializer.DM_VERSION));
         rootElement.appendChild(
-                moSerializer.createNodeForValue(doc, TAG_LANGUAGE, mSystemInfo.getLanguage()));
+                moSerializer.createNodeForValue(doc, TAG_LANGUAGE, systemInfo.getLanguage()));
 
         return moSerializer.serialize(doc);
     }

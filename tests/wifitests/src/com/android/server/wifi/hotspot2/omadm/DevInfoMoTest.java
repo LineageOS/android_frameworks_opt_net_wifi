@@ -29,6 +29,7 @@ import org.junit.Test;
 
 /**
  * Unit tests for {@link DevInfoMo}.
+ * TODO(b/80300806): change the test to verify the XML in terms of the structure of XML.
  */
 @SmallTest
 public class DevInfoMoTest {
@@ -57,7 +58,6 @@ public class DevInfoMoTest {
                         + "</MgmtTree>",
                 MoSerializer.DM_VERSION, DevInfoMo.URN, TEST_DEV_ID, TEST_MANUFACTURER,
                 TEST_MODEL, MoSerializer.DM_VERSION, TEST_LANGUAGE);
-        DevInfoMo mo = new DevInfoMo(systemInfo);
-        assertEquals(expected, mo.serializeToXml());
+        assertEquals(expected, DevInfoMo.serializeToXml(systemInfo));
     }
 }
