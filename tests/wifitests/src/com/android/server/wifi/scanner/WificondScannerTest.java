@@ -39,8 +39,8 @@ import org.junit.Test;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -89,7 +89,7 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
         mLooper.dispatchAll();
 
         // No scan is issued to WifiNative.
-        verify(mWifiNative, never()).scan(any(), anyInt(), any(), any(Set.class));
+        verify(mWifiNative, never()).scan(any(), anyInt(), any(), any(List.class));
         // A scan failed event must be reported.
         verify(eventHandler).onScanStatus(WifiNative.WIFI_SCAN_FAILED);
     }
@@ -117,7 +117,7 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
 
         doSuccessfulSingleScanTest(settings,
                 expectedBandScanFreqs(WifiScanner.WIFI_BAND_24_GHZ),
-                new HashSet<String>(),
+                new ArrayList<String>(),
                 ScanResults.create(0, WifiScanner.WIFI_BAND_24_GHZ,
                         2400, 2450, 2450, 2400, 2450, 2450, 2400, 2450, 2450), false);
 
@@ -141,7 +141,7 @@ public class WificondScannerTest extends BaseWifiScannerImplTest {
                 .build();
 
         // Kick off a scan
-        when(mWifiNative.scan(eq(IFACE_NAME), anyInt(), any(), any(Set.class))).thenReturn(true);
+        when(mWifiNative.scan(eq(IFACE_NAME), anyInt(), any(), any(List.class))).thenReturn(true);
         WifiNative.ScanEventHandler eventHandler = mock(WifiNative.ScanEventHandler.class);
         assertTrue(mScanner.startSingleScan(settings, eventHandler));
         mLooper.dispatchAll();

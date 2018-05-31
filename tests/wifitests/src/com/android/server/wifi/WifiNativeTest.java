@@ -39,7 +39,9 @@ import org.mockito.AdditionalMatchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -135,8 +137,8 @@ public class WifiNativeTest {
     private static final String TEST_QUOTED_SSID_2 = "\"testSsid2\"";
     private static final int[] TEST_FREQUENCIES_1 = {};
     private static final int[] TEST_FREQUENCIES_2 = {2500, 5124};
-    private static final Set<String> SCAN_HIDDEN_NETWORK_SSID_SET =
-            new HashSet<String>() {{
+    private static final List<String> SCAN_HIDDEN_NETWORK_SSID_SET =
+            new ArrayList<String>() {{
                 add(TEST_QUOTED_SSID_1);
                 add(TEST_QUOTED_SSID_2);
             }};

@@ -37,7 +37,6 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -174,7 +173,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                 allFreqs.addChannels(bucketSettings);
             }
 
-            Set<String> hiddenNetworkSSIDSet = new HashSet<>();
+            List<String> hiddenNetworkSSIDSet = new ArrayList<>();
             if (settings.hiddenNetworks != null) {
                 int numHiddenNetworks =
                         Math.min(settings.hiddenNetworks.length, MAX_HIDDEN_NETWORK_IDS_PER_SCAN);
