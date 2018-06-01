@@ -554,6 +554,7 @@ public class WifiVendorHal {
             }
             if (!registerChipCallback()) {
                 mLog.err("Failed to register chip callback").flush();
+                mIWifiChip = null;
                 return false;
             }
             return true;
