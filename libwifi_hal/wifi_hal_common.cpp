@@ -43,6 +43,7 @@ extern "C" int delete_module(const char *, unsigned int);
 #endif
 
 static const char DRIVER_PROP_NAME[] = "wlan.driver.status";
+static bool is_driver_loaded = false;
 #ifdef WIFI_DRIVER_MODULE_PATH
 static const char DRIVER_MODULE_NAME[] = WIFI_DRIVER_MODULE_NAME;
 static const char DRIVER_MODULE_TAG[] = WIFI_DRIVER_MODULE_NAME " ";
@@ -117,10 +118,14 @@ int is_wifi_driver_loaded() {
   char line[sizeof(DRIVER_MODULE_TAG) + 10];
 #endif
 
-  if (!property_get(DRIVER_PROP_NAME, driver_status, NULL) ||
-      strcmp(driver_status, "ok") != 0) {
+  if (!property_get(DRIVER_PROP_NAME, driver_status, NULL)) {
     return 0; /* driver not loaded */
   }
+
+  if (!is_driver_loaded) {
+    return 0;
+  } /* driver not loaded */
+
 #ifdef WIFI_DRIVER_MODULE_PATH
   /*
    * If the property says the driver is loaded, check to
@@ -130,7 +135,10 @@ int is_wifi_driver_loaded() {
    */
   if ((proc = fopen(MODULE_FILE, "r")) == NULL) {
     PLOG(WARNING) << "Could not open " << MODULE_FILE;
-    property_set(DRIVER_PROP_NAME, "unloaded");
+    is_driver_loaded = false;
+    if (strcmp(driver_status, "unloaded") != 0) {
+      property_set(DRIVER_PROP_NAME, "unloaded");
+    }
     return 0;
   }
   while ((fgets(line, sizeof(line), proc)) != NULL) {
@@ -140,7 +148,10 @@ int is_wifi_driver_loaded() {
     }
   }
   fclose(proc);
-  property_set(DRIVER_PROP_NAME, "unloaded");
+  is_driver_loaded = false;
+  if (strcmp(driver_status, "unloaded") != 0) {
+    property_set(DRIVER_PROP_NAME, "unloaded");
+  }
   return 0;
 #else
   return 1;
@@ -163,7 +174,7 @@ int wifi_load_driver() {
 
   if (wifi_change_driver_state(WIFI_DRIVER_STATE_ON) < 0) return -1;
 #endif
-  property_set(DRIVER_PROP_NAME, "ok");
+  is_driver_loaded = true;
   return 0;
 }
 
@@ -192,6 +203,7 @@ int wifi_unload_driver() {
     if (wifi_change_driver_state(WIFI_DRIVER_STATE_OFF) < 0) return -1;
   }
 #endif
+  is_driver_loaded = false;
   property_set(DRIVER_PROP_NAME, "unloaded");
   return 0;
 #endif
