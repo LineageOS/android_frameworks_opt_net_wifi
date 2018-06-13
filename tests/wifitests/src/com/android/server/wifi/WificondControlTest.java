@@ -56,6 +56,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
@@ -142,6 +143,8 @@ public class WificondControlTest {
             }};
     private static final String TEST_QUOTED_SSID_1 = "\"testSsid1\"";
     private static final String TEST_QUOTED_SSID_2 = "\"testSsid2\"";
+    private static final int[] TEST_FREQUENCIES_1 = {};
+    private static final int[] TEST_FREQUENCIES_2 = {2500, 5124};
 
     private static final Set<String> SCAN_HIDDEN_NETWORK_SSID_SET =
             new HashSet<String>() {{
@@ -159,8 +162,10 @@ public class WificondControlTest {
                 networkList[1] = new WifiNative.PnoNetwork();
                 networkList[0].ssid = TEST_QUOTED_SSID_1;
                 networkList[0].flags = WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN;
+                networkList[0].frequencies = TEST_FREQUENCIES_1;
                 networkList[1].ssid = TEST_QUOTED_SSID_2;
                 networkList[1].flags = 0;
+                networkList[1].frequencies = TEST_FREQUENCIES_2;
             }};
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
 
@@ -1029,7 +1034,10 @@ public class WificondControlTest {
                 if (isNetworkHidden != settings.pnoNetworks.get(i).isHidden) {
                     return false;
                 }
-
+                if (!Arrays.equals(mExpectedPnoSettings.networkList[i].frequencies,
+                        settings.pnoNetworks.get(i).frequencies)) {
+                    return false;
+                }
             }
             return true;
         }

@@ -37,6 +37,8 @@ public class PnoSettingsTest {
             new byte[] {'G', 'o', 'o', 'g', 'l', 'e', 'G', 'u', 'e', 's', 't'};
     private static final byte[] TEST_SSID_2 =
             new byte[] {'A', 'n', 'd', 'r', 'o', 'i', 'd', 'T', 'e', 's', 't'};
+    private static final int[] TEST_FREQUENCIES_1 = {};
+    private static final int[] TEST_FREQUENCIES_2 = {2500, 5124};
     private static final int TEST_INTERVAL_MS = 30000;
     private static final int TEST_MIN_2G_RSSI = -60;
     private static final int TEST_MIN_5G_RSSI = -65;
@@ -53,10 +55,12 @@ public class PnoSettingsTest {
         PnoNetwork pnoNetwork1 = new PnoNetwork();
         pnoNetwork1.ssid = TEST_SSID_1;
         pnoNetwork1.isHidden = true;
+        pnoNetwork1.frequencies = TEST_FREQUENCIES_1;
 
         PnoNetwork pnoNetwork2 = new PnoNetwork();
         pnoNetwork2.ssid = TEST_SSID_2;
         pnoNetwork2.isHidden = false;
+        pnoNetwork2.frequencies = TEST_FREQUENCIES_2;
 
         pnoSettings.pnoNetworks = new ArrayList(Arrays.asList(pnoNetwork1, pnoNetwork2));
 

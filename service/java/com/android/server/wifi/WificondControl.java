@@ -652,6 +652,7 @@ public class WificondControl implements IBinder.DeathRecipient {
                     Log.e(TAG, "Illegal argument " + network.ssid, e);
                     continue;
                 }
+                condNetwork.frequencies = network.frequencies;
                 settings.pnoNetworks.add(condNetwork);
             }
         }

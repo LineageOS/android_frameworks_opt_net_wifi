@@ -19,6 +19,7 @@ package com.android.server.wifi.wificond;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -30,6 +31,7 @@ public class PnoNetwork implements Parcelable {
 
     public boolean isHidden;
     public byte[] ssid;
+    public int[] frequencies;
 
     /** public constructor */
     public PnoNetwork() { }
@@ -42,14 +44,15 @@ public class PnoNetwork implements Parcelable {
             return false;
         }
         PnoNetwork network = (PnoNetwork) rhs;
-        return java.util.Arrays.equals(ssid, network.ssid)
+        return Arrays.equals(ssid, network.ssid)
+                && Arrays.equals(frequencies, network.frequencies)
                 && isHidden == network.isHidden;
     }
 
     /** override hash code */
     @Override
     public int hashCode() {
-        return Objects.hash(isHidden, ssid);
+        return Objects.hash(isHidden, ssid, frequencies);
     }
 
     /** implement Parcelable interface */
@@ -66,6 +69,7 @@ public class PnoNetwork implements Parcelable {
     public void writeToParcel(Parcel out, int flags) {
         out.writeInt(isHidden ? 1 : 0);
         out.writeByteArray(ssid);
+        out.writeIntArray(frequencies);
     }
 
     /** implement Parcelable interface */
@@ -76,6 +80,7 @@ public class PnoNetwork implements Parcelable {
             PnoNetwork result = new PnoNetwork();
             result.isHidden = in.readInt() != 0 ? true : false;
             result.ssid = in.createByteArray();
+            result.frequencies = in.createIntArray();
             return result;
         }
 

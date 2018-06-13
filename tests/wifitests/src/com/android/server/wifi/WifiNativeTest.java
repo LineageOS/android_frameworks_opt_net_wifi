@@ -127,6 +127,8 @@ public class WifiNativeTest {
             }};
     private static final String TEST_QUOTED_SSID_1 = "\"testSsid1\"";
     private static final String TEST_QUOTED_SSID_2 = "\"testSsid2\"";
+    private static final int[] TEST_FREQUENCIES_1 = {};
+    private static final int[] TEST_FREQUENCIES_2 = {2500, 5124};
     private static final Set<String> SCAN_HIDDEN_NETWORK_SSID_SET =
             new HashSet<String>() {{
                 add(TEST_QUOTED_SSID_1);
@@ -142,6 +144,8 @@ public class WifiNativeTest {
                 networkList[1] = new WifiNative.PnoNetwork();
                 networkList[0].ssid = TEST_QUOTED_SSID_1;
                 networkList[1].ssid = TEST_QUOTED_SSID_2;
+                networkList[0].frequencies = TEST_FREQUENCIES_1;
+                networkList[1].frequencies = TEST_FREQUENCIES_2;
             }};
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
 
@@ -218,11 +222,13 @@ public class WifiNativeTest {
         pnoNet1.ssid = new String("sametext");
         pnoNet1.flags = 2;
         pnoNet1.auth_bit_field = 4;
+        pnoNet1.frequencies = TEST_FREQUENCIES_2;
 
         WifiNative.PnoNetwork pnoNet2 = new WifiNative.PnoNetwork();
         pnoNet2.ssid = new String("sametext");
         pnoNet2.flags = 2;
         pnoNet2.auth_bit_field = 4;
+        pnoNet2.frequencies = TEST_FREQUENCIES_2;
 
         assertTrue(pnoNet1.equals(pnoNet2));
         assertEquals(pnoNet1.hashCode(), pnoNet2.hashCode());
