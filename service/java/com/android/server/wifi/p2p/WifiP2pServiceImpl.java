@@ -693,6 +693,14 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
       * applications should call create/remove p2p interface accordingly
       */
     @Override
+    public boolean isAutonomousGroupOwner() {
+        return mAutonomousGroup ? mAutonomousGroupCreated : false;
+    }
+
+    /** This is used to provide the information that there is an active autonomous GO and
+      * applications should call create/remove p2p interface accordingly
+      */
+    @Override
     public boolean isAutonomousGroupOwnerInitiated() {
         return mAutonomousGroup;
     }
