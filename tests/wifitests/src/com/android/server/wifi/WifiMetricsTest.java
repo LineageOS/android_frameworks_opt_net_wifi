@@ -44,6 +44,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificatio
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 
@@ -76,6 +77,7 @@ public class WifiMetricsTest {
     @Mock WifiConfigManager mWcm;
     @Mock PasspointManager mPpm;
     @Mock WifiNetworkSelector mWns;
+    @Mock WifiPowerMetrics mWifiPowerMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -84,7 +86,7 @@ public class WifiMetricsTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn((long) 0);
         mTestLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mClock, mTestLooper.getLooper(),
-                new WifiAwareMetrics(mClock), new RttMetrics(mClock));
+                new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics);
         mWifiMetrics.setWifiConfigManager(mWcm);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
@@ -295,6 +297,8 @@ public class WifiMetricsTest {
     private static final int NUM_RADIO_MODE_CHANGE_TO_DBS = 34;
     private static final int NUM_SOFTAP_USER_BAND_PREFERENCE_UNSATISFIED = 14;
     private static final long NUM_WATCHDOG_SUCCESS_DURATION_MS = 65;
+    private static final long WIFI_POWER_METRICS_LOGGING_DURATION = 280;
+    private static final long WIFI_POWER_METRICS_SCAN_TIME = 33;
 
     /** Number of notifications per "Connect to Network" notification type. */
     private static final int[] NUM_CONNECT_TO_NETWORK_NOTIFICATIONS = {0, 10, 20, 30, 40};
@@ -688,6 +692,15 @@ public class WifiMetricsTest {
 
         mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
         mWifiMetrics.setIsMacRandomizationOn(IS_MAC_RANDOMIZATION_ON);
+
+        addWifiPowerMetrics();
+    }
+
+    private void addWifiPowerMetrics() {
+        WifiRadioUsage wifiRadioUsage = new WifiRadioUsage();
+        wifiRadioUsage.loggingDurationMs = WIFI_POWER_METRICS_LOGGING_DURATION;
+        wifiRadioUsage.scanTimeMs = WIFI_POWER_METRICS_SCAN_TIME;
+        when(mWifiPowerMetrics.buildWifiRadioUsageProto()).thenReturn(wifiRadioUsage);
     }
 
     private void addSoftApEventsToMetrics() {
@@ -965,6 +978,10 @@ public class WifiMetricsTest {
         assertEquals(NUM_WATCHDOG_SUCCESS_DURATION_MS,
                 mDecodedProto.watchdogTriggerToConnectionSuccessDurationMs);
         assertEquals(IS_MAC_RANDOMIZATION_ON, mDecodedProto.isMacRandomizationOn);
+        assertEquals(WIFI_POWER_METRICS_LOGGING_DURATION,
+                mDecodedProto.wifiRadioUsage.loggingDurationMs);
+        assertEquals(WIFI_POWER_METRICS_SCAN_TIME,
+                mDecodedProto.wifiRadioUsage.scanTimeMs);
     }
 
     /**
