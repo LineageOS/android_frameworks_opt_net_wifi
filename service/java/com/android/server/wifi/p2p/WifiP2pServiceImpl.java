@@ -767,7 +767,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     @Override
                     public void onDeleteGroup(int netId) {
                         if (DBG) logd("called onDeleteGroup() netId=" + netId);
-                        mWifiNative.removeP2pNetwork(netId);
+                        //mWifiNative.removeP2pNetwork(netId);
                         mWifiNative.saveConfig();
                         sendP2pPersistentGroupsChangedBroadcast();
                     }
