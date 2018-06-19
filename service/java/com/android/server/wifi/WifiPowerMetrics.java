@@ -22,8 +22,10 @@ import android.os.connectivity.WifiBatteryStats;
 import android.text.format.DateUtils;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiPowerStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 
 import java.io.PrintWriter;
 
@@ -40,7 +42,13 @@ public class WifiPowerMetrics {
 
     public WifiPowerMetrics() {
         mBatteryStats = IBatteryStats.Stub.asInterface(ServiceManager.getService(
-            BatteryStats.SERVICE_NAME));
+                BatteryStats.SERVICE_NAME));
+    }
+
+    // This constructor injects IBatteryStats and should be used for testing only.
+    @VisibleForTesting
+    public WifiPowerMetrics(IBatteryStats batteryStats) {
+        mBatteryStats = batteryStats;
     }
 
     /**
@@ -65,6 +73,26 @@ public class WifiPowerMetrics {
     }
 
     /**
+     * Build WifiRadioUsage proto
+     * A snapshot of Wifi statistics in Batterystats is obtained. Due to reboots multiple correlated
+     * logs may be uploaded in a day. Server side should analyze based the ratio of collected
+     * properties over the total logging duration (ie. |scanTimeMs| / |loggingDurationMs|)
+     *
+     * This proto contains additional wifi usage data that are not directly related to power
+     * calculations.
+     * @return WifiRadioUsage
+     */
+    public WifiRadioUsage buildWifiRadioUsageProto() {
+        WifiRadioUsage m = new WifiRadioUsage();
+        WifiBatteryStats stats = getStats();
+        if (stats != null) {
+            m.loggingDurationMs = stats.getLoggingDurationMs();
+            m.scanTimeMs = stats.getScanTimeMs();
+        }
+        return m;
+    }
+
+    /**
      * Dump all WifiPowerStats to console (pw)
      * @param pw
      */
@@ -78,6 +106,11 @@ public class WifiPowerMetrics {
             pw.println("Amount of time wifi is in rx (ms): " + s.rxTimeMs);
             pw.println("Amount of time wifi is in tx (ms): " + s.txTimeMs);
         }
+        WifiRadioUsage wifiRadioUsage = buildWifiRadioUsageProto();
+        pw.println("Wifi radio usage metrics:");
+        pw.println("Logging duration (time on battery): " + wifiRadioUsage.loggingDurationMs);
+        pw.println("Amount of time wifi is in scan mode while on battery (ms): "
+                + wifiRadioUsage.scanTimeMs);
     }
 
     /**
