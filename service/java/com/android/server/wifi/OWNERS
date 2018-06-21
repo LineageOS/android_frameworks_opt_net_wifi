@@ -68,8 +68,8 @@ per-file WifiService*=silberst@google.com
 per-file WifiService*=satk@google.com
 per-file WifiServiceImpl*=silberst@google.com
 per-file WifiServiceImpl*=satk@google.com
-per-file WifiStateMachine*=silberst@google.com
-per-file WifiStateMachine*=satk@google.com
+per-file ClientModeImpl*=silberst@google.com
+per-file ClientModeImpl*=satk@google.com
 
 # network selection
 per-file SavedNetworkEvaluator*=quiche@google.com

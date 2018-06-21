@@ -18,7 +18,7 @@ package com.android.server.wifi;
 
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
 
-import static com.android.server.wifi.WifiStateMachine.WIFI_WORK_SOURCE;
+import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 
 import android.app.AlarmManager;
 import android.content.Context;
@@ -113,7 +113,7 @@ public class WifiConnectivityManager {
     // Max number of connection attempts in the above time interval.
     public static final int MAX_CONNECTION_ATTEMPTS_RATE = 6;
 
-    // WifiStateMachine has a bunch of states. From the
+    // ClientModeImpl has a bunch of states. From the
     // WifiConnectivityManager's perspective it only cares
     // if it is in Connected state, Disconnected state or in
     // transition between these two states.
@@ -130,7 +130,7 @@ public class WifiConnectivityManager {
     // Log tag for this class
     private static final String TAG = "WifiConnectivityManager";
 
-    private final WifiStateMachine mStateMachine;
+    private final ClientModeImpl mStateMachine;
     private final WifiScanner mScanner;
     private final WifiConfigManager mConfigManager;
     private final WifiInfo mWifiInfo;
@@ -569,7 +569,7 @@ public class WifiConnectivityManager {
      * WifiConnectivityManager constructor
      */
     WifiConnectivityManager(Context context, ScoringParams scoringParams,
-            WifiStateMachine stateMachine,
+            ClientModeImpl stateMachine,
             WifiScanner scanner, WifiConfigManager configManager, WifiInfo wifiInfo,
             WifiNetworkSelector networkSelector, WifiConnectivityHelper connectivityHelper,
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
@@ -724,7 +724,7 @@ public class WifiConnectivityManager {
         }
 
         if (candidate.BSSID != null
-                && !candidate.BSSID.equals(WifiStateMachine.SUPPLICANT_BSSID_ANY)
+                && !candidate.BSSID.equals(ClientModeImpl.SUPPLICANT_BSSID_ANY)
                 && !candidate.BSSID.equals(targetBssid)) {
             localLog("connecToNetwork: target BSSID " + targetBssid + " does not match the "
                     + "config specified BSSID " + candidate.BSSID + ". Drop it!");
@@ -766,8 +766,8 @@ public class WifiConnectivityManager {
             // {@link android.net.wifi.WifiManager#WIFI_FEATURE_CONTROL_ROAMING} or the
             // candidate configuration contains a specified BSSID.
             if (mConnectivityHelper.isFirmwareRoamingSupported() && (candidate.BSSID == null
-                      || candidate.BSSID.equals(WifiStateMachine.SUPPLICANT_BSSID_ANY))) {
-                targetBssid = WifiStateMachine.SUPPLICANT_BSSID_ANY;
+                      || candidate.BSSID.equals(ClientModeImpl.SUPPLICANT_BSSID_ANY))) {
+                targetBssid = ClientModeImpl.SUPPLICANT_BSSID_ANY;
                 localLog("connectToNetwork: Connect to " + candidate.SSID + ":" + targetBssid
                         + " from " + currentAssociationId);
             } else {

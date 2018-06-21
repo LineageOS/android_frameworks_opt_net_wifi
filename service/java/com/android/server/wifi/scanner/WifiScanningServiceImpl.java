@@ -52,13 +52,13 @@ import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
+import com.android.server.wifi.ClientModeImpl;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
-import com.android.server.wifi.WifiStateMachine;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ScanResultUtil;
@@ -1715,7 +1715,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
         private void addPnoScanRequest(ClientInfo ci, int handler, ScanSettings scanSettings,
                 PnoSettings pnoSettings) {
-            mActivePnoScans.addRequest(ci, handler, WifiStateMachine.WIFI_WORK_SOURCE,
+            mActivePnoScans.addRequest(ci, handler, ClientModeImpl.WIFI_WORK_SOURCE,
                     Pair.create(pnoSettings, scanSettings));
             addInternalClient(ci);
         }
@@ -1781,7 +1781,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             if (mInternalClientInfo != null) {
                 mInternalClientInfo.sendRequestToClientHandler(
                         WifiScanner.CMD_START_SINGLE_SCAN, settings,
-                        WifiStateMachine.WIFI_WORK_SOURCE);
+                        ClientModeImpl.WIFI_WORK_SOURCE);
             }
         }
 

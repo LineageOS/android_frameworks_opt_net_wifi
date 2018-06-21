@@ -325,7 +325,7 @@ public class SarManager {
         /**
          * onCallStateChanged()
          * This callback is called when a SAR sensor event is received
-         * Note that this runs in the WifiStateMachineHandlerThread
+         * Note that this runs in the WifiCoreHandlerThread
          * since the corresponding Looper was passed to the WifiPhoneStateListener constructor.
          */
         @Override
@@ -383,7 +383,7 @@ public class SarManager {
         /**
          * onSensorChanged()
          * This callback is called when a SAR sensor event is received
-         * Note that this runs in the WifiStateMachineHandlerThread
+         * Note that this runs in the WifiCoreHandlerThread
          * since, the corresponding Looper was passed to the SensorManager instance.
          */
         @Override

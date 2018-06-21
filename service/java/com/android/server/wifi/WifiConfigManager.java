@@ -91,7 +91,7 @@ import java.util.Set;
  * in the internal database. Any configuration updates should be triggered with appropriate helper
  * methods of this class using the configuration's unique networkId.
  *
- * NOTE: These API's are not thread safe and should only be used from WifiStateMachine thread.
+ * NOTE: These API's are not thread safe and should only be used from ClientModeImpl thread.
  */
 public class WifiConfigManager {
     /**

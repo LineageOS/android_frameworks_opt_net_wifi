@@ -108,7 +108,7 @@ public class WifiNetworkSelector {
          *                       or null if disconnected
          * @param currentBssid   BSSID of the current connected network or null if
          *                       disconnected
-         * @param connected      a flag to indicate if WifiStateMachine is in connected
+         * @param connected      a flag to indicate if ClientModeImpl is in connected
          *                       state
          * @param untrustedNetworkAllowed a flag to indidate if untrusted networks like
          *                                ephemeral networks are allowed
@@ -233,9 +233,9 @@ public class WifiNetworkSelector {
         } else if (disconnected) {
             return true;
         } else {
-            // No network selection if WifiStateMachine is in a state other than
+            // No network selection if ClientModeImpl is in a state other than
             // CONNECTED or DISCONNECTED.
-            localLog("WifiStateMachine is in neither CONNECTED nor DISCONNECTED state."
+            localLog("ClientModeImpl is in neither CONNECTED nor DISCONNECTED state."
                     + " Skip network selection.");
             return false;
         }

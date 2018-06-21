@@ -320,7 +320,7 @@ public class WakeupController {
     /**
      * Enables wifi.
      *
-     * <p>This method ignores all checks and assumes that {@link WifiStateMachine} is currently
+     * <p>This method ignores all checks and assumes that {@link WifiController} is currently
      * in ScanModeState.
      */
     private void enableWifi() {

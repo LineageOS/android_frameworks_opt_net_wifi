@@ -43,7 +43,7 @@ public class WifiLastResortWatchdogTest {
     WifiLastResortWatchdog mLastResortWatchdog;
     @Mock WifiMetrics mWifiMetrics;
     @Mock SelfRecovery mSelfRecovery;
-    @Mock WifiStateMachine mWifiStateMachine;
+    @Mock ClientModeImpl mClientModeImpl;
     @Mock Clock mClock;
 
     private String[] mSsids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
@@ -62,7 +62,7 @@ public class WifiLastResortWatchdogTest {
         initMocks(this);
         mLooper = new TestLooper();
         mLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock, mWifiMetrics,
-                mWifiStateMachine, mLooper.getLooper());
+                mClientModeImpl, mLooper.getLooper());
         mLastResortWatchdog.setBugReportProbability(1);
     }
 
@@ -1500,7 +1500,7 @@ public class WifiLastResortWatchdogTest {
 
         // Verify takeBugReport is called
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, times(1)).takeBugReport(anyString(), anyString());
 
         // Simulate wifi disconnecting
         mLastResortWatchdog.connectedStateTransition(false);
@@ -1510,7 +1510,7 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).setWatchdogSuccessTimeDurationMs(eq(expectedDuration));
         // Verify takeBugReport not called again
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, times(1)).takeBugReport(anyString(), anyString());
 
         // Remove the fifth network from candidates
         candidates = createFilteredQnsCandidates(Arrays.copyOfRange(mSsids, 0, 4),
@@ -1811,7 +1811,7 @@ public class WifiLastResortWatchdogTest {
         mLastResortWatchdog.connectedStateTransition(true);
         // Verify takeBugReport is not called again
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, never()).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
         verify(mWifiMetrics, never()).incrementNumLastResortWatchdogSuccesses();
 
         // Simulate wifi disconnecting
@@ -1832,7 +1832,7 @@ public class WifiLastResortWatchdogTest {
         mLastResortWatchdog.connectedStateTransition(true);
         // Verify takeBugReport is not called again
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, times(1)).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, times(1)).takeBugReport(anyString(), anyString());
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
     }
 
@@ -1879,7 +1879,7 @@ public class WifiLastResortWatchdogTest {
         mLastResortWatchdog.connectedStateTransition(true);
         // Verify takeBugReport is not called again
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, never()).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
         verify(mWifiMetrics, never()).incrementNumLastResortWatchdogSuccesses();
     }
 }

@@ -40,11 +40,11 @@ import java.io.PrintWriter;
  * individual commands.
  */
 public class WifiShellCommand extends ShellCommand {
-    private final WifiStateMachine mStateMachine;
+    private final ClientModeImpl mClientModeImpl;
     private final IPackageManager mPM;
 
-    WifiShellCommand(WifiStateMachine stateMachine) {
-        mStateMachine = stateMachine;
+    WifiShellCommand(ClientModeImpl stateMachine) {
+        mClientModeImpl = stateMachine;
         mPM = AppGlobals.getPackageManager();
     }
 
@@ -68,12 +68,12 @@ public class WifiShellCommand extends ShellCommand {
                                         + " or 'disabled'");
                         return -1;
                     }
-                    mStateMachine.setIpReachabilityDisconnectEnabled(enabled);
+                    mClientModeImpl.setIpReachabilityDisconnectEnabled(enabled);
                     return 0;
                 }
                 case "get-ipreach-disconnect":
                     pw.println("IPREACH_DISCONNECT state is "
-                            + mStateMachine.getIpReachabilityDisconnectEnabled());
+                            + mClientModeImpl.getIpReachabilityDisconnectEnabled());
                     return 0;
                 case "set-poll-rssi-interval-msecs":
                     int newPollIntervalMsecs;
@@ -93,11 +93,11 @@ public class WifiShellCommand extends ShellCommand {
                         return -1;
                     }
 
-                    mStateMachine.setPollRssiIntervalMsecs(newPollIntervalMsecs);
+                    mClientModeImpl.setPollRssiIntervalMsecs(newPollIntervalMsecs);
                     return 0;
                 case "get-poll-rssi-interval-msecs":
-                    pw.println("WifiStateMachine.mPollRssiIntervalMsecs = "
-                            + mStateMachine.getPollRssiIntervalMsecs());
+                    pw.println("ClientModeImpl.mPollRssiIntervalMsecs = "
+                            + mClientModeImpl.getPollRssiIntervalMsecs());
                     return 0;
                 default:
                     return handleDefaultCommands(cmd);

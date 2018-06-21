@@ -59,8 +59,8 @@ public class WifiController extends StateMachine {
     NetworkInfo mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, "WIFI", "");
 
     /* References to values tracked in WifiService */
-    private final WifiStateMachine mWifiStateMachine;
-    private final Looper mWifiStateMachineLooper;
+    private final ClientModeImpl mClientModeImpl;
+    private final Looper mClientModeImplLooper;
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
 
@@ -99,14 +99,14 @@ public class WifiController extends StateMachine {
     private ScanOnlyModeManager.Listener mScanOnlyModeCallback = new ScanOnlyCallback();
     private ClientModeManager.Listener mClientModeCallback = new ClientModeCallback();
 
-    WifiController(Context context, WifiStateMachine wsm, Looper wifiStateMachineLooper,
+    WifiController(Context context, ClientModeImpl clientModeImpl, Looper clientModeImplLooper,
                    WifiSettingsStore wss, Looper wifiServiceLooper, FrameworkFacade f,
                    ActiveModeWarden amw) {
         super(TAG, wifiServiceLooper);
         mFacade = f;
         mContext = context;
-        mWifiStateMachine = wsm;
-        mWifiStateMachineLooper = wifiStateMachineLooper;
+        mClientModeImpl = clientModeImpl;
+        mClientModeImplLooper = clientModeImplLooper;
         mActiveModeWarden = amw;
         mSettingsStore = wss;
 
@@ -676,8 +676,8 @@ public class WifiController extends StateMachine {
                     bugTitle = "Wi-Fi BugReport";
                 }
                 if (msg.arg1 != SelfRecovery.REASON_LAST_RESORT_WATCHDOG) {
-                    (new Handler(mWifiStateMachineLooper)).post(() -> {
-                        mWifiStateMachine.takeBugReport(bugTitle, bugDetail);
+                    (new Handler(mClientModeImplLooper)).post(() -> {
+                        mClientModeImpl.takeBugReport(bugTitle, bugDetail);
                     });
                 }
                 return NOT_HANDLED;

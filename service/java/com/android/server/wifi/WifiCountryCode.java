@@ -25,7 +25,7 @@ import java.io.PrintWriter;
 /**
  * Provide functions for making changes to WiFi country code.
  * This Country Code is from MCC or phone default setting. This class sends Country Code
- * to driver through wpa_supplicant when WifiStateMachine marks current state as ready
+ * to driver through wpa_supplicant when ClientModeImpl marks current state as ready
  * using setReadyForChange(true).
  */
 public class WifiCountryCode {

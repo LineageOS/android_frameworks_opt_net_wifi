@@ -476,7 +476,7 @@ public class WifiMonitor {
      * @param bssid BSSID of the access point.
      */
     public void broadcastAssociatedBssidEvent(String iface, String bssid) {
-        sendMessage(iface, WifiStateMachine.CMD_ASSOCIATED_BSSID, 0, 0, bssid);
+        sendMessage(iface, ClientModeImpl.CMD_ASSOCIATED_BSSID, 0, 0, bssid);
     }
 
     /**
@@ -486,7 +486,7 @@ public class WifiMonitor {
      * @param bssid BSSID of the access point.
      */
     public void broadcastTargetBssidEvent(String iface, String bssid) {
-        sendMessage(iface, WifiStateMachine.CMD_TARGET_BSSID, 0, 0, bssid);
+        sendMessage(iface, ClientModeImpl.CMD_TARGET_BSSID, 0, 0, bssid);
     }
 
     /**

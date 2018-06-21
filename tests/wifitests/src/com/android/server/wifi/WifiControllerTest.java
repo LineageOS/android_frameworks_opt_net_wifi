@@ -68,7 +68,7 @@ public class WifiControllerTest {
         PrintWriter writer = new PrintWriter(stream);
         mWifiController.dump(null, writer, null);
         writer.flush();
-        Log.d(TAG, "WifiStateMachine state -" + stream.toString());
+        Log.d(TAG, "ClientModeImpl state -" + stream.toString());
     }
 
     private IState getCurrentState() throws Exception {
@@ -89,11 +89,11 @@ public class WifiControllerTest {
     @Mock Context mContext;
     @Mock FrameworkFacade mFacade;
     @Mock WifiSettingsStore mSettingsStore;
-    @Mock WifiStateMachine mWifiStateMachine;
+    @Mock ClientModeImpl mClientModeImpl;
     @Mock ActiveModeWarden mActiveModeWarden;
 
     WifiController mWifiController;
-    Handler mWifiStateMachineHandler;
+    Handler mClientModeImplHandler;
 
     private BroadcastReceiver mBroadcastReceiver;
 
@@ -108,7 +108,7 @@ public class WifiControllerTest {
 
         initializeSettingsStore();
 
-        mWifiController = new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
         mWifiController.start();
         mLooper.dispatchAll();
@@ -170,7 +170,7 @@ public class WifiControllerTest {
         reset(mActiveModeWarden);
 
         WifiController wifiController =
-                new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+                new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                                    mSettingsStore, mLooper.getLooper(), mFacade,
                                    mActiveModeWarden);
 
@@ -193,7 +193,7 @@ public class WifiControllerTest {
         when(mSettingsStore.getLocationModeSetting(eq(mContext)))
                 .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
 
-        mWifiController = new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
 
         reset(mActiveModeWarden);
@@ -221,7 +221,7 @@ public class WifiControllerTest {
                 .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
 
         reset(mContext, mActiveModeWarden);
-        mWifiController = new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
@@ -255,7 +255,7 @@ public class WifiControllerTest {
                 .thenReturn(Settings.Secure.LOCATION_MODE_HIGH_ACCURACY);
 
         reset(mContext, mActiveModeWarden);
-        mWifiController = new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
@@ -808,7 +808,7 @@ public class WifiControllerTest {
         mWifiController.sendMessage(CMD_RECOVERY_RESTART_WIFI,
                                     SelfRecovery.REASON_WIFINATIVE_FAILURE);
         mLooper.dispatchAll();
-        verify(mWifiStateMachine).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
     }
 
     @Test
@@ -817,7 +817,7 @@ public class WifiControllerTest {
         mWifiController.sendMessage(CMD_RECOVERY_RESTART_WIFI,
                                     SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
         mLooper.dispatchAll();
-        verify(mWifiStateMachine, never()).takeBugReport(anyString(), anyString());
+        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
     }
 
     /**
@@ -859,13 +859,13 @@ public class WifiControllerTest {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
 
-        mWifiController = new WifiController(mContext, mWifiStateMachine, mLooper.getLooper(),
+        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
 
         mWifiController.start();
         mLooper.dispatchAll();
 
-        reset(mWifiStateMachine);
+        reset(mClientModeImpl);
         assertEquals("StaDisabledState", getCurrentState().getName());
 
         reset(mActiveModeWarden);
@@ -900,7 +900,7 @@ public class WifiControllerTest {
     }
 
     /**
-     * The command to trigger a WiFi reset should trigger a wifi reset in WifiStateMachine through
+     * The command to trigger a WiFi reset should trigger a wifi reset in ClientModeImpl through
      * the ActiveModeWarden.shutdownWifi() call when in STA mode.
      * WiFi is in connect mode, calls to reset the wifi stack due to connection failures
      * should trigger a supplicant stop, and subsequently, a driver reload.
