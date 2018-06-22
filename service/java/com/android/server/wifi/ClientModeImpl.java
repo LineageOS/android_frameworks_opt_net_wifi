@@ -1164,23 +1164,6 @@ public class ClientModeImpl extends StateMachine {
         return new Messenger(getHandler());
     }
 
-    private long mDisconnectedTimeStamp = 0;
-
-    /**
-     *  Method to return the length of time we have been disconnected
-     *
-     *  @return long disconnected time in millis
-     */
-    public long getDisconnectedTimeMilli() {
-        if (getCurrentState() == mDisconnectedState
-                && mDisconnectedTimeStamp != 0) {
-            long now_ms = mClock.getWallClockMillis();
-            return now_ms - mDisconnectedTimeStamp;
-        }
-        return 0;
-    }
-
-
     // Last connect attempt is used to prevent scan requests:
     //  - for a period of 10 seconds after attempting to connect
     private long mLastConnectAttemptTimestamp = 0;
@@ -5598,8 +5581,6 @@ public class ClientModeImpl extends StateMachine {
 
             mWifiConnectivityManager.handleConnectionStateChanged(
                     WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
-
-            mDisconnectedTimeStamp = mClock.getWallClockMillis();
         }
 
         @Override
