@@ -2056,6 +2056,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
             if (!success) {
                 Log.e(TAG, "Failed to post runnable to fetch scan results");
+                return new ArrayList<ScanResult>();
             }
             return scanResults;
         } catch (SecurityException e) {
