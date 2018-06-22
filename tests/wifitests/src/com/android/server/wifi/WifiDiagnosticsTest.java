@@ -707,7 +707,7 @@ public class WifiDiagnosticsTest {
      * the alert callback.
      */
     @Test
-    public void onWifiAlertCapturesBugreportAndIncrementsMetrics() throws Exception {
+    public void onWifiAlertCapturesBugreportAndLogsMetrics() throws Exception {
         mWifiDiagnostics.onWifiAlert(ALERT_REASON_CODE, ALERT_DATA);
 
         assertEquals(1, mWifiDiagnostics.getAlertReports().size());
@@ -715,7 +715,7 @@ public class WifiDiagnosticsTest {
         assertEquals(ALERT_REASON_CODE, alertReport.errorCode);
         assertArrayEquals(ALERT_DATA, alertReport.alertData);
 
-        verify(mWifiMetrics).incrementAlertReasonCount(ALERT_REASON_CODE);
+        verify(mWifiMetrics).logFirmwareAlert(ALERT_REASON_CODE);
     }
 
     /** Verifies that we skip the firmware and driver dumps if verbose is not enabled. */

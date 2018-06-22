@@ -200,6 +200,7 @@ public class WifiStateMachine extends StateMachine {
         return mWifiScoreReport;
     }
     private final PasspointManager mPasspointManager;
+    private final WifiDataStall mWifiDataStall;
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
 
@@ -801,6 +802,7 @@ public class WifiStateMachine extends StateMachine {
         mWifiDiagnostics = mWifiInjector.getWifiDiagnostics();
         mScanRequestProxy = mWifiInjector.getScanRequestProxy();
         mWifiPermissionsWrapper = mWifiInjector.getWifiPermissionsWrapper();
+        mWifiDataStall = mWifiInjector.getWifiDataStall();
 
         mWifiInfo = new ExtendedWifiInfo();
         mSupplicantStateTracker =
@@ -1222,6 +1224,7 @@ public class WifiStateMachine extends StateMachine {
     private int mTxTimeLastReport = 0;
     private int mRxTimeLastReport = 0;
 
+    private WifiLinkLayerStats mLastLinkLayerStats;
     private long lastLinkLayerStatsUpdate = 0;
 
     String reportOnTime() {
@@ -2512,6 +2515,7 @@ public class WifiStateMachine extends StateMachine {
         mWifiInfo.txRetriesRate = 0;
         mWifiInfo.rxSuccessRate = 0;
         mWifiScoreReport.reset();
+        mLastLinkLayerStats = null;
     }
 
     private void updateLinkProperties(LinkProperties newLp) {
@@ -2779,6 +2783,7 @@ public class WifiStateMachine extends StateMachine {
         sendNetworkStateChangeBroadcast(mLastBssid);
 
         mLastBssid = null;
+        mLastLinkLayerStats = null;
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
     }
@@ -4857,7 +4862,10 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
-                        getWifiLinkLayerStats();
+                        WifiLinkLayerStats stats = getWifiLinkLayerStats();
+                        mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        mLastLinkLayerStats = stats;
+
                         // Get Info and continue polling
                         fetchRssiLinkSpeedAndFrequencyNative();
                         // Send the update score to network agent.
