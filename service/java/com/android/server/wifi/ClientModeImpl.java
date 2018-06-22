@@ -236,10 +236,6 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    // Testing various network disconnect cases by sending lots of spurious
-    // disconnect to supplicant
-    private boolean mTestNetworkDisconnect = false;
-
     private boolean mEnableRssiPolling = false;
     // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and ClientModeImpl thread.
     private volatile int mPollRssiIntervalMsecs = DEFAULT_POLL_RSSI_INTERVAL_MSECS;
@@ -461,10 +457,6 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_RSSI_POLL                                      = BASE + 83;
     /* Enable suspend mode optimizations in the driver */
     static final int CMD_SET_SUSPEND_OPT_ENABLED                        = BASE + 86;
-    /* Test network Disconnection NETWORK_DISCONNECT */
-    static final int CMD_TEST_NETWORK_DISCONNECT                        = BASE + 89;
-
-    private int mTestNetworkDisconnectCounter = 0;
 
     /* Enable TDLS on a specific MAC address */
     static final int CMD_ENABLE_TDLS                                    = BASE + 92;
@@ -1187,6 +1179,7 @@ public class ClientModeImpl extends StateMachine {
         }
         return 0;
     }
+
 
     // Last connect attempt is used to prevent scan requests:
     //  - for a period of 10 seconds after attempting to connect
@@ -3454,7 +3447,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_ENABLE_P2P:
                 case CMD_DISABLE_P2P_RSP:
                 case WifiMonitor.SUP_REQUEST_IDENTITY:
-                case CMD_TEST_NETWORK_DISCONNECT:
                 case WifiMonitor.SUP_REQUEST_SIM_AUTH:
                 case CMD_TARGET_BSSID:
                 case CMD_START_CONNECT:
@@ -5361,14 +5353,6 @@ public class ClientModeImpl extends StateMachine {
             // Not roaming anymore
             mIsAutoRoaming = false;
 
-            if (mTestNetworkDisconnect) {
-                mTestNetworkDisconnectCounter++;
-                logd("ConnectedState Enter start disconnect test "
-                        + mTestNetworkDisconnectCounter);
-                sendMessageDelayed(obtainMessage(CMD_TEST_NETWORK_DISCONNECT,
-                        mTestNetworkDisconnectCounter, 0), 15000);
-            }
-
             mLastDriverRoamAttempt = 0;
             mTargetNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
             mWifiInjector.getWifiLastResortWatchdog().connectedStateTransition(true);
@@ -5436,12 +5420,6 @@ public class ClientModeImpl extends StateMachine {
                     boolean accept = (message.arg1 != 0);
                     mWifiConfigManager.setNetworkNoInternetAccessExpected(mLastNetworkId, accept);
                     return HANDLED;
-                case CMD_TEST_NETWORK_DISCONNECT:
-                    // Force a disconnect
-                    if (message.arg1 == mTestNetworkDisconnectCounter) {
-                        mWifiNative.disconnect(mInterfaceName);
-                    }
-                    break;
                 case CMD_ASSOCIATED_BSSID:
                     // ASSOCIATING to a new BSSID while already connected, indicates
                     // that driver is roaming
