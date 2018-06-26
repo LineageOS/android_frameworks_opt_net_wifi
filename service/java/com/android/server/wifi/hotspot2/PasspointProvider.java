@@ -259,12 +259,12 @@ public class PasspointProvider {
      */
     public PasspointMatch match(Map<ANQPElementType, ANQPElement> anqpElements,
             RoamingConsortium roamingConsortium) {
-        PasspointMatch providerMatch = matchProviderExceptFor3Gpp(anqpElements, roamingConsortium);
+        PasspointMatch providerMatch = matchProviderExceptFor3GPP(anqpElements, roamingConsortium);
 
         // 3GPP Network matching.
         if (providerMatch == PasspointMatch.None && ANQPMatcher.matchThreeGPPNetwork(
-            (ThreeGPPNetworkElement) anqpElements.get(ANQPElementType.ANQP3GPPNetwork),
-            mImsiParameter, mMatchingSIMImsiList)) {
+                (ThreeGPPNetworkElement) anqpElements.get(ANQPElementType.ANQP3GPPNetwork),
+                mImsiParameter, mMatchingSIMImsiList)) {
             return PasspointMatch.RoamingProvider;
         }
 
@@ -468,7 +468,8 @@ public class PasspointProvider {
      * @param roamingConsortium Roaming Consortium information element from the AP
      * @return {@link PasspointMatch}
      */
-    private PasspointMatch matchProviderExceptFor3Gpp(Map<ANQPElementType, ANQPElement> anqpElements,
+    private PasspointMatch matchProviderExceptFor3GPP(
+            Map<ANQPElementType, ANQPElement> anqpElements,
             RoamingConsortium roamingConsortium) {
         // Domain name matching.
         if (ANQPMatcher.matchDomainName(
