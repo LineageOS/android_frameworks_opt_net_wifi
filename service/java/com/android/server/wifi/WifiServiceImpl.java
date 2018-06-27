@@ -148,7 +148,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     private static final int RUN_WITH_SCISSORS_TIMEOUT_MILLIS = 4000;
 
     final WifiStateMachine mWifiStateMachine;
-    final WifiStateMachinePrime mWifiStateMachinePrime;
+    final ActiveModeWarden mActiveModeWarden;
     final ScanRequestProxy mScanRequestProxy;
 
     private final Context mContext;
@@ -454,7 +454,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mUserManager = mWifiInjector.getUserManager();
         mCountryCode = mWifiInjector.getWifiCountryCode();
         mWifiStateMachine = mWifiInjector.getWifiStateMachine();
-        mWifiStateMachinePrime = mWifiInjector.getWifiStateMachinePrime();
+        mActiveModeWarden = mWifiInjector.getActiveModeWarden();
         mWifiStateMachine.enableRssiPolling(true);
         mScanRequestProxy = mWifiInjector.getScanRequestProxy();
         mSettingsStore = mWifiInjector.getWifiSettingsStore();
@@ -481,7 +481,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         enableVerboseLoggingInternal(getVerboseLoggingLevel());
         mRegisteredSoftApCallbacks = new HashMap<>();
 
-        mWifiInjector.getWifiStateMachinePrime().registerSoftApCallback(new SoftApCallbackImpl());
+        mWifiInjector.getActiveModeWarden().registerSoftApCallback(new SoftApCallbackImpl());
         mPowerProfile = mWifiInjector.getPowerProfile();
     }
 
@@ -2555,7 +2555,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             pw.println();
             mWifiMulticastLockManager.dump(pw);
             pw.println();
-            mWifiStateMachinePrime.dump(fd, pw, args);
+            mActiveModeWarden.dump(fd, pw, args);
             pw.println();
             mWifiStateMachine.dump(fd, pw, args);
             pw.println();

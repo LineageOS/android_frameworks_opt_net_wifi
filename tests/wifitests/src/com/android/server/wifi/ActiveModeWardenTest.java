@@ -42,11 +42,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 
 /**
- * Unit tests for {@link com.android.server.wifi.WifiStateMachinePrime}.
+ * Unit tests for {@link com.android.server.wifi.ActiveModeWarden}.
  */
 @SmallTest
-public class WifiStateMachinePrimeTest {
-    public static final String TAG = "WifiStateMachinePrimeTest";
+public class ActiveModeWardenTest {
+    public static final String TAG = "WifiActiveModeWardenTest";
 
     private static final String CLIENT_MODE_STATE_STRING = "ClientModeActiveState";
     private static final String SCAN_ONLY_MODE_STATE_STRING = "ScanOnlyModeActiveState";
@@ -73,7 +73,7 @@ public class WifiStateMachinePrimeTest {
     WifiManager.SoftApCallback mSoftApManagerCallback;
     @Mock WifiManager.SoftApCallback mSoftApStateMachineCallback;
     WifiNative.StatusListener mWifiNativeStatusListener;
-    WifiStateMachinePrime mWifiStateMachinePrime;
+    ActiveModeWarden mActiveModeWarden;
 
     final ArgumentCaptor<WifiNative.StatusListener> mStatusListenerCaptor =
             ArgumentCaptor.forClass(WifiNative.StatusListener.class);
@@ -92,24 +92,24 @@ public class WifiStateMachinePrimeTest {
         when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
 
-        mWifiStateMachinePrime = createWifiStateMachinePrime();
+        mActiveModeWarden = createActiveModeWarden();
         mLooper.dispatchAll();
 
         verify(mWifiNative).registerStatusListener(mStatusListenerCaptor.capture());
         mWifiNativeStatusListener = mStatusListenerCaptor.getValue();
 
-        mWifiStateMachinePrime.registerSoftApCallback(mSoftApStateMachineCallback);
-        mWifiStateMachinePrime.registerScanOnlyCallback(mScanOnlyCallback);
-        mWifiStateMachinePrime.registerClientModeCallback(mClientModeCallback);
+        mActiveModeWarden.registerSoftApCallback(mSoftApStateMachineCallback);
+        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyCallback);
+        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
     }
 
-    private WifiStateMachinePrime createWifiStateMachinePrime() {
-        return new WifiStateMachinePrime(mWifiInjector,
-                                         mContext,
-                                         mLooper.getLooper(),
-                                         mWifiNative,
-                                         mDefaultModeManager,
-                                         mBatteryStats);
+    private ActiveModeWarden createActiveModeWarden() {
+        return new ActiveModeWarden(mWifiInjector,
+                                    mContext,
+                                    mLooper.getLooper(),
+                                    mWifiNative,
+                                    mDefaultModeManager,
+                                    mBatteryStats);
     }
 
     /**
@@ -117,7 +117,7 @@ public class WifiStateMachinePrimeTest {
      */
     @After
     public void cleanUp() throws Exception {
-        mWifiStateMachinePrime = null;
+        mActiveModeWarden = null;
     }
 
     private class ClientModeCallback implements ClientModeManager.Listener {
@@ -144,10 +144,10 @@ public class WifiStateMachinePrimeTest {
     }
 
     /**
-     * Helper method to enter the ClientModeActiveState for WifiStateMachinePrime.
+     * Helper method to enter the ClientModeActiveState for ActiveModeWarden.
      */
     private void enterClientModeActiveState() throws Exception {
-        String fromState = mWifiStateMachinePrime.getCurrentMode();
+        String fromState = mActiveModeWarden.getCurrentMode();
         doAnswer(
                 new Answer<Object>() {
                         public ClientModeManager answer(InvocationOnMock invocation) {
@@ -157,21 +157,21 @@ public class WifiStateMachinePrimeTest {
                         }
                 }).when(mWifiInjector).makeClientModeManager(
                         any(ClientModeManager.Listener.class));
-        mWifiStateMachinePrime.enterClientMode();
+        mActiveModeWarden.enterClientMode();
         mLooper.dispatchAll();
         mClientListener.onStateChanged(WifiManager.WIFI_STATE_ENABLED);
         mLooper.dispatchAll();
 
-        assertEquals(CLIENT_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mClientModeManager).start();
         verify(mBatteryStats).noteWifiOn();
     }
 
     /**
-     * Helper method to enter the ScanOnlyModeActiveState for WifiStateMachinePrime.
+     * Helper method to enter the ScanOnlyModeActiveState for ActiveModeWarden.
      */
     private void enterScanOnlyModeActiveState() throws Exception {
-        String fromState = mWifiStateMachinePrime.getCurrentMode();
+        String fromState = mActiveModeWarden.getCurrentMode();
         doAnswer(
                 new Answer<Object>() {
                         public ScanOnlyModeManager answer(InvocationOnMock invocation) {
@@ -181,24 +181,24 @@ public class WifiStateMachinePrimeTest {
                         }
                 }).when(mWifiInjector).makeScanOnlyModeManager(
                         any(ScanOnlyModeManager.Listener.class));
-        mWifiStateMachinePrime.enterScanOnlyMode();
+        mActiveModeWarden.enterScanOnlyMode();
         mLooper.dispatchAll();
         mScanOnlyListener.onStateChanged(WifiManager.WIFI_STATE_ENABLED);
         mLooper.dispatchAll();
 
-        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager).start();
         verify(mBatteryStats).noteWifiOn();
         verify(mBatteryStats).noteWifiState(eq(BatteryStats.WIFI_STATE_OFF_SCANNING), eq(null));
     }
 
     /**
-     * Helper method to enter the SoftApActiveMode for WifiStateMachinePrime.
+     * Helper method to enter the SoftApActiveMode for ActiveModeWarden.
      *
      * This method puts the test object into the correct state and verifies steps along the way.
      */
     private void enterSoftApActiveMode(SoftApModeConfiguration softApConfig) throws Exception {
-        String fromState = mWifiStateMachinePrime.getCurrentMode();
+        String fromState = mActiveModeWarden.getCurrentMode();
         doAnswer(
                 new Answer<Object>() {
                     public SoftApManager answer(InvocationOnMock invocation) {
@@ -209,7 +209,7 @@ public class WifiStateMachinePrimeTest {
                     }
                 }).when(mWifiInjector).makeSoftApManager(any(WifiManager.SoftApCallback.class),
                                                          any());
-        mWifiStateMachinePrime.enterSoftAPMode(softApConfig);
+        mActiveModeWarden.enterSoftAPMode(softApConfig);
         mLooper.dispatchAll();
         verify(mSoftApManager).start();
         if (fromState.equals(WIFI_DISABLED_STATE_STRING)) {
@@ -222,11 +222,11 @@ public class WifiStateMachinePrimeTest {
      */
     @Test
     public void testWifiDisabledAtStartup() throws Exception {
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
     }
 
     /**
-     * Test that WifiStateMachinePrime properly enters the ScanOnlyModeActiveState from the
+     * Test that ActiveModeWarden properly enters the ScanOnlyModeActiveState from the
      * WifiDisabled state.
      */
     @Test
@@ -235,7 +235,7 @@ public class WifiStateMachinePrimeTest {
     }
 
     /**
-     * Test that WifiStateMachinePrime properly enters the SoftApModeActiveState from the
+     * Test that ActiveModeWarden properly enters the SoftApModeActiveState from the
      * WifiDisabled state.
      */
     @Test
@@ -244,13 +244,13 @@ public class WifiStateMachinePrimeTest {
     }
 
     /**
-     * Test that WifiStateMachinePrime properly enters the SoftApModeActiveState from another state.
+     * Test that ActiveModeWarden properly enters the SoftApModeActiveState from another state.
      */
     @Test
     public void testEnterSoftApModeFromDifferentState() throws Exception {
         enterClientModeActiveState();
         mLooper.dispatchAll();
-        assertEquals(CLIENT_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         reset(mBatteryStats);
         enterSoftApActiveMode();
     }
@@ -262,11 +262,11 @@ public class WifiStateMachinePrimeTest {
     public void testDisableWifiFromScanOnlyModeActiveState() throws Exception {
         enterScanOnlyModeActiveState();
 
-        mWifiStateMachinePrime.disableWifi();
+        mActiveModeWarden.disableWifi();
         mLooper.dispatchAll();
         verify(mScanOnlyModeManager).stop();
         verify(mBatteryStats).noteWifiOff();
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
     }
 
     /**
@@ -277,12 +277,12 @@ public class WifiStateMachinePrimeTest {
         enterSoftApActiveMode();
 
         reset(mDefaultModeManager);
-        mWifiStateMachinePrime.disableWifi();
+        mActiveModeWarden.disableWifi();
         mLooper.dispatchAll();
         verify(mSoftApManager, never()).stop();
         verify(mBatteryStats, never()).noteWifiOff();
         verify(mDefaultModeManager).sendScanAvailableBroadcast(eq(mContext), eq(false));
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
     }
 
     /**
@@ -297,7 +297,7 @@ public class WifiStateMachinePrimeTest {
         enterClientModeActiveState();
         mLooper.dispatchAll();
         verify(mScanOnlyModeManager).stop();
-        assertEquals(CLIENT_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
     }
 
     /**
@@ -313,7 +313,7 @@ public class WifiStateMachinePrimeTest {
         enterClientModeActiveState();
         mLooper.dispatchAll();
         verify(mSoftApManager, never()).stop();
-        assertEquals(CLIENT_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mWifiNative, never()).teardownAllInterfaces();
     }
 
@@ -329,7 +329,7 @@ public class WifiStateMachinePrimeTest {
         // now inject failure through the SoftApManager.Listener
         mSoftApManagerCallback.onStateChanged(WifiManager.WIFI_AP_STATE_FAILED, 0);
         mLooper.dispatchAll();
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
         // clear the first call to start SoftApManager
         reset(mSoftApManager, mBatteryStats);
 
@@ -347,7 +347,7 @@ public class WifiStateMachinePrimeTest {
         // now inject a failure through the ScanOnlyModeManager.Listener
         mScanOnlyListener.onStateChanged(WifiManager.WIFI_STATE_UNKNOWN);
         mLooper.dispatchAll();
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager).stop();
         verify(mBatteryStats).noteWifiOff();
         assertEquals(WifiManager.WIFI_STATE_UNKNOWN, mScanOnlyCallback.currentState);
@@ -378,7 +378,7 @@ public class WifiStateMachinePrimeTest {
         // now inject the stop message through the ScanOnlyModeManager.Listener
         mScanOnlyListener.onStateChanged(WifiManager.WIFI_STATE_DISABLED);
         mLooper.dispatchAll();
-        assertEquals(WIFI_DISABLED_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager).stop();
         verify(mBatteryStats).noteWifiOff();
     }
@@ -419,7 +419,7 @@ public class WifiStateMachinePrimeTest {
     @Test
     public void testNullCallbackToWifiServiceImplForStateChange() throws Exception {
         //set the callback to null
-        mWifiStateMachinePrime.registerSoftApCallback(null);
+        mActiveModeWarden.registerSoftApCallback(null);
 
         enterSoftApActiveMode();
 
@@ -452,7 +452,7 @@ public class WifiStateMachinePrimeTest {
         final int testNumClients = 3;
 
         //set the callback to null
-        mWifiStateMachinePrime.registerSoftApCallback(null);
+        mActiveModeWarden.registerSoftApCallback(null);
 
         enterSoftApActiveMode();
         mSoftApManagerCallback.onNumClientsChanged(testNumClients);
@@ -471,7 +471,7 @@ public class WifiStateMachinePrimeTest {
         // now inject failure through the SoftApManager.Listener
         mScanOnlyListener.onStateChanged(WifiManager.WIFI_STATE_ENABLED);
         mLooper.dispatchAll();
-        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager, never()).stop();
     }
 
@@ -485,7 +485,7 @@ public class WifiStateMachinePrimeTest {
         // now inject failure through the SoftApManager.Listener
         mScanOnlyListener.onStateChanged(WifiManager.WIFI_AP_STATE_DISABLING);
         mLooper.dispatchAll();
-        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mWifiStateMachinePrime.getCurrentMode());
+        assertEquals(SCAN_ONLY_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager, never()).stop();
     }
 
@@ -493,7 +493,7 @@ public class WifiStateMachinePrimeTest {
      * Test that a config passed in to the call to enterSoftApMode is used to create the new
      * SoftApManager.
      * Expectations: We should create a SoftApManager in WifiInjector with the config passed in to
-     * WifiStateMachinePrime to switch to SoftApMode.
+     * ActiveModeWarden to switch to SoftApMode.
      */
     @Test
     public void testConfigIsPassedToWifiInjector() throws Exception {
@@ -543,8 +543,8 @@ public class WifiStateMachinePrimeTest {
                                              eq(softApConfig2)))
                 .thenReturn(softapManager);
 
-        mWifiStateMachinePrime.enterSoftAPMode(softApConfig1);
-        mWifiStateMachinePrime.enterSoftAPMode(softApConfig2);
+        mActiveModeWarden.enterSoftAPMode(softApConfig1);
+        mActiveModeWarden.enterSoftAPMode(softApConfig2);
         mLooper.dispatchAll();
         verify(mSoftApManager).start();
         verify(softapManager).start();
@@ -558,7 +558,7 @@ public class WifiStateMachinePrimeTest {
      */
     @Test
     public void disableWifiWhenAlreadyOff() throws Exception {
-        mWifiStateMachinePrime.disableWifi();
+        mActiveModeWarden.disableWifi();
         // since we start up in disabled, this should not re-enter the disabled state
         verify(mDefaultModeManager).sendScanAvailableBroadcast(eq(mContext), eq(false));
     }
@@ -597,7 +597,7 @@ public class WifiStateMachinePrimeTest {
         mClientListener.onStateChanged(WifiManager.WIFI_STATE_DISABLED);
         mLooper.dispatchAll();
 
-        mWifiStateMachinePrime.shutdownWifi();
+        mActiveModeWarden.shutdownWifi();
 
         assertEquals(WifiManager.WIFI_STATE_DISABLED, mClientModeCallback.currentState);
     }
@@ -609,7 +609,7 @@ public class WifiStateMachinePrimeTest {
     public void onDestroyedCallbackDoesNotCrashWhenClientModeAlreadyStopped() throws Exception {
         enterClientModeActiveState();
 
-        mWifiStateMachinePrime.shutdownWifi();
+        mActiveModeWarden.shutdownWifi();
 
         mClientListener.onStateChanged(WifiManager.WIFI_STATE_DISABLED);
         mLooper.dispatchAll();
@@ -627,7 +627,7 @@ public class WifiStateMachinePrimeTest {
         mSoftApManagerCallback.onStateChanged(WifiManager.WIFI_AP_STATE_DISABLED, 0);
         mLooper.dispatchAll();
 
-        mWifiStateMachinePrime.shutdownWifi();
+        mActiveModeWarden.shutdownWifi();
 
         verify(mSoftApStateMachineCallback).onStateChanged(WifiManager.WIFI_AP_STATE_DISABLED, 0);
     }
@@ -639,7 +639,7 @@ public class WifiStateMachinePrimeTest {
     public void onDestroyedCallbackDoesNotCrashWhenSoftApModeAlreadyStopped() throws Exception {
         enterSoftApActiveMode();
 
-        mWifiStateMachinePrime.shutdownWifi();
+        mActiveModeWarden.shutdownWifi();
 
         mSoftApManagerCallback.onStateChanged(WifiManager.WIFI_AP_STATE_DISABLED, 0);
         mLooper.dispatchAll();
@@ -654,7 +654,7 @@ public class WifiStateMachinePrimeTest {
     public void dumpWhenWifiFullyOffDoesNotCrash() throws Exception {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(stream);
-        mWifiStateMachinePrime.dump(null, writer, null);
+        mActiveModeWarden.dump(null, writer, null);
     }
 
     /**
@@ -668,7 +668,7 @@ public class WifiStateMachinePrimeTest {
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(stream);
-        mWifiStateMachinePrime.dump(null, writer, null);
+        mActiveModeWarden.dump(null, writer, null);
 
         verify(mSoftApManager).dump(eq(null), eq(writer), eq(null));
         // can only be in scan or client, so we should not have a client mode active

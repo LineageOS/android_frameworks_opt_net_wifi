@@ -62,7 +62,7 @@ public class WifiController extends StateMachine {
     /* References to values tracked in WifiService */
     private final WifiStateMachine mWifiStateMachine;
     private final Looper mWifiStateMachineLooper;
-    private final WifiStateMachinePrime mWifiStateMachinePrime;
+    private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
 
     /**
@@ -109,13 +109,13 @@ public class WifiController extends StateMachine {
 
     WifiController(Context context, WifiStateMachine wsm, Looper wifiStateMachineLooper,
                    WifiSettingsStore wss, Looper wifiServiceLooper, FrameworkFacade f,
-                   WifiStateMachinePrime wsmp) {
+                   ActiveModeWarden amw) {
         super(TAG, wifiServiceLooper);
         mFacade = f;
         mContext = context;
         mWifiStateMachine = wsm;
         mWifiStateMachineLooper = wifiStateMachineLooper;
-        mWifiStateMachinePrime = wsmp;
+        mActiveModeWarden = amw;
         mSettingsStore = wss;
 
         // CHECKSTYLE:OFF IndentationCheck
@@ -149,8 +149,8 @@ public class WifiController extends StateMachine {
         setLogOnlyTransitions(false);
 
         // register for state updates via callbacks (vs the intents registered below)
-        mWifiStateMachinePrime.registerScanOnlyCallback(mScanOnlyModeCallback);
-        mWifiStateMachinePrime.registerClientModeCallback(mClientModeCallback);
+        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyModeCallback);
+        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
@@ -262,12 +262,12 @@ public class WifiController extends StateMachine {
                     break;
                 case CMD_RECOVERY_DISABLE_WIFI:
                     log("Recovery has been throttled, disable wifi");
-                    mWifiStateMachinePrime.shutdownWifi();
+                    mActiveModeWarden.shutdownWifi();
                     transitionTo(mStaDisabledState);
                     break;
                 case CMD_RECOVERY_RESTART_WIFI:
                     deferMessage(obtainMessage(CMD_RECOVERY_RESTART_WIFI_CONTINUE));
-                    mWifiStateMachinePrime.shutdownWifi();
+                    mActiveModeWarden.shutdownWifi();
                     transitionTo(mStaDisabledState);
                     break;
                 case CMD_USER_PRESENT:
@@ -286,15 +286,15 @@ public class WifiController extends StateMachine {
                     }
                     if (msg.arg1 == 1) {
                         SoftApModeConfiguration config = (SoftApModeConfiguration) msg.obj;
-                        mWifiStateMachinePrime.enterSoftAPMode((SoftApModeConfiguration) msg.obj);
+                        mActiveModeWarden.enterSoftAPMode((SoftApModeConfiguration) msg.obj);
                     } else {
-                        mWifiStateMachinePrime.stopSoftAPMode();
+                        mActiveModeWarden.stopSoftAPMode();
                     }
                     break;
                 case CMD_AIRPLANE_TOGGLED:
                     if (mSettingsStore.isAirplaneModeOn()) {
                         log("Airplane mode toggled, shutdown all modes");
-                        mWifiStateMachinePrime.shutdownWifi();
+                        mActiveModeWarden.shutdownWifi();
                         transitionTo(mStaDisabledState);
                     } else {
                         log("Airplane mode disabled, determine next state");
@@ -340,7 +340,7 @@ public class WifiController extends StateMachine {
 
         @Override
         public void enter() {
-            mWifiStateMachinePrime.disableWifi();
+            mActiveModeWarden.disableWifi();
             // Supplicant can't restart right away, so note the time we switched off
             mDisabledTimestamp = SystemClock.elapsedRealtime();
             mDeferredEnableSerialNumber++;
@@ -493,8 +493,8 @@ public class WifiController extends StateMachine {
 
         @Override
         public void enter() {
-            // now trigger the actual mode switch in WifiStateMachinePrime
-            mWifiStateMachinePrime.enterScanOnlyMode();
+            // now trigger the actual mode switch in ActiveModeWarden
+            mActiveModeWarden.enterScanOnlyMode();
 
             // TODO b/71559473: remove the defered enable after mode management changes are complete
             // Supplicant can't restart right away, so not the time we switched off
@@ -598,7 +598,7 @@ public class WifiController extends StateMachine {
         private int mEcmEntryCount;
         @Override
         public void enter() {
-            mWifiStateMachinePrime.shutdownWifi();
+            mActiveModeWarden.shutdownWifi();
             mWifiStateMachine.clearANQPCache();
             mEcmEntryCount = 1;
         }
@@ -675,7 +675,7 @@ public class WifiController extends StateMachine {
     class DeviceActiveState extends State {
         @Override
         public void enter() {
-            mWifiStateMachinePrime.enterClientMode();
+            mActiveModeWarden.enterClientMode();
             mWifiStateMachine.setHighPerfModeEnabled(false);
         }
 

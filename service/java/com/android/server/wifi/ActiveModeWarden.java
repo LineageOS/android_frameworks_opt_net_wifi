@@ -39,12 +39,9 @@ import java.io.PrintWriter;
 
 /**
  * This class provides the implementation for different WiFi operating modes.
- *
- * NOTE: The class is a WIP and is in active development.  It is intended to replace the existing
- * WifiStateMachine.java class when the rearchitecture is complete.
  */
-public class WifiStateMachinePrime {
-    private static final String TAG = "WifiStateMachinePrime";
+public class ActiveModeWarden {
+    private static final String TAG = "WifiActiveModeWarden";
 
     private ModeStateMachine mModeStateMachine;
 
@@ -125,12 +122,12 @@ public class WifiStateMachinePrime {
         mClientModeCallback = callback;
     }
 
-    WifiStateMachinePrime(WifiInjector wifiInjector,
-                          Context context,
-                          Looper looper,
-                          WifiNative wifiNative,
-                          DefaultModeManager defaultModeManager,
-                          IBatteryStats batteryStats) {
+    ActiveModeWarden(WifiInjector wifiInjector,
+                     Context context,
+                     Looper looper,
+                     WifiNative wifiNative,
+                     DefaultModeManager defaultModeManager,
+                     IBatteryStats batteryStats) {
         mWifiInjector = wifiInjector;
         mContext = context;
         mLooper = looper;

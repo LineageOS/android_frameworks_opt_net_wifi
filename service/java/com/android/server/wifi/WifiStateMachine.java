@@ -4292,7 +4292,7 @@ public class WifiStateMachine extends StateMachine {
                     mWifiConfigManager.clearRecentFailureReason(mLastNetworkId);
                     mLastBssid = (String) message.obj;
                     reasonCode = message.arg2;
-                    // TODO: This check should not be needed after WifiStateMachinePrime refactor.
+                    // TODO: This check should not be needed after ClientModeImpl refactor.
                     // Currently, the last connected network configuration is left in
                     // wpa_supplicant, this may result in wpa_supplicant initiating connection
                     // to it after a config store reload. Hence the old network Id lookups may not

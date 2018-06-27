@@ -167,7 +167,7 @@ public class WifiServiceImplTest {
     @Mock WifiController mWifiController;
     @Mock WifiTrafficPoller mWifiTrafficPoller;
     @Mock WifiStateMachine mWifiStateMachine;
-    @Mock WifiStateMachinePrime mWifiStateMachinePrime;
+    @Mock ActiveModeWarden mActiveModeWarden;
     @Mock HandlerThread mHandlerThread;
     @Mock AsyncChannel mAsyncChannel;
     @Mock Resources mResources;
@@ -275,7 +275,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         when(mWifiInjector.getWifiStateMachine()).thenReturn(mWifiStateMachine);
         when(mWifiStateMachine.syncInitialize(any())).thenReturn(true);
-        when(mWifiInjector.getWifiStateMachinePrime()).thenReturn(mWifiStateMachinePrime);
+        when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
         when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
@@ -320,7 +320,7 @@ public class WifiServiceImplTest {
         ArgumentCaptor<SoftApCallback> softApCallbackCaptor =
                 ArgumentCaptor.forClass(SoftApCallback.class);
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
-        verify(mWifiStateMachinePrime).registerSoftApCallback(softApCallbackCaptor.capture());
+        verify(mActiveModeWarden).registerSoftApCallback(softApCallbackCaptor.capture());
         mStateMachineSoftApCallback = softApCallbackCaptor.getValue();
         mWifiServiceImpl.setWifiHandlerLogForTest(mLog);
     }
