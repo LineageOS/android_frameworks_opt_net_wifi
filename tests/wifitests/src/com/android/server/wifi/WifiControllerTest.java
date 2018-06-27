@@ -145,7 +145,7 @@ public class WifiControllerTest {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(true);
         mWifiController.sendMessage(CMD_WIFI_TOGGLED);
         mLooper.dispatchAll();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
     }
 
     /**
@@ -753,15 +753,15 @@ public class WifiControllerTest {
 
     /**
      * When AP mode is enabled and wifi was previously in AP mode, we should return to
-     * DeviceActiveState after the AP is disabled.
-     * Enter DeviceActiveState, activate AP mode, disable AP mode.
+     * StaEnabledState after the AP is disabled.
+     * Enter StaEnabledState, activate AP mode, disable AP mode.
      * <p>
-     * Expected: AP should successfully start and exit, then return to DeviceActiveState.
+     * Expected: AP should successfully start and exit, then return to StaEnabledState.
      */
     @Test
-    public void testReturnToDeviceActiveStateAfterAPModeShutdown() throws Exception {
+    public void testReturnToStaEnabledStateAfterAPModeShutdown() throws Exception {
         enableWifi();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
 
         mWifiController.obtainMessage(CMD_SET_AP, 1, 0).sendToTarget();
         // add an "unexpected" sta mode stop to simulate a single interface device
@@ -774,20 +774,20 @@ public class WifiControllerTest {
 
         InOrder inOrder = inOrder(mActiveModeWarden);
         inOrder.verify(mActiveModeWarden).enterClientMode();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
     }
 
     /**
      * When AP mode is enabled and wifi is toggled on, we should transition to
-     * DeviceActiveState after the AP is disabled.
-     * Enter DeviceActiveState, activate AP mode, toggle WiFi.
+     * StaEnabledState after the AP is disabled.
+     * Enter StaEnabledState, activate AP mode, toggle WiFi.
      * <p>
-     * Expected: AP should successfully start and exit, then return to DeviceActiveState.
+     * Expected: AP should successfully start and exit, then return to StaEnabledState.
      */
     @Test
-    public void testReturnToDeviceActiveStateAfterWifiEnabledShutdown() throws Exception {
+    public void testReturnToStaEnabledStateAfterWifiEnabledShutdown() throws Exception {
         enableWifi();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
 
         mWifiController.obtainMessage(CMD_SET_AP, 1, 0).sendToTarget();
         mLooper.dispatchAll();
@@ -799,7 +799,7 @@ public class WifiControllerTest {
 
         InOrder inOrder = inOrder(mActiveModeWarden);
         inOrder.verify(mActiveModeWarden).enterClientMode();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
     }
 
     @Test
@@ -904,7 +904,7 @@ public class WifiControllerTest {
      * the ActiveModeWarden.shutdownWifi() call when in STA mode.
      * WiFi is in connect mode, calls to reset the wifi stack due to connection failures
      * should trigger a supplicant stop, and subsequently, a driver reload.
-     * Create and start WifiController in DeviceActiveState, send command to restart WiFi
+     * Create and start WifiController in StaEnabledState, send command to restart WiFi
      * <p>
      * Expected: WiFiController should call ActiveModeWarden.shutdownWifi() and
      * ActiveModeWarden should enter CONNECT_MODE and the wifi driver should be started.
@@ -912,14 +912,14 @@ public class WifiControllerTest {
     @Test
     public void testRestartWifiStackInStaEnabledState() throws Exception {
         enableWifi();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
 
         mWifiController.sendMessage(CMD_RECOVERY_RESTART_WIFI);
         mLooper.dispatchAll();
         InOrder inOrder = inOrder(mActiveModeWarden);
         inOrder.verify(mActiveModeWarden).shutdownWifi();
         inOrder.verify(mActiveModeWarden).enterClientMode();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
     }
 
     /**
@@ -932,7 +932,7 @@ public class WifiControllerTest {
     @Test
     public void testRestartWifiStackDoesNotExitECMMode() throws Exception {
         enableWifi();
-        assertEquals("DeviceActiveState", getCurrentState().getName());
+        assertEquals("StaEnabledState", getCurrentState().getName());
         when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
 
         mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 1);
