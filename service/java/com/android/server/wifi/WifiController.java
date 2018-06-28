@@ -604,44 +604,43 @@ public class WifiController extends StateMachine {
         }
 
         /**
-         * Hanles messages received while in EcmMode.
-         *
-         * TODO (b/78244565): move from many ifs to a switch
+         * Handles messages received while in EcmMode.
          */
         @Override
         public boolean processMessage(Message msg) {
-            if (msg.what == CMD_EMERGENCY_CALL_STATE_CHANGED) {
-                if (msg.arg1 == 1) {
-                    // nothing to do - just says emergency call started
-                    mEcmEntryCount++;
-                } else if (msg.arg1 == 0) {
-                    // emergency call ended
-                    decrementCountAndReturnToAppropriateState();
-                }
-                return HANDLED;
-            } else if (msg.what == CMD_EMERGENCY_MODE_CHANGED) {
-
-                if (msg.arg1 == 1) {
-                    // Transitioned into emergency callback mode
-                    mEcmEntryCount++;
-                } else if (msg.arg1 == 0) {
-                    // out of emergency callback mode
-                    decrementCountAndReturnToAppropriateState();
-                }
-                return HANDLED;
-            } else if (msg.what == CMD_RECOVERY_RESTART_WIFI
-                    || msg.what == CMD_RECOVERY_DISABLE_WIFI) {
-                // do not want to restart wifi if we are in emergency mode
-                return HANDLED;
-            } else if (msg.what == CMD_AP_STOPPED || msg.what == CMD_SCANNING_STOPPED
-                    || msg.what == CMD_STA_STOPPED) {
-                // do not want to trigger a mode switch if we are in emergency mode
-                return HANDLED;
-            } else if (msg.what == CMD_SET_AP) {
-                // do not want to start softap if we are in emergency mode
-                return HANDLED;
-            } else {
-                return NOT_HANDLED;
+            switch (msg.what) {
+                case CMD_EMERGENCY_CALL_STATE_CHANGED:
+                    if (msg.arg1 == 1) {
+                        // nothing to do - just says emergency call started
+                        mEcmEntryCount++;
+                    } else if (msg.arg1 == 0) {
+                        // emergency call ended
+                        decrementCountAndReturnToAppropriateState();
+                    }
+                    return HANDLED;
+                case CMD_EMERGENCY_MODE_CHANGED:
+                    if (msg.arg1 == 1) {
+                        // Transitioned into emergency callback mode
+                        mEcmEntryCount++;
+                    } else if (msg.arg1 == 0) {
+                        // out of emergency callback mode
+                        decrementCountAndReturnToAppropriateState();
+                    }
+                    return HANDLED;
+                case CMD_RECOVERY_RESTART_WIFI:
+                case CMD_RECOVERY_DISABLE_WIFI:
+                    // do not want to restart wifi if we are in emergency mode
+                    return HANDLED;
+                case CMD_AP_STOPPED:
+                case CMD_SCANNING_STOPPED:
+                case CMD_STA_STOPPED:
+                    // do not want to trigger a mode switch if we are in emergency mode
+                    return HANDLED;
+                case CMD_SET_AP:
+                    // do not want to start softap if we are in emergency mode
+                    return HANDLED;
+                default:
+                    return NOT_HANDLED;
             }
         }
 
