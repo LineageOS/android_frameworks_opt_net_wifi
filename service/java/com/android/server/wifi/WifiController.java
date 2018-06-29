@@ -292,11 +292,7 @@ public class WifiController extends StateMachine {
                     break;
                 case CMD_EMERGENCY_CALL_STATE_CHANGED:
                 case CMD_EMERGENCY_MODE_CHANGED:
-                    boolean configWiFiDisableInECBM =
-                            mFacade.getConfigWiFiDisableInECBM(mContext);
-                    log("WifiController msg " + msg + " getConfigWiFiDisableInECBM "
-                            + configWiFiDisableInECBM);
-                    if ((msg.arg1 == 1) && configWiFiDisableInECBM) {
+                    if (msg.arg1 == 1) {
                         transitionTo(mEcmState);
                     }
                     break;
@@ -581,7 +577,14 @@ public class WifiController extends StateMachine {
         private int mEcmEntryCount;
         @Override
         public void enter() {
-            mActiveModeWarden.shutdownWifi();
+            mActiveModeWarden.stopSoftAPMode();
+            boolean configWiFiDisableInECBM =
+                    mFacade.getConfigWiFiDisableInECBM(mContext);
+            log("WifiController msg getConfigWiFiDisableInECBM "
+                    + configWiFiDisableInECBM);
+            if (configWiFiDisableInECBM) {
+                mActiveModeWarden.shutdownWifi();
+            }
             mEcmEntryCount = 1;
         }
 
