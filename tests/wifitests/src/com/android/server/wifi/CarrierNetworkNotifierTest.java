@@ -398,10 +398,33 @@ public class CarrierNetworkNotifierTest {
         List<ScanDetail> scanResults = mCarrierNetworks;
         mNotificationController.handleScanResults(scanResults);
 
-        Set<String> expectedBlacklist = new ArraySet<>();
-        expectedBlacklist.add(mDummyNetwork.SSID);
-        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(CARRIER_NET_NOTIFIER_TAG,
-                expectedBlacklist.size());
+        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(CARRIER_NET_NOTIFIER_TAG, 1);
+    }
+
+    /**
+     * When the user chooses to connect to recommended network, network ssid should be
+     * blacklisted so that if the user removes the network in the future the same notification
+     * won't show up again.
+     */
+    @Test
+    public void userConnectedNotification_shouldBlacklistNetwork() {
+        mNotificationController.handleScanResults(mCarrierNetworks);
+
+        verify(mNotificationBuilder).createConnectToAvailableNetworkNotification(
+                CARRIER_NET_NOTIFIER_TAG, mDummyNetwork);
+        verify(mWifiMetrics).incrementConnectToNetworkNotification(CARRIER_NET_NOTIFIER_TAG,
+                ConnectToNetworkNotificationAndActionCount.NOTIFICATION_RECOMMEND_NETWORK);
+        verify(mNotificationManager).notify(anyInt(), any());
+
+        mBroadcastReceiver.onReceive(mContext, createIntent(ACTION_CONNECT_TO_NETWORK));
+
+        verify(mWifiConfigManager).saveToStore(false /* forceWrite */);
+
+        mNotificationController.clearPendingNotification(true);
+        List<ScanDetail> scanResults = mCarrierNetworks;
+        mNotificationController.handleScanResults(scanResults);
+
+        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(CARRIER_NET_NOTIFIER_TAG, 1);
     }
 
     /**

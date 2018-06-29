@@ -117,8 +117,8 @@ public class WifiMetrics {
     public static final int MAX_UNUSABLE_EVENTS = 20;
     // Minimum time wait before generating next WifiIsUnusableEvent from data stall
     public static final int MIN_DATA_STALL_WAIT_MS = 120 * 1000; // 2 minutes
-    private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 0; // 0 = false
-    private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 0; // 0 = false
+    private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 1; // 1 = true
+    private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 1; // 1 = true
 
     private Clock mClock;
     private boolean mScreenOn;

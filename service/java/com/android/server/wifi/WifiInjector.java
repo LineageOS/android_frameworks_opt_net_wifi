@@ -93,7 +93,7 @@ public class WifiInjector {
     private final WifiVendorHal mWifiVendorHal;
     private final ScoringParams mScoringParams;
     private final WifiStateMachine mWifiStateMachine;
-    private final WifiStateMachinePrime mWifiStateMachinePrime;
+    private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
     private final OpenNetworkNotifier mOpenNetworkNotifier;
     private final CarrierNetworkNotifier mCarrierNetworkNotifier;
@@ -272,7 +272,7 @@ public class WifiInjector {
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager);
-        mWifiStateMachinePrime = new WifiStateMachinePrime(this, mContext, wifiStateMachineLooper,
+        mActiveModeWarden = new ActiveModeWarden(this, mContext, wifiStateMachineLooper,
                 mWifiNative, new DefaultModeManager(mContext, wifiStateMachineLooper),
                 mBatteryStats);
         mOpenNetworkNotifier = new OpenNetworkNotifier(mContext,
@@ -297,7 +297,7 @@ public class WifiInjector {
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService());
         mWifiController = new WifiController(mContext, mWifiStateMachine, wifiStateMachineLooper,
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,
-                mWifiStateMachinePrime);
+                mActiveModeWarden);
         mSelfRecovery = new SelfRecovery(mWifiController, mClock);
         mWifiLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock,
                 mWifiMetrics, mWifiStateMachine, wifiStateMachineLooper);
@@ -385,8 +385,8 @@ public class WifiInjector {
         return mWifiStateMachine.getHandler();
     }
 
-    public WifiStateMachinePrime getWifiStateMachinePrime() {
-        return mWifiStateMachinePrime;
+    public ActiveModeWarden getActiveModeWarden() {
+        return mActiveModeWarden;
     }
 
     public WifiSettingsStore getWifiSettingsStore() {

@@ -426,6 +426,7 @@ public class AvailableNetworkNotifier {
         msg.obj = network;
         msg.replyTo = mSrcMessenger;
         mWifiStateMachine.sendMessage(msg);
+        addNetworkToBlacklist(mRecommendedNetwork.SSID);
 
         mState = STATE_CONNECTING_IN_NOTIFICATION;
         mHandler.postDelayed(
@@ -435,6 +436,14 @@ public class AvailableNetworkNotifier {
                     }
                 },
                 TIME_TO_SHOW_CONNECTING_MILLIS);
+    }
+
+    private void addNetworkToBlacklist(String ssid) {
+        mBlacklistedSsids.add(ssid);
+        mWifiMetrics.setNetworkRecommenderBlacklistSize(mTag, mBlacklistedSsids.size());
+        mConfigManager.saveToStore(false /* forceWrite */);
+        Log.d(mTag, "Network is added to the network notification blacklist: "
+                + ssid);
     }
 
     WifiConfiguration createRecommendedNetworkConfig(ScanResult recommendedNetwork) {
@@ -474,11 +483,7 @@ public class AvailableNetworkNotifier {
                 ConnectToNetworkNotificationAndActionCount.ACTION_USER_DISMISSED_NOTIFICATION);
         if (mState == STATE_SHOWING_RECOMMENDATION_NOTIFICATION) {
             // blacklist dismissed network
-            mBlacklistedSsids.add(mRecommendedNetwork.SSID);
-            mWifiMetrics.setNetworkRecommenderBlacklistSize(mTag, mBlacklistedSsids.size());
-            mConfigManager.saveToStore(false /* forceWrite */);
-            Log.d(mTag, "Network is added to the network notification blacklist: "
-                    + mRecommendedNetwork.SSID);
+            addNetworkToBlacklist(mRecommendedNetwork.SSID);
         }
         resetStateAndDelayNotification();
     }
