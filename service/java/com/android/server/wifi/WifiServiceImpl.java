@@ -35,7 +35,6 @@ import static com.android.server.wifi.WifiController.CMD_EMERGENCY_CALL_STATE_CH
 import static com.android.server.wifi.WifiController.CMD_EMERGENCY_MODE_CHANGED;
 import static com.android.server.wifi.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
 import static com.android.server.wifi.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.WifiController.CMD_USER_PRESENT;
 import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
 
 import android.Manifest;
@@ -2404,7 +2403,10 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_USER_PRESENT)) {
-                mWifiController.sendMessage(CMD_USER_PRESENT);
+                // TLS networks can't connect until user unlocks keystore. KeyStore
+                // unlocks when the user punches PIN after the reboot. So use this
+                // trigger to get those networks connected.
+                mWifiStateMachine.reloadTlsNetworksAndReconnect();
             } else if (action.equals(Intent.ACTION_USER_REMOVED)) {
                 int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
                 mWifiStateMachine.removeUserConfigs(userHandle);

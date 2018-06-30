@@ -744,6 +744,11 @@ public class WifiStateMachine extends StateMachine {
      */
     private final WorkSource mLastRunningWifiUids = new WorkSource();
 
+    /*
+     * Note if we have seen the user sign in
+     */
+    private boolean mFirstUserSignOnSeen = false;
+
     private TelephonyManager mTelephonyManager;
     private TelephonyManager getTelephonyManager() {
         if (mTelephonyManager == null) {
@@ -1554,7 +1559,6 @@ public class WifiStateMachine extends StateMachine {
     /**
      * Reload networks and then reconnect; helps load correct data for TLS networks
      */
-
     public void reloadTlsNetworksAndReconnect() {
         sendMessage(CMD_RELOAD_TLS_AND_RECONNECT);
     }
@@ -3362,7 +3366,6 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_DISCONNECT:
                 case CMD_RECONNECT:
                 case CMD_REASSOCIATE:
-                case CMD_RELOAD_TLS_AND_RECONNECT:
                 case WifiMonitor.NETWORK_CONNECTION_EVENT:
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
@@ -3387,6 +3390,9 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_DISABLE_P2P_WATCHDOG_TIMER:
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
                     messageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
+                    break;
+                case CMD_RELOAD_TLS_AND_RECONNECT:
+                    mFirstUserSignOnSeen = true;
                     break;
                 case CMD_SET_OPERATIONAL_MODE:
                     // using the CMD_SET_OPERATIONAL_MODE (sent at front of queue) to trigger the
@@ -3645,6 +3651,9 @@ public class WifiStateMachine extends StateMachine {
      */
     private void setupClientMode() {
         Log.d(TAG, "setupClientMode() ifacename = " + mInterfaceName);
+
+        setHighPerfModeEnabled(false);
+
         mWifiStateTracker.updateState(WifiStateTracker.INVALID);
 
         if (mWifiConnectivityManager == null) {
@@ -3731,6 +3740,10 @@ public class WifiStateMachine extends StateMachine {
             // disable command until p2p can detect the interface up/down on its own.
             p2pSendMessage(WifiStateMachine.CMD_DISABLE_P2P_REQ);
         }
+
+        // This call is currently a no-op but documenting placement as the call is removed from
+        // WifiController
+        clearANQPCache();
 
         mIsRunning = false;
         updateBatteryWorkSource(null);
@@ -4108,12 +4121,18 @@ public class WifiStateMachine extends StateMachine {
                     mWifiNative.reassociate(mInterfaceName);
                     break;
                 case CMD_RELOAD_TLS_AND_RECONNECT:
+                    // TODO(b/64033284): determine if this code is still necessary
+                    if (mFirstUserSignOnSeen) {
+                        // a user has already been seen, nothing to do
+                        break;
+                    }
                     if (mWifiConfigManager.needsUnlockedKeyStore()) {
                         logd("Reconnecting to give a chance to un-connected TLS networks");
                         mWifiNative.disconnect(mInterfaceName);
                         lastConnectAttemptTimestamp = mClock.getWallClockMillis();
                         mWifiNative.reconnect(mInterfaceName);
                     }
+                    mFirstUserSignOnSeen = true;
                     break;
                 case CMD_START_ROAM:
                     messageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;

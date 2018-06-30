@@ -28,7 +28,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-import android.os.WorkSource;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -37,7 +36,7 @@ import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
 /**
- * WifiController is the class used to manage on/off state of WifiStateMachine for various operating
+ * WifiController is the class used to manage wifi state for various operating
  * modes (normal, airplane, wifi hotspot, etc.).
  */
 public class WifiController extends StateMachine {
@@ -65,12 +64,6 @@ public class WifiController extends StateMachine {
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
 
-    /**
-     * Temporary for computing UIDS that are responsible for starting WIFI.
-     * Protected by mWifiStateTracker lock.
-     */
-    private final WorkSource mTmpWorkSource = new WorkSource();
-
     private long mReEnableDelayMillis;
 
     private FrameworkFacade mFacade;
@@ -83,7 +76,6 @@ public class WifiController extends StateMachine {
     static final int CMD_AIRPLANE_TOGGLED                       = BASE + 9;
     static final int CMD_SET_AP                                 = BASE + 10;
     static final int CMD_DEFERRED_TOGGLE                        = BASE + 11;
-    static final int CMD_USER_PRESENT                           = BASE + 12;
     static final int CMD_AP_START_FAILURE                       = BASE + 13;
     static final int CMD_EMERGENCY_CALL_STATE_CHANGED           = BASE + 14;
     static final int CMD_AP_STOPPED                             = BASE + 15;
@@ -243,11 +235,6 @@ public class WifiController extends StateMachine {
                 Settings.Global.WIFI_REENABLE_DELAY_MS, DEFAULT_REENABLE_DELAY_MS);
     }
 
-    private void updateBatteryWorkSource() {
-        mTmpWorkSource.clear();
-        mWifiStateMachine.updateBatteryWorkSource(mTmpWorkSource);
-    }
-
     class DefaultState extends State {
         @Override
         public boolean processMessage(Message msg) {
@@ -269,9 +256,6 @@ public class WifiController extends StateMachine {
                     deferMessage(obtainMessage(CMD_RECOVERY_RESTART_WIFI_CONTINUE));
                     mActiveModeWarden.shutdownWifi();
                     transitionTo(mStaDisabledState);
-                    break;
-                case CMD_USER_PRESENT:
-                    mFirstUserSignOnSeen = true;
                     break;
                 case CMD_DEFERRED_TOGGLE:
                     log("DEFERRED_TOGGLE ignored due to state change");
@@ -345,7 +329,6 @@ public class WifiController extends StateMachine {
             mDisabledTimestamp = SystemClock.elapsedRealtime();
             mDeferredEnableSerialNumber++;
             mHaveDeferredEnable = false;
-            mWifiStateMachine.clearANQPCache();
         }
         @Override
         public boolean processMessage(Message msg) {
@@ -599,7 +582,6 @@ public class WifiController extends StateMachine {
         @Override
         public void enter() {
             mActiveModeWarden.shutdownWifi();
-            mWifiStateMachine.clearANQPCache();
             mEcmEntryCount = 1;
         }
 
@@ -676,21 +658,11 @@ public class WifiController extends StateMachine {
         @Override
         public void enter() {
             mActiveModeWarden.enterClientMode();
-            mWifiStateMachine.setHighPerfModeEnabled(false);
         }
 
         @Override
         public boolean processMessage(Message msg) {
-            if (msg.what == CMD_USER_PRESENT) {
-                // TLS networks can't connect until user unlocks keystore. KeyStore
-                // unlocks when the user punches PIN after the reboot. So use this
-                // trigger to get those networks connected.
-                if (mFirstUserSignOnSeen == false) {
-                    mWifiStateMachine.reloadTlsNetworksAndReconnect();
-                }
-                mFirstUserSignOnSeen = true;
-                return HANDLED;
-            } else if (msg.what == CMD_RECOVERY_RESTART_WIFI) {
+            if (msg.what == CMD_RECOVERY_RESTART_WIFI) {
                 final String bugTitle;
                 final String bugDetail;
                 if (msg.arg1 < SelfRecovery.REASON_STRINGS.length && msg.arg1 >= 0) {
