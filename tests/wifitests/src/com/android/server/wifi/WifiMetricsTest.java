@@ -310,6 +310,7 @@ public class WifiMetricsTest {
     private static final boolean LINK_SPEED_COUNTS_LOGGING_SETTING = true;
     private static final int DATA_STALL_MIN_TX_BAD_SETTING = 5;
     private static final int DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING = 75;
+    private static final int NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES = 5;
 
     /** Number of notifications per "Connect to Network" notification type. */
     private static final int[] NUM_CONNECT_TO_NETWORK_NOTIFICATIONS = {0, 10, 20, 30, 40};
@@ -702,6 +703,9 @@ public class WifiMetricsTest {
         for (int i = 0; i < NUM_WPS_CANCELLATION; i++) {
             mWifiMetrics.incrementWpsCancellationCount();
         }
+        for (int i = 0; i < NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES; i++) {
+            mWifiMetrics.incrementNumSarSensorRegistrationFailures();
+        }
 
         mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
         mWifiMetrics.setIsMacRandomizationOn(IS_MAC_RANDOMIZATION_ON);
@@ -1008,6 +1012,9 @@ public class WifiMetricsTest {
                 mDecodedProto.experimentValues.wifiDataStallMinTxBad);
         assertEquals(DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING,
                 mDecodedProto.experimentValues.wifiDataStallMinTxSuccessWithoutRx);
+
+        assertEquals(NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES,
+                mDecodedProto.numSarSensorRegistrationFailures);
     }
 
     /**

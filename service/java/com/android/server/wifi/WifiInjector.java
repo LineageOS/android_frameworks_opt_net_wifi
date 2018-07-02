@@ -257,7 +257,8 @@ public class WifiInjector {
                 this, mWifiConfigManager,
                 mWifiPermissionsUtil, mWifiMetrics, mClock);
         mSarManager = new SarManager(mContext, makeTelephonyManager(), wifiStateMachineLooper,
-                mWifiNative, new SystemSensorManager(mContext, wifiStateMachineLooper));
+                mWifiNative, new SystemSensorManager(mContext, wifiStateMachineLooper),
+                mWifiMetrics);
         if (mUseRealLogger) {
             mWifiDiagnostics = new WifiDiagnostics(
                     mContext, this, mWifiNative, mBuildProperties,
