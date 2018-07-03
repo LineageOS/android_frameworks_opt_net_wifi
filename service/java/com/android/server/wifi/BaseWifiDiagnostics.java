@@ -11,6 +11,7 @@ public class BaseWifiDiagnostics {
     public static final byte CONNECTION_EVENT_STARTED = 0;
     public static final byte CONNECTION_EVENT_SUCCEEDED = 1;
     public static final byte CONNECTION_EVENT_FAILED = 2;
+    public static final byte CONNECTION_EVENT_TIMEOUT = 3;
 
     protected final WifiNative mWifiNative;
 

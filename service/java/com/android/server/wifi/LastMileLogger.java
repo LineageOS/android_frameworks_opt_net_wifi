@@ -64,10 +64,14 @@ public class LastMileLogger {
                 disableTracing();
                 return;
             case BaseWifiDiagnostics.CONNECTION_EVENT_FAILED:
+                mPendingConnectionId = -1;
+                disableTracing();
+                mLastMileLogForLastFailure = readTrace();
+                return;
+            case BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT:
                 if (connectionId >= mPendingConnectionId) {
                     mPendingConnectionId = -1;
                     disableTracing();
-                    mLastMileLogForLastFailure = readTrace();
                     return;
                 } else {
                     // Spurious failure message. Here's one scenario where this might happen:
@@ -88,7 +92,6 @@ public class LastMileLogger {
     public void dump(PrintWriter pw) {
         dumpInternal(pw, "Last failed last-mile log", mLastMileLogForLastFailure);
         dumpInternal(pw, "Latest last-mile log", readTrace());
-        mLastMileLogForLastFailure = null;
     }
 
     private static final String TAG = "LastMileLogger";
