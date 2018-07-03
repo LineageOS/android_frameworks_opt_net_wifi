@@ -91,6 +91,7 @@ public class SarManagerTest {
     @Mock TelephonyManager mTelephonyManager;
     @Mock private ApplicationInfo mMockApplInfo;
     @Mock WifiNative mWifiNative;
+    @Mock WifiMetrics mWifiMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -190,7 +191,7 @@ public class SarManagerTest {
         }
 
         mSarMgr = new SarManager(mContext, mTelephonyManager, mLooper.getLooper(),
-                mWifiNative, mSensorManager);
+                mWifiNative, mSensorManager, mWifiMetrics);
 
         if (isSarEnabled) {
             /* Capture the PhoneStateListener */
@@ -211,6 +212,8 @@ public class SarManagerTest {
             mSensorEventListener = sensorEventListenerCaptor.getValue();
             assertNotNull(mSensorEventListener);
         }
+
+        verify(mWifiMetrics, never()).incrementNumSarSensorRegistrationFailures();
 
         /* Enable logs from SarManager */
         enableDebugLogs();
@@ -242,7 +245,7 @@ public class SarManagerTest {
         prepareSensorInfo(sensorRegisterReturn);
 
         mSarMgr = new SarManager(mContext, mTelephonyManager, mLooper.getLooper(),
-                mWifiNative, mSensorManager);
+                mWifiNative, mSensorManager, mWifiMetrics);
 
         /* Capture the PhoneStateListener */
         ArgumentCaptor<PhoneStateListener> phoneStateListenerCaptor =
@@ -697,6 +700,7 @@ public class SarManagerTest {
 
         verify(mSensorManager, never()).registerListener(any(SensorEventListener.class),
                 any(Sensor.class), anyInt());
+        verify(mWifiMetrics).incrementNumSarSensorRegistrationFailures();
 
         /* Enable WiFi Client */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
@@ -731,6 +735,7 @@ public class SarManagerTest {
 
         verify(mSensorManager, never()).registerListener(any(SensorEventListener.class),
                 any(Sensor.class), anyInt());
+        verify(mWifiMetrics).incrementNumSarSensorRegistrationFailures();
 
         /* Enable WiFi Client */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
@@ -763,6 +768,7 @@ public class SarManagerTest {
 
         verify(mSensorManager).registerListener(any(SensorEventListener.class),
                 any(Sensor.class), anyInt());
+        verify(mWifiMetrics).incrementNumSarSensorRegistrationFailures();
 
         InOrder inOrder = inOrder(mWifiNative);
 

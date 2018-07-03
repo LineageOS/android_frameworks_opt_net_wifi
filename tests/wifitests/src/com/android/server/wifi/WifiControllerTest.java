@@ -311,6 +311,7 @@ public class WifiControllerTest {
         mLooper.dispatchAll();
 
         verify(mActiveModeWarden, never()).shutdownWifi();
+        verify(mActiveModeWarden).stopSoftAPMode();
     }
 
     /**
@@ -363,7 +364,7 @@ public class WifiControllerTest {
 
     /**
      * When Ecm mode is disabled, we should not shut down scan mode if we get an emergency mode
-     * changed update
+     * changed update, but we should turn off soft AP
      */
     @Test
     public void testEcmOffInScanMode() throws Exception {
@@ -381,6 +382,7 @@ public class WifiControllerTest {
         mLooper.dispatchAll();
 
         verify(mActiveModeWarden, never()).shutdownWifi();
+        verify(mActiveModeWarden).stopSoftAPMode();
     }
 
     /**
@@ -432,7 +434,7 @@ public class WifiControllerTest {
     }
 
     /**
-     * When Ecm mode is disabled, we should not shut down softap mode if we get an emergency mode
+     * When Ecm mode is disabled, we should shut down softap mode if we get an emergency mode
      * changed update
      */
     @Test
@@ -448,7 +450,7 @@ public class WifiControllerTest {
         mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
         mLooper.dispatchAll();
 
-        verify(mActiveModeWarden, never()).shutdownWifi();
+        verify(mActiveModeWarden).stopSoftAPMode();
     }
 
     /**
