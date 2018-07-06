@@ -21,8 +21,10 @@ import static com.android.server.wifi.WifiController.CMD_EMERGENCY_CALL_STATE_CH
 import static com.android.server.wifi.WifiController.CMD_EMERGENCY_MODE_CHANGED;
 import static com.android.server.wifi.WifiController.CMD_RECOVERY_DISABLE_WIFI;
 import static com.android.server.wifi.WifiController.CMD_RECOVERY_RESTART_WIFI;
+import static com.android.server.wifi.WifiController.CMD_SCANNING_STOPPED;
 import static com.android.server.wifi.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
 import static com.android.server.wifi.WifiController.CMD_SET_AP;
+import static com.android.server.wifi.WifiController.CMD_STA_STOPPED;
 import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
 
 import static org.junit.Assert.assertEquals;
@@ -531,6 +533,58 @@ public class WifiControllerTest {
     }
 
     /**
+     * Updates about call state change with an invalid state do not change modes.
+     */
+    @Test
+    public void testEnterEcmOnEmergencyCallStateChangeAndUpdateWithInvalidState() throws Exception {
+        verify(mActiveModeWarden).disableWifi();
+
+        enableWifi();
+        verify(mActiveModeWarden).enterClientMode();
+
+        reset(mActiveModeWarden);
+
+        // Test with WifiDisableInECBM turned on:
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+
+        // test call state changed
+        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 1);
+        mLooper.dispatchAll();
+        verify(mActiveModeWarden).shutdownWifi();
+
+        reset(mActiveModeWarden);
+        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 2);
+        mLooper.dispatchAll();
+        verifyNoMoreInteractions(mActiveModeWarden);
+    }
+
+    /**
+     * Updates about emergency mode change with an invalid state do not change modes.
+     */
+    @Test
+    public void testEnterEcmOnEmergencyModeChangeAndUpdateWithInvalidState() throws Exception {
+        verify(mActiveModeWarden).disableWifi();
+
+        enableWifi();
+        verify(mActiveModeWarden).enterClientMode();
+
+        reset(mActiveModeWarden);
+
+        // Test with WifiDisableInECBM turned on:
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+
+        // test call state changed
+        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
+        mLooper.dispatchAll();
+        verify(mActiveModeWarden).shutdownWifi();
+
+        reset(mActiveModeWarden);
+        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 2);
+        mLooper.dispatchAll();
+        verifyNoMoreInteractions(mActiveModeWarden);
+    }
+
+    /**
      * Verify when both ECM and call state changes arrive, we enter ECM mode
      */
     @Test
@@ -750,6 +804,75 @@ public class WifiControllerTest {
 
         verify(mActiveModeWarden, never()).enterSoftAPMode(any());
     }
+
+    /**
+     * Toggling off softap mode when in ECM does not induce a mode change
+     */
+    @Test
+    public void testSoftApStoppedDoesNotSwitchModesWhenInEcm() throws Exception {
+
+        // Test with WifiDisableInECBM turned on:
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+
+        // test ecm changed
+        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
+        mLooper.dispatchAll();
+        assertEquals("EcmState", getCurrentState().getName());
+
+        verify(mActiveModeWarden).shutdownWifi();
+
+        reset(mActiveModeWarden);
+        mWifiController.sendMessage(CMD_AP_STOPPED);
+        mLooper.dispatchAll();
+
+        verifyNoMoreInteractions(mActiveModeWarden);
+    }
+
+    /**
+     * Toggling off scan mode when in ECM does not induce a mode change
+     */
+    @Test
+    public void testScanModeStoppedDoesNotSwitchModesWhenInEcm() throws Exception {
+
+        // Test with WifiDisableInECBM turned on:
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+
+        // test ecm changed
+        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
+        mLooper.dispatchAll();
+        assertEquals("EcmState", getCurrentState().getName());
+
+        verify(mActiveModeWarden).shutdownWifi();
+
+        reset(mActiveModeWarden);
+        mWifiController.sendMessage(CMD_SCANNING_STOPPED);
+        mLooper.dispatchAll();
+
+        verifyNoMoreInteractions(mActiveModeWarden);
+    }
+    /**
+     * Toggling off client mode when in ECM does not induce a mode change
+     */
+    @Test
+    public void testClientModeStoppedDoesNotSwitchModesWhenInEcm() throws Exception {
+
+        // Test with WifiDisableInECBM turned on:
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+
+        // test ecm changed
+        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
+        mLooper.dispatchAll();
+        assertEquals("EcmState", getCurrentState().getName());
+
+        verify(mActiveModeWarden).shutdownWifi();
+
+        reset(mActiveModeWarden);
+        mWifiController.sendMessage(CMD_STA_STOPPED);
+        mLooper.dispatchAll();
+
+        verifyNoMoreInteractions(mActiveModeWarden);
+    }
+
 
     /**
      * When AP mode is enabled and wifi was previously in AP mode, we should return to
