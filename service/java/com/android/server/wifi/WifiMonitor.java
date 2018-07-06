@@ -120,7 +120,6 @@ public class WifiMonitor {
         }
     }
 
-    // TODO(b/27569474) remove support for multiple handlers for the same event
     private final Map<String, SparseArray<Set<Handler>>> mHandlerMap = new HashMap<>();
     public synchronized void registerHandler(String iface, int what, Handler handler) {
         SparseArray<Set<Handler>> ifaceHandlers = mHandlerMap.get(iface);
