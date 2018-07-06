@@ -55,7 +55,7 @@ import java.util.stream.Stream;
 
 /**
  * Manage WiFi in AP mode.
- * The internal state machine runs under "WifiStateMachine" thread context.
+ * The internal state machine runs under the ClientModeImpl handler thread context.
  */
 public class SoftApManager implements ActiveModeManager {
     private static final String TAG = "SoftApManager";

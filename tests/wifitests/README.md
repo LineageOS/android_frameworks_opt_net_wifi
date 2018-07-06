@@ -21,7 +21,7 @@ for more details on the supported options.
 
 ```
 runtests.sh -e package com.android.server.wifi.util
-runtests.sh -e class com.android.server.wifi.WifiStateMachineTest
+runtests.sh -e class com.android.server.wifi.WifiServiceImplTest
 ```
 
 If you manually build and push the test APK to the device you can run tests using

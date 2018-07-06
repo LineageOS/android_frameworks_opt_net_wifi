@@ -2738,10 +2738,10 @@ public class WifiMetrics {
                 StateChangeResult stateChangeResult = (StateChangeResult) msg.obj;
                 mSupplicantStateChangeBitmask |= supplicantStateToBit(stateChangeResult.state);
                 break;
-            case WifiStateMachine.CMD_ASSOCIATED_BSSID:
+            case ClientModeImpl.CMD_ASSOCIATED_BSSID:
                 event.type = StaEvent.TYPE_CMD_ASSOCIATED_BSSID;
                 break;
-            case WifiStateMachine.CMD_TARGET_BSSID:
+            case ClientModeImpl.CMD_TARGET_BSSID:
                 event.type = StaEvent.TYPE_CMD_TARGET_BSSID;
                 break;
             default:
@@ -2752,7 +2752,7 @@ public class WifiMetrics {
         }
     }
     /**
-     * Log a StaEvent from WifiStateMachine. The StaEvent must not be one of the supplicant
+     * Log a StaEvent from ClientModeImpl. The StaEvent must not be one of the supplicant
      * generated event types, which are logged through 'sendMessage'
      * @param type StaEvent.EventType describing the event
      */
@@ -2760,7 +2760,7 @@ public class WifiMetrics {
         logStaEvent(type, StaEvent.DISCONNECT_UNKNOWN, null);
     }
     /**
-     * Log a StaEvent from WifiStateMachine. The StaEvent must not be one of the supplicant
+     * Log a StaEvent from ClientModeImpl. The StaEvent must not be one of the supplicant
      * generated event types, which are logged through 'sendMessage'
      * @param type StaEvent.EventType describing the event
      * @param config WifiConfiguration for a framework initiated connection attempt
@@ -2769,7 +2769,7 @@ public class WifiMetrics {
         logStaEvent(type, StaEvent.DISCONNECT_UNKNOWN, config);
     }
     /**
-     * Log a StaEvent from WifiStateMachine. The StaEvent must not be one of the supplicant
+     * Log a StaEvent from ClientModeImpl. The StaEvent must not be one of the supplicant
      * generated event types, which are logged through 'sendMessage'
      * @param type StaEvent.EventType describing the event
      * @param frameworkDisconnectReason StaEvent.FrameworkDisconnectReason explaining why framework
@@ -2779,7 +2779,7 @@ public class WifiMetrics {
         logStaEvent(type, frameworkDisconnectReason, null);
     }
     /**
-     * Log a StaEvent from WifiStateMachine. The StaEvent must not be one of the supplicant
+     * Log a StaEvent from ClientModeImpl. The StaEvent must not be one of the supplicant
      * generated event types, which are logged through 'sendMessage'
      * @param type StaEvent.EventType describing the event
      * @param frameworkDisconnectReason StaEvent.FrameworkDisconnectReason explaining why framework

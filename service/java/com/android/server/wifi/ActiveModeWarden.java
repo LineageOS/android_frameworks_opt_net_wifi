@@ -63,7 +63,7 @@ public class ActiveModeWarden {
     // The base for wifi message types
     static final int BASE = Protocol.BASE_WIFI;
 
-    // The message identifiers below are mapped to those in WifiStateMachine when applicable.
+    // The message identifiers below are mapped to those in ClientModeImpl when applicable.
     // Start the soft access point
     static final int CMD_START_AP                                       = BASE + 21;
     // Indicates soft ap start failed
@@ -219,7 +219,7 @@ public class ActiveModeWarden {
     /**
      * Dump current state for active mode managers.
      *
-     * Must be called from WifiStateMachine thread.
+     * Must be called from ClientModeImpl thread.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of " + TAG);

@@ -218,7 +218,7 @@ public class ActiveModeWardenTest {
     }
 
     /**
-     * Test that after starting up, WSMP is in the Disabled State.
+     * Test that after starting up, ActiveModeWarden is in the Disabled State.
      */
     @Test
     public void testWifiDisabledAtStartup() throws Exception {

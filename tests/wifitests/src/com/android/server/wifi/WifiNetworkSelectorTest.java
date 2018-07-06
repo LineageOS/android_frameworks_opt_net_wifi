@@ -195,7 +195,7 @@ public class WifiNetworkSelectorTest {
     /**
      * No network selection if scan result is empty.
      *
-     * WifiStateMachine is in disconnected state.
+     * ClientModeImpl is in disconnected state.
      * scanDetails is empty.
      *
      * Expected behavior: no network recommended by Network Selector
@@ -224,7 +224,7 @@ public class WifiNetworkSelectorTest {
     /**
      * No network selection if the RSSI values in scan result are too low.
      *
-     * WifiStateMachine is in disconnected state.
+     * ClientModeImpl is in disconnected state.
      * scanDetails contains a 2.4GHz and a 5GHz network, but both with RSSI lower than
      * the threshold
      *
@@ -254,7 +254,7 @@ public class WifiNetworkSelectorTest {
      * No network selection if WiFi is connected and it is too short from last
      * network selection.
      *
-     * WifiStateMachine is in connected state.
+     * ClientModeImpl is in connected state.
      * scanDetails contains two valid networks.
      * Perform a network seletion right after the first one.
      *
@@ -281,7 +281,7 @@ public class WifiNetworkSelectorTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime()
                 + WifiNetworkSelector.MINIMUM_NETWORK_SELECTION_INTERVAL_MS - 2000);
 
-        // Do another network selection with WSM in CONNECTED state.
+        // Do another network selection with CMI in CONNECTED state.
         candidate = mWifiNetworkSelector.selectNetwork(scanDetails,
                 blacklist, mWifiInfo, true, false, false);
 
@@ -293,7 +293,7 @@ public class WifiNetworkSelectorTest {
      * Perform network selection if WiFi is disconnected even if it is too short from last
      * network selection.
      *
-     * WifiStateMachine is in disconnected state.
+     * ClientModeImpl is in disconnected state.
      * scanDetails contains two valid networks.
      * Perform a network seletion right after the first one.
      *
@@ -322,7 +322,7 @@ public class WifiNetworkSelectorTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime()
                 + WifiNetworkSelector.MINIMUM_NETWORK_SELECTION_INTERVAL_MS - 2000);
 
-        // Do another network selection with WSM in DISCONNECTED state.
+        // Do another network selection with CMI in DISCONNECTED state.
         candidate = mWifiNetworkSelector.selectNetwork(scanDetails,
                 blacklist, mWifiInfo, false, true, false);
 
@@ -336,7 +336,7 @@ public class WifiNetworkSelectorTest {
      * New network selection is performed if the currently connected network
      * is a open one.
      *
-     * WifiStateMachine is connected to a open network.
+     * ClientModeImpl is connected to a open network.
      * scanDetails contains a valid networks.
      * Perform a network seletion after the first one.
      *
@@ -383,7 +383,7 @@ public class WifiNetworkSelectorTest {
      * New network selection is performed if the currently connected network
      * has low RSSI value.
      *
-     * WifiStateMachine is connected to a low RSSI 5GHz network.
+     * ClientModeImpl is connected to a low RSSI 5GHz network.
      * scanDetails contains a valid networks.
      * Perform a network seletion after the first one.
      *
@@ -430,7 +430,7 @@ public class WifiNetworkSelectorTest {
      * New network selection is performed if the currently connected network
      * has no internet access and the user did not explicitly choose to stay connected.
      *
-     * WifiStateMachine is connected to a network with no internet connectivity.
+     * ClientModeImpl is connected to a network with no internet connectivity.
      * scanDetails contains a valid networks.
      * Perform a network selection after the first one.
      *
@@ -479,7 +479,7 @@ public class WifiNetworkSelectorTest {
     /**
      * Blacklisted BSSID is filtered out for network selection.
      *
-     * WifiStateMachine is disconnected.
+     * ClientModeImpl is disconnected.
      * scanDetails contains a network which is blacklisted.
      *
      * Expected behavior: no network recommended by Network Selector
@@ -510,7 +510,7 @@ public class WifiNetworkSelectorTest {
      * Wifi network selector doesn't recommend any network if the currently connected one
      * doesn't show up in the scan results.
      *
-     * WifiStateMachine is under connected state and 2.4GHz test1 is connected.
+     * ClientModeImpl is under connected state and 2.4GHz test1 is connected.
      * The second scan results contains only test2 which now has a stronger RSSI than test1.
      * Test1 is not in the second scan results.
      *
@@ -661,7 +661,7 @@ public class WifiNetworkSelectorTest {
      * Wifi network selector doesn't recommend any network if the currently connected 2.4Ghz
      * network is high quality and no 5GHz networks are available
      *
-     * WifiStateMachine is under connected state and 2.4GHz test1 is connected.
+     * ClientModeImpl is under connected state and 2.4GHz test1 is connected.
      *
      * Expected behavior: no network selection is performed
      */
@@ -686,7 +686,7 @@ public class WifiNetworkSelectorTest {
      * Wifi network selector performs network selection even when the 2Ghz network is high
      * quality whenever 5Ghz networks are available.
      *
-     * WifiStateMachine is under connected state and 2.4GHz test1 is connected.
+     * ClientModeImpl is under connected state and 2.4GHz test1 is connected.
      * The scan results contain a 5Ghz network, which forces network selection.
      * Test1 is not in the second scan results.
      *
@@ -718,7 +718,7 @@ public class WifiNetworkSelectorTest {
      * Wifi network selector performs network selection when connected to a 5Ghz network that
      * has an insufficient RSSI.
      *
-     * WifiStateMachine is under connected state and 5GHz test1 is connected.
+     * ClientModeImpl is under connected state and 5GHz test1 is connected.
      *
      * Expected behavior: network selection is performed
      */
@@ -743,7 +743,7 @@ public class WifiNetworkSelectorTest {
      * Wifi network selector will not run selection when on a 5Ghz network that is of sufficent
      * Quality (high-enough RSSI).
      *
-     * WifiStateMachine is under connected state and 5GHz test1 is connected.
+     * ClientModeImpl is under connected state and 5GHz test1 is connected.
      *
      * Expected behavior: network selection is not performed
      */

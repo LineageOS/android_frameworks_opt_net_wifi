@@ -1406,8 +1406,8 @@ public class WifiMetricsTest {
         {WifiMonitor.NETWORK_CONNECTION_EVENT,      0,                   0},
         {WifiMonitor.NETWORK_DISCONNECTION_EVENT,   LOCAL_GEN,           DEAUTH_REASON},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0},
-        {WifiStateMachine.CMD_ASSOCIATED_BSSID,     0,                   0},
-        {WifiStateMachine.CMD_TARGET_BSSID,         0,                   0},
+        {ClientModeImpl.CMD_ASSOCIATED_BSSID,       0,                   0},
+        {ClientModeImpl.CMD_TARGET_BSSID,           0,                   0},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0}
     };
@@ -1422,7 +1422,7 @@ public class WifiMetricsTest {
         mStateDisconnected,
         mStateCompleted
     };
-    // Values used to generate the StaEvent log calls from WifiStateMachine
+    // Values used to generate the StaEvent log calls from ClientModeImpl
     // <StaEvent.Type>, <StaEvent.FrameworkDisconnectReason>, <1|0>(testWifiConfiguration, null)
     private int[][] mTestStaLogInts = {
         {StaEvent.TYPE_CMD_IP_CONFIGURATION_SUCCESSFUL, 0,                          0},

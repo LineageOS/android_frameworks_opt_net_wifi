@@ -144,7 +144,7 @@ public class WifiServiceImplTest {
     private TestLooper mLooper;
     private PowerManager mPowerManager;
     private Handler mHandler;
-    private Handler mHandlerSpyForWsmRunWithScissors;
+    private Handler mHandlerSpyForCmiRunWithScissors;
     private Messenger mAppMessenger;
     private int mPid;
     private int mPid2 = Process.myPid();
@@ -166,7 +166,7 @@ public class WifiServiceImplTest {
     @Mock Clock mClock;
     @Mock WifiController mWifiController;
     @Mock WifiTrafficPoller mWifiTrafficPoller;
-    @Mock WifiStateMachine mWifiStateMachine;
+    @Mock ClientModeImpl mClientModeImpl;
     @Mock ActiveModeWarden mActiveModeWarden;
     @Mock HandlerThread mHandlerThread;
     @Mock AsyncChannel mAsyncChannel;
@@ -273,8 +273,8 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiCountryCode()).thenReturn(mWifiCountryCode);
         when(mWifiInjector.getWifiController()).thenReturn(mWifiController);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
-        when(mWifiInjector.getWifiStateMachine()).thenReturn(mWifiStateMachine);
-        when(mWifiStateMachine.syncInitialize(any())).thenReturn(true);
+        when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
+        when(mClientModeImpl.syncInitialize(any())).thenReturn(true);
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
@@ -306,7 +306,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiSettingsStore()).thenReturn(mSettingsStore);
         when(mWifiInjector.getClock()).thenReturn(mClock);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
-        when(mWifiStateMachine.syncStartSubscriptionProvisioning(anyInt(),
+        when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(true);
@@ -339,13 +339,13 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verifies that any operations on WifiServiceImpl without setting up the WifiStateMachine
+     * Verifies that any operations on WifiServiceImpl without setting up the ClientModeImpl
      * channel would fail.
      */
     @Test
     public void testRemoveNetworkUnknown() {
         assertFalse(mWifiServiceImpl.removeNetwork(-1, TEST_PACKAGE_NAME));
-        verify(mWifiStateMachine, never()).syncRemoveNetwork(any(), anyInt());
+        verify(mClientModeImpl, never()).syncRemoveNetwork(any(), anyInt());
     }
 
     /**
@@ -367,7 +367,7 @@ public class WifiServiceImplTest {
                 new String[]{mWifiMetrics.PROTO_DUMP_ARG});
         verify(mWifiMetrics)
                 .dump(any(FileDescriptor.class), any(PrintWriter.class), any(String[].class));
-        verify(mWifiStateMachine, never())
+        verify(mClientModeImpl, never())
                 .dump(any(FileDescriptor.class), any(PrintWriter.class), any(String[].class));
     }
 
@@ -686,7 +686,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        when(mWifiStateMachine.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
+        when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
                 eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -707,7 +707,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        when(mWifiStateMachine.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
+        when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
                 eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -738,7 +738,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        when(mWifiStateMachine.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
+        when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
                 eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_GRANTED);
@@ -761,7 +761,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        when(mWifiStateMachine.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
+        when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
                 eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -853,7 +853,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testGetWifiApConfigurationSuccess() {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
 
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         mWifiServiceImpl.setWifiHandlerLogForTest(mLog);
@@ -950,7 +950,7 @@ public class WifiServiceImplTest {
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.handleWifiToggled(true)).thenReturn(true);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(true);
-        when(mWifiStateMachine.syncGetWifiState()).thenReturn(WIFI_STATE_DISABLED);
+        when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_DISABLED);
         when(mContext.getPackageName()).thenReturn(ANDROID_SYSTEM_PACKAGE);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mWifiController).start();
@@ -1031,7 +1031,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStartScanFailureAppOpsIgnored() {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
         doReturn(AppOpsManager.MODE_IGNORED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), SCAN_PACKAGE_NAME);
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
@@ -1043,7 +1043,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStartScanFailureInCanAccessScanResultsPermission() {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
         doThrow(new SecurityException()).when(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(SCAN_PACKAGE_NAME, Process.myUid());
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
@@ -1056,8 +1056,8 @@ public class WifiServiceImplTest {
     @Ignore
     @Test
     public void testStartScanFailureInRunWithScissors() {
-        setupWifiStateMachineHandlerForRunWithScissors();
-        doReturn(false).when(mHandlerSpyForWsmRunWithScissors)
+        setupClientModeImplHandlerForRunWithScissors();
+        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
                 .runWithScissors(any(), anyLong());
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
         verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
@@ -1068,7 +1068,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStartScanFailureFromScanRequestProxy() {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(false);
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
         verify(mScanRequestProxy).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
@@ -1083,7 +1083,7 @@ public class WifiServiceImplTest {
         WifiInfo wifiInfo = new WifiInfo();
         wifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(TEST_SSID));
         wifiInfo.setBSSID(TEST_BSSID);
-        when(mWifiStateMachine.syncRequestConnectionInfo()).thenReturn(wifiInfo);
+        when(mClientModeImpl.syncRequestConnectionInfo()).thenReturn(wifiInfo);
     }
 
     /**
@@ -1139,7 +1139,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testGetScanResults() {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
 
         ScanResult[] scanResults =
                 ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
@@ -1162,8 +1162,8 @@ public class WifiServiceImplTest {
     @Ignore
     @Test
     public void testGetScanResultsFailureInRunWithScissors() {
-        setupWifiStateMachineHandlerForRunWithScissors();
-        doReturn(false).when(mHandlerSpyForWsmRunWithScissors)
+        setupClientModeImplHandlerForRunWithScissors();
+        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
                 .runWithScissors(any(), anyLong());
 
         ScanResult[] scanResults =
@@ -2185,18 +2185,18 @@ public class WifiServiceImplTest {
         when(pm.hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(true);
         when(mContext.getPackageManager()).thenReturn(pm);
 
-        when(mWifiStateMachine.syncAddOrUpdatePasspointConfig(any(),
+        when(mClientModeImpl.syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt())).thenReturn(true);
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiStateMachine).syncAddOrUpdatePasspointConfig(any(),
+        verify(mClientModeImpl).syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt());
-        reset(mWifiStateMachine);
+        reset(mClientModeImpl);
 
-        when(mWifiStateMachine.syncAddOrUpdatePasspointConfig(any(),
+        when(mClientModeImpl.syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt())).thenReturn(false);
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        verify(mWifiStateMachine).syncAddOrUpdatePasspointConfig(any(),
+        verify(mClientModeImpl).syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt());
     }
 
@@ -2207,7 +2207,7 @@ public class WifiServiceImplTest {
     @Test
     public void testStartSubscriptionProvisioningWithPermission() throws Exception {
         mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
-        verify(mWifiStateMachine).syncStartSubscriptionProvisioning(anyInt(),
+        verify(mClientModeImpl).syncStartSubscriptionProvisioning(anyInt(),
                 eq(mOsuProvider), eq(mProvisioningCallback), any());
     }
 
@@ -2306,7 +2306,7 @@ public class WifiServiceImplTest {
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         mWifiServiceImpl.enableVerboseLogging(1);
-        verify(mWifiStateMachine).enableVerboseLogging(anyInt());
+        verify(mClientModeImpl).enableVerboseLogging(anyInt());
     }
 
     /**
@@ -2319,7 +2319,7 @@ public class WifiServiceImplTest {
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         mWifiServiceImpl.enableVerboseLogging(1);
-        verify(mWifiStateMachine, never()).enableVerboseLogging(anyInt());
+        verify(mClientModeImpl, never()).enableVerboseLogging(anyInt());
     }
 
     /**
@@ -2342,7 +2342,7 @@ public class WifiServiceImplTest {
         Message reply = tester.sendMessageSynchronously(request);
         mLooper.stopAutoDispatch();
 
-        verify(mWifiStateMachine, never()).sendMessage(any(Message.class));
+        verify(mClientModeImpl, never()).sendMessage(any(Message.class));
         assertEquals(expectedReplyMsgwhat, reply.what);
         assertEquals(WifiManager.NOT_AUTHORIZED, reply.arg1);
     }
@@ -2431,7 +2431,7 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
 
         ArgumentCaptor<Message> messageArgumentCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mWifiStateMachine).sendMessage(messageArgumentCaptor.capture());
+        verify(mClientModeImpl).sendMessage(messageArgumentCaptor.capture());
         assertEquals(requestMsgWhat, messageArgumentCaptor.getValue().what);
     }
 
@@ -2440,7 +2440,7 @@ public class WifiServiceImplTest {
      * app with {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission where we
      * immediately return an error for deprecated functionality.
      */
-    private void verifyAsyncChannelDeprecatedMessageHandlingNotSentToWSMWithChangePermisson(
+    private void verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
             int requestMsgWhat, Object requestMsgObj) throws Exception {
         WifiAsyncChannelTester tester = verifyAsyncChannelHalfConnected();
 
@@ -2453,13 +2453,13 @@ public class WifiServiceImplTest {
         tester.sendMessage(request);
         mLooper.dispatchAll();
 
-        verify(mWifiStateMachine, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).sendMessage(any());
     }
 
     /**
      * Verify that the CONNECT_NETWORK message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testConnectNetworkWithChangePermission() throws Exception {
@@ -2470,7 +2470,7 @@ public class WifiServiceImplTest {
     /**
      * Verify that the SAVE_NETWORK message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testSaveNetworkWithChangePermission() throws Exception {
@@ -2481,29 +2481,29 @@ public class WifiServiceImplTest {
     /**
      * Verify that the START_WPS message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testStartWpsWithChangePermission() throws Exception {
-        verifyAsyncChannelDeprecatedMessageHandlingNotSentToWSMWithChangePermisson(
+        verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
                 WifiManager.START_WPS, new Object());
     }
 
     /**
      * Verify that the CANCEL_WPS message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testCancelWpsWithChangePermission() throws Exception {
-        verifyAsyncChannelDeprecatedMessageHandlingNotSentToWSMWithChangePermisson(
+        verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
                 WifiManager.CANCEL_WPS, new Object());
     }
 
     /**
      * Verify that the DISABLE_NETWORK message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testDisableNetworkWithChangePermission() throws Exception {
@@ -2514,7 +2514,7 @@ public class WifiServiceImplTest {
     /**
      * Verify that the RSSI_PKTCNT_FETCH message received from an app with
      * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * WifiStateMachine.
+     * ClientModeImpl.
      */
     @Test
     public void testRssiPktcntFetchWithChangePermission() throws Exception {
@@ -2548,11 +2548,11 @@ public class WifiServiceImplTest {
     /**
      * Set the wifi state machine mock to return a handler created on test thread.
      */
-    private void setupWifiStateMachineHandlerForRunWithScissors() {
+    private void setupClientModeImplHandlerForRunWithScissors() {
         HandlerThread handlerThread = createAndStartHandlerThreadForRunWithScissors();
-        mHandlerSpyForWsmRunWithScissors = spy(handlerThread.getThreadHandler());
-        when(mWifiInjector.getWifiStateMachineHandler())
-                .thenReturn(mHandlerSpyForWsmRunWithScissors);
+        mHandlerSpyForCmiRunWithScissors = spy(handlerThread.getThreadHandler());
+        when(mWifiInjector.getClientModeImplHandler())
+                .thenReturn(mHandlerSpyForCmiRunWithScissors);
     }
 
     private HandlerThread createAndStartHandlerThreadForRunWithScissors() {
@@ -2567,7 +2567,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testHandleDelayedScanAfterIdleMode() throws Exception {
-        setupWifiStateMachineHandlerForRunWithScissors();
+        setupClientModeImplHandlerForRunWithScissors();
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -2614,7 +2614,7 @@ public class WifiServiceImplTest {
         doThrow(new SecurityException()).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         mWifiServiceImpl.disconnect(TEST_PACKAGE_NAME);
-        verify(mWifiStateMachine).disconnectCommand();
+        verify(mClientModeImpl).disconnectCommand();
     }
 
     /**
@@ -2626,7 +2626,7 @@ public class WifiServiceImplTest {
     public void testDisconnectWithChangeWifiStatePerm() throws Exception {
         mWifiServiceImpl.disconnect(TEST_PACKAGE_NAME);
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiStateMachine).disconnectCommand();
+        verify(mClientModeImpl).disconnectCommand();
     }
 
     /**
@@ -2645,7 +2645,7 @@ public class WifiServiceImplTest {
 
         }
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiStateMachine, never()).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommand();
     }
 
     @Test
@@ -2663,7 +2663,7 @@ public class WifiServiceImplTest {
         intent.setData(Uri.fromParts("package", packageName, ""));
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
-        verify(mWifiStateMachine).removeAppConfigs(packageName, uid);
+        verify(mClientModeImpl).removeAppConfigs(packageName, uid);
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
@@ -2682,7 +2682,7 @@ public class WifiServiceImplTest {
         intent.setData(Uri.fromParts("package", packageName, ""));
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
-        verify(mWifiStateMachine, never()).removeAppConfigs(anyString(), anyInt());
+        verify(mClientModeImpl, never()).removeAppConfigs(anyString(), anyInt());
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
@@ -2701,7 +2701,7 @@ public class WifiServiceImplTest {
         intent.putExtra(Intent.EXTRA_UID, uid);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
-        verify(mWifiStateMachine, never()).removeAppConfigs(anyString(), anyInt());
+        verify(mClientModeImpl, never()).removeAppConfigs(anyString(), anyInt());
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
@@ -2720,7 +2720,7 @@ public class WifiServiceImplTest {
         intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
-        verify(mWifiStateMachine).removeUserConfigs(userHandle);
+        verify(mClientModeImpl).removeUserConfigs(userHandle);
     }
 
     @Test
@@ -2736,7 +2736,7 @@ public class WifiServiceImplTest {
         intent.putExtra(Intent.EXTRA_USER_HANDLE, userHandle);
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
 
-        verify(mWifiStateMachine, never()).removeUserConfigs(userHandle);
+        verify(mClientModeImpl, never()).removeUserConfigs(userHandle);
     }
 
     /**

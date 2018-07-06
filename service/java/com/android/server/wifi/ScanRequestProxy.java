@@ -60,7 +60,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *   {@link #SCAN_REQUEST_THROTTLE_TIME_WINDOW_FG_APPS_MS}.
  *  b) Background apps combined can request 1 scan every
  *   {@link #SCAN_REQUEST_THROTTLE_INTERVAL_BG_APPS_MS}.
- * Note: This class is not thread-safe. It needs to be invoked from WifiStateMachine thread only.
+ * Note: This class is not thread-safe. It needs to be invoked from ClientModeImpl thread only.
  */
 @NotThreadSafe
 public class ScanRequestProxy {
@@ -308,7 +308,8 @@ public class ScanRequestProxy {
         // identity so the permission check can be done on system process where wifi runs in.
         long callingIdentity = Binder.clearCallingIdentity();
         // TODO(b/74970282): This try/catch block may not be necessary (here & above) because all
-        // of these calls are already in WSM thread context (offloaded from app's binder thread).
+        // of these calls are already in ClientModeImpl thread context (offloaded from app's
+        // binder thread).
         try {
             return mActivityManager.getPackageImportance(packageName)
                     > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;

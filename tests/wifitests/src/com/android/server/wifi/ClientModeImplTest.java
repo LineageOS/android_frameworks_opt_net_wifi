@@ -121,18 +121,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 /**
- * Unit tests for {@link com.android.server.wifi.WifiStateMachine}.
+ * Unit tests for {@link com.android.server.wifi.ClientModeImpl}.
  */
 @SmallTest
-public class WifiStateMachineTest {
-    public static final String TAG = "WifiStateMachineTest";
+public class ClientModeImplTest {
+    public static final String TAG = "ClientModeImplTest";
 
     private static final int MANAGED_PROFILE_UID = 1100000;
     private static final int OTHER_USER_UID = 1200000;
     private static final int LOG_REC_LIMIT_IN_VERBOSE_MODE =
             (ActivityManager.isLowRamDeviceStatic()
-                    ? WifiStateMachine.NUM_LOG_RECS_VERBOSE_LOW_MEMORY
-                    : WifiStateMachine.NUM_LOG_RECS_VERBOSE);
+                    ? ClientModeImpl.NUM_LOG_RECS_VERBOSE_LOW_MEMORY
+                    : ClientModeImpl.NUM_LOG_RECS_VERBOSE);
     private static final int FRAMEWORK_NETWORK_ID = 0;
     private static final int TEST_RSSI = -54;
     private static final int TEST_NETWORK_ID = 54;
@@ -171,7 +171,7 @@ public class WifiStateMachineTest {
     }
 
     private void enableDebugLogs() {
-        mWsm.enableVerboseLogging(1);
+        mCmi.enableVerboseLogging(1);
     }
 
     private FrameworkFacade getFrameworkFacade() throws Exception {
@@ -257,14 +257,14 @@ public class WifiStateMachineTest {
             NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method method = StateMachine.class.getDeclaredMethod("getCurrentState");
         method.setAccessible(true);
-        return (IState) method.invoke(mWsm);
+        return (IState) method.invoke(mCmi);
     }
 
-    private static HandlerThread getWsmHandlerThread(WifiStateMachine wsm) throws
+    private static HandlerThread getCmiHandlerThread(ClientModeImpl cmi) throws
             NoSuchFieldException, InvocationTargetException, IllegalAccessException {
         Field field = StateMachine.class.getDeclaredField("mSmThread");
         field.setAccessible(true);
-        return (HandlerThread) field.get(wsm);
+        return (HandlerThread) field.get(cmi);
     }
 
     private static void stopLooper(final Looper looper) throws Exception {
@@ -279,13 +279,13 @@ public class WifiStateMachineTest {
     private void dumpState() {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(stream);
-        mWsm.dump(null, writer, null);
+        mCmi.dump(null, writer, null);
         writer.flush();
-        Log.d(TAG, "WifiStateMachine state -" + stream.toString());
+        Log.d(TAG, "ClientModeImpl state -" + stream.toString());
     }
 
     private static ScanDetail getGoogleGuestScanDetail(int rssi, String bssid, int freq) {
-        ScanResult.InformationElement ie[] = new ScanResult.InformationElement[1];
+        ScanResult.InformationElement[] ie = new ScanResult.InformationElement[1];
         ie[0] = ScanResults.generateSsidIe(sSSID);
         NetworkDetail nd = new NetworkDetail(sBSSID, ie, new ArrayList<String>(), sFreq);
         ScanDetail detail = new ScanDetail(nd, sWifiSsid, bssid, "", rssi, freq,
@@ -321,11 +321,11 @@ public class WifiStateMachineTest {
     static final int      sFreq1 = 5240;
     static final String   WIFI_IFACE_NAME = "mockWlan";
 
-    WifiStateMachine mWsm;
-    HandlerThread mWsmThread;
+    ClientModeImpl mCmi;
+    HandlerThread mWifiCoreThread;
     HandlerThread mP2pThread;
     HandlerThread mSyncThread;
-    AsyncChannel  mWsmAsyncChannel;
+    AsyncChannel  mCmiAsyncChannel;
     AsyncChannel  mNetworkFactoryChannel;
     TestAlarmManager mAlarmManager;
     MockWifiMonitor mWifiMonitor;
@@ -375,7 +375,7 @@ public class WifiStateMachineTest {
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
 
-    public WifiStateMachineTest() throws Exception {
+    public ClientModeImplTest() throws Exception {
     }
 
     @Before
@@ -387,7 +387,7 @@ public class WifiStateMachineTest {
 
         MockitoAnnotations.initMocks(this);
 
-        /** uncomment this to enable logs from WifiStateMachines */
+        /** uncomment this to enable logs from ClientModeImpls */
         // enableDebugLogs();
 
         mWifiMonitor = new MockWifiMonitor();
@@ -457,7 +457,7 @@ public class WifiStateMachineTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
-        initializeWsm();
+        initializeCmi();
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
 
@@ -494,20 +494,20 @@ public class WifiStateMachineTest {
         mLooper.dispatchAll();
     }
 
-    private void initializeWsm() throws Exception {
-        mWsm = new WifiStateMachine(mContext, mFrameworkFacade, mLooper.getLooper(),
+    private void initializeCmi() throws Exception {
+        mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
                 mWrongPasswordNotifier, mSarManager);
-        mWsmThread = getWsmHandlerThread(mWsm);
+        mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {
-            mWsmAsyncChannel = x;
-        }, mWsm.getMessenger());
+            mCmiAsyncChannel = x;
+        }, mCmi.getMessenger());
 
         mBinderToken = Binder.clearCallingIdentity();
 
-        /* Send the BOOT_COMPLETED message to setup some WSM state. */
-        mWsm.sendMessage(WifiStateMachine.CMD_BOOT_COMPLETED);
+        /* Send the BOOT_COMPLETED message to setup some CMI state. */
+        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
         mLooper.dispatchAll();
 
         /* Simulate the initial NetworkRequest sent in by ConnectivityService. */
@@ -525,7 +525,7 @@ public class WifiStateMachineTest {
         sendDefaultNetworkRequest(TEST_VALID_NETWORK_SCORE);
 
         mLooper.startAutoDispatch();
-        mWsm.syncInitialize(mWsmAsyncChannel);
+        mCmi.syncInitialize(mCmiAsyncChannel);
         mLooper.stopAutoDispatch();
     }
 
@@ -545,14 +545,14 @@ public class WifiStateMachineTest {
         Binder.restoreCallingIdentity(mBinderToken);
 
         if (mSyncThread != null) stopLooper(mSyncThread.getLooper());
-        if (mWsmThread != null) stopLooper(mWsmThread.getLooper());
+        if (mWifiCoreThread != null) stopLooper(mWifiCoreThread.getLooper());
         if (mP2pThread != null) stopLooper(mP2pThread.getLooper());
 
-        mWsmThread = null;
+        mWifiCoreThread = null;
         mP2pThread = null;
         mSyncThread = null;
-        mWsmAsyncChannel = null;
-        mWsm = null;
+        mCmiAsyncChannel = null;
+        mCmi = null;
         mNetworkFactoryChannel = null;
     }
 
@@ -560,7 +560,7 @@ public class WifiStateMachineTest {
     public void createNew() throws Exception {
         assertEquals("DefaultState", getCurrentState().getName());
 
-        mWsm.sendMessage(WifiStateMachine.CMD_BOOT_COMPLETED);
+        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
     }
@@ -575,11 +575,11 @@ public class WifiStateMachineTest {
     public void checkInitialStateStickyWhenDisabledMode() throws Exception {
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
-        assertEquals(WifiStateMachine.DISABLED_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
 
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
-        assertEquals(WifiStateMachine.DISABLED_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
         assertEquals("DefaultState", getCurrentState().getName());
     }
 
@@ -588,10 +588,10 @@ public class WifiStateMachineTest {
         // The first time we start out in DefaultState, we sit around here.
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
-        assertEquals(WifiStateMachine.DISABLED_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
 
         // But if someone tells us to enter connect mode, we start up supplicant
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
         mLooper.dispatchAll();
         assertEquals("DisconnectedState", getCurrentState().getName());
     }
@@ -604,26 +604,26 @@ public class WifiStateMachineTest {
         // Check initial state
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
 
         // switch to connect mode and verify wifi is reported as enabled
         startSupplicantAndDispatchMessages();
 
         assertEquals("DisconnectedState", getCurrentState().getName());
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
         // reset the expectations on mContext since we did get an expected broadcast, but we should
         // not on the next transition
         reset(mContext);
 
         // now disable wifi and verify the reported wifi state
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
-        assertEquals(WifiStateMachine.DISABLED_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
         assertEquals("DefaultState", getCurrentState().getName());
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
         verify(mContext, never()).sendStickyBroadcastAsUser(
                 (Intent) argThat(new WifiEnablingStateIntentMatcher()), any());
     }
@@ -645,7 +645,7 @@ public class WifiStateMachineTest {
         boolean result;
         when(mWifiConfigManager.removeNetwork(eq(0), anyInt())).thenReturn(true);
         mLooper.startAutoDispatch();
-        result = mWsm.syncRemoveNetwork(mWsmAsyncChannel, 0);
+        result = mCmi.syncRemoveNetwork(mCmiAsyncChannel, 0);
         mLooper.stopAutoDispatch();
 
         assertTrue(result);
@@ -672,7 +672,7 @@ public class WifiStateMachineTest {
 
     private void canForgetNetwork() {
         when(mWifiConfigManager.removeNetwork(eq(0), anyInt())).thenReturn(true);
-        mWsm.sendMessage(WifiManager.FORGET_NETWORK, 0, MANAGED_PROFILE_UID);
+        mCmi.sendMessage(WifiManager.FORGET_NETWORK, 0, MANAGED_PROFILE_UID);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).removeNetwork(anyInt(), anyInt());
     }
@@ -704,7 +704,7 @@ public class WifiStateMachineTest {
                 .thenReturn(true);
 
         mLooper.startAutoDispatch();
-        Message reply = mWsmAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
+        Message reply = mCmiAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
         mLooper.stopAutoDispatch();
         assertEquals(WifiManager.SAVE_NETWORK_SUCCEEDED, reply.what);
 
@@ -735,7 +735,7 @@ public class WifiStateMachineTest {
     @Test
     public void saveNetworkConfigFailsWithNullConfig() throws Exception {
         mLooper.startAutoDispatch();
-        Message reply = mWsmAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, null);
+        Message reply = mCmiAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, null);
         mLooper.stopAutoDispatch();
         assertEquals(WifiManager.SAVE_NETWORK_FAILED, reply.what);
 
@@ -756,7 +756,7 @@ public class WifiStateMachineTest {
                 .thenReturn(new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID));
 
         mLooper.startAutoDispatch();
-        Message reply = mWsmAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
+        Message reply = mCmiAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
         mLooper.stopAutoDispatch();
         assertEquals(WifiManager.SAVE_NETWORK_FAILED, reply.what);
 
@@ -779,7 +779,7 @@ public class WifiStateMachineTest {
                 .thenReturn(false);
 
         mLooper.startAutoDispatch();
-        Message reply = mWsmAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
+        Message reply = mCmiAsyncChannel.sendMessageSynchronously(WifiManager.SAVE_NETWORK, config);
         mLooper.stopAutoDispatch();
         assertEquals(WifiManager.SAVE_NETWORK_FAILED, reply.what);
 
@@ -791,8 +791,8 @@ public class WifiStateMachineTest {
      * Helper method to move through startup states.
      */
     private void startSupplicantAndDispatchMessages() throws Exception {
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLED);
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLED);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
 
         mLooper.dispatchAll();
 
@@ -815,13 +815,13 @@ public class WifiStateMachineTest {
         when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(0)).thenReturn(config);
 
         mLooper.startAutoDispatch();
-        mWsm.syncAddOrUpdateNetwork(mWsmAsyncChannel, config);
+        mCmi.syncAddOrUpdateNetwork(mCmiAsyncChannel, config);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(config), anyInt());
 
         mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mWsm.syncGetConfiguredNetworks(-1, mWsmAsyncChannel);
+        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel);
         mLooper.stopAutoDispatch();
         assertEquals(1, configs.size());
 
@@ -846,7 +846,7 @@ public class WifiStateMachineTest {
      */
     private WifiConfiguration getWifiConfigurationForNetwork(String ssid) {
         mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mWsm.syncGetConfiguredNetworks(-1, mWsmAsyncChannel);
+        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel);
         mLooper.stopAutoDispatch();
 
         for (WifiConfiguration checkConfig : configs) {
@@ -871,7 +871,7 @@ public class WifiStateMachineTest {
         verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
-        assertTrue(mWsm.syncEnableNetwork(mWsmAsyncChannel, config.networkId, true));
+        assertTrue(mCmi.syncEnableNetwork(mCmiAsyncChannel, config.networkId, true));
         mLooper.stopAutoDispatch();
     }
 
@@ -962,10 +962,10 @@ public class WifiStateMachineTest {
         when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
                 getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq).getScanResult());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
@@ -980,7 +980,7 @@ public class WifiStateMachineTest {
         injectDhcpSuccess(dhcpResults);
         mLooper.dispatchAll();
 
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertNotNull(wifiInfo);
         assertEquals(sBSSID, wifiInfo.getBSSID());
         assertEquals(sFreq, wifiInfo.getFrequency());
@@ -999,7 +999,7 @@ public class WifiStateMachineTest {
     public void verifyWifiStateTrackerUpdatedWhenDisabled() throws Exception {
         connect();
 
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mWifiStateTracker).updateState(eq(WifiStateTracker.DISCONNECTED));
     }
@@ -1066,7 +1066,7 @@ public class WifiStateMachineTest {
         verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
-        assertFalse(mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true));
+        assertFalse(mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true));
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager, never()).enableNetwork(eq(0), eq(true), anyInt());
@@ -1088,15 +1088,15 @@ public class WifiStateMachineTest {
         verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
@@ -1104,7 +1104,7 @@ public class WifiStateMachineTest {
 
         // try to reconnect
         mLooper.startAutoDispatch();
-        Message reply = mWsmAsyncChannel.sendMessageSynchronously(WifiManager.CONNECT_NETWORK, 0);
+        Message reply = mCmiAsyncChannel.sendMessageSynchronously(WifiManager.CONNECT_NETWORK, 0);
         mLooper.stopAutoDispatch();
 
         assertEquals(WifiManager.CONNECT_NETWORK_SUCCEEDED, reply.what);
@@ -1115,15 +1115,15 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
@@ -1145,7 +1145,7 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
@@ -1154,7 +1154,7 @@ public class WifiStateMachineTest {
         config.getNetworkSelectionStatus().setHasEverConnected(true);
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
 
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
 
@@ -1176,7 +1176,7 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
@@ -1186,7 +1186,7 @@ public class WifiStateMachineTest {
         config.getNetworkSelectionStatus().setHasEverConnected(false);
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
 
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
 
@@ -1206,14 +1206,14 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
 
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(null);
 
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
 
@@ -1234,7 +1234,7 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
@@ -1244,7 +1244,7 @@ public class WifiStateMachineTest {
         config.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.SIM);
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
 
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE,
                 WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED);
         mLooper.dispatchAll();
@@ -1262,7 +1262,7 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
@@ -1272,7 +1272,7 @@ public class WifiStateMachineTest {
         config.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
         when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(config);
 
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE,
                 WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED);
         mLooper.dispatchAll();
@@ -1285,15 +1285,15 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
 
         mLooper.startAutoDispatch();
-        mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true);
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
@@ -1303,21 +1303,21 @@ public class WifiStateMachineTest {
 
     @Test
     public void smToString() throws Exception {
-        assertEquals("CMD_CHANNEL_HALF_CONNECTED", mWsm.smToString(
+        assertEquals("CMD_CHANNEL_HALF_CONNECTED", mCmi.smToString(
                 AsyncChannel.CMD_CHANNEL_HALF_CONNECTED));
-        assertEquals("CMD_PRE_DHCP_ACTION", mWsm.smToString(
+        assertEquals("CMD_PRE_DHCP_ACTION", mCmi.smToString(
                 DhcpClient.CMD_PRE_DHCP_ACTION));
-        assertEquals("CMD_IP_REACHABILITY_LOST", mWsm.smToString(
-                WifiStateMachine.CMD_IP_REACHABILITY_LOST));
+        assertEquals("CMD_IP_REACHABILITY_LOST", mCmi.smToString(
+                ClientModeImpl.CMD_IP_REACHABILITY_LOST));
     }
 
     @Test
     public void disconnect() throws Exception {
         connect();
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
         mLooper.dispatchAll();
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
         mLooper.dispatchAll();
 
@@ -1357,7 +1357,7 @@ public class WifiStateMachineTest {
 
     @Test
     public void verboseLogRecSizeIsGreaterThanNormalSize() {
-        assertTrue(LOG_REC_LIMIT_IN_VERBOSE_MODE > WifiStateMachine.NUM_LOG_RECS_NORMAL);
+        assertTrue(LOG_REC_LIMIT_IN_VERBOSE_MODE > ClientModeImpl.NUM_LOG_RECS_NORMAL);
     }
 
     /**
@@ -1365,7 +1365,7 @@ public class WifiStateMachineTest {
      */
     @Test
     public void normalLogRecSizeIsUsedByDefault() {
-        assertEquals(WifiStateMachine.NUM_LOG_RECS_NORMAL, mWsm.getLogRecMaxSize());
+        assertEquals(ClientModeImpl.NUM_LOG_RECS_NORMAL, mCmi.getLogRecMaxSize());
     }
 
     /**
@@ -1373,57 +1373,57 @@ public class WifiStateMachineTest {
      */
     @Test
     public void enablingVerboseLoggingUpdatesLogRecSize() {
-        mWsm.enableVerboseLogging(1);
-        assertEquals(LOG_REC_LIMIT_IN_VERBOSE_MODE, mWsm.getLogRecMaxSize());
+        mCmi.enableVerboseLogging(1);
+        assertEquals(LOG_REC_LIMIT_IN_VERBOSE_MODE, mCmi.getLogRecMaxSize());
     }
 
     @Test
     public void disablingVerboseLoggingClearsRecords() {
-        mWsm.sendMessage(WifiStateMachine.CMD_DISCONNECT);
+        mCmi.sendMessage(ClientModeImpl.CMD_DISCONNECT);
         mLooper.dispatchAll();
-        assertTrue(mWsm.getLogRecSize() >= 1);
+        assertTrue(mCmi.getLogRecSize() >= 1);
 
-        mWsm.enableVerboseLogging(0);
-        assertEquals(0, mWsm.getLogRecSize());
+        mCmi.enableVerboseLogging(0);
+        assertEquals(0, mCmi.getLogRecSize());
     }
 
     @Test
     public void disablingVerboseLoggingUpdatesLogRecSize() {
-        mWsm.enableVerboseLogging(1);
-        mWsm.enableVerboseLogging(0);
-        assertEquals(WifiStateMachine.NUM_LOG_RECS_NORMAL, mWsm.getLogRecMaxSize());
+        mCmi.enableVerboseLogging(1);
+        mCmi.enableVerboseLogging(0);
+        assertEquals(ClientModeImpl.NUM_LOG_RECS_NORMAL, mCmi.getLogRecMaxSize());
     }
 
     @Test
     public void logRecsIncludeDisconnectCommand() {
         // There's nothing special about the DISCONNECT command. It's just representative of
         // "normal" commands.
-        mWsm.sendMessage(WifiStateMachine.CMD_DISCONNECT);
+        mCmi.sendMessage(ClientModeImpl.CMD_DISCONNECT);
         mLooper.dispatchAll();
-        assertEquals(1, mWsm.copyLogRecs()
+        assertEquals(1, mCmi.copyLogRecs()
                 .stream()
-                .filter(logRec -> logRec.getWhat() == WifiStateMachine.CMD_DISCONNECT)
+                .filter(logRec -> logRec.getWhat() == ClientModeImpl.CMD_DISCONNECT)
                 .count());
     }
 
     @Test
     public void logRecsExcludeRssiPollCommandByDefault() {
-        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL);
         mLooper.dispatchAll();
-        assertEquals(0, mWsm.copyLogRecs()
+        assertEquals(0, mCmi.copyLogRecs()
                 .stream()
-                .filter(logRec -> logRec.getWhat() == WifiStateMachine.CMD_RSSI_POLL)
+                .filter(logRec -> logRec.getWhat() == ClientModeImpl.CMD_RSSI_POLL)
                 .count());
     }
 
     @Test
     public void logRecsIncludeRssiPollCommandWhenVerboseLoggingIsEnabled() {
-        mWsm.enableVerboseLogging(1);
-        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL);
+        mCmi.enableVerboseLogging(1);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL);
         mLooper.dispatchAll();
-        assertEquals(1, mWsm.copyLogRecs()
+        assertEquals(1, mCmi.copyLogRecs()
                 .stream()
-                .filter(logRec -> logRec.getWhat() == WifiStateMachine.CMD_RSSI_POLL)
+                .filter(logRec -> logRec.getWhat() == ClientModeImpl.CMD_RSSI_POLL)
                 .count());
     }
 
@@ -1434,7 +1434,7 @@ public class WifiStateMachineTest {
         when(mBuildProperties.isEngBuild()).thenReturn(true);
         when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
         when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mWsm.enableVerboseLogging(1);
+        mCmi.enableVerboseLogging(1);
         verify(mPropertyService).set("log.tag.WifiHAL", "V");
     }
 
@@ -1445,7 +1445,7 @@ public class WifiStateMachineTest {
         when(mBuildProperties.isUserdebugBuild()).thenReturn(true);
         when(mBuildProperties.isEngBuild()).thenReturn(false);
         when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mWsm.enableVerboseLogging(1);
+        mCmi.enableVerboseLogging(1);
         verify(mPropertyService).set("log.tag.WifiHAL", "V");
     }
 
@@ -1456,7 +1456,7 @@ public class WifiStateMachineTest {
         when(mBuildProperties.isUserBuild()).thenReturn(true);
         when(mBuildProperties.isEngBuild()).thenReturn(false);
         when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
-        mWsm.enableVerboseLogging(1);
+        mCmi.enableVerboseLogging(1);
         verify(mPropertyService, never()).set(anyString(), anyString());
     }
 
@@ -1465,11 +1465,11 @@ public class WifiStateMachineTest {
         Message reply = Message.obtain();
         reply.arg1 = supportedFeatures;
         reset(mPropertyService);  // Ignore calls made in setUp()
-        when(channel.sendMessageSynchronously(WifiStateMachine.CMD_GET_SUPPORTED_FEATURES))
+        when(channel.sendMessageSynchronously(ClientModeImpl.CMD_GET_SUPPORTED_FEATURES))
                 .thenReturn(reply);
         when(mPropertyService.getBoolean("config.disable_rtt", false))
                 .thenReturn(rttConfigured);
-        return mWsm.syncGetSupportedFeatures(channel);
+        return mCmi.syncGetSupportedFeatures(channel);
     }
 
     /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
@@ -1513,15 +1513,15 @@ public class WifiStateMachineTest {
 
         when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID)).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertTrue(mWsm.syncAddOrUpdatePasspointConfig(
-                mWsmAsyncChannel, config, MANAGED_PROFILE_UID));
+        assertTrue(mCmi.syncAddOrUpdatePasspointConfig(
+                mCmiAsyncChannel, config, MANAGED_PROFILE_UID));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
         when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID)).thenReturn(false);
         mLooper.startAutoDispatch();
-        assertFalse(mWsm.syncAddOrUpdatePasspointConfig(
-                mWsmAsyncChannel, config, MANAGED_PROFILE_UID));
+        assertFalse(mCmi.syncAddOrUpdatePasspointConfig(
+                mCmiAsyncChannel, config, MANAGED_PROFILE_UID));
         mLooper.stopAutoDispatch();
     }
 
@@ -1544,13 +1544,13 @@ public class WifiStateMachineTest {
         String fqdn = "test.com";
         when(mPasspointManager.removeProvider(fqdn)).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertTrue(mWsm.syncRemovePasspointConfig(mWsmAsyncChannel, fqdn));
+        assertTrue(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
         when(mPasspointManager.removeProvider(fqdn)).thenReturn(false);
         mLooper.startAutoDispatch();
-        assertFalse(mWsm.syncRemovePasspointConfig(mWsmAsyncChannel, fqdn));
+        assertFalse(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
         mLooper.stopAutoDispatch();
     }
 
@@ -1580,14 +1580,14 @@ public class WifiStateMachineTest {
 
         when(mPasspointManager.getProviderConfigs()).thenReturn(expectedConfigs);
         mLooper.startAutoDispatch();
-        assertEquals(expectedConfigs, mWsm.syncGetPasspointConfigs(mWsmAsyncChannel));
+        assertEquals(expectedConfigs, mCmi.syncGetPasspointConfigs(mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
         when(mPasspointManager.getProviderConfigs())
                 .thenReturn(new ArrayList<PasspointConfiguration>());
         mLooper.startAutoDispatch();
-        assertTrue(mWsm.syncGetPasspointConfigs(mWsmAsyncChannel).isEmpty());
+        assertTrue(mCmi.syncGetPasspointConfigs(mCmiAsyncChannel).isEmpty());
         mLooper.stopAutoDispatch();
     }
 
@@ -1603,7 +1603,7 @@ public class WifiStateMachineTest {
 
         when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class))).thenReturn(null);
         mLooper.startAutoDispatch();
-        assertNull(mWsm.syncGetMatchingWifiConfig(new ScanResult(), mWsmAsyncChannel));
+        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
@@ -1612,8 +1612,8 @@ public class WifiStateMachineTest {
         when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class)))
                 .thenReturn(expectedConfig);
         mLooper.startAutoDispatch();
-        WifiConfiguration actualConfig = mWsm.syncGetMatchingWifiConfig(new ScanResult(),
-                mWsmAsyncChannel);
+        WifiConfiguration actualConfig = mCmi.syncGetMatchingWifiConfig(new ScanResult(),
+                mCmiAsyncChannel);
         mLooper.stopAutoDispatch();
         assertEquals(expectedConfig.SSID, actualConfig.SSID);
     }
@@ -1627,7 +1627,7 @@ public class WifiStateMachineTest {
     @Test
     public void syncGetMatchingWifiConfigInNonClientMode() throws Exception {
         mLooper.startAutoDispatch();
-        assertNull(mWsm.syncGetMatchingWifiConfig(new ScanResult(), mWsmAsyncChannel));
+        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         verify(mPasspointManager, never()).getMatchingWifiConfig(any(ScanResult.class));
     }
@@ -1645,8 +1645,8 @@ public class WifiStateMachineTest {
         when(mPasspointManager.startSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class))).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertEquals(true, mWsm.syncStartSubscriptionProvisioning(
-                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mWsmAsyncChannel));
+        assertEquals(true, mCmi.syncStartSubscriptionProvisioning(
+                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         verify(mPasspointManager).startSubscriptionProvisioning(OTHER_USER_UID, mOsuProvider,
                 mProvisioningCallback);
         mLooper.stopAutoDispatch();
@@ -1654,13 +1654,13 @@ public class WifiStateMachineTest {
 
     /**
      * Verify that syncStartSubscriptionProvisioning will be a no-op and return false before
-     * SUPPLICANT_START command is received by the WSM.
+     * SUPPLICANT_START command is received by the CMI.
      */
     @Test
     public void syncStartSubscriptionProvisioningBeforeSupplicantOrAPStart() throws Exception {
         mLooper.startAutoDispatch();
-        assertEquals(false, mWsm.syncStartSubscriptionProvisioning(
-                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mWsmAsyncChannel));
+        assertEquals(false, mCmi.syncStartSubscriptionProvisioning(
+                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         verify(mPasspointManager, never()).startSubscriptionProvisioning(
                 anyInt(), any(OsuProvider.class), any(IProvisioningCallback.class));
@@ -1673,8 +1673,8 @@ public class WifiStateMachineTest {
     @Test
     public void syncStartSubscriptionProvisioningNoOpWifiDisabled() throws Exception {
         mLooper.startAutoDispatch();
-        assertEquals(false, mWsm.syncStartSubscriptionProvisioning(
-                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mWsmAsyncChannel));
+        assertEquals(false, mCmi.syncStartSubscriptionProvisioning(
+                OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         verify(mPasspointManager, never()).startSubscriptionProvisioning(
                 anyInt(), any(OsuProvider.class), any(IProvisioningCallback.class));
@@ -1695,7 +1695,7 @@ public class WifiStateMachineTest {
         verify(mScanRequestProxy).enableScanningForHiddenNetworks(true);
 
         mLooper.startAutoDispatch();
-        assertTrue(mWsm.syncEnableNetwork(mWsmAsyncChannel, 0, true));
+        assertTrue(mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true));
         mLooper.stopAutoDispatch();
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
@@ -1708,10 +1708,10 @@ public class WifiStateMachineTest {
         when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
                 getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq).getScanResult());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
@@ -1720,7 +1720,7 @@ public class WifiStateMachineTest {
         // now remove the config
         when(mWifiConfigManager.removeNetwork(eq(FRAMEWORK_NETWORK_ID), anyInt()))
                 .thenReturn(true);
-        mWsm.sendMessage(WifiManager.FORGET_NETWORK, FRAMEWORK_NETWORK_ID, MANAGED_PROFILE_UID);
+        mCmi.sendMessage(WifiManager.FORGET_NETWORK, FRAMEWORK_NETWORK_ID, MANAGED_PROFILE_UID);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).removeNetwork(eq(FRAMEWORK_NETWORK_ID), anyInt());
 
@@ -1753,12 +1753,12 @@ public class WifiStateMachineTest {
         when(mWifiNative.isInterfaceUp(eq(WIFI_IFACE_NAME))).thenReturn(true);
 
         // make sure supplicant has been reported as inactive
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, WifiSsid.createFromAsciiEncoded(""), null,
                         SupplicantState.INTERFACE_DISABLED));
         mLooper.dispatchAll();
 
-        // WSM should trigger self recovery, but not disconnect until externally triggered
+        // CMI should trigger self recovery, but not disconnect until externally triggered
         verify(mSelfRecovery, never()).trigger(eq(SelfRecovery.REASON_STA_IFACE_DOWN));
     }
 
@@ -1780,20 +1780,20 @@ public class WifiStateMachineTest {
 
         // This simulates the behavior of roaming to network with |sBSSID1|, |sFreq1|.
         // Send a SUPPLICANT_STATE_CHANGE_EVENT, verify WifiInfo is updated.
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID1, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertEquals(sBSSID1, wifiInfo.getBSSID());
         assertEquals(sFreq1, wifiInfo.getFrequency());
         assertEquals(SupplicantState.COMPLETED, wifiInfo.getSupplicantState());
 
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID1, SupplicantState.DISCONNECTED));
         mLooper.dispatchAll();
 
-        wifiInfo = mWsm.getWifiInfo();
+        wifiInfo = mCmi.getWifiInfo();
         assertEquals(null, wifiInfo.getBSSID());
         assertEquals(WifiSsid.NONE, wifiInfo.getSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, wifiInfo.getNetworkId());
@@ -1818,10 +1818,10 @@ public class WifiStateMachineTest {
 
         // This simulates the behavior of roaming to network with |sBSSID1|, |sFreq1|.
         // Send a CMD_ASSOCIATED_BSSID, verify WifiInfo is updated.
-        mWsm.sendMessage(WifiStateMachine.CMD_ASSOCIATED_BSSID, 0, 0, sBSSID1);
+        mCmi.sendMessage(ClientModeImpl.CMD_ASSOCIATED_BSSID, 0, 0, sBSSID1);
         mLooper.dispatchAll();
 
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertEquals(sBSSID1, wifiInfo.getBSSID());
         assertEquals(sFreq1, wifiInfo.getFrequency());
         assertEquals(SupplicantState.COMPLETED, wifiInfo.getSupplicantState());
@@ -1830,7 +1830,7 @@ public class WifiStateMachineTest {
     /**
      * Verifies that WifiInfo is cleared upon exiting and entering WifiInfo, and that it is not
      * updated by SUPPLICAN_STATE_CHANGE_EVENTs in ScanModeState.
-     * This protects WifiStateMachine from  getting into a bad state where WifiInfo says wifi is
+     * This protects ClientModeImpl from  getting into a bad state where WifiInfo says wifi is
      * already Connected or Connecting, (when it is in-fact Disconnected), so
      * WifiConnectivityManager does not attempt any new Connections, freezing wifi.
      */
@@ -1838,42 +1838,42 @@ public class WifiStateMachineTest {
     public void testWifiInfoCleanedUpEnteringExitingConnectModeState() throws Exception {
         InOrder inOrder = inOrder(mWifiConnectivityManager);
         InOrder inOrderSarMgr = inOrder(mSarManager);
-        Log.i(TAG, mWsm.getCurrentState().getName());
+        Log.i(TAG, mCmi.getCurrentState().getName());
         String initialBSSID = "aa:bb:cc:dd:ee:ff";
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         wifiInfo.setBSSID(initialBSSID);
 
-        // Set WSM to CONNECT_MODE and verify state, and wifi enabled in ConnectivityManager
+        // Set CMI to CONNECT_MODE and verify state, and wifi enabled in ConnectivityManager
         startSupplicantAndDispatchMessages();
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(true));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
         assertNull(wifiInfo.getBSSID());
 
         // Send a SUPPLICANT_STATE_CHANGE_EVENT, verify WifiInfo is updated
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
         assertEquals(sBSSID, wifiInfo.getBSSID());
         assertEquals(SupplicantState.COMPLETED, wifiInfo.getSupplicantState());
 
-        // Set WSM to DISABLED_MODE, verify state and wifi disabled in ConnectivityManager, and
+        // Set CMI to DISABLED_MODE, verify state and wifi disabled in ConnectivityManager, and
         // WifiInfo is reset() and state set to DISCONNECTED
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
 
-        assertEquals(WifiStateMachine.DISABLED_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
         assertEquals("DefaultState", getCurrentState().getName());
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(false));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
         assertNull(wifiInfo.getBSSID());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
 
         // Send a SUPPLICANT_STATE_CHANGE_EVENT, verify WifiInfo is not updated
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
         assertNull(wifiInfo.getBSSID());
@@ -1882,12 +1882,12 @@ public class WifiStateMachineTest {
         // Set the bssid to something, so we can verify it is cleared (just in case)
         wifiInfo.setBSSID(initialBSSID);
 
-        // Set WSM to CONNECT_MODE and verify state, and wifi enabled in ConnectivityManager,
+        // Set CMI to CONNECT_MODE and verify state, and wifi enabled in ConnectivityManager,
         // and WifiInfo has been reset
         startSupplicantAndDispatchMessages();
 
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(true));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
         assertEquals("DisconnectedState", getCurrentState().getName());
@@ -1897,18 +1897,18 @@ public class WifiStateMachineTest {
 
     /**
      * Test that connected SSID and BSSID are exposed to system server.
-     * Also tests that {@link WifiStateMachine#syncRequestConnectionInfo(String)} always
+     * Also tests that {@link ClientModeImpl#syncRequestConnectionInfo(String)} always
      * returns a copy of WifiInfo.
      */
     @Test
     public void testConnectedIdsAreVisibleFromSystemServer() throws Exception {
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         // Get into a connected state, with known BSSID and SSID
         connect();
         assertEquals(sBSSID, wifiInfo.getBSSID());
         assertEquals(sWifiSsid, wifiInfo.getWifiSsid());
 
-        WifiInfo connectionInfo = mWsm.syncRequestConnectionInfo();
+        WifiInfo connectionInfo = mCmi.syncRequestConnectionInfo();
 
         assertNotEquals(wifiInfo, connectionInfo);
         assertEquals(wifiInfo.getSSID(), connectionInfo.getSSID());
@@ -1917,7 +1917,7 @@ public class WifiStateMachineTest {
     }
 
     /**
-     * Test that reconnectCommand() triggers connectivity scan when WifiStateMachine
+     * Test that reconnectCommand() triggers connectivity scan when ClientModeImpl
      * is in DisconnectedMode.
      */
     @Test
@@ -1925,13 +1925,13 @@ public class WifiStateMachineTest {
         // Connect to network with |sBSSID|, |sFreq|, and then disconnect.
         disconnect();
 
-        mWsm.reconnectCommand(WifiStateMachine.WIFI_WORK_SOURCE);
+        mCmi.reconnectCommand(ClientModeImpl.WIFI_WORK_SOURCE);
         mLooper.dispatchAll();
-        verify(mWifiConnectivityManager).forceConnectivityScan(WifiStateMachine.WIFI_WORK_SOURCE);
+        verify(mWifiConnectivityManager).forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
     }
 
     /**
-     * Test that reconnectCommand() doesn't trigger connectivity scan when WifiStateMachine
+     * Test that reconnectCommand() doesn't trigger connectivity scan when ClientModeImpl
      * is in ConnectedMode.
      */
     @Test
@@ -1939,14 +1939,14 @@ public class WifiStateMachineTest {
         // Connect to network with |sBSSID|, |sFreq|.
         connect();
 
-        mWsm.reconnectCommand(WifiStateMachine.WIFI_WORK_SOURCE);
+        mCmi.reconnectCommand(ClientModeImpl.WIFI_WORK_SOURCE);
         mLooper.dispatchAll();
         verify(mWifiConnectivityManager, never())
-                .forceConnectivityScan(WifiStateMachine.WIFI_WORK_SOURCE);
+                .forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
     }
 
     /**
-     * Adds the network without putting WifiStateMachine into ConnectMode.
+     * Adds the network without putting ClientModeImpl into ConnectMode.
      */
     @Test
     public void addNetworkInDefaultState() throws Exception {
@@ -1966,7 +1966,7 @@ public class WifiStateMachineTest {
         when(mWifiConfigManager.disableNetwork(anyInt(), anyInt())).thenReturn(false);
 
         mLooper.startAutoDispatch();
-        boolean succeeded = mWsm.syncDisableNetwork(mWsmAsyncChannel, 0);
+        boolean succeeded = mCmi.syncDisableNetwork(mCmiAsyncChannel, 0);
         mLooper.stopAutoDispatch();
         assertFalse(succeeded);
     }
@@ -1978,13 +1978,13 @@ public class WifiStateMachineTest {
     @Test
     public void testVoiceCallSar_disabledTxPowerScenario_WifiOn() throws Exception {
         loadComponentsInStaMode();
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals("DisconnectedState", getCurrentState().getName());
         assertNull(mPhoneStateListener);
     }
 
     /**
-     * Verifies that a network disconnection event will result in WifiStateMachine invoking
+     * Verifies that a network disconnection event will result in ClientModeImpl invoking
      * {@link WifiConfigManager#removeAllEphemeralOrPasspointConfiguredNetworks()} to remove
      * any ephemeral or passpoint networks from it's internal database.
      */
@@ -1995,7 +1995,7 @@ public class WifiStateMachineTest {
     }
 
     /**
-     * Verifies that WifiStateMachine sets and unsets appropriate 'RecentFailureReason' values
+     * Verifies that ClientModeImpl sets and unsets appropriate 'RecentFailureReason' values
      * on a WifiConfiguration when it fails association, authentication, or successfully connects
      */
     @Test
@@ -2004,10 +2004,10 @@ public class WifiStateMachineTest {
         initializeAndAddNetworkAndVerifySuccess();
         // Trigger a connection to this (CMD_START_CONNECT will actually fail, but it sets up
         // targetNetworkId state)
-        mWsm.sendMessage(WifiStateMachine.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mLooper.dispatchAll();
         // Simulate an ASSOCIATION_REJECTION_EVENT, due to the AP being busy
-        mWsm.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
+        mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
                 ISupplicantStaIfaceCallback.StatusCode.AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).setRecentFailureAssociationStatus(eq(0),
@@ -2016,14 +2016,14 @@ public class WifiStateMachineTest {
 
         // Simulate an AUTHENTICATION_FAILURE_EVENT, which should clear the ExtraFailureReason
         reset(mWifiConfigManager);
-        mWsm.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT, 0, 0, null);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT, 0, 0, null);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).clearRecentFailureReason(eq(0));
         verify(mWifiConfigManager, never()).setRecentFailureAssociationStatus(anyInt(), anyInt());
 
         // Simulate a NETWORK_CONNECTION_EVENT which should clear the ExtraFailureReason
         reset(mWifiConfigManager);
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).clearRecentFailureReason(eq(0));
         verify(mWifiConfigManager, never()).setRecentFailureAssociationStatus(anyInt(), anyInt());
@@ -2031,9 +2031,9 @@ public class WifiStateMachineTest {
 
     /**
      * Test that the helper method
-     * {@link WifiStateMachine#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
+     * {@link ClientModeImpl#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
      * returns true when we connect to the last selected network before expiration of
-     * {@link WifiStateMachine#LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS}.
+     * {@link ClientModeImpl#LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS}.
      */
     @Test
     public void testShouldEvaluateWhetherToSendExplicitlySelected_SameNetworkNotExpired() {
@@ -2042,20 +2042,20 @@ public class WifiStateMachineTest {
 
         when(mClock.getElapsedSinceBootMillis()).thenReturn(
                 lastSelectedTimestamp
-                        + WifiStateMachine.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
+                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
         when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
         when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
 
         WifiConfiguration currentConfig = new WifiConfiguration();
         currentConfig.networkId = lastSelectedNetworkId;
-        assertTrue(mWsm.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
+        assertTrue(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
     }
 
     /**
      * Test that the helper method
-     * {@link WifiStateMachine#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
+     * {@link ClientModeImpl#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
      * returns false when we connect to the last selected network after expiration of
-     * {@link WifiStateMachine#LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS}.
+     * {@link ClientModeImpl#LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS}.
      */
     @Test
     public void testShouldEvaluateWhetherToSendExplicitlySelected_SameNetworkExpired() {
@@ -2064,18 +2064,18 @@ public class WifiStateMachineTest {
 
         when(mClock.getElapsedSinceBootMillis()).thenReturn(
                 lastSelectedTimestamp
-                        + WifiStateMachine.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS + 1);
+                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS + 1);
         when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
         when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
 
         WifiConfiguration currentConfig = new WifiConfiguration();
         currentConfig.networkId = lastSelectedNetworkId;
-        assertFalse(mWsm.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
+        assertFalse(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
     }
 
     /**
      * Test that the helper method
-     * {@link WifiStateMachine#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
+     * {@link ClientModeImpl#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
      * returns false when we connect to a different network to the last selected network.
      */
     @Test
@@ -2085,29 +2085,29 @@ public class WifiStateMachineTest {
 
         when(mClock.getElapsedSinceBootMillis()).thenReturn(
                 lastSelectedTimestamp
-                        + WifiStateMachine.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
+                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
         when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
         when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
 
         WifiConfiguration currentConfig = new WifiConfiguration();
         currentConfig.networkId = lastSelectedNetworkId - 1;
-        assertFalse(mWsm.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
+        assertFalse(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
     }
 
     /**
-     * Verify that WSM dump includes WakeupController.
+     * Verify that CMI dump includes WakeupController.
      */
     @Test
     public void testDumpShouldDumpWakeupController() {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(stream);
-        mWsm.dump(null, writer, null);
+        mCmi.dump(null, writer, null);
         verify(mWakeupController).dump(null, writer, null);
     }
 
     @Test
     public void takeBugReportCallsWifiDiagnostics() {
-        mWsm.takeBugReport(anyString(), anyString());
+        mCmi.takeBugReport(anyString(), anyString());
         verify(mWifiDiagnostics).takeBugReport(anyString(), anyString());
     }
 
@@ -2142,7 +2142,7 @@ public class WifiStateMachineTest {
         // breach below min
         rssiEventHandlerCaptor.getValue().onRssiThresholdBreached(RSSI_THRESHOLD_BREACH_MIN);
         mLooper.dispatchAll();
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertEquals(RSSI_THRESHOLD_BREACH_MIN, wifiInfo.getRssi());
 
         // breach above max
@@ -2167,12 +2167,12 @@ public class WifiStateMachineTest {
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(llStats);
         when(mWifiNative.signalPoll(any())).thenReturn(signalPollResult);
         when(mClock.getWallClockMillis()).thenReturn(startMillis + 0);
-        mWsm.enableRssiPolling(true);
+        mCmi.enableRssiPolling(true);
         connect();
         mLooper.dispatchAll();
         when(mClock.getWallClockMillis()).thenReturn(startMillis + 3333);
         mLooper.dispatchAll();
-        WifiInfo wifiInfo = mWsm.getWifiInfo();
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertEquals(llStats.txmpdu_be, wifiInfo.txSuccess);
         assertEquals(llStats.rxmpdu_bk, wifiInfo.rxSuccess);
         assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
@@ -2189,7 +2189,7 @@ public class WifiStateMachineTest {
         loadComponentsInStaMode();
         reset(mIpClient);
         WifiMulticastLockManager.FilterController filterController =
-                mWsm.getMcastLockManagerFilterController();
+                mCmi.getMcastLockManagerFilterController();
         filterController.startFilteringMulticastPackets();
         verify(mIpClient).setMulticastFilter(eq(true));
         filterController.stopFilteringMulticastPackets();
@@ -2202,8 +2202,8 @@ public class WifiStateMachineTest {
     @Test
     public void testConnectedMacRandomization() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
         when(mFrameworkFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0)).thenReturn(1);
@@ -2219,7 +2219,7 @@ public class WifiStateMachineTest {
                     }
                 });
 
-        mWsm.sendMessage(WifiStateMachine.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
         MacAddress newMac = MacAddress.fromString(mWifiNative.getMacAddress(WIFI_IFACE_NAME));
@@ -2228,7 +2228,7 @@ public class WifiStateMachineTest {
         verify(mWifiNative).setMacAddress(eq(WIFI_IFACE_NAME), eq(newMac));
         verify(mWifiMetrics)
                 .logStaEvent(eq(StaEvent.TYPE_MAC_CHANGE), any(WifiConfiguration.class));
-        assertEquals(mWsm.getWifiInfo().getMacAddress(), newMac.toString());
+        assertEquals(mCmi.getWifiInfo().getMacAddress(), newMac.toString());
     }
 
     /**
@@ -2244,17 +2244,17 @@ public class WifiStateMachineTest {
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
 
         connect();
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
 
-        mWsm.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
         mLooper.dispatchAll();
-        mWsm.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
         mLooper.dispatchAll();
 
         assertEquals("DisconnectedState", getCurrentState().getName());
-        assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, mWsm.getWifiInfo().getMacAddress());
-        assertFalse(mWsm.getWifiInfo().hasRealMacAddress());
+        assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, mCmi.getWifiInfo().getMacAddress());
+        assertFalse(mCmi.getWifiInfo().hasRealMacAddress());
     }
 
     /**
@@ -2264,11 +2264,11 @@ public class WifiStateMachineTest {
     @Test
     public void testConnectedMacRandomizationWhenFeatureOff() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
-        String oldMac = mWsm.getWifiInfo().getMacAddress();
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
+        String oldMac = mCmi.getWifiInfo().getMacAddress();
 
-        mWsm.sendMessage(WifiStateMachine.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
         verify(mWifiConfigManager, never())
@@ -2276,7 +2276,7 @@ public class WifiStateMachineTest {
         verify(mWifiNative, never()).setMacAddress(eq(WIFI_IFACE_NAME), any(MacAddress.class));
         verify(mWifiMetrics, never())
                 .logStaEvent(eq(StaEvent.TYPE_MAC_CHANGE), any(WifiConfiguration.class));
-        assertEquals(mWsm.getWifiInfo().getMacAddress(), oldMac);
+        assertEquals(mCmi.getWifiInfo().getMacAddress(), oldMac);
     }
 
     /**
@@ -2285,8 +2285,8 @@ public class WifiStateMachineTest {
     @Test
     public void testDoNotSetMacWhenInvalid() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
-        assertEquals(WifiStateMachine.CONNECT_MODE, mWsm.getOperationalModeForTest());
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
         when(mFrameworkFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0)).thenReturn(1);
@@ -2301,7 +2301,7 @@ public class WifiStateMachineTest {
                 .thenReturn(new WifiConfiguration.NetworkSelectionStatus());
         when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(0)).thenReturn(config);
 
-        mWsm.sendMessage(WifiStateMachine.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
         verify(config).getOrCreateRandomizedMacAddress();
@@ -2332,24 +2332,24 @@ public class WifiStateMachineTest {
      */
     @Test
     public void quickTogglesDoNotCrash() throws Exception {
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
 
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
         mLooper.dispatchAll();
 
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
         mLooper.dispatchAll();
 
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
-        mWsm.setOperationalMode(WifiStateMachine.CONNECT_MODE, WIFI_IFACE_NAME);
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
     }
 
@@ -2359,16 +2359,16 @@ public class WifiStateMachineTest {
     @Test
     public void verifySetAndGetWifiStateCallsWorking() throws Exception {
         // we start off disabled
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
 
         // now check after updating
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_UNKNOWN);
-        assertEquals(WifiManager.WIFI_STATE_UNKNOWN, mWsm.syncGetWifiState());
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_UNKNOWN);
+        assertEquals(WifiManager.WIFI_STATE_UNKNOWN, mCmi.syncGetWifiState());
 
         // check after two updates
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLING);
-        mWsm.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLED);
-        assertEquals(WifiManager.WIFI_STATE_ENABLED, mWsm.syncGetWifiState());
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLING);
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_ENABLED);
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
     }
 
     /**
@@ -2380,13 +2380,13 @@ public class WifiStateMachineTest {
         int invalidStatePositive = 5;
 
         // we start off disabled
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
 
-        mWsm.setWifiStateForApiCalls(invalidStateNegative);
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        mCmi.setWifiStateForApiCalls(invalidStateNegative);
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
 
-        mWsm.setWifiStateForApiCalls(invalidStatePositive);
-        assertEquals(WifiManager.WIFI_STATE_DISABLED, mWsm.syncGetWifiState());
+        mCmi.setWifiStateForApiCalls(invalidStatePositive);
+        assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
     }
 
     /**
@@ -2396,7 +2396,7 @@ public class WifiStateMachineTest {
     public void verifyIpClientShutdownWhenDisabled() throws Exception {
         loadComponentsInStaMode();
 
-        mWsm.setOperationalMode(WifiStateMachine.DISABLED_MODE, null);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mIpClient).shutdown();
         verify(mIpClient).awaitShutdown();
@@ -2412,13 +2412,13 @@ public class WifiStateMachineTest {
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
         connect();
         assertEquals("ConnectedState", getCurrentState().getName());
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
 
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_GLOBAL_MAC_ADDRESS.toString());
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
     }
 
     /**
@@ -2431,13 +2431,13 @@ public class WifiStateMachineTest {
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
         disconnect();
         assertEquals("DisconnectedState", getCurrentState().getName());
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
 
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_GLOBAL_MAC_ADDRESS.toString());
-        mWsm.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mWsm.getWifiInfo().getMacAddress());
+        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
     }
 
     /**
@@ -2575,16 +2575,16 @@ public class WifiStateMachineTest {
      */
     @Test
     public void verifyRssiPollChecksDataStall() throws Exception {
-        mWsm.enableRssiPolling(true);
+        mCmi.enableRssiPolling(true);
         connect();
 
         WifiLinkLayerStats oldLLStats = new WifiLinkLayerStats();
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(oldLLStats);
-        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL, 1);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         WifiLinkLayerStats newLLStats = new WifiLinkLayerStats();
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(newLLStats);
-        mWsm.sendMessage(WifiStateMachine.CMD_RSSI_POLL, 1);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats);
     }

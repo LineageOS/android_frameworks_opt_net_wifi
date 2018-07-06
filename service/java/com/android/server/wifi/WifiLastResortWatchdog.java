@@ -34,7 +34,7 @@ import java.util.Map;
  * This Class is a Work-In-Progress, intended behavior is as follows:
  * Essentially this class automates a user toggling 'Airplane Mode' when WiFi "won't work".
  * IF each available saved network has failed connecting more times than the FAILURE_THRESHOLD
- * THEN Watchdog will restart Supplicant, wifi driver and return WifiStateMachine to InitialState.
+ * THEN Watchdog will restart Supplicant, wifi driver and return ClientModeImpl to InitialState.
  */
 public class WifiLastResortWatchdog {
     private static final String TAG = "WifiLastResortWatchdog";
@@ -80,7 +80,7 @@ public class WifiLastResortWatchdog {
     private Map<String, Pair<AvailableNetworkFailureCount, Integer>> mSsidFailureCount =
             new HashMap<>();
 
-    // Tracks: if WifiStateMachine is in ConnectedState
+    // Tracks: if ClientModeImpl is in ConnectedState
     private boolean mWifiIsConnected = false;
     // Is Watchdog allowed to trigger now? Set to false after triggering. Set to true after
     // successfully connecting or a new network (SSID) becomes available to connect to.
@@ -89,8 +89,8 @@ public class WifiLastResortWatchdog {
 
     private SelfRecovery mSelfRecovery;
     private WifiMetrics mWifiMetrics;
-    private WifiStateMachine mWifiStateMachine;
-    private Looper mWifiStateMachineLooper;
+    private ClientModeImpl mClientModeImpl;
+    private Looper mClientModeImplLooper;
     private double mBugReportProbability = PROB_TAKE_BUGREPORT_DEFAULT;
     private Clock mClock;
     // If any connection failure happened after watchdog triggering restart then assume watchdog
@@ -98,12 +98,12 @@ public class WifiLastResortWatchdog {
     private boolean mWatchdogFixedWifi = true;
 
     WifiLastResortWatchdog(SelfRecovery selfRecovery, Clock clock, WifiMetrics wifiMetrics,
-            WifiStateMachine wsm, Looper wifiStateMachineLooper) {
+            ClientModeImpl clientModeImpl, Looper clientModeImplLooper) {
         mSelfRecovery = selfRecovery;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
-        mWifiStateMachine = wsm;
-        mWifiStateMachineLooper = wifiStateMachineLooper;
+        mClientModeImpl = clientModeImpl;
+        mClientModeImplLooper = clientModeImplLooper;
     }
 
     /**
@@ -197,7 +197,7 @@ public class WifiLastResortWatchdog {
      * Increments the failure reason count for the given bssid. Performs a check to see if we have
      * exceeded a failure threshold for all available networks, and executes the last resort restart
      * @param bssid of the network that has failed connection, can be "any"
-     * @param reason Message id from WifiStateMachine for this failure
+     * @param reason Message id from ClientModeImpl for this failure
      * @return true if watchdog triggers, returned for test visibility
      */
     public boolean noteConnectionFailureAndTriggerIfNeeded(String ssid, String bssid, int reason) {
@@ -234,7 +234,7 @@ public class WifiLastResortWatchdog {
     }
 
     /**
-     * Handles transitions entering and exiting WifiStateMachine ConnectedState
+     * Handles transitions entering and exiting ClientModeImpl ConnectedState
      * Used to track wifistate, and perform watchdog count resetting
      * @param isEntering true if called from ConnectedState.enter(), false for exit()
      */
@@ -270,8 +270,8 @@ public class WifiLastResortWatchdog {
         if (mBugReportProbability <= Math.random()) {
             return;
         }
-        (new Handler(mWifiStateMachineLooper)).post(() -> {
-            mWifiStateMachine.takeBugReport(BUGREPORT_TITLE, bugDetail);
+        (new Handler(mClientModeImplLooper)).post(() -> {
+            mClientModeImpl.takeBugReport(BUGREPORT_TITLE, bugDetail);
         });
     }
 
@@ -282,7 +282,7 @@ public class WifiLastResortWatchdog {
      * An unused set of counts is also kept which is bssid specific, in 'mRecentAvailableNetworks'
      * @param ssid of the network that has failed connection
      * @param bssid of the network that has failed connection, can be "any"
-     * @param reason Message id from WifiStateMachine for this failure
+     * @param reason Message id from ClientModeImpl for this failure
      */
     private void updateFailureCountForNetwork(String ssid, String bssid, int reason) {
         if (mVerboseLoggingEnabled) {
