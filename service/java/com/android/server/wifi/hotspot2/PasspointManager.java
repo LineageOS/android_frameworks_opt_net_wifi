@@ -58,7 +58,6 @@ import com.android.server.wifi.util.ScanResultUtil;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -217,7 +216,7 @@ public class PasspointManager {
         mProviderIndex = 0;
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigStoreData(
                 mKeyStore, mSimAccessor, new DataSourceHandler()));
-        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context);
+        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative);
         sPasspointManager = this;
     }
 

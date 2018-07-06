@@ -162,7 +162,7 @@ public class PasspointManagerTest {
                 .thenReturn(mOsuServerConnection);
         when(mObjectFactory.makeWfaKeyStore()).thenReturn(mWfaKeyStore);
         when(mWfaKeyStore.get()).thenReturn(mKeyStore);
-        when(mObjectFactory.makePasspointProvisioner(any(Context.class)))
+        when(mObjectFactory.makePasspointProvisioner(any(Context.class), any(WifiNative.class)))
                 .thenReturn(mPasspointProvisioner);
         mManager = new PasspointManager(mContext, mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, mObjectFactory, mWifiConfigManager, mWifiConfigStore, mWifiMetrics);

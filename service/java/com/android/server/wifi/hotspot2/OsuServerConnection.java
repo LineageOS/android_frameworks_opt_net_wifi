@@ -16,13 +16,21 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.NonNull;
 import android.net.Network;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.org.conscrypt.TrustManagerImpl;
-import com.android.server.wifi.hotspot2.anqp.I18Name;
+import com.android.server.wifi.hotspot2.soap.HttpsServiceConnection;
+import com.android.server.wifi.hotspot2.soap.HttpsTransport;
+import com.android.server.wifi.hotspot2.soap.SoapParser;
+import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
+
+import org.ksoap2.serialization.AttributeInfo;
+import org.ksoap2.serialization.SoapObject;
+import org.ksoap2.serialization.SoapSerializationEnvelope;
 
 import java.io.IOException;
 import java.net.URL;
@@ -36,6 +44,7 @@ import java.util.Locale;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -53,10 +62,13 @@ public class OsuServerConnection {
     private URL mUrl;
     private Network mNetwork;
     private WFATrustManager mTrustManager;
+    private HttpsTransport mHttpsTransport;
+    private HttpsServiceConnection mServiceConnection = null;
     private HttpsURLConnection mUrlConnection = null;
     private PasspointProvisioner.OsuServerCallbacks mOsuServerCallbacks;
     private boolean mSetupComplete = false;
     private boolean mVerboseLoggingEnabled = false;
+
     /**
      * Sets up callback for event
      * @param callbacks OsuServerCallbacks to be invoked for server related events
@@ -132,8 +144,6 @@ public class OsuServerConnection {
      * Validate the service provider by comparing its identities found in OSU Server cert
      * to the friendlyName obtained from ANQP exchange that is displayed to the user.
      *
-     * @param parser       {@link ASN1SubjectAltNamesParser} to extract provider identities from
-     *                     X509Certificate
      * @param locale       a {@link Locale} object used for matching the friendly name in
      *                     subjectAltName section of the certificate along with
      *                     {@param friendlyName}.
@@ -141,14 +151,14 @@ public class OsuServerConnection {
      *                     subjectAltName section of the certificate.
      * @return boolean true if friendlyName shows up as one of the identities in the cert
      */
-    public boolean validateProvider(ASN1SubjectAltNamesParser parser, Locale locale,
+    public boolean validateProvider(Locale locale,
             String friendlyName) {
 
         if (locale == null || TextUtils.isEmpty(friendlyName)) {
             return false;
         }
 
-        for (Pair<Locale, String> identity : parser.getProviderNames(
+        for (Pair<Locale, String> identity : ASN1SubjectAltNamesParser.getProviderNames(
                 mTrustManager.getProviderCert())) {
             if (identity.first == null) continue;
             // Compare the language code for ISO-639.
@@ -165,10 +175,117 @@ public class OsuServerConnection {
     }
 
     /**
+     * The helper method to exchange a SOAP message.
+     *
+     * @param url server's URL
+     * @param soapEnvelope the soap message to be sent.
+     * @return {@link SppResponseMessage} parsed, {@code null} in any failure
+     */
+    public SppResponseMessage exchangeSoapMessage(@NonNull URL url,
+            @NonNull SoapSerializationEnvelope soapEnvelope) {
+        if (mNetwork == null) {
+            Log.e(TAG, "Network is not established");
+            return null;
+        }
+        if (soapEnvelope == null) {
+            Log.e(TAG, "soapEnvelope is null");
+            return null;
+        }
+        if (mUrlConnection == null) {
+            Log.e(TAG, "Server certificate is not validated");
+            return null;
+        }
+
+        if (mServiceConnection != null) {
+            mServiceConnection.disconnect();
+        }
+
+        mServiceConnection = getServiceConnection(url, mNetwork);
+        if (mServiceConnection == null) {
+            Log.e(TAG, "ServiceConnection for https is null");
+            return null;
+        }
+
+        mUrl = url;
+        SppResponseMessage sppResponse = null;
+
+        try {
+            // Sending the SOAP message
+            mHttpsTransport.call("", soapEnvelope);
+            Object response = soapEnvelope.bodyIn;
+            if (response == null) {
+                Log.e(TAG, "SoapObject is null");
+                return null;
+            }
+            if (!(response instanceof SoapObject)) {
+                Log.e(TAG, "Not a SoapObject instance");
+                return null;
+            }
+
+            SoapObject soapResponse = (SoapObject) response;
+            if (mVerboseLoggingEnabled) {
+                for (int i = 0; i < soapResponse.getAttributeCount(); i++) {
+                    AttributeInfo attributeInfo = new AttributeInfo();
+                    soapResponse.getAttributeInfo(i, attributeInfo);
+                    Log.v(TAG, "Attribute : " + attributeInfo.toString());
+                }
+                Log.v(TAG, "response : " + soapResponse.toString());
+            }
+            // Get the parsed SOAP SPP Response message
+            sppResponse = SoapParser.getResponse(soapResponse);
+
+        } catch (Exception e) {
+            if (e instanceof SSLHandshakeException) {
+                Log.e(TAG, "Failed to make TLS connection");
+            } else {
+                Log.e(TAG, "Failed to exchange the SOAP message");
+            }
+            return null;
+        } finally {
+            mServiceConnection.disconnect();
+            mServiceConnection = null;
+        }
+
+        return sppResponse;
+    }
+
+    /**
+     * Get the HTTPS service connection used for SOAP message exchange.
+     *
+     * @param url target address that the device connect to
+     * @param network {@link Network} for current wifi connection
+     * @return {@link HttpsServiceConnection}
+     */
+    private HttpsServiceConnection getServiceConnection(@NonNull URL url,
+            @NonNull Network network) {
+        HttpsServiceConnection serviceConnection;
+
+        try {
+            mHttpsTransport = new HttpsTransport(network, url);
+            serviceConnection = (HttpsServiceConnection) mHttpsTransport.getServiceConnection();
+            if (serviceConnection != null) {
+                serviceConnection.setSSLSocketFactory(mSocketFactory);
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to establish a URL connection");
+            return null;
+        }
+        return serviceConnection;
+    }
+
+    /**
      * Clean up
      */
     public void cleanup() {
-        mUrlConnection.disconnect();
+        if (mUrlConnection != null) {
+            mUrlConnection.disconnect();
+            mUrlConnection = null;
+        }
+
+        if (mServiceConnection != null) {
+            mServiceConnection.disconnect();
+            mServiceConnection = null;
+        }
     }
 
     private class WFATrustManager implements X509TrustManager {
@@ -221,7 +338,7 @@ public class OsuServerConnection {
 
         /**
          * Returns the OSU certificate matching the FQDN of the OSU server
-         * @return X509Certificate OSU certificate matching FQDN of OSU server
+         * @return {@link X509Certificate} OSU certificate matching FQDN of OSU server
          */
         public X509Certificate getProviderCert() {
             if (mServerCerts == null || mServerCerts.size() <= 0) {

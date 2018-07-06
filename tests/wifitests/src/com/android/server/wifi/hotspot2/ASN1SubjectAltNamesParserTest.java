@@ -63,7 +63,6 @@ public class ASN1SubjectAltNamesParserTest {
             TEST_LANGUAGE).build();
     private static final Pair<Locale, String> EXPECTED_RESULT = Pair.create(TEST_LOCALE,
             TEST_FRIENDLY_NAME);
-    private ASN1SubjectAltNamesParser mASN1SubjectAltNamesParser;
     private static final ASN1ObjectIdentifier WFA_OID_HOTSPOT_FRIENDLYNAME =
             (new ASN1ObjectIdentifier(ID_WFA_OID_HOTSPOT_FRIENDLYNAME));
     @Mock
@@ -74,7 +73,6 @@ public class ASN1SubjectAltNamesParserTest {
     public void setUp() throws Exception {
         initMocks(this);
         mNewNames = new ArrayList<>();
-        mASN1SubjectAltNamesParser = ASN1SubjectAltNamesParser.getInstance();
     }
 
     /**
@@ -82,7 +80,7 @@ public class ASN1SubjectAltNamesParserTest {
      */
     @Test
     public void testNullForProviderCertShouldReturnEmptyList() {
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(null).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(null).isEmpty());
     }
 
     /**
@@ -92,7 +90,7 @@ public class ASN1SubjectAltNamesParserTest {
     @Test
     public void testNullFromgetSubjectAlternativeNamesShouldReturnEmptyList() throws Exception {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(null);
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -103,7 +101,7 @@ public class ASN1SubjectAltNamesParserTest {
     public void testEmptyListFromGetSubjectAlternativeNamesShouldReturnEmptyList()
             throws Exception {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(Collections.emptySet());
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -116,7 +114,7 @@ public class ASN1SubjectAltNamesParserTest {
         doThrow(new CertificateParsingException()).when(
                 mX509Certificate).getSubjectAlternativeNames();
 
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -133,7 +131,7 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -151,7 +149,7 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        assertTrue(mASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -171,7 +169,7 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        List<Pair<Locale, String>> result = mASN1SubjectAltNamesParser.getProviderNames(
+        List<Pair<Locale, String>> result = ASN1SubjectAltNamesParser.getProviderNames(
                 mX509Certificate);
 
         assertThat(result.size(), is(1));
