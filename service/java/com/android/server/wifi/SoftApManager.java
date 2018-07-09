@@ -164,6 +164,10 @@ public class SoftApManager implements ActiveModeManager {
         mStateMachine.quitNow();
     }
 
+    public @ScanMode int getScanMode() {
+        return SCAN_NONE;
+    }
+
     /**
      * Dump info about this softap manager.
      */

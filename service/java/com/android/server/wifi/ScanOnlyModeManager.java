@@ -87,6 +87,10 @@ public class ScanOnlyModeManager implements ActiveModeManager {
         mStateMachine.quitNow();
     }
 
+    public @ScanMode int getScanMode() {
+        return SCAN_WITHOUT_HIDDEN_NETWORKS;
+    }
+
     /**
      * Dump info about this ScanOnlyMode manager.
      */

@@ -92,6 +92,10 @@ public class ClientModeManager implements ActiveModeManager {
         mStateMachine.quitNow();
     }
 
+    public @ScanMode int getScanMode() {
+        return SCAN_WITH_HIDDEN_NETWORKS;
+    }
+
     /**
      * Dump info about this ClientMode manager.
      */
