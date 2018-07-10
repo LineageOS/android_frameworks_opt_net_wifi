@@ -89,7 +89,7 @@ public class PostDevDataMessage {
     private static void addMoContainer(SoapObject soapObject, String moUrn, String moText) {
         SoapPrimitive moContainer =
                 new SoapPrimitive(SoapEnvelope.NS20, SppConstants.PROPERTY_MO_CONTAINER, moText);
-        moContainer.addAttribute(SppConstants.ATTRIBUTE_MO_URN, moUrn);
+        moContainer.addAttribute(SoapEnvelope.NS20, SppConstants.ATTRIBUTE_MO_URN, moUrn);
         soapObject.addProperty(SoapEnvelope.NS20, SppConstants.PROPERTY_MO_CONTAINER, moContainer);
     }
 }
