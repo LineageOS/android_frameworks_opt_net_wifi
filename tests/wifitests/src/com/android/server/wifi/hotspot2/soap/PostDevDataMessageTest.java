@@ -121,6 +121,7 @@ public class PostDevDataMessageTest {
             if (propertyInfo.name.equals(SppConstants.PROPERTY_MO_CONTAINER)) {
                 SoapPrimitive soapPrimitive = (SoapPrimitive) propertyInfo.getValue();
                 String moUrn = soapPrimitive.getAttributeAsString(SppConstants.ATTRIBUTE_MO_URN);
+                assertEquals(soapPrimitive.getNamespace(), SoapEnvelope.NS20);
                 if (moUrn.equals(DevDetailMo.URN) || moUrn.equals(DevInfoMo.URN)) {
                     moCounter++;
                 }
