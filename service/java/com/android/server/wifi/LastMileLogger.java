@@ -69,19 +69,10 @@ public class LastMileLogger {
                 mLastMileLogForLastFailure = readTrace();
                 return;
             case BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT:
-                if (connectionId >= mPendingConnectionId) {
-                    mPendingConnectionId = -1;
-                    disableTracing();
-                    return;
-                } else {
-                    // Spurious failure message. Here's one scenario where this might happen:
-                    // t=00sec      start first connection attempt
-                    // t=30sec      start second connection attempt
-                    // t=60sec      timeout first connection attempt
-                    // We should not stop tracing in this case, since the second connection attempt
-                    // is still in progress.
-                    return;
-                }
+                mPendingConnectionId = -1;
+                disableTracing();
+                mLastMileLogForLastFailure = readTrace();
+                return;
         }
     }
 
