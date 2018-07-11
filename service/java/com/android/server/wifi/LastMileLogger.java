@@ -45,31 +45,21 @@ public class LastMileLogger {
 
     /**
      * Informs LastMileLogger that a connection event has occurred.
-     * @param connectionId A non-negative connection identifier, or -1 to indicate unknown
      * @param event an event defined in BaseWifiDiagnostics
      */
-    public void reportConnectionEvent(long connectionId, byte event) {
-        if (connectionId < 0) {
-            mLog.warn("Ignoring negative connection id: %").c(connectionId).flush();
-            return;
-        }
-
+    public void reportConnectionEvent(byte event) {
         switch (event) {
             case BaseWifiDiagnostics.CONNECTION_EVENT_STARTED:
-                mPendingConnectionId = connectionId;
                 enableTracing();
                 return;
             case BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED:
-                mPendingConnectionId = -1;
                 disableTracing();
                 return;
             case BaseWifiDiagnostics.CONNECTION_EVENT_FAILED:
-                mPendingConnectionId = -1;
                 disableTracing();
                 mLastMileLogForLastFailure = readTrace();
                 return;
             case BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT:
-                mPendingConnectionId = -1;
                 disableTracing();
                 mLastMileLogForLastFailure = readTrace();
                 return;
@@ -99,7 +89,6 @@ public class LastMileLogger {
     private WifiLog mLog;
     private byte[] mLastMileLogForLastFailure;
     private FileInputStream mLastMileTraceHandle;
-    private long mPendingConnectionId = -1;
 
     private void enableTracing() {
         if (!ensureFailSafeIsArmed()) {

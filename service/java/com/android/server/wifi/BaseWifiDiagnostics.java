@@ -37,10 +37,9 @@ public class BaseWifiDiagnostics {
 
     /**
      * Inform the diagnostics module of a connection event.
-     * @param connectionId A strictly increasing, non-negative, connection identifier
      * @param event The type of connection event (see CONNECTION_EVENT_* constants)
      */
-    public synchronized void reportConnectionEvent(long connectionId, byte event) {}
+    public synchronized void reportConnectionEvent(byte event) {}
 
     public synchronized void captureBugReportData(int reason) { }
 

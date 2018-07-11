@@ -2329,10 +2329,10 @@ public class ClientModeImplTest {
         // Setup CONNECT_MODE & a WifiConfiguration
         initializeAndAddNetworkAndVerifySuccess();
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
-        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_STARTED));
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_STARTED));
     }
 
@@ -2349,7 +2349,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS);
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
     }
 
@@ -2365,14 +2365,14 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS - 1000);
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(
                 eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
     }
 
     private void verifyConnectionEventTimeoutDoesNotOccur() {
         mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS);
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(
                 eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
     }
 
@@ -2388,10 +2388,10 @@ public class ClientModeImplTest {
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
                 ISupplicantStaIfaceCallback.StatusCode.AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
-        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
@@ -2408,10 +2408,10 @@ public class ClientModeImplTest {
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
         mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
-        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         mLooper.dispatchAll();
-        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         verifyConnectionEventTimeoutDoesNotOccur();
 
@@ -2425,7 +2425,7 @@ public class ClientModeImplTest {
     @Test
     public void testReportConnectionEventIsCalledAfterDhcpFailure() throws Exception {
         testDhcpFailure();
-        verify(mWifiDiagnostics, atLeastOnce()).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics, atLeastOnce()).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
@@ -2438,7 +2438,7 @@ public class ClientModeImplTest {
     @Test
     public void testReportConnectionEventIsCalledAfterSuccessfulConnection() throws Exception {
         connect();
-        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+        verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED));
         verifyConnectionEventTimeoutDoesNotOccur();
     }

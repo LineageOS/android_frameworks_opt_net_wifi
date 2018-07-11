@@ -75,7 +75,6 @@ public class WifiDiagnosticsTest {
     private static final int SMALL_RING_BUFFER_SIZE_KB = 32;
     private static final int LARGE_RING_BUFFER_SIZE_KB = 1024;
     private static final int BYTES_PER_KBYTE = 1024;
-    private static final long FAKE_CONNECTION_ID = 1;
     private static final int ALERT_REASON_CODE = 1;
     private static final byte[] ALERT_DATA = {0 , 4, 5};
 
@@ -314,8 +313,7 @@ public class WifiDiagnosticsTest {
     public void reportConnectionFailureIsIgnoredWithoutVerboseMode() {
         final boolean verbosityToggle = false;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
     }
@@ -327,8 +325,7 @@ public class WifiDiagnosticsTest {
     public void reportConnectionFailureFetchesFatesInVerboseMode() {
         final boolean verbosityToggle = true;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
     }
@@ -337,30 +334,24 @@ public class WifiDiagnosticsTest {
     public void reportConnectionEventPropagatesStartToLastMileLogger() {
         final boolean verbosityToggle = false;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_STARTED);
-        verify(mLastMileLogger).reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
+        verify(mLastMileLogger).reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
     }
 
     @Test
     public void reportConnectionEventPropagatesSuccessToLastMileLogger() {
         final boolean verbosityToggle = false;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
-        verify(mLastMileLogger).reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        verify(mLastMileLogger).reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
     }
 
     @Test
     public void reportConnectionEventPropagatesFailureToLastMileLogger() {
         final boolean verbosityToggle = false;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
-        verify(mLastMileLogger).reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        verify(mLastMileLogger).reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
     }
 
     /**
@@ -370,10 +361,8 @@ public class WifiDiagnosticsTest {
     public void reportConnectionEventPropagatesTimeoutToLastMileLogger() {
         final boolean verbosityToggle = true;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
-        verify(mLastMileLogger).reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+        verify(mLastMileLogger).reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
     }
 
     /**
@@ -384,8 +373,7 @@ public class WifiDiagnosticsTest {
         final boolean verbosityToggle = true;
         when(mWifiNative.getRxPktFates(any(), anyObject())).thenReturn(false);
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
     }
@@ -398,8 +386,7 @@ public class WifiDiagnosticsTest {
         final boolean verbosityToggle = true;
         when(mWifiNative.getTxPktFates(any(), anyObject())).thenReturn(false);
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
     }
@@ -441,8 +428,7 @@ public class WifiDiagnosticsTest {
     public void dumpSucceedsWhenFatesHaveBeenFetchedButAreEmpty() {
         final boolean verbosityToggle = true;
         mWifiDiagnostics.startLogging(verbosityToggle);
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
 
@@ -486,8 +472,7 @@ public class WifiDiagnosticsTest {
                 return true;
             }
         });
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
 
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
@@ -612,8 +597,7 @@ public class WifiDiagnosticsTest {
                 return true;
             }
         });
-        mWifiDiagnostics.reportConnectionEvent(
-                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         verify(mWifiNative).getTxPktFates(any(), anyObject());
         verify(mWifiNative).getRxPktFates(any(), anyObject());
 
