@@ -95,7 +95,6 @@ public class WifiP2pMonitor {
         }
     }
 
-    // TODO(b/27569474) remove support for multiple handlers for the same event
     private final Map<String, SparseArray<Set<Handler>>> mHandlerMap = new HashMap<>();
 
     /**

@@ -2029,8 +2029,6 @@ public class ClientModeImpl extends StateMachine {
         if (msg.sendingUid > 0 && msg.sendingUid != Process.WIFI_UID) {
             sb.append(" uid=" + msg.sendingUid);
         }
-        sb.append(" rt=").append(mClock.getUptimeSinceBootMillis());
-        sb.append("/").append(mClock.getElapsedSinceBootMillis());
         switch (msg.what) {
             case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                 sb.append(" ");
