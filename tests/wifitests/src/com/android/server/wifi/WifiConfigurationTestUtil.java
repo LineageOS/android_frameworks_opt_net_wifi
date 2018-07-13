@@ -497,6 +497,7 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.noInternetAccessExpected, actual.noInternetAccessExpected);
         assertEquals(expected.userApproved, actual.userApproved);
         assertEquals(expected.meteredHint, actual.meteredHint);
+        assertEquals(expected.meteredOverride, actual.meteredOverride);
         assertEquals(expected.useExternalScores, actual.useExternalScores);
         assertEquals(expected.numAssociation, actual.numAssociation);
         assertEquals(expected.creatorUid, actual.creatorUid);
@@ -525,6 +526,7 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.providerFriendlyName, actual.providerFriendlyName);
         assertEquals(expected.noInternetAccessExpected, actual.noInternetAccessExpected);
         assertEquals(expected.meteredHint, actual.meteredHint);
+        assertEquals(expected.meteredOverride, actual.meteredOverride);
         assertEquals(expected.useExternalScores, actual.useExternalScores);
         assertEquals(expected.ephemeral, actual.ephemeral);
         assertEquals(expected.creatorUid, actual.creatorUid);
