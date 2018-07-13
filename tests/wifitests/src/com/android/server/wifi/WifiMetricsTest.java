@@ -780,27 +780,27 @@ public class WifiMetricsTest {
      */
     public void assertDeserializedMetricsCorrect() throws Exception {
         assertEquals("mDecodedProto.numSavedNetworks == NUM_SAVED_NETWORKS",
-                mDecodedProto.numSavedNetworks, NUM_SAVED_NETWORKS);
+                NUM_SAVED_NETWORKS, mDecodedProto.numSavedNetworks);
         assertEquals("mDecodedProto.numOpenNetworks == NUM_OPEN_NETWORKS",
-                mDecodedProto.numOpenNetworks, NUM_OPEN_NETWORKS);
+                NUM_OPEN_NETWORKS, mDecodedProto.numOpenNetworks);
         assertEquals("mDecodedProto.numPersonalNetworks == NUM_PERSONAL_NETWORKS",
-                mDecodedProto.numPersonalNetworks, NUM_PERSONAL_NETWORKS);
+                NUM_PERSONAL_NETWORKS, mDecodedProto.numPersonalNetworks);
         assertEquals("mDecodedProto.numEnterpriseNetworks == NUM_ENTERPRISE_NETWORKS",
-                mDecodedProto.numEnterpriseNetworks, NUM_ENTERPRISE_NETWORKS);
+                NUM_ENTERPRISE_NETWORKS, mDecodedProto.numEnterpriseNetworks);
         assertEquals("mDecodedProto.numNetworksAddedByUser == NUM_NETWORKS_ADDED_BY_USER",
-                mDecodedProto.numNetworksAddedByUser, NUM_NETWORKS_ADDED_BY_USER);
+                NUM_NETWORKS_ADDED_BY_USER, mDecodedProto.numNetworksAddedByUser);
         assertEquals(NUM_HIDDEN_NETWORKS, mDecodedProto.numHiddenNetworks);
         assertEquals(NUM_PASSPOINT_NETWORKS, mDecodedProto.numPasspointNetworks);
         assertEquals("mDecodedProto.numNetworksAddedByApps == NUM_NETWORKS_ADDED_BY_APPS",
-                mDecodedProto.numNetworksAddedByApps, NUM_NETWORKS_ADDED_BY_APPS);
+                NUM_NETWORKS_ADDED_BY_APPS, mDecodedProto.numNetworksAddedByApps);
         assertEquals("mDecodedProto.isLocationEnabled == TEST_VAL_IS_LOCATION_ENABLED",
-                mDecodedProto.isLocationEnabled, TEST_VAL_IS_LOCATION_ENABLED);
+                TEST_VAL_IS_LOCATION_ENABLED, mDecodedProto.isLocationEnabled);
         assertEquals("mDecodedProto.isScanningAlwaysEnabled == IS_SCANNING_ALWAYS_ENABLED",
-                mDecodedProto.isScanningAlwaysEnabled, IS_SCANNING_ALWAYS_ENABLED);
+                IS_SCANNING_ALWAYS_ENABLED, mDecodedProto.isScanningAlwaysEnabled);
         assertEquals("mDecodedProto.numEmptyScanResults == NUM_EMPTY_SCAN_RESULTS",
-                mDecodedProto.numEmptyScanResults, NUM_EMPTY_SCAN_RESULTS);
+                NUM_EMPTY_SCAN_RESULTS, mDecodedProto.numEmptyScanResults);
         assertEquals("mDecodedProto.numNonEmptyScanResults == NUM_NON_EMPTY_SCAN_RESULTS",
-                mDecodedProto.numNonEmptyScanResults, NUM_NON_EMPTY_SCAN_RESULTS);
+                NUM_NON_EMPTY_SCAN_RESULTS, mDecodedProto.numNonEmptyScanResults);
         assertScanReturnEntryEquals(WifiMetricsProto.WifiLog.SCAN_UNKNOWN, NUM_SCAN_UNKNOWN);
         assertScanReturnEntryEquals(WifiMetricsProto.WifiLog.SCAN_SUCCESS, NUM_SCAN_SUCCESS);
         assertScanReturnEntryEquals(WifiMetricsProto.WifiLog.SCAN_FAILURE_INTERRUPTED,
@@ -815,14 +815,14 @@ public class WifiMetricsTest {
                 WifiMetricsProto.WifiLog.WIFI_ASSOCIATED, false, NUM_WIFI_ASSOCIATED_SCREEN_OFF);
         assertSystemStateEntryEquals(WifiMetricsProto.WifiLog.WIFI_ASSOCIATED, true,
                 NUM_WIFI_ASSOCIATED_SCREEN_ON);
-        assertEquals(mDecodedProto.numConnectivityWatchdogPnoGood,
-                NUM_CONNECTIVITY_WATCHDOG_PNO_GOOD);
-        assertEquals(mDecodedProto.numConnectivityWatchdogPnoBad,
-                NUM_CONNECTIVITY_WATCHDOG_PNO_BAD);
-        assertEquals(mDecodedProto.numConnectivityWatchdogBackgroundGood,
-                NUM_CONNECTIVITY_WATCHDOG_BACKGROUND_GOOD);
-        assertEquals(mDecodedProto.numConnectivityWatchdogBackgroundBad,
-                NUM_CONNECTIVITY_WATCHDOG_BACKGROUND_BAD);
+        assertEquals(NUM_CONNECTIVITY_WATCHDOG_PNO_GOOD,
+                mDecodedProto.numConnectivityWatchdogPnoGood);
+        assertEquals(NUM_CONNECTIVITY_WATCHDOG_PNO_BAD,
+                mDecodedProto.numConnectivityWatchdogPnoBad);
+        assertEquals(NUM_CONNECTIVITY_WATCHDOG_BACKGROUND_GOOD,
+                mDecodedProto.numConnectivityWatchdogBackgroundGood);
+        assertEquals(NUM_CONNECTIVITY_WATCHDOG_BACKGROUND_BAD,
+                mDecodedProto.numConnectivityWatchdogBackgroundBad);
         assertEquals(NUM_LAST_RESORT_WATCHDOG_TRIGGERS,
                 mDecodedProto.numLastResortWatchdogTriggers);
         assertEquals(NUM_LAST_RESORT_WATCHDOG_BAD_ASSOCIATION_NETWORKS_TOTAL,
@@ -1023,7 +1023,7 @@ public class WifiMetricsTest {
     public void assertScanReturnEntryEquals(int returnCode, int count) {
         for (int i = 0; i < mDecodedProto.scanReturnEntries.length; i++) {
             if (mDecodedProto.scanReturnEntries[i].scanReturnCode == returnCode) {
-                assertEquals(mDecodedProto.scanReturnEntries[i].scanResultsCount, count);
+                assertEquals(count, mDecodedProto.scanReturnEntries[i].scanResultsCount);
                 return;
             }
         }
@@ -1037,8 +1037,7 @@ public class WifiMetricsTest {
         for (int i = 0; i < mDecodedProto.wifiSystemStateEntries.length; i++) {
             if (mDecodedProto.wifiSystemStateEntries[i].wifiState == state
                     && mDecodedProto.wifiSystemStateEntries[i].isScreenOn == screenOn) {
-                assertEquals(mDecodedProto.wifiSystemStateEntries[i].wifiStateCount,
-                        count);
+                assertEquals(count, mDecodedProto.wifiSystemStateEntries[i].wifiStateCount);
                 return;
             }
         }
@@ -1133,16 +1132,13 @@ public class WifiMetricsTest {
         dumpProtoAndDeserialize();
 
         //Check that the correct values are being flowed through
-        assertEquals(mDecodedProto.connectionEvent.length, 2);
-        assertEquals(mDecodedProto.connectionEvent[0].routerFingerprint.dtim,
-                CONFIG_DTIM);
-        assertEquals(mDecodedProto.connectionEvent[0].signalStrength, SCAN_RESULT_LEVEL);
-        assertEquals(mDecodedProto.connectionEvent[1].routerFingerprint.dtim,
-                NETWORK_DETAIL_DTIM);
-        assertEquals(mDecodedProto.connectionEvent[1].signalStrength,
-                SCAN_RESULT_LEVEL);
-        assertEquals(mDecodedProto.connectionEvent[1].routerFingerprint.routerTechnology,
-                NETWORK_DETAIL_WIFIMODE);
+        assertEquals(2, mDecodedProto.connectionEvent.length);
+        assertEquals(CONFIG_DTIM, mDecodedProto.connectionEvent[0].routerFingerprint.dtim);
+        assertEquals(SCAN_RESULT_LEVEL, mDecodedProto.connectionEvent[0].signalStrength);
+        assertEquals(NETWORK_DETAIL_DTIM, mDecodedProto.connectionEvent[1].routerFingerprint.dtim);
+        assertEquals(SCAN_RESULT_LEVEL, mDecodedProto.connectionEvent[1].signalStrength);
+        assertEquals(NETWORK_DETAIL_WIFIMODE,
+                mDecodedProto.connectionEvent[1].routerFingerprint.routerTechnology);
     }
 
     /**
@@ -1160,9 +1156,9 @@ public class WifiMetricsTest {
         //This should clear all the metrics in mWifiMetrics,
         dumpProtoAndDeserialize();
         //Check there is only 1 connection events
-        assertEquals(mDecodedProto.connectionEvent.length, 1);
-        assertEquals(mDecodedProto.connectionEvent[0].level2FailureCode,
-                WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT);
+        assertEquals(1, mDecodedProto.connectionEvent.length);
+        assertEquals(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT,
+                mDecodedProto.connectionEvent[0].level2FailureCode);
     }
 
     /**
@@ -1195,10 +1191,10 @@ public class WifiMetricsTest {
         //Dump proto and deserialize
         //This should clear all the metrics in mWifiMetrics,
         dumpProtoAndDeserialize();
-        //Check there are only 3 connection events
-        assertEquals(mDecodedProto.connectionEvent.length, 4);
-        assertEquals(mDecodedProto.rssiPollRssiCount.length, 0);
-        assertEquals(mDecodedProto.alertReasonCount.length, 0);
+        //Check there are 4 connection events
+        assertEquals(4, mDecodedProto.connectionEvent.length);
+        assertEquals(0, mDecodedProto.rssiPollRssiCount.length);
+        assertEquals(0, mDecodedProto.alertReasonCount.length);
 
         // Create 2 ConnectionEvents
         mWifiMetrics.startConnectionEvent(null,  "BLUE",
@@ -1215,7 +1211,7 @@ public class WifiMetricsTest {
         //Dump proto and deserialize
         dumpProtoAndDeserialize();
         //Check there are only 2 connection events
-        assertEquals(mDecodedProto.connectionEvent.length, 2);
+        assertEquals(2, mDecodedProto.connectionEvent.length);
     }
 
     /**
