@@ -59,7 +59,6 @@ import android.net.apf.ApfCapabilities;
 import android.net.wifi.RttManager;
 import android.net.wifi.RttManager.ResponderConfig;
 import android.net.wifi.ScanResult;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
@@ -2534,12 +2533,13 @@ public class WifiVendorHal {
      *
      * @param ifaceName Name of the interface.
      * @param state the intended roaming state
-     * @return SUCCESS, FAILURE, or BUSY
+     * @return SET_FIRMWARE_ROAMING_SUCCESS, SET_FIRMWARE_ROAMING_FAILURE,
+     *         or SET_FIRMWARE_ROAMING_BUSY
      */
     public int enableFirmwareRoaming(@NonNull String ifaceName, int state) {
         synchronized (sLock) {
             IWifiStaIface iface = getStaIface(ifaceName);
-            if (iface == null) return WifiStatusCode.ERROR_NOT_STARTED;
+            if (iface == null) return WifiNative.SET_FIRMWARE_ROAMING_FAILURE;
             try {
                 byte val;
                 switch (state) {
@@ -2551,15 +2551,19 @@ public class WifiVendorHal {
                         break;
                     default:
                         mLog.err("enableFirmwareRoaming invalid argument %").c(state).flush();
-                        return WifiStatusCode.ERROR_INVALID_ARGS;
+                        return WifiNative.SET_FIRMWARE_ROAMING_FAILURE;
                 }
-
                 WifiStatus status = iface.setRoamingState(val);
-                mVerboseLog.d("setRoamingState returned " + status.code);
-                return status.code;
+                if (ok(status)) {
+                    return WifiNative.SET_FIRMWARE_ROAMING_SUCCESS;
+                } else if (status.code == WifiStatusCode.ERROR_BUSY) {
+                    return WifiNative.SET_FIRMWARE_ROAMING_BUSY;
+                } else {
+                    return WifiNative.SET_FIRMWARE_ROAMING_FAILURE;
+                }
             } catch (RemoteException e) {
                 handleRemoteException(e);
-                return WifiStatusCode.ERROR_UNKNOWN;
+                return WifiNative.SET_FIRMWARE_ROAMING_FAILURE;
             }
         }
     }
@@ -2589,17 +2593,10 @@ public class WifiVendorHal {
                 // parse the whitelist SSIDs if any
                 if (config.whitelistSsids != null) {
                     for (String ssidStr : config.whitelistSsids) {
-                        String unquotedSsidStr = WifiInfo.removeDoubleQuotes(ssidStr);
-
-                        int len = unquotedSsidStr.length();
-                        if (len > 32) {
-                            mLog.err("configureRoaming: skip invalid SSID %")
-                                    .r(unquotedSsidStr).flush();
-                            continue;
-                        }
-                        byte[] ssid = new byte[len];
-                        for (int i = 0; i < len; i++) {
-                            ssid[i] = (byte) unquotedSsidStr.charAt(i);
+                        byte[] ssid = NativeUtil.byteArrayFromArrayList(
+                                NativeUtil.decodeSsid(ssidStr));
+                        if (ssid.length > 32) {
+                            throw new IllegalArgumentException("configureRoaming: ssid too long");
                         }
                         roamingConfig.ssidWhitelist.add(ssid);
                     }
