@@ -86,13 +86,13 @@ public class ClientModeManagerTest {
     private void startClientModeAndVerifyEnabled() throws Exception {
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
 
-        when(mWifiNative.setupInterfaceForClientMode(eq(false), any()))
+        when(mWifiNative.setupInterfaceForClientInConnectivityMode(any()))
                 .thenReturn(TEST_INTERFACE_NAME);
         mClientModeManager.start();
         mLooper.dispatchAll();
 
-        verify(mWifiNative).setupInterfaceForClientMode(
-                eq(false), mInterfaceCallbackCaptor.capture());
+        verify(mWifiNative).setupInterfaceForClientInConnectivityMode(
+                mInterfaceCallbackCaptor.capture());
 
         // now mark the interface as up
         mInterfaceCallbackCaptor.getValue().onUp(TEST_INTERFACE_NAME);
@@ -174,7 +174,7 @@ public class ClientModeManagerTest {
      */
     @Test
     public void detectAndReportErrorWhenSetupForClientWifiNativeFailure() throws Exception {
-        when(mWifiNative.setupInterfaceForClientMode(eq(false), any())).thenReturn(null);
+        when(mWifiNative.setupInterfaceForClientInConnectivityMode(any())).thenReturn(null);
         mClientModeManager.start();
         mLooper.dispatchAll();
 
@@ -194,7 +194,7 @@ public class ClientModeManagerTest {
     @Test
     public void clientModeStartDoesNotSendScanningActiveWhenClientInterfaceNameIsEmpty()
             throws Exception {
-        when(mWifiNative.setupInterfaceForClientMode(eq(false), any())).thenReturn("");
+        when(mWifiNative.setupInterfaceForClientInConnectivityMode(any())).thenReturn("");
         mClientModeManager.start();
         mLooper.dispatchAll();
 
