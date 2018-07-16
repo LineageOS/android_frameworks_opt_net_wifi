@@ -24,19 +24,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.NetworkInfo;
+import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Messenger;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -51,11 +50,12 @@ public class WifiTrafficPoller {
      * statistics
      */
     private static final int POLL_TRAFFIC_STATS_INTERVAL_MSECS = 1000;
+    /* Limit on number of registered soft AP callbacks to track and prevent potential memory leak */
+    private static final int NUM_CALLBACKS_WARN_LIMIT = 10;
+    private static final int NUM_CALLBACKS_WTF_LIMIT = 20;
 
     private static final int ENABLE_TRAFFIC_STATS_POLL  = 1;
     private static final int TRAFFIC_STATS_POLL         = 2;
-    private static final int ADD_CLIENT                 = 3;
-    private static final int REMOVE_CLIENT              = 4;
 
     private boolean mEnableTrafficStatsPoll = false;
     private int mTrafficStatsPollToken = 0;
@@ -64,7 +64,7 @@ public class WifiTrafficPoller {
     /* Tracks last reported data activity */
     private int mDataActivity;
 
-    private final List<Messenger> mClients = new ArrayList<Messenger>();
+    private final HashMap<Integer, ITrafficStateCallback> mRegisteredCallbacks = new HashMap<>();
     // err on the side of updating at boot since screen on broadcast may be missed
     // the first time
     private AtomicBoolean mScreenOn = new AtomicBoolean(true);
@@ -105,14 +105,29 @@ public class WifiTrafficPoller {
                 }, filter);
     }
 
-    /** */
-    public void addClient(Messenger client) {
-        Message.obtain(mTrafficHandler, ADD_CLIENT, client).sendToTarget();
+    /**
+     * Add a new callback to the traffic poller.
+     */
+    public void addCallback(ITrafficStateCallback callback, int callbackIdentifier) {
+        mRegisteredCallbacks.put(callbackIdentifier, callback);
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "Adding callback. Num callbacks: " + mRegisteredCallbacks.size());
+        }
+        if (mRegisteredCallbacks.size() > NUM_CALLBACKS_WTF_LIMIT) {
+            Log.wtf(TAG, "Too many traffic poller callbacks: " + mRegisteredCallbacks.size());
+        } else if (mRegisteredCallbacks.size() > NUM_CALLBACKS_WARN_LIMIT) {
+            Log.w(TAG, "Too many traffic poller callbacks: " + mRegisteredCallbacks.size());
+        }
     }
 
-    /** */
-    public void removeClient(Messenger client) {
-        Message.obtain(mTrafficHandler, REMOVE_CLIENT, client).sendToTarget();
+    /**
+     * Remove an existing callback to the traffic poller.
+     */
+    public void removeCallback(int callbackIdentifier) {
+        mRegisteredCallbacks.remove(callbackIdentifier);
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "Removing callback. Num callbacks: " + mRegisteredCallbacks.size());
+        }
     }
 
     void enableVerboseLogging(int verbose) {
@@ -151,7 +166,7 @@ public class WifiTrafficPoller {
                         Log.d(TAG, "TRAFFIC_STATS_POLL "
                                 + mEnableTrafficStatsPoll + " Token "
                                 + Integer.toString(mTrafficStatsPollToken)
-                                + " num clients " + mClients.size());
+                                + " num clients " + mRegisteredCallbacks.size());
                     }
                     if (msg.arg1 == mTrafficStatsPollToken) {
                         ifaceName = mWifiNative.getClientInterfaceName();
@@ -162,18 +177,7 @@ public class WifiTrafficPoller {
                         }
                     }
                     break;
-                case ADD_CLIENT:
-                    mClients.add((Messenger) msg.obj);
-                    if (mVerboseLoggingEnabled) {
-                        Log.d(TAG, "ADD_CLIENT: "
-                                + Integer.toString(mClients.size()));
-                    }
-                    break;
-                case REMOVE_CLIENT:
-                    mClients.remove(msg.obj);
-                    break;
             }
-
         }
     }
 
@@ -193,8 +197,9 @@ public class WifiTrafficPoller {
     private void notifyOnDataActivity(@NonNull String ifaceName) {
         long sent, received;
         long preTxPkts = mTxPkts, preRxPkts = mRxPkts;
-        int dataActivity = WifiManager.DATA_ACTIVITY_NONE;
+        int dataActivity = WifiManager.TrafficStateCallback.DATA_ACTIVITY_NONE;
 
+        // TODO (b/111691443): Use WifiInfo instead of making the native calls here.
         mTxPkts = mWifiNative.getTxPackets(ifaceName);
         mRxPkts = mWifiNative.getRxPackets(ifaceName);
 
@@ -209,10 +214,10 @@ public class WifiTrafficPoller {
             sent = mTxPkts - preTxPkts;
             received = mRxPkts - preRxPkts;
             if (sent > 0) {
-                dataActivity |= WifiManager.DATA_ACTIVITY_OUT;
+                dataActivity |= WifiManager.TrafficStateCallback.DATA_ACTIVITY_OUT;
             }
             if (received > 0) {
-                dataActivity |= WifiManager.DATA_ACTIVITY_IN;
+                dataActivity |= WifiManager.TrafficStateCallback.DATA_ACTIVITY_IN;
             }
 
             if (dataActivity != mDataActivity && mScreenOn.get()) {
@@ -221,12 +226,9 @@ public class WifiTrafficPoller {
                     Log.e(TAG, "notifying of data activity "
                             + Integer.toString(mDataActivity));
                 }
-                for (Messenger client : mClients) {
-                    Message msg = Message.obtain();
-                    msg.what = WifiManager.DATA_ACTIVITY_NOTIFICATION;
-                    msg.arg1 = mDataActivity;
+                for (ITrafficStateCallback callback : mRegisteredCallbacks.values()) {
                     try {
-                        client.send(msg);
+                        callback.onStateChanged(mDataActivity);
                     } catch (RemoteException e) {
                         // Failed to reach, skip
                         // Client removal is handled in WifiService
@@ -242,6 +244,7 @@ public class WifiTrafficPoller {
         pw.println("mTxPkts " + mTxPkts);
         pw.println("mRxPkts " + mRxPkts);
         pw.println("mDataActivity " + mDataActivity);
+        pw.println("mRegisteredCallbacks " + mRegisteredCallbacks);
     }
 
 }
