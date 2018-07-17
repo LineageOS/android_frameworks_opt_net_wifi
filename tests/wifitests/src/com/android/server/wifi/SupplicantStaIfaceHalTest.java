@@ -1515,6 +1515,33 @@ public class SupplicantStaIfaceHalTest {
         verify(mISupplicantStaIfaceMock).startWpsPbc(eq(anyBssidBytes));
     }
 
+    /**
+     * Tests country code setter
+     */
+    @Test
+    public void testSetCountryCode() throws Exception {
+        when(mISupplicantStaIfaceMock.setCountryCode(any(byte[].class))).thenReturn(mStatusSuccess);
+        String testCountryCode = "US";
+
+        // Fail before initialization is performed.
+        assertFalse(mDut.setCountryCode(WLAN0_IFACE_NAME, testCountryCode));
+        verify(mISupplicantStaIfaceMock, never()).setCountryCode(any(byte[].class));
+
+        executeAndValidateInitializationSequence();
+
+        assertTrue(mDut.setCountryCode(WLAN0_IFACE_NAME, testCountryCode));
+        verify(mISupplicantStaIfaceMock).setCountryCode(eq(testCountryCode.getBytes()));
+
+        // Bad input values should fail the call.
+        reset(mISupplicantStaIfaceMock);
+
+        assertFalse(mDut.setCountryCode(WLAN0_IFACE_NAME, null));
+        verify(mISupplicantStaIfaceMock, never()).setCountryCode(any(byte[].class));
+
+        assertFalse(mDut.setCountryCode(WLAN0_IFACE_NAME, "U"));
+        verify(mISupplicantStaIfaceMock, never()).setCountryCode(any(byte[].class));
+    }
+
     private WifiConfiguration createTestWifiConfiguration() {
         WifiConfiguration config = new WifiConfiguration();
         config.networkId = SUPPLICANT_NETWORK_ID;
