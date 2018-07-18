@@ -72,7 +72,6 @@ import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.AsyncTask;
 import android.os.BatteryStats;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -184,7 +183,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      */
     private AsyncChannel mClientModeImplChannel;
 
-    private final boolean mPermissionReviewRequired;
+    private final boolean mWirelessConsentRequired;
     private final FrameworkFacade mFrameworkFacade;
 
     private WifiPermissionsUtil mWifiPermissionsUtil;
@@ -469,9 +468,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mWifiController = mWifiInjector.getWifiController();
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
-        mPermissionReviewRequired = Build.PERMISSIONS_REVIEW_REQUIRED
-                || context.getResources().getBoolean(
-                com.android.internal.R.bool.config_permissionReviewRequired);
+        mWirelessConsentRequired = context.getResources().getBoolean(
+                com.android.internal.R.bool.config_wirelessConsentRequired);
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
         mLog = mWifiInjector.makeLog(TAG);
         mFrameworkFacade = wifiInjector.getFrameworkFacade();
@@ -779,20 +777,20 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
     /**
      * Check if the caller must still pass permission check or if the caller is exempted
-     * from the consent UI via the MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED check.
+     * from the consent UI via the MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED check.
      *
      * Commands from some callers may be exempted from triggering the consent UI when
-     * enabling wifi. This exemption is checked via the MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED
+     * enabling wifi. This exemption is checked via the MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED
      * and allows calls to skip the consent UI where it may otherwise be required.
      *
      * @hide
      */
-    private boolean checkWifiPermissionWhenPermissionReviewRequired() {
-        if (!mPermissionReviewRequired) {
+    private boolean checkWifiPermissionWhenWirelessConsentRequired() {
+        if (!mWirelessConsentRequired) {
             return false;
         }
         int result = mContext.checkCallingPermission(
-                android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED);
+                android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED);
         return result == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -846,7 +844,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         }
 
 
-        if (mPermissionReviewRequired) {
+        if (mWirelessConsentRequired) {
             final int wiFiEnabledState = getWifiEnabledState();
             if (enable) {
                 if (wiFiEnabledState == WifiManager.WIFI_STATE_DISABLING
@@ -2430,7 +2428,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     private boolean startConsentUi(String packageName,
             int callingUid, String intentAction) throws RemoteException {
         if (UserHandle.getAppId(callingUid) == Process.SYSTEM_UID
-                || checkWifiPermissionWhenPermissionReviewRequired()) {
+                || checkWifiPermissionWhenWirelessConsentRequired()) {
             return false;
         }
         try {
