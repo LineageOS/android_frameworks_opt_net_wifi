@@ -36,8 +36,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -2386,5 +2388,49 @@ public class WifiScanningServiceTest {
         sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
         expectHwPnoScan(order, handler, requestId, pnoSettings.second, scanResults);
         verifyPnoNetworkFoundReceived(order, handler, requestId, scanResults.getRawScanResults());
+    }
+
+    /**
+     * Verifies that only clients with NETWORK_STACK permission can issues restricted messages
+     * (from API's).
+     */
+    @Test
+    public void rejectRestrictedMessagesFromNonPrivilegedApps() throws Exception {
+        mWifiScanningServiceImpl.startService();
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+
+        // Client doesn't have NETWORK_STACK permission.
+        doThrow(new SecurityException()).when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
+        mLooper.dispatchAll();
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_DISABLE));
+        mLooper.dispatchAll();
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_START_PNO_SCAN));
+        mLooper.dispatchAll();
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_STOP_PNO_SCAN));
+        mLooper.dispatchAll();
+
+        // All 4 of the above messages should have been rejected because the app doesn't have
+        // the required permissions.
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(handler, times(4)).handleMessage(messageCaptor.capture());
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(0));
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(1));
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(2));
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(3));
+
+        // Ensure we didn't create scanner instance.
+        verify(mWifiScannerImplFactory, never()).create(any(), any(), any());
+
     }
 }

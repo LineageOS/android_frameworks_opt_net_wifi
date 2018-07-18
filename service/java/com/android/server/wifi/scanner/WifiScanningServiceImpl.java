@@ -188,7 +188,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
 
             try {
-                if (msg.what == WifiScanner.CMD_ENABLE || msg.what == WifiScanner.CMD_DISABLE) {
+                if (msg.what == WifiScanner.CMD_ENABLE || msg.what == WifiScanner.CMD_DISABLE
+                        || msg.what == WifiScanner.CMD_START_PNO_SCAN
+                        || msg.what == WifiScanner.CMD_STOP_PNO_SCAN) {
                     enforceNetworkStack(msg.sendingUid);
                 } else {
                     enforceLocationHardwarePermission(msg.sendingUid);
