@@ -1853,7 +1853,9 @@ public class SupplicantStaIfaceHal {
     public boolean setCountryCode(@NonNull String ifaceName, String codeStr) {
         synchronized (mLock) {
             if (TextUtils.isEmpty(codeStr)) return false;
-            return setCountryCode(ifaceName, NativeUtil.stringToByteArray(codeStr));
+            byte[] countryCodeBytes = NativeUtil.stringToByteArray(codeStr);
+            if (countryCodeBytes.length != 2) return false;
+            return setCountryCode(ifaceName, countryCodeBytes);
         }
     }
 
