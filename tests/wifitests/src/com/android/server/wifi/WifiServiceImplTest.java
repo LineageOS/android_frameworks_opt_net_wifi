@@ -1451,6 +1451,21 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verifies that we handle softap callback registration failure if we encounter an exception
+     * while linking to death.
+     */
+    @Test
+    public void registerSoftApCallbackFailureOnLinkToDeath() throws Exception {
+        doThrow(new RemoteException())
+                .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+        mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback, 1);
+        mLooper.dispatchAll();
+        verify(mClientSoftApCallback, never()).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
+        verify(mClientSoftApCallback, never()).onNumClientsChanged(0);
+    }
+
+
+    /**
      * Registers a soft AP callback, then verifies that the current soft AP state and num clients
      * are sent to caller immediately after callback is registered.
      */
@@ -2925,7 +2940,7 @@ public class WifiServiceImplTest {
                 mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
     }
 
     /**
@@ -2936,33 +2951,5 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.unregisterTrafficStateCallback(0);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).removeCallback(0);
-    }
-
-    /**
-     * Verify that wifi service registers for callers BinderDeath event
-     */
-    @Test
-    public void registersForBinderDeathOnRegisterTrafficStateCallback() throws Exception {
-        mWifiServiceImpl.registerTrafficStateCallback(
-                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
-        mLooper.dispatchAll();
-        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
-    }
-
-    /**
-     * Verify that we remove the traffic state callback on receiving BinderDied event.
-     */
-    @Test
-    public void unregistersTrafficStateCallbackOnBinderDied() throws Exception {
-        ArgumentCaptor<IBinder.DeathRecipient> drCaptor =
-                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
-        mWifiServiceImpl.registerTrafficStateCallback(
-                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
-        verify(mAppBinder).linkToDeath(drCaptor.capture(), anyInt());
-
-        drCaptor.getValue().binderDied();
-        mLooper.dispatchAll();
-        verify(mAppBinder).unlinkToDeath(drCaptor.getValue(), 0);
-        verify(mWifiTrafficPoller).removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
     }
 }
