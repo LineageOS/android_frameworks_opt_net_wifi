@@ -62,6 +62,7 @@ import android.hardware.wifi.V1_0.StaBackgroundScanParameters;
 import android.hardware.wifi.V1_0.StaLinkLayerIfacePacketStats;
 import android.hardware.wifi.V1_0.StaLinkLayerRadioStats;
 import android.hardware.wifi.V1_0.StaLinkLayerStats;
+import android.hardware.wifi.V1_0.StaRoamingCapabilities;
 import android.hardware.wifi.V1_0.StaScanData;
 import android.hardware.wifi.V1_0.StaScanDataFlagMask;
 import android.hardware.wifi.V1_0.StaScanResult;
@@ -1639,6 +1640,88 @@ public class WifiVendorHalTest {
 
         assertFalse(mWifiVendorHal.configureNeighborDiscoveryOffload(TEST_IFACE_NAME, true));
         verify(mIWifiStaIface).enableNdOffload(eq(true));
+    }
+
+    /**
+     * Helper class for mocking getRoamingCapabilities callback
+     */
+    private class GetRoamingCapabilitiesAnswer extends AnswerWithArguments {
+        private final WifiStatus mStatus;
+        private final StaRoamingCapabilities mCaps;
+
+        GetRoamingCapabilitiesAnswer(WifiStatus status, StaRoamingCapabilities caps) {
+            mStatus = status;
+            mCaps = caps;
+        }
+
+        public void answer(IWifiStaIface.getRoamingCapabilitiesCallback cb) {
+            cb.onValues(mStatus, mCaps);
+        }
+    }
+
+    /**
+     * Tests retrieval of firmware roaming capabilities
+     */
+    @Test
+    public void testFirmwareRoamingCapabilityRetrieval() throws Exception {
+        WifiNative.RoamingCapabilities roamingCapabilities = new WifiNative.RoamingCapabilities();
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        for (int i = 0; i < 4; i++) {
+            int blacklistSize = i + 10;
+            int whitelistSize = i * 3;
+            StaRoamingCapabilities caps = new StaRoamingCapabilities();
+            caps.maxBlacklistSize = blacklistSize;
+            caps.maxWhitelistSize = whitelistSize;
+            doAnswer(new GetRoamingCapabilitiesAnswer(mWifiStatusSuccess, caps))
+                    .when(mIWifiStaIface).getRoamingCapabilities(
+                            any(IWifiStaIface.getRoamingCapabilitiesCallback.class));
+            assertTrue(mWifiVendorHal.getRoamingCapabilities(TEST_IFACE_NAME, roamingCapabilities));
+            assertEquals(blacklistSize, roamingCapabilities.maxBlacklistSize);
+            assertEquals(whitelistSize, roamingCapabilities.maxWhitelistSize);
+        }
+    }
+
+    /**
+     * Tests unsuccessful retrieval of firmware roaming capabilities
+     */
+    @Test
+    public void testUnsuccessfulFirmwareRoamingCapabilityRetrieval() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        int blacklistSize = 42;
+        int whitelistSize = 17;
+        WifiNative.RoamingCapabilities roamingCapabilities = new WifiNative.RoamingCapabilities();
+        roamingCapabilities.maxBlacklistSize = blacklistSize;
+        roamingCapabilities.maxWhitelistSize = whitelistSize;
+        StaRoamingCapabilities caps = new StaRoamingCapabilities();
+        caps.maxBlacklistSize = blacklistSize + 1; // different value here
+        caps.maxWhitelistSize = whitelistSize + 1;
+
+        // hal returns a failure status
+        doAnswer(new GetRoamingCapabilitiesAnswer(mWifiStatusFailure, null))
+                .when(mIWifiStaIface).getRoamingCapabilities(
+                        any(IWifiStaIface.getRoamingCapabilitiesCallback.class));
+        assertFalse(mWifiVendorHal.getRoamingCapabilities(TEST_IFACE_NAME, roamingCapabilities));
+        // in failure cases, result container should not be changed
+        assertEquals(blacklistSize, roamingCapabilities.maxBlacklistSize);
+        assertEquals(whitelistSize, roamingCapabilities.maxWhitelistSize);
+
+        // hal returns failure status, but supplies caps anyway
+        doAnswer(new GetRoamingCapabilitiesAnswer(mWifiStatusFailure, caps))
+                .when(mIWifiStaIface).getRoamingCapabilities(
+                        any(IWifiStaIface.getRoamingCapabilitiesCallback.class));
+        assertFalse(mWifiVendorHal.getRoamingCapabilities(TEST_IFACE_NAME, roamingCapabilities));
+        // in failure cases, result container should not be changed
+        assertEquals(blacklistSize, roamingCapabilities.maxBlacklistSize);
+        assertEquals(whitelistSize, roamingCapabilities.maxWhitelistSize);
+
+        // lost connection
+        doThrow(new RemoteException())
+                .when(mIWifiStaIface).getRoamingCapabilities(
+                        any(IWifiStaIface.getRoamingCapabilitiesCallback.class));
+        assertFalse(mWifiVendorHal.getRoamingCapabilities(TEST_IFACE_NAME, roamingCapabilities));
+        // in failure cases, result container should not be changed
+        assertEquals(blacklistSize, roamingCapabilities.maxBlacklistSize);
+        assertEquals(whitelistSize, roamingCapabilities.maxWhitelistSize);
     }
 
     /**
