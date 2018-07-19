@@ -2089,8 +2089,8 @@ public class WifiVendorHalTest {
     @Test
     public void testSelectTxPowerScenario_1_0() throws RemoteException {
         // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
-        sarInfo.mIsVoiceCall = true;
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.isVoiceCall = true;
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
         // Should fail because we exposed the 1.0 IWifiChip.
@@ -2106,8 +2106,12 @@ public class WifiVendorHalTest {
     @Test
     public void testSelectTxPowerScenario_1_1() throws RemoteException {
         // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
-        sarInfo.mIsVoiceCall = true;
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
+
+        sarInfo.isVoiceCall = true;
 
         // Now expose the 1.1 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
@@ -2128,8 +2132,12 @@ public class WifiVendorHalTest {
     @Test
     public void testSelectTxPowerScenario_1_2() throws RemoteException {
         // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
-        sarInfo.mIsVoiceCall = true;
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
+
+        sarInfo.isVoiceCall = true;
 
         // Now expose the 1.2 IWifiChip
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2150,7 +2158,7 @@ public class WifiVendorHalTest {
     @Test
     public void testResetTxPowerScenario_1_0() throws RemoteException {
         // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
+        SarInfo sarInfo = new SarInfo();
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
         // Should fail because we exposed the 1.0 IWifiChip.
@@ -2166,7 +2174,10 @@ public class WifiVendorHalTest {
     @Test
     public void testResetTxPowerScenario_1_1() throws RemoteException {
         // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.1 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
@@ -2188,8 +2199,11 @@ public class WifiVendorHalTest {
     public void testResetTxPowerScenario_not_needed_1_1() throws RemoteException {
         InOrder inOrder = inOrder(mIWifiChipV11);
 
-        // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
+        // Create a SAR info record (no sensor or SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.1 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
@@ -2217,8 +2231,11 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testResetTxPowerScenario_1_2() throws RemoteException {
-        // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
+        // Create a SAR info record (no sensor or SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2240,8 +2257,11 @@ public class WifiVendorHalTest {
     public void testResetTxPowerScenario_not_needed_1_2() throws RemoteException {
         InOrder inOrder = inOrder(mIWifiChipV12);
 
-        // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
+        // Create a SAR info record (no sensor or SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = false;
+        sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2263,15 +2283,77 @@ public class WifiVendorHalTest {
         mWifiVendorHal.stopVendorHal();
     }
 
+     /**
+     * Test the selectTxPowerScenario HIDL method invocation with no sensor support, but with
+     * SAP and voice call support.
+     * When SAP is enabled, should result in SAP with near body scenario
+     * Using IWifiChip 1.2 interface
+     */
+    @Test
+    public void testSapScenarios_SelectTxPowerV1_2() throws RemoteException {
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = false;
+
+        sarInfo.isWifiSapEnabled = true;
+
+        // Expose the 1.2 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
+
+        // ON_BODY_CELL_ON
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        assertTrue(mWifiVendorHal.selectTxPowerScenario(sarInfo));
+        verify(mIWifiChipV12).selectTxPowerScenario_1_2(
+                eq(android.hardware.wifi.V1_2.IWifiChip.TxPowerScenario.ON_BODY_CELL_ON));
+        verify(mIWifiChipV12, never()).resetTxPowerScenario();
+        mWifiVendorHal.stopVendorHal();
+    }
+
+    /**
+     * Test the selectTxPowerScenario HIDL method invocation with no sensor support, but with
+     * SAP and voice call support.
+     * When a voice call is ongoing, should result in cell with near head scenario
+     * Using IWifiChip 1.2 interface
+     */
+    @Test
+    public void testVoiceCallScenarios_SelectTxPowerV1_2() throws RemoteException {
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = false;
+
+        sarInfo.isVoiceCall = true;
+
+        // Expose the 1.2 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
+
+        // ON_HEAD_CELL_ON
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        assertTrue(mWifiVendorHal.selectTxPowerScenario(sarInfo));
+        verify(mIWifiChipV12).selectTxPowerScenario_1_2(
+                eq(android.hardware.wifi.V1_2.IWifiChip.TxPowerScenario.ON_HEAD_CELL_ON));
+        verify(mIWifiChipV12, never()).resetTxPowerScenario();
+        mWifiVendorHal.stopVendorHal();
+    }
+
     /**
      * Test the selectTxPowerScenario HIDL method invocation with sensor related scenarios
      * to IWifiChip 1.2 interface
      */
     @Test
     public void testHeadSensorScenarios_SelectTxPowerV1_2() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2295,9 +2377,13 @@ public class WifiVendorHalTest {
     public void testSetTxPowerScenario_not_needed_1_2() throws RemoteException {
         InOrder inOrder = inOrder(mIWifiChipV12);
 
-        // Create a SAR info record (no sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+        // Create a SAR info record (no sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Now expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2327,9 +2413,13 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testHandSensorScenarios_SelectTxPowerV1_2() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HAND;
+        // Create a SAR info record (with sensor and SAR support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HAND;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2343,7 +2433,7 @@ public class WifiVendorHalTest {
                 eq(android.hardware.wifi.V1_2.IWifiChip.TxPowerScenario.ON_BODY_CELL_OFF));
 
         // Then select a scenario with cell on
-        sarInfo.mIsVoiceCall = true;
+        sarInfo.isVoiceCall = true;
         assertTrue(mWifiVendorHal.selectTxPowerScenario(sarInfo));
         verify(mIWifiChipV12).selectTxPowerScenario_1_2(
                 eq(android.hardware.wifi.V1_2.IWifiChip.TxPowerScenario.ON_BODY_CELL_ON));
@@ -2358,9 +2448,13 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testOnHeadCellOffOn_SelectTxPowerScenarioV1_1() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Expose the 1.1 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
@@ -2374,7 +2468,7 @@ public class WifiVendorHalTest {
         verify(mIWifiChipV11).resetTxPowerScenario();
 
         // Then select a scenario with cell on
-        sarInfo.mIsVoiceCall = true;
+        sarInfo.isVoiceCall = true;
         assertTrue(mWifiVendorHal.selectTxPowerScenario(sarInfo));
         verify(mIWifiChipV11).selectTxPowerScenario(
                 eq(android.hardware.wifi.V1_1.IWifiChip.TxPowerScenario.VOICE_CALL));
@@ -2389,9 +2483,13 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testInvalidSelectTxPowerScenario_1_2() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SAR_SENSOR_INVALID_STATE;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SAR_SENSOR_INVALID_STATE;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2413,11 +2511,15 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testSelectTxPowerScenario_1_2_head_sap() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
-        sarInfo.mIsWifiSapEnabled = true;
-        sarInfo.mIsVoiceCall = false;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+        sarInfo.isWifiSapEnabled = true;
+        sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2441,11 +2543,15 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testSelectTxPowerScenario_1_2_head_sap_call() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
-        sarInfo.mIsWifiSapEnabled = true;
-        sarInfo.mIsVoiceCall = true;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+        sarInfo.isWifiSapEnabled = true;
+        sarInfo.isVoiceCall = true;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2469,11 +2575,15 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testSelectTxPowerScenario_1_2_freespace_sap() throws RemoteException {
-        // Create a SAR info record (with sensor support)
-        SarInfo sarInfo = new SarInfo(true);
-        sarInfo.mSensorState = SarInfo.SAR_SENSOR_FREE_SPACE;
-        sarInfo.mIsWifiSapEnabled = true;
-        sarInfo.mIsVoiceCall = false;
+        // Create a SAR info record (with sensor and SAP support)
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.sensorState = SarInfo.SAR_SENSOR_FREE_SPACE;
+        sarInfo.isWifiSapEnabled = true;
+        sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
@@ -2497,9 +2607,13 @@ public class WifiVendorHalTest {
     @Test
     public void testSelectTxPowerScenario_1_2_no_sensors_sap() throws RemoteException {
         // Create a SAR info record (with no sensor support)
-        SarInfo sarInfo = new SarInfo(false);
-        sarInfo.mIsWifiSapEnabled = true;
-        sarInfo.mIsVoiceCall = false;
+        SarInfo sarInfo = new SarInfo();
+        sarInfo.sarVoiceCallSupported = true;
+        sarInfo.sarSapSupported = true;
+        sarInfo.sarSensorSupported = true;
+
+        sarInfo.isWifiSapEnabled = true;
+        sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
