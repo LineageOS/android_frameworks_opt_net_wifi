@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -648,5 +649,12 @@ public class WifiNativeTest {
         when(mWifiVendorHal.setLowLatencyMode(anyBoolean())).thenReturn(false);
         assertFalse(mWifiNative.setLowLatencyMode(lowLatencyMode));
         verify(mWifiVendorHal).setLowLatencyMode(lowLatencyMode);
+    }
+
+    @Test
+    public void testGetFactoryMacAddress() throws Exception {
+        when(mWifiVendorHal.getFactoryMacAddress(any())).thenReturn(MacAddress.BROADCAST_ADDRESS);
+        assertNotNull(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME));
+        verify(mWifiVendorHal).getFactoryMacAddress(any());
     }
 }
