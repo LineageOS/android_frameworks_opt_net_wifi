@@ -167,9 +167,13 @@ public class SarManagerTest {
      * Helper function to set configuration for SAR and create the SAR Manager
      *
      */
-    private void createSarManager(boolean isSarEnabled, boolean isSarSensorEnabled) {
+    private void createSarManager(boolean isSarEnabled, boolean isSarSapEnabled,
+            boolean isSarSensorEnabled) {
         mResources.setBoolean(
                 R.bool.config_wifi_framework_enable_sar_tx_power_limit, isSarEnabled);
+        mResources.setBoolean(
+                R.bool.config_wifi_framework_enable_soft_ap_sar_tx_power_limit,
+                isSarSapEnabled);
         mResources.setBoolean(
                 R.bool.config_wifi_framework_enable_body_proximity_sar_tx_power_limit,
                 isSarSensorEnabled);
@@ -227,6 +231,8 @@ public class SarManagerTest {
         mResources.setBoolean(
                 R.bool.config_wifi_framework_enable_sar_tx_power_limit, true);
         mResources.setBoolean(
+                R.bool.config_wifi_framework_enable_soft_ap_sar_tx_power_limit, true);
+        mResources.setBoolean(
                 R.bool.config_wifi_framework_enable_body_proximity_sar_tx_power_limit, true);
         if (addToConfigs) {
             mResources.setString(R.string.config_wifi_sar_sensor_type, configSensorName);
@@ -283,7 +289,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_registerPhone() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
         verify(mTelephonyManager).listen(any(), eq(PhoneStateListener.LISTEN_CALL_STATE));
     }
 
@@ -293,7 +299,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_disabledTxPowerScenario_registerPhone() throws Exception {
-        createSarManager(false, false);
+        createSarManager(false, false, false);
         verify(mTelephonyManager, never()).listen(any(), anyInt());
     }
 
@@ -305,7 +311,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_wifiOn_offHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -314,12 +320,12 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Set phone state to OFFHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -330,7 +336,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_offHook_wifiOn() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -342,7 +348,7 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -352,7 +358,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_wifiOn_offHook_onHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -362,21 +368,21 @@ public class SarManagerTest {
 
         /* Now device should set tx power scenario to NORMAL */
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Set phone state to OFFHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
 
         /* Device should set tx power scenario to Voice call */
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Set state back to ONHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
 
         /* Device should set tx power scenario to NORMAL again */
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Disable WiFi State */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
@@ -390,7 +396,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_wifiOff_offHook_onHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -414,7 +420,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledSar_wifiOn_offHook_wifiOff_onHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -424,12 +430,12 @@ public class SarManagerTest {
 
         /* Now device should set tx power scenario to NORMAL */
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Set phone state to OFFHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Disable WiFi State */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
@@ -442,7 +448,7 @@ public class SarManagerTest {
         /* Enable WiFi State again */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -451,7 +457,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledSar_wifiOff_offHook_onHook_wifiOn() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -468,7 +474,7 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -477,7 +483,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledSar_offHook_wifiOnOff_onHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -491,7 +497,7 @@ public class SarManagerTest {
         assertNotNull(mSarInfo);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Disable WiFi State */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
@@ -508,7 +514,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledSar_error_wifiOn_offOnHook() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         when(mWifiNative.selectTxPowerScenario(any(SarInfo.class))).thenReturn(false);
         InOrder inOrder = inOrder(mWifiNative);
@@ -519,17 +525,17 @@ public class SarManagerTest {
         assertNotNull(mSarInfo);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Set phone state to OFFHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Set state back to ONHOOK */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -538,7 +544,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_sarSensorOn_WifiOn_sensorEventsTriggered() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -547,31 +553,31 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_BODY);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_HEAD);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_HAND);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HAND, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HAND, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_FREE_SPACE);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -581,7 +587,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_sarSensorOn_wifiOn_cellOn_sensorEventsTriggered() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -591,38 +597,38 @@ public class SarManagerTest {
 
         /* Should get the an event with no calls */
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Start a Cell call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(any(SarInfo.class));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_BODY);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_HEAD);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_HAND);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HAND, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HAND, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_FREE_SPACE);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -632,7 +638,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_sarSensorOn_wifiOn_onHead_cellOnOff() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -641,26 +647,27 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_FREE_SPACE, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Sensor event */
         sendSensorEvent(SAR_SENSOR_EVENT_HEAD);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
+
 
         /* Start a Cell call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* End a Cell call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -671,7 +678,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_sarSensorOn_WifiOffOn_sensorEventTriggered() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -684,8 +691,8 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -707,20 +714,20 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Start a Cell Call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* End the call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -742,20 +749,20 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Start a Cell Call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* End the call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -777,20 +784,20 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
 
         /* Start a Cell Call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_OFFHOOK, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isVoiceCall);
 
         /* End the call */
         mPhoneStateListener.onCallStateChanged(CALL_STATE_IDLE, "");
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsVoiceCall);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isVoiceCall);
     }
 
     /**
@@ -799,7 +806,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_disabledTxPowerScenario_sapOn() throws Exception {
-        createSarManager(false, false);
+        createSarManager(false, false, false);
 
         /* Enable WiFi SoftAP State */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
@@ -812,7 +819,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_sapOn() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -821,9 +828,9 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertTrue(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
     }
 
     /**
@@ -832,7 +839,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_staOn_sapOnOff() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -845,20 +852,20 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isWifiSapEnabled);
 
         /* Enable WiFi SoftAP State */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isWifiSapEnabled);
 
         /* Disable Wifi SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_DISABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_HEAD, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isWifiSapEnabled);
     }
 
     /**
@@ -870,7 +877,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_sapOnOff_staOffOn() throws Exception {
-        createSarManager(true, true);
+        createSarManager(true, true, true);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -883,8 +890,8 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.mSensorState);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.sensorState);
+        assertTrue(mSarInfo.isWifiSapEnabled);
 
         /* Disable Wifi SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_DISABLED);
@@ -893,8 +900,8 @@ public class SarManagerTest {
         /* Enable WiFi Clinet State */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.mSensorState);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
+        assertEquals(SarInfo.SAR_SENSOR_NEAR_BODY, mSarInfo.sensorState);
+        assertFalse(mSarInfo.isWifiSapEnabled);
     }
 
     /**
@@ -903,15 +910,15 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_staOff_sapOff_scanOnlyOn() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         /* Enable Wifi ScanOnly State */
         mSarMgr.setScanOnlyWifiState(WifiManager.WIFI_STATE_ENABLED);
         captureSarInfo(mWifiNative);
 
         verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertTrue(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertTrue(mSarInfo.isWifiScanOnlyEnabled);
     }
 
     /**
@@ -920,7 +927,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_staOn_sapOff_scanOnlyOn() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -929,8 +936,8 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertTrue(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertTrue(mSarInfo.isWifiScanOnlyEnabled);
 
         /* Now enable Client state */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
@@ -946,7 +953,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_wifi_sap_scanOnly() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         InOrder inOrder = inOrder(mWifiNative);
 
@@ -955,16 +962,16 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
 
         /* Enable SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertTrue(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
 
         /* Disable WiFi State */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
@@ -977,9 +984,9 @@ public class SarManagerTest {
         /* Disable SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_DISABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertTrue(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertTrue(mSarInfo.isWifiScanOnlyEnabled);
     }
 
     /**
@@ -989,7 +996,7 @@ public class SarManagerTest {
      */
     @Test
     public void testSarMgr_enabledTxPowerScenario_error_wifi_sap_scanOnly() throws Exception {
-        createSarManager(true, false);
+        createSarManager(true, false, false);
 
         when(mWifiNative.selectTxPowerScenario(any(SarInfo.class))).thenReturn(false);
         InOrder inOrder = inOrder(mWifiNative);
@@ -999,39 +1006,39 @@ public class SarManagerTest {
         captureSarInfo(mWifiNative);
 
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
 
         /* Enable SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertTrue(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
 
         /* Disable WiFi State, reporting should still happen */
         mSarMgr.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
-        assertFalse(mSarInfo.mIsWifiScanOnlyEnabled);
-        assertFalse(mSarInfo.mIsWifiClientEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertTrue(mSarInfo.isWifiSapEnabled);
+        assertFalse(mSarInfo.isWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isWifiClientEnabled);
 
         /* Enable ScanOnly state */
         mSarMgr.setScanOnlyWifiState(WifiManager.WIFI_STATE_ENABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertTrue(mSarInfo.mIsWifiSapEnabled);
-        assertTrue(mSarInfo.mIsWifiScanOnlyEnabled);
-        assertFalse(mSarInfo.mIsWifiClientEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertTrue(mSarInfo.isWifiSapEnabled);
+        assertTrue(mSarInfo.isWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isWifiClientEnabled);
 
         /* Disable SoftAP state */
         mSarMgr.setSapWifiState(WifiManager.WIFI_AP_STATE_DISABLED);
         inOrder.verify(mWifiNative).selectTxPowerScenario(eq(mSarInfo));
-        assertFalse(mSarInfo.mIsVoiceCall);
-        assertFalse(mSarInfo.mIsWifiSapEnabled);
-        assertTrue(mSarInfo.mIsWifiScanOnlyEnabled);
-        assertFalse(mSarInfo.mIsWifiClientEnabled);
+        assertFalse(mSarInfo.isVoiceCall);
+        assertFalse(mSarInfo.isWifiSapEnabled);
+        assertTrue(mSarInfo.isWifiScanOnlyEnabled);
+        assertFalse(mSarInfo.isWifiClientEnabled);
     }
 }

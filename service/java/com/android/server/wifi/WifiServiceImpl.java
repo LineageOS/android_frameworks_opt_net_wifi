@@ -2575,6 +2575,11 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                 wifiScoreReport.dump(fd, pw, args);
             }
             pw.println();
+            SarManager sarManager = mWifiInjector.getSarManager();
+            if (sarManager != null) {
+                sarManager.dump(fd, pw, args);
+            }
+            pw.println();
         }
     }
 
