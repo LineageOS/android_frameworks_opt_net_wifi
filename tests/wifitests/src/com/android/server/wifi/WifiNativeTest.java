@@ -576,18 +576,6 @@ public class WifiNativeTest {
     }
 
     /**
-     * Test to check if the softap start failure metrics are incremented correctly.
-     */
-    @Test
-    public void testStartSoftApFailureIncrementsMetrics() throws Exception {
-        when(mWificondControl.startHostapd(any(), any())).thenReturn(false);
-        WifiNative.SoftApListener mockListener = mock(WifiNative.SoftApListener.class);
-        mWifiNative.startSoftAp(WIFI_IFACE_NAME, new WifiConfiguration(), mockListener);
-        verify(mWificondControl).startHostapd(WIFI_IFACE_NAME, mockListener);
-        verify(mWifiMetrics).incrementNumSetupSoftApInterfaceFailureDueToHostapd();
-    }
-
-    /**
      * Test that selectTxPowerScenario() calls into WifiVendorHal (success case)
      */
     @Test

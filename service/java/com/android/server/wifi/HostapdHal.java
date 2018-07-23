@@ -33,6 +33,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.HostapdDeathEventHandler;
 import com.android.server.wifi.util.NativeUtil;
 
+import java.util.NoSuchElementException;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -356,6 +358,26 @@ public class HostapdHal {
     }
 
     /**
+     * Start the hostapd daemon.
+     *
+     * @return true on success, false otherwise.
+     */
+    public boolean startDaemon() {
+        synchronized (mLock) {
+            try {
+                // This should startup hostapd daemon using the lazy start HAL mechanism.
+                getHostapdMockable();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Exception while trying to start hostapd: "
+                        + e);
+                hostapdServiceDiedHandler();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /**
      * Terminate the hostapd daemon.
      */
     public void terminate() {
@@ -383,7 +405,12 @@ public class HostapdHal {
     @VisibleForTesting
     protected IHostapd getHostapdMockable() throws RemoteException {
         synchronized (mLock) {
-            return IHostapd.getService();
+            try {
+                return IHostapd.getService();
+            } catch (NoSuchElementException e) {
+                Log.e(TAG, "Failed to get IHostapd", e);
+                return null;
+            }
         }
     }
 

@@ -101,6 +101,7 @@ public class SupplicantStaIfaceHalTest {
             mISupplicantStaIfaceMockV1_1;
     private @Mock Context mContext;
     private @Mock WifiMonitor mWifiMonitor;
+    private @Mock PropertyService mPropertyService;
     private @Mock SupplicantStaNetworkHal mSupplicantStaNetworkMock;
     private @Mock WifiNative.SupplicantDeathEventHandler mSupplicantHalDeathHandler;
     SupplicantStatus mStatusSuccess;
@@ -124,8 +125,9 @@ public class SupplicantStaIfaceHalTest {
     private InOrder mInOrder;
 
     private class SupplicantStaIfaceHalSpy extends SupplicantStaIfaceHal {
-        SupplicantStaIfaceHalSpy(Context context, WifiMonitor monitor) {
-            super(context, monitor);
+        SupplicantStaIfaceHalSpy(Context context, WifiMonitor monitor,
+                                 PropertyService propertyService) {
+            super(context, monitor, propertyService);
         }
 
         @Override
@@ -177,13 +179,15 @@ public class SupplicantStaIfaceHalTest {
         mIfaceInfoList.add(mStaIface1);
         mIfaceInfoList.add(mP2pIface);
 
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.EMPTY);
         when(mServiceManagerMock.linkToDeath(any(IHwBinder.DeathRecipient.class),
                 anyLong())).thenReturn(true);
         when(mServiceManagerMock.registerForNotifications(anyString(), anyString(),
                 any(IServiceNotification.Stub.class))).thenReturn(true);
         when(mISupplicantMock.linkToDeath(any(IHwBinder.DeathRecipient.class),
                 anyLong())).thenReturn(true);
-        mDut = new SupplicantStaIfaceHalSpy(mContext, mWifiMonitor);
+        mDut = new SupplicantStaIfaceHalSpy(mContext, mWifiMonitor, mPropertyService);
     }
 
     /**
@@ -237,6 +241,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_successV1_1() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, false);
     }
@@ -247,6 +253,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_remoteExceptionFailureV1_1() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(true, false);
     }
@@ -257,6 +265,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_nullInterfaceFailureV1_1() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, true);
     }
@@ -284,6 +294,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testDuplicateSetupIfaceV1_1_Fails() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, false);
 
@@ -1540,6 +1552,57 @@ public class SupplicantStaIfaceHalTest {
 
         assertFalse(mDut.setCountryCode(WLAN0_IFACE_NAME, "U"));
         verify(mISupplicantStaIfaceMock, never()).setCountryCode(any(byte[].class));
+    }
+
+    /**
+     * Tests the start daemon for V1_0 service.
+     */
+    @Test
+    public void testStartDaemonV1_0() throws Exception {
+        executeAndValidateInitializationSequence();
+        assertTrue(mDut.startDaemon());
+        verify(mPropertyService).set(
+                SupplicantStaIfaceHal.INIT_START_PROPERTY, SupplicantStaIfaceHal.INIT_SERVICE_NAME);
+    }
+
+    /**
+     * Tests the start daemon for V1_1 service.
+     */
+    @Test
+    public void testStartDaemonV1_1() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_1(false, false);
+        assertTrue(mDut.startDaemon());
+        verify(mPropertyService, never()).set(any(), any());
+    }
+
+    /**
+     * Tests the terminate for V1_0 service.
+     */
+    @Test
+    public void testTerminateV1_0() throws Exception {
+        executeAndValidateInitializationSequence();
+        mDut.terminate();
+        verify(mPropertyService).set(
+                SupplicantStaIfaceHal.INIT_STOP_PROPERTY, SupplicantStaIfaceHal.INIT_SERVICE_NAME);
+    }
+
+    /**
+     * Tests the start daemon for V1_1 service.
+     */
+    @Test
+    public void testTerminateV1_1() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_1(false, false);
+        mDut.terminate();
+        verify(mPropertyService, never()).set(any(), any());
+        verify(mISupplicantMockV1_1).terminate();
     }
 
     private WifiConfiguration createTestWifiConfiguration() {
