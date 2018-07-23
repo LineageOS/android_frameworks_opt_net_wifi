@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.annotation.IntDef;
 import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
@@ -24,6 +25,8 @@ import android.util.Log;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Base class for available WiFi operating modes.
@@ -39,9 +42,24 @@ public interface ActiveModeManager {
     void start();
 
     /**
-     * Method used to stop the Manager for a give Wifi operational mode.
+     * Method used to stop the Manager for a given Wifi operational mode.
      */
     void stop();
+
+
+    /** Scan Modes */
+    int SCAN_NONE = 0;
+    int SCAN_WITHOUT_HIDDEN_NETWORKS = 1;
+    int SCAN_WITH_HIDDEN_NETWORKS = 2;
+
+    @IntDef({SCAN_NONE, SCAN_WITHOUT_HIDDEN_NETWORKS, SCAN_WITH_HIDDEN_NETWORKS})
+    @Retention(RetentionPolicy.SOURCE)
+    @interface ScanMode{}
+
+    /**
+     * Method to get the scan mode for a given Wifi operation mode.
+     */
+    @ScanMode int getScanMode();
 
     /**
      * Method to dump for logging state.
