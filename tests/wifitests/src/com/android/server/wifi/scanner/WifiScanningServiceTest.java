@@ -719,7 +719,7 @@ public class WifiScanningServiceTest {
         assertDumpContainsCallbackLog("singleScanInvalidRequest", requestId,
                 "bad request");
 
-        assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
+        assertEquals(0, mWifiMetrics.getOneshotScanCount());
         assertEquals(mWifiMetrics.getScanReturnEntry(
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
@@ -771,7 +771,7 @@ public class WifiScanningServiceTest {
         assertDumpContainsCallbackLog("singleScanInvalidRequest", requestId,
                 "bad request");
 
-        assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
+        assertEquals(0, mWifiMetrics.getOneshotScanCount());
         assertEquals(mWifiMetrics.getScanReturnEntry(
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
@@ -816,7 +816,7 @@ public class WifiScanningServiceTest {
         assertDumpContainsCallbackLog("singleScanInvalidRequest", requestId,
                 "bad request");
 
-        assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
+        assertEquals(0, mWifiMetrics.getOneshotScanCount());
         assertEquals(mWifiMetrics.getScanReturnEntry(
                 WifiMetricsProto.WifiLog.SCAN_FAILURE_INVALID_CONFIGURATION), 1);
 
@@ -919,6 +919,71 @@ public class WifiScanningServiceTest {
         assertEquals(mWifiMetrics.getOneshotScanCount(), 1);
         assertEquals(mWifiMetrics.getScanReturnEntry(WifiMetricsProto.WifiLog.SCAN_UNKNOWN), 1);
         verify(mBatteryStats).noteWifiScanStoppedFromSource(eq(workSource));
+    }
+
+    /**
+     * Do a single scan that includes DFS channels and verify that both oneshot scan count and
+     * oneshot scan count with dfs are incremented.
+     */
+    @Test
+    public void testMetricsForOneshotScanWithDFSIsIncremented() throws Exception {
+        WifiScanner.ScanSettings requestSettings = createRequest(
+                WifiScanner.WIFI_BAND_BOTH_WITH_DFS, 0, 0, 20,
+                WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN);
+        int requestId = 33;
+        WorkSource workSource = new WorkSource(Binder.getCallingUid()); // don't explicitly set
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl);
+
+        // successful start
+        when(mWifiScannerImpl.startSingleScan(any(WifiNative.ScanSettings.class),
+                any(WifiNative.ScanEventHandler.class))).thenReturn(true);
+
+        sendSingleScanRequest(controlChannel, requestId, requestSettings, null);
+
+        assertEquals(0, mWifiMetrics.getOneshotScanCount());
+        assertEquals(0, mWifiMetrics.getOneshotScanWithDfsCount());
+        // Scan is successfully queue
+        mLooper.dispatchAll();
+        assertEquals(1, mWifiMetrics.getOneshotScanCount());
+        assertEquals(1, mWifiMetrics.getOneshotScanWithDfsCount());
+    }
+
+    /**
+     * Do a single scan that excludes DFS channels and verify that only oneshot scan count is
+     * incremented.
+     */
+    @Test
+    public void testMetricsForOneshotScanWithDFSIsNotIncremented() throws Exception {
+        WifiScanner.ScanSettings requestSettings = createRequest(
+                WifiScanner.WIFI_BAND_5_GHZ, 0, 0, 20,
+                WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN);
+        int requestId = 33;
+        WorkSource workSource = new WorkSource(Binder.getCallingUid()); // don't explicitly set
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl);
+
+        // successful start
+        when(mWifiScannerImpl.startSingleScan(any(WifiNative.ScanSettings.class),
+                any(WifiNative.ScanEventHandler.class))).thenReturn(true);
+
+        sendSingleScanRequest(controlChannel, requestId, requestSettings, null);
+
+        assertEquals(0, mWifiMetrics.getOneshotScanCount());
+        // Scan is successfully queue
+        mLooper.dispatchAll();
+        assertEquals(1, mWifiMetrics.getOneshotScanCount());
+        assertEquals(0, mWifiMetrics.getOneshotScanWithDfsCount());
     }
 
     /**

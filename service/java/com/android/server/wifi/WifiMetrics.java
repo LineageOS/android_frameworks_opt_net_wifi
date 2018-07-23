@@ -899,6 +899,15 @@ public class WifiMetrics {
     }
 
     /**
+     * Increment the count of oneshot scans that include DFS channels.
+     */
+    public void incrementOneshotScanWithDfsCount() {
+        synchronized (mLock) {
+            mWifiLogProto.numOneshotHasDfsChannelScans++;
+        }
+    }
+
+    /**
      * Increment connectivity oneshot scan count.
      */
     public void incrementConnectivityOneshotScanCount() {
@@ -922,6 +931,15 @@ public class WifiMetrics {
     public int getConnectivityOneshotScanCount() {
         synchronized (mLock) {
             return mWifiLogProto.numConnectivityOneshotScans;
+        }
+    }
+
+    /**
+     * Get the count of oneshot scan requests that included DFS channels.
+     */
+    public int getOneshotScanWithDfsCount() {
+        synchronized (mLock) {
+            return mWifiLogProto.numOneshotHasDfsChannelScans;
         }
     }
 
@@ -1945,6 +1963,8 @@ public class WifiMetrics {
                         + mWifiLogProto.numConnectivityOneshotScans);
                 pw.println("mWifiLogProto.numOneshotScans="
                         + mWifiLogProto.numOneshotScans);
+                pw.println("mWifiLogProto.numOneshotHasDfsChannelScans="
+                        + mWifiLogProto.numOneshotHasDfsChannelScans);
                 pw.println("mWifiLogProto.numBackgroundScans="
                         + mWifiLogProto.numBackgroundScans);
                 pw.println("mWifiLogProto.numExternalAppOneshotScanRequests="
