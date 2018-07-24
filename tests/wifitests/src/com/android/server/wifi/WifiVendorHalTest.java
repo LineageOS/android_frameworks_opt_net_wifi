@@ -94,6 +94,7 @@ import android.net.wifi.WifiWakeReasonAndCounts;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.system.OsConstants;
 import android.util.Pair;
 
@@ -119,6 +120,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link com.android.server.wifi.WifiVendorHal}.
  */
+@SmallTest
 public class WifiVendorHalTest {
 
     private static final String TEST_IFACE_NAME = "wlan0";

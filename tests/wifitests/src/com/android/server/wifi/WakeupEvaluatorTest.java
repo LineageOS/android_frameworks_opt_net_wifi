@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.net.wifi.ScanResult;
+import android.support.test.filters.SmallTest;
 import android.util.ArraySet;
 
 import com.android.server.wifi.util.ScanResultUtil;
@@ -39,6 +40,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link WakeupEvaluator}.
  */
+@SmallTest
 public class WakeupEvaluatorTest {
 
     private static final String SAVED_SSID_1 = "saved ssid 1";

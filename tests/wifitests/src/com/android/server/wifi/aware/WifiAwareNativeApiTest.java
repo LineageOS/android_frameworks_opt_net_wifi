@@ -39,6 +39,7 @@ import android.net.wifi.aware.ConfigRequest;
 import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.util.Pair;
 
 import org.junit.Before;
@@ -54,6 +55,7 @@ import java.io.PrintWriter;
 /**
  * Unit test harness for WifiAwareNativeApi
  */
+@SmallTest
 public class WifiAwareNativeApiTest {
     @Mock WifiAwareNativeManager mWifiAwareNativeManagerMock;
     @Mock IWifiNanIface mIWifiNanIfaceMock;

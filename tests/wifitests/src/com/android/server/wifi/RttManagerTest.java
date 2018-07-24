@@ -22,12 +22,14 @@ import android.net.wifi.RttManager;
 import android.net.wifi.RttManager.ParcelableRttParams;
 import android.net.wifi.RttManager.RttParams;
 import android.os.Parcel;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Test;
 
 /**
  * Unit test for {@link RttManager}
  */
+@SmallTest
 public class RttManagerTest {
 
     // Verify ParcelableRttParams are the same after writing and reading from parcel.

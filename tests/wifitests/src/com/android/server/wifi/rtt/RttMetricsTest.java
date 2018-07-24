@@ -25,6 +25,7 @@ import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
 import android.net.wifi.rtt.ResponderConfig;
 import android.os.WorkSource;
+import android.support.test.filters.SmallTest;
 import android.util.Log;
 
 import com.android.server.wifi.Clock;
@@ -45,6 +46,7 @@ import java.util.List;
 /**
  * Unit test harness for RttMetrics
  */
+@SmallTest
 public class RttMetricsTest {
     private RttMetrics mDut;
 

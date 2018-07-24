@@ -22,6 +22,7 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.support.test.filters.SmallTest;
 import android.util.Xml;
 
 import com.android.internal.util.FastXmlSerializer;
@@ -45,6 +46,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link WakeupConfigStoreData}.
  */
+@SmallTest
 public class WakeupConfigStoreDataTest {
 
     @Mock private WakeupConfigStoreData.DataSource<Boolean> mActiveDataSource;

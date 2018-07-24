@@ -25,6 +25,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.support.test.filters.SmallTest;
 import android.util.Xml;
 
 import com.android.internal.util.FastXmlSerializer;
@@ -47,6 +48,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link com.android.server.wifi.SsidSetStoreData}.
  */
+@SmallTest
 public class SsidSetStoreDataTest {
     private static final String TEST_NOTIFIER_NAME = "TestNetwork";
     private static final String TEST_SSID1 = "SSID 1";

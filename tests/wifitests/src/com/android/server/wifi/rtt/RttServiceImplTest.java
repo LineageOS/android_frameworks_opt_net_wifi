@@ -69,6 +69,7 @@ import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 import android.util.Pair;
 
 import com.android.server.wifi.Clock;
@@ -94,6 +95,7 @@ import java.util.Set;
 /**
  * Unit test harness for the RttServiceImpl class.
  */
+@SmallTest
 public class RttServiceImplTest {
 
     private static final long BACKGROUND_PROCESS_EXEC_GAP_MS = 10 * 60 * 1000;  // 10 minutes.
