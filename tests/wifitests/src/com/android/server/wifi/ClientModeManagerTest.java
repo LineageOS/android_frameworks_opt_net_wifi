@@ -63,7 +63,6 @@ public class ClientModeManagerTest {
     @Mock WifiNative mWifiNative;
     @Mock ClientModeManager.Listener mListener;
     @Mock WifiMonitor mWifiMonitor;
-    @Mock ScanRequestProxy mScanRequestProxy;
     @Mock ClientModeImpl mClientModeImpl;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
@@ -80,7 +79,7 @@ public class ClientModeManagerTest {
 
     private ClientModeManager createClientModeManager() {
         return new ClientModeManager(mContext, mLooper.getLooper(), mWifiNative, mListener,
-                mWifiMetrics, mScanRequestProxy, mClientModeImpl);
+                mWifiMetrics, mClientModeImpl);
     }
 
     private void startClientModeAndVerifyEnabled() throws Exception {
@@ -102,16 +101,12 @@ public class ClientModeManagerTest {
                 eq(UserHandle.ALL));
 
         List<Intent> intents = intentCaptor.getAllValues();
-        assertEquals(4, intents.size());
+        assertEquals(2, intents.size());
         Log.d(TAG, "captured intents: " + intents);
         checkWifiStateChangedBroadcast(intents.get(0), WIFI_STATE_ENABLING, WIFI_STATE_DISABLED);
-        checkWifiScanStateChangedBroadcast(intents.get(1), WIFI_STATE_DISABLED);
-        checkWifiScanStateChangedBroadcast(intents.get(2), WIFI_STATE_ENABLED);
-        checkWifiStateChangedBroadcast(intents.get(3), WIFI_STATE_ENABLED, WIFI_STATE_ENABLING);
+        checkWifiStateChangedBroadcast(intents.get(1), WIFI_STATE_ENABLED, WIFI_STATE_ENABLING);
 
         checkWifiStateChangeListenerUpdate(WIFI_STATE_ENABLED);
-        verify(mScanRequestProxy, atLeastOnce()).enableScanningForHiddenNetworks(true);
-        verify(mScanRequestProxy).clearScanResults();
     }
 
     private void checkWifiScanStateChangedBroadcast(Intent intent, int expectedCurrentState) {
@@ -262,7 +257,7 @@ public class ClientModeManagerTest {
     @Test
     public void clientModeStartedStopsWhenInterfaceDown() throws Exception {
         startClientModeAndVerifyEnabled();
-        reset(mContext, mScanRequestProxy);
+        reset(mContext);
         when(mClientModeImpl.isConnectedMacRandomizationEnabled()).thenReturn(false);
         mInterfaceCallbackCaptor.getValue().onDown(TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
@@ -278,7 +273,7 @@ public class ClientModeManagerTest {
     public void clientModeStartedWithConnectedMacRandDoesNotStopWhenInterfaceDown()
             throws Exception {
         startClientModeAndVerifyEnabled();
-        reset(mContext, mScanRequestProxy);
+        reset(mContext);
         when(mClientModeImpl.isConnectedMacRandomizationEnabled()).thenReturn(true);
         mInterfaceCallbackCaptor.getValue().onDown(TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
@@ -292,8 +287,7 @@ public class ClientModeManagerTest {
     @Test
     public void clientModeStartedStopsOnInterfaceDestroyed() throws Exception {
         startClientModeAndVerifyEnabled();
-        reset(mContext, mScanRequestProxy, mListener);
-
+        reset(mContext);
         mInterfaceCallbackCaptor.getValue().onDestroyed(TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
         verifyNotificationsForCleanShutdown(WIFI_STATE_ENABLED);

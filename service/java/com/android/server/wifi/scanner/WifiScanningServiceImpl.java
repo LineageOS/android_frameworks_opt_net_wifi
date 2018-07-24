@@ -21,13 +21,9 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.Manifest;
 import android.app.AlarmManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.ScanResult;
-import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.ChannelSpec;
 import android.net.wifi.WifiScanner.PnoSettings;
@@ -130,6 +126,13 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 "LocationHardware");
     }
 
+    private void enforceNetworkStack(int uid) {
+        mContext.enforcePermission(
+                Manifest.permission.NETWORK_STACK,
+                UNKNOWN_PID, uid,
+                "NetworkStack");
+    }
+
     private class ClientHandler extends WifiHandler {
 
         ClientHandler(String tag, Looper looper) {
@@ -185,7 +188,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
 
             try {
-                enforceLocationHardwarePermission(msg.sendingUid);
+                if (msg.what == WifiScanner.CMD_ENABLE || msg.what == WifiScanner.CMD_DISABLE) {
+                    enforceNetworkStack(msg.sendingUid);
+                } else {
+                    enforceLocationHardwarePermission(msg.sendingUid);
+                }
             } catch (SecurityException e) {
                 localLog("failed to authorize app: " + e);
                 replyFailed(msg, WifiScanner.REASON_NOT_AUTHORIZED, "Not authorized");
@@ -213,6 +220,16 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
 
             switch (msg.what) {
+                case WifiScanner.CMD_ENABLE:
+                    mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
+                    mSingleScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
+                    mPnoScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
+                    break;
+                case WifiScanner.CMD_DISABLE:
+                    mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
+                    mSingleScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
+                    mPnoScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
+                    break;
                 case WifiScanner.CMD_START_BACKGROUND_SCAN:
                 case WifiScanner.CMD_STOP_BACKGROUND_SCAN:
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
@@ -294,25 +311,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mBackgroundScanStateMachine = new WifiBackgroundScanStateMachine(mLooper);
         mSingleScanStateMachine = new WifiSingleScanStateMachine(mLooper);
         mPnoScanStateMachine = new WifiPnoScanStateMachine(mLooper);
-
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        int state = intent.getIntExtra(
-                                WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_DISABLED);
-                        if (DBG) localLog("SCAN_AVAILABLE : " + state);
-                        if (state == WifiManager.WIFI_STATE_ENABLED) {
-                            mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                            mSingleScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                            mPnoScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                        } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                            mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
-                            mSingleScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
-                            mPnoScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
-                        }
-                    }
-                }, new IntentFilter(WifiManager.WIFI_SCAN_AVAILABLE));
 
         mBackgroundScanStateMachine.start();
         mSingleScanStateMachine.start();

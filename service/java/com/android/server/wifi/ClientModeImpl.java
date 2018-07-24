@@ -181,7 +181,6 @@ public class ClientModeImpl extends StateMachine {
     private WifiConnectivityManager mWifiConnectivityManager;
     private ConnectivityManager mCm;
     private BaseWifiDiagnostics mWifiDiagnostics;
-    private ScanRequestProxy mScanRequestProxy;
     private final boolean mP2pSupported;
     private final AtomicBoolean mP2pConnected = new AtomicBoolean(false);
     private boolean mTemporarilyDisconnectWifi = false;
@@ -794,7 +793,6 @@ public class ClientModeImpl extends StateMachine {
 
         mWifiMonitor = mWifiInjector.getWifiMonitor();
         mWifiDiagnostics = mWifiInjector.getWifiDiagnostics();
-        mScanRequestProxy = mWifiInjector.getScanRequestProxy();
         mWifiPermissionsWrapper = mWifiInjector.getWifiPermissionsWrapper();
         mWifiDataStall = mWifiInjector.getWifiDataStall();
 
@@ -3875,7 +3873,6 @@ public class ClientModeImpl extends StateMachine {
             if (!mWifiNative.removeAllNetworks(mInterfaceName)) {
                 loge("Failed to remove networks on entering connect mode");
             }
-            mScanRequestProxy.enableScanningForHiddenNetworks(true);
             mWifiInfo.reset();
             mWifiInfo.setSupplicantState(SupplicantState.DISCONNECTED);
 
@@ -3914,9 +3911,6 @@ public class ClientModeImpl extends StateMachine {
             if (!mWifiNative.removeAllNetworks(mInterfaceName)) {
                 loge("Failed to remove networks on exiting connect mode");
             }
-            mScanRequestProxy.enableScanningForHiddenNetworks(false);
-            // Do we want to optimize when we move from client mode to scan only mode.
-            mScanRequestProxy.clearScanResults();
             mWifiInfo.reset();
             mWifiInfo.setSupplicantState(SupplicantState.DISCONNECTED);
             stopClientMode();

@@ -47,6 +47,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * {@link WifiManager#startScan()}.
  *
  * This class is responsible for:
+ * a) Enable/Disable scanning based on the request from {@link ActiveModeWarden}.
  * a) Forwarding scan requests from {@link WifiManager#startScan()} to
  * {@link WifiScanner#startScan(WifiScanner.ScanSettings, WifiScanner.ScanListener)}.
  * Will essentially proxy scan requests from WifiService to WifiScanningService.
@@ -85,6 +86,8 @@ public class ScanRequestProxy {
 
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
+    // Flag to decide if we need to scan or not.
+    private boolean mScanningEnabled = false;
     // Flag to decide if we need to scan for hidden networks or not.
     private boolean mScanningForHiddenNetworksEnabled = false;
     // Flag to indicate that we're waiting for scan results from an existing request.
@@ -168,17 +171,6 @@ public class ScanRequestProxy {
     }
 
     /**
-     * Enable/disable scanning for hidden networks.
-     * @param enable true to enable, false to disable.
-     */
-    public void enableScanningForHiddenNetworks(boolean enable) {
-        if (mVerboseLoggingEnabled) {
-            Log.d(TAG, "Scanning for hidden networks is " + (enable ? "enabled" : "disabled"));
-        }
-        mScanningForHiddenNetworksEnabled = enable;
-    }
-
-    /**
      * Helper method to populate WifiScanner handle. This is done lazily because
      * WifiScanningService is started after WifiService.
      */
@@ -187,6 +179,54 @@ public class ScanRequestProxy {
             mWifiScanner = mWifiInjector.getWifiScanner();
         }
         return mWifiScanner != null;
+    }
+
+    /**
+     * Method that lets public apps know that scans are available.
+     *
+     * @param context Context to use for the notification
+     * @param available boolean indicating if scanning is available
+     */
+    private void sendScanAvailableBroadcast(Context context, boolean available) {
+        Log.d(TAG, "Sending scan available broadcast: " + available);
+        final Intent intent = new Intent(WifiManager.WIFI_SCAN_AVAILABLE);
+        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        if (available) {
+            intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_ENABLED);
+        } else {
+            intent.putExtra(WifiManager.EXTRA_SCAN_AVAILABLE, WifiManager.WIFI_STATE_DISABLED);
+        }
+        context.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
+    }
+
+    private void enableScanningInternal(boolean enable) {
+        if (!retrieveWifiScannerIfNecessary()) {
+            Log.e(TAG, "Failed to retrieve wifiscanner");
+            return;
+        }
+        mWifiScanner.setScanningEnabled(enable);
+        sendScanAvailableBroadcast(mContext, enable);
+        clearScanResults();
+        Log.i(TAG, "Scanning is " + (enable ? "enabled" : "disabled"));
+    }
+
+    /**
+     * Enable/disable scanning.
+     *
+     * @param enable true to enable, false to disable.
+     * @param enableScanningForHiddenNetworks true to enable scanning for hidden networks,
+     *                                        false to disable.
+     */
+    public void enableScanning(boolean enable, boolean enableScanningForHiddenNetworks) {
+        if (enable) {
+            enableScanningInternal(true);
+            mScanningForHiddenNetworksEnabled = enableScanningForHiddenNetworks;
+            Log.i(TAG, "Scanning for hidden networks is "
+                    + (enableScanningForHiddenNetworks ? "enabled" : "disabled"));
+        } else {
+            enableScanningInternal(false);
+        }
+        mScanningEnabled = enable;
     }
 
     /**
@@ -406,7 +446,7 @@ public class ScanRequestProxy {
     /**
      * Clear the stored scan results.
      */
-    public void clearScanResults() {
+    private void clearScanResults() {
         mLastScanResults.clear();
         mLastScanTimestampForBgApps = 0;
         mLastScanTimestampsForFgApps.clear();

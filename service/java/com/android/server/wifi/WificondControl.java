@@ -403,38 +403,6 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     /**
-    * Disable wpa_supplicant via wificond.
-    * @return Returns true on success.
-    */
-    public boolean disableSupplicant() {
-        if (!retrieveWificondAndRegisterForDeath()) {
-            return false;
-        }
-        try {
-            return mWificond.disableSupplicant();
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to disable supplicant due to remote exception");
-        }
-        return false;
-    }
-
-    /**
-    * Enable wpa_supplicant via wificond.
-    * @return Returns true on success.
-    */
-    public boolean enableSupplicant() {
-        if (!retrieveWificondAndRegisterForDeath()) {
-            return false;
-        }
-        try {
-            return mWificond.enableSupplicant();
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to enable supplicant due to remote exception");
-        }
-        return false;
-    }
-
-    /**
      * Request signal polling to wificond.
      * @param ifaceName Name of the interface.
      * Returns an SignalPollResult object.
@@ -777,15 +745,13 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     /**
-     * Start hostapd
-     * TODO(b/71513606): Move this to a global operation.
+     * Register the provided listener for SoftAp events.
      *
      * @param ifaceName Name of the interface.
      * @param listener Callback for AP events.
      * @return true on success, false otherwise.
      */
-    public boolean startHostapd(@NonNull String ifaceName,
-                               SoftApListener listener) {
+    public boolean registerApListener(@NonNull String ifaceName, SoftApListener listener) {
         IApInterface iface = getApInterface(ifaceName);
         if (iface == null) {
             Log.e(TAG, "No valid ap interface handler");
@@ -794,42 +760,15 @@ public class WificondControl implements IBinder.DeathRecipient {
         try {
             IApInterfaceEventCallback  callback = new ApInterfaceEventCallback(listener);
             mApInterfaceListeners.put(ifaceName, callback);
-            boolean success = iface.startHostapd(callback);
+            boolean success = iface.registerCallback(callback);
             if (!success) {
-                Log.e(TAG, "Failed to start hostapd.");
+                Log.e(TAG, "Failed to register ap callback.");
                 return false;
             }
         } catch (RemoteException e) {
-            Log.e(TAG, "Exception in starting soft AP: " + e);
+            Log.e(TAG, "Exception in registering AP callback: " + e);
             return false;
         }
-        return true;
-    }
-
-    /**
-     * Stop hostapd
-     * TODO(b/71513606): Move this to a global operation.
-     *
-     * @param ifaceName Name of the interface.
-     * @return true on success, false otherwise.
-     */
-    public boolean stopHostapd(@NonNull String ifaceName) {
-        IApInterface iface = getApInterface(ifaceName);
-        if (iface == null) {
-            Log.e(TAG, "No valid ap interface handler");
-            return false;
-        }
-        try {
-            boolean success = iface.stopHostapd();
-            if (!success) {
-                Log.e(TAG, "Failed to stop hostapd.");
-                return false;
-            }
-        } catch (RemoteException e) {
-            Log.e(TAG, "Exception in stopping soft AP: " + e);
-            return false;
-        }
-        mApInterfaceListeners.remove(ifaceName);
         return true;
     }
 
