@@ -549,7 +549,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
@@ -569,7 +569,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
         when(mPackageManager.getApplicationInfoAsUser(
                 anyString(), anyInt(), anyInt()))
@@ -619,7 +619,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
         when(mPackageManager.getApplicationInfoAsUser(
                 anyString(), anyInt(), anyInt()))
@@ -675,8 +675,8 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that wifi can be disabled without consent UI popup when permission
-     * review is required but got permission granted.
+     * Verify that wifi can be disabled without consent UI popup when wireless
+     * consnet is required but got permission granted.
      */
     @Test
     public void testSetWifiDisabledSuccessWhenPermissionReviewRequiredAndPermissionGranted()
@@ -688,7 +688,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
@@ -696,11 +696,11 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that wifi is not disabled but got consent UI popup when permission
-     * review is required but do not have permission.
+     * Verify that wifi is not disabled but got consent UI popup when wireless
+     * consent is required but do not have permission.
      */
     @Test
-    public void testSetWifiDisabledConsentUiWhenPermissionReviewRequiredAndPermissionDenied()
+    public void testSetWifiDisabledConsentUiWhenPermissionDenied()
             throws Exception {
         // Set PermissionReviewRequired to true explicitly
         when(mResources.getBoolean(anyInt())).thenReturn(true);
@@ -709,7 +709,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
         when(mPackageManager.getApplicationInfoAsUser(
                 anyString(), anyInt(), anyInt()))
@@ -740,7 +740,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
@@ -763,7 +763,7 @@ public class WifiServiceImplTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_ENABLED);
         when(mContext.checkCallingPermission(
-                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_PERMISSION_REVIEW_REQUIRED)))
+                eq(android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED)))
                         .thenReturn(PackageManager.PERMISSION_DENIED);
         when(mPackageManager.getApplicationInfoAsUser(
                 anyString(), anyInt(), anyInt()))
