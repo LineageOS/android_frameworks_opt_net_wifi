@@ -485,7 +485,7 @@ public class WifiInjector {
     public ScanOnlyModeManager makeScanOnlyModeManager(
             @NonNull ScanOnlyModeManager.Listener listener) {
         return new ScanOnlyModeManager(mContext, mWifiCoreHandlerThread.getLooper(),
-                mWifiNative, listener, mWifiMetrics, mScanRequestProxy, mWakeupController,
+                mWifiNative, listener, mWifiMetrics, mWakeupController,
                 mSarManager);
     }
 
@@ -497,7 +497,7 @@ public class WifiInjector {
      */
     public ClientModeManager makeClientModeManager(ClientModeManager.Listener listener) {
         return new ClientModeManager(mContext, mWifiCoreHandlerThread.getLooper(),
-                mWifiNative, listener, mWifiMetrics, mScanRequestProxy, mClientModeImpl);
+                mWifiNative, listener, mWifiMetrics, mClientModeImpl);
     }
 
     /**

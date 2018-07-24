@@ -317,8 +317,38 @@ public class ActiveModeWarden {
                 if (mManager != null) {
                     mManager.stop();
                     mActiveModeManagers.remove(mManager);
+                    updateScanMode();
                 }
                 updateBatteryStatsWifiState(false);
+            }
+
+            // Hook to be used by sub-classes of ModeActiveState to indicate the completion of
+            // bringup of the corresponding mode.
+            public void onModeActivationComplete() {
+                updateScanMode();
+            }
+
+            // Update the scan state based on all active mode managers.
+            // Note: This is an overkill currently because there is only 1 of scan-only or client
+            // mode present today.
+            private void updateScanMode() {
+                boolean scanEnabled = false;
+                boolean scanningForHiddenNetworksEnabled = false;
+                for (ActiveModeManager modeManager : mActiveModeManagers) {
+                    @ActiveModeManager.ScanMode int scanState = modeManager.getScanMode();
+                    switch (scanState) {
+                        case ActiveModeManager.SCAN_NONE:
+                            break;
+                        case ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETWORKS:
+                            scanEnabled = true;
+                            break;
+                        case ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS:
+                            scanEnabled = true;
+                            scanningForHiddenNetworksEnabled = true;
+                            break;
+                    }
+                }
+                mScanRequestProxy.enableScanning(scanEnabled, scanningForHiddenNetworksEnabled);
             }
         }
 
@@ -326,9 +356,6 @@ public class ActiveModeWarden {
             @Override
             public void enter() {
                 Log.d(TAG, "Entering WifiDisabledState");
-                mDefaultModeManager.sendScanAvailableBroadcast(mContext, false);
-                mScanRequestProxy.enableScanningForHiddenNetworks(false);
-                mScanRequestProxy.clearScanResults();
             }
 
             @Override
@@ -369,6 +396,7 @@ public class ActiveModeWarden {
                     } else if (state == WifiManager.WIFI_STATE_ENABLED) {
                         // client mode is ready to go
                         Log.d(TAG, "client mode active");
+                        onModeActivationComplete();
                     } else {
                         // only care if client mode stopped or started, dropping
                     }
@@ -452,6 +480,7 @@ public class ActiveModeWarden {
                     } else if (state == WifiManager.WIFI_STATE_ENABLED) {
                         // scan mode is ready to go
                         Log.d(TAG, "scan mode active");
+                        onModeActivationComplete();
                     } else {
                         Log.d(TAG, "unexpected state update: " + state);
                     }

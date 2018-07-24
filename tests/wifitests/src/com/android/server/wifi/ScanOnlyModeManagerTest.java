@@ -25,12 +25,10 @@ import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -47,8 +45,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.util.List;
 
 /**
  * Unit tests for {@link ScanOnlyModeManager}.
@@ -68,7 +64,6 @@ public class ScanOnlyModeManagerTest {
     @Mock WifiNative mWifiNative;
     @Mock ScanOnlyModeManager.Listener mListener;
     @Mock WifiMonitor mWifiMonitor;
-    @Mock ScanRequestProxy mScanRequestProxy;
     @Mock WakeupController mWakeupController;
     @Mock SarManager mSarManager;
 
@@ -86,7 +81,7 @@ public class ScanOnlyModeManagerTest {
 
     private ScanOnlyModeManager createScanOnlyModeManager() {
         return new ScanOnlyModeManager(mContext, mLooper.getLooper(), mWifiNative, mListener,
-                mWifiMetrics, mScanRequestProxy, mWakeupController, mSarManager);
+                mWifiMetrics, mWakeupController, mSarManager);
     }
 
     private void startScanOnlyModeAndVerifyEnabled() throws Exception {
@@ -102,16 +97,7 @@ public class ScanOnlyModeManagerTest {
         mInterfaceCallbackCaptor.getValue().onUp(TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
 
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext, times(2)).sendStickyBroadcastAsUser(intentCaptor.capture(),
-                eq(UserHandle.ALL));
-        List<Intent> intents = intentCaptor.getAllValues();
-
-        checkWifiScanStateChangedBroadcast(intents.get(0), WIFI_STATE_DISABLED);
-        checkWifiScanStateChangedBroadcast(intents.get(1), WIFI_STATE_ENABLED);
         checkWifiStateChangeListenerUpdate(WIFI_STATE_ENABLED);
-        verify(mScanRequestProxy, atLeastOnce()).clearScanResults();
-        verify(mScanRequestProxy, atLeastOnce()).enableScanningForHiddenNetworks(false);
         verify(mSarManager).setScanOnlyWifiState(eq(WIFI_STATE_ENABLED));
     }
 
@@ -216,7 +202,6 @@ public class ScanOnlyModeManagerTest {
         mLooper.dispatchAll();
         verify(mContext, never()).sendStickyBroadcastAsUser(any(), eq(UserHandle.ALL));
         checkWifiStateChangeListenerUpdate(WIFI_STATE_UNKNOWN);
-        verify(mScanRequestProxy).clearScanResults();
     }
 
     /**
@@ -225,14 +210,12 @@ public class ScanOnlyModeManagerTest {
     @Test
     public void scanModeStartedDoesNotStopOnDownForDifferentIface() throws Exception {
         startScanOnlyModeAndVerifyEnabled();
-        reset(mContext, mListener, mScanRequestProxy);
+        reset(mContext, mListener);
         mInterfaceCallbackCaptor.getValue().onDown(OTHER_INTERFACE_NAME);
 
         mLooper.dispatchAll();
 
         verifyNoMoreInteractions(mContext, mListener);
-
-        verify(mScanRequestProxy, never()).clearScanResults();
     }
 
     /**

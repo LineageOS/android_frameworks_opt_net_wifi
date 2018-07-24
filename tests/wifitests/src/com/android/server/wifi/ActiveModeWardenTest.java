@@ -16,6 +16,10 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.ActiveModeManager.SCAN_NONE;
+import static com.android.server.wifi.ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETWORKS;
+import static com.android.server.wifi.ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -91,6 +95,9 @@ public class ActiveModeWardenTest {
         when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
         when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
+        when(mClientModeManager.getScanMode()).thenReturn(SCAN_WITH_HIDDEN_NETWORKS);
+        when(mScanOnlyModeManager.getScanMode()).thenReturn(SCAN_WITHOUT_HIDDEN_NETWORKS);
+        when(mSoftApManager.getScanMode()).thenReturn(SCAN_NONE);
 
         mActiveModeWarden = createActiveModeWarden();
         mLooper.dispatchAll();
@@ -164,6 +171,10 @@ public class ActiveModeWardenTest {
 
         assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mClientModeManager).start();
+        if (fromState.equals(SCAN_ONLY_MODE_STATE_STRING)) {
+            verify(mScanRequestProxy).enableScanning(false, false);
+        }
+        verify(mScanRequestProxy).enableScanning(true, true);
         verify(mBatteryStats).noteWifiOn();
     }
 
@@ -188,6 +199,10 @@ public class ActiveModeWardenTest {
 
         assertEquals(SCAN_ONLY_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
         verify(mScanOnlyModeManager).start();
+        if (fromState.equals(CLIENT_MODE_STATE_STRING)) {
+            verify(mScanRequestProxy).enableScanning(false, false);
+        }
+        verify(mScanRequestProxy).enableScanning(true, false);
         verify(mBatteryStats).noteWifiOn();
         verify(mBatteryStats).noteWifiState(eq(BatteryStats.WIFI_STATE_OFF_SCANNING), eq(null));
     }
@@ -214,6 +229,9 @@ public class ActiveModeWardenTest {
         verify(mSoftApManager).start();
         if (fromState.equals(WIFI_DISABLED_STATE_STRING)) {
             verify(mBatteryStats).noteWifiOn();
+        } else if (!fromState.equals(SCAN_ONLY_MODE_STATE_STRING)
+                && !fromState.equals(CLIENT_MODE_STATE_STRING)) {
+            verify(mScanRequestProxy, atLeastOnce()).enableScanning(false, false);
         }
     }
 
@@ -251,7 +269,7 @@ public class ActiveModeWardenTest {
         enterClientModeActiveState();
         mLooper.dispatchAll();
         assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
-        reset(mBatteryStats);
+        reset(mBatteryStats, mScanRequestProxy);
         enterSoftApActiveMode();
     }
 
@@ -281,7 +299,6 @@ public class ActiveModeWardenTest {
         mLooper.dispatchAll();
         verify(mSoftApManager, never()).stop();
         verify(mBatteryStats, never()).noteWifiOff();
-        verify(mDefaultModeManager).sendScanAvailableBroadcast(eq(mContext), eq(false));
         assertEquals(WIFI_DISABLED_STATE_STRING, mActiveModeWarden.getCurrentMode());
     }
 
@@ -293,7 +310,7 @@ public class ActiveModeWardenTest {
     public void testSwitchModeWhenScanOnlyModeActiveState() throws Exception {
         enterScanOnlyModeActiveState();
 
-        reset(mBatteryStats);
+        reset(mBatteryStats, mScanRequestProxy);
         enterClientModeActiveState();
         mLooper.dispatchAll();
         verify(mScanOnlyModeManager).stop();
@@ -559,8 +576,6 @@ public class ActiveModeWardenTest {
     @Test
     public void disableWifiWhenAlreadyOff() throws Exception {
         mActiveModeWarden.disableWifi();
-        // since we start up in disabled, this should not re-enter the disabled state
-        verify(mDefaultModeManager).sendScanAvailableBroadcast(eq(mContext), eq(false));
     }
 
     /**
@@ -664,6 +679,7 @@ public class ActiveModeWardenTest {
     public void dumpCallsActiveModeManagers() throws Exception {
         enterSoftApActiveMode();
         enterClientModeActiveState();
+        reset(mScanRequestProxy);
         enterScanOnlyModeActiveState();
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
