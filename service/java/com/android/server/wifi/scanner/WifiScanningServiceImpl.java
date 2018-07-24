@@ -599,7 +599,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         // Ignore if we're already in driver loaded state.
                         return HANDLED;
                     case WifiScanner.CMD_START_SINGLE_SCAN:
-                        mWifiMetrics.incrementOneshotScanCount();
                         int handler = msg.arg2;
                         Bundle scanParams = (Bundle) msg.obj;
                         if (scanParams == null) {
@@ -613,6 +612,12 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         WorkSource workSource =
                                 scanParams.getParcelable(WifiScanner.SCAN_PARAMS_WORK_SOURCE_KEY);
                         if (validateScanRequest(ci, handler, scanSettings)) {
+                            mWifiMetrics.incrementOneshotScanCount();
+                            if (scanSettings.band == WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY
+                                    || scanSettings.band == WifiScanner.WIFI_BAND_5_GHZ_WITH_DFS
+                                    || scanSettings.band == WifiScanner.WIFI_BAND_BOTH_WITH_DFS) {
+                                mWifiMetrics.incrementOneshotScanWithDfsCount();
+                            }
                             logScanRequest("addSingleScanRequest", ci, handler, workSource,
                                     scanSettings, null);
                             replySucceeded(msg);
