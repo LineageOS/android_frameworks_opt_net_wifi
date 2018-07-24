@@ -21,12 +21,15 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.database.ContentObserver;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.UserHandle;
 import android.os.WorkSource;
+import android.provider.Settings;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Pair;
@@ -82,6 +85,8 @@ public class ScanRequestProxy {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiMetrics mWifiMetrics;
     private final Clock mClock;
+    private final FrameworkFacade mFrameworkFacade;
+    private final ThrottleEnabledSettingObserver mThrottleEnabledSettingObserver;
     private WifiScanner mWifiScanner;
 
     // Verbose logging flag.
@@ -150,9 +155,57 @@ public class ScanRequestProxy {
         }
     };
 
+    /**
+     * Observer for scan throttle enable settings changes.
+     * This is enabled by default. Will be toggled off via adb command or a developer settings
+     * toggle by the user to disable all scan throttling.
+     */
+    private class ThrottleEnabledSettingObserver extends ContentObserver {
+        private boolean mThrottleEnabled = true;
+
+        ThrottleEnabledSettingObserver(Handler handler) {
+            super(handler);
+        }
+
+        /**
+         * Register for any changes to the scan throttle setting.
+         */
+        public void initialize() {
+            mFrameworkFacade.registerContentObserver(mContext,
+                    Settings.Global.getUriFor(Settings.Global.WIFI_SCAN_THROTTLE_ENABLED),
+                    true, this);
+            mThrottleEnabled = getValue();
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Scan throttle enabled " + mThrottleEnabled);
+            }
+        }
+
+        /**
+         * Check if throttling is enabled or not.
+         *
+         * @return true if throttling is enabled, false otherwise.
+         */
+        public boolean isEnabled() {
+            return mThrottleEnabled;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            super.onChange(selfChange);
+            mThrottleEnabled = getValue();
+            Log.i(TAG, "Scan throttle enabled " + mThrottleEnabled);
+        }
+
+        private boolean getValue() {
+            return mFrameworkFacade.getIntegerSetting(mContext,
+                    Settings.Global.WIFI_SCAN_THROTTLE_ENABLED, 1) == 1;
+        }
+    }
+
     ScanRequestProxy(Context context, AppOpsManager appOpsManager, ActivityManager activityManager,
                      WifiInjector wifiInjector, WifiConfigManager configManager,
-                     WifiPermissionsUtil wifiPermissionUtil, WifiMetrics wifiMetrics, Clock clock) {
+                     WifiPermissionsUtil wifiPermissionUtil, WifiMetrics wifiMetrics, Clock clock,
+                     FrameworkFacade frameworkFacade, Handler handler) {
         mContext = context;
         mAppOps = appOpsManager;
         mActivityManager = activityManager;
@@ -161,6 +214,8 @@ public class ScanRequestProxy {
         mWifiPermissionsUtil = wifiPermissionUtil;
         mWifiMetrics = wifiMetrics;
         mClock = clock;
+        mFrameworkFacade = frameworkFacade;
+        mThrottleEnabledSettingObserver = new ThrottleEnabledSettingObserver(handler);
     }
 
     /**
@@ -177,6 +232,8 @@ public class ScanRequestProxy {
     private boolean retrieveWifiScannerIfNecessary() {
         if (mWifiScanner == null) {
             mWifiScanner = mWifiInjector.getWifiScanner();
+            // Start listening for throttle settings change after we retrieve scanner instance.
+            mThrottleEnabledSettingObserver.initialize();
         }
         return mWifiScanner != null;
     }
@@ -402,8 +459,10 @@ public class ScanRequestProxy {
         boolean fromSettingsOrSetupWizard =
                 mWifiPermissionsUtil.checkNetworkSettingsPermission(callingUid)
                         || mWifiPermissionsUtil.checkNetworkSetupWizardPermission(callingUid);
-        // Check and throttle scan request from apps without NETWORK_SETTINGS permission.
-        if (!fromSettingsOrSetupWizard
+        // Check and throttle scan request unless,
+        // a) App has either NETWORK_SETTINGS or NETWORK_SETUP_WIZARD permission.
+        // b) Throttling has been disabled by user.
+        if (!fromSettingsOrSetupWizard && mThrottleEnabledSettingObserver.isEnabled()
                 && shouldScanRequestBeThrottledForApp(callingUid, packageName)) {
             Log.i(TAG, "Scan request from " + packageName + " throttled");
             sendScanResultFailureBroadcastToPackage(packageName);
