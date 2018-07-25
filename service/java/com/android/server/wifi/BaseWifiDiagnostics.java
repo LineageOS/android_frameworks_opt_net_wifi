@@ -47,8 +47,7 @@ public class BaseWifiDiagnostics {
 
     public synchronized void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         dump(pw);
-        pw.println("*** firmware logging disabled, no debug data ****");
-        pw.println("set config_wifi_enable_wifi_firmware_debugging to enable");
+        pw.println("*** logging disabled, no debug data ****");
     }
 
     /**
