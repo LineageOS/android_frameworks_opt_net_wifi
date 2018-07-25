@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyByte;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyObject;
 import static org.mockito.Mockito.anyShort;
@@ -63,6 +64,7 @@ import android.hardware.wifi.V1_0.StaLinkLayerIfacePacketStats;
 import android.hardware.wifi.V1_0.StaLinkLayerRadioStats;
 import android.hardware.wifi.V1_0.StaLinkLayerStats;
 import android.hardware.wifi.V1_0.StaRoamingCapabilities;
+import android.hardware.wifi.V1_0.StaRoamingState;
 import android.hardware.wifi.V1_0.StaScanData;
 import android.hardware.wifi.V1_0.StaScanDataFlagMask;
 import android.hardware.wifi.V1_0.StaScanResult;
@@ -127,6 +129,7 @@ public class WifiVendorHalTest {
     WifiVendorHal mWifiVendorHal;
     private WifiStatus mWifiStatusSuccess;
     private WifiStatus mWifiStatusFailure;
+    private WifiStatus mWifiStatusBusy;
     WifiLog mWifiLog;
     @Mock
     private HalDeviceManager mHalDeviceManager;
@@ -228,6 +231,9 @@ public class WifiVendorHalTest {
         mWifiStatusFailure = new WifiStatus();
         mWifiStatusFailure.code = WifiStatusCode.ERROR_UNKNOWN;
         mWifiStatusFailure.description = "I don't even know what a Mock Turtle is.";
+        mWifiStatusBusy = new WifiStatus();
+        mWifiStatusBusy.code = WifiStatusCode.ERROR_BUSY;
+        mWifiStatusBusy.description = "Don't bother me, kid";
         when(mIWifiStaIface.enableLinkLayerStatsCollection(false)).thenReturn(mWifiStatusSuccess);
 
         // Setup the HalDeviceManager mock's start/stop behaviour. This can be overridden in
@@ -1722,6 +1728,165 @@ public class WifiVendorHalTest {
         // in failure cases, result container should not be changed
         assertEquals(blacklistSize, roamingCapabilities.maxBlacklistSize);
         assertEquals(whitelistSize, roamingCapabilities.maxWhitelistSize);
+    }
+
+    /**
+     * Tests enableFirmwareRoaming successful enable
+     */
+    @Test
+    public void testEnableFirmwareRoamingSuccess() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        when(mIWifiStaIface.setRoamingState(eq(StaRoamingState.ENABLED)))
+                .thenReturn(mWifiStatusSuccess);
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_SUCCESS,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME,
+                                                     WifiNative.ENABLE_FIRMWARE_ROAMING));
+    }
+
+    /**
+     * Tests enableFirmwareRoaming successful disable
+     */
+    @Test
+    public void testDisbleFirmwareRoamingSuccess() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        when(mIWifiStaIface.setRoamingState(eq(StaRoamingState.DISABLED)))
+                .thenReturn(mWifiStatusSuccess);
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_SUCCESS,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME,
+                                                     WifiNative.DISABLE_FIRMWARE_ROAMING));
+    }
+
+    /**
+     * Tests enableFirmwareRoaming failure case - invalid argument
+     */
+    @Test
+    public void testEnableFirmwareRoamingFailureInvalidArgument() throws Exception {
+        final int badState = WifiNative.DISABLE_FIRMWARE_ROAMING
+                + WifiNative.ENABLE_FIRMWARE_ROAMING + 1;
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_FAILURE,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME, badState));
+        verify(mIWifiStaIface, never()).setRoamingState(anyByte());
+    }
+
+    /**
+     * Tests enableFirmwareRoaming failure case - busy
+     */
+    @Test
+    public void testEnableFirmwareRoamingFailureBusy() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        when(mIWifiStaIface.setRoamingState(anyByte()))
+                .thenReturn(mWifiStatusBusy);
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_BUSY,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME,
+                                                     WifiNative.ENABLE_FIRMWARE_ROAMING));
+    }
+
+    /**
+     * Tests enableFirmwareRoaming generic failure case
+     */
+    @Test
+    public void testEnableFirmwareRoamingFailure() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        when(mIWifiStaIface.setRoamingState(anyByte()))
+                .thenReturn(mWifiStatusFailure);
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_FAILURE,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME,
+                                                     WifiNative.ENABLE_FIRMWARE_ROAMING));
+    }
+
+    /**
+     * Tests enableFirmwareRoaming remote exception failure case
+     */
+    @Test
+    public void testEnableFirmwareRoamingException() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        doThrow(new RemoteException()).when(mIWifiStaIface).setRoamingState(anyByte());
+        assertEquals(WifiNative.SET_FIRMWARE_ROAMING_FAILURE,
+                mWifiVendorHal.enableFirmwareRoaming(TEST_IFACE_NAME,
+                                                     WifiNative.ENABLE_FIRMWARE_ROAMING));
+    }
+
+    /**
+     * Tests configureRoaming success
+     */
+    @Test
+    public void testConfigureRoamingSuccess() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        roamingConfig.blacklistBssids = new ArrayList();
+        roamingConfig.blacklistBssids.add("12:34:56:78:ca:fe");
+        roamingConfig.whitelistSsids = new ArrayList();
+        roamingConfig.whitelistSsids.add("\"xyzzy\"");
+        roamingConfig.whitelistSsids.add("\"\u0F00 \u05D0\"");
+        when(mIWifiStaIface.configureRoaming(any())).thenReturn(mWifiStatusSuccess);
+        assertTrue(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface).configureRoaming(any());
+    }
+
+    /**
+     * Tests configureRoaming success with null lists
+     */
+    @Test
+    public void testConfigureRoamingResetSuccess() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        when(mIWifiStaIface.configureRoaming(any())).thenReturn(mWifiStatusSuccess);
+        assertTrue(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface).configureRoaming(any());
+    }
+
+    /**
+     * Tests configureRoaming failure when hal returns failure
+     */
+    @Test
+    public void testConfigureRoamingFailure() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        when(mIWifiStaIface.configureRoaming(any())).thenReturn(mWifiStatusFailure);
+        assertFalse(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface).configureRoaming(any());
+    }
+
+    /**
+     * Tests configureRoaming failure due to remote exception
+     */
+    @Test
+    public void testConfigureRoamingRemoteException() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        doThrow(new RemoteException()).when(mIWifiStaIface).configureRoaming(any());
+        assertFalse(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface).configureRoaming(any());
+    }
+
+    /**
+     * Tests configureRoaming failure due to invalid bssid
+     */
+    @Test
+    public void testConfigureRoamingBadBssid() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        roamingConfig.blacklistBssids = new ArrayList();
+        roamingConfig.blacklistBssids.add("12:34:56:78:zz:zz");
+        when(mIWifiStaIface.configureRoaming(any())).thenReturn(mWifiStatusSuccess);
+        assertFalse(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface, never()).configureRoaming(any());
+    }
+
+    /**
+     * Tests configureRoaming failure due to invalid ssid
+     */
+    @Test
+    public void testConfigureRoamingBadSsid() throws Exception {
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        WifiNative.RoamingConfig roamingConfig = new WifiNative.RoamingConfig();
+        roamingConfig.whitelistSsids = new ArrayList();
+        // Add an SSID that is too long (> 32 bytes) due to the multi-byte utf-8 characters
+        roamingConfig.whitelistSsids.add("\"123456789012345678901234567890\u0F00\u05D0\"");
+        when(mIWifiStaIface.configureRoaming(any())).thenReturn(mWifiStatusSuccess);
+        assertFalse(mWifiVendorHal.configureRoaming(TEST_IFACE_NAME, roamingConfig));
+        verify(mIWifiStaIface, never()).configureRoaming(any());
     }
 
     /**

@@ -189,7 +189,7 @@ public class NativeUtil {
     }
 
     /**
-     * Remove enclosed quotes of the provided string.
+     * Remove enclosing quotes from the provided string.
      *
      * @param quotedStr String to be unquoted.
      * @return String without the enclosing quotes.
@@ -204,9 +204,9 @@ public class NativeUtil {
     }
 
     /**
-     * Add enclosing quotes of the provided string.
+     * Add enclosing quotes to the provided string.
      *
-     * @param str String to be uoted.
+     * @param str String to be quoted.
      * @return String with the enclosing quotes.
      */
     public static String addEnclosingQuotes(String str) {

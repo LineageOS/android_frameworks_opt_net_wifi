@@ -2885,10 +2885,26 @@ public class WifiNative {
     public static final int ENABLE_FIRMWARE_ROAMING = 1;
 
     /**
+     * Indicates success for enableFirmwareRoaming
+     */
+    public static final int SET_FIRMWARE_ROAMING_SUCCESS = 0;
+
+    /**
+     * Indicates failure for enableFirmwareRoaming
+     */
+    public static final int SET_FIRMWARE_ROAMING_FAILURE = 1;
+
+    /**
+     * Indicates temporary failure for enableFirmwareRoaming - try again later
+     */
+    public static final int SET_FIRMWARE_ROAMING_BUSY = 2;
+
+    /**
      * Enable/disable firmware roaming.
      *
      * @param ifaceName Name of the interface.
-     * @return error code returned from HAL.
+     * @return SET_FIRMWARE_ROAMING_SUCCESS, SET_FIRMWARE_ROAMING_FAILURE,
+     *         or SET_FIRMWARE_ROAMING_BUSY
      */
     public int enableFirmwareRoaming(@NonNull String ifaceName, int state) {
         return mWifiVendorHal.enableFirmwareRoaming(ifaceName, state);
