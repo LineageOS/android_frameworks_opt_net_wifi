@@ -763,7 +763,7 @@ public class ClientModeImpl extends StateMachine {
                             WifiNative wifiNative,
                             WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager) {
-        super("ClientModeImpl", looper);
+        super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
         mClock = wifiInjector.getClock();
