@@ -15,31 +15,30 @@
  */
 package com.android.server.wifi;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.net.NetworkInfo;
+import android.net.wifi.ITrafficStateCallback;
+import android.net.wifi.WifiManager;
+import android.os.Message;
+import android.os.RemoteException;
+import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
-import android.os.Handler;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiTrafficPoller}.
@@ -49,15 +48,14 @@ public class WifiTrafficPollerTest {
     public static final String TAG = "WifiTrafficPollerTest";
 
     private TestLooper mLooper;
-    private Handler mHandler;
     private WifiTrafficPoller mWifiTrafficPoller;
     private BroadcastReceiver mReceiver;
     private Intent mIntent;
-    private Messenger mMessenger;
     private final static String IFNAME = "wlan0";
     private final static long DEFAULT_PACKET_COUNT = 10;
     private final static long TX_PACKET_COUNT = 40;
     private final static long RX_PACKET_COUNT = 50;
+    private static final int TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER = 14;
 
     final ArgumentCaptor<Message> mMessageCaptor = ArgumentCaptor.forClass(Message.class);
     final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
@@ -66,6 +64,7 @@ public class WifiTrafficPollerTest {
     @Mock Context mContext;
     @Mock WifiNative mWifiNative;
     @Mock NetworkInfo mNetworkInfo;
+    @Mock ITrafficStateCallback mTrafficStateCallback;
 
     /**
      * Called before each test
@@ -74,8 +73,6 @@ public class WifiTrafficPollerTest {
     public void setUp() throws Exception {
         // Ensure looper exists
         mLooper = new TestLooper();
-        mHandler = spy(new Handler(mLooper.getLooper()));
-        mMessenger = new Messenger(mHandler);
         MockitoAnnotations.initMocks(this);
 
         when(mWifiNative.getTxPackets(any(String.class))).thenReturn(DEFAULT_PACKET_COUNT,
@@ -98,12 +95,6 @@ public class WifiTrafficPollerTest {
                 NetworkInfo.DetailedState.CONNECTED);
     }
 
-    private void registerClient() {
-        // Register Client to verify that Tx/RX packet message is properly received.
-        mWifiTrafficPoller.addClient(mMessenger);
-        mLooper.dispatchAll();
-    }
-
     private void triggerForUpdatedInformationOfData(String actionScreen,
             NetworkInfo.DetailedState networkState) {
         when(mNetworkInfo.getDetailedState()).thenReturn(NetworkInfo.DetailedState.DISCONNECTED);
@@ -122,13 +113,15 @@ public class WifiTrafficPollerTest {
      * Verify that StartTrafficStatsPolling should not happen in case a network is not connected
      */
     @Test
-    public void testNotStartTrafficStatsPollingWithDisconnected() {
-        registerClient();
+    public void testNotStartTrafficStatsPollingWithDisconnected() throws RemoteException {
+        // Register Client to verify that Tx/RX packet message is properly received.
+        mWifiTrafficPoller.addCallback(
+                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.DISCONNECTED);
 
         // Client should not get any message when the network is disconnected
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verify(mTrafficStateCallback, never()).onStateChanged(anyInt());
     }
 
     /**
@@ -136,22 +129,26 @@ public class WifiTrafficPollerTest {
      * available.
      */
     @Test
-    public void testStartTrafficStatsPollingWithScreenOn() {
-        registerClient();
+    public void testStartTrafficStatsPollingWithScreenOn() throws RemoteException {
+        // Register Client to verify that Tx/RX packet message is properly received.
+        mWifiTrafficPoller.addCallback(
+                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.CONNECTED);
 
         // Client should get the DATA_ACTIVITY_NOTIFICATION
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        assertEquals(WifiManager.DATA_ACTIVITY_NOTIFICATION, mMessageCaptor.getValue().what);
+        verify(mTrafficStateCallback).onStateChanged(
+                WifiManager.TrafficStateCallback.DATA_ACTIVITY_INOUT);
     }
 
     /**
      * Verify that StartTrafficStatsPolling should not happen in case screen is off.
      */
     @Test
-    public void testNotStartTrafficStatsPollingWithScreenOff() {
-        registerClient();
+    public void testNotStartTrafficStatsPollingWithScreenOff() throws RemoteException {
+        // Register Client to verify that Tx/RX packet message is properly received.
+        mWifiTrafficPoller.addCallback(
+                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_OFF,
                 NetworkInfo.DetailedState.CONNECTED);
 
@@ -159,22 +156,43 @@ public class WifiTrafficPollerTest {
         mLooper.dispatchAll();
 
         // Client should not get any message when the screen is off
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verify(mTrafficStateCallback, never()).onStateChanged(anyInt());
     }
 
     /**
-     * Verify that remove client message should be handled
+     * Verify that remove client should be handled
      */
     @Test
-    public void testRemoveClient() {
-        registerClient();
-        mWifiTrafficPoller.removeClient(mMessenger);
+    public void testRemoveClient() throws RemoteException {
+        // Register Client to verify that Tx/RX packet message is properly received.
+        mWifiTrafficPoller.addCallback(
+                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+        mWifiTrafficPoller.removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mLooper.dispatchAll();
 
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.CONNECTED);
 
         // Client should not get any message after the client is removed.
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verify(mTrafficStateCallback, never()).onStateChanged(anyInt());
+    }
+
+    /**
+     * Verify that remove client ignores when callback identifier is wrong.
+     */
+    @Test
+    public void testRemoveClientWithWrongIdentifier() throws RemoteException {
+        // Register Client to verify that Tx/RX packet message is properly received.
+        mWifiTrafficPoller.addCallback(
+                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+        mWifiTrafficPoller.removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER + 5);
+        mLooper.dispatchAll();
+
+        triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
+                NetworkInfo.DetailedState.CONNECTED);
+
+        // Client should get the DATA_ACTIVITY_NOTIFICATION
+        verify(mTrafficStateCallback).onStateChanged(
+                WifiManager.TrafficStateCallback.DATA_ACTIVITY_INOUT);
     }
 }

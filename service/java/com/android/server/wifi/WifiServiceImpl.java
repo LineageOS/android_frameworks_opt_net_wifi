@@ -58,6 +58,7 @@ import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClient;
 import android.net.wifi.ISoftApCallback;
+import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.IWifiManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiActivityEnergyInfo;
@@ -250,26 +251,6 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
-                case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED: {
-                    if (msg.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
-                        Slog.d(TAG, "New client listening to asynchronous messages");
-                        // We track the clients by the Messenger
-                        // since it is expected to be always available
-                        mTrafficPoller.addClient(msg.replyTo);
-                    } else {
-                        Slog.e(TAG, "Client connection failure, error=" + msg.arg1);
-                    }
-                    break;
-                }
-                case AsyncChannel.CMD_CHANNEL_DISCONNECTED: {
-                    if (msg.arg1 == AsyncChannel.STATUS_SEND_UNSUCCESSFUL) {
-                        Slog.w(TAG, "Send failed, client connection lost");
-                    } else {
-                        Slog.w(TAG, "Client connection lost with reason: " + msg.arg1);
-                    }
-                    mTrafficPoller.removeClient(msg.replyTo);
-                    break;
-                }
                 case AsyncChannel.CMD_CHANNEL_FULL_CONNECTION: {
                     AsyncChannel ac = mFrameworkFacade.makeWifiAsyncChannel(TAG);
                     ac.connect(mContext, this, msg.replyTo);
@@ -2861,5 +2842,76 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             mLog.trace("Subscription provisioning started with %")
                     .c(provider.toString()).flush();
         }
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#registerTrafficStateCallback(
+     * TrafficStateCallback, Handler)}
+     *
+     * @param binder IBinder instance to allow cleanup if the app dies
+     * @param callback Traffic State callback to register
+     * @param callbackIdentifier Unique ID of the registering callback. This ID will be used to
+     *        unregister the callback. See {@link unregisterTrafficStateCallback(int)}
+     *
+     * @throws SecurityException if the caller does not have permission to register a callback
+     * @throws RemoteException if remote exception happens
+     * @throws IllegalArgumentException if the arguments are null or invalid
+     */
+    @Override
+    public void registerTrafficStateCallback(IBinder binder, ITrafficStateCallback callback,
+                                             int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback must not be null");
+        }
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("registerTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
+        }
+
+        // register for binder death
+        IBinder.DeathRecipient dr = new IBinder.DeathRecipient() {
+            @Override
+            public void binderDied() {
+                binder.unlinkToDeath(this, 0);
+                mClientHandler.post(() -> {
+                    mTrafficPoller.removeCallback(callbackIdentifier);
+                });
+            }
+        };
+        try {
+            binder.linkToDeath(dr, 0);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error on linkToDeath - " + e);
+            return;
+        }
+        // Post operation to handler thread
+        mClientHandler.post(() -> {
+            mTrafficPoller.addCallback(callback, callbackIdentifier);
+        });
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#unregisterTrafficStateCallback(
+     * WifiManager.TrafficStateCallback)}
+     *
+     * @param callbackIdentifier Unique ID of the callback to be unregistered.
+     *
+     * @throws SecurityException if the caller does not have permission to register a callback
+     */
+    @Override
+    public void unregisterTrafficStateCallback(int callbackIdentifier) {
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("unregisterTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
+        }
+
+        // Post operation to handler thread
+        mClientHandler.post(() -> {
+            mTrafficPoller.removeCallback(callbackIdentifier);
+        });
     }
 }
