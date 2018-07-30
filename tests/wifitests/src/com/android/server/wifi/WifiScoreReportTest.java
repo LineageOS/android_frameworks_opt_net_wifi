@@ -105,18 +105,6 @@ public class WifiScoreReportTest {
         when(resources.getInteger(
                 R.integer.config_wifi_framework_wifi_score_good_rssi_threshold_24GHz))
             .thenReturn(-60);
-        when(resources.getInteger(
-                R.integer.config_wifi_framework_wifi_score_bad_link_speed_24))
-            .thenReturn(6); // Mbps
-        when(resources.getInteger(
-                R.integer.config_wifi_framework_wifi_score_bad_link_speed_5))
-            .thenReturn(12);
-        when(resources.getInteger(
-                R.integer.config_wifi_framework_wifi_score_good_link_speed_24))
-            .thenReturn(24);
-        when(resources.getInteger(
-                R.integer.config_wifi_framework_wifi_score_good_link_speed_5))
-            .thenReturn(36);
     }
 
     /**
