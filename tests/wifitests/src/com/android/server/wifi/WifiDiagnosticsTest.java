@@ -391,6 +391,22 @@ public class WifiDiagnosticsTest {
         verify(mWifiNative).getRxPktFates(any(), anyObject());
     }
 
+    /**
+     * Verifies that we are not fetching packet fates for a CONNECTION_EVENT_TIMEOUT event
+     * and propagating it to LastMileLogger instead.
+     */
+    @Test
+    public void loggerSimplyPropagateEventTimeoutToLastMileLogger() {
+        final boolean verbosityToggle = true;
+        mWifiDiagnostics.startLogging(verbosityToggle);
+        mWifiDiagnostics.reportConnectionEvent(
+                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+        verify(mLastMileLogger).reportConnectionEvent(
+                FAKE_CONNECTION_ID, WifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+        verify(mWifiNative, never()).getTxPktFates(any(), anyObject());
+        verify(mWifiNative, never()).getRxPktFates(any(), anyObject());
+    }
+
     /** Verifies that dump() fetches the latest fates. */
     @Test
     public void dumpFetchesFates() {

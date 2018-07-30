@@ -3588,7 +3588,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_DIAGS_CONNECT_TIMEOUT:
                     mWifiDiagnostics.reportConnectionEvent(
-                            (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+                            (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
                     break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what, new ArrayList<WifiConfiguration>());
