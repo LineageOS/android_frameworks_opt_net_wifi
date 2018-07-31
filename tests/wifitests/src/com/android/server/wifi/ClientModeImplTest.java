@@ -87,7 +87,6 @@ import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.IState;
@@ -249,7 +248,6 @@ public class ClientModeImplTest {
 
     private MockResources getMockResources() {
         MockResources resources = new MockResources();
-        resources.setBoolean(R.bool.config_wifi_enable_wifi_firmware_debugging, false);
         return resources;
     }
 
