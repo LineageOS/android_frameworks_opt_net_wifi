@@ -2672,7 +2672,8 @@ public class ClientModeImpl extends StateMachine {
         Intent intent = new Intent(WifiManager.RSSI_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         intent.putExtra(WifiManager.EXTRA_NEW_RSSI, newRssi);
-        mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                android.Manifest.permission.ACCESS_WIFI_STATE);
     }
 
     private void sendNetworkStateChangeBroadcast(String bssid) {
@@ -3814,9 +3815,6 @@ public class ClientModeImpl extends StateMachine {
     void registerConnected() {
         if (mLastNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
             mWifiConfigManager.updateNetworkAfterConnect(mLastNetworkId);
-            // On connect, reset wifiScoreReport
-            mWifiScoreReport.reset();
-
             // Notify PasspointManager of Passpoint network connected event.
             WifiConfiguration currentNetwork = getCurrentWifiConfiguration();
             if (currentNetwork != null && currentNetwork.isPasspoint()) {
@@ -4960,6 +4958,7 @@ public class ClientModeImpl extends StateMachine {
                     mRssiPollToken++;
                     if (mEnableRssiPolling) {
                         // First poll
+                        mLastSignalLevel = -1;
                         fetchRssiLinkSpeedAndFrequencyNative();
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
@@ -5328,6 +5327,8 @@ public class ClientModeImpl extends StateMachine {
             registerConnected();
             mLastConnectAttemptTimestamp = 0;
             mTargetWifiConfiguration = null;
+            mWifiScoreReport.reset();
+            mLastSignalLevel = -1;
 
             // Not roaming anymore
             mIsAutoRoaming = false;
