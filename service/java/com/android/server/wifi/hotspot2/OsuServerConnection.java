@@ -18,10 +18,14 @@ package com.android.server.wifi.hotspot2;
 
 import android.annotation.NonNull;
 import android.net.Network;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.hotspot2.soap.HttpsServiceConnection;
 import com.android.server.wifi.hotspot2.soap.HttpsTransport;
@@ -65,12 +69,21 @@ public class OsuServerConnection {
     private HttpsTransport mHttpsTransport;
     private HttpsServiceConnection mServiceConnection = null;
     private HttpsURLConnection mUrlConnection = null;
+    private HandlerThread mOsuServerHandlerThread;
+    private Handler mHandler;
     private PasspointProvisioner.OsuServerCallbacks mOsuServerCallbacks;
     private boolean mSetupComplete = false;
     private boolean mVerboseLoggingEnabled = false;
+    private Looper mLooper;
+
+    @VisibleForTesting
+    /* package */ OsuServerConnection(Looper looper) {
+        mLooper = looper;
+    }
 
     /**
      * Sets up callback for event
+     *
      * @param callbacks OsuServerCallbacks to be invoked for server related events
      */
     public void setEventCallback(PasspointProvisioner.OsuServerCallbacks callbacks) {
@@ -79,6 +92,7 @@ public class OsuServerConnection {
 
     /**
      * Initialize socket factory for server connection using HTTPS
+     *
      * @param tlsContext SSLContext that will be used for HTTPS connection
      * @param trustManagerImpl TrustManagerImpl delegate to validate certs
      */
@@ -96,10 +110,19 @@ public class OsuServerConnection {
             return;
         }
         mSetupComplete = true;
+
+        // If mLooper is already set by unit test, don't overwrite it.
+        if (mLooper == null) {
+            mOsuServerHandlerThread = new HandlerThread("OsuServerHandler");
+            mOsuServerHandlerThread.start();
+            mLooper = mOsuServerHandlerThread.getLooper();
+        }
+        mHandler = new Handler(mLooper);
     }
 
     /**
      * Provides the capability to run OSU server validation
+     *
      * @return boolean true if capability available
      */
     public boolean canValidateServer() {
@@ -108,6 +131,7 @@ public class OsuServerConnection {
 
     /**
      * Enables verbose logging
+     *
      * @param verbose a value greater than zero enables verbose logging
      */
     public void enableVerboseLogging(int verbose) {
@@ -116,11 +140,12 @@ public class OsuServerConnection {
 
     /**
      * Connect to the OSU server
+     *
      * @param url Osu Server's URL
      * @param network current network connection
      * @return boolean value, true if connection was successful
      *
-     * Relies on the caller to ensure that the capability to validate the OSU
+     * Note: Relies on the caller to ensure that the capability to validate the OSU
      * Server is available.
      */
     public boolean connect(URL url, Network network) {
@@ -180,24 +205,30 @@ public class OsuServerConnection {
      * The helper method to exchange a SOAP message.
      *
      * @param soapEnvelope the soap message to be sent.
-     * @return {@link SppResponseMessage} parsed, {@code null} in any failure
+     * @return {@code true} if {@link Network} is valid and {@code soapEnvelope} is not null,
+     * {@code false} otherwise.
      */
-    public SppResponseMessage exchangeSoapMessage(@NonNull SoapSerializationEnvelope soapEnvelope) {
+    public boolean exchangeSoapMessage(@NonNull SoapSerializationEnvelope soapEnvelope) {
         if (mNetwork == null) {
             Log.e(TAG, "Network is not established");
-            return null;
-        }
-
-        if (soapEnvelope == null) {
-            Log.e(TAG, "soapEnvelope is null");
-            return null;
+            return false;
         }
 
         if (mUrlConnection == null) {
             Log.e(TAG, "Server certificate is not validated");
-            return null;
+            return false;
         }
 
+        if (soapEnvelope == null) {
+            Log.e(TAG, "soapEnvelope is null");
+            return false;
+        }
+
+        mHandler.post(() -> performSoapMessageExchange(soapEnvelope));
+        return true;
+    }
+
+    private void performSoapMessageExchange(@NonNull SoapSerializationEnvelope soapEnvelope) {
         if (mServiceConnection != null) {
             mServiceConnection.disconnect();
         }
@@ -205,21 +236,32 @@ public class OsuServerConnection {
         mServiceConnection = getServiceConnection();
         if (mServiceConnection == null) {
             Log.e(TAG, "ServiceConnection for https is null");
-            return null;
+            if (mOsuServerCallbacks != null) {
+                mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(), null);
+                return;
+            }
         }
 
-        SppResponseMessage sppResponse;
+        SppResponseMessage sppResponse = null;
         try {
             // Sending the SOAP message
             mHttpsTransport.call("", soapEnvelope);
             Object response = soapEnvelope.bodyIn;
             if (response == null) {
                 Log.e(TAG, "SoapObject is null");
-                return null;
+                if (mOsuServerCallbacks != null) {
+                    mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                            null);
+                    return;
+                }
             }
             if (!(response instanceof SoapObject)) {
                 Log.e(TAG, "Not a SoapObject instance");
-                return null;
+                if (mOsuServerCallbacks != null) {
+                    mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                            null);
+                    return;
+                }
             }
             SoapObject soapResponse = (SoapObject) response;
             if (mVerboseLoggingEnabled) {
@@ -239,12 +281,19 @@ public class OsuServerConnection {
             } else {
                 Log.e(TAG, "Failed to exchange the SOAP message");
             }
-            return null;
+            if (mOsuServerCallbacks != null) {
+                mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(), null);
+                return;
+            }
         } finally {
             mServiceConnection.disconnect();
             mServiceConnection = null;
         }
-        return sppResponse;
+
+        if (mOsuServerCallbacks != null) {
+            mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                    sppResponse);
+        }
     }
 
     /**
@@ -331,6 +380,7 @@ public class OsuServerConnection {
 
         /**
          * Returns the OSU certificate matching the FQDN of the OSU server
+         *
          * @return {@link X509Certificate} OSU certificate matching FQDN of OSU server
          */
         public X509Certificate getProviderCert() {

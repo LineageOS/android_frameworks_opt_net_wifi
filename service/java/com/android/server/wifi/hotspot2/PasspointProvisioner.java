@@ -16,14 +16,18 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.Nullable;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Network;
+import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.ProvisioningCallback;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.server.wifi.WifiNative;
@@ -51,6 +55,7 @@ public class PasspointProvisioner {
 
     // TLS version to be used for HTTPS connection with OSU server
     private static final String TLS_VERSION = "TLSv1";
+    private static final String OSU_APP_PACKAGE = "com.android.hotspot2";
 
     private final Context mContext;
     private final ProvisioningStateMachine mProvisioningStateMachine;
@@ -86,7 +91,7 @@ public class PasspointProvisioner {
         mOsuNetworkConnection.init(mProvisioningStateMachine.getHandler());
         // Offload the heavy load job to another thread
         mProvisioningStateMachine.getHandler().post(() -> {
-            mRedirectListener = RedirectListener.createInstance();
+            mRedirectListener = RedirectListener.createInstance(looper);
             mWfaKeyStore.load();
             mOsuServerConnection.init(mObjectFactory.getSSLContext(TLS_VERSION),
                     mObjectFactory.getTrustManagerImpl(mWfaKeyStore.get()));
@@ -140,6 +145,7 @@ public class PasspointProvisioner {
         static final int STATE_OSU_AP_CONNECTED = 3;
         static final int STATE_OSU_SERVER_CONNECTED = 4;
         static final int STATE_WAITING_FOR_FIRST_SOAP_RESPONSE = 5;
+        static final int STATE_WAITING_FOR_REDIRECT_RESPONSE = 6;
 
         private OsuProvider mOsuProvider;
         private IProvisioningCallback mProvisioningCallback;
@@ -159,6 +165,7 @@ public class PasspointProvisioner {
 
         /**
          * Returns the handler on which a runnable can be posted
+         *
          * @return Handler State Machine's handler
          */
         public Handler getHandler() {
@@ -167,8 +174,10 @@ public class PasspointProvisioner {
 
         /**
          * Start Provisioning with the Osuprovider and invoke callbacks
+         *
          * @param provider OsuProvider to provision with
          * @param callback IProvisioningCallback to invoke callbacks on
+         * Note: Called on main thread (WifiService thread).
          */
         public void startProvisioning(OsuProvider provider, IProvisioningCallback callback) {
             if (mVerboseLoggingEnabled) {
@@ -198,6 +207,7 @@ public class PasspointProvisioner {
             mServerUrl = serverUrl;
             mProvisioningCallback = callback;
             mOsuProvider = provider;
+
             // Register for network and wifi state events during provisioning flow
             mOsuNetworkConnection.setEventCallback(mOsuNetworkCallbacks);
 
@@ -216,6 +226,8 @@ public class PasspointProvisioner {
 
         /**
          * Handle Wifi Disable event
+         *
+         * Note: Called on main thread (WifiService thread).
          */
         public void handleWifiDisabled() {
             if (mVerboseLoggingEnabled) {
@@ -230,6 +242,8 @@ public class PasspointProvisioner {
 
         /**
          * Handle server validation failure
+         *
+         * Note: Called on main thread (WifiService thread).
          */
         public void handleServerValidationFailure(int sessionId) {
             if (mVerboseLoggingEnabled) {
@@ -249,6 +263,8 @@ public class PasspointProvisioner {
 
         /**
          * Handle status of server validation success
+         *
+         * Note: Called on main thread (WifiService thread).
          */
         public void handleServerValidationSuccess(int sessionId) {
             if (mVerboseLoggingEnabled) {
@@ -284,12 +300,6 @@ public class PasspointProvisioner {
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
-
-            invokeProvisioningCallback(PROVISIONING_STATUS,
-                    ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
-
-            // Move to initiate soap exchange
-            changeState(STATE_WAITING_FOR_FIRST_SOAP_RESPONSE);
             mProvisioningStateMachine.getHandler().post(() -> initSoapExchange());
         }
 
@@ -301,71 +311,207 @@ public class PasspointProvisioner {
                 Log.v(TAG, "Initiates soap message exchange in state =" + mState);
             }
 
-            if (mState != STATE_WAITING_FOR_FIRST_SOAP_RESPONSE) {
+            if (mState != STATE_OSU_SERVER_CONNECTED) {
                 Log.e(TAG, "Initiates soap message exchange in wrong state=" + mState);
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
                 return;
             }
 
             // Redirect uri used for signal of completion for registration process.
-            final URL redirectUri = mRedirectListener.getURL();
-            if (redirectUri == null) {
-                Log.e(TAG, "redirectUri is not valid");
+            final URL redirectUri = mRedirectListener.getServerUrl();
+
+            // Sending the first sppPostDevDataRequest message.
+            if (mOsuServerConnection.exchangeSoapMessage(
+                    PostDevDataMessage.serializeToSoapEnvelope(mContext, mSystemInfo,
+                            redirectUri.toString(),
+                            SppConstants.SppReason.SUBSCRIPTION_REGISTRATION, null))) {
+                invokeProvisioningCallback(PROVISIONING_STATUS,
+                        ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
+                // Move to initiate soap exchange
+                changeState(STATE_WAITING_FOR_FIRST_SOAP_RESPONSE);
+            } else {
+                Log.e(TAG, "HttpsConnection is not established for soap message exchange");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+                return;
+            }
+        }
+
+        private void launchOsuWebView() {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "launch Osu webview in state =" + mState);
+            }
+
+            if (mState != STATE_WAITING_FOR_FIRST_SOAP_RESPONSE) {
+                Log.e(TAG, "launch Osu webview in wrong state =" + mState);
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
                 return;
             }
 
-            // Sending the first sppPostDevDataRequest message.
-            SppResponseMessage sppResponse = mOsuServerConnection.exchangeSoapMessage(
-                    PostDevDataMessage.serializeToSoapEnvelope(mContext, mSystemInfo,
-                            redirectUri.toString(),
-                            SppConstants.SppReason.SUBSCRIPTION_REGISTRATION,
-                            null));
-            if (sppResponse == null) {
-                Log.e(TAG, "failed to send the sppPostDevData message");
-                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+            // Start the redirect server to listen the HTTP redirect response from server
+            // as completion of user input.
+            if (!mRedirectListener.startServer(new RedirectListener.RedirectCallback() {
+                /** Called on different thread (RedirectListener thread). */
+                @Override
+                public void onRedirectReceived() {
+                    if (mVerboseLoggingEnabled) {
+                        Log.v(TAG, "Received HTTP redirect response");
+                    }
+                    mProvisioningStateMachine.getHandler().post(() -> handleRedirectResponse());
+                }
+
+                /** Called on main thread (WifiService thread). */
+                @Override
+                public void onRedirectTimedOut() {
+                    if (mVerboseLoggingEnabled) {
+                        Log.v(TAG, "Timed out to receive a HTTP redirect response");
+                    }
+                    mProvisioningStateMachine.handleTimeOutForRedirectResponse();
+                }
+            })) {
+                Log.e(TAG, "fails to start redirect listener");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_START_REDIRECT_LISTENER);
                 return;
             }
 
-            if (sppResponse.getMessageType()
-                    != SppResponseMessage.MessageType.POST_DEV_DATA_RESPONSE) {
-                Log.e(TAG, "Expected a PostDevDataResponse, but got "
-                        + sppResponse.getMessageType());
-                resetStateMachine(
-                        ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE);
-                return;
-            }
+            Intent intent = new Intent(WifiManager.ACTION_PASSPOINT_LAUNCH_OSU_VIEW);
+            intent.setPackage(OSU_APP_PACKAGE);
+            intent.putExtra(WifiManager.EXTRA_OSU_NETWORK, mNetwork);
+            intent.putExtra(WifiManager.EXTRA_URL, mWebUrl);
 
-            PostDevDataResponse devDataResponse = (PostDevDataResponse) sppResponse;
-            mSessionId = devDataResponse.getSessionID();
-            if (devDataResponse.getSppCommand().getExecCommandId()
-                    != SppCommand.ExecCommandId.BROWSER) {
-                Log.e(TAG, "Expected a launchBrowser command, but got "
-                        + devDataResponse.getSppCommand().getExecCommandId());
-                resetStateMachine(ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE);
-                return;
-            }
+            intent.setFlags(
+                    Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
 
-            Log.d(TAG, "Exec: " + devDataResponse.getSppCommand().getExecCommandId() + ", for '"
-                    + devDataResponse.getSppCommand().getCommandData() + "'");
-
-            mWebUrl = ((BrowserUri) devDataResponse.getSppCommand().getCommandData()).getUri();
-            if (mWebUrl == null) {
-                Log.e(TAG, "No Web-Url");
-                resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
-                return;
-            }
-
-            if (!mWebUrl.toLowerCase(Locale.US).contains(mSessionId.toLowerCase(Locale.US))) {
-                Log.e(TAG, "Bad or Missing session ID in webUrl");
-                resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+            // Verify that the intent will resolve to an activity
+            if (intent.resolveActivity(mContext.getPackageManager()) != null) {
+                mContext.startActivityAsUser(intent, UserHandle.CURRENT);
+                invokeProvisioningCallback(PROVISIONING_STATUS,
+                        ProvisioningCallback.OSU_STATUS_WAITING_FOR_REDIRECT_RESPONSE);
+                changeState(STATE_WAITING_FOR_REDIRECT_RESPONSE);
+            } else {
+                Log.e(TAG, "can't resolve the activity for the intent");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_NO_OSU_ACTIVITY_FOUND);
                 return;
             }
         }
 
         /**
+         * Initiates the second SOAP message exchange with sending the sppPostDevData message.
+         */
+        private void secondSoapExchange() {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Initiates the second soap message exchange in state =" + mState);
+            }
+
+            if (mState != STATE_WAITING_FOR_REDIRECT_RESPONSE) {
+                Log.e(TAG, "Initiates the second soap message exchange in wrong state=" + mState);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+            // TODO(b/74244324): Implement a routine to transmit second SOAP message.
+        }
+
+        /**
+         * Handles SOAP message response sent by server
+         *
+         * @param sessionId indicating current session ID
+         * @param responseMessage SOAP SPP response, or {@code null} in any failure.
+         * Note: Called on main thread (WifiService thread).
+         */
+        public void handleSoapMessageResponse(int sessionId,
+                @Nullable SppResponseMessage responseMessage) {
+            if (sessionId != mCurrentSessionId) {
+                Log.w(TAG, "Expected soapMessageResponse callback for currentSessionId="
+                        + mCurrentSessionId);
+                return;
+            }
+
+            if (responseMessage == null) {
+                Log.e(TAG, "failed to send the sppPostDevData message");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+                return;
+            }
+
+            if (mState == STATE_WAITING_FOR_FIRST_SOAP_RESPONSE) {
+                if (responseMessage.getMessageType()
+                        != SppResponseMessage.MessageType.POST_DEV_DATA_RESPONSE) {
+                    Log.e(TAG, "Expected a PostDevDataResponse, but got "
+                            + responseMessage.getMessageType());
+                    resetStateMachine(
+                            ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE);
+                    return;
+                }
+
+                PostDevDataResponse devDataResponse = (PostDevDataResponse) responseMessage;
+                mSessionId = devDataResponse.getSessionID();
+                if (devDataResponse.getSppCommand().getExecCommandId()
+                        != SppCommand.ExecCommandId.BROWSER) {
+                    Log.e(TAG, "Expected a launchBrowser command, but got "
+                            + devDataResponse.getSppCommand().getExecCommandId());
+                    resetStateMachine(ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE);
+                    return;
+                }
+
+                Log.d(TAG, "Exec: " + devDataResponse.getSppCommand().getExecCommandId() + ", for '"
+                        + devDataResponse.getSppCommand().getCommandData() + "'");
+
+                mWebUrl = ((BrowserUri) devDataResponse.getSppCommand().getCommandData()).getUri();
+                if (mWebUrl == null) {
+                    Log.e(TAG, "No Web-Url");
+                    resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                    return;
+                }
+
+                if (!mWebUrl.toLowerCase(Locale.US).contains(mSessionId.toLowerCase(Locale.US))) {
+                    Log.e(TAG, "Bad or Missing session ID in webUrl");
+                    resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                    return;
+                }
+                launchOsuWebView();
+            }
+        }
+
+        /**
+         * Handles next step once receiving a HTTP redirect response.
+         *
+         * Note: Called on main thread (WifiService thread).
+         */
+        public void handleRedirectResponse() {
+            if (mState != STATE_WAITING_FOR_REDIRECT_RESPONSE) {
+                Log.e(TAG, "Received redirect request in wrong state=" + mState);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+
+            invokeProvisioningCallback(PROVISIONING_STATUS,
+                    ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
+            mRedirectListener.stopServer();
+            secondSoapExchange();
+        }
+
+        /**
+         * Handles next step when timeout occurs because {@link RedirectListener} doesn't
+         * receive a HTTP redirect response.
+         *
+         * Note: Called on main thread (WifiService thread).
+         */
+        public void handleTimeOutForRedirectResponse() {
+            Log.e(TAG, "Timed out for HTTP redirect response");
+
+            if (mState != STATE_WAITING_FOR_REDIRECT_RESPONSE) {
+                Log.e(TAG, "Received timeout error for HTTP redirect response  in wrong state="
+                        + mState);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+            mRedirectListener.stopServer();
+            resetStateMachine(ProvisioningCallback.OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER);
+        }
+
+        /**
          * Connected event received
+         *
          * @param network Network object for this connection
+         * Note: Called on main thread (WifiService thread).
          */
         public void handleConnectedEvent(Network network) {
             if (mVerboseLoggingEnabled) {
@@ -402,6 +548,8 @@ public class PasspointProvisioner {
 
         /**
          * Disconnect event received
+         *
+         * Note: Called on main thread (WifiService thread).
          */
         public void handleDisconnect() {
             if (mVerboseLoggingEnabled) {
@@ -444,6 +592,7 @@ public class PasspointProvisioner {
 
         private void resetStateMachine(int failureCode) {
             invokeProvisioningCallback(PROVISIONING_FAILURE, failureCode);
+            mRedirectListener.stopServer();
             mOsuNetworkConnection.setEventCallback(null);
             mOsuNetworkConnection.disconnectIfNeeded();
             mOsuServerConnection.setEventCallback(null);
@@ -454,6 +603,8 @@ public class PasspointProvisioner {
 
     /**
      * Callbacks for network and wifi events
+     *
+     * Note: Called on main thread (WifiService thread).
      */
     class OsuNetworkCallbacks implements OsuNetworkConnection.Callbacks {
 
@@ -505,6 +656,8 @@ public class PasspointProvisioner {
 
     /**
      * Defines the callbacks expected from OsuServerConnection
+     *
+     * Note: Called on main thread (WifiService thread).
      */
     public class OsuServerCallbacks {
         private final int mSessionId;
@@ -515,6 +668,7 @@ public class PasspointProvisioner {
 
         /**
          * Returns the session ID corresponding to this callback
+         *
          * @return int sessionID
          */
         public int getSessionId() {
@@ -523,6 +677,7 @@ public class PasspointProvisioner {
 
         /**
          * Provides a server validation status for the session ID
+         *
          * @param sessionId integer indicating current session ID
          * @param succeeded boolean indicating success/failure of server validation
          */
@@ -541,8 +696,22 @@ public class PasspointProvisioner {
             }
         }
 
+        /**
+         * Callback when soap message is received from server.
+         *
+         * @param sessionId indicating current session ID
+         * @param responseMessage SOAP SPP response parsed or {@code null} in any failure
+         * Note: Called on different thread (OsuServer Thread)!
+         */
+        public void onReceivedSoapMessage(int sessionId,
+                @Nullable SppResponseMessage responseMessage) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "onReceivedSoapMessage with sessionId=" + sessionId);
+            }
+            mProvisioningStateMachine.getHandler().post(() ->
+                    mProvisioningStateMachine.handleSoapMessageResponse(sessionId,
+                            responseMessage));
+        }
     }
 }
-
-
 
