@@ -26,6 +26,7 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.hardware.wifi.V1_0.NanStatusType;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
+import android.support.test.filters.SmallTest;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -49,6 +50,7 @@ import java.util.Map;
 /**
  * Unit test harness for WifiAwareMetrics
  */
+@SmallTest
 public class WifiAwareMetricsTest {
     @Mock Clock mClock;
     @Mock private Context mMockContext;

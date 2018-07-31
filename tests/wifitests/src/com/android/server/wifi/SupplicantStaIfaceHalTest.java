@@ -46,6 +46,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
 import android.util.SparseArray;
 
@@ -74,6 +75,7 @@ import java.util.Random;
 /**
  * Unit tests for SupplicantStaIfaceHal
  */
+@SmallTest
 public class SupplicantStaIfaceHalTest {
     private static final String TAG = "SupplicantStaIfaceHalTest";
     private static final Map<Integer, String> NETWORK_ID_TO_SSID = new HashMap<Integer, String>() {{

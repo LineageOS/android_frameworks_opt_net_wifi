@@ -18,6 +18,7 @@ package com.android.server.wifi.util;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 
+import android.support.test.filters.SmallTest;
 import android.util.SparseIntArray;
 
 import org.junit.Before;
@@ -29,6 +30,7 @@ import org.mockito.MockitoAnnotations;
 /**
  * Unit test harness for MetricsUtils.
  */
+@SmallTest
 public class MetricsUtilsTest {
     @Rule
     public ErrorCollector collector = new ErrorCollector();

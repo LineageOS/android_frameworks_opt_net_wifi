@@ -37,6 +37,7 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -47,6 +48,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link com.android.server.wifi.WakeupOnboarding} */
+@SmallTest
 public class WakeupOnboardingTest {
 
     @Mock private Context mContext;

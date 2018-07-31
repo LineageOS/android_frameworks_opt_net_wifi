@@ -31,6 +31,7 @@ import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiSsid;
 import android.os.SystemClock;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.MockResources;
@@ -57,6 +58,7 @@ import java.util.Set;
  * Base unit tests that should pass for all implementations of
  * {@link com.android.server.wifi.scanner.WifiScannerImpl}.
  */
+@SmallTest
 public abstract class BaseWifiScannerImplTest {
     protected static final String IFACE_NAME = "a_test_interface_name";
     @Mock Context mContext;
