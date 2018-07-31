@@ -202,11 +202,15 @@ public class WifiApConfigStore {
     }
 
     private Notification createConversionNotification() {
-        CharSequence title = mContext.getText(R.string.wifi_softap_config_change);
-        CharSequence contentSummary = mContext.getText(R.string.wifi_softap_config_change_summary);
-        CharSequence content = mContext.getText(R.string.wifi_softap_config_change_detailed);
-        int color = mContext.getResources()
-                .getColor(R.color.system_notification_accent_color, mContext.getTheme());
+        CharSequence title =
+                mContext.getResources().getText(R.string.wifi_softap_config_change);
+        CharSequence contentSummary =
+                mContext.getResources().getText(R.string.wifi_softap_config_change_summary);
+        CharSequence content =
+                mContext.getResources().getText(R.string.wifi_softap_config_change_detailed);
+        int color =
+                mContext.getResources().getColor(
+                        R.color.system_notification_accent_color, mContext.getTheme());
 
         return new Notification.Builder(mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
