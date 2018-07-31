@@ -40,7 +40,7 @@ public class BaseWifiDiagnostics {
      * @param connectionId A strictly increasing, non-negative, connection identifier
      * @param event The type of connection event (see CONNECTION_EVENT_* constants)
      */
-    synchronized void reportConnectionEvent(long connectionId, byte event) {}
+    public synchronized void reportConnectionEvent(long connectionId, byte event) {}
 
     public synchronized void captureBugReportData(int reason) { }
 

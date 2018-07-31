@@ -2318,6 +2318,130 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Verifies that CMD_START_CONNECT make WifiDiagnostics report
+     * CONNECTION_EVENT_STARTED
+     * @throws Exception
+     */
+    @Test
+    public void testReportConnectionEventIsCalledAfterCmdStartConnect() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_STARTED));
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_STARTED));
+    }
+
+    /**
+     * Verifies that CMD_DIAG_CONNECT_TIMEOUT is processed after the timeout threshold if we
+     * start a connection but do not finish it.
+     * @throws Exception
+     */
+    @Test
+    public void testCmdDiagsConnectTimeoutIsGeneratedAfterCmdStartConnect() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS);
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+                eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
+    }
+
+    /**
+     * Verifies that CMD_DIAG_CONNECT_TIMEOUT does not get processed before the timeout threshold.
+     * @throws Exception
+     */
+    @Test
+    public void testCmdDiagsConnectTimeoutIsNotProcessedBeforeTimerExpires() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS - 1000);
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+                eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
+    }
+
+    private void verifyConnectionEventTimeoutDoesNotOccur() {
+        mLooper.moveTimeForward(ClientModeImpl.DIAGS_CONNECT_TIMEOUT_MILLIS);
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+                eq(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT));
+    }
+
+    /**
+     * Verifies that association failures make WifiDiagnostics report CONNECTION_EVENT_FAILED
+     * and then cancel any pending timeouts.
+     * @throws Exception
+     */
+    @Test
+    public void testReportConnectionEventIsCalledAfterAssociationFailure() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
+                ISupplicantStaIfaceCallback.StatusCode.AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
+     * Verifies that authentication failures make WifiDiagnostics report
+     * CONNECTION_EVENT_FAILED and then cancel any pending timeouts.
+     * @throws Exception
+     */
+    @Test
+    public void testReportConnectionEventIsCalledAfterAuthenticationFailure() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
+        verify(mWifiDiagnostics, never()).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verifyConnectionEventTimeoutDoesNotOccur();
+
+    }
+
+    /**
+     * Verifies that dhcp failures make WifiDiagnostics report CONNECTION_EVENT_FAILED and then
+     * cancel any pending timeouts.
+     * @throws Exception
+     */
+    @Test
+    public void testReportConnectionEventIsCalledAfterDhcpFailure() throws Exception {
+        testDhcpFailure();
+        verify(mWifiDiagnostics, atLeastOnce()).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
+     * Verifies that a successful connection make WifiDiagnostics report CONNECTION_EVENT_SUCCEEDED
+     * and then cancel any pending timeouts.
+     * @throws Exception
+     */
+    @Test
+    public void testReportConnectionEventIsCalledAfterSuccessfulConnection() throws Exception {
+        connect();
+        verify(mWifiDiagnostics).reportConnectionEvent(anyLong(),
+                eq(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED));
+        verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
      * Verify that we do not crash on quick toggling wifi on/off
      */
     @Test

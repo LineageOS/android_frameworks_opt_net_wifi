@@ -622,7 +622,7 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_READ_PACKET_FILTER                             = BASE + 208;
 
     /* Indicates that diagnostics should time out a connection start event. */
-    private static final int CMD_DIAGS_CONNECT_TIMEOUT                  = BASE + 252;
+    static final int CMD_DIAGS_CONNECT_TIMEOUT                          = BASE + 252;
 
     // Start subscription provisioning with a given provider
     private static final int CMD_START_SUBSCRIPTION_PROVISIONING        = BASE + 254;
@@ -2900,7 +2900,8 @@ public class ClientModeImpl extends StateMachine {
                 mInterfaceName, WifiNative.BLUETOOTH_COEXISTENCE_MODE_SENSE);
     }
 
-    private static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
+    @VisibleForTesting
+    public static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
     private long mDiagsConnectionStartMillis = -1;
     /**
      * Inform other components that a new connection attempt is starting.
@@ -2914,6 +2915,7 @@ public class ClientModeImpl extends StateMachine {
         mWrongPasswordNotifier.onNewConnectionAttempt();
         // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl
         // grows a proper CONNECTING state.
+        removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT,
                 mDiagsConnectionStartMillis, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
@@ -2936,6 +2938,7 @@ public class ClientModeImpl extends StateMachine {
                 //   complete.
                 //
                 // TODO(b/34181219): Fix the above.
+                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(
                         mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                 break;
@@ -2945,6 +2948,7 @@ public class ClientModeImpl extends StateMachine {
                 // where we failed to initiate a connection attempt with supplicant.
                 break;
             default:
+                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(
                         mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
