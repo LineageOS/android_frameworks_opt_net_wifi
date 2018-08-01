@@ -54,6 +54,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
@@ -80,6 +81,7 @@ import java.util.Set;
 /**
  * Unit test harness for HalDeviceManagerTest.
  */
+@SmallTest
 public class HalDeviceManagerTest {
     private HalDeviceManager mDut;
     @Mock IServiceManager mServiceManagerMock;

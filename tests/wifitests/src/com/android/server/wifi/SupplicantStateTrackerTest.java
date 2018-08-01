@@ -29,6 +29,7 @@ import android.net.wifi.WifiSsid;
 import android.os.Handler;
 import android.os.Message;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 
@@ -39,6 +40,7 @@ import org.mockito.MockitoAnnotations;
 /**
  * Unit tests for {@link android.net.wifi.SupplicantStateTracker}.
  */
+@SmallTest
 public class SupplicantStateTrackerTest {
 
     private static final String TAG = "SupplicantStateTrackerTest";

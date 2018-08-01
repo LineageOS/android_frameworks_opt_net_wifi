@@ -18,6 +18,8 @@ package com.android.server.wifi.util;
 
 import static org.junit.Assert.*;
 
+import android.support.test.filters.SmallTest;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ import java.util.Arrays;
 /**
  * Unit tests for {@link com.android.server.wifi.util.NativeUtil}.
  */
+@SmallTest
 public class NativeUtilTest {
     /**
      * Test that parsing a typical colon-delimited MAC address works.

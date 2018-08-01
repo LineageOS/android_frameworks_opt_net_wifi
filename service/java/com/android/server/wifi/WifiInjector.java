@@ -141,8 +141,6 @@ public class WifiInjector {
     private final BaseWifiDiagnostics mWifiDiagnostics;
     private final WifiDataStall mWifiDataStall;
 
-    private final boolean mUseRealLogger;
-
     public WifiInjector(Context context) {
         if (context == null) {
             throw new IllegalStateException(
@@ -157,8 +155,6 @@ public class WifiInjector {
         sWifiInjector = this;
 
         mContext = context;
-        mUseRealLogger = mContext.getResources().getBoolean(
-                R.bool.config_wifi_enable_wifi_firmware_debugging);
         mSettingsStore = new WifiSettingsStore(mContext);
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
@@ -261,13 +257,9 @@ public class WifiInjector {
         mSarManager = new SarManager(mContext, makeTelephonyManager(), clientModeImplLooper,
                 mWifiNative, new SystemSensorManager(mContext, clientModeImplLooper),
                 mWifiMetrics);
-        if (mUseRealLogger) {
-            mWifiDiagnostics = new WifiDiagnostics(
-                    mContext, this, mWifiNative, mBuildProperties,
-                    new LastMileLogger(this));
-        } else {
-            mWifiDiagnostics = new BaseWifiDiagnostics(mWifiNative);
-        }
+        mWifiDiagnostics = new WifiDiagnostics(
+                mContext, this, mWifiNative, mBuildProperties,
+                new LastMileLogger(this));
         mWifiDataStall = new WifiDataStall(mContext, mFrameworkFacade, mWifiMetrics);
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,

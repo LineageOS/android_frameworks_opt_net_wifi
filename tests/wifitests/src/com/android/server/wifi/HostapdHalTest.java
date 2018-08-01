@@ -31,6 +31,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.util.NativeUtil;
@@ -45,6 +46,7 @@ import org.mockito.MockitoAnnotations;
 /**
  * Unit tests for HostapdHal
  */
+@SmallTest
 public class HostapdHalTest {
     private static final String IFACE_NAME = "mock-wlan0";
     private static final String NETWORK_SSID = "test-ssid";

@@ -48,6 +48,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 import android.util.ArraySet;
 
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
@@ -65,6 +66,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link OpenNetworkNotifier}.
  */
+@SmallTest
 public class OpenNetworkNotifierTest {
 
     private static final String TEST_SSID_1 = "Test SSID 1";

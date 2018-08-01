@@ -38,6 +38,7 @@ import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
 
 import com.android.internal.R;
@@ -56,6 +57,7 @@ import java.util.Random;
 /**
  * Unit tests for SupplicantStaNetworkHal
  */
+@SmallTest
 public class SupplicantStaNetworkHalTest {
     private static final String IFACE_NAME = "wlan0";
     private static final Map<String, String> NETWORK_EXTRAS_VALUES = new HashMap<>();

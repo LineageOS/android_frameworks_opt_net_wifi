@@ -33,6 +33,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -55,6 +56,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link WakeupController}.
  */
+@SmallTest
 public class WakeupControllerTest {
 
     private static final String SAVED_SSID = "test scan ssid";

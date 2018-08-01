@@ -35,6 +35,7 @@ import android.content.res.Resources;
 import android.net.NetworkAgent;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.R;
 
@@ -49,6 +50,7 @@ import java.io.PrintWriter;
 /**
  * Unit tests for {@link com.android.server.wifi.WifiScoreReport}.
  */
+@SmallTest
 public class WifiScoreReportTest {
 
 

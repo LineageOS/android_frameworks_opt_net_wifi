@@ -48,6 +48,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 import android.util.ArraySet;
 
 
@@ -66,6 +67,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link CarrierNetworkNotifier}.
  */
+@SmallTest
 public class CarrierNetworkNotifierTest {
 
     private static final String TEST_SSID_1 = "Test SSID 1";

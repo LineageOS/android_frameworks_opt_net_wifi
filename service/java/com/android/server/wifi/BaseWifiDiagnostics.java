@@ -40,7 +40,7 @@ public class BaseWifiDiagnostics {
      * @param connectionId A strictly increasing, non-negative, connection identifier
      * @param event The type of connection event (see CONNECTION_EVENT_* constants)
      */
-    synchronized void reportConnectionEvent(long connectionId, byte event) {}
+    public synchronized void reportConnectionEvent(long connectionId, byte event) {}
 
     public synchronized void captureBugReportData(int reason) { }
 
@@ -48,8 +48,7 @@ public class BaseWifiDiagnostics {
 
     public synchronized void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         dump(pw);
-        pw.println("*** firmware logging disabled, no debug data ****");
-        pw.println("set config_wifi_enable_wifi_firmware_debugging to enable");
+        pw.println("*** logging disabled, no debug data ****");
     }
 
     /**

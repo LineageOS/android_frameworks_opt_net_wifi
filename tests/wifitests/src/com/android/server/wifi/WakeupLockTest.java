@@ -21,6 +21,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import android.support.test.filters.SmallTest;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -34,6 +36,7 @@ import java.util.List;
 /**
  * Unit tests for {@link WakeupLock}.
  */
+@SmallTest
 public class WakeupLockTest {
 
     private static final String SSID_1 = "ssid1";

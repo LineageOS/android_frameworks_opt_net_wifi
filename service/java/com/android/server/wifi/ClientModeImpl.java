@@ -622,7 +622,7 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_READ_PACKET_FILTER                             = BASE + 208;
 
     /* Indicates that diagnostics should time out a connection start event. */
-    private static final int CMD_DIAGS_CONNECT_TIMEOUT                  = BASE + 252;
+    static final int CMD_DIAGS_CONNECT_TIMEOUT                          = BASE + 252;
 
     // Start subscription provisioning with a given provider
     private static final int CMD_START_SUBSCRIPTION_PROVISIONING        = BASE + 254;
@@ -2672,7 +2672,8 @@ public class ClientModeImpl extends StateMachine {
         Intent intent = new Intent(WifiManager.RSSI_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         intent.putExtra(WifiManager.EXTRA_NEW_RSSI, newRssi);
-        mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                android.Manifest.permission.ACCESS_WIFI_STATE);
     }
 
     private void sendNetworkStateChangeBroadcast(String bssid) {
@@ -2900,7 +2901,8 @@ public class ClientModeImpl extends StateMachine {
                 mInterfaceName, WifiNative.BLUETOOTH_COEXISTENCE_MODE_SENSE);
     }
 
-    private static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
+    @VisibleForTesting
+    public static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
     private long mDiagsConnectionStartMillis = -1;
     /**
      * Inform other components that a new connection attempt is starting.
@@ -2914,6 +2916,7 @@ public class ClientModeImpl extends StateMachine {
         mWrongPasswordNotifier.onNewConnectionAttempt();
         // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl
         // grows a proper CONNECTING state.
+        removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT,
                 mDiagsConnectionStartMillis, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
@@ -2936,6 +2939,7 @@ public class ClientModeImpl extends StateMachine {
                 //   complete.
                 //
                 // TODO(b/34181219): Fix the above.
+                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(
                         mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                 break;
@@ -2945,6 +2949,7 @@ public class ClientModeImpl extends StateMachine {
                 // where we failed to initiate a connection attempt with supplicant.
                 break;
             default:
+                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(
                         mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
@@ -3810,9 +3815,6 @@ public class ClientModeImpl extends StateMachine {
     void registerConnected() {
         if (mLastNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
             mWifiConfigManager.updateNetworkAfterConnect(mLastNetworkId);
-            // On connect, reset wifiScoreReport
-            mWifiScoreReport.reset();
-
             // Notify PasspointManager of Passpoint network connected event.
             WifiConfiguration currentNetwork = getCurrentWifiConfiguration();
             if (currentNetwork != null && currentNetwork.isPasspoint()) {
@@ -4956,6 +4958,7 @@ public class ClientModeImpl extends StateMachine {
                     mRssiPollToken++;
                     if (mEnableRssiPolling) {
                         // First poll
+                        mLastSignalLevel = -1;
                         fetchRssiLinkSpeedAndFrequencyNative();
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
@@ -5324,6 +5327,8 @@ public class ClientModeImpl extends StateMachine {
             registerConnected();
             mLastConnectAttemptTimestamp = 0;
             mTargetWifiConfiguration = null;
+            mWifiScoreReport.reset();
+            mLastSignalLevel = -1;
 
             // Not roaming anymore
             mIsAutoRoaming = false;

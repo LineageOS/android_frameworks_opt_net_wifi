@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 
@@ -38,6 +39,7 @@ import org.mockito.MockitoAnnotations;
 /**
  * Unit tests for {@link com.android.server.wifi.WifiDataStall}.
  */
+@SmallTest
 public class WifiDataStallTest {
 
     @Mock Context mContext;

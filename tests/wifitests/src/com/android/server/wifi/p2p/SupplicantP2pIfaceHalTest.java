@@ -47,6 +47,7 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
 
 import com.android.server.wifi.util.NativeUtil;
@@ -68,6 +69,7 @@ import java.util.Map;
 /**
  * Unit tests for SupplicantP2pIfaceHal
  */
+@SmallTest
 public class SupplicantP2pIfaceHalTest {
     private static final String TAG = "SupplicantP2pIfaceHalTest";
     private SupplicantP2pIfaceHal mDut;
