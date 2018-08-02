@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Provides parsing of SubjectAltNames extensions from X509Certificate
+ * Utility to provide parsing of SubjectAltNames extensions from X509Certificate
  */
 public class ASN1SubjectAltNamesParser {
     private static final int OTHER_NAME = 0;
@@ -53,19 +53,6 @@ public class ASN1SubjectAltNamesParser {
      */
     @VisibleForTesting
     public static final String ID_WFA_OID_HOTSPOT_FRIENDLYNAME = "1.3.6.1.4.1.40808.1.1.1";
-    private static ASN1SubjectAltNamesParser sASN1SubjectAltNamesParser = null;
-
-    private ASN1SubjectAltNamesParser() {}
-
-    /**
-     * Obtain an instance of the {@link ASN1SubjectAltNamesParser} as a singleton object.
-     */
-    public static ASN1SubjectAltNamesParser getInstance() {
-        if (sASN1SubjectAltNamesParser == null) {
-            sASN1SubjectAltNamesParser = new ASN1SubjectAltNamesParser();
-        }
-        return sASN1SubjectAltNamesParser;
-    }
 
     /**
      * Extracts provider names from a certificate by parsing subjectAltName extensions field
@@ -79,7 +66,7 @@ public class ASN1SubjectAltNamesParser {
      * @return List of Pair representing {@Locale} and friendly Name for Operator found in the
      * certificate.
      */
-    public  List<Pair<Locale, String>> getProviderNames(X509Certificate providerCert) {
+    public static List<Pair<Locale, String>> getProviderNames(X509Certificate providerCert) {
         List<Pair<Locale, String>> providerNames = new ArrayList<>();
         Pair<Locale, String> providerName;
         if (providerCert == null) {
@@ -180,7 +167,7 @@ public class ASN1SubjectAltNamesParser {
     /**
      *  Extract the language code and friendly Name from the alternativeName.
      */
-    private Pair<Locale, String> getFriendlyName(String alternativeName) {
+    private static Pair<Locale, String> getFriendlyName(String alternativeName) {
 
         // Check for the minimum required length.
         if (TextUtils.isEmpty(alternativeName) || alternativeName.length() < LANGUAGE_CODE_LENGTH) {

@@ -21,6 +21,7 @@ import android.util.SparseArray;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -56,6 +57,8 @@ public class SppConstants {
     public static final String ATTRIBUTE_REDIRECT_URI = "redirectURI";
     public static final String ATTRIBUTE_MO_URN = "moURN";
     public static final String ATTRIBUTE_ERROR_CODE = "errorCode";
+
+    public static final int INVALID_SPP_CONSTANT = -1;
 
     private static final SparseArray<String> sStatusStrings = new SparseArray<>();
     private static final Map<String, Integer> sStatusEnums = new HashMap<>();
@@ -109,6 +112,7 @@ public class SppConstants {
 
     /**
      * Convert the {@link SppStatus} to <code>String</code>
+     *
      * @param status value of {@link SppStatus}
      * @return string of the status
      */
@@ -118,15 +122,19 @@ public class SppConstants {
 
     /**
      * Convert the status string to {@link SppStatus}
+     *
      * @param status string of the status
-     * @return <code>int</code> value of {@link SppStatus}
+     * @return <code>int</code> value of {@link SppStatus} if found; {@link #INVALID_SPP_CONSTANT}
+     * otherwise.
      */
     public static int mapStatusStringToInt(String status) {
-        return sStatusEnums.get(status.toLowerCase());
+        Integer value = sStatusEnums.get(status.toLowerCase(Locale.US));
+        return (value == null) ? INVALID_SPP_CONSTANT : value;
     }
 
     /**
      * Convert the {@link SppError} to <code>String</code>
+     *
      * @param error value of {@link SppError}
      * @return string of error
      */
@@ -136,11 +144,14 @@ public class SppConstants {
 
     /**
      * Convert the error string to {@link SppError}
+     *
      * @param error string of the error
-     * @return <code>int</code> value of {@link SppError}
+     * @return <code>int</code> value of {@link SppError} if found; {@link #INVALID_SPP_CONSTANT}
+     * otherwise.
      */
     public static int mapErrorStringToInt(String error) {
-        return sErrorEnums.get(error.toLowerCase());
+        Integer value = sErrorEnums.get(error.toLowerCase());
+        return (value == null) ? INVALID_SPP_CONSTANT : value;
     }
 
     // Request reasons for sppPostDevData requests.

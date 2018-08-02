@@ -26,6 +26,15 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.hotspot2.soap.PostDevDataMessage;
+import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
+import com.android.server.wifi.hotspot2.soap.RedirectListener;
+import com.android.server.wifi.hotspot2.soap.SppConstants;
+import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
+import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
+import com.android.server.wifi.hotspot2.soap.command.SppCommand;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Locale;
@@ -50,18 +59,22 @@ public class PasspointProvisioner {
     private final OsuServerConnection mOsuServerConnection;
     private final WfaKeyStore mWfaKeyStore;
     private final PasspointObjectFactory mObjectFactory;
-
+    private final SystemInfo mSystemInfo;
+    private final RedirectListener mRedirectListener;
     private int mCurrentSessionId = 0;
     private int mCallingUid;
     private boolean mVerboseLoggingEnabled = false;
 
-    PasspointProvisioner(Context context, PasspointObjectFactory objectFactory) {
+    PasspointProvisioner(Context context, WifiNative wifiNative,
+            PasspointObjectFactory objectFactory) {
         mContext = context;
         mOsuNetworkConnection = objectFactory.makeOsuNetworkConnection(context);
         mProvisioningStateMachine = new ProvisioningStateMachine();
         mOsuNetworkCallbacks = new OsuNetworkCallbacks();
         mOsuServerConnection = objectFactory.makeOsuServerConnection();
         mWfaKeyStore = objectFactory.makeWfaKeyStore();
+        mSystemInfo = objectFactory.getSystemInfo(context, wifiNative);
+        mRedirectListener = RedirectListener.createInstance();
         mObjectFactory = objectFactory;
     }
 
@@ -101,6 +114,10 @@ public class PasspointProvisioner {
      */
     public boolean startSubscriptionProvisioning(int callingUid, OsuProvider provider,
             IProvisioningCallback callback) {
+        if (mRedirectListener == null) {
+            Log.e(TAG, "RedirectListener is not possible to run");
+            return false;
+        }
         mCallingUid = callingUid;
 
         Log.v(TAG, "Provisioning started with " + provider.toString());
@@ -118,18 +135,20 @@ public class PasspointProvisioner {
     class ProvisioningStateMachine {
         private static final String TAG = "ProvisioningStateMachine";
 
-        private static final int INITIAL_STATE                             = 1;
-        private static final int WAITING_TO_CONNECT                        = 2;
-        private static final int OSU_AP_CONNECTED                          = 3;
-        private static final int OSU_SERVER_CONNECTED                      = 4;
-        private static final int OSU_SERVER_VALIDATED                      = 5;
-        private static final int OSU_PROVIDER_VERIFIED                     = 6;
+        static final int STATE_INIT = 1;
+        static final int STATE_WAITING_TO_CONNECT = 2;
+        static final int STATE_OSU_AP_CONNECTED = 3;
+        static final int STATE_OSU_SERVER_CONNECTED = 4;
+        static final int STATE_WAITING_FOR_FIRST_SOAP_RESPONSE = 5;
 
         private OsuProvider mOsuProvider;
         private IProvisioningCallback mProvisioningCallback;
-        private int mState = INITIAL_STATE;
+        private int mState = STATE_INIT;
         private Handler mHandler;
         private URL mServerUrl;
+        private Network mNetwork;
+        private String mSessionId;
+        private String mWebUrl;
 
         /**
          * Initializes and starts the state machine with a handler to handle incoming events
@@ -155,7 +174,7 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "startProvisioning received in state=" + mState);
             }
-            if (mState != INITIAL_STATE) {
+            if (mState != STATE_INIT) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "State Machine needs to be reset before starting provisioning");
                 }
@@ -192,7 +211,7 @@ public class PasspointProvisioner {
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_AP_CONNECTING);
-            changeState(WAITING_TO_CONNECT);
+            changeState(STATE_WAITING_TO_CONNECT);
         }
 
         /**
@@ -202,7 +221,7 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Wifi Disabled in state=" + mState);
             }
-            if (mState == INITIAL_STATE) {
+            if (mState == STATE_INIT) {
                 Log.w(TAG, "Wifi Disable unhandled in state=" + mState);
                 return;
             }
@@ -221,7 +240,7 @@ public class PasspointProvisioner {
                         + mCurrentSessionId);
                 return;
             }
-            if (mState != OSU_SERVER_CONNECTED) {
+            if (mState != STATE_OSU_SERVER_CONNECTED) {
                 Log.wtf(TAG, "Server Validation Failure unhandled in mState=" + mState);
                 return;
             }
@@ -240,30 +259,108 @@ public class PasspointProvisioner {
                         + mCurrentSessionId);
                 return;
             }
-            if (mState != OSU_SERVER_CONNECTED) {
+            if (mState != STATE_OSU_SERVER_CONNECTED) {
                 Log.wtf(TAG, "Server validation success event unhandled in state=" + mState);
                 return;
             }
-            changeState(OSU_SERVER_VALIDATED);
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_SERVER_VALIDATED);
-            validateProvider();
+            validateServiceProvider();
         }
 
-        private void validateProvider() {
+        /**
+         * Validate the OSU Server certificate based on the procedure in 7.3.2.2 of Hotspot2.0
+         * rel2 spec.
+         */
+        private void validateServiceProvider() {
             if (mVerboseLoggingEnabled) {
-                Log.v(TAG, "Validating provider in state=" + mState);
+                Log.v(TAG, "Validating the service provider of OSU Server certificate in state="
+                        + mState);
             }
             if (!mOsuServerConnection.validateProvider(
-                    mObjectFactory.getASN1SubjectAltNamesParser(),
                     Locale.getDefault(), mOsuProvider.getFriendlyName())) {
-                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVIDER_VERIFICATION);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION);
                 return;
             }
-            changeState(OSU_PROVIDER_VERIFIED);
             invokeProvisioningCallback(PROVISIONING_STATUS,
-                    ProvisioningCallback.OSU_STATUS_PROVIDER_VERIFIED);
-            // TODO : send Initial SOAP Exchange
+                    ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
+
+            invokeProvisioningCallback(PROVISIONING_STATUS,
+                    ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
+
+            // Move to initiate soap exchange
+            changeState(STATE_WAITING_FOR_FIRST_SOAP_RESPONSE);
+            mProvisioningStateMachine.getHandler().post(() -> initSoapExchange());
+        }
+
+        /**
+         * Initiates the SOAP message exchange with sending the sppPostDevData message.
+         */
+        private void initSoapExchange() {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Initiates soap message exchange in state =" + mState);
+            }
+
+            if (mState != STATE_WAITING_FOR_FIRST_SOAP_RESPONSE) {
+                Log.e(TAG, "Initiates soap message exchange in wrong state=" + mState);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+
+            // Redirect uri used for signal of completion for registration process.
+            final URL redirectUri = mRedirectListener.getURL();
+            if (redirectUri == null) {
+                Log.e(TAG, "redirectUri is not valid");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+
+            // Sending the first sppPostDevDataRequest message.
+            SppResponseMessage sppResponse = mOsuServerConnection.exchangeSoapMessage(mServerUrl,
+                    PostDevDataMessage.serializeToSoapEnvelope(mContext, mSystemInfo,
+                            redirectUri.toString(),
+                            SppConstants.SppReason.SUBSCRIPTION_REGISTRATION,
+                            null));
+            if (sppResponse == null) {
+                Log.e(TAG, "failed to send the sppPostDevData message");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+                return;
+            }
+
+            if (sppResponse.getMessageType()
+                    != SppResponseMessage.MessageType.POST_DEV_DATA_RESPONSE) {
+                Log.e(TAG, "Expected a PostDevDataResponse, but got "
+                        + sppResponse.getMessageType());
+                resetStateMachine(
+                        ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE);
+                return;
+            }
+
+            PostDevDataResponse devDataResponse = (PostDevDataResponse) sppResponse;
+            mSessionId = devDataResponse.getSessionID();
+            if (devDataResponse.getSppCommand().getExecCommandId()
+                    != SppCommand.ExecCommandId.BROWSER) {
+                Log.e(TAG, "Expected a launchBrowser command, but got "
+                        + devDataResponse.getSppCommand().getExecCommandId());
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE);
+                return;
+            }
+
+            Log.d(TAG, "Exec: " + devDataResponse.getSppCommand().getExecCommandId() + ", for '"
+                    + devDataResponse.getSppCommand().getCommandData() + "'");
+
+            mWebUrl = ((BrowserUri) devDataResponse.getSppCommand().getCommandData()).getUri();
+            if (mWebUrl == null) {
+                Log.e(TAG, "No Web-Url");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                return;
+            }
+
+            if (!mWebUrl.toLowerCase(Locale.US).contains(mSessionId.toLowerCase(Locale.US))) {
+                Log.e(TAG, "Bad or Missing session ID in webUrl");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                return;
+            }
         }
 
         /**
@@ -274,14 +371,14 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Connected event received in state=" + mState);
             }
-            if (mState != WAITING_TO_CONNECT) {
+            if (mState != STATE_WAITING_TO_CONNECT) {
                 // Not waiting for a connection
                 Log.wtf(TAG, "Connection event unhandled in state=" + mState);
                 return;
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_AP_CONNECTED);
-            changeState(OSU_AP_CONNECTED);
+            changeState(STATE_OSU_AP_CONNECTED);
             initiateServerConnection(network);
         }
 
@@ -289,7 +386,7 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Initiating server connection in state=" + mState);
             }
-            if (mState != OSU_AP_CONNECTED) {
+            if (mState != STATE_OSU_AP_CONNECTED) {
                 Log.wtf(TAG , "Initiating server connection aborted in invalid state=" + mState);
                 return;
             }
@@ -297,7 +394,8 @@ public class PasspointProvisioner {
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
                 return;
             }
-            changeState(OSU_SERVER_CONNECTED);
+            mNetwork = network;
+            changeState(STATE_OSU_SERVER_CONNECTED);
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_SERVER_CONNECTED);
         }
@@ -309,10 +407,11 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Connection failed in state=" + mState);
             }
-            if (mState == INITIAL_STATE) {
+            if (mState == STATE_INIT) {
                 Log.w(TAG, "Disconnect event unhandled in state=" + mState);
                 return;
             }
+            mNetwork = null;
             resetStateMachine(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
         }
 
@@ -349,7 +448,7 @@ public class PasspointProvisioner {
             mOsuNetworkConnection.disconnectIfNeeded();
             mOsuServerConnection.setEventCallback(null);
             mOsuServerConnection.cleanup();
-            changeState(INITIAL_STATE);
+            changeState(STATE_INIT);
         }
     }
 
@@ -444,4 +543,6 @@ public class PasspointProvisioner {
 
     }
 }
+
+
 

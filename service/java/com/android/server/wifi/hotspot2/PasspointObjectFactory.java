@@ -106,11 +106,12 @@ public class PasspointObjectFactory{
     /**
      * Create an instance of {@link PasspointProvisioner}.
      *
-     * @param context
+     * @param context Instance of {@link Context}
+     * @param wifiNative Instance of {@link WifiNative}
      * @return {@link PasspointProvisioner}
      */
-    public PasspointProvisioner makePasspointProvisioner(Context context) {
-        return new PasspointProvisioner(context, this);
+    public PasspointProvisioner makePasspointProvisioner(Context context, WifiNative wifiNative) {
+        return new PasspointProvisioner(context, wifiNative, this);
     }
 
     /**
@@ -166,15 +167,6 @@ public class PasspointObjectFactory{
      */
     public TrustManagerImpl getTrustManagerImpl(KeyStore ks) {
         return new TrustManagerImpl(ks);
-    }
-
-    /**
-     * Create an instance of ASN1SubjectAltNamesParser
-     *
-     * @return ASN1SubjectAltNamesParser an instance of the parser
-     */
-    public ASN1SubjectAltNamesParser getASN1SubjectAltNamesParser() {
-        return ASN1SubjectAltNamesParser.getInstance();
     }
 
     /**
