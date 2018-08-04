@@ -22,6 +22,24 @@
       "revId": "8d04d5cba4de843a70a251391a113e0d91193273",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "155ab4b8_3cd4df21",
+        "filename": "service/java/com/android/server/wifi/WifiServiceImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 480,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2018-08-04T22:17:08Z",
+      "side": 1,
+      "message": "Well, that only happens on removing sim card or boot up so I think it\u0027s fine as is.",
+      "parentUuid": "97c4bbea_d467401b",
+      "revId": "8d04d5cba4de843a70a251391a113e0d91193273",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
