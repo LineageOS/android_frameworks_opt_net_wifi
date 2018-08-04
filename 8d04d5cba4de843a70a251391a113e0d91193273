@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "97c4bbea_d467401b",
+        "filename": "service/java/com/android/server/wifi/WifiServiceImpl.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 480,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-08-04T22:15:55Z",
+      "side": 1,
+      "message": "Some of these log lines could end up pretty noisy. Maybe lower level or gate with a debug flag?",
+      "range": {
+        "startLine": 480,
+        "startChar": 16,
+        "endLine": 480,
+        "endChar": 17
+      },
+      "revId": "8d04d5cba4de843a70a251391a113e0d91193273",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
