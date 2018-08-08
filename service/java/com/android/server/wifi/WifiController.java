@@ -260,12 +260,6 @@ public class WifiController extends StateMachine {
                     break;
                 case CMD_SET_AP:
                     // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
-
-                    // first make sure we aren't in airplane mode
-                    if (mSettingsStore.isAirplaneModeOn()) {
-                        log("drop softap requests when in airplane mode");
-                        break;
-                    }
                     if (msg.arg1 == 1) {
                         SoftApModeConfiguration config = (SoftApModeConfiguration) msg.obj;
                         mActiveModeWarden.enterSoftAPMode((SoftApModeConfiguration) msg.obj);
@@ -352,11 +346,6 @@ public class WifiController extends StateMachine {
                     }
                     break;
                 case CMD_SET_AP:
-                    // first make sure we aren't in airplane mode
-                    if (mSettingsStore.isAirplaneModeOn()) {
-                        log("drop softap requests when in airplane mode");
-                        break;
-                    }
                     if (msg.arg1 == 1) {
                         // remember that we were disabled, but pass the command up to start softap
                         mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);

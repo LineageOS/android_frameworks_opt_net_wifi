@@ -829,6 +829,25 @@ public class WifiControllerTest {
     }
 
     /**
+     * Toggling softap mode when in airplane mode needs to enable softap
+     */
+    @Test
+    public void testSoftApModeToggleWhenInAirplaneMode() throws Exception {
+        // Test with airplane mode turned on:
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(true);
+
+        // Turn on SoftAp.
+        mWifiController.sendMessage(CMD_SET_AP, 1);
+        mLooper.dispatchAll();
+        verify(mActiveModeWarden).enterSoftAPMode(any());
+
+        // Turn off SoftAp.
+        mWifiController.sendMessage(CMD_SET_AP, 0);
+        mLooper.dispatchAll();
+        verify(mActiveModeWarden).stopSoftAPMode();
+    }
+
+    /**
      * Toggling off scan mode when in ECM does not induce a mode change
      */
     @Test
@@ -850,6 +869,7 @@ public class WifiControllerTest {
 
         verifyNoMoreInteractions(mActiveModeWarden);
     }
+
     /**
      * Toggling off client mode when in ECM does not induce a mode change
      */
