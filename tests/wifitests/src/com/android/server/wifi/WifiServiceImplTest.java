@@ -104,7 +104,6 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
@@ -908,7 +907,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure we do not allow unpermitted callers to get the wifi ap state.
      */
-    @Ignore
     @Test
     public void testGetWifiApEnabledPermissionDenied() {
         // we should not be able to get the state
@@ -1056,7 +1054,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure that we handle scan request failure when posting the runnable to handler fails.
      */
-    @Ignore
     @Test
     public void testStartScanFailureInRunWithScissors() {
         setupClientModeImplHandlerForRunWithScissors();
@@ -1162,7 +1159,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure that we handle scan results failure when posting the runnable to handler fails.
      */
-    @Ignore
     @Test
     public void testGetScanResultsFailureInRunWithScissors() {
         setupClientModeImplHandlerForRunWithScissors();
@@ -1553,7 +1549,6 @@ public class WifiServiceImplTest {
     /**
      * Verify that wifi service registers for callers BinderDeath event
      */
-    @Ignore
     @Test
     public void registersForBinderDeathOnRegisterSoftApCallback() throws Exception {
         final int callbackIdentifier = 1;
@@ -2274,7 +2269,6 @@ public class WifiServiceImplTest {
      * Verify that a call to {@link WifiServiceImpl#restoreSupplicantBackupData(byte[], byte[])} is
      * only allowed from callers with the signature only NETWORK_SETTINGS permission.
      */
-    @Ignore
     @Test(expected = SecurityException.class)
     public void testRestoreSupplicantBackupDataNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
@@ -2302,12 +2296,14 @@ public class WifiServiceImplTest {
      * Verify that a call to {@link WifiServiceImpl#enableVerboseLogging(int)} is allowed from
      * callers with the signature only NETWORK_SETTINGS permission.
      */
-    @Ignore("TODO: Investigate failure")
     @Test
     public void testEnableVerboseLoggingWithNetworkSettingsPermission() {
         doNothing().when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
+        // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
+        // before invocation.
+        reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
         verify(mClientModeImpl).enableVerboseLogging(anyInt());
     }
@@ -2321,6 +2317,9 @@ public class WifiServiceImplTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
+        // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
+        // before invocation.
+        reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
         verify(mClientModeImpl, never()).enableVerboseLogging(anyInt());
     }
