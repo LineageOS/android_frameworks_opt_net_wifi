@@ -49,13 +49,13 @@ import com.android.server.wifi.hotspot2.PasspointMatch;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
-import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.rtt.RttMetrics;
 
 import org.junit.Before;
@@ -1297,6 +1297,40 @@ public class WifiMetricsTest {
         dumpProtoAndDeserialize();
         //Check there are only 2 connection events
         assertEquals(2, mDecodedProto.connectionEvent.length);
+    }
+
+    /**
+     * Test that current ongoing ConnectionEvent is not cleared and logged
+     * when proto is dumped
+     */
+    @Test
+    public void testCurrentConnectionEventNotClearedAfterProtoRequested() throws Exception {
+        // Create 2 complete ConnectionEvents and 1 ongoing un-ended ConnectionEvent
+        mWifiMetrics.startConnectionEvent(null, "RED",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+        mWifiMetrics.startConnectionEvent(null, "YELLOW",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+        mWifiMetrics.startConnectionEvent(null, "GREEN",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+
+        // Dump proto and deserialize
+        // This should clear the metrics in mWifiMetrics,
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.connectionEvent.length);
+
+        // End the ongoing ConnectionEvent
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+
+        dumpProtoAndDeserialize();
+        assertEquals(1, mDecodedProto.connectionEvent.length);
     }
 
     /**
