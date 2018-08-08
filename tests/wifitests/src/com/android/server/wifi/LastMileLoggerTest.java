@@ -46,7 +46,6 @@ import java.io.StringWriter;
 public class LastMileLoggerTest {
     @Mock WifiInjector mWifiInjector;
     @Spy FakeWifiLog mLog;
-    private static final long FAKE_CONNECTION_ID = 1;
 
     @Before
     public void setUp() throws Exception {
@@ -72,16 +71,14 @@ public class LastMileLoggerTest {
 
     @Test
     public void connectionEventStartedEnablesTracing() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         assertEquals("1", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
     public void connectionEventStartedDoesNotCrashIfReleaseFileIsMissing() throws Exception {
         mTraceReleaseFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         verify(mLog).warn(contains("Failed to open free_buffer"));
     }
 
@@ -89,15 +86,13 @@ public class LastMileLoggerTest {
     public void connectionEventStartedDoesNotEnableTracingIfReleaseFileIsMissing()
             throws Exception {
         mTraceReleaseFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         assertEquals("0", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
     public void connectionEventStartedDoesNotAttemptToReopenReleaseFile() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
 
         // This is a rather round-about way of verifying that we don't attempt to re-open
         // the file. Namely: if we delete the |release| file, and CONNECTION_EVENT_STARTED
@@ -108,123 +103,86 @@ public class LastMileLoggerTest {
         // A more direct test would require the use of a factory for the creation of the
         // FileInputStream.
         mTraceReleaseFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         verifyZeroInteractions(mLog);
-    }
-
-    @Test
-    public void connectionEventStartedDoesNotEnableTracingForInvalidConnectionId()
-            throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                -1, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
-        assertEquals("0", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
     public void connectionEventStartedDoesNotCrashIfEnableFileIsMissing() throws Exception {
         mTraceEnableFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
     }
 
     @Test
     public void connectionEventStartedDoesNotCrashOnRepeatedCalls() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
     }
 
     @Test
     public void connectionEventSucceededDisablesTracing() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
         assertEquals("0", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
     public void connectionEventSucceededDoesNotCrashIfEnableFileIsMissing() throws Exception {
         mTraceEnableFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
     }
 
     @Test
     public void connectionEventSucceededDoesNotCrashOnRepeatedCalls() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
     }
 
     @Test
     public void connectionEventFailedDisablesTracingWhenPendingFails() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
-        mLastMileLogger.reportConnectionEvent(
-                    FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
         assertEquals("0", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
-    public void connectionEventTimeoutDisablesTracingOnFailureOfFutureConnection()
+    public void connectionEventTimeoutDisablesTracing()
             throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID + 1, BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
         assertEquals("0", IoUtils.readFileAsString(mTraceEnableFile.getPath()));
     }
 
     @Test
     public void connectionEventFailedDoesNotCrashIfEnableFileIsMissing() throws Exception {
         mTraceEnableFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
     }
 
     @Test
     public void connectionEventFailedDoesNotCrashIfDataFileIsMissing() throws Exception {
         mTraceDataFile.delete();
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
     }
 
     @Test
     public void connectionEventFailedDoesNotCrashOnRepeatedCalls() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
     }
 
     @Test
     public void dumpShowsFailureTrace() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
         assertTrue(getDumpString().contains("--- Last failed"));
         assertTrue(getDumpString().contains("rdev_connect"));
     }
 
-    @Test
-    public void dumpShowsFailureTraceEvenIfConnectionIdIncreases() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
-        FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID + 1, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
-        assertTrue(getDumpString().contains("--- Last failed"));
-        assertTrue(getDumpString().contains("rdev_connect"));
-    }
 
     @Test
     public void dumpShowsPendingConnectionTrace() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect");
         assertTrue(getDumpString().contains("No last mile log for \"Last failed"));
         assertTrue(getDumpString().contains("--- Latest"));
@@ -233,13 +191,10 @@ public class LastMileLoggerTest {
 
     @Test
     public void dumpShowsLastFailureTraceAndPendingConnectionTrace() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect try #1");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect try #2");
 
         String dumpString = getDumpString();
@@ -249,16 +204,12 @@ public class LastMileLoggerTest {
 
     @Test
     public void dumpShowsLastFailureTraceAndCurrentConnectionTrace() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect try #1");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect try #2");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
 
         String dumpString = getDumpString();
         assertTrue(dumpString.contains("rdev_connect try #1"));
@@ -267,11 +218,9 @@ public class LastMileLoggerTest {
 
     @Test
     public void dumpDoesNotClearLastFailureData() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect");
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_FAILED);
 
         getDumpString();
         String dumpString = getDumpString();
@@ -280,8 +229,7 @@ public class LastMileLoggerTest {
 
     @Test
     public void dumpDoesNotClearPendingConnectionTrace() throws Exception {
-        mLastMileLogger.reportConnectionEvent(
-                FAKE_CONNECTION_ID, BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mLastMileLogger.reportConnectionEvent(BaseWifiDiagnostics.CONNECTION_EVENT_STARTED);
         FileUtils.stringToFile(mTraceDataFile.getPath(), "rdev_connect");
 
         getDumpString();
