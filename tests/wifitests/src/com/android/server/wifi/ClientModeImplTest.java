@@ -94,6 +94,7 @@ import com.android.internal.util.StateMachine;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -1828,6 +1829,7 @@ public class ClientModeImplTest {
     public void testWifiInfoCleanedUpEnteringExitingConnectModeState() throws Exception {
         InOrder inOrder = inOrder(mWifiConnectivityManager);
         InOrder inOrderSarMgr = inOrder(mSarManager);
+        InOrder inOrderMetrics = inOrder(mWifiMetrics);
         Log.i(TAG, mCmi.getCurrentState().getName());
         String initialBSSID = "aa:bb:cc:dd:ee:ff";
         WifiInfo wifiInfo = mCmi.getWifiInfo();
@@ -1839,6 +1841,9 @@ public class ClientModeImplTest {
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(true));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
+        inOrderMetrics.verify(mWifiMetrics)
+                .setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
+        inOrderMetrics.verify(mWifiMetrics).logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
         assertNull(wifiInfo.getBSSID());
 
         // Send a SUPPLICANT_STATE_CHANGE_EVENT, verify WifiInfo is updated
@@ -1859,6 +1864,8 @@ public class ClientModeImplTest {
         assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(false));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
+        inOrderMetrics.verify(mWifiMetrics).setWifiState(WifiMetricsProto.WifiLog.WIFI_DISABLED);
+        inOrderMetrics.verify(mWifiMetrics).logStaEvent(StaEvent.TYPE_WIFI_DISABLED);
         assertNull(wifiInfo.getBSSID());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
 
@@ -1880,6 +1887,9 @@ public class ClientModeImplTest {
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         inOrder.verify(mWifiConnectivityManager).setWifiEnabled(eq(true));
         inOrderSarMgr.verify(mSarManager).setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
+        inOrderMetrics.verify(mWifiMetrics)
+                .setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
+        inOrderMetrics.verify(mWifiMetrics).logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
         assertEquals("DisconnectedState", getCurrentState().getName());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
         assertNull(wifiInfo.getBSSID());

@@ -49,13 +49,13 @@ import com.android.server.wifi.hotspot2.PasspointMatch;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
-import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.rtt.RttMetrics;
 
 import org.junit.Before;
@@ -1469,7 +1469,7 @@ public class WifiMetricsTest {
     private static final int ASSOC_TIMEOUT = 1;
     private static final int LOCAL_GEN = 1;
     private static final int AUTH_FAILURE_REASON = WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD;
-    private static final int NUM_TEST_STA_EVENTS = 16;
+    private static final int NUM_TEST_STA_EVENTS = 18;
     private static final String   sSSID = "\"SomeTestSsid\"";
     private static final WifiSsid sWifiSsid = WifiSsid.createFromAsciiEncoded(sSSID);
     private static final String   sBSSID = "01:02:03:04:05:06";
@@ -1519,7 +1519,9 @@ public class WifiMetricsTest {
         {StaEvent.TYPE_NETWORK_AGENT_VALID_NETWORK,     0,                          0},
         {StaEvent.TYPE_FRAMEWORK_DISCONNECT,            StaEvent.DISCONNECT_API,    0},
         {StaEvent.TYPE_SCORE_BREACH,                    0,                          0},
-        {StaEvent.TYPE_MAC_CHANGE,                      0,                          1}
+        {StaEvent.TYPE_MAC_CHANGE,                      0,                          1},
+        {StaEvent.TYPE_WIFI_ENABLED,                    0,                          0},
+        {StaEvent.TYPE_WIFI_DISABLED,                   0,                          0}
     };
     // Values used to generate the StaEvent log calls from WifiMonitor
     // <type>, <reason>, <status>, <local_gen>,
@@ -1556,7 +1558,11 @@ public class WifiMetricsTest {
         {StaEvent.TYPE_SCORE_BREACH,                    -1,            -1,         0,
             /**/                               0,             0,        0, 0},    /**/
         {StaEvent.TYPE_MAC_CHANGE,                      -1,            -1,         0,
-            /**/                               0,             0,        0, 1}     /**/
+            /**/                               0,             0,        0, 1},    /**/
+        {StaEvent.TYPE_WIFI_ENABLED,                    -1,            -1,         0,
+            /**/                               0,             0,        0, 0},    /**/
+        {StaEvent.TYPE_WIFI_DISABLED,                   -1,            -1,         0,
+            /**/                               0,             0,        0, 0}     /**/
     };
 
     /**

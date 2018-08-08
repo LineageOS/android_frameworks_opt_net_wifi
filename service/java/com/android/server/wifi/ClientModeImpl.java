@@ -3890,6 +3890,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiConnectivityManager.setWifiEnabled(true);
             // Inform metrics that Wifi is Enabled (but not yet connected)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
+            mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
             // Inform p2p service that wifi is up and ready when applicable
             p2pSendMessage(ClientModeImpl.CMD_ENABLE_P2P);
             // Inform sar manager that wifi is Enabled
@@ -3907,6 +3908,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiConnectivityManager.setWifiEnabled(false);
             // Inform metrics that Wifi is being disabled (Toggled, airplane enabled, etc)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISABLED);
+            mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_DISABLED);
             // Inform sar manager that wifi is being disabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
 
