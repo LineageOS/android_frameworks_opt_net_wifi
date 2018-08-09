@@ -100,6 +100,7 @@ import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointProvider;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -196,10 +197,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
     @GuardedBy("mLocalOnlyHotspotRequests")
     private final ConcurrentHashMap<String, Integer> mIfaceIpModes;
 
-    /* Limit on number of registered soft AP callbacks to track and prevent potential memory leak */
-    private static final int NUM_SOFT_AP_CALLBACKS_WARN_LIMIT = 10;
-    private static final int NUM_SOFT_AP_CALLBACKS_WTF_LIMIT = 20;
-    private final HashMap<Integer, ISoftApCallback> mRegisteredSoftApCallbacks;
+    private final ExternalCallbackTracker<ISoftApCallback> mRegisteredSoftApCallbacks;
 
     /**
      * One of:  {@link WifiManager#WIFI_AP_STATE_DISABLED},
@@ -457,7 +455,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mIfaceIpModes = new ConcurrentHashMap<>();
         mLocalOnlyHotspotRequests = new HashMap<>();
         enableVerboseLoggingInternal(getVerboseLoggingLevel());
-        mRegisteredSoftApCallbacks = new HashMap<>();
+        mRegisteredSoftApCallbacks =
+                new ExternalCallbackTracker<ISoftApCallback>(mClientModeImplHandler);
 
         mWifiInjector.getActiveModeWarden().registerSoftApCallback(new SoftApCallbackImpl());
         mPowerProfile = mWifiInjector.getPowerProfile();
@@ -1070,7 +1069,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         public void onStateChanged(int state, int failureReason) {
             mSoftApState = state;
 
-            Iterator<ISoftApCallback> iterator = mRegisteredSoftApCallbacks.values().iterator();
+            Iterator<ISoftApCallback> iterator =
+                    mRegisteredSoftApCallbacks.getCallbacks().iterator();
             while (iterator.hasNext()) {
                 ISoftApCallback callback = iterator.next();
                 try {
@@ -1091,7 +1091,8 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         public void onNumClientsChanged(int numClients) {
             mSoftApNumClients = numClients;
 
-            Iterator<ISoftApCallback> iterator = mRegisteredSoftApCallbacks.values().iterator();
+            Iterator<ISoftApCallback> iterator =
+                    mRegisteredSoftApCallbacks.getCallbacks().iterator();
             while (iterator.hasNext()) {
                 ISoftApCallback callback = iterator.next();
                 try {
@@ -1132,33 +1133,12 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             mLog.info("registerSoftApCallback uid=%").c(Binder.getCallingUid()).flush();
         }
 
-        // register for binder death
-        IBinder.DeathRecipient dr = new IBinder.DeathRecipient() {
-            @Override
-            public void binderDied() {
-                binder.unlinkToDeath(this, 0);
-                mClientHandler.post(() -> {
-                    mRegisteredSoftApCallbacks.remove(callbackIdentifier);
-                });
-            }
-        };
-        try {
-            binder.linkToDeath(dr, 0);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Error on linkToDeath - " + e);
-            return;
-        }
-
         // post operation to handler thread
         mClientHandler.post(() -> {
-            mRegisteredSoftApCallbacks.put(callbackIdentifier, callback);
-
-            if (mRegisteredSoftApCallbacks.size() > NUM_SOFT_AP_CALLBACKS_WTF_LIMIT) {
-                Log.wtf(TAG, "Too many soft AP callbacks: " + mRegisteredSoftApCallbacks.size());
-            } else if (mRegisteredSoftApCallbacks.size() > NUM_SOFT_AP_CALLBACKS_WARN_LIMIT) {
-                Log.w(TAG, "Too many soft AP callbacks: " + mRegisteredSoftApCallbacks.size());
+            if (!mRegisteredSoftApCallbacks.add(binder, callback, callbackIdentifier)) {
+                Log.e(TAG, "registerSoftApCallback: Failed to add callback");
+                return;
             }
-
             // Update the client about the current state immediately after registering the callback
             try {
                 callback.onStateChanged(mSoftApState, 0);
@@ -2871,26 +2851,9 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         if (mVerboseLoggingEnabled) {
             mLog.info("registerTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
-
-        // register for binder death
-        IBinder.DeathRecipient dr = new IBinder.DeathRecipient() {
-            @Override
-            public void binderDied() {
-                binder.unlinkToDeath(this, 0);
-                mClientHandler.post(() -> {
-                    mTrafficPoller.removeCallback(callbackIdentifier);
-                });
-            }
-        };
-        try {
-            binder.linkToDeath(dr, 0);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Error on linkToDeath - " + e);
-            return;
-        }
         // Post operation to handler thread
         mClientHandler.post(() -> {
-            mTrafficPoller.addCallback(callback, callbackIdentifier);
+            mTrafficPoller.addCallback(binder, callback, callbackIdentifier);
         });
     }
 
@@ -2908,7 +2871,6 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         if (mVerboseLoggingEnabled) {
             mLog.info("unregisterTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
-
         // Post operation to handler thread
         mClientHandler.post(() -> {
             mTrafficPoller.removeCallback(callbackIdentifier);

@@ -104,7 +104,6 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
@@ -908,7 +907,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure we do not allow unpermitted callers to get the wifi ap state.
      */
-    @Ignore
     @Test
     public void testGetWifiApEnabledPermissionDenied() {
         // we should not be able to get the state
@@ -1056,7 +1054,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure that we handle scan request failure when posting the runnable to handler fails.
      */
-    @Ignore
     @Test
     public void testStartScanFailureInRunWithScissors() {
         setupClientModeImplHandlerForRunWithScissors();
@@ -1162,7 +1159,6 @@ public class WifiServiceImplTest {
     /**
      * Ensure that we handle scan results failure when posting the runnable to handler fails.
      */
-    @Ignore
     @Test
     public void testGetScanResultsFailureInRunWithScissors() {
         setupClientModeImplHandlerForRunWithScissors();
@@ -1451,6 +1447,21 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verifies that we handle softap callback registration failure if we encounter an exception
+     * while linking to death.
+     */
+    @Test
+    public void registerSoftApCallbackFailureOnLinkToDeath() throws Exception {
+        doThrow(new RemoteException())
+                .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+        mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback, 1);
+        mLooper.dispatchAll();
+        verify(mClientSoftApCallback, never()).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
+        verify(mClientSoftApCallback, never()).onNumClientsChanged(0);
+    }
+
+
+    /**
      * Registers a soft AP callback, then verifies that the current soft AP state and num clients
      * are sent to caller immediately after callback is registered.
      */
@@ -1553,7 +1564,6 @@ public class WifiServiceImplTest {
     /**
      * Verify that wifi service registers for callers BinderDeath event
      */
-    @Ignore
     @Test
     public void registersForBinderDeathOnRegisterSoftApCallback() throws Exception {
         final int callbackIdentifier = 1;
@@ -2274,7 +2284,6 @@ public class WifiServiceImplTest {
      * Verify that a call to {@link WifiServiceImpl#restoreSupplicantBackupData(byte[], byte[])} is
      * only allowed from callers with the signature only NETWORK_SETTINGS permission.
      */
-    @Ignore
     @Test(expected = SecurityException.class)
     public void testRestoreSupplicantBackupDataNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
@@ -2302,12 +2311,14 @@ public class WifiServiceImplTest {
      * Verify that a call to {@link WifiServiceImpl#enableVerboseLogging(int)} is allowed from
      * callers with the signature only NETWORK_SETTINGS permission.
      */
-    @Ignore("TODO: Investigate failure")
     @Test
     public void testEnableVerboseLoggingWithNetworkSettingsPermission() {
         doNothing().when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
+        // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
+        // before invocation.
+        reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
         verify(mClientModeImpl).enableVerboseLogging(anyInt());
     }
@@ -2321,6 +2332,9 @@ public class WifiServiceImplTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
+        // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
+        // before invocation.
+        reset(mClientModeImpl);
         mWifiServiceImpl.enableVerboseLogging(1);
         verify(mClientModeImpl, never()).enableVerboseLogging(anyInt());
     }
@@ -2925,7 +2939,7 @@ public class WifiServiceImplTest {
                 mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
     }
 
     /**
@@ -2936,33 +2950,5 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.unregisterTrafficStateCallback(0);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).removeCallback(0);
-    }
-
-    /**
-     * Verify that wifi service registers for callers BinderDeath event
-     */
-    @Test
-    public void registersForBinderDeathOnRegisterTrafficStateCallback() throws Exception {
-        mWifiServiceImpl.registerTrafficStateCallback(
-                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
-        mLooper.dispatchAll();
-        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
-    }
-
-    /**
-     * Verify that we remove the traffic state callback on receiving BinderDied event.
-     */
-    @Test
-    public void unregistersTrafficStateCallbackOnBinderDied() throws Exception {
-        ArgumentCaptor<IBinder.DeathRecipient> drCaptor =
-                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
-        mWifiServiceImpl.registerTrafficStateCallback(
-                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
-        verify(mAppBinder).linkToDeath(drCaptor.capture(), anyInt());
-
-        drCaptor.getValue().binderDied();
-        mLooper.dispatchAll();
-        verify(mAppBinder).unlinkToDeath(drCaptor.getValue(), 0);
-        verify(mWifiTrafficPoller).removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
     }
 }

@@ -1913,14 +1913,8 @@ public class WifiMetrics {
             consolidateScoringParams();
             if (args != null && args.length > 0 && PROTO_DUMP_ARG.equals(args[0])) {
                 // Dump serialized WifiLog proto
-                consolidateProto(true);
-                for (ConnectionEvent event : mConnectionEventList) {
-                    if (mCurrentConnectionEvent != event) {
-                        //indicate that automatic bug report has been taken for all valid
-                        //connection events
-                        event.mConnectionEvent.automaticBugReportTaken = true;
-                    }
-                }
+                consolidateProto();
+
                 byte[] wifiMetricsProto = WifiMetricsProto.WifiLog.toByteArray(mWifiLogProto);
                 String metricsProtoDump = Base64.encodeToString(wifiMetricsProto, Base64.DEFAULT);
                 if (args.length > 1 && CLEAN_DUMP_ARG.equals(args[1])) {
@@ -2416,34 +2410,20 @@ public class WifiMetrics {
     }
 
     /**
-     * append the separate ConnectionEvent, SystemStateEntry and ScanReturnCode collections to their
-     * respective lists within mWifiLogProto
-     *
-     * @param incremental Only include ConnectionEvents created since last automatic bug report
+     * Put all metrics that were being tracked separately into mWifiLogProto
      */
-    private void consolidateProto(boolean incremental) {
-        List<WifiMetricsProto.ConnectionEvent> events = new ArrayList<>();
+    private void consolidateProto() {
         List<WifiMetricsProto.RssiPollCount> rssis = new ArrayList<>();
-        List<WifiMetricsProto.RssiPollCount> rssiDeltas = new ArrayList<>();
-        List<WifiMetricsProto.LinkSpeedCount> linkSpeeds = new ArrayList<>();
-        List<WifiMetricsProto.AlertReasonCount> alertReasons = new ArrayList<>();
-        List<WifiMetricsProto.WifiScoreCount> scores = new ArrayList<>();
         synchronized (mLock) {
-            for (ConnectionEvent event : mConnectionEventList) {
-                // If this is not incremental, dump full ConnectionEvent list
-                // Else Dump all un-dumped events except for the current one
-                if (!incremental || ((mCurrentConnectionEvent != event)
-                        && !event.mConnectionEvent.automaticBugReportTaken)) {
-                    //Get all ConnectionEvents that haven not been dumped as a proto, also exclude
-                    //the current active un-ended connection event
-                    events.add(event.mConnectionEvent);
-                    if (incremental) {
-                        event.mConnectionEvent.automaticBugReportTaken = true;
-                    }
-                }
+            int connectionEventCount = mConnectionEventList.size();
+            // Exclude the current active un-ended connection event
+            if (mCurrentConnectionEvent != null) {
+                connectionEventCount--;
             }
-            if (events.size() > 0) {
-                mWifiLogProto.connectionEvent = events.toArray(mWifiLogProto.connectionEvent);
+            mWifiLogProto.connectionEvent =
+                    new WifiMetricsProto.ConnectionEvent[connectionEventCount];
+            for (int i = 0; i < connectionEventCount; i++) {
+                mWifiLogProto.connectionEvent[i] = mConnectionEventList.get(i).mConnectionEvent;
             }
 
             //Convert the SparseIntArray of scanReturnEntry integers into ScanReturnEntry proto list
@@ -2495,47 +2475,46 @@ public class WifiMetrics {
              * Convert the SparseIntArray of RSSI delta rssi's and counts to the proto's repeated
              * IntKeyVal array.
              */
+            mWifiLogProto.rssiPollDeltaCount =
+                    new WifiMetricsProto.RssiPollCount[mRssiDeltaCounts.size()];
             for (int i = 0; i < mRssiDeltaCounts.size(); i++) {
-                WifiMetricsProto.RssiPollCount keyVal = new WifiMetricsProto.RssiPollCount();
-                keyVal.rssi = mRssiDeltaCounts.keyAt(i);
-                keyVal.count = mRssiDeltaCounts.valueAt(i);
-                rssiDeltas.add(keyVal);
+                mWifiLogProto.rssiPollDeltaCount[i] = new WifiMetricsProto.RssiPollCount();
+                mWifiLogProto.rssiPollDeltaCount[i].rssi = mRssiDeltaCounts.keyAt(i);
+                mWifiLogProto.rssiPollDeltaCount[i].count = mRssiDeltaCounts.valueAt(i);
             }
-            mWifiLogProto.rssiPollDeltaCount = rssiDeltas.toArray(mWifiLogProto.rssiPollDeltaCount);
-
-
 
             /**
              * Add LinkSpeedCount objects from mLinkSpeedCounts to proto.
              */
+            mWifiLogProto.linkSpeedCounts =
+                    new WifiMetricsProto.LinkSpeedCount[mLinkSpeedCounts.size()];
             for (int i = 0; i < mLinkSpeedCounts.size(); i++) {
-                linkSpeeds.add(mLinkSpeedCounts.valueAt(i));
+                mWifiLogProto.linkSpeedCounts[i] = mLinkSpeedCounts.valueAt(i);
             }
-            mWifiLogProto.linkSpeedCounts = linkSpeeds.toArray(mWifiLogProto.linkSpeedCounts);
 
             /**
              * Convert the SparseIntArray of alert reasons and counts to the proto's repeated
              * IntKeyVal array.
              */
+            mWifiLogProto.alertReasonCount =
+                    new WifiMetricsProto.AlertReasonCount[mWifiAlertReasonCounts.size()];
             for (int i = 0; i < mWifiAlertReasonCounts.size(); i++) {
-                WifiMetricsProto.AlertReasonCount keyVal = new WifiMetricsProto.AlertReasonCount();
-                keyVal.reason = mWifiAlertReasonCounts.keyAt(i);
-                keyVal.count = mWifiAlertReasonCounts.valueAt(i);
-                alertReasons.add(keyVal);
+                mWifiLogProto.alertReasonCount[i] = new WifiMetricsProto.AlertReasonCount();
+                mWifiLogProto.alertReasonCount[i].reason = mWifiAlertReasonCounts.keyAt(i);
+                mWifiLogProto.alertReasonCount[i].count = mWifiAlertReasonCounts.valueAt(i);
             }
-            mWifiLogProto.alertReasonCount = alertReasons.toArray(mWifiLogProto.alertReasonCount);
 
             /**
             *  Convert the SparseIntArray of Wifi Score and counts to proto's repeated
             * IntKeyVal array.
             */
+            mWifiLogProto.wifiScoreCount =
+                    new WifiMetricsProto.WifiScoreCount[mWifiScoreCounts.size()];
             for (int score = 0; score < mWifiScoreCounts.size(); score++) {
-                WifiMetricsProto.WifiScoreCount keyVal = new WifiMetricsProto.WifiScoreCount();
-                keyVal.score = mWifiScoreCounts.keyAt(score);
-                keyVal.count = mWifiScoreCounts.valueAt(score);
-                scores.add(keyVal);
+                mWifiLogProto.wifiScoreCount[score] = new WifiMetricsProto.WifiScoreCount();
+                mWifiLogProto.wifiScoreCount[score].score = mWifiScoreCounts.keyAt(score);
+                mWifiLogProto.wifiScoreCount[score].count = mWifiScoreCounts.valueAt(score);
             }
-            mWifiLogProto.wifiScoreCount = scores.toArray(mWifiLogProto.wifiScoreCount);
 
             /**
              * Convert the SparseIntArray of SoftAp Return codes and counts to proto's repeated

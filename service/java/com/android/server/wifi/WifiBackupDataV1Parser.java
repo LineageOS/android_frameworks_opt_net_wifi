@@ -90,7 +90,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
 
     private static final String TAG = "WifiBackupDataV1Parser";
 
-    private static final int HIGHEST_SUPPORTED_MINOR_VERSION = 0;
+    private static final int HIGHEST_SUPPORTED_MINOR_VERSION = 1;
 
     // List of tags supported for <WifiConfiguration> section in minor version 0
     private static final Set<String> WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS =
@@ -111,8 +111,15 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 WifiConfigurationXmlUtil.XML_TAG_SHARED,
             }));
 
-    // List of tags supported for <IpConfiguration> section in minor version 0
-    private static final Set<String> IP_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS =
+    // List of tags supported for <WifiConfiguration> section in minor version 1
+    private static final Set<String> WIFI_CONFIGURATION_MINOR_V1_SUPPORTED_TAGS =
+            new HashSet<String>() {{
+                addAll(WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS);
+                add(WifiConfigurationXmlUtil.XML_TAG_METERED_OVERRIDE);
+            }};
+
+    // List of tags supported for <IpConfiguration> section in minor version 0 & 1
+    private static final Set<String> IP_CONFIGURATION_MINOR_V0_V1_SUPPORTED_TAGS =
             new HashSet<String>(Arrays.asList(new String[] {
                 IpConfigurationXmlUtil.XML_TAG_IP_ASSIGNMENT,
                 IpConfigurationXmlUtil.XML_TAG_LINK_ADDRESS,
@@ -342,6 +349,9 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 case WifiConfigurationXmlUtil.XML_TAG_SHARED:
                     configuration.shared = (boolean) value;
                     break;
+                case WifiConfigurationXmlUtil.XML_TAG_METERED_OVERRIDE:
+                    configuration.meteredOverride = (int) value;
+                    break;
                 default:
                     // should never happen, since other tags are filtered out earlier
                     throw new XmlPullParserException(
@@ -362,7 +372,10 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
      */
     private static Set<String> getSupportedWifiConfigurationTags(int minorVersion) {
         switch (minorVersion) {
-            case 0: return WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS;
+            case 0:
+                return WIFI_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS;
+            case 1:
+                return WIFI_CONFIGURATION_MINOR_V1_SUPPORTED_TAGS;
             default:
                 Log.e(TAG, "Invalid minorVersion: " + minorVersion);
                 return Collections.<String>emptySet();
@@ -573,7 +586,9 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
      */
     private static Set<String> getSupportedIpConfigurationTags(int minorVersion) {
         switch (minorVersion) {
-            case 0: return IP_CONFIGURATION_MINOR_V0_SUPPORTED_TAGS;
+            case 0:
+            case 1:
+                return IP_CONFIGURATION_MINOR_V0_V1_SUPPORTED_TAGS;
             default:
                 Log.e(TAG, "Invalid minorVersion: " + minorVersion);
                 return Collections.<String>emptySet();

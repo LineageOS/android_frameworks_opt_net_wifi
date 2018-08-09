@@ -2903,22 +2903,18 @@ public class ClientModeImpl extends StateMachine {
 
     @VisibleForTesting
     public static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
-    private long mDiagsConnectionStartMillis = -1;
     /**
      * Inform other components that a new connection attempt is starting.
      */
     private void reportConnectionAttemptStart(
             WifiConfiguration config, String targetBSSID, int roamType) {
         mWifiMetrics.startConnectionEvent(config, targetBSSID, roamType);
-        mDiagsConnectionStartMillis = mClock.getElapsedSinceBootMillis();
-        mWifiDiagnostics.reportConnectionEvent(
-                mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_STARTED);
+        mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
         // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl
         // grows a proper CONNECTING state.
         removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
-        sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT,
-                mDiagsConnectionStartMillis, DIAGS_CONNECT_TIMEOUT_MILLIS);
+        sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
 
     /**
@@ -2940,8 +2936,7 @@ public class ClientModeImpl extends StateMachine {
                 //
                 // TODO(b/34181219): Fix the above.
                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
-                mWifiDiagnostics.reportConnectionEvent(
-                        mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+                mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                 break;
             case WifiMetrics.ConnectionEvent.FAILURE_REDUNDANT_CONNECTION_ATTEMPT:
             case WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED:
@@ -2950,10 +2945,8 @@ public class ClientModeImpl extends StateMachine {
                 break;
             default:
                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
-                mWifiDiagnostics.reportConnectionEvent(
-                        mDiagsConnectionStartMillis, WifiDiagnostics.CONNECTION_EVENT_FAILED);
+                mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
-        mDiagsConnectionStartMillis = -1;
     }
 
     private void handleIPv4Success(DhcpResults dhcpResults) {
@@ -3593,7 +3586,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_DIAGS_CONNECT_TIMEOUT:
                     mWifiDiagnostics.reportConnectionEvent(
-                            (Long) message.obj, BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
+                            BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
                     break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what, new ArrayList<WifiConfiguration>());

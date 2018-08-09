@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,10 +30,12 @@ import android.content.Intent;
 import android.net.NetworkInfo;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.WifiManager;
-import android.os.Message;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.support.test.filters.SmallTest;
+
+import com.android.server.wifi.util.ExternalCallbackTracker;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -57,14 +60,15 @@ public class WifiTrafficPollerTest {
     private final static long RX_PACKET_COUNT = 50;
     private static final int TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER = 14;
 
-    final ArgumentCaptor<Message> mMessageCaptor = ArgumentCaptor.forClass(Message.class);
     final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
             ArgumentCaptor.forClass(BroadcastReceiver.class);
 
     @Mock Context mContext;
     @Mock WifiNative mWifiNative;
     @Mock NetworkInfo mNetworkInfo;
+    @Mock IBinder mAppBinder;
     @Mock ITrafficStateCallback mTrafficStateCallback;
+    @Mock ExternalCallbackTracker<ITrafficStateCallback> mCallbackTracker;
 
     /**
      * Called before each test
@@ -116,7 +120,7 @@ public class WifiTrafficPollerTest {
     public void testNotStartTrafficStatsPollingWithDisconnected() throws RemoteException {
         // Register Client to verify that Tx/RX packet message is properly received.
         mWifiTrafficPoller.addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.DISCONNECTED);
 
@@ -132,7 +136,7 @@ public class WifiTrafficPollerTest {
     public void testStartTrafficStatsPollingWithScreenOn() throws RemoteException {
         // Register Client to verify that Tx/RX packet message is properly received.
         mWifiTrafficPoller.addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.CONNECTED);
 
@@ -148,7 +152,7 @@ public class WifiTrafficPollerTest {
     public void testNotStartTrafficStatsPollingWithScreenOff() throws RemoteException {
         // Register Client to verify that Tx/RX packet message is properly received.
         mWifiTrafficPoller.addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_OFF,
                 NetworkInfo.DetailedState.CONNECTED);
 
@@ -166,9 +170,9 @@ public class WifiTrafficPollerTest {
     public void testRemoveClient() throws RemoteException {
         // Register Client to verify that Tx/RX packet message is properly received.
         mWifiTrafficPoller.addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mWifiTrafficPoller.removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
-        mLooper.dispatchAll();
+        verify(mAppBinder).unlinkToDeath(any(), anyInt());
 
         triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
                 NetworkInfo.DetailedState.CONNECTED);
@@ -184,7 +188,7 @@ public class WifiTrafficPollerTest {
     public void testRemoveClientWithWrongIdentifier() throws RemoteException {
         // Register Client to verify that Tx/RX packet message is properly received.
         mWifiTrafficPoller.addCallback(
-                mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mWifiTrafficPoller.removeCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER + 5);
         mLooper.dispatchAll();
 
@@ -194,5 +198,35 @@ public class WifiTrafficPollerTest {
         // Client should get the DATA_ACTIVITY_NOTIFICATION
         verify(mTrafficStateCallback).onStateChanged(
                 WifiManager.TrafficStateCallback.DATA_ACTIVITY_INOUT);
+    }
+
+    /**
+     *
+     * Verify that traffic poller registers for death notification on adding client.
+     */
+    @Test
+    public void registersForBinderDeathOnAddClient() throws Exception {
+        mWifiTrafficPoller.addCallback(
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+    }
+
+    /**
+     *
+     * Verify that traffic poller registers for death notification on adding client.
+     */
+    @Test
+    public void addCallbackFailureOnLinkToDeath() throws Exception {
+        doThrow(new RemoteException())
+                .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+        mWifiTrafficPoller.addCallback(
+                mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+
+        triggerForUpdatedInformationOfData(Intent.ACTION_SCREEN_ON,
+                NetworkInfo.DetailedState.CONNECTED);
+
+        // Client should not get any message callback add failed.
+        verify(mTrafficStateCallback, never()).onStateChanged(anyInt());
     }
 }
