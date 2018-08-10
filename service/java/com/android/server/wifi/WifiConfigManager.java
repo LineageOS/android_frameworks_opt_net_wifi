@@ -2555,7 +2555,11 @@ public class WifiConfigManager {
             return new HashSet<>();
         }
         if (mPendingStoreRead) {
-            Log.wtf(TAG, "Unexpected user switch before store is read!");
+            Log.w(TAG, "User switch before store is read!");
+            mConfiguredNetworks.setNewUser(userId);
+            mCurrentUserId = userId;
+            // Cannot read data from new user's CE store file before they log-in.
+            mPendingUnlockStoreRead = true;
             return new HashSet<>();
         }
         if (mUserManager.isUserUnlockingOrUnlocked(mCurrentUserId)) {
