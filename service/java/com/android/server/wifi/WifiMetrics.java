@@ -29,6 +29,8 @@ import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemProperties;
+
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
@@ -2304,6 +2306,7 @@ public class WifiMetrics {
                 for (WifiIsUnusableWithTime event : mWifiIsUnusableList) {
                     pw.println(event);
                 }
+                pw.println("Hardware Version: " + SystemProperties.get("ro.boot.revision", ""));
             }
         }
     }
@@ -2671,6 +2674,7 @@ public class WifiMetrics {
             for (int i = 0; i < mWifiIsUnusableList.size(); i++) {
                 mWifiLogProto.wifiIsUnusableEventList[i] = mWifiIsUnusableList.get(i).event;
             }
+            mWifiLogProto.hardwareRevision = SystemProperties.get("ro.boot.revision", "");
         }
     }
 
