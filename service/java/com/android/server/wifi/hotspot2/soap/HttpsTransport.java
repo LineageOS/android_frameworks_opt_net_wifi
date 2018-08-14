@@ -33,10 +33,21 @@ public class HttpsTransport extends HttpTransportSE {
     private URL mUrl;
     private ServiceConnection mServiceConnection;
 
-    public HttpsTransport(@NonNull Network network, @NonNull URL url) {
+    private HttpsTransport(@NonNull Network network, @NonNull URL url) {
         super(url.toString());
         mNetwork = network;
         mUrl = url;
+    }
+
+    /**
+     * Create an instance of {@link HttpsTransport}.
+     *
+     * @param network instance of {@link Network} that indicates current connection.
+     * @param url server url used for HTTPS connection.
+     * @return instance of {@link HttpsTransport}
+     */
+    public static HttpsTransport createInstance(@NonNull Network network, @NonNull URL url) {
+        return new HttpsTransport(network, url);
     }
 
     @Override

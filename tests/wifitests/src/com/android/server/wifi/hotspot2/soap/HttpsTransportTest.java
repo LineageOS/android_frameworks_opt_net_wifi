@@ -47,7 +47,7 @@ public class HttpsTransportTest {
     public void setUp() throws Exception {
         initMocks(this);
         mUrl = new URL(TEST_URL);
-        mHttpsTransport = new HttpsTransport(mNetwork, mUrl);
+        mHttpsTransport = HttpsTransport.createInstance(mNetwork, mUrl);
     }
 
     /**
