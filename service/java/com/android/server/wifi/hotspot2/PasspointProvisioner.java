@@ -60,7 +60,7 @@ public class PasspointProvisioner {
     private final WfaKeyStore mWfaKeyStore;
     private final PasspointObjectFactory mObjectFactory;
     private final SystemInfo mSystemInfo;
-    private final RedirectListener mRedirectListener;
+    private RedirectListener mRedirectListener;
     private int mCurrentSessionId = 0;
     private int mCallingUid;
     private boolean mVerboseLoggingEnabled = false;
@@ -74,7 +74,6 @@ public class PasspointProvisioner {
         mOsuServerConnection = objectFactory.makeOsuServerConnection();
         mWfaKeyStore = objectFactory.makeWfaKeyStore();
         mSystemInfo = objectFactory.getSystemInfo(context, wifiNative);
-        mRedirectListener = RedirectListener.createInstance();
         mObjectFactory = objectFactory;
     }
 
@@ -87,6 +86,7 @@ public class PasspointProvisioner {
         mOsuNetworkConnection.init(mProvisioningStateMachine.getHandler());
         // Offload the heavy load job to another thread
         mProvisioningStateMachine.getHandler().post(() -> {
+            mRedirectListener = RedirectListener.createInstance();
             mWfaKeyStore.load();
             mOsuServerConnection.init(mObjectFactory.getSSLContext(TLS_VERSION),
                     mObjectFactory.getTrustManagerImpl(mWfaKeyStore.get()));
