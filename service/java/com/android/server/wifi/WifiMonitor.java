@@ -28,7 +28,6 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Protocol;
-import com.android.internal.util.StateMachine;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
 import com.android.server.wifi.hotspot2.WnmData;
@@ -39,9 +38,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Listens for events from the wpa_supplicant server, and passes them on
- * to the {@link StateMachine} for handling.
- *
+ * Listen for events from the wpa_supplicant & wificond and broadcast them on
+ * to the various {@link ClientModeImpl} modules interested in handling these events.
  * @hide
  */
 public class WifiMonitor {

@@ -1357,6 +1357,7 @@ public class WifiNativeInterfaceManagementTest {
                 destroyedListenerCaptor.capture());
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(ifaceName);
         mInOrder.verify(mNwManagementService).registerObserver(networkObserverCaptor.capture());
+        mInOrder.verify(mWifiMonitor).startMonitoring(ifaceName);
         mInOrder.verify(mNwManagementService).getInterfaceConfig(ifaceName);
     }
 
@@ -1381,6 +1382,7 @@ public class WifiNativeInterfaceManagementTest {
             boolean anyOtherStaIface, boolean anyOtherApIface,
             String ifaceName, @Mock WifiNative.InterfaceCallback callback,
             BaseNetworkObserver networkObserver) throws Exception {
+        mInOrder.verify(mWifiMonitor).stopMonitoring(ifaceName);
         if (networkObserver != null) {
             mInOrder.verify(mNwManagementService).unregisterObserver(networkObserver);
         }
