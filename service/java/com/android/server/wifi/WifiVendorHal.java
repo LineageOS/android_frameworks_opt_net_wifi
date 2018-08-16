@@ -34,6 +34,7 @@ import android.hardware.wifi.V1_0.RttType;
 import android.hardware.wifi.V1_0.StaBackgroundScanBucketEventReportSchemeMask;
 import android.hardware.wifi.V1_0.StaBackgroundScanBucketParameters;
 import android.hardware.wifi.V1_0.StaBackgroundScanParameters;
+import android.hardware.wifi.V1_0.StaLinkLayerIfaceStats;
 import android.hardware.wifi.V1_0.StaLinkLayerRadioStats;
 import android.hardware.wifi.V1_0.StaLinkLayerStats;
 import android.hardware.wifi.V1_0.StaRoamingConfig;
@@ -925,6 +926,13 @@ public class WifiVendorHal {
      * @return the statistics, or null if unable to do so
      */
     public WifiLinkLayerStats getWifiLinkLayerStats(@NonNull String ifaceName) {
+        if (getWifiStaIfaceForV1_3Mockable(ifaceName) != null) {
+            return getWifiLinkLayerStats_1_3_Internal(ifaceName);
+        }
+        return getWifiLinkLayerStats_internal(ifaceName);
+    }
+
+    private WifiLinkLayerStats getWifiLinkLayerStats_internal(@NonNull String ifaceName) {
         class AnswerBox {
             public StaLinkLayerStats value = null;
         }
@@ -946,6 +954,30 @@ public class WifiVendorHal {
         return stats;
     }
 
+    private WifiLinkLayerStats getWifiLinkLayerStats_1_3_Internal(@NonNull String ifaceName) {
+        class AnswerBox {
+            public android.hardware.wifi.V1_3.StaLinkLayerStats value = null;
+        }
+        AnswerBox answer = new AnswerBox();
+        synchronized (sLock) {
+            try {
+                android.hardware.wifi.V1_3.IWifiStaIface iface =
+                        getWifiStaIfaceForV1_3Mockable(ifaceName);
+                if (iface == null) return null;
+                iface.getLinkLayerStats_1_3((status, stats) -> {
+                    if (!ok(status)) return;
+                    answer.value = stats;
+                });
+            } catch (RemoteException e) {
+                handleRemoteException(e);
+                return null;
+            }
+        }
+        WifiLinkLayerStats stats = frameworkFromHalLinkLayerStats_1_3(answer.value);
+        return stats;
+    }
+
+
     /**
      * Makes the framework version of link layer stats from the hal version.
      */
@@ -953,43 +985,96 @@ public class WifiVendorHal {
     static WifiLinkLayerStats frameworkFromHalLinkLayerStats(StaLinkLayerStats stats) {
         if (stats == null) return null;
         WifiLinkLayerStats out = new WifiLinkLayerStats();
-        out.beacon_rx = stats.iface.beaconRx;
-        out.rssi_mgmt = stats.iface.avgRssiMgmt;
+        setIfaceStats(out, stats.iface);
+        setRadioStats(out, stats.radios);
+        setTimeStamp(out, stats.timeStampInMs);
+        out.version = WifiLinkLayerStats.V1_0;
+        return out;
+    }
+
+    /**
+     * Makes the framework version of link layer stats from the hal version.
+     */
+    @VisibleForTesting
+    static WifiLinkLayerStats frameworkFromHalLinkLayerStats_1_3(
+            android.hardware.wifi.V1_3.StaLinkLayerStats stats) {
+        if (stats == null) return null;
+        WifiLinkLayerStats out = new WifiLinkLayerStats();
+        setIfaceStats(out, stats.iface);
+        setRadioStats_1_3(out, stats.radios);
+        setTimeStamp(out, stats.timeStampInMs);
+        out.version = WifiLinkLayerStats.V1_3;
+        return out;
+    }
+
+    private static void setIfaceStats(WifiLinkLayerStats stats, StaLinkLayerIfaceStats iface) {
+        if (iface == null) return;
+        stats.beacon_rx = iface.beaconRx;
+        stats.rssi_mgmt = iface.avgRssiMgmt;
         // Statistics are broken out by Wireless Multimedia Extensions categories
         // WME Best Effort Access Category
-        out.rxmpdu_be = stats.iface.wmeBePktStats.rxMpdu;
-        out.txmpdu_be = stats.iface.wmeBePktStats.txMpdu;
-        out.lostmpdu_be = stats.iface.wmeBePktStats.lostMpdu;
-        out.retries_be = stats.iface.wmeBePktStats.retries;
+        stats.rxmpdu_be = iface.wmeBePktStats.rxMpdu;
+        stats.txmpdu_be = iface.wmeBePktStats.txMpdu;
+        stats.lostmpdu_be = iface.wmeBePktStats.lostMpdu;
+        stats.retries_be = iface.wmeBePktStats.retries;
         // WME Background Access Category
-        out.rxmpdu_bk = stats.iface.wmeBkPktStats.rxMpdu;
-        out.txmpdu_bk = stats.iface.wmeBkPktStats.txMpdu;
-        out.lostmpdu_bk = stats.iface.wmeBkPktStats.lostMpdu;
-        out.retries_bk = stats.iface.wmeBkPktStats.retries;
+        stats.rxmpdu_bk = iface.wmeBkPktStats.rxMpdu;
+        stats.txmpdu_bk = iface.wmeBkPktStats.txMpdu;
+        stats.lostmpdu_bk = iface.wmeBkPktStats.lostMpdu;
+        stats.retries_bk = iface.wmeBkPktStats.retries;
         // WME Video Access Category
-        out.rxmpdu_vi = stats.iface.wmeViPktStats.rxMpdu;
-        out.txmpdu_vi = stats.iface.wmeViPktStats.txMpdu;
-        out.lostmpdu_vi = stats.iface.wmeViPktStats.lostMpdu;
-        out.retries_vi = stats.iface.wmeViPktStats.retries;
+        stats.rxmpdu_vi = iface.wmeViPktStats.rxMpdu;
+        stats.txmpdu_vi = iface.wmeViPktStats.txMpdu;
+        stats.lostmpdu_vi = iface.wmeViPktStats.lostMpdu;
+        stats.retries_vi = iface.wmeViPktStats.retries;
         // WME Voice Access Category
-        out.rxmpdu_vo = stats.iface.wmeVoPktStats.rxMpdu;
-        out.txmpdu_vo = stats.iface.wmeVoPktStats.txMpdu;
-        out.lostmpdu_vo = stats.iface.wmeVoPktStats.lostMpdu;
-        out.retries_vo = stats.iface.wmeVoPktStats.retries;
-        // TODO(b/36176141): Figure out how to coalesce this info for multi radio devices.
-        if (stats.radios.size() > 0) {
-            StaLinkLayerRadioStats radioStats = stats.radios.get(0);
-            out.on_time = radioStats.onTimeInMs;
-            out.tx_time = radioStats.txTimeInMs;
-            out.tx_time_per_level = new int[radioStats.txTimeInMsPerLevel.size()];
-            for (int i = 0; i < out.tx_time_per_level.length; i++) {
-                out.tx_time_per_level[i] = radioStats.txTimeInMsPerLevel.get(i);
+        stats.rxmpdu_vo = iface.wmeVoPktStats.rxMpdu;
+        stats.txmpdu_vo = iface.wmeVoPktStats.txMpdu;
+        stats.lostmpdu_vo = iface.wmeVoPktStats.lostMpdu;
+        stats.retries_vo = iface.wmeVoPktStats.retries;
+    }
+
+    private static void setRadioStats(WifiLinkLayerStats stats,
+            List<StaLinkLayerRadioStats> radios) {
+        if (radios == null) return;
+        // NOTE(b/36176141): Figure out how to coalesce this info for multi radio devices.
+        if (radios.size() > 0) {
+            StaLinkLayerRadioStats radioStats = radios.get(0);
+            stats.on_time = radioStats.onTimeInMs;
+            stats.tx_time = radioStats.txTimeInMs;
+            stats.tx_time_per_level = new int[radioStats.txTimeInMsPerLevel.size()];
+            for (int i = 0; i < stats.tx_time_per_level.length; i++) {
+                stats.tx_time_per_level[i] = radioStats.txTimeInMsPerLevel.get(i);
             }
-            out.rx_time = radioStats.rxTimeInMs;
-            out.on_time_scan = radioStats.onTimeInMsForScan;
+            stats.rx_time = radioStats.rxTimeInMs;
+            stats.on_time_scan = radioStats.onTimeInMsForScan;
         }
-        out.timeStampInMs = stats.timeStampInMs;
-        return out;
+    }
+
+    private static void setRadioStats_1_3(WifiLinkLayerStats stats,
+            List<android.hardware.wifi.V1_3.StaLinkLayerRadioStats> radios) {
+        if (radios == null) return;
+        // NOTE(b/36176141): Figure out how to coalesce this info for multi radio devices.
+        if (radios.size() > 0) {
+            android.hardware.wifi.V1_3.StaLinkLayerRadioStats radioStats = radios.get(0);
+            stats.on_time = radioStats.V1_0.onTimeInMs;
+            stats.tx_time = radioStats.V1_0.txTimeInMs;
+            stats.tx_time_per_level = new int[radioStats.V1_0.txTimeInMsPerLevel.size()];
+            for (int i = 0; i < stats.tx_time_per_level.length; i++) {
+                stats.tx_time_per_level[i] = radioStats.V1_0.txTimeInMsPerLevel.get(i);
+            }
+            stats.rx_time = radioStats.V1_0.rxTimeInMs;
+            stats.on_time_scan = radioStats.V1_0.onTimeInMsForScan;
+            stats.on_time_nan_scan = radioStats.onTimeInMsForNanScan;
+            stats.on_time_background_scan = radioStats.onTimeInMsForBgScan;
+            stats.on_time_roam_scan = radioStats.onTimeInMsForRoamScan;
+            stats.on_time_pno_scan = radioStats.onTimeInMsForPnoScan;
+            stats.on_time_hs20_scan = radioStats.onTimeInMsForHs20Scan;
+        }
+    }
+
+    private static void setTimeStamp(WifiLinkLayerStats stats, long timeStampInMs) {
+        stats.timeStampInMs = timeStampInMs;
     }
 
     @VisibleForTesting
@@ -2649,6 +2734,20 @@ public class WifiVendorHal {
         IWifiStaIface iface = getStaIface(ifaceName);
         if (iface == null) return null;
         return android.hardware.wifi.V1_2.IWifiStaIface.castFrom(iface);
+    }
+
+    /**
+     * Method to mock out the V1_3 IWifiStaIface retrieval in unit tests.
+     *
+     * @param ifaceName Name of the interface
+     * @return 1.3 IWifiStaIface object if the device is running the 1.3 wifi hal service, null
+     * otherwise.
+     */
+    protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
+            @NonNull String ifaceName) {
+        IWifiStaIface iface = getStaIface(ifaceName);
+        if (iface == null) return null;
+        return android.hardware.wifi.V1_3.IWifiStaIface.castFrom(iface);
     }
 
     /**
