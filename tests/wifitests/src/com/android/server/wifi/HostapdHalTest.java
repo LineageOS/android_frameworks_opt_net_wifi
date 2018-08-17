@@ -58,6 +58,7 @@ public class HostapdHalTest {
     private @Mock IServiceManager mServiceManagerMock;
     private @Mock IHostapd mIHostapdMock;
     private @Mock WifiNative.HostapdDeathEventHandler mHostapdHalDeathHandler;
+    private @Mock WifiNative.SoftApListener mSoftApListener;
     private android.hardware.wifi.hostapd.V1_1.IHostapd mIHostapdMockV1_1;
     private IHostapdCallback mIHostapdCallback;
     private MockResources mResources;
@@ -202,7 +203,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -235,7 +236,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_5GHZ;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -269,7 +270,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_5GHZ;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -307,7 +308,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -345,7 +346,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -382,7 +383,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_ANY;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -420,7 +421,7 @@ public class HostapdHalTest {
         configuration.apChannel = apChannel;
         configuration.apBand = WifiConfiguration.AP_BAND_ANY;
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -451,7 +452,7 @@ public class HostapdHalTest {
         configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         configuration.apBand = WifiConfiguration.AP_BAND_5GHZ + 1;
 
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock, never()).addAccessPoint(any(), any());
     }
 
@@ -470,7 +471,7 @@ public class HostapdHalTest {
         configuration.apChannel = 6;
         configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
 
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -488,7 +489,7 @@ public class HostapdHalTest {
         configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         configuration.apChannel = 6;
 
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration));
+        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -525,6 +526,34 @@ public class HostapdHalTest {
 
         assertFalse(mHostapdHal.removeAccessPoint(IFACE_NAME));
         verify(mIHostapdMock).removeAccessPoint(any());
+    }
+
+    /**
+     * Verifies the handling of onFailure callback from hostapd.
+     */
+    @Test
+    public void testOnFailureCallbackHandling() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mIHostapdMockV1_1 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
+        executeAndValidateInitializationSequenceV1_1(false);
+
+        WifiConfiguration configuration = new WifiConfiguration();
+        configuration.SSID = NETWORK_SSID;
+        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        verify(mIHostapdMock).addAccessPoint(any(), any());
+
+        // Trigger on failure.
+        mIHostapdCallback.onFailure(IFACE_NAME);
+        verify(mSoftApListener).onFailure();
+
+        // Now remove the access point and ensure that the callback is no longer handled.
+        reset(mSoftApListener);
+        assertTrue(mHostapdHal.removeAccessPoint(IFACE_NAME));
+        mIHostapdCallback.onFailure(IFACE_NAME);
+        verify(mSoftApListener, never()).onFailure();
     }
 
     private void executeAndValidateInitializationSequence() throws Exception {

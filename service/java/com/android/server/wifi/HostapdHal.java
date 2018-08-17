@@ -33,6 +33,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.HostapdDeathEventHandler;
 import com.android.server.wifi.util.NativeUtil;
 
+import java.util.HashMap;
 import java.util.NoSuchElementException;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -55,6 +56,7 @@ public class HostapdHal {
     // Hostapd HAL interface objects
     private IServiceManager mIServiceManager = null;
     private IHostapd mIHostapd;
+    private HashMap<String, WifiNative.SoftApListener> mSoftApListeners = new HashMap<>();
     private HostapdDeathEventHandler mDeathEventHandler;
 
     private final IServiceNotification mServiceNotificationCallback =
@@ -271,9 +273,11 @@ public class HostapdHal {
      *
      * @param ifaceName Name of the interface.
      * @param config Configuration to use for the AP.
+     * @param listener Callback for AP events.
      * @return true on success, false otherwise.
      */
-    public boolean addAccessPoint(@NonNull String ifaceName, @NonNull WifiConfiguration config) {
+    public boolean addAccessPoint(@NonNull String ifaceName, @NonNull WifiConfiguration config,
+                                  @NonNull WifiNative.SoftApListener listener) {
         synchronized (mLock) {
             final String methodStr = "addAccessPoint";
             IHostapd.IfaceParams ifaceParams = new IHostapd.IfaceParams();
@@ -314,7 +318,11 @@ public class HostapdHal {
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
                 HostapdStatus status = mIHostapd.addAccessPoint(ifaceParams, nwParams);
-                return checkStatusAndLogFailure(status, methodStr);
+                if (!checkStatusAndLogFailure(status, methodStr)) {
+                    return false;
+                }
+                mSoftApListeners.put(ifaceName, listener);
+                return true;
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
                 return false;
@@ -334,7 +342,11 @@ public class HostapdHal {
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
                 HostapdStatus status = mIHostapd.removeAccessPoint(ifaceName);
-                return checkStatusAndLogFailure(status, methodStr);
+                if (!checkStatusAndLogFailure(status, methodStr)) {
+                    return false;
+                }
+                mSoftApListeners.remove(ifaceName);
+                return true;
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
                 return false;
@@ -559,6 +571,10 @@ public class HostapdHal {
         @Override
         public void onFailure(String ifaceName) {
             Log.w(TAG, "Failure on iface " + ifaceName);
+            WifiNative.SoftApListener listener = mSoftApListeners.get(ifaceName);
+            if (listener != null) {
+                listener.onFailure();
+            }
         }
     }
 }

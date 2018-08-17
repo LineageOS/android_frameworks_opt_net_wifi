@@ -99,6 +99,12 @@ public class SoftApManager implements ActiveModeManager {
      * Listener for soft AP events.
      */
     private final SoftApListener mSoftApListener = new SoftApListener() {
+
+        @Override
+        public void onFailure() {
+            mStateMachine.sendMessage(SoftApStateMachine.CMD_FAILURE);
+        }
+
         @Override
         public void onNumAssociatedStationsChanged(int numStations) {
             mStateMachine.sendMessage(
@@ -292,6 +298,7 @@ public class SoftApManager implements ActiveModeManager {
     private class SoftApStateMachine extends StateMachine {
         // Commands for the state machine.
         public static final int CMD_START = 0;
+        public static final int CMD_FAILURE = 2;
         public static final int CMD_INTERFACE_STATUS_CHANGED = 3;
         public static final int CMD_NUM_ASSOCIATED_STATIONS_CHANGED = 4;
         public static final int CMD_NO_ASSOCIATED_STATIONS_TIMEOUT = 5;
@@ -622,6 +629,9 @@ public class SoftApManager implements ActiveModeManager {
                         mApInterfaceName = null;
                         transitionTo(mIdleState);
                         break;
+                    case CMD_FAILURE:
+                        Log.w(TAG, "hostapd failure, stop and report failure");
+                        /* fall through */
                     case CMD_INTERFACE_DOWN:
                         Log.w(TAG, "interface error, stop and report failure");
                         updateApState(WifiManager.WIFI_AP_STATE_FAILED,
