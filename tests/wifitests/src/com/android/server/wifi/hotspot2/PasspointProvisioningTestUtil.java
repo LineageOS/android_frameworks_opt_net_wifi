@@ -105,7 +105,7 @@ public class PasspointProvisioningTestUtil {
      * Return a set of OSU server certs to test with
      * @return List<X509Certificate> an array of OSU certs
      */
-    private static List<X509Certificate> getOsuCertsForTest() {
+    /* package */ static List<X509Certificate> getOsuCertsForTest() {
         List<X509Certificate> osuCerts = new ArrayList<X509Certificate>();
         try {
             CertificateFactory certFactory = CertificateFactory.getInstance("X.509");

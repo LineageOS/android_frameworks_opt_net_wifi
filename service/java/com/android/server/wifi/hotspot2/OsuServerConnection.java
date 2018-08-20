@@ -137,6 +137,7 @@ public class OsuServerConnection {
             return false;
         }
         mUrlConnection = urlConnection;
+        mHttpsTransport = HttpsTransport.createInstance(network, url);
         return true;
     }
 
@@ -161,6 +162,7 @@ public class OsuServerConnection {
         for (Pair<Locale, String> identity : ASN1SubjectAltNamesParser.getProviderNames(
                 mTrustManager.getProviderCert())) {
             if (identity.first == null) continue;
+
             // Compare the language code for ISO-639.
             if (identity.first.getISO3Language().equals(locale.getISO3Language()) &&
                     TextUtils.equals(identity.second, friendlyName)) {
@@ -177,20 +179,20 @@ public class OsuServerConnection {
     /**
      * The helper method to exchange a SOAP message.
      *
-     * @param url server's URL
      * @param soapEnvelope the soap message to be sent.
      * @return {@link SppResponseMessage} parsed, {@code null} in any failure
      */
-    public SppResponseMessage exchangeSoapMessage(@NonNull URL url,
-            @NonNull SoapSerializationEnvelope soapEnvelope) {
+    public SppResponseMessage exchangeSoapMessage(@NonNull SoapSerializationEnvelope soapEnvelope) {
         if (mNetwork == null) {
             Log.e(TAG, "Network is not established");
             return null;
         }
+
         if (soapEnvelope == null) {
             Log.e(TAG, "soapEnvelope is null");
             return null;
         }
+
         if (mUrlConnection == null) {
             Log.e(TAG, "Server certificate is not validated");
             return null;
@@ -200,15 +202,13 @@ public class OsuServerConnection {
             mServiceConnection.disconnect();
         }
 
-        mServiceConnection = getServiceConnection(url, mNetwork);
+        mServiceConnection = getServiceConnection();
         if (mServiceConnection == null) {
             Log.e(TAG, "ServiceConnection for https is null");
             return null;
         }
 
-        mUrl = url;
-        SppResponseMessage sppResponse = null;
-
+        SppResponseMessage sppResponse;
         try {
             // Sending the SOAP message
             mHttpsTransport.call("", soapEnvelope);
@@ -221,7 +221,6 @@ public class OsuServerConnection {
                 Log.e(TAG, "Not a SoapObject instance");
                 return null;
             }
-
             SoapObject soapResponse = (SoapObject) response;
             if (mVerboseLoggingEnabled) {
                 for (int i = 0; i < soapResponse.getAttributeCount(); i++) {
@@ -231,9 +230,9 @@ public class OsuServerConnection {
                 }
                 Log.v(TAG, "response : " + soapResponse.toString());
             }
+
             // Get the parsed SOAP SPP Response message
             sppResponse = SoapParser.getResponse(soapResponse);
-
         } catch (Exception e) {
             if (e instanceof SSLHandshakeException) {
                 Log.e(TAG, "Failed to make TLS connection");
@@ -245,23 +244,17 @@ public class OsuServerConnection {
             mServiceConnection.disconnect();
             mServiceConnection = null;
         }
-
         return sppResponse;
     }
 
     /**
      * Get the HTTPS service connection used for SOAP message exchange.
      *
-     * @param url target address that the device connect to
-     * @param network {@link Network} for current wifi connection
      * @return {@link HttpsServiceConnection}
      */
-    private HttpsServiceConnection getServiceConnection(@NonNull URL url,
-            @NonNull Network network) {
+    private HttpsServiceConnection getServiceConnection() {
         HttpsServiceConnection serviceConnection;
-
         try {
-            mHttpsTransport = new HttpsTransport(network, url);
             serviceConnection = (HttpsServiceConnection) mHttpsTransport.getServiceConnection();
             if (serviceConnection != null) {
                 serviceConnection.setSSLSocketFactory(mSocketFactory);

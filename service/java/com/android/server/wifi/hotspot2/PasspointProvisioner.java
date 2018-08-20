@@ -316,7 +316,7 @@ public class PasspointProvisioner {
             }
 
             // Sending the first sppPostDevDataRequest message.
-            SppResponseMessage sppResponse = mOsuServerConnection.exchangeSoapMessage(mServerUrl,
+            SppResponseMessage sppResponse = mOsuServerConnection.exchangeSoapMessage(
                     PostDevDataMessage.serializeToSoapEnvelope(mContext, mSystemInfo,
                             redirectUri.toString(),
                             SppConstants.SppReason.SUBSCRIPTION_REGISTRATION,

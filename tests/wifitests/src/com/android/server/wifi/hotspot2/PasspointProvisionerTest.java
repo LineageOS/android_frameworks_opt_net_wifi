@@ -161,7 +161,7 @@ public class PasspointProvisionerTest {
         when(mSppCommand.getExecCommandId()).thenReturn(SppCommand.ExecCommandId.BROWSER);
         when(mSppCommand.getCommandData()).thenReturn(mBrowserUri);
         when(mBrowserUri.getUri()).thenReturn(TEST_URL);
-        when(mOsuServerConnection.exchangeSoapMessage(any(URL.class),
+        when(mOsuServerConnection.exchangeSoapMessage(
                 any(SoapSerializationEnvelope.class))).thenReturn(
                 mSppResponseMessage);
     }
@@ -425,7 +425,7 @@ public class PasspointProvisionerTest {
     @Test
     public void verifyExchangingSoapMessageFailure() throws RemoteException {
         // Fail to exchange the SOAP message
-        when(mOsuServerConnection.exchangeSoapMessage(any(URL.class),
+        when(mOsuServerConnection.exchangeSoapMessage(
                 any(SoapSerializationEnvelope.class))).thenReturn(null);
         stopAfterStep(STEP_SERVER_CONNECT);
 
