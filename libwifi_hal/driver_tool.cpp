@@ -53,7 +53,7 @@ bool DriverTool::UnloadDriver() {
 }
 
 bool DriverTool::IsDriverLoaded() {
-  return ::wifi_unload_driver() != 0;
+  return ::is_wifi_driver_loaded() != 0;
 }
 
 bool DriverTool::IsFirmwareModeChangeNeeded(int mode) {
