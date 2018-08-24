@@ -190,6 +190,7 @@ public class WifiServiceImplTest {
     @Mock ActivityManager mActivityManager;
     @Mock AppOpsManager mAppOpsManager;
     @Mock IBinder mAppBinder;
+    @Mock IBinder mAnotherAppBinder;
     @Mock LocalOnlyHotspotRequestInfo mRequestInfo;
     @Mock LocalOnlyHotspotRequestInfo mRequestInfo2;
     @Mock IProvisioningCallback mProvisioningCallback;
@@ -1467,7 +1468,16 @@ public class WifiServiceImplTest {
      */
     private void registerSoftApCallbackAndVerify(ISoftApCallback callback, int callbackIdentifier)
             throws Exception {
-        mWifiServiceImpl.registerSoftApCallback(mAppBinder, callback, callbackIdentifier);
+        registerSoftApCallbackAndVerify(mAppBinder, callback, callbackIdentifier);
+    }
+
+    /**
+     * Registers a soft AP callback, then verifies that the current soft AP state and num clients
+     * are sent to caller immediately after callback is registered.
+     */
+    private void registerSoftApCallbackAndVerify(IBinder binder, ISoftApCallback callback,
+                                                 int callbackIdentifier) throws Exception {
+        mWifiServiceImpl.registerSoftApCallback(binder, callback, callbackIdentifier);
         mLooper.dispatchAll();
         verify(callback).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
         verify(callback).onNumClientsChanged(0);
@@ -1479,8 +1489,14 @@ public class WifiServiceImplTest {
     @Test
     public void replacesOldCallbackWithNewCallbackWhenRegisteringTwice() throws Exception {
         final int callbackIdentifier = 1;
-        registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
-        registerSoftApCallbackAndVerify(mAnotherSoftApCallback, callbackIdentifier);
+        registerSoftApCallbackAndVerify(mAppBinder, mClientSoftApCallback, callbackIdentifier);
+        registerSoftApCallbackAndVerify(
+                mAnotherAppBinder, mAnotherSoftApCallback, callbackIdentifier);
+
+        verify(mAppBinder).linkToDeath(any(), anyInt());
+        verify(mAppBinder).unlinkToDeath(any(), anyInt());
+        verify(mAnotherAppBinder).linkToDeath(any(), anyInt());
+        verify(mAnotherAppBinder, never()).unlinkToDeath(any(), anyInt());
 
         final int testNumClients = 4;
         mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);

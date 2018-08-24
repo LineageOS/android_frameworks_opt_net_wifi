@@ -131,6 +131,9 @@ public class ExternalCallbackTracker<T> {
                     });
                 });
         if (externalCallback == null) return false;
+        if (mCallbacks.containsKey(callbackIdentifier) && remove(callbackIdentifier)) {
+            Log.d(TAG, "Replacing callback " + callbackIdentifier);
+        }
         mCallbacks.put(callbackIdentifier, externalCallback);
         if (mCallbacks.size() > NUM_CALLBACKS_WTF_LIMIT) {
             Log.wtf(TAG, "Too many callbacks: " + mCallbacks.size());
