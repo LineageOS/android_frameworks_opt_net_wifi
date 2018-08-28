@@ -1321,6 +1321,11 @@ public class WifiNative {
      */
     public interface SoftApListener {
         /**
+         * Invoked when there is some fatal failure in the lower layers.
+         */
+        void onFailure();
+
+        /**
          * Invoked when the number of associated stations changes.
          */
         void onNumAssociatedStationsChanged(int numStations);
@@ -1378,7 +1383,7 @@ public class WifiNative {
             Log.e(TAG, "Failed to register ap listener");
             return false;
         }
-        if (!mHostapdHal.addAccessPoint(ifaceName, config)) {
+        if (!mHostapdHal.addAccessPoint(ifaceName, config, listener)) {
             Log.e(TAG, "Failed to add acccess point");
             mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
             return false;

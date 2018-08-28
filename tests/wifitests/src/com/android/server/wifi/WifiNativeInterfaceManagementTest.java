@@ -149,7 +149,7 @@ public class WifiNativeInterfaceManagementTest {
         when(mHostapdHal.isInitializationStarted()).thenReturn(false);
         when(mHostapdHal.isInitializationComplete()).thenReturn(true);
         when(mHostapdHal.startDaemon()).thenReturn(true);
-        when(mHostapdHal.addAccessPoint(any(), any())).thenReturn(true);
+        when(mHostapdHal.addAccessPoint(any(), any(), any())).thenReturn(true);
         when(mHostapdHal.removeAccessPoint(any())).thenReturn(true);
 
         when(mNwManagementService.getInterfaceConfig(IFACE_NAME_0))
@@ -774,7 +774,7 @@ public class WifiNativeInterfaceManagementTest {
                 mock(WifiNative.SoftApListener.class)));
 
         mInOrder.verify(mWificondControl).registerApListener(any(), any());
-        mInOrder.verify(mHostapdHal).addAccessPoint(any(), any());
+        mInOrder.verify(mHostapdHal).addAccessPoint(any(), any(), any());
 
         // Trigger vendor HAL death
         mHostapdDeathHandlerCaptor.getValue().onDeath();
