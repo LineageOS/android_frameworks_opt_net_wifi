@@ -149,7 +149,7 @@ public class WifiNativeInterfaceManagementTest {
         when(mHostapdHal.isInitializationStarted()).thenReturn(false);
         when(mHostapdHal.isInitializationComplete()).thenReturn(true);
         when(mHostapdHal.startDaemon()).thenReturn(true);
-        when(mHostapdHal.addAccessPoint(any(), any())).thenReturn(true);
+        when(mHostapdHal.addAccessPoint(any(), any(), any())).thenReturn(true);
         when(mHostapdHal.removeAccessPoint(any())).thenReturn(true);
 
         when(mNwManagementService.getInterfaceConfig(IFACE_NAME_0))
@@ -774,7 +774,7 @@ public class WifiNativeInterfaceManagementTest {
                 mock(WifiNative.SoftApListener.class)));
 
         mInOrder.verify(mWificondControl).registerApListener(any(), any());
-        mInOrder.verify(mHostapdHal).addAccessPoint(any(), any());
+        mInOrder.verify(mHostapdHal).addAccessPoint(any(), any(), any());
 
         // Trigger vendor HAL death
         mHostapdDeathHandlerCaptor.getValue().onDeath();
@@ -1357,6 +1357,7 @@ public class WifiNativeInterfaceManagementTest {
                 destroyedListenerCaptor.capture());
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(ifaceName);
         mInOrder.verify(mNwManagementService).registerObserver(networkObserverCaptor.capture());
+        mInOrder.verify(mWifiMonitor).startMonitoring(ifaceName);
         mInOrder.verify(mNwManagementService).getInterfaceConfig(ifaceName);
     }
 
@@ -1381,6 +1382,7 @@ public class WifiNativeInterfaceManagementTest {
             boolean anyOtherStaIface, boolean anyOtherApIface,
             String ifaceName, @Mock WifiNative.InterfaceCallback callback,
             BaseNetworkObserver networkObserver) throws Exception {
+        mInOrder.verify(mWifiMonitor).stopMonitoring(ifaceName);
         if (networkObserver != null) {
             mInOrder.verify(mNwManagementService).unregisterObserver(networkObserver);
         }

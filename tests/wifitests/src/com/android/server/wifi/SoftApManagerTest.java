@@ -712,6 +712,41 @@ public class SoftApManagerTest {
         verifyNoMoreInteractions(mContext, mCallback, mWifiNative);
     }
 
+    /**
+     * Verify that onFailure from hostapd is handled by SoftApManager.
+     */
+    @Test
+    public void testHostapdOnFailureHandled() throws Exception {
+        SoftApModeConfiguration softApModeConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
+        startSoftApAndVerifyEnabled(softApModeConfig);
+
+        // reset to clear verified Intents for ap state change updates
+        reset(mContext, mCallback, mWifiNative);
+
+        InOrder order = inOrder(mCallback, mContext);
+
+        mSoftApListenerCaptor.getValue().onFailure();
+        mLooper.dispatchAll();
+
+        order.verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_FAILED,
+                WifiManager.SAP_START_FAILURE_GENERAL);
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext, times(3)).sendStickyBroadcastAsUser(intentCaptor.capture(),
+                eq(UserHandle.ALL));
+
+        List<Intent> capturedIntents = intentCaptor.getAllValues();
+        checkApStateChangedBroadcast(capturedIntents.get(0), WIFI_AP_STATE_FAILED,
+                WIFI_AP_STATE_ENABLED, WifiManager.SAP_START_FAILURE_GENERAL, TEST_INTERFACE_NAME,
+                softApModeConfig.getTargetMode());
+        checkApStateChangedBroadcast(capturedIntents.get(1), WIFI_AP_STATE_DISABLING,
+                WIFI_AP_STATE_FAILED, HOTSPOT_NO_ERROR, TEST_INTERFACE_NAME,
+                softApModeConfig.getTargetMode());
+        checkApStateChangedBroadcast(capturedIntents.get(2), WIFI_AP_STATE_DISABLED,
+                WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR, TEST_INTERFACE_NAME,
+                softApModeConfig.getTargetMode());
+    }
+
     @Test
     public void updatesMetricsOnChannelSwitchedEvent() throws Exception {
         SoftApModeConfiguration apConfig =
