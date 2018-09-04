@@ -162,7 +162,6 @@ public class OsuServerConnection {
             return false;
         }
         mUrlConnection = urlConnection;
-        mHttpsTransport = HttpsTransport.createInstance(network, url);
         return true;
     }
 
@@ -233,13 +232,13 @@ public class OsuServerConnection {
             mServiceConnection.disconnect();
         }
 
-        mServiceConnection = getServiceConnection();
+        mServiceConnection = getServiceConnection(mUrl, mNetwork);
         if (mServiceConnection == null) {
             Log.e(TAG, "ServiceConnection for https is null");
             if (mOsuServerCallbacks != null) {
                 mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(), null);
-                return;
             }
+            return;
         }
 
         SppResponseMessage sppResponse = null;
@@ -252,16 +251,16 @@ public class OsuServerConnection {
                 if (mOsuServerCallbacks != null) {
                     mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
                             null);
-                    return;
                 }
+                return;
             }
             if (!(response instanceof SoapObject)) {
                 Log.e(TAG, "Not a SoapObject instance");
                 if (mOsuServerCallbacks != null) {
                     mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
                             null);
-                    return;
                 }
+                return;
             }
             SoapObject soapResponse = (SoapObject) response;
             if (mVerboseLoggingEnabled) {
@@ -277,19 +276,18 @@ public class OsuServerConnection {
             sppResponse = SoapParser.getResponse(soapResponse);
         } catch (Exception e) {
             if (e instanceof SSLHandshakeException) {
-                Log.e(TAG, "Failed to make TLS connection");
+                Log.e(TAG, "Failed to make TLS connection: " + e);
             } else {
-                Log.e(TAG, "Failed to exchange the SOAP message");
+                Log.e(TAG, "Failed to exchange the SOAP message: " + e);
             }
             if (mOsuServerCallbacks != null) {
                 mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(), null);
-                return;
             }
+            return;
         } finally {
             mServiceConnection.disconnect();
             mServiceConnection = null;
         }
-
         if (mOsuServerCallbacks != null) {
             mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
                     sppResponse);
@@ -301,9 +299,12 @@ public class OsuServerConnection {
      *
      * @return {@link HttpsServiceConnection}
      */
-    private HttpsServiceConnection getServiceConnection() {
+    private HttpsServiceConnection getServiceConnection(@NonNull URL url,
+            @NonNull Network network) {
         HttpsServiceConnection serviceConnection;
         try {
+            // Creates new HTTPS connection.
+            mHttpsTransport = HttpsTransport.createInstance(network, url);
             serviceConnection = (HttpsServiceConnection) mHttpsTransport.getServiceConnection();
             if (serviceConnection != null) {
                 serviceConnection.setSSLSocketFactory(mSocketFactory);
@@ -365,8 +366,8 @@ public class OsuServerConnection {
                 }
             }
             if (mOsuServerCallbacks != null) {
-                mOsuServerCallbacks.onServerValidationStatus(
-                        mOsuServerCallbacks.getSessionId(), certsValid);
+                mOsuServerCallbacks.onServerValidationStatus(mOsuServerCallbacks.getSessionId(),
+                        certsValid);
             }
         }
 

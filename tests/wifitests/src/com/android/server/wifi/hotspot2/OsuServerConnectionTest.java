@@ -305,20 +305,16 @@ public class OsuServerConnectionTest {
     public void verifyExchangeSoapMessage() {
         // static mocking
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
-                HttpsTransport.class).startMocking();
+                HttpsTransport.class).mockStatic(SoapParser.class).startMocking();
         try {
             mOsuServerConnection.init(mTlsContext, mDelegate);
             mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
-            when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
-                    mHttpsTransport);
             assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-            session.finishMocking();
 
-            // new static mocking
-            session = ExtendedMockito.mockitoSession().mockStatic(
-                    SoapParser.class).startMocking();
             SoapSerializationEnvelope envelope = new SoapSerializationEnvelope(SoapEnvelope.VER12);
             envelope.bodyIn = new SoapObject();
+            when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
+                    mHttpsTransport);
             when(SoapParser.getResponse(any(SoapObject.class))).thenReturn(mSppResponseMessage);
 
             assertTrue(mOsuServerConnection.exchangeSoapMessage(envelope));

@@ -54,6 +54,7 @@ import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
 import com.android.server.wifi.hotspot2.soap.RedirectListener;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
+import com.android.server.wifi.hotspot2.soap.command.PpsMoData;
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
 
 import org.junit.After;
@@ -81,6 +82,7 @@ public class PasspointProvisionerTest {
     private static final int STEP_AP_CONNECT = 1;
     private static final int STEP_SERVER_CONNECT = 2;
     private static final int STEP_WAIT_FOR_REDIRECT_RESPONSE = 3;
+    private static final int STEP_WAIT_FOR_SECOND_SOAP_RESPONSE = 4;
 
     private static final String TEST_DEV_ID = "12312341";
     private static final String TEST_MANUFACTURER = Build.MANUFACTURER;
@@ -132,6 +134,7 @@ public class PasspointProvisionerTest {
     @Mock TelephonyManager mTelephonyManager;
     @Mock SppCommand mSppCommand;
     @Mock BrowserUri mBrowserUri;
+    @Mock PpsMoData mPpsMoData;
     @Mock RedirectListener mRedirectListener;
     @Mock PackageManager mPackageManager;
 
@@ -185,6 +188,7 @@ public class PasspointProvisionerTest {
                 SppResponseMessage.MessageType.POST_DEV_DATA_RESPONSE);
         when(mSppResponseMessage.getSppCommand()).thenReturn(mSppCommand);
         when(mSppResponseMessage.getSessionID()).thenReturn(TEST_SESSION_ID);
+        when(mSppCommand.getSppCommandId()).thenReturn(SppCommand.CommandId.EXEC);
         when(mSppCommand.getExecCommandId()).thenReturn(SppCommand.ExecCommandId.BROWSER);
         when(mSppCommand.getCommandData()).thenReturn(mBrowserUri);
         when(mBrowserUri.getUri()).thenReturn(TEST_URL);
@@ -257,7 +261,7 @@ public class PasspointProvisionerTest {
                 verify(mCallback).onProvisioningStatus(
                         ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
 
-                // Received soapMessageResponse
+                // Received a first soapMessageResponse
                 mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
                         mSppResponseMessage);
                 mLooper.dispatchAll();
@@ -268,6 +272,26 @@ public class PasspointProvisionerTest {
                         .startServer(mOnRedirectReceivedArgumentCaptor.capture());
                 mRedirectReceivedListener = mOnRedirectReceivedArgumentCaptor.getValue();
                 verifyNoMoreInteractions(mCallback);
+            } else if (step == STEP_WAIT_FOR_SECOND_SOAP_RESPONSE) {
+                when(mSppCommand.getSppCommandId()).thenReturn(SppCommand.CommandId.ADD_MO);
+                when(mSppCommand.getExecCommandId()).thenReturn(-1);
+                when(mSppCommand.getCommandData()).thenReturn(mPpsMoData);
+
+                // Received HTTP redirect response.
+                mRedirectReceivedListener.onRedirectReceived();
+                mLooper.dispatchAll();
+
+                verify(mRedirectListener, atLeastOnce()).stopServer();
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_SECOND_SOAP_EXCHANGE);
+
+                // Received a second soapMessageResponse
+                mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                        mSppResponseMessage);
+                mLooper.dispatchAll();
+
             }
         }
     }
@@ -556,11 +580,11 @@ public class PasspointProvisionerTest {
     }
 
     /**
-     * Verifies that the right provisioning callbacks are invoked as the provisioner progresses
-     * to the end as successful case.
+     * Verifies that the right provisioning callbacks are invoked when a command of a second soap
+     * response is not for ADD MO command.
      */
     @Test
-    public void verifyProvisioningFlowForSuccessfulCase() throws RemoteException {
+    public void verifyNotAddMoCommandFailureForSecondSoapResponse() throws RemoteException {
         stopAfterStep(STEP_WAIT_FOR_REDIRECT_RESPONSE);
 
         // Received HTTP redirect response.
@@ -570,7 +594,27 @@ public class PasspointProvisionerTest {
         verify(mRedirectListener, atLeastOnce()).stopServer();
         verify(mCallback).onProvisioningStatus(
                 ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
-        // No further runnables posted
+        verify(mCallback).onProvisioningStatus(
+                ProvisioningCallback.OSU_STATUS_SECOND_SOAP_EXCHANGE);
+
+        // Received a second soapMessageResponse
+        mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                mSppResponseMessage);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE);
+    }
+
+    /**
+     * Verifies that the right provisioning callbacks are invoked as the provisioner progresses
+     * to the end as successful case.
+     */
+    @Test
+    public void verifyProvisioningFlowForSuccessfulCase() throws RemoteException {
+        stopAfterStep(STEP_WAIT_FOR_SECOND_SOAP_RESPONSE);
+
+         // No further runnables posted
         verifyNoMoreInteractions(mCallback);
     }
 }
