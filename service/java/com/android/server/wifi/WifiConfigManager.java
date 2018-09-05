@@ -2494,23 +2494,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Any network using certificates to authenticate access requires unlocked key store; unless
-     * the certificates can be stored with hardware encryption
-     *
-     * @return true if we need an unlocked keystore, false otherwise.
-     */
-    public boolean needsUnlockedKeyStore() {
-        for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (WifiConfigurationUtil.isConfigForEapNetwork(config)) {
-                if (mWifiKeyStore.needsSoftwareBackedKeyStore(config.enterpriseConfig)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
      * Helper method to perform the following operations during user switch/unlock:
      * - Remove private networks of the old user.
      * - Load from the new user store file.

@@ -269,25 +269,4 @@ public class WifiKeyStore {
         }
         return true;
     }
-
-    /**
-     * Checks whether the configuration requires a software backed keystore or not.
-     * @param config WifiEnterprise config instance pointing to the enterprise configuration of the
-     *               network.
-     */
-    public static boolean needsSoftwareBackedKeyStore(WifiEnterpriseConfig config) {
-        String client = config.getClientCertificateAlias();
-        if (!TextUtils.isEmpty(client)) {
-            // a valid client certificate is configured
-
-            // BUGBUG(b/29578316): keyStore.get() never returns certBytes; because it is not
-            // taking WIFI_UID as a parameter. It always looks for certificate
-            // with SYSTEM_UID, and never finds any Wifi certificates. Assuming that
-            // all certificates need software keystore until we get the get() API
-            // fixed.
-            return true;
-        }
-        return false;
-    }
-
 }

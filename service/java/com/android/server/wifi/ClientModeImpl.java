@@ -547,9 +547,6 @@ public class ClientModeImpl extends StateMachine {
     /* Supplicant is trying to associate to a given BSSID */
     static final int CMD_TARGET_BSSID                                   = BASE + 141;
 
-    /* Reload all networks and reconnect */
-    static final int CMD_RELOAD_TLS_AND_RECONNECT                       = BASE + 142;
-
     static final int CMD_START_CONNECT                                  = BASE + 143;
 
     private static final int NETWORK_STATUS_UNWANTED_DISCONNECT         = 0;
@@ -731,11 +728,6 @@ public class ClientModeImpl extends StateMachine {
      * The last reported UIDs that were responsible for starting WIFI.
      */
     private final WorkSource mLastRunningWifiUids = new WorkSource();
-
-    /*
-     * Note if we have seen the user sign in
-     */
-    private boolean mFirstUserSignOnSeen = false;
 
     private TelephonyManager mTelephonyManager;
     private TelephonyManager getTelephonyManager() {
@@ -1571,13 +1563,6 @@ public class ClientModeImpl extends StateMachine {
      */
     public void reassociateCommand() {
         sendMessage(CMD_REASSOCIATE);
-    }
-
-    /**
-     * Reload networks and then reconnect; helps load correct data for TLS networks
-     */
-    public void reloadTlsNetworksAndReconnect() {
-        sendMessage(CMD_RELOAD_TLS_AND_RECONNECT);
     }
 
     /**
@@ -3436,9 +3421,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
-                case CMD_RELOAD_TLS_AND_RECONNECT:
-                    mFirstUserSignOnSeen = true;
-                    break;
                 case CMD_SET_OPERATIONAL_MODE:
                     // using the CMD_SET_OPERATIONAL_MODE (sent at front of queue) to trigger the
                     // state transitions performed in setOperationalMode.
@@ -4157,20 +4139,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_REASSOCIATE:
                     mLastConnectAttemptTimestamp = mClock.getWallClockMillis();
                     mWifiNative.reassociate(mInterfaceName);
-                    break;
-                case CMD_RELOAD_TLS_AND_RECONNECT:
-                    // TODO(b/64033284): determine if this code is still necessary
-                    if (mFirstUserSignOnSeen) {
-                        // a user has already been seen, nothing to do
-                        break;
-                    }
-                    if (mWifiConfigManager.needsUnlockedKeyStore()) {
-                        logd("Reconnecting to give a chance to un-connected TLS networks");
-                        mWifiNative.disconnect(mInterfaceName);
-                        mLastConnectAttemptTimestamp = mClock.getWallClockMillis();
-                        mWifiNative.reconnect(mInterfaceName);
-                    }
-                    mFirstUserSignOnSeen = true;
                     break;
                 case CMD_START_ROAM:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
