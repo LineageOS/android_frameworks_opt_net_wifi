@@ -20,6 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.support.test.filters.SmallTest;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.ksoap2.serialization.SoapObject;
@@ -30,6 +32,7 @@ import java.util.Map;
 /**
  * Unit tests for {@link SppResponseMessage}.
  */
+@SmallTest
 public class SppResponseMessageTest {
     private static final String TEST_STATUS = "OK";
     private static final String TEST_ERROR_STATUS = "Error occurred";
