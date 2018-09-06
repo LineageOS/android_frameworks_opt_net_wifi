@@ -20,6 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.support.test.filters.SmallTest;
+
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
 
 import org.junit.Before;
@@ -30,6 +32,7 @@ import org.ksoap2.serialization.SoapObject;
 /**
  * Unit tests for {@link PostDevDataResponse}.
  */
+@SmallTest
 public class PostDevDataResponseTest {
     private static final String EXEC = "exec";
     private static final String BROWSER_COMMAND = "launchBrowserToURI";

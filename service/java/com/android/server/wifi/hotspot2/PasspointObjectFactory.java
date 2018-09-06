@@ -130,7 +130,7 @@ public class PasspointObjectFactory{
      * @return {@link OsuServerConnection}
      */
     public OsuServerConnection makeOsuServerConnection() {
-        return new OsuServerConnection();
+        return new OsuServerConnection(null);
     }
 
 

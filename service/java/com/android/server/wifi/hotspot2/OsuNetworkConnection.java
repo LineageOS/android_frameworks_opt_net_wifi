@@ -69,7 +69,7 @@ public class OsuNetworkConnection {
         void onDisconnected();
 
         /**
-         * Invoked when a timer tracking connection request is not reset by successfull connection.
+         * Invoked when a timer tracking connection request is not reset by successful connection.
          */
         void onTimeOut();
 
@@ -84,10 +84,6 @@ public class OsuNetworkConnection {
         void onWifiDisabled();
     }
 
-    /**
-     * Create an instance of {@link NetworkConnection} for the specified Wi-Fi network.
-     * @param context The application context
-     */
     public OsuNetworkConnection(Context context) {
         mContext = context;
     }
@@ -146,6 +142,7 @@ public class OsuNetworkConnection {
 
     /**
      * Register for network and Wifi state events
+     *
      * @param callbacks The callbacks to be invoked on network change events
      */
     public void setEventCallback(Callbacks callbacks) {
@@ -206,6 +203,7 @@ public class OsuNetworkConnection {
 
     /**
      * Method to update logging level in this class
+     *
      * @param verbose more than 0 enables verbose logging
      */
     public void enableVerboseLogging(int verbose) {

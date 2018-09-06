@@ -43,7 +43,6 @@ import org.ksoap2.serialization.SoapPrimitive;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.mockito.Mock;
 
-
 /**
  * Unit tests for {@link PostDevDataMessage}.
  */

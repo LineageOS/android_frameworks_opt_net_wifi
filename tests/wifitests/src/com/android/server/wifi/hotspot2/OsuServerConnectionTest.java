@@ -16,9 +16,7 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -30,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.net.Network;
+import android.os.test.TestLooper;
 import android.support.test.filters.SmallTest;
 import android.util.Pair;
 
@@ -78,6 +77,7 @@ public class OsuServerConnectionTest {
     private static final int ENABLE_VERBOSE_LOGGING = 1;
     private static final int TEST_SESSION_ID = 1;
 
+    private TestLooper mLooper = new TestLooper();
     private OsuServerConnection mOsuServerConnection;
     private URL mValidServerUrl;
     private List<Pair<Locale, String>> mProviderIdentities = new ArrayList<>();
@@ -98,7 +98,7 @@ public class OsuServerConnectionTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mOsuServerConnection = new OsuServerConnection();
+        mOsuServerConnection = new OsuServerConnection(mLooper.getLooper());
         mOsuServerConnection.enableVerboseLogging(ENABLE_VERBOSE_LOGGING);
         mProviderIdentities.add(Pair.create(Locale.US, PROVIDER_NAME_VALID));
         mValidServerUrl = new URL(TEST_VALID_URL);
@@ -249,16 +249,16 @@ public class OsuServerConnectionTest {
     }
 
     /**
-     * Verifies {@code ExchangeSoapMessage} should return {@code null} if there is no connection.
+     * Verifies {@code ExchangeSoapMessage} should return {@code false} if there is no connection.
      */
     @Test
     public void verifyExchangeSoapMessageWithoutConnection() {
-        assertNull(mOsuServerConnection.exchangeSoapMessage(
+        assertFalse(mOsuServerConnection.exchangeSoapMessage(
                 new SoapSerializationEnvelope(SoapEnvelope.VER12)));
     }
 
     /**
-     * Verifies {@code ExchangeSoapMessage} should return {@code null} if {@code soapEnvelope} is
+     * Verifies {@code ExchangeSoapMessage} should return {@code false} if {@code soapEnvelope} is
      * {@code null}
      */
     @Test
@@ -267,12 +267,12 @@ public class OsuServerConnectionTest {
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
 
         assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-        assertNull(mOsuServerConnection.exchangeSoapMessage(null));
+        assertFalse(mOsuServerConnection.exchangeSoapMessage(null));
     }
 
     /**
-     * Verifies {@code ExchangeSoapMessage} should return {@code null} if exception occurs during
-     * soap exchange.
+     * Verifies {@code ExchangeSoapMessage} should get {@code null} message if exception occurs
+     * during soap exchange.
      */
     @Test
     public void verifyExchangeSoapMessageWithException() throws Exception {
@@ -280,14 +280,19 @@ public class OsuServerConnectionTest {
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).startMocking();
         try {
+            mOsuServerConnection.init(mTlsContext, mDelegate);
+            mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
             when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
                     mHttpsTransport);
             doThrow(new IOException()).when(mHttpsTransport).call(any(String.class),
                     any(SoapSerializationEnvelope.class));
 
             assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-            assertNull(mOsuServerConnection.exchangeSoapMessage(
+            assertTrue(mOsuServerConnection.exchangeSoapMessage(
                     new SoapSerializationEnvelope(SoapEnvelope.VER12)));
+
+            mLooper.dispatchAll();
+            verify(mOsuServerCallbacks).onReceivedSoapMessage(anyInt(), isNull());
         } finally {
             session.finishMocking();
         }
@@ -302,6 +307,8 @@ public class OsuServerConnectionTest {
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).startMocking();
         try {
+            mOsuServerConnection.init(mTlsContext, mDelegate);
+            mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
             when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
                     mHttpsTransport);
             assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
@@ -314,7 +321,10 @@ public class OsuServerConnectionTest {
             envelope.bodyIn = new SoapObject();
             when(SoapParser.getResponse(any(SoapObject.class))).thenReturn(mSppResponseMessage);
 
-            assertEquals(mSppResponseMessage, mOsuServerConnection.exchangeSoapMessage(envelope));
+            assertTrue(mOsuServerConnection.exchangeSoapMessage(envelope));
+
+            mLooper.dispatchAll();
+            verify(mOsuServerCallbacks).onReceivedSoapMessage(anyInt(), eq(mSppResponseMessage));
         } finally {
             session.finishMocking();
         }

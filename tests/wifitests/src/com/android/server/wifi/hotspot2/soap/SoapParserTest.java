@@ -20,6 +20,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.support.test.filters.SmallTest;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.ksoap2.serialization.PropertyInfo;
@@ -28,6 +30,7 @@ import org.ksoap2.serialization.SoapObject;
 /**
  * Unit tests for {@link SoapParser}.
  */
+@SmallTest
 public class SoapParserTest {
     private static final String EXEC = "exec";
     private static final String BROWSER_COMMAND = "launchBrowserToURI";

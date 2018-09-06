@@ -29,6 +29,11 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Network;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
@@ -42,19 +47,23 @@ import android.os.test.TestLooper;
 import android.support.test.filters.SmallTest;
 import android.telephony.TelephonyManager;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
+import com.android.server.wifi.hotspot2.soap.RedirectListener;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
 
 import java.net.URL;
 import java.security.KeyStore;
@@ -71,6 +80,7 @@ public class PasspointProvisionerTest {
     private static final int STEP_INIT = 0;
     private static final int STEP_AP_CONNECT = 1;
     private static final int STEP_SERVER_CONNECT = 2;
+    private static final int STEP_WAIT_FOR_REDIRECT_RESPONSE = 3;
 
     private static final String TEST_DEV_ID = "12312341";
     private static final String TEST_MANUFACTURER = Build.MANUFACTURER;
@@ -84,20 +94,27 @@ public class PasspointProvisionerTest {
     private static final String TEST_SW_VERSION = "Android Test 1.0";
     private static final String TEST_FW_VERSION = "Test FW 1.0";
     private static final String TEST_REDIRECT_URL = "http://127.0.0.1:12345/index.htm";
+    private static final String OSU_APP_PACKAGE = "com.android.hotspot2";
+    private static final String OSU_APP_NAME = "OsuLogin";
 
     private PasspointProvisioner mPasspointProvisioner;
     private TestLooper mLooper = new TestLooper();
     private Handler mHandler;
     private OsuNetworkConnection.Callbacks mOsuNetworkCallbacks;
     private PasspointProvisioner.OsuServerCallbacks mOsuServerCallbacks;
+    private RedirectListener.RedirectCallback mRedirectReceivedListener;
     private ArgumentCaptor<OsuNetworkConnection.Callbacks> mOsuNetworkCallbacksCaptor =
             ArgumentCaptor.forClass(OsuNetworkConnection.Callbacks.class);
     private ArgumentCaptor<PasspointProvisioner.OsuServerCallbacks> mOsuServerCallbacksCaptor =
             ArgumentCaptor.forClass(PasspointProvisioner.OsuServerCallbacks.class);
+    private ArgumentCaptor<RedirectListener.RedirectCallback>
+            mOnRedirectReceivedArgumentCaptor =
+            ArgumentCaptor.forClass(RedirectListener.RedirectCallback.class);
     private ArgumentCaptor<Handler> mHandlerCaptor = ArgumentCaptor.forClass(Handler.class);
     private OsuProvider mOsuProvider;
     private TrustManagerImpl mDelegate;
     private URL mTestUrl;
+    private MockitoSession mSession;
 
     @Mock PasspointObjectFactory mObjectFactory;
     @Mock Context mContext;
@@ -110,17 +127,27 @@ public class PasspointProvisionerTest {
     @Mock KeyStore mKeyStore;
     @Mock SSLContext mTlsContext;
     @Mock WifiNative mWifiNative;
-    @Mock SoapSerializationEnvelope mSoapEnvelope;
     @Mock PostDevDataResponse mSppResponseMessage;
     @Mock SystemInfo mSystemInfo;
     @Mock TelephonyManager mTelephonyManager;
     @Mock SppCommand mSppCommand;
     @Mock BrowserUri mBrowserUri;
+    @Mock RedirectListener mRedirectListener;
+    @Mock PackageManager mPackageManager;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mTestUrl = new URL(TEST_REDIRECT_URL);
+        mSession = ExtendedMockito.mockitoSession().mockStatic(
+                RedirectListener.class).startMocking();
+
+        when(RedirectListener.createInstance(mLooper.getLooper())).thenReturn(
+                mRedirectListener);
+        when(mRedirectListener.getServerUrl()).thenReturn(new URL(TEST_REDIRECT_URL));
+        when(mRedirectListener.startServer(
+                any(RedirectListener.RedirectCallback.class))).thenReturn(true);
+        when(mRedirectListener.isAlive()).thenReturn(true);
         when(mWifiManager.isWifiEnabled()).thenReturn(true);
         when(mObjectFactory.makeOsuNetworkConnection(any(Context.class)))
                 .thenReturn(mOsuNetworkConnection);
@@ -162,8 +189,20 @@ public class PasspointProvisionerTest {
         when(mSppCommand.getCommandData()).thenReturn(mBrowserUri);
         when(mBrowserUri.getUri()).thenReturn(TEST_URL);
         when(mOsuServerConnection.exchangeSoapMessage(
-                any(SoapSerializationEnvelope.class))).thenReturn(
-                mSppResponseMessage);
+                any(SoapSerializationEnvelope.class))).thenReturn(true);
+        when(mContext.getPackageManager()).thenReturn(mPackageManager);
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.activityInfo = new ActivityInfo();
+        resolveInfo.activityInfo.applicationInfo = new ApplicationInfo();
+        resolveInfo.activityInfo.name = OSU_APP_NAME;
+        resolveInfo.activityInfo.applicationInfo.packageName = OSU_APP_PACKAGE;
+        when(mPackageManager.resolveActivity(any(Intent.class),
+                eq(PackageManager.MATCH_DEFAULT_ONLY))).thenReturn(resolveInfo);
+    }
+
+    @After
+    public void cleanUp() {
+        mSession.finishMocking();
     }
 
     private void initAndStartProvisioning() {
@@ -205,6 +244,30 @@ public class PasspointProvisionerTest {
             } else if (step == STEP_SERVER_CONNECT) {
                 verify(mCallback).onProvisioningStatus(
                         ProvisioningCallback.OSU_STATUS_SERVER_CONNECTED);
+            } else if (step == STEP_WAIT_FOR_REDIRECT_RESPONSE) {
+                // Server validation passed
+                mOsuServerCallbacks.onServerValidationStatus(mOsuServerCallbacks.getSessionId(),
+                        true);
+                mLooper.dispatchAll();
+
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_SERVER_VALIDATED);
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
+
+                // Received soapMessageResponse
+                mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                        mSppResponseMessage);
+                mLooper.dispatchAll();
+
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_WAITING_FOR_REDIRECT_RESPONSE);
+                verify(mRedirectListener, atLeastOnce())
+                        .startServer(mOnRedirectReceivedArgumentCaptor.capture());
+                mRedirectReceivedListener = mOnRedirectReceivedArgumentCaptor.getValue();
+                verifyNoMoreInteractions(mCallback);
             }
         }
     }
@@ -426,7 +489,31 @@ public class PasspointProvisionerTest {
     public void verifyExchangingSoapMessageFailure() throws RemoteException {
         // Fail to exchange the SOAP message
         when(mOsuServerConnection.exchangeSoapMessage(
-                any(SoapSerializationEnvelope.class))).thenReturn(null);
+                any(SoapSerializationEnvelope.class))).thenReturn(false);
+        stopAfterStep(STEP_SERVER_CONNECT);
+
+        // Server validation passed
+        mOsuServerCallbacks.onServerValidationStatus(mOsuServerCallbacks.getSessionId(), true);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_SERVER_VALIDATED);
+        verify(mCallback).onProvisioningStatus(
+                ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+        // No further runnables posted
+        verifyNoMoreInteractions(mCallback);
+    }
+
+    /**
+     * Verifies that the right provisioning callbacks are invoked when there is no OSU activity for
+     * the intent
+     */
+    @Test
+    public void verifyNoOsuActivityFoundFailure() throws RemoteException {
+        // There is no activity found for the intent
+        when(mPackageManager.resolveActivity(any(Intent.class),
+                eq(PackageManager.MATCH_DEFAULT_ONLY))).thenReturn(null);
         stopAfterStep(STEP_SERVER_CONNECT);
 
         // Server validation passed
@@ -437,9 +524,34 @@ public class PasspointProvisionerTest {
         verify(mCallback).onProvisioningStatus(
                 ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
         verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
+
+        // Received soapMessageResponse
+        mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                mSppResponseMessage);
+        mLooper.dispatchAll();
+
         verify(mCallback).onProvisioningFailure(
-                ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
-        // Osu provider verification is the last current step in the flow, no more runnables posted.
+                ProvisioningCallback.OSU_FAILURE_NO_OSU_ACTIVITY_FOUND);
+        // No further runnables posted
+        verifyNoMoreInteractions(mCallback);
+    }
+
+    /**
+     * Verifies that the right provisioning callbacks are invoked when timeout occurs for HTTP
+     * redirect response.
+     */
+    @Test
+    public void verifyRedirectResponseTimeout() throws RemoteException {
+        stopAfterStep(STEP_WAIT_FOR_REDIRECT_RESPONSE);
+
+        // Timed out for HTTP redirect response.
+        mRedirectReceivedListener.onRedirectTimedOut();
+        mLooper.dispatchAll();
+
+        verify(mRedirectListener, atLeastOnce()).stopServer();
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER);
+        // No further runnables posted
         verifyNoMoreInteractions(mCallback);
     }
 
@@ -449,18 +561,16 @@ public class PasspointProvisionerTest {
      */
     @Test
     public void verifyProvisioningFlowForSuccessfulCase() throws RemoteException {
-        stopAfterStep(STEP_SERVER_CONNECT);
+        stopAfterStep(STEP_WAIT_FOR_REDIRECT_RESPONSE);
 
-        // Server validation passed
-        mOsuServerCallbacks.onServerValidationStatus(mOsuServerCallbacks.getSessionId(), true);
+        // Received HTTP redirect response.
+        mRedirectReceivedListener.onRedirectReceived();
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_SERVER_VALIDATED);
+        verify(mRedirectListener, atLeastOnce()).stopServer();
         verify(mCallback).onProvisioningStatus(
-                ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
-        verify(mCallback).onProvisioningStatus(ProvisioningCallback.OSU_STATUS_INIT_SOAP_EXCHANGE);
-        // Osu provider verification is the last current step in the flow, no more runnables posted.
+                ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
+        // No further runnables posted
         verifyNoMoreInteractions(mCallback);
     }
 }
-

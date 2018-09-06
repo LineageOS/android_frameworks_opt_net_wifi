@@ -250,6 +250,9 @@ public class HostapdHal {
             } catch (RemoteException e) {
                 Log.e(TAG, "IHostapd.getService exception: " + e);
                 return false;
+            } catch (NoSuchElementException e) {
+                Log.e(TAG, "IHostapd.getService exception: " + e);
+                return false;
             }
             if (mIHostapd == null) {
                 Log.e(TAG, "Got null IHostapd service. Stopping hostapd HIDL startup");
@@ -432,6 +435,9 @@ public class HostapdHal {
                         + e);
                 hostapdServiceDiedHandler();
                 return false;
+            } catch (NoSuchElementException e) {
+                // We're starting the daemon, so expect |NoSuchElementException|.
+                Log.d(TAG, "Successfully triggered start of hostapd using HIDL");
             }
             return true;
         }
@@ -465,12 +471,7 @@ public class HostapdHal {
     @VisibleForTesting
     protected IHostapd getHostapdMockable() throws RemoteException {
         synchronized (mLock) {
-            try {
-                return IHostapd.getService();
-            } catch (NoSuchElementException e) {
-                Log.e(TAG, "Failed to get IHostapd", e);
-                return null;
-            }
+            return IHostapd.getService();
         }
     }
 

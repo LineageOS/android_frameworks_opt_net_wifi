@@ -257,6 +257,9 @@ public class SupplicantStaIfaceHal {
             } catch (RemoteException e) {
                 Log.e(TAG, "ISupplicant.getService exception: " + e);
                 return false;
+            } catch (NoSuchElementException e) {
+                Log.e(TAG, "ISupplicant.getService exception: " + e);
+                return false;
             }
             if (mISupplicant == null) {
                 Log.e(TAG, "Got null ISupplicant service. Stopping supplicant HIDL startup");
@@ -401,6 +404,10 @@ public class SupplicantStaIfaceHal {
                 Log.e(TAG, "ISupplicant.addInterface exception: " + e);
                 handleRemoteException(e, "addInterface");
                 return null;
+            } catch (NoSuchElementException e) {
+                Log.e(TAG, "ISupplicant.addInterface exception: " + e);
+                handleNoSuchElementException(e, "addInterface");
+                return null;
             }
             return supplicantIface.value;
         }
@@ -451,6 +458,10 @@ public class SupplicantStaIfaceHal {
             } catch (RemoteException e) {
                 Log.e(TAG, "ISupplicant.removeInterface exception: " + e);
                 handleRemoteException(e, "removeInterface");
+                return false;
+            } catch (NoSuchElementException e) {
+                Log.e(TAG, "ISupplicant.removeInterface exception: " + e);
+                handleNoSuchElementException(e, "removeInterface");
                 return false;
             }
             return true;
@@ -531,12 +542,15 @@ public class SupplicantStaIfaceHal {
         synchronized (mLock) {
             try {
                 // This should startup supplicant daemon using the lazy start HAL mechanism.
-                getSupplicantMockable();
+                getSupplicantMockableV1_1();
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception while trying to start supplicant: "
                         + e);
                 supplicantServiceDiedHandler();
                 return false;
+            } catch (NoSuchElementException e) {
+                // We're starting the daemon, so expect |NoSuchElementException|.
+                Log.d(TAG, "Successfully triggered start of supplicant using HIDL");
             }
             return true;
         }
@@ -571,6 +585,8 @@ public class SupplicantStaIfaceHal {
                 getSupplicantMockableV1_1().terminate();
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
+            } catch (NoSuchElementException e) {
+                handleNoSuchElementException(e, methodStr);
             }
         }
     }
@@ -599,27 +615,17 @@ public class SupplicantStaIfaceHal {
         }
     }
 
-    protected ISupplicant getSupplicantMockable() throws RemoteException {
+    protected ISupplicant getSupplicantMockable() throws RemoteException, NoSuchElementException {
         synchronized (mLock) {
-            try {
-                return ISupplicant.getService();
-            } catch (NoSuchElementException e) {
-                Log.e(TAG, "Failed to get ISupplicant", e);
-                return null;
-            }
+            return ISupplicant.getService();
         }
     }
 
     protected android.hardware.wifi.supplicant.V1_1.ISupplicant getSupplicantMockableV1_1()
-            throws RemoteException {
+            throws RemoteException, NoSuchElementException {
         synchronized (mLock) {
-            try {
-                return android.hardware.wifi.supplicant.V1_1.ISupplicant.castFrom(
-                        ISupplicant.getService());
-            } catch (NoSuchElementException e) {
-                Log.e(TAG, "Failed to get ISupplicant", e);
-                return null;
-            }
+            return android.hardware.wifi.supplicant.V1_1.ISupplicant.castFrom(
+                    ISupplicant.getService());
         }
     }
 
@@ -2275,6 +2281,12 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    private void handleNoSuchElementException(NoSuchElementException e, String methodStr) {
+        synchronized (mLock) {
+            clearState();
+            Log.e(TAG, "ISupplicantStaIface." + methodStr + " failed with exception", e);
+        }
+    }
 
     private void handleRemoteException(RemoteException e, String methodStr) {
         synchronized (mLock) {
