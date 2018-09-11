@@ -2425,6 +2425,8 @@ public class SupplicantStaIfaceHal {
         public void onNetworkRemoved(int id) {
             synchronized (mLock) {
                 logCallback("onNetworkRemoved");
+                // Reset 4way handshake state since network has been removed.
+                mStateIsFourway = false;
             }
         }
 
