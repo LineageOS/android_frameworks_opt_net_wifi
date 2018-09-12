@@ -1123,8 +1123,10 @@ public class WifiConnectivityManager {
         mWifiState = state;
 
         if (mWifiState == WIFI_STATE_CONNECTED) {
-            mOpenNetworkNotifier.handleWifiConnected();
-            mCarrierNetworkNotifier.handleWifiConnected();
+            mOpenNetworkNotifier.handleWifiConnected(
+                    (mWifiInfo.getWifiSsid() == null) ? null : mWifiInfo.getWifiSsid().toString());
+            mCarrierNetworkNotifier.handleWifiConnected(
+                    (mWifiInfo.getWifiSsid() == null) ? null : mWifiInfo.getWifiSsid().toString());
         }
 
         // Reset BSSID of last connection attempt and kick off
