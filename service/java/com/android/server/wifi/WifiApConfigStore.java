@@ -350,13 +350,13 @@ public class WifiApConfigStore {
      * Generate a temporary WPA2 based configuration for use by the local only hotspot.
      * This config is not persisted and will not be stored by the WifiApConfigStore.
      */
-    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context) {
+    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand) {
         WifiConfiguration config = new WifiConfiguration();
-        // For local only hotspot we only use 2.4Ghz band.
-        config.apBand = WifiConfiguration.AP_BAND_2GHZ;
+
         config.SSID = context.getResources().getString(
               R.string.wifi_localhotspot_configure_ssid_default) + "_"
                       + getRandomIntForDefaultSsid();
+        config.apBand = apBand;
         config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
         config.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
         String randomUUID = UUID.randomUUID().toString();

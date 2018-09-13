@@ -184,11 +184,12 @@ public class WifiApConfigStoreTest {
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
     }
 
-    private void verifyDefaultLocalOnlyApConfig(WifiConfiguration config, String expectedSsid) {
+    private void verifyDefaultLocalOnlyApConfig(WifiConfiguration config, String expectedSsid,
+            int expectedApBand) {
         String[] splitSsid = config.SSID.split("_");
         assertEquals(2, splitSsid.length);
         assertEquals(expectedSsid, splitSsid[0]);
-        assertEquals(WifiConfiguration.AP_BAND_2GHZ, config.apBand);
+        assertEquals(expectedApBand, config.apBand);
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
@@ -514,8 +515,26 @@ public class WifiApConfigStoreTest {
      */
     @Test
     public void generateLocalOnlyHotspotConfigIsValid() {
-        WifiConfiguration config = WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext);
-        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID);
+        WifiConfiguration config = WifiApConfigStore
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_2GHZ);
+        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
+                WifiConfiguration.AP_BAND_2GHZ);
+        // The LOHS config should also have a specific network id set - check that as well.
+        assertEquals(WifiConfiguration.LOCAL_ONLY_NETWORK_ID, config.networkId);
+
+        // verify that the config passes the validateApWifiConfiguration check
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+    }
+
+    /**
+     * Verify a proper local only hotspot config is generated for 5Ghz band.
+     */
+    @Test
+    public void generateLocalOnlyHotspotConfigIsValid5G() {
+        WifiConfiguration config = WifiApConfigStore
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_5GHZ);
+        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
+                WifiConfiguration.AP_BAND_5GHZ);
         // The LOHS config should also have a specific network id set - check that as well.
         assertEquals(WifiConfiguration.LOCAL_ONLY_NETWORK_ID, config.networkId);
 
