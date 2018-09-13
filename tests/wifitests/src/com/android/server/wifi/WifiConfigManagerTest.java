@@ -2630,6 +2630,36 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that the store read after bootup received after
+     * a user switch via {@link WifiConfigManager#handleUserSwitch(int)}
+     * results in a user store read.
+     */
+    @Test
+    public void testHandleBootupAfterUserSwitch() throws Exception {
+        int user1 = TEST_DEFAULT_USER;
+        int user2 = TEST_DEFAULT_USER + 1;
+        setupUserProfiles(user2);
+
+        // Switch from user1 to user2 and ensure that we don't read or write any data
+        // (need to wait for loadFromStore invocation).
+        mWifiConfigManager.handleUserSwitch(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).read();
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
+                .switchUserStoreAndRead(any(WifiConfigStore.StoreFile.class));
+
+        // Now load from the store.
+        assertTrue(mWifiConfigManager.loadFromStore());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore).read();
+
+        // Unlock the user2 and ensure that we read from the user store.
+        setupStoreDataForUserRead(new ArrayList<>(), new HashSet<>());
+        mWifiConfigManager.handleUserUnlock(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore)
+                .switchUserStoreAndRead(any(WifiConfigStore.StoreFile.class));
+    }
+
+    /**
      * Verifies the foreground user unlock via {@link WifiConfigManager#handleUserUnlock(int)} does
      * not always result in a store read unless the user had switched or just booted up.
      */

@@ -668,10 +668,10 @@ public class WifiConnectivityManagerTest {
     @Test
     public void wifiConnected_openNetworkNotifierHandlesConnection() {
         // Set WiFi to connected state
+        mWifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(CANDIDATE_SSID));
         mWifiConnectivityManager.handleConnectionStateChanged(
                 WifiConnectivityManager.WIFI_STATE_CONNECTED);
-
-        verify(mOpenNetworkNotifier).handleWifiConnected();
+        verify(mOpenNetworkNotifier).handleWifiConnected(CANDIDATE_SSID);
     }
 
     /**
@@ -811,10 +811,10 @@ public class WifiConnectivityManagerTest {
     @Test
     public void wifiConnected_carrierNetworkNotifierHandlesConnection() {
         // Set WiFi to connected state
+        mWifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(CANDIDATE_SSID));
         mWifiConnectivityManager.handleConnectionStateChanged(
                 WifiConnectivityManager.WIFI_STATE_CONNECTED);
-
-        verify(mCarrierNetworkNotifier).handleWifiConnected();
+        verify(mCarrierNetworkNotifier).handleWifiConnected(CANDIDATE_SSID);
     }
 
     /**

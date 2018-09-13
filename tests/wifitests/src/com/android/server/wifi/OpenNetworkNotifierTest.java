@@ -49,7 +49,6 @@ import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
 import android.support.test.filters.SmallTest;
-import android.util.ArraySet;
 
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 
@@ -61,7 +60,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Unit tests for {@link OpenNetworkNotifier}.
@@ -91,8 +89,6 @@ public class OpenNetworkNotifierTest {
     private ContentObserver mContentObserver;
     private ScanResult mDummyNetwork;
     private List<ScanDetail> mOpenNetworks;
-    private Set<String> mBlacklistedSsids;
-
 
     /** Initialize objects before each test run. */
     @Before
@@ -114,7 +110,6 @@ public class OpenNetworkNotifierTest {
         mDummyNetwork.level = MIN_RSSI_LEVEL;
         mOpenNetworks = new ArrayList<>();
         mOpenNetworks.add(new ScanDetail(mDummyNetwork, null /* networkDetail */));
-        mBlacklistedSsids = new ArraySet<>();
 
         mLooper = new TestLooper();
         mNotificationController = new OpenNetworkNotifier(
@@ -418,12 +413,10 @@ public class OpenNetworkNotifierTest {
         mBroadcastReceiver.onReceive(mContext, createIntent(ACTION_CONNECT_TO_NETWORK));
 
         verify(mWifiConfigManager).saveToStore(false /* forceWrite */);
+        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(OPEN_NET_NOTIFIER_TAG, 1);
 
-        mNotificationController.clearPendingNotification(true);
         List<ScanDetail> scanResults = mOpenNetworks;
         mNotificationController.handleScanResults(scanResults);
-
-        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(OPEN_NET_NOTIFIER_TAG, 1);
     }
 
     /**
@@ -550,12 +543,12 @@ public class OpenNetworkNotifierTest {
     }
 
     /**
-     * {@link OpenNetworkNotifier#handleWifiConnected()} does not post connected notification if
-     * the connecting notification is not showing
+     * {@link OpenNetworkNotifier#handleWifiConnected(String ssid)} does not post connected
+     * notification if the connecting notification is not showing
      */
     @Test
     public void networkConnectionSuccess_wasNotInConnectingFlow_doesNothing() {
-        mNotificationController.handleWifiConnected();
+        mNotificationController.handleWifiConnected(TEST_SSID_1);
 
         verify(mNotificationManager, never()).notify(anyInt(), any());
         verify(mWifiMetrics, never()).incrementConnectToNetworkNotification(
@@ -564,7 +557,8 @@ public class OpenNetworkNotifierTest {
     }
 
     /**
-     * {@link OpenNetworkNotifier#handleWifiConnected()} clears notification that is not connecting.
+     * {@link OpenNetworkNotifier#handleWifiConnected(String ssid)} clears notification that
+     * is not connecting.
      */
     @Test
     public void networkConnectionSuccess_wasShowingNotification_clearsNotification() {
@@ -577,14 +571,14 @@ public class OpenNetworkNotifierTest {
                 ConnectToNetworkNotificationAndActionCount.NOTIFICATION_RECOMMEND_NETWORK);
         verify(mNotificationManager).notify(anyInt(), any());
 
-        mNotificationController.handleWifiConnected();
+        mNotificationController.handleWifiConnected(TEST_SSID_1);
 
         verify(mNotificationManager).cancel(anyInt());
     }
 
     /**
-     * {@link OpenNetworkNotifier#handleWifiConnected()} posts the connected notification if
-     * the connecting notification is showing.
+     * {@link OpenNetworkNotifier#handleWifiConnected(String ssid)} posts the connected
+     * notification if the connecting notification is showing.
      */
     @Test
     public void networkConnectionSuccess_wasInConnectingFlow_postsConnectedNotification() {
@@ -609,7 +603,7 @@ public class OpenNetworkNotifierTest {
                 ConnectToNetworkNotificationAndActionCount.ACTION_CONNECT_TO_NETWORK);
         verify(mNotificationManager, times(2)).notify(anyInt(), any());
 
-        mNotificationController.handleWifiConnected();
+        mNotificationController.handleWifiConnected(TEST_SSID_1);
 
         // Connected Notification
         verify(mNotificationBuilder).createNetworkConnectedNotification(OPEN_NET_NOTIFIER_TAG,
@@ -741,8 +735,7 @@ public class OpenNetworkNotifierTest {
         List<ScanDetail> scanResults = createOpenScanResults(TEST_SSID_1);
         scanResults.get(0).getScanResult().level = MIN_RSSI_LEVEL;
 
-        ScanResult actual = mNotificationController.recommendNetwork(
-                scanResults, mBlacklistedSsids);
+        ScanResult actual = mNotificationController.recommendNetwork(scanResults);
         ScanResult expected = scanResults.get(0).getScanResult();
         assertEquals(expected, actual);
     }
@@ -754,8 +747,7 @@ public class OpenNetworkNotifierTest {
         scanResults.get(0).getScanResult().level = MIN_RSSI_LEVEL;
         scanResults.get(1).getScanResult().level = MIN_RSSI_LEVEL + 1;
 
-        ScanResult actual = mNotificationController.recommendNetwork(
-                scanResults, mBlacklistedSsids);
+        ScanResult actual = mNotificationController.recommendNetwork(scanResults);
         ScanResult expected = scanResults.get(1).getScanResult();
         assertEquals(expected, actual);
     }
@@ -765,13 +757,50 @@ public class OpenNetworkNotifierTest {
      */
     @Test
     public void blacklistBestNetworkSsid_shouldNeverRecommendNetwork() {
-        List<ScanDetail> scanResults = createOpenScanResults(TEST_SSID_1, TEST_SSID_2);
+        // Add TEST_SSID_1 to blacklist
+        userDismissedNotification_shouldBlacklistNetwork();
+
+        // Scan result with blacklisted SSID
+        List<ScanDetail> scanResults = createOpenScanResults(mDummyNetwork.SSID, TEST_SSID_2);
         scanResults.get(0).getScanResult().level = MIN_RSSI_LEVEL + 1;
         scanResults.get(1).getScanResult().level = MIN_RSSI_LEVEL;
-        mBlacklistedSsids.add(TEST_SSID_1);
 
-        ScanResult actual = mNotificationController.recommendNetwork(
-                scanResults, mBlacklistedSsids);
+        ScanResult actual = mNotificationController.recommendNetwork(scanResults);
         assertNull(actual);
+    }
+
+    /**
+     * Test null input is handled
+     */
+    @Test
+    public void removeNetworkFromBlacklist_handlesNull() {
+        mNotificationController.handleWifiConnected(null);
+        verify(mWifiConfigManager, never()).saveToStore(false /* forceWrite */);
+    }
+
+    /**
+     * If the blacklist didn't change then there is no need to continue further.
+     */
+    @Test
+    public void removeNetworkFromBlacklist_returnsEarlyIfNothingIsRemoved() {
+        mNotificationController.handleWifiConnected(TEST_SSID_1);
+        verify(mWifiConfigManager, never()).saveToStore(false /* forceWrite */);
+    }
+
+    /**
+     * If we connected to a blacklisted network, then remove it from the blacklist.
+     */
+    @Test
+    public void connectToNetwork_shouldRemoveSsidFromBlacklist() {
+        // Add TEST_SSID_1 to blacklist
+        userDismissedNotification_shouldBlacklistNetwork();
+
+        // Simulate the user connecting to TEST_SSID_1 and verify it is removed from the blacklist
+        mNotificationController.handleWifiConnected(mDummyNetwork.SSID);
+        verify(mWifiConfigManager, times(2)).saveToStore(false /* forceWrite */);
+        verify(mWifiMetrics).setNetworkRecommenderBlacklistSize(OPEN_NET_NOTIFIER_TAG, 0);
+        ScanResult actual = mNotificationController.recommendNetwork(mOpenNetworks);
+        ScanResult expected = mOpenNetworks.get(0).getScanResult();
+        assertEquals(expected, actual);
     }
 }
