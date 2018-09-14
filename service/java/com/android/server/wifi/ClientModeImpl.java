@@ -4929,6 +4929,7 @@ public class ClientModeImpl extends StateMachine {
                     if (message.arg1 == mRssiPollToken) {
                         WifiLinkLayerStats stats = getWifiLinkLayerStats();
                         mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
                         mLastLinkLayerStats = stats;
 
                         // Get Info and continue polling
