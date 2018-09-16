@@ -2362,12 +2362,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action.equals(Intent.ACTION_USER_PRESENT)) {
-                // TLS networks can't connect until user unlocks keystore. KeyStore
-                // unlocks when the user punches PIN after the reboot. So use this
-                // trigger to get those networks connected.
-                mClientModeImpl.reloadTlsNetworksAndReconnect();
-            } else if (action.equals(Intent.ACTION_USER_REMOVED)) {
+            if (action.equals(Intent.ACTION_USER_REMOVED)) {
                 int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
                 mClientModeImpl.removeUserConfigs(userHandle);
             } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
