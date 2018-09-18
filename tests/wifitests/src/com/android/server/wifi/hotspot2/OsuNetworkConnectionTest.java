@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.hotspot2;
 
+import static android.net.NetworkCapabilities.NET_CAPABILITY_TRUSTED;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -55,7 +57,7 @@ import org.mockito.MockitoAnnotations;
 import java.net.InetAddress;
 
 /**
- * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointProvisioner}.
+ * Unit tests for {@link OsuNetworkConnection}.
  */
 @SmallTest
 public class OsuNetworkConnectionTest {
@@ -259,5 +261,30 @@ public class OsuNetworkConnectionTest {
         mNetworkConnection.disconnectIfNeeded();
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
     }
-}
 
+    /**
+     * Verifies that {@link WifiConfiguration} has been created properly for OSU network.
+     * It is supposed to create a network as ephemeral network and suppress no internet access
+     * notification.
+     */
+    @Test
+    public void verifyWifiConfigurationForOsuNetwork() {
+        mNetworkConnection.init(mHandler);
+
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+
+        ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor = ArgumentCaptor.forClass(
+                WifiConfiguration.class);
+        verify(mWifiManager, times(1)).addNetwork(wifiConfigurationCaptor.capture());
+        WifiConfiguration wifiConfiguration = wifiConfigurationCaptor.getValue();
+        assertTrue(wifiConfiguration.isNoInternetAccessExpected());
+        assertTrue(wifiConfiguration.isEphemeral());
+
+        ArgumentCaptor<NetworkRequest> networkRequestCaptor = ArgumentCaptor.forClass(
+                NetworkRequest.class);
+        verify(mConnectivityManager, times(1)).requestNetwork(networkRequestCaptor.capture(),
+                any(ConnectivityManager.NetworkCallback.class), any(Handler.class), anyInt());
+        assertFalse(networkRequestCaptor.getValue().hasCapability(NET_CAPABILITY_TRUSTED));
+
+    }
+}
