@@ -31,44 +31,6 @@ const int DriverTool::kFirmwareModeSta = WIFI_GET_FW_PATH_STA;
 const int DriverTool::kFirmwareModeAp = WIFI_GET_FW_PATH_AP;
 const int DriverTool::kFirmwareModeP2p = WIFI_GET_FW_PATH_P2P;
 
-bool DriverTool::TakeOwnershipOfFirmwareReload() {
-  if (!wifi_get_fw_path(kFirmwareModeSta) &&
-      !wifi_get_fw_path(kFirmwareModeAp) &&
-      !wifi_get_fw_path(kFirmwareModeP2p)) {
-    return true;  // HAL doesn't think we need to load firmware for any mode.
-  }
-
-  errno = 0;
-  struct passwd *pwd = getpwnam("wifi");
-  if (pwd == nullptr) {
-    if (errno == 0) {
-      PLOG(ERROR) << "No user 'wifi' found";
-    } else {
-      PLOG(ERROR) << "Error getting uid for wifi: " << strerror(errno);
-    }
-    return false;
-  }
-
-  errno = 0;
-  struct group *grp = getgrnam("wifi");
-  if (grp == nullptr) {
-    if (errno == 0) {
-      PLOG(ERROR) << "No group 'wifi' found";
-    } else {
-      PLOG(ERROR) << "Error getting gid for wifi: " << strerror(errno);
-    }
-    return false;
-  }
-
-  if (chown(WIFI_DRIVER_FW_PATH_PARAM, pwd->pw_uid, grp->gr_gid) != 0) {
-    PLOG(ERROR) << "Error changing ownership of '" << WIFI_DRIVER_FW_PATH_PARAM
-                << "' to wifi:wifi";
-    return false;
-  }
-
-  return true;
-}
-
 bool DriverTool::LoadDriver() {
   return ::wifi_load_driver() == 0;
 }
