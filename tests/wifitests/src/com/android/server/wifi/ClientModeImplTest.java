@@ -399,7 +399,7 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
-        when(mWifiInjector.makeWifiConnectivityManager(any(WifiInfo.class), anyBoolean()))
+        when(mWifiInjector.makeWifiConnectivityManager(any()))
                 .thenReturn(mWifiConnectivityManager);
         when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
         when(mWifiInjector.getWifiStateTracker()).thenReturn(mWifiStateTracker);

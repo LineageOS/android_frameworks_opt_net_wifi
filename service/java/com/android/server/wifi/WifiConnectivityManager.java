@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
 
+import static com.android.internal.util.Preconditions.checkNotNull;
 import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 
 import android.app.AlarmManager;
@@ -131,7 +132,7 @@ public class WifiConnectivityManager {
     private static final String TAG = "WifiConnectivityManager";
 
     private final ClientModeImpl mStateMachine;
-    private final WifiScanner mScanner;
+    private final WifiInjector mWifiInjector;
     private final WifiConfigManager mConfigManager;
     private final WifiInfo mWifiInfo;
     private final WifiConnectivityHelper mConnectivityHelper;
@@ -147,10 +148,11 @@ public class WifiConnectivityManager {
     private final ScoringParams mScoringParams;
     private final LocalLog mLocalLog;
     private final LinkedList<Long> mConnectionAttemptTimeStamps;
+    private WifiScanner mScanner;
 
     private boolean mDbg = false;
     private boolean mWifiEnabled = false;
-    private boolean mWifiConnectivityManagerEnabled = true;
+    private boolean mWifiConnectivityManagerEnabled = false;
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
     private boolean mUntrustedConnectionAllowed = false;
@@ -570,17 +572,17 @@ public class WifiConnectivityManager {
      */
     WifiConnectivityManager(Context context, ScoringParams scoringParams,
             ClientModeImpl stateMachine,
-            WifiScanner scanner, WifiConfigManager configManager, WifiInfo wifiInfo,
+            WifiInjector injector, WifiConfigManager configManager, WifiInfo wifiInfo,
             WifiNetworkSelector networkSelector, WifiConnectivityHelper connectivityHelper,
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
             CarrierNetworkNotifier carrierNetworkNotifier,
             CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Looper looper,
-            Clock clock, LocalLog localLog, boolean enable, FrameworkFacade frameworkFacade,
+            Clock clock, LocalLog localLog, boolean enable,
             SavedNetworkEvaluator savedNetworkEvaluator,
             ScoredNetworkEvaluator scoredNetworkEvaluator,
             PasspointNetworkEvaluator passpointNetworkEvaluator) {
         mStateMachine = stateMachine;
-        mScanner = scanner;
+        mWifiInjector = injector;
         mConfigManager = configManager;
         mWifiInfo = wifiInfo;
         mNetworkSelector = networkSelector;
@@ -643,9 +645,6 @@ public class WifiConnectivityManager {
         }
         mNetworkSelector.registerNetworkEvaluator(scoredNetworkEvaluator,
                 SCORED_NETWORK_EVALUATOR_PRIORITY);
-
-        // Register for all single scan results
-        mScanner.registerScanListener(mAllSingleScanListener);
 
         // Listen to WifiConfigManager network update events
         mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());
@@ -1351,6 +1350,19 @@ public class WifiConnectivityManager {
     }
 
     /**
+     * Helper method to populate WifiScanner handle. This is done lazily because
+     * WifiScanningService is started after WifiService.
+     */
+    private void retrieveWifiScanner() {
+        if (mScanner != null) return;
+        mScanner = mWifiInjector.getWifiScanner();
+        checkNotNull(mScanner);
+        // Register for all single scan results
+        mScanner.registerScanListener(mAllSingleScanListener);
+    }
+
+
+    /**
      * Clear the BSSID blacklist
      */
     private void clearBssidBlacklist() {
@@ -1362,6 +1374,7 @@ public class WifiConnectivityManager {
      * Start WifiConnectivityManager
      */
     private void start() {
+        retrieveWifiScanner();
         mConnectivityHelper.getFirmwareRoamingInfo();
         clearBssidBlacklist();
         startConnectivityScan(SCAN_IMMEDIATELY);
