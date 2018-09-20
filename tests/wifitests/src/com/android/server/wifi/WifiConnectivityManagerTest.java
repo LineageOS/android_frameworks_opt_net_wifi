@@ -95,6 +95,7 @@ public class WifiConnectivityManagerTest {
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         mWifiConnectivityManager = createConnectivityManager();
         verify(mWifiConfigManager).setOnSavedNetworkUpdateListener(anyObject());
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         mWifiConnectivityManager.setWifiEnabled(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
         mFullScanMaxTxPacketRate = mResource.getInteger(
@@ -317,7 +318,7 @@ public class WifiConnectivityManagerTest {
                 mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog, true,
+                mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog,
                 null, null, null);
     }
 
@@ -416,6 +417,7 @@ public class WifiConnectivityManagerTest {
                 R.bool.config_wifi_framework_enable_associated_network_selection))
                 .thenReturn(false);
         mWifiConnectivityManager = createConnectivityManager();
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
 
         // Set WiFi to connected state
         mWifiConnectivityManager.handleConnectionStateChanged(
@@ -1616,7 +1618,6 @@ public class WifiConnectivityManagerTest {
      */
     @Test
     public void verifyGetFirmwareRoamingInfoIsCalledWhenEnableWiFiAndWcmOn() {
-        reset(mWifiConnectivityHelper);
         // WifiConnectivityManager is on by default
         mWifiConnectivityManager.setWifiEnabled(true);
         verify(mWifiConnectivityHelper).getFirmwareRoamingInfo();
@@ -1975,6 +1976,7 @@ public class WifiConnectivityManagerTest {
             }}).when(mWifiNS).selectNetwork(
                     any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean());
 
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         // Set WiFi to disconnected state with screen on which triggers a scan immediately.
         mWifiConnectivityManager.setWifiEnabled(true);
         mWifiConnectivityManager.handleScreenStateChanged(true);
@@ -2030,6 +2032,7 @@ public class WifiConnectivityManagerTest {
             }}).when(mWifiNS).selectNetwork(
                 any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean());
 
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         // Set WiFi to disconnected state with screen on which triggers a scan immediately.
         mWifiConnectivityManager.setWifiEnabled(true);
         mWifiConnectivityManager.handleScreenStateChanged(true);

@@ -533,7 +533,7 @@ public class WifiInjector {
                 mWifiNetworkSelector, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mWifiCoreHandlerThread.getLooper(),
-                mClock, mConnectivityLocalLog, true,
+                mClock, mConnectivityLocalLog,
                 mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator);
     }
 

@@ -153,9 +153,11 @@ public class WifiConnectivityManager {
     private boolean mDbg = false;
     private boolean mWifiEnabled = false;
     private boolean mWifiConnectivityManagerEnabled = false;
+    private boolean mRunning = false;
     private boolean mScreenOn = false;
     private int mWifiState = WIFI_STATE_UNKNOWN;
     private boolean mUntrustedConnectionAllowed = false;
+    private boolean mTrustedConnectionAllowed = false;
     private int mScanRestartCount = 0;
     private int mSingleScanRestartCount = 0;
     private int mTotalConnectivityAttemptsRateLimited = 0;
@@ -577,8 +579,7 @@ public class WifiConnectivityManager {
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
             CarrierNetworkNotifier carrierNetworkNotifier,
             CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Looper looper,
-            Clock clock, LocalLog localLog, boolean enable,
-            SavedNetworkEvaluator savedNetworkEvaluator,
+            Clock clock, LocalLog localLog, SavedNetworkEvaluator savedNetworkEvaluator,
             ScoredNetworkEvaluator scoredNetworkEvaluator,
             PasspointNetworkEvaluator passpointNetworkEvaluator) {
         mStateMachine = stateMachine;
@@ -648,11 +649,6 @@ public class WifiConnectivityManager {
 
         // Listen to WifiConfigManager network update events
         mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());
-
-        mWifiConnectivityManagerEnabled = enable;
-
-        localLog("ConnectivityScanManager initialized and "
-                + (enable ? "enabled" : "disabled"));
     }
 
     /**
@@ -1152,13 +1148,30 @@ public class WifiConnectivityManager {
     }
 
     /**
-     * Handler when user toggles whether untrusted connection is allowed
+     * Handler when connectivity allows/disallows trusted connections (all of autojoin).
+     */
+    public void setTrustedConnectionAllowed(boolean allowed) {
+        localLog("setTrustedConnectionAllowed: allowed=" + allowed);
+
+        if (mTrustedConnectionAllowed != allowed) {
+            mTrustedConnectionAllowed = allowed;
+            // Enable auto-join if we have any pending network request (trusted or untrusted).
+            enable(mUntrustedConnectionAllowed || mTrustedConnectionAllowed);
+            startConnectivityScan(SCAN_IMMEDIATELY);
+        }
+    }
+
+
+    /**
+     * Handler when connectivity allows/disallows untrusted connections (ephemeral networks).
      */
     public void setUntrustedConnectionAllowed(boolean allowed) {
         localLog("setUntrustedConnectionAllowed: allowed=" + allowed);
 
         if (mUntrustedConnectionAllowed != allowed) {
             mUntrustedConnectionAllowed = allowed;
+            // Enable auto-join if we have any pending network request (trusted or untrusted).
+            enable(mUntrustedConnectionAllowed || mTrustedConnectionAllowed);
             startConnectivityScan(SCAN_IMMEDIATELY);
         }
     }
@@ -1374,16 +1387,20 @@ public class WifiConnectivityManager {
      * Start WifiConnectivityManager
      */
     private void start() {
+        if (mRunning) return;
         retrieveWifiScanner();
         mConnectivityHelper.getFirmwareRoamingInfo();
         clearBssidBlacklist();
         startConnectivityScan(SCAN_IMMEDIATELY);
+        mRunning = true;
     }
 
     /**
      * Stop and reset WifiConnectivityManager
      */
     private void stop() {
+        if (!mRunning) return;
+        mRunning = false;
         stopConnectivityScan();
         clearBssidBlacklist();
         resetLastPeriodicSingleScanTimeStamp();
@@ -1417,7 +1434,6 @@ public class WifiConnectivityManager {
 
         mWifiEnabled = enable;
         updateRunningState();
-
     }
 
     /**
