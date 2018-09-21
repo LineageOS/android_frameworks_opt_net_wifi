@@ -94,6 +94,7 @@ import android.util.SparseArray;
 import android.util.StatsLog;
 
 import com.android.internal.R;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
@@ -402,7 +403,9 @@ public class ClientModeImpl extends StateMachine {
 
     private WifiNetworkFactory mNetworkFactory;
     private UntrustedWifiNetworkFactory mUntrustedNetworkFactory;
+    @GuardedBy("mNetworkAgentLock")
     private WifiNetworkAgent mNetworkAgent;
+    private final Object mNetworkAgentLock = new Object();
 
     private byte[] mRssiRanges;
 
@@ -1903,10 +1906,12 @@ public class ClientModeImpl extends StateMachine {
      * @return Network object of current wifi network
      */
     public Network getCurrentNetwork() {
-        if (mNetworkAgent != null) {
-            return new Network(mNetworkAgent.netId);
-        } else {
-            return null;
+        synchronized (mNetworkAgentLock) {
+            if (mNetworkAgent != null) {
+                return new Network(mNetworkAgent.netId);
+            } else {
+                return null;
+            }
         }
     }
 
@@ -2972,9 +2977,11 @@ public class ClientModeImpl extends StateMachine {
         mIsAutoRoaming = false;
 
         setNetworkDetailedState(DetailedState.DISCONNECTED);
-        if (mNetworkAgent != null) {
-            mNetworkAgent.sendNetworkInfo(mNetworkInfo);
-            mNetworkAgent = null;
+        synchronized (mNetworkAgentLock) {
+            if (mNetworkAgent != null) {
+                mNetworkAgent.sendNetworkInfo(mNetworkInfo);
+                mNetworkAgent = null;
+            }
         }
 
         /* Clear network properties */
@@ -4844,8 +4851,10 @@ public class ClientModeImpl extends StateMachine {
             setNetworkDetailedState(DetailedState.CONNECTING);
 
             final NetworkCapabilities nc = getCapabilities(getCurrentWifiConfiguration());
-            mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
+            synchronized (mNetworkAgentLock) {
+                mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
                     "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkMisc);
+            }
 
             // We must clear the config BSSID, as the wifi chipset may decide to roam
             // from this point on and having the BSSID specified in the network block would
