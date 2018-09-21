@@ -807,6 +807,16 @@ public class ClientModeImpl extends StateMachine {
         // TODO - needs to be a bit more dynamic
         mDfltNetworkCapabilities = new NetworkCapabilities(mNetworkCapabilitiesFilter);
 
+        // Make the network factories.
+        mNetworkFactory = mWifiInjector.makeWifiNetworkFactory(
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+        // We can't filter untrusted network in the capabilities filter because a trusted
+        // network would still satisfy a request that accepts untrusted ones.
+        // We need a second network factory for untrusted network requests because we need a
+        // different score filter for these requests.
+        mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
@@ -1907,18 +1917,8 @@ public class ClientModeImpl extends StateMachine {
         pw.println("mUserWantsSuspendOpt " + mUserWantsSuspendOpt);
         pw.println("mSuspendOptNeedsDisabled " + mSuspendOptNeedsDisabled);
         mCountryCode.dump(fd, pw, args);
-
-        if (mNetworkFactory != null) {
-            mNetworkFactory.dump(fd, pw, args);
-        } else {
-            pw.println("mNetworkFactory is not initialized");
-        }
-
-        if (mUntrustedNetworkFactory != null) {
-            mUntrustedNetworkFactory.dump(fd, pw, args);
-        } else {
-            pw.println("mUntrustedNetworkFactory is not initialized");
-        }
+        mNetworkFactory.dump(fd, pw, args);
+        mUntrustedNetworkFactory.dump(fd, pw, args);
         pw.println("Wlan Wake Reasons:" + mWifiNative.getWlanWakeReasonCount());
         pw.println();
 
@@ -2423,10 +2423,15 @@ public class ClientModeImpl extends StateMachine {
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
-    private void checkAndSetConnectivityInstance() {
+    private boolean checkAndSetConnectivityInstance() {
         if (mCm == null) {
             mCm = (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         }
+        if (mCm == null) {
+            Log.e(TAG, "Cannot retrieve connectivity service");
+            return false;
+        }
+        return true;
     }
 
     private void setSuspendOptimizationsNative(int reason, boolean enabled) {
@@ -3091,23 +3096,10 @@ public class ClientModeImpl extends StateMachine {
         return true;
     }
 
-    void maybeRegisterNetworkFactory() {
-        if (mNetworkFactory == null) {
-            checkAndSetConnectivityInstance();
-            if (mCm != null) {
-                mNetworkFactory = new WifiNetworkFactory(getHandler().getLooper(), mContext,
-                        mNetworkCapabilitiesFilter, mWifiConnectivityManager);
-                mNetworkFactory.register();
-
-                // We can't filter untrusted network in the capabilities filter because a trusted
-                // network would still satisfy a request that accepts untrusted ones.
-                // We need a second network factory for untrusted network requests because we need a
-                // different score filter for these requests.
-                mUntrustedNetworkFactory = new UntrustedWifiNetworkFactory(getHandler().getLooper(),
-                        mContext, mNetworkCapabilitiesFilter, mWifiConnectivityManager);
-                mUntrustedNetworkFactory.register();
-            }
-        }
+    void registerNetworkFactory() {
+        if (!checkAndSetConnectivityInstance()) return;
+        mNetworkFactory.register();
+        mUntrustedNetworkFactory.register();
     }
 
     /**
@@ -3296,7 +3288,7 @@ public class ClientModeImpl extends StateMachine {
                     if (!mWifiConfigManager.loadFromStore()) {
                         Log.e(TAG, "Failed to load from config store");
                     }
-                    maybeRegisterNetworkFactory();
+                    registerNetworkFactory();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
                     handleScreenStateChanged(message.arg1 != 0);
