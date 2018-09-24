@@ -546,7 +546,9 @@ public class WifiInjector {
     public WifiNetworkFactory makeWifiNetworkFactory(
             NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
         return new WifiNetworkFactory(
-                mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
+                mWifiCoreHandlerThread.getLooper(), mContext, nc,
+                (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
+                wifiConnectivityManager);
     }
 
     /**

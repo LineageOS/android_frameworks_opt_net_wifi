@@ -38,6 +38,7 @@ import android.net.IpConfiguration;
 import android.net.KeepalivePacketData;
 import android.net.LinkProperties;
 import android.net.MacAddress;
+import android.net.MatchAllNetworkSpecifier;
 import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
@@ -807,15 +808,18 @@ public class ClientModeImpl extends StateMachine {
         // TODO - needs to be a bit more dynamic
         mDfltNetworkCapabilities = new NetworkCapabilities(mNetworkCapabilitiesFilter);
 
+        NetworkCapabilities factoryNetworkCapabilities =
+                new NetworkCapabilities(mNetworkCapabilitiesFilter);
+        factoryNetworkCapabilities.setNetworkSpecifier(new MatchAllNetworkSpecifier());
         // Make the network factories.
         mNetworkFactory = mWifiInjector.makeWifiNetworkFactory(
-                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+                factoryNetworkCapabilities, mWifiConnectivityManager);
         // We can't filter untrusted network in the capabilities filter because a trusted
         // network would still satisfy a request that accepts untrusted ones.
         // We need a second network factory for untrusted network requests because we need a
         // different score filter for these requests.
         mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
-                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+                factoryNetworkCapabilities, mWifiConnectivityManager);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -1077,6 +1081,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiConfigManager.enableVerboseLogging(verbose);
         mSupplicantStateTracker.enableVerboseLogging(verbose);
         mPasspointManager.enableVerboseLogging(verbose);
+        mNetworkFactory.enableVerboseLogging(verbose);
     }
 
     private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
