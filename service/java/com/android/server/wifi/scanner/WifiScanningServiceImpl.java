@@ -22,6 +22,7 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import android.Manifest;
 import android.app.AlarmManager;
 import android.content.Context;
+import android.location.LocationManager;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
@@ -133,6 +134,51 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 "NetworkStack");
     }
 
+    // Helper method to check if the incoming message is for a privileged request.
+    private boolean isPrivilegedMessage(int msgWhat) {
+        return (msgWhat == WifiScanner.CMD_ENABLE
+                || msgWhat == WifiScanner.CMD_DISABLE
+                || msgWhat == WifiScanner.CMD_START_PNO_SCAN
+                || msgWhat == WifiScanner.CMD_STOP_PNO_SCAN);
+    }
+
+    // Retrieves a handle to LocationManager (if not already done) and check if location is enabled.
+    private boolean isLocationEnabled() {
+        if (mLocationManager == null) {
+            mLocationManager =
+                    (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        }
+        if (mLocationManager == null) return false;
+        return mLocationManager.isLocationEnabled();
+    }
+
+    /**
+     * Enforce the necessary client permissions for WifiScanner.
+     * If the client has NETWORK_STACK permission, then it can "always" send "any" request.
+     * If the client has only LOCATION_HARDWARE permission, then it can
+     *    a) Only make scan related requests when location is turned on.
+     *    b) Can never make one of the privileged requests.
+     *
+     * @param uid Uid of the client.
+     * @param msgWhat {@link Message#what} of the incoming request.
+     * @throws {@link SecurityException} if the client does not have the necessary permissions.
+     */
+    private void enforcePermission(int uid, int msgWhat) throws SecurityException {
+        try {
+            enforceNetworkStack(uid);
+        } catch (SecurityException e) {
+            if (!isLocationEnabled()) {
+                // Location not enabled, only requests from clients with NETWORK_STACK allowed!
+                throw e;
+            }
+            if (isPrivilegedMessage(msgWhat)) {
+                // Privileged message, only requests from clients with NETWORK_STACK allowed!
+                throw e;
+            }
+            enforceLocationHardwarePermission(uid);
+        }
+    }
+
     private class ClientHandler extends WifiHandler {
 
         ClientHandler(String tag, Looper looper) {
@@ -188,13 +234,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
 
             try {
-                if (msg.what == WifiScanner.CMD_ENABLE || msg.what == WifiScanner.CMD_DISABLE
-                        || msg.what == WifiScanner.CMD_START_PNO_SCAN
-                        || msg.what == WifiScanner.CMD_STOP_PNO_SCAN) {
-                    enforceNetworkStack(msg.sendingUid);
-                } else {
-                    enforceLocationHardwarePermission(msg.sendingUid);
-                }
+                enforcePermission(msg.sendingUid, msg.what);
             } catch (SecurityException e) {
                 localLog("failed to authorize app: " + e);
                 replyFailed(msg, WifiScanner.REASON_NOT_AUTHORIZED, "Not authorized");
@@ -287,6 +327,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private WifiSingleScanStateMachine mSingleScanStateMachine;
     private WifiPnoScanStateMachine mPnoScanStateMachine;
     private ClientHandler mClientHandler;
+    // This is retrieved lazily because location service is started after wifi scanner.
+    private LocationManager mLocationManager;
     private final IBatteryStats mBatteryStats;
     private final AlarmManager mAlarmManager;
     private final WifiMetrics mWifiMetrics;
