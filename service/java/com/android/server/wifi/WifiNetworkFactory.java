@@ -76,6 +76,11 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
 
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
+            if (!WifiConfigurationUtil.validateNetworkSpecifier(wns)) {
+                Log.e(TAG, "Invalid network specifier."
+                        + " Rejecting request from " + wns.requestorUid);
+                return false;
+            }
             // Only allow specific wifi network request from foreground app/service.
             if (!isRequestFromForegroundAppOrService(wns.requestorUid)) {
                 Log.e(TAG, "Request not from foreground app or service."

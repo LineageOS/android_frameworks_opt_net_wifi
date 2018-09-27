@@ -25,11 +25,15 @@ import static org.mockito.Mockito.*;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSpecifier;
+import android.os.PatternMatcher;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
+import android.util.Pair;
 
 import org.junit.After;
 import org.junit.Before;
@@ -46,6 +50,7 @@ public class WifiNetworkFactoryTest {
     private static final String TEST_PACKAGE_NAME_1 = "com.test.networkrequest.1";
     private static final int TEST_UID_2 = 10424;
     private static final String TEST_PACKAGE_NAME_2 = "com.test.networkrequest.2";
+    private static final String TEST_SSID = "test1234";
 
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock Context mContext;
@@ -144,8 +149,7 @@ public class WifiNetworkFactoryTest {
         when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE + 1);
 
-        WifiNetworkSpecifier specifier =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
 
         assertFalse(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
@@ -160,8 +164,7 @@ public class WifiNetworkFactoryTest {
         when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
                 .thenReturn(IMPORTANCE_FOREGROUND);
 
-        WifiNetworkSpecifier specifier =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
 
         assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
@@ -179,15 +182,13 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND);
 
         // Handle request 1.
-        WifiNetworkSpecifier specifier1 =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Make request 2 which will be accepted because a fg app request can
         // override a fg service request.
-        WifiNetworkSpecifier specifier2 =
-                new WifiNetworkSpecifier(TEST_UID_2);
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
     }
@@ -204,15 +205,13 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE);
 
         // Handle request 1.
-        WifiNetworkSpecifier specifier1 =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Make request 2 which will be accepted because a fg service request can
         // override an existing fg service request.
-        WifiNetworkSpecifier specifier2 =
-                new WifiNetworkSpecifier(TEST_UID_2);
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
     }
@@ -229,15 +228,13 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND);
 
         // Handle request 1.
-        WifiNetworkSpecifier specifier1 =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Make request 2 which will be accepted because a fg app request can
         // override an existing fg app request.
-        WifiNetworkSpecifier specifier2 =
-                new WifiNetworkSpecifier(TEST_UID_2);
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
     }
@@ -254,16 +251,24 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE);
 
         // Handle request 1.
-        WifiNetworkSpecifier specifier1 =
-                new WifiNetworkSpecifier(TEST_UID_1);
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Make request 2 which will be rejected because a fg service request cannot
         // override a fg app request.
-        WifiNetworkSpecifier specifier2 =
-                new WifiNetworkSpecifier(TEST_UID_2);
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         assertFalse(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+    }
+
+    private WifiNetworkSpecifier createWifiNetworkSpecifier(int uid) {
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createPskNetwork();
+        return new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, uid);
     }
 }
