@@ -16,15 +16,26 @@
 
 package com.android.server.wifi;
 
+import static com.android.internal.util.Preconditions.checkNotNull;
+import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
+
 import android.app.ActivityManager;
+import android.app.AlarmManager;
 import android.content.Context;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSpecifier;
+import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.WorkSource;
 import android.util.Log;
+
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -34,23 +45,107 @@ import java.io.PrintWriter;
  */
 public class WifiNetworkFactory extends NetworkFactory {
     private static final String TAG = "WifiNetworkFactory";
+    @VisibleForTesting
     private static final int SCORE_FILTER = 60;
-    private final WifiConnectivityManager mWifiConnectivityManager;
+    @VisibleForTesting
+    public static final int PERIODIC_SCAN_INTERVAL_MS = 10 * 1000; // 10 seconds
+
     private final Context mContext;
     private final ActivityManager mActivityManager;
+    private final AlarmManager mAlarmManager;
+    private final Clock mClock;
+    private final Handler mHandler;
+    private final WifiInjector mWifiInjector;
+    private final WifiConnectivityManager mWifiConnectivityManager;
+    private final WifiScanner.ScanSettings mScanSettings;
+    private final NetworkFactoryScanListener mScanListener;
+    private final NetworkFactoryAlarmListener mPeriodicScanTimerListener;
 
     private int mGenericConnectionReqCount = 0;
-    NetworkRequest mActiveSpecificNetworkRequest;
+    private NetworkRequest mActiveSpecificNetworkRequest;
+    private WifiNetworkSpecifier mActiveSpecificNetworkRequestSpecifier;
+    private WifiScanner mWifiScanner;
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
+    private boolean mPeriodicScanTimerSet = false;
+
+    // Scan listener for scan requests.
+    private class NetworkFactoryScanListener implements WifiScanner.ScanListener {
+        @Override
+        public void onSuccess() {
+            // Scan request succeeded, wait for results to report to external clients.
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Scan request succeeded");
+            }
+        }
+
+        @Override
+        public void onFailure(int reason, String description) {
+            Log.e(TAG, "Scan failure received. reason: " + reason
+                    + ", description: " + description);
+            // TODO(b/113878056): Retry scan to workaround any transient scan failures.
+            scheduleNextPeriodicScan();
+        }
+
+        @Override
+        public void onResults(WifiScanner.ScanData[] scanDatas) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Scan results received");
+            }
+            // For single scans, the array size should always be 1.
+            if (scanDatas.length != 1) {
+                Log.wtf(TAG, "Found more than 1 batch of scan results, Ignoring...");
+                return;
+            }
+            WifiScanner.ScanData scanData = scanDatas[0];
+            ScanResult[] scanResults = scanData.getResults();
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Received " + scanResults.length + " scan results");
+            }
+            // TODO(b/113878056): Find network match in scan results
+
+            // Didn't find a match, schedule the next scan.
+            scheduleNextPeriodicScan();
+        }
+
+        @Override
+        public void onFullResult(ScanResult fullScanResult) {
+            // Ignore for single scans.
+        }
+
+        @Override
+        public void onPeriodChanged(int periodInMs) {
+            // Ignore for single scans.
+        }
+    };
+
+    private class NetworkFactoryAlarmListener implements AlarmManager.OnAlarmListener {
+        @Override
+        public void onAlarm() {
+            // Trigger the next scan.
+            startScan();
+        }
+    }
 
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
-                              ActivityManager activityManager,
+                              ActivityManager activityManager, AlarmManager alarmManager,
+                              Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager) {
         super(looper, context, TAG, nc);
         mContext = context;
         mActivityManager = activityManager;
+        mAlarmManager = alarmManager;
+        mClock = clock;
+        mHandler = new Handler(looper);
+        mWifiInjector = wifiInjector;
         mWifiConnectivityManager = connectivityManager;
+        // Create the scan settings.
+        mScanSettings = new WifiScanner.ScanSettings();
+        mScanSettings.type = WifiScanner.TYPE_HIGH_ACCURACY;
+        mScanSettings.band = WifiScanner.WIFI_BAND_BOTH_WITH_DFS;
+        mScanSettings.reportEvents = WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN;
+        mScanListener = new NetworkFactoryScanListener();
+        mPeriodicScanTimerListener = new NetworkFactoryAlarmListener();
 
         setScoreFilter(SCORE_FILTER);
     }
@@ -62,6 +157,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         mVerboseLoggingEnabled = (verbose > 0);
     }
 
+    /**
+     * Check whether to accept the new network connection request.
+     *
+     * All the validation of the incoming request is done in this method.
+     */
     @Override
     public boolean acceptRequest(NetworkRequest networkRequest, int score) {
         NetworkSpecifier ns = networkRequest.networkCapabilities.getNetworkSpecifier();
@@ -112,6 +212,12 @@ public class WifiNetworkFactory extends NetworkFactory {
         return true;
     }
 
+    /**
+     * Handle new network connection requests.
+     *
+     * The assumption here is that {@link #acceptRequest(NetworkRequest, int)} has already sanitized
+     * the incoming request.
+     */
     @Override
     protected void needNetworkFor(NetworkRequest networkRequest, int score) {
         NetworkSpecifier ns = networkRequest.networkCapabilities.getNetworkSpecifier();
@@ -126,9 +232,20 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Invalid network specifier mentioned. Rejecting");
                 return;
             }
+            retrieveWifiScanner();
+
             // Store the active network request.
             mActiveSpecificNetworkRequest = new NetworkRequest(networkRequest);
-            // TODO (b/113878056): Complete handling.
+            WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
+            mActiveSpecificNetworkRequestSpecifier = new WifiNetworkSpecifier(
+                    wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
+                    wns.requestorUid);
+
+            // Trigger periodic scans for finding a network in the request.
+            startPeriodicScans();
+            // Disable Auto-join so that NetworkFactory can take control of the network selection.
+            // TODO(b/117979585): Defer turning off auto-join.
+            mWifiConnectivityManager.enable(false);
         }
     }
 
@@ -156,7 +273,13 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
             // Release the active network request.
             mActiveSpecificNetworkRequest = null;
-            // TODO (b/113878056): Complete handling.
+            mActiveSpecificNetworkRequestSpecifier = null;
+            // Cancel the periodic scans.
+            cancelPeriodicScans();
+            // Re-enable Auto-join (if there is a generic request pending).
+            if (mGenericConnectionReqCount > 0) {
+                mWifiConnectivityManager.enable(true);
+            }
         }
     }
 
@@ -200,6 +323,63 @@ public class WifiNetworkFactory extends NetworkFactory {
             Log.e(TAG, "Failed to check the app state", e);
             return false;
         }
+    }
+
+    /**
+     * Helper method to populate WifiScanner handle. This is done lazily because
+     * WifiScanningService is started after WifiService.
+     */
+    private void retrieveWifiScanner() {
+        if (mWifiScanner != null) return;
+        mWifiScanner = mWifiInjector.getWifiScanner();
+        checkNotNull(mWifiScanner);
+    }
+
+    private void startPeriodicScans() {
+        if (mActiveSpecificNetworkRequestSpecifier == null) {
+            Log.e(TAG, "Periodic scan triggered when there is no active network request. "
+                    + "Ignoring...");
+            return;
+        }
+        WifiNetworkSpecifier wns = mActiveSpecificNetworkRequestSpecifier;
+        WifiConfiguration wifiConfiguration = wns.wifiConfiguration;
+        if (wifiConfiguration.hiddenSSID) {
+            mScanSettings.hiddenNetworks = new WifiScanner.ScanSettings.HiddenNetwork[1];
+            // Can't search for SSID pattern in hidden networks.
+            mScanSettings.hiddenNetworks[0] =
+                    new WifiScanner.ScanSettings.HiddenNetwork(
+                            addEnclosingQuotes(wns.ssidPatternMatcher.getPath()));
+        }
+        startScan();
+    }
+
+    private void cancelPeriodicScans() {
+        if (mPeriodicScanTimerSet) {
+            mAlarmManager.cancel(mPeriodicScanTimerListener);
+            mPeriodicScanTimerSet = false;
+        }
+        // Clear the hidden networks field after each request.
+        mScanSettings.hiddenNetworks = null;
+    }
+
+    private void scheduleNextPeriodicScan() {
+        mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                mClock.getElapsedSinceBootMillis() + PERIODIC_SCAN_INTERVAL_MS,
+                TAG, mPeriodicScanTimerListener, mHandler);
+        mPeriodicScanTimerSet = true;
+    }
+
+    private void startScan() {
+        if (mActiveSpecificNetworkRequestSpecifier == null) {
+            Log.e(TAG, "Scan triggered when there is no active network request. Ignoring...");
+            return;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Starting the next scan for " + mActiveSpecificNetworkRequestSpecifier);
+        }
+        // Create a worksource using the caller's UID.
+        WorkSource workSource = new WorkSource(mActiveSpecificNetworkRequestSpecifier.requestorUid);
+        mWifiScanner.startScan(mScanSettings, mScanListener, workSource);
     }
 }
 
