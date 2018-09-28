@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE;
 
 import static com.android.server.wifi.WifiNetworkFactory.PERIODIC_SCAN_INTERVAL_MS;
 import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
@@ -44,6 +45,8 @@ import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.Pair;
 
+import com.android.server.wifi.util.WifiPermissionsUtil;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,6 +72,7 @@ public class WifiNetworkFactoryTest {
     @Mock AlarmManager mAlarmManager;
     @Mock Clock mClock;
     @Mock WifiInjector mWifiInjector;
+    @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock WifiScanner mWifiScanner;
     @Mock PackageManager mPackageManager;
     NetworkCapabilities mNetworkCapabilities;
@@ -105,7 +109,7 @@ public class WifiNetworkFactoryTest {
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
                 mNetworkCapabilities, mActivityManager, mAlarmManager, mClock, mWifiInjector,
-                mWifiConnectivityManager);
+                mWifiConnectivityManager, mWifiPermissionsUtil);
 
         mNetworkRequest = new NetworkRequest.Builder()
                 .setCapabilities(mNetworkCapabilities)
@@ -186,6 +190,23 @@ public class WifiNetworkFactoryTest {
     public void testHandleAcceptNetworkRequestFromFgAppWithSpecifier() {
         when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
                 .thenReturn(IMPORTANCE_FOREGROUND);
+
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+
+        assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+    }
+
+    /**
+     * Validates handling of acceptNetwork with a network specifier from apps holding
+     * NETWORK_SETTINGS.
+     */
+    @Test
+    public void testHandleAcceptNetworkRequestFromNetworkSettingAppWithSpecifier() {
+        when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
+                .thenReturn(IMPORTANCE_GONE);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(TEST_UID_1))
+                .thenReturn(true);
 
         WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);

@@ -36,6 +36,7 @@ import android.os.WorkSource;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -57,6 +58,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final Handler mHandler;
     private final WifiInjector mWifiInjector;
     private final WifiConnectivityManager mWifiConnectivityManager;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
     private final NetworkFactoryAlarmListener mPeriodicScanTimerListener;
@@ -130,7 +132,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
                               Clock clock, WifiInjector wifiInjector,
-                              WifiConnectivityManager connectivityManager) {
+                              WifiConnectivityManager connectivityManager,
+                              WifiPermissionsUtil wifiPermissionsUtil) {
         super(looper, context, TAG, nc);
         mContext = context;
         mActivityManager = activityManager;
@@ -139,6 +142,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mHandler = new Handler(looper);
         mWifiInjector = wifiInjector;
         mWifiConnectivityManager = connectivityManager;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
         // Create the scan settings.
         mScanSettings = new WifiScanner.ScanSettings();
         mScanSettings.type = WifiScanner.TYPE_HIGH_ACCURACY;
@@ -182,7 +186,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                 return false;
             }
             // Only allow specific wifi network request from foreground app/service.
-            if (!isRequestFromForegroundAppOrService(wns.requestorUid)) {
+            if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(wns.requestorUid)
+                    && !isRequestFromForegroundAppOrService(wns.requestorUid)) {
                 Log.e(TAG, "Request not from foreground app or service."
                         + " Rejecting request from " + wns.requestorUid);
                 return false;
@@ -190,6 +195,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             // If there is a pending request, only proceed if the new request is from a foreground
             // app.
             if (mActiveSpecificNetworkRequest != null
+                    && !mWifiPermissionsUtil.checkNetworkSettingsPermission(wns.requestorUid)
                     && !isRequestFromForegroundApp(wns.requestorUid)) {
                 WifiNetworkSpecifier aWns =
                         (WifiNetworkSpecifier) mActiveSpecificNetworkRequest

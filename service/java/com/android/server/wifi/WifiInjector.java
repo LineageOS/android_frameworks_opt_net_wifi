@@ -550,7 +550,7 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(), mContext, nc,
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
-                mClock, this, wifiConnectivityManager);
+                mClock, this, wifiConnectivityManager, mWifiPermissionsUtil);
     }
 
     /**
