@@ -63,7 +63,7 @@ public class WifiApConfigStore {
     private static final String DEFAULT_AP_CONFIG_FILE =
             Environment.getDataDirectory() + "/misc/wifi/softap.conf";
 
-    private static final int AP_CONFIG_FILE_VERSION = 2;
+    private static final int AP_CONFIG_FILE_VERSION = 3;
 
     private static final int RAND_SSID_INT_MIN = 1000;
     private static final int RAND_SSID_INT_MAX = 9999;
@@ -271,7 +271,7 @@ public class WifiApConfigStore {
                     new BufferedInputStream(new FileInputStream(filename)));
 
             int version = in.readInt();
-            if ((version != 1) && (version != 2)) {
+            if (version < 1 || version > AP_CONFIG_FILE_VERSION) {
                 Log.e(TAG, "Bad version on hotspot configuration file");
                 return null;
             }
@@ -280,6 +280,10 @@ public class WifiApConfigStore {
             if (version >= 2) {
                 config.apBand = in.readInt();
                 config.apChannel = in.readInt();
+            }
+
+            if (version >= 3) {
+                config.hiddenSSID = in.readBoolean();
             }
 
             int authType = in.readInt();
@@ -313,6 +317,7 @@ public class WifiApConfigStore {
             out.writeUTF(config.SSID);
             out.writeInt(config.apBand);
             out.writeInt(config.apChannel);
+            out.writeBoolean(config.hiddenSSID);
             int authType = config.getAuthType();
             out.writeInt(authType);
             if (authType != KeyMgmt.NONE) {
