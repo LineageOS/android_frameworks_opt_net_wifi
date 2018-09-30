@@ -39,6 +39,7 @@ import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
@@ -55,6 +56,7 @@ import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.location.LocationManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
@@ -120,6 +122,7 @@ public class WifiScanningServiceTest {
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock Clock mClock;
     @Spy FakeWifiLog mLog;
+    @Mock LocationManager mLocationManager;
     WifiMetrics mWifiMetrics;
     TestLooper mLooper;
     WifiScanningServiceImpl mWifiScanningServiceImpl;
@@ -132,6 +135,8 @@ public class WifiScanningServiceTest {
         mAlarmManager = new TestAlarmManager();
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
+        when(mContext.getSystemService(Context.LOCATION_SERVICE))
+                .thenReturn(mLocationManager);
 
         ChannelHelper channelHelper = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
@@ -393,6 +398,7 @@ public class WifiScanningServiceTest {
     private static final int MAX_AP_PER_SCAN = 16;
     private void startServiceAndLoadDriver() {
         mWifiScanningServiceImpl.startService();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         setupAndLoadDriver(TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES);
     }
 
@@ -2462,6 +2468,7 @@ public class WifiScanningServiceTest {
     @Test
     public void rejectRestrictedMessagesFromNonPrivilegedApps() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
@@ -2497,5 +2504,67 @@ public class WifiScanningServiceTest {
         // Ensure we didn't create scanner instance.
         verify(mWifiScannerImplFactory, never()).create(any(), any(), any());
 
+    }
+
+    /**
+     * Verifies that clients without NETWORK_STACK permission cannot issue any messages when
+     * location is turned off.
+     */
+    @Test
+    public void rejectAllMessagesFromNonPrivilegedAppsWhenLocationIsTurnedOff() throws Exception {
+        // Start service & initialize it.
+        startServiceAndLoadDriver();
+        // Location turned off.
+        when(mLocationManager.isLocationEnabled()).thenReturn(false);
+
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+
+        // Client doesn't have NETWORK_STACK permission.
+        doThrow(new SecurityException()).when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_START_SINGLE_SCAN));
+        mLooper.dispatchAll();
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_GET_SCAN_RESULTS));
+        mLooper.dispatchAll();
+
+        controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_START_BACKGROUND_SCAN));
+        mLooper.dispatchAll();
+
+        // All the above messages should have been rejected because the app doesn't have
+        // the privileged permissions & location is turned off.
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(handler, times(3)).handleMessage(messageCaptor.capture());
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(0));
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(1));
+        assertFailedResponse(0, WifiScanner.REASON_NOT_AUTHORIZED,
+                "Not authorized", messageCaptor.getAllValues().get(2));
+
+        // Validate the initialization sequence.
+        verify(mWifiScannerImpl).getChannelHelper();
+        verify(mWifiScannerImpl).getScanCapabilities(any());
+
+        // Ensure we didn't start any scans after.
+        verifyNoMoreInteractions(mWifiScannerImpl);
+    }
+
+    /**
+     * Verifies that clients with NETWORK_STACK permission can issue any messages even when
+     * location is turned off.
+     */
+    @Test
+    public void allowMessagesFromPrivilegedAppsWhenLocationIsTurnedOff() throws Exception {
+        // Location turned off.
+        when(mLocationManager.isLocationEnabled()).thenReturn(false);
+        // Client does have NETWORK_STACK permission.
+        doNothing().when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
+
+        sendSingleScanAllChannelsRequest();
+        sendBackgroundScanBandRequest();
     }
 }
