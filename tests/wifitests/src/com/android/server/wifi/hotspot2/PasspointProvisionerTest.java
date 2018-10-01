@@ -50,8 +50,10 @@ import android.telephony.TelephonyManager;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.hotspot2.soap.ExchangeCompleteMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
 import com.android.server.wifi.hotspot2.soap.RedirectListener;
+import com.android.server.wifi.hotspot2.soap.SppConstants;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
 import com.android.server.wifi.hotspot2.soap.command.PpsMoData;
@@ -83,6 +85,7 @@ public class PasspointProvisionerTest {
     private static final int STEP_SERVER_CONNECT = 2;
     private static final int STEP_WAIT_FOR_REDIRECT_RESPONSE = 3;
     private static final int STEP_WAIT_FOR_SECOND_SOAP_RESPONSE = 4;
+    private static final int STEP_WAIT_FOR_THIRD_SOAP_RESPONSE = 5;
 
     private static final String TEST_DEV_ID = "12312341";
     private static final String TEST_MANUFACTURER = Build.MANUFACTURER;
@@ -130,6 +133,7 @@ public class PasspointProvisionerTest {
     @Mock SSLContext mTlsContext;
     @Mock WifiNative mWifiNative;
     @Mock PostDevDataResponse mSppResponseMessage;
+    @Mock ExchangeCompleteMessage mExchangeCompleteMessage;
     @Mock SystemInfo mSystemInfo;
     @Mock TelephonyManager mTelephonyManager;
     @Mock SppCommand mSppCommand;
@@ -184,6 +188,12 @@ public class PasspointProvisionerTest {
         when(mSystemInfo.getFirmwareVersion()).thenReturn(TEST_FW_VERSION);
         when(mTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
 
+        when(mExchangeCompleteMessage.getMessageType()).thenReturn(
+                SppResponseMessage.MessageType.EXCHANGE_COMPLETE);
+        when(mExchangeCompleteMessage.getStatus()).thenReturn(
+                SppConstants.SppStatus.EXCHANGE_COMPLETE);
+        when(mExchangeCompleteMessage.getSessionID()).thenReturn(TEST_SESSION_ID);
+        when(mExchangeCompleteMessage.getError()).thenReturn(SppConstants.INVALID_SPP_CONSTANT);
         when(mSppResponseMessage.getMessageType()).thenReturn(
                 SppResponseMessage.MessageType.POST_DEV_DATA_RESPONSE);
         when(mSppResponseMessage.getSppCommand()).thenReturn(mSppCommand);
@@ -291,7 +301,14 @@ public class PasspointProvisionerTest {
                 mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
                         mSppResponseMessage);
                 mLooper.dispatchAll();
+            } else if (step == STEP_WAIT_FOR_THIRD_SOAP_RESPONSE) {
+                verify(mCallback).onProvisioningStatus(
+                        ProvisioningCallback.OSU_STATUS_THIRD_SOAP_EXCHANGE);
 
+                // Received a third soapMessageResponse
+                mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                        mExchangeCompleteMessage);
+                mLooper.dispatchAll();
             }
         }
     }
@@ -581,7 +598,7 @@ public class PasspointProvisionerTest {
 
     /**
      * Verifies that the right provisioning callbacks are invoked when a command of a second soap
-     * response is not for ADD MO command.
+     * response {@link PostDevDataResponse} is not for ADD MO command.
      */
     @Test
     public void verifyNotAddMoCommandFailureForSecondSoapResponse() throws RemoteException {
@@ -607,12 +624,34 @@ public class PasspointProvisionerTest {
     }
 
     /**
+     * Verifies that the right provisioning callbacks are invoked when a message of a third soap
+     * response {@link ExchangeCompleteMessage} has an error property.
+     */
+    @Test
+    public void verifyHandlingErrorPropertyInThirdSoapResponse() throws RemoteException {
+        when(mExchangeCompleteMessage.getError()).thenReturn(
+                SppConstants.SppError.PROVISIONING_FAILED);
+        stopAfterStep(STEP_WAIT_FOR_SECOND_SOAP_RESPONSE);
+
+        verify(mCallback).onProvisioningStatus(
+                ProvisioningCallback.OSU_STATUS_THIRD_SOAP_EXCHANGE);
+
+        // Received a third soapMessageResponse
+        mOsuServerCallbacks.onReceivedSoapMessage(mOsuServerCallbacks.getSessionId(),
+                mExchangeCompleteMessage);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+    }
+
+    /**
      * Verifies that the right provisioning callbacks are invoked as the provisioner progresses
      * to the end as successful case.
      */
     @Test
     public void verifyProvisioningFlowForSuccessfulCase() throws RemoteException {
-        stopAfterStep(STEP_WAIT_FOR_SECOND_SOAP_RESPONSE);
+        stopAfterStep(STEP_WAIT_FOR_THIRD_SOAP_RESPONSE);
 
          // No further runnables posted
         verifyNoMoreInteractions(mCallback);
