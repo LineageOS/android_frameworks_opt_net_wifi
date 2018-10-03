@@ -47,8 +47,8 @@ import com.android.server.wifi.hotspot2.anqp.ThreeGPPNetworkElement;
 import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
 import com.android.server.wifi.hotspot2.anqp.eap.EAPMethod;
 import com.android.server.wifi.hotspot2.anqp.eap.NonEAPInnerAuth;
-
 import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -795,7 +795,7 @@ public class PasspointProviderTest {
 
         // Setup NAI Realm ANQP element with different realm.
         anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
-            createNAIRealmElement(testRealm, EAPConstants.EAP_TTLS,
+                createNAIRealmElement(testRealm, EAPConstants.EAP_TTLS,
                 new NonEAPInnerAuth(NonEAPInnerAuth.AUTH_TYPE_MSCHAPV2)));
 
         assertEquals(PasspointMatch.RoamingProvider,
