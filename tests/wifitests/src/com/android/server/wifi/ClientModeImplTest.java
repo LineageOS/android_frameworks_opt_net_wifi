@@ -2696,6 +2696,7 @@ public class ClientModeImplTest {
 
     /**
      * Verify that we check for data stall during rssi poll
+     * and then check that wifi link layer usage data are being updated.
      */
     @Test
     public void verifyRssiPollChecksDataStall() throws Exception {
@@ -2711,5 +2712,6 @@ public class ClientModeImplTest {
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats);
+        verify(mWifiMetrics).incrementWifiLinkLayerUsageStats(newLLStats);
     }
 }

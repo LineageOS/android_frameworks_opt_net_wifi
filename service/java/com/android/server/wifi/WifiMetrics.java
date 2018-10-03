@@ -30,7 +30,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemProperties;
-
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
@@ -55,6 +54,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -130,6 +130,7 @@ public class WifiMetrics {
     private WifiAwareMetrics mWifiAwareMetrics;
     private RttMetrics mRttMetrics;
     private final PnoScanMetrics mPnoScanMetrics = new PnoScanMetrics();
+    private final WifiLinkLayerUsageStats mWifiLinkLayerUsageStats = new WifiLinkLayerUsageStats();
     private final WpsMetrics mWpsMetrics = new WpsMetrics();
     private final ExperimentValues mExperimentValues = new ExperimentValues();
     private Handler mHandler;
@@ -140,6 +141,7 @@ public class WifiMetrics {
     private Context mContext;
     private FrameworkFacade mFacade;
     private WifiDataStall mWifiDataStall;
+    private WifiLinkLayerStats mLastLinkLayerStats;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -538,6 +540,45 @@ public class WifiMetrics {
     /** Sets internal WifiDataStall member */
     public void setWifiDataStall(WifiDataStall wifiDataStall) {
         mWifiDataStall = wifiDataStall;
+    }
+
+    /**
+     * Increment cumulative counters for link layer stats.
+     * @param newStats
+     */
+    public void incrementWifiLinkLayerUsageStats(WifiLinkLayerStats newStats) {
+        if (newStats == null) {
+            return;
+        }
+        if (mLastLinkLayerStats == null) {
+            mLastLinkLayerStats = newStats;
+            return;
+        }
+        if (!newLinkLayerStatsIsValid(mLastLinkLayerStats, newStats)) {
+            // This could mean the radio chip is reset or the data is incorrectly reported.
+            // Don't increment any counts and discard the possibly corrupt |newStats| completely.
+            mLastLinkLayerStats = null;
+            return;
+        }
+        mWifiLinkLayerUsageStats.loggingDurationMs +=
+                (newStats.timeStampInMs - mLastLinkLayerStats.timeStampInMs);
+        mWifiLinkLayerUsageStats.radioOnTimeMs += (newStats.on_time - mLastLinkLayerStats.on_time);
+        mWifiLinkLayerUsageStats.radioTxTimeMs += (newStats.tx_time - mLastLinkLayerStats.tx_time);
+        mWifiLinkLayerUsageStats.radioRxTimeMs += (newStats.rx_time - mLastLinkLayerStats.rx_time);
+        mWifiLinkLayerUsageStats.radioScanTimeMs +=
+                (newStats.on_time_scan - mLastLinkLayerStats.on_time_scan);
+        mLastLinkLayerStats = newStats;
+    }
+
+    private boolean newLinkLayerStatsIsValid(WifiLinkLayerStats oldStats,
+            WifiLinkLayerStats newStats) {
+        if (newStats.on_time < oldStats.on_time
+                || newStats.tx_time < oldStats.tx_time
+                || newStats.rx_time < oldStats.rx_time
+                || newStats.on_time_scan < oldStats.on_time_scan) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -2222,6 +2263,17 @@ public class WifiMetrics {
                 pw.println("mPnoScanMetrics.numPnoFoundNetworkEvents="
                         + mPnoScanMetrics.numPnoFoundNetworkEvents);
 
+                pw.println("mWifiLinkLayerUsageStats.loggingDurationMs="
+                        + mWifiLinkLayerUsageStats.loggingDurationMs);
+                pw.println("mWifiLinkLayerUsageStats.radioOnTimeMs="
+                        + mWifiLinkLayerUsageStats.radioOnTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioTxTimeMs="
+                        + mWifiLinkLayerUsageStats.radioTxTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioRxTimeMs="
+                        + mWifiLinkLayerUsageStats.radioRxTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioScanTimeMs);
+
                 pw.println("mWifiLogProto.connectToNetworkNotificationCount="
                         + mConnectToNetworkNotificationCount.toString());
                 pw.println("mWifiLogProto.connectToNetworkNotificationActionCount="
@@ -2569,6 +2621,7 @@ public class WifiMetrics {
             mWifiLogProto.wifiRttLog = mRttMetrics.consolidateProto();
 
             mWifiLogProto.pnoScanMetrics = mPnoScanMetrics;
+            mWifiLogProto.wifiLinkLayerUsageStats = mWifiLinkLayerUsageStats;
 
             /**
              * Convert the SparseIntArray of "Connect to Network" notification types and counts to
@@ -2742,6 +2795,7 @@ public class WifiMetrics {
             mAvailableSavedPasspointProviderProfilesInScanHistogram.clear();
             mAvailableSavedPasspointProviderBssidsInScanHistogram.clear();
             mPnoScanMetrics.clear();
+            mWifiLinkLayerUsageStats.clear();
             mConnectToNetworkNotificationCount.clear();
             mConnectToNetworkNotificationActionCount.clear();
             mNumOpenNetworkRecommendationUpdates = 0;
