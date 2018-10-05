@@ -25,7 +25,6 @@ import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.IWificond;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
@@ -95,15 +94,15 @@ public class WifiInjector {
     private final ClientModeImpl mClientModeImpl;
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
-    private final OpenNetworkNotifier mOpenNetworkNotifier;
-    private final CarrierNetworkNotifier mCarrierNetworkNotifier;
+    private OpenNetworkNotifier mOpenNetworkNotifier;
+    private CarrierNetworkNotifier mCarrierNetworkNotifier;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiLockManager mLockManager;
     private final WifiController mWifiController;
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
-    private final WifiLastResortWatchdog mWifiLastResortWatchdog;
+    private WifiLastResortWatchdog mWifiLastResortWatchdog;
     private final PropertyService mPropertyService = new SystemPropertyService();
     private final BuildProperties mBuildProperties = new SystemBuildProperties();
     private final KeyStore mKeyStore = KeyStore.getInstance();
@@ -271,14 +270,6 @@ public class WifiInjector {
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,
                 mWifiNative, new DefaultModeManager(mContext, clientModeImplLooper),
                 mBatteryStats);
-        mOpenNetworkNotifier = new OpenNetworkNotifier(mContext,
-                mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
-                mWifiConfigManager, mWifiConfigStore, mClientModeImpl,
-                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
-        mCarrierNetworkNotifier = new CarrierNetworkNotifier(mContext,
-                mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
-                mWifiConfigManager, mWifiConfigStore, mClientModeImpl,
-                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
 
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, mFrameworkFacade);
@@ -295,8 +286,6 @@ public class WifiInjector {
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,
                 mActiveModeWarden);
         mSelfRecovery = new SelfRecovery(mWifiController, mClock);
-        mWifiLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock,
-                mWifiMetrics, mClientModeImpl, clientModeImplLooper);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
@@ -521,21 +510,30 @@ public class WifiInjector {
     }
 
     /**
-     * Obtain a new instance of WifiConnectivityManager.
+     * Construct a new instance of WifiConnectivityManager & its dependencies.
      *
      * Create and return a new WifiConnectivityManager.
-     * @param wifiInfo WifiInfo object for updating wifi state.
-     * @param hasConnectionRequests boolean indicating if WifiConnectivityManager to start
-     * immediately based on connection requests.
+     * @param clientModeImpl Instance of client mode impl.
+     * TODO(b/116233964): Remove cyclic dependency between WifiConnectivityManager & ClientModeImpl.
      */
-    public WifiConnectivityManager makeWifiConnectivityManager(WifiInfo wifiInfo,
-                                                               boolean hasConnectionRequests) {
+    public WifiConnectivityManager makeWifiConnectivityManager(ClientModeImpl clientModeImpl) {
+        mOpenNetworkNotifier = new OpenNetworkNotifier(mContext,
+                mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
+                mWifiConfigManager, mWifiConfigStore, clientModeImpl,
+                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
+        mCarrierNetworkNotifier = new CarrierNetworkNotifier(mContext,
+                mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
+                mWifiConfigManager, mWifiConfigStore, clientModeImpl,
+                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
+        mWifiLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock,
+                mWifiMetrics, clientModeImpl, clientModeImpl.getHandler().getLooper());
         return new WifiConnectivityManager(mContext, getScoringParams(),
-                mClientModeImpl, getWifiScanner(),
-                mWifiConfigManager, wifiInfo, mWifiNetworkSelector, mWifiConnectivityHelper,
+                clientModeImpl, this,
+                mWifiConfigManager, clientModeImpl.getWifiInfo(),
+                mWifiNetworkSelector, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mWifiCoreHandlerThread.getLooper(),
-                mClock, mConnectivityLocalLog, hasConnectionRequests, mFrameworkFacade,
+                mClock, mConnectivityLocalLog, true,
                 mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator);
     }
 

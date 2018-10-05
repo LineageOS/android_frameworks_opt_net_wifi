@@ -92,6 +92,7 @@ public class WifiConnectivityManagerTest {
         mWifiScanner = mockWifiScanner();
         mWifiConnectivityHelper = mockWifiConnectivityHelper();
         mWifiNS = mockWifiNetworkSelector();
+        when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         mWifiConnectivityManager = createConnectivityManager();
         verify(mWifiConfigManager).setOnSavedNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setWifiEnabled(true);
@@ -125,7 +126,7 @@ public class WifiConnectivityManagerTest {
     private WifiConfigManager mWifiConfigManager;
     private WifiInfo mWifiInfo;
     private LocalLog mLocalLog;
-    @Mock private FrameworkFacade mFrameworkFacade;
+    @Mock private WifiInjector mWifiInjector;
     @Mock private NetworkScoreManager mNetworkScoreManager;
     @Mock private Clock mClock;
     @Mock private WifiLastResortWatchdog mWifiLastResortWatchdog;
@@ -313,11 +314,11 @@ public class WifiConnectivityManagerTest {
     WifiConnectivityManager createConnectivityManager() {
         return new WifiConnectivityManager(mContext,
                 new ScoringParams(mContext),
-                mClientModeImpl, mWifiScanner,
+                mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog, true,
-                mFrameworkFacade, null, null, null);
+                null, null, null);
     }
 
     /**
