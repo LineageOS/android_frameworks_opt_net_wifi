@@ -139,6 +139,7 @@ public class SppCommand {
                  * at the specified location to be added.
                  * If there is already a management object at that location, the object is replaced.
                  */
+                mCommandData = PpsMoData.createInstance(soapResponse);
                 break;
             case CommandId.UPDATE_NODE:
                 /*
