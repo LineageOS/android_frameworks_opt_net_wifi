@@ -39,8 +39,11 @@ public class WifiLockManager {
 
     private final Context mContext;
     private final IBatteryStats mBatteryStats;
+    private final ClientModeImpl mClientModeImpl;
 
     private final List<WifiLock> mWifiLocks = new ArrayList<>();
+    private int mCurrentOpMode;
+
     // some wifi lock statistics
     private int mFullHighPerfLocksAcquired;
     private int mFullHighPerfLocksReleased;
@@ -49,9 +52,12 @@ public class WifiLockManager {
     private int mScanLocksAcquired;
     private int mScanLocksReleased;
 
-    WifiLockManager(Context context, IBatteryStats batteryStats) {
+    WifiLockManager(Context context, IBatteryStats batteryStats,
+            ClientModeImpl clientModeImpl) {
         mContext = context;
         mBatteryStats = batteryStats;
+        mClientModeImpl = clientModeImpl;
+        mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
     }
 
     /**
@@ -210,6 +216,9 @@ public class WifiLockManager {
                     break;
             }
             lockAdded = true;
+
+            // Recalculate the operating mode
+            updateOpMode();
         } catch (RemoteException e) {
         } finally {
             Binder.restoreCallingIdentity(ident);
@@ -251,6 +260,9 @@ public class WifiLockManager {
                     ++mScanLocksReleased;
                     break;
             }
+
+            // Recalculate the operating mode
+            updateOpMode();
         } catch (RemoteException e) {
         } finally {
             Binder.restoreCallingIdentity(ident);
@@ -258,6 +270,63 @@ public class WifiLockManager {
         return true;
     }
 
+    private synchronized boolean updateOpMode() {
+        int newLockMode = getStrongestLockMode();
+
+        if (newLockMode == mCurrentOpMode) {
+            // No action is needed
+            return true;
+        }
+
+        if (mVerboseLoggingEnabled) {
+            Slog.d(TAG, "Current opMode: " + mCurrentOpMode + " New LockMode: " + newLockMode);
+        }
+
+        // Otherwise, we need to change current mode, first reset it to normal
+        switch (mCurrentOpMode) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                if (!mClientModeImpl.setPowerSave(true)) {
+                    Slog.e(TAG, "Failed to reset the OpMode from hi-perf to Normal");
+                    return false;
+                }
+                break;
+
+            case WifiManager.WIFI_MODE_NO_LOCKS_HELD:
+            case WifiManager.WIFI_MODE_FULL:
+            case WifiManager.WIFI_MODE_SCAN_ONLY:
+            default:
+                // No action
+                break;
+        }
+
+        // Set the current mode, before we attempt to set the new mode
+        mCurrentOpMode = WifiManager.WIFI_MODE_FULL;
+
+        // Now switch to the new opMode
+        switch (newLockMode) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                if (!mClientModeImpl.setPowerSave(false)) {
+                    Slog.e(TAG, "Failed to set the OpMode to hi-perf");
+                    return false;
+                }
+                break;
+
+            case WifiManager.WIFI_MODE_NO_LOCKS_HELD:
+            case WifiManager.WIFI_MODE_FULL:
+            case WifiManager.WIFI_MODE_SCAN_ONLY:
+                // No action
+                break;
+
+            default:
+                // Invalid mode, don't change currentOpMode , and exit with error
+                Slog.e(TAG, "Invalid new opMode: " + newLockMode);
+                return false;
+        }
+
+        // Now set the mode to the new value
+        mCurrentOpMode = newLockMode;
+        return true;
+    }
 
     private synchronized WifiLock findLockByBinder(IBinder binder) {
         for (WifiLock lock : mWifiLocks) {

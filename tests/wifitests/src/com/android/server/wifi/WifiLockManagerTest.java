@@ -43,8 +43,10 @@ import java.io.StringWriter;
 @SmallTest
 public class WifiLockManagerTest {
 
-    private static final int DEFAULT_TEST_UID_1 = 35;
+    private static final int DEFAULT_TEST_UID_1 = 52;
     private static final int DEFAULT_TEST_UID_2 = 53;
+    private static final int DEFAULT_TEST_UID_3 = 54;
+    private static final int DEFAULT_TEST_UID_4 = 55;
     private static final int WIFI_LOCK_MODE_INVALID = -1;
     private static final String TEST_WIFI_LOCK_TAG = "TestTag";
 
@@ -55,6 +57,7 @@ public class WifiLockManagerTest {
     WorkSource mWorkSource;
     WorkSource mChainedWorkSource;
     @Mock Context mContext;
+    @Mock ClientModeImpl mClientModeImpl;
 
     /**
      * Method to setup a WifiLockManager for the tests.
@@ -69,7 +72,8 @@ public class WifiLockManagerTest {
                 .addNode(DEFAULT_TEST_UID_2, "tag2");
 
         MockitoAnnotations.initMocks(this);
-        mWifiLockManager = new WifiLockManager(mContext, mBatteryStats);
+        mWifiLockManager = new WifiLockManager(mContext, mBatteryStats,
+                mClientModeImpl);
     }
 
     private void acquireWifiLockSuccessful(int lockMode, String tag, IBinder binder, WorkSource ws)
@@ -171,11 +175,11 @@ public class WifiLockManagerTest {
         acquireWifiLockSuccessful(
                 WifiManager.WIFI_MODE_FULL_HIGH_PERF, "", toReleaseBinder, toReleaseWS);
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_SCAN_ONLY, "", mBinder, toKeepWS);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF, mWifiLockManager.getStrongestLockMode());
         releaseWifiLockSuccessful(toReleaseBinder);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_SCAN_ONLY);
+        assertEquals(WifiManager.WIFI_MODE_SCAN_ONLY, mWifiLockManager.getStrongestLockMode());
         releaseWifiLockSuccessful(mBinder);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_NO_LOCKS_HELD);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
     }
 
     /**
@@ -198,18 +202,18 @@ public class WifiLockManagerTest {
      */
     @Test
     public void checkForProperValueForGetStrongestLockMode() throws Exception {
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_NO_LOCKS_HELD);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "", mBinder, mWorkSource);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF, mWifiLockManager.getStrongestLockMode());
         releaseWifiLockSuccessful(mBinder);
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL, "", mBinder, mWorkSource);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_FULL);
+        assertEquals(WifiManager.WIFI_MODE_FULL, mWifiLockManager.getStrongestLockMode());
         releaseWifiLockSuccessful(mBinder);
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_SCAN_ONLY, "", mBinder, mWorkSource);
-        assertEquals(mWifiLockManager.getStrongestLockMode(), WifiManager.WIFI_MODE_SCAN_ONLY);
+        assertEquals(WifiManager.WIFI_MODE_SCAN_ONLY, mWifiLockManager.getStrongestLockMode());
     }
 
     /**
@@ -223,11 +227,11 @@ public class WifiLockManagerTest {
     @Test
     public void createMergedWorkSourceShouldSucceed() throws Exception {
         WorkSource checkMWS = mWifiLockManager.createMergedWorkSource();
-        assertEquals(checkMWS.size(), 0);
+        assertEquals(0, checkMWS.size());
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "", mBinder, mWorkSource);
         checkMWS = mWifiLockManager.createMergedWorkSource();
-        assertEquals(checkMWS.size(), 1);
+        assertEquals(1, checkMWS.size());
     }
 
     /**
@@ -312,6 +316,208 @@ public class WifiLockManagerTest {
     @Test(expected = IllegalArgumentException.class)
     public void testUpdateWifiLockWorkSourceCalledWithoutActiveLock()  throws Exception {
         mWifiLockManager.updateWifiLockWorkSource(mBinder, null);
+    }
+
+    /**
+     * Test when acquiring a hi-perf lock,
+     * WifiLockManager calls to disable power save mechanism.
+     */
+    @Test
+    public void testHiPerfLockAcquireCauseDisablePS() throws Exception {
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        verify(mClientModeImpl).setPowerSave(eq(false));
+    }
+
+    /**
+     * Test when releasing a hi-perf lock,
+     * WifiLockManager calls to enable power save mechanism.
+     */
+    @Test
+    public void testHiPerfLockReleaseCauseEnablePS() throws Exception {
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
+
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+
+        releaseWifiLockSuccessful(mBinder);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(true));
+    }
+
+    /**
+     * Test when acquiring two hi-perf locks, then releasing them.
+     * WifiLockManager calls to disable/enable power save mechanism only once.
+     */
+    @Test
+    public void testHiPerfLockAcquireReleaseTwice() throws Exception {
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
+
+        // Acquire the first lock
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+
+        // Now acquire another lock
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder2, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Release the first lock
+        releaseWifiLockSuccessful(mBinder);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Release the second lock
+        releaseWifiLockSuccessful(mBinder2);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(true));
+    }
+
+    /**
+     * Test when acquiring/releasing multiple locks of different types.
+     * This is a combination of test cases described above.
+     */
+    @Test
+    public void testHiPerfLockAcquireReleaseMultiple() throws Exception {
+        IBinder fullLockBinder = mock(IBinder.class);
+        WorkSource fullLockWS = new WorkSource(DEFAULT_TEST_UID_1);
+        IBinder fullLockBinder2 = mock(IBinder.class);
+        WorkSource fullLockWS2 = new WorkSource(DEFAULT_TEST_UID_2);
+        IBinder scanOnlyLockBinder = mock(IBinder.class);
+        WorkSource scanOnlyLockWS = new WorkSource(DEFAULT_TEST_UID_3);
+        IBinder hiPerfLockBinder = mock(IBinder.class);
+        WorkSource hiPerfLockWS = new WorkSource(DEFAULT_TEST_UID_4);
+
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
+
+        // Acquire the first lock as FULL
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL, "",
+                fullLockBinder, fullLockWS);
+        assertEquals(WifiManager.WIFI_MODE_FULL,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Now acquire another lock with SCAN-ONLY
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_SCAN_ONLY, "",
+                scanOnlyLockBinder, scanOnlyLockWS);
+        assertEquals(WifiManager.WIFI_MODE_FULL,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Now acquire another lock with HIGH-PERF
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                hiPerfLockBinder, hiPerfLockWS);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+
+       // Release the FULL lock
+        releaseWifiLockSuccessful(fullLockBinder);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Release the HIGH-PERF lock
+        releaseWifiLockSuccessful(hiPerfLockBinder);
+        assertEquals(WifiManager.WIFI_MODE_SCAN_ONLY,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(true));
+
+        // Acquire the FULL lock again
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL, "",
+                fullLockBinder2, fullLockWS2);
+        assertEquals(WifiManager.WIFI_MODE_FULL,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Release the FULL lock
+        releaseWifiLockSuccessful(fullLockBinder2);
+        assertEquals(WifiManager.WIFI_MODE_SCAN_ONLY,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+
+        // Release the SCAN-ONLY lock
+        releaseWifiLockSuccessful(scanOnlyLockBinder);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setPowerSave(anyBoolean());
+    }
+
+    /**
+     * Test failure case when setPowerSave() fails, during acquisition of hi-perf lock
+     * Note, the lock is still acquired despite the failure in setPowerSave().
+     * On any new lock activity, the setPowerSave() will be attempted if still needed.
+     */
+    @Test
+    public void testHiPerfLockAcquireFail() throws Exception {
+        IBinder fullLockBinder = mock(IBinder.class);
+        WorkSource fullLockWS = new WorkSource(DEFAULT_TEST_UID_1);
+
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(false);
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+
+        // Now attempting adding some other lock, WifiLockManager should retry setPowerSave()
+        when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL, "",
+                fullLockBinder, fullLockWS);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+    }
+
+    /**
+     * Test failure case when setPowerSave() fails, during release of hi-perf lock
+     * Note, the lock is still released despite the failure in setPowerSave().
+     * On any new lock activity, the setPowerSave() will be re-attempted if still needed.
+     */
+    @Test
+    public void testHiPerfLockReleaseFail() throws Exception {
+        IBinder fullLockBinder = mock(IBinder.class);
+        WorkSource fullLockWS = new WorkSource(DEFAULT_TEST_UID_1);
+
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setPowerSave(false)).thenReturn(true);
+        when(mClientModeImpl.setPowerSave(true)).thenReturn(false);
+
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(false));
+
+        releaseWifiLockSuccessful(mBinder);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(true));
+
+        // Now attempting adding some other lock, WifiLockManager should retry setPowerSave()
+        when(mClientModeImpl.setPowerSave(true)).thenReturn(true);
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL, "",
+                fullLockBinder, fullLockWS);
+        assertEquals(WifiManager.WIFI_MODE_FULL,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setPowerSave(eq(true));
     }
 
     /**

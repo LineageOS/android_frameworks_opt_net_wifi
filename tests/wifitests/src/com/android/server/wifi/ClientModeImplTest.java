@@ -1581,7 +1581,7 @@ public class ClientModeImplTest {
         when(mPasspointManager.startSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class))).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertEquals(true, mCmi.syncStartSubscriptionProvisioning(
+        assertTrue(mCmi.syncStartSubscriptionProvisioning(
                 OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         verify(mPasspointManager).startSubscriptionProvisioning(OTHER_USER_UID, mOsuProvider,
                 mProvisioningCallback);
@@ -1595,7 +1595,7 @@ public class ClientModeImplTest {
     @Test
     public void syncStartSubscriptionProvisioningBeforeSupplicantOrAPStart() throws Exception {
         mLooper.startAutoDispatch();
-        assertEquals(false, mCmi.syncStartSubscriptionProvisioning(
+        assertFalse(mCmi.syncStartSubscriptionProvisioning(
                 OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         verify(mPasspointManager, never()).startSubscriptionProvisioning(
@@ -1609,7 +1609,7 @@ public class ClientModeImplTest {
     @Test
     public void syncStartSubscriptionProvisioningNoOpWifiDisabled() throws Exception {
         mLooper.startAutoDispatch();
-        assertEquals(false, mCmi.syncStartSubscriptionProvisioning(
+        assertFalse(mCmi.syncStartSubscriptionProvisioning(
                 OTHER_USER_UID, mOsuProvider, mProvisioningCallback, mCmiAsyncChannel));
         mLooper.stopAutoDispatch();
         verify(mPasspointManager, never()).startSubscriptionProvisioning(
@@ -1729,7 +1729,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         wifiInfo = mCmi.getWifiInfo();
-        assertEquals(null, wifiInfo.getBSSID());
+        assertNull(wifiInfo.getBSSID());
         assertEquals(WifiSsid.NONE, wifiInfo.getSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, wifiInfo.getNetworkId());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
@@ -2221,7 +2221,7 @@ public class ClientModeImplTest {
         verify(mWifiNative, never()).setMacAddress(eq(WIFI_IFACE_NAME), any(MacAddress.class));
         verify(mWifiMetrics, never())
                 .logStaEvent(eq(StaEvent.TYPE_MAC_CHANGE), any(WifiConfiguration.class));
-        assertEquals(mCmi.getWifiInfo().getMacAddress(), oldMac);
+        assertEquals(oldMac, mCmi.getWifiInfo().getMacAddress());
     }
 
     /**
@@ -2750,5 +2750,39 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+    }
+
+    /**
+     * Verify that when ordered to setPowerSave(true) while Interface is created,
+     * WifiNative is called with the right powerSave mode.
+     */
+    @Test
+    public void verifySetPowerSaveTrueSuccess() throws Exception {
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        assertTrue(mCmi.setPowerSave(true));
+        verify(mWifiNative).setPowerSave(WIFI_IFACE_NAME, true);
+    }
+
+    /**
+     * Verify that when ordered to setPowerSave(false) while Interface is created,
+     * WifiNative is called with the right powerSave mode.
+     */
+    @Test
+    public void verifySetPowerSaveFalseSuccess() throws Exception {
+        mCmi.setOperationalMode(ClientModeImpl.CONNECT_MODE, WIFI_IFACE_NAME);
+        assertTrue(mCmi.setPowerSave(false));
+        verify(mWifiNative).setPowerSave(WIFI_IFACE_NAME, false);
+    }
+
+    /**
+     * Verify that when interface is not created yet (InterfaceName is null),
+     * then setPowerSave() returns with error and no call in WifiNative happens.
+     */
+    @Test
+    public void verifySetPowerSaveFailure() throws Exception {
+        boolean powerSave = true;
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        assertFalse(mCmi.setPowerSave(powerSave));
+        verify(mWifiNative, never()).setPowerSave(anyString(), anyBoolean());
     }
 }

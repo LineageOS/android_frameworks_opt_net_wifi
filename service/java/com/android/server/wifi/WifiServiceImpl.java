@@ -2524,12 +2524,6 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
     }
 
-    /**
-     * NOTE: WifiLocks do not serve a useful purpose in their current impl and will be removed
-     * (including the methods below).
-     *
-     * TODO: b/71548157
-     */
     @Override
     public boolean acquireWifiLock(IBinder binder, int lockMode, String tag, WorkSource ws) {
         mLog.info("acquireWifiLock uid=% lockMode=%")
