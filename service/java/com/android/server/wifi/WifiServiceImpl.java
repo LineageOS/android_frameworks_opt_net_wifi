@@ -2452,8 +2452,8 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
             String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        (new WifiShellCommand(mClientModeImpl)).exec(this, in, out, err, args, callback,
-                resultReceiver);
+        (new WifiShellCommand(mClientModeImpl, mWifiLockManager)).exec(this, in, out, err,
+                args, callback, resultReceiver);
     }
 
     @Override
