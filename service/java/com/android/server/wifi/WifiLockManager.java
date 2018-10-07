@@ -16,13 +16,16 @@
 
 package com.android.server.wifi;
 
+import android.app.ActivityManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.WorkSource;
+import android.os.WorkSource.WorkChain;
 import android.util.Slog;
+import android.util.SparseArray;
 
 import com.android.internal.app.IBatteryStats;
 
@@ -39,10 +42,15 @@ public class WifiLockManager {
 
     private final Context mContext;
     private final IBatteryStats mBatteryStats;
+    private final FrameworkFacade mFrameworkFacade;
     private final ClientModeImpl mClientModeImpl;
+    private final ActivityManager mActivityManager;
 
     private final List<WifiLock> mWifiLocks = new ArrayList<>();
+    // map UIDs to their corresponding records (for low-latency locks)
+    private final SparseArray<UidRec> mLowLatencyUidWatchList = new SparseArray<>();
     private int mCurrentOpMode;
+    private boolean mScreenOn = false;
 
     // For shell command support
     private boolean mForceHiPerfMode = false;
@@ -54,11 +62,39 @@ public class WifiLockManager {
     private int mFullLowLatencyLocksReleased;
 
     WifiLockManager(Context context, IBatteryStats batteryStats,
-            ClientModeImpl clientModeImpl) {
+            ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade) {
         mContext = context;
         mBatteryStats = batteryStats;
         mClientModeImpl = clientModeImpl;
+        mFrameworkFacade = frameworkFacade;
+        mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
         mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
+
+        // Register for UID fg/bg transitions
+        registerUidImportanceTransitions();
+    }
+
+    // Detect UIDs going foreground/background
+    private void registerUidImportanceTransitions() {
+        mActivityManager.addOnUidImportanceListener(new ActivityManager.OnUidImportanceListener() {
+            @Override
+            public void onUidImportance(final int uid, final int importance) {
+                UidRec uidRec = mLowLatencyUidWatchList.get(uid);
+                if (uidRec == null) {
+                    // Not a uid in the watch list
+                    return;
+                }
+
+                boolean newModeIsFg =
+                        importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
+                if (uidRec.mIsFg == newModeIsFg) {
+                    return; // already at correct state
+                }
+
+                uidRec.mIsFg = newModeIsFg;
+                updateOpMode();
+            }
+        }, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE);
     }
 
     /**
@@ -112,7 +148,7 @@ public class WifiLockManager {
             return WifiManager.WIFI_MODE_FULL_HIGH_PERF;
         }
 
-        if (mFullLowLatencyLocksAcquired > mFullLowLatencyLocksReleased) {
+        if (mScreenOn && countFgLowLatencyUids() > 0) {
             return WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
         }
 
@@ -171,12 +207,18 @@ public class WifiLockManager {
             // "nested" acquire / release pairs.
             mBatteryStats.noteFullWifiLockAcquiredFromSource(newWorkSource);
             mBatteryStats.noteFullWifiLockReleasedFromSource(wl.mWorkSource);
-
-            wl.mWorkSource = newWorkSource;
         } catch (RemoteException e) {
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
+
+        if (wl.mMode == WifiManager.WIFI_MODE_FULL_LOW_LATENCY) {
+            addWsToLlWatchList(newWorkSource);
+            removeWsFromLlWatchList(wl.mWorkSource);
+            updateOpMode();
+        }
+
+        wl.mWorkSource = newWorkSource;
     }
 
     /**
@@ -195,6 +237,20 @@ public class WifiLockManager {
         return true;
     }
 
+    /**
+     * Handler for screen state (on/off) changes
+     */
+    public void handleScreenStateChanged(boolean screenOn) {
+        if (mVerboseLoggingEnabled) {
+            Slog.d(TAG, "handleScreenStateChanged: screenOn = " + screenOn);
+        }
+
+        mScreenOn = screenOn;
+
+        // Update the running mode
+        updateOpMode();
+    }
+
     private static boolean isValidLockMode(int lockMode) {
         if (lockMode != WifiManager.WIFI_MODE_FULL
                 && lockMode != WifiManager.WIFI_MODE_SCAN_ONLY
@@ -203,6 +259,77 @@ public class WifiLockManager {
             return false;
         }
         return true;
+    }
+
+    private void addUidToLlWatchList(int uid) {
+        UidRec uidRec = mLowLatencyUidWatchList.get(uid);
+        if (uidRec != null) {
+            uidRec.mLockCount++;
+        } else {
+            uidRec = new UidRec(uid);
+            uidRec.mLockCount = 1;
+            mLowLatencyUidWatchList.put(uid, uidRec);
+
+            // Now check if the uid is running in foreground
+            try {
+                if (mFrameworkFacade.isAppForeground(uid)) {
+                    uidRec.mIsFg = true;
+                }
+            } catch (RemoteException e) {
+                Slog.e(TAG, "RemoteException during isAppForeground");
+            }
+        }
+    }
+
+    private void removeUidFromLlWatchList(int uid) {
+        UidRec uidRec = mLowLatencyUidWatchList.get(uid);
+        if (uidRec == null) {
+            Slog.e(TAG, "Failed to find uid in low-latency watch list");
+            return;
+        }
+
+        if (uidRec.mLockCount > 0) {
+            uidRec.mLockCount--;
+        } else {
+            Slog.e(TAG, "Error, uid record conatains no locks");
+        }
+        if (uidRec.mLockCount == 0) {
+            mLowLatencyUidWatchList.remove(uid);
+        }
+    }
+
+    private void addWsToLlWatchList(WorkSource ws) {
+        int wsSize = ws.size();
+        for (int i = 0; i < wsSize; i++) {
+            final int uid = ws.get(i);
+            addUidToLlWatchList(uid);
+        }
+
+        final List<WorkChain> workChains = ws.getWorkChains();
+        if (workChains != null) {
+            for (int i = 0; i < workChains.size(); ++i) {
+                final WorkChain workChain = workChains.get(i);
+                final int uid = workChain.getAttributionUid();
+                addUidToLlWatchList(uid);
+            }
+        }
+    }
+
+    private void removeWsFromLlWatchList(WorkSource ws) {
+        int wsSize = ws.size();
+        for (int i = 0; i < wsSize; i++) {
+            final int uid = ws.get(i);
+            removeUidFromLlWatchList(uid);
+        }
+
+        final List<WorkChain> workChains = ws.getWorkChains();
+        if (workChains != null) {
+            for (int i = 0; i < workChains.size(); ++i) {
+                final WorkChain workChain = workChains.get(i);
+                final int uid = workChain.getAttributionUid();
+                removeUidFromLlWatchList(uid);
+            }
+        }
     }
 
     private synchronized boolean addLock(WifiLock lock) {
@@ -228,6 +355,7 @@ public class WifiLockManager {
                     ++mFullHighPerfLocksAcquired;
                     break;
                 case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                    addWsToLlWatchList(lock.getWorkSource());
                     ++mFullLowLatencyLocksAcquired;
                     break;
                 default:
@@ -273,6 +401,7 @@ public class WifiLockManager {
                     ++mFullHighPerfLocksReleased;
                     break;
                 case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                    removeWsFromLlWatchList(wifiLock.getWorkSource());
                     ++mFullLowLatencyLocksReleased;
                     break;
                 default:
@@ -366,6 +495,18 @@ public class WifiLockManager {
         return null;
     }
 
+    private int countFgLowLatencyUids() {
+        int uidCount = 0;
+        int listSize = mLowLatencyUidWatchList.size();
+        for (int idx = 0; idx < listSize; idx++) {
+            UidRec uidRec = mLowLatencyUidWatchList.valueAt(idx);
+            if (uidRec.mIsFg) {
+                uidCount++;
+            }
+        }
+        return uidCount;
+    }
+
     protected void dump(PrintWriter pw) {
         pw.println("Locks acquired: "
                 + mFullHighPerfLocksAcquired + " full high perf, "
@@ -433,6 +574,18 @@ public class WifiLockManager {
         public String toString() {
             return "WifiLock{" + this.mTag + " type=" + this.mMode + " uid=" + mUid
                     + " workSource=" + mWorkSource + "}";
+        }
+    }
+
+    private class UidRec {
+        final int mUid;
+        // Count of locks owned or co-owned by this UID
+        int mLockCount;
+        // Is this UID running in foreground
+        boolean mIsFg;
+
+        UidRec(int uid) {
+            mUid = uid;
         }
     }
 }
