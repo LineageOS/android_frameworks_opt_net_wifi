@@ -2175,6 +2175,17 @@ public class WifiVendorHal {
     }
 
     /**
+     * Method to mock out the V1_3 IWifiChip retrieval in unit tests.
+     *
+     * @return 1.3 IWifiChip object if the device is running the 1.3 wifi hal service, null
+     * otherwise.
+     */
+    protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
+        if (mIWifiChip == null) return null;
+        return android.hardware.wifi.V1_3.IWifiChip.castFrom(mIWifiChip);
+    }
+
+    /**
      * Method to mock out the V1_2 IWifiStaIface retrieval in unit tests.
      *
      * @param ifaceName Name of the interface
@@ -2449,6 +2460,42 @@ public class WifiVendorHal {
             return false;
         } catch (IllegalArgumentException e) {
             mLog.err("Illegal argument for selectTxPowerScenario_1_2()").c(e.toString()).flush();
+            return false;
+        }
+    }
+
+    /**
+     * Enable/Disable low-latency mode
+     *
+     * @param enabled true to enable low-latency mode, false to disable it
+     */
+    public boolean setLowLatencyMode(boolean enabled) {
+        synchronized (sLock) {
+            android.hardware.wifi.V1_3.IWifiChip iWifiChipV13 = getWifiChipForV1_3Mockable();
+            if (iWifiChipV13 != null) {
+                try {
+                    int mode;
+                    if (enabled) {
+                        mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.LOW;
+                    } else {
+                        mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.NORMAL;
+                    }
+
+                    WifiStatus status = iWifiChipV13.setLatencyMode(mode);
+                    if (ok(status)) {
+                        mVerboseLog.d("Setting low-latency mode to " + enabled);
+                        return true;
+                    } else {
+                        mLog.e("Failed to set low-latency mode to " + enabled);
+                        return false;
+                    }
+                } catch (RemoteException e) {
+                    handleRemoteException(e);
+                    return false;
+                }
+            }
+
+            // HAL version does not support this api
             return false;
         }
     }
