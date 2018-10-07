@@ -54,6 +54,7 @@ public class WifiLockManager {
 
     // For shell command support
     private boolean mForceHiPerfMode = false;
+    private boolean mForceLowLatencyMode = false;
 
     // some wifi lock statistics
     private int mFullHighPerfLocksAcquired;
@@ -148,6 +149,11 @@ public class WifiLockManager {
             return WifiManager.WIFI_MODE_FULL_HIGH_PERF;
         }
 
+        // Check if mode is forced to low-latency
+        if (mForceLowLatencyMode) {
+            return WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
+        }
+
         if (mScreenOn && countFgLowLatencyUids() > 0) {
             return WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
         }
@@ -229,9 +235,27 @@ public class WifiLockManager {
      */
     public boolean forceHiPerfMode(boolean isEnabled) {
         mForceHiPerfMode = isEnabled;
+        mForceLowLatencyMode = false;
         if (!updateOpMode()) {
             Slog.e(TAG, "Failed to force hi-perf mode, returning to normal mode");
             mForceHiPerfMode = false;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Method Used for shell command support
+     *
+     * @param isEnabled True to force low-latency mode, false to leave it up to acquired wifiLocks.
+     * @return True for success, false for failure (failure turns forcing mode off)
+     */
+    public boolean forceLowLatencyMode(boolean isEnabled) {
+        mForceLowLatencyMode = isEnabled;
+        mForceHiPerfMode = false;
+        if (!updateOpMode()) {
+            Slog.e(TAG, "Failed to force low-latency mode, returning to normal mode");
+            mForceLowLatencyMode = false;
             return false;
         }
         return true;
