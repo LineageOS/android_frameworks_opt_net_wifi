@@ -22,6 +22,7 @@ import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.content.Context;
+import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkRequest;
@@ -38,6 +39,7 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.ExternalCallbackTracker;
@@ -45,6 +47,10 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -69,11 +75,12 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final NetworkFactoryScanListener mScanListener;
     private final NetworkFactoryAlarmListener mPeriodicScanTimerListener;
     private final ExternalCallbackTracker<INetworkRequestMatchCallback> mRegisteredCallbacks;
+    private WifiScanner mWifiScanner;
 
     private int mGenericConnectionReqCount = 0;
     private NetworkRequest mActiveSpecificNetworkRequest;
     private WifiNetworkSpecifier mActiveSpecificNetworkRequestSpecifier;
-    private WifiScanner mWifiScanner;
+    private List<WifiConfiguration> mActiveMatchedNetworks;
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
     private boolean mPeriodicScanTimerSet = false;
@@ -111,7 +118,10 @@ public class WifiNetworkFactory extends NetworkFactory {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Received " + scanResults.length + " scan results");
             }
-            // TODO(b/113878056): Find network match in scan results
+            List<WifiConfiguration> matchedNetworks =
+                    getNetworksMatchingActiveNetworkRequest(scanResults);
+            sendNetworkRequestMatchCallbacksForActiveRequest(matchedNetworks);
+            mActiveMatchedNetworks = matchedNetworks;
 
             // Didn't find a match, schedule the next scan.
             scheduleNextPeriodicScan();
@@ -451,6 +461,79 @@ public class WifiNetworkFactory extends NetworkFactory {
         // Create a worksource using the caller's UID.
         WorkSource workSource = new WorkSource(mActiveSpecificNetworkRequestSpecifier.requestorUid);
         mWifiScanner.startScan(mScanSettings, mScanListener, workSource);
+    }
+
+    private boolean doesScanResultMatchWifiNetworkSpecifier(
+            WifiNetworkSpecifier wns, ScanResult scanResult) {
+        if (!wns.ssidPatternMatcher.match(scanResult.SSID)) {
+            return false;
+        }
+        MacAddress bssid = MacAddress.fromString(scanResult.BSSID);
+        MacAddress matchBaseAddress = wns.bssidPatternMatcher.first;
+        MacAddress matchMask = wns.bssidPatternMatcher.second;
+        if (!bssid.matches(matchBaseAddress, matchMask)) {
+            return false;
+        }
+        if (ScanResultMatchInfo.getNetworkType(wns.wifiConfiguration)
+                != ScanResultMatchInfo.getNetworkType(scanResult)) {
+            return false;
+        }
+        return true;
+    }
+
+    // Loops through the scan results and finds scan results matching the active network
+    // request. Returns a list of WifiConfiguration representing all the networks that
+    // match the active network request's specifier.
+    private List<WifiConfiguration> getNetworksMatchingActiveNetworkRequest(
+            ScanResult[] scanResults) {
+        // There could be multiple bssid's (i.e ScanResult) within the same ssid matching the
+        // specifier, we need to collapse all of them into a single network represented by a
+        // WifiConfiguration object.
+        // Use a map keyed in by pair of SSID & network type to collect the list of unique
+        // networks (i.e wificonfiguration objects) matching the specifier.
+        if (mActiveSpecificNetworkRequest == null) {
+            Log.e(TAG, "Scan results received with no active network request. Ignoring...");
+            return new ArrayList<>();
+        }
+        Map<Pair<String, Integer>, WifiConfiguration> matchedNetworks = new HashMap<>();
+        WifiNetworkSpecifier wns = (WifiNetworkSpecifier)
+                mActiveSpecificNetworkRequest.networkCapabilities.getNetworkSpecifier();
+        checkNotNull(wns);
+
+        for (ScanResult scanResult : scanResults) {
+            if (doesScanResultMatchWifiNetworkSpecifier(wns, scanResult)) {
+                // Use the WifiConfiguration provided in the request & fill in the SSID
+                // & BSSID fields from ScanResult.
+                WifiConfiguration matchedNetwork = new WifiConfiguration(wns.wifiConfiguration);
+                matchedNetwork.SSID = addEnclosingQuotes(scanResult.SSID);
+                matchedNetwork.BSSID = scanResult.BSSID;
+                matchedNetworks.put(
+                        Pair.create(matchedNetwork.SSID,
+                                ScanResultMatchInfo.getNetworkType(matchedNetwork)),
+                        matchedNetwork);
+            }
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.e(TAG, "List of networks matching the active request "
+                    + matchedNetworks.values());
+        }
+        return new ArrayList<>(matchedNetworks.values());
+    }
+
+    private void sendNetworkRequestMatchCallbacksForActiveRequest(
+            List<WifiConfiguration> matchedNetworks) {
+        if (mRegisteredCallbacks.getNumCallbacks() == 0) {
+            Log.e(TAG, "No callback registered for sending network request matches. "
+                    + "Ignoring...");
+            return;
+        }
+        for (INetworkRequestMatchCallback callback : mRegisteredCallbacks.getCallbacks()) {
+            try {
+                callback.onMatch(matchedNetworks);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke network request match callback " + callback, e);
+            }
+        }
     }
 }
 

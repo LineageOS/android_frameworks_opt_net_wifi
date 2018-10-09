@@ -35,6 +35,8 @@ import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.wifi.INetworkRequestMatchCallback;
+import android.net.wifi.INetworkRequestUserSelectionCallback;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
@@ -57,6 +59,8 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.List;
+
 /**
  * Unit tests for {@link com.android.server.wifi.WifiNetworkFactory}.
  */
@@ -67,7 +71,16 @@ public class WifiNetworkFactoryTest {
     private static final int TEST_CALLBACK_IDENTIFIER = 123;
     private static final String TEST_PACKAGE_NAME_1 = "com.test.networkrequest.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.test.networkrequest.2";
-    private static final String TEST_SSID = "test1234";
+    private static final String TEST_SSID_1 = "test1234";
+    private static final String TEST_SSID_2 = "test12345678";
+    private static final String TEST_SSID_3 = "abc1234";
+    private static final String TEST_SSID_4 = "abc12345678";
+    private static final String TEST_BSSID_1 = "12:34:23:23:45:ac";
+    private static final String TEST_BSSID_2 = "12:34:23:32:12:67";
+    private static final String TEST_BSSID_3 = "45:34:34:12:bb:dd";
+    private static final String TEST_BSSID_4 = "45:34:34:56:ee:ff";
+    private static final String TEST_BSSID_1_2_OUI = "12:34:23:00:00:00";
+    private static final String TEST_BSSID_OUI_MASK = "ff:ff:ff:00:00:00";
 
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock Context mContext;
@@ -458,6 +471,311 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
     }
 
+    /**
+     * Verify network specifier matching for a specifier containing a specific SSID match using
+     * 4 WPA_PSK scan results, each with unique SSID.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatch() throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We only expect 1 network match in this case.
+        assertEquals(1, matchedNetworksCaptor.getValue().size());
+        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
+        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
+        assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
+        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+    }
+
+    /**
+     * Verify network specifier matching for a specifier containing a Prefix SSID match using
+     * 4 open scan results, each with unique SSID.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingPrefixSsidMatch() throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_OPEN,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_PREFIX);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We expect 2 network matches in this case.
+        assertEquals(2, matchedNetworksCaptor.getValue().size());
+        for (WifiConfiguration matchedNetwork : matchedNetworksCaptor.getValue()) {
+            if (matchedNetwork.SSID.equals("\"" + TEST_SSID_1 + "\"")) {
+                assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
+                assertTrue(matchedNetwork.allowedKeyManagement
+                        .get(WifiConfiguration.KeyMgmt.NONE));
+            } else if (matchedNetwork.SSID.equals("\"" + TEST_SSID_2 + "\"")) {
+                assertEquals(TEST_BSSID_2, matchedNetwork.BSSID);
+                assertTrue(matchedNetwork.allowedKeyManagement
+                        .get(WifiConfiguration.KeyMgmt.NONE));
+            } else {
+                fail();
+            }
+        }
+    }
+
+    /**
+     * Verify network specifier matching for a specifier containing a specific BSSID match using
+     * 4 WPA_PSK scan results, each with unique SSID.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralBssidMatch() throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(".*", PatternMatcher.PATTERN_SIMPLE_GLOB);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.fromString(TEST_BSSID_1), MacAddress.BROADCAST_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We only expect 1 network match in this case.
+        assertEquals(1, matchedNetworksCaptor.getValue().size());
+        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
+        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
+        assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
+        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+    }
+
+    /**
+     * Verify network specifier matching for a specifier containing a prefix BSSID match using
+     * 4 WPA_EAP scan results, each with unique SSID.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingOuiPrefixBssidMatch() throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_EAP,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(".*", PatternMatcher.PATTERN_SIMPLE_GLOB);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.fromString(TEST_BSSID_1_2_OUI),
+                        MacAddress.fromString(TEST_BSSID_OUI_MASK));
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We expect 2 network matches in this case.
+        assertEquals(2, matchedNetworksCaptor.getValue().size());
+        for (WifiConfiguration matchedNetwork : matchedNetworksCaptor.getValue()) {
+            if (matchedNetwork.SSID.equals("\"" + TEST_SSID_1 + "\"")) {
+                assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
+                assertTrue(matchedNetwork.allowedKeyManagement
+                        .get(WifiConfiguration.KeyMgmt.WPA_EAP));
+            } else if (matchedNetwork.SSID.equals("\"" + TEST_SSID_2 + "\"")) {
+                assertEquals(TEST_BSSID_2, matchedNetwork.BSSID);
+                assertTrue(matchedNetwork.allowedKeyManagement
+                        .get(WifiConfiguration.KeyMgmt.WPA_EAP));
+            } else {
+                fail();
+            }
+        }
+    }
+
+    /**
+     * Verify network specifier matching for a specifier containing a specific SSID match using
+     * 4 WPA_PSK scan results, 3 of which have the same SSID.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatchWithMultipleBssidMatches()
+            throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_1, TEST_SSID_1, TEST_SSID_2);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We still only expect 1 network match in this case.
+        assertEquals(1, matchedNetworksCaptor.getValue().size());
+        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
+        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
+        assertTrue(TEST_BSSID_1.equals(matchedNetwork.BSSID)
+                || TEST_BSSID_2.equals(matchedNetwork.BSSID)
+                || TEST_BSSID_3.equals(matchedNetwork.BSSID));
+        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+    }
+
+    /**
+     * Verify network specifier match failure for a specifier containing a specific SSID match using
+     * 4 WPA_PSK scan results, 2 of which SSID_1 and the other 2 SSID_2. But, none of the scan
+     * results' SSID match the one requested in the specifier.
+     */
+    @Test
+    public void testNetworkSpecifierMatchFailUsingLiteralSsidMatchWhenSsidNotFound()
+            throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_1, TEST_SSID_2, TEST_SSID_2);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_3, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We expect no network match in this case.
+        assertEquals(0, matchedNetworksCaptor.getValue().size());
+    }
+
+    /**
+     * Verify network specifier match failure for a specifier containing a specific SSID match using
+     * 4 open scan results, each with unique SSID. But, none of the scan
+     * results' key mgmt match the one requested in the specifier.
+     */
+    @Test
+    public void testNetworkSpecifierMatchFailUsingLiteralSsidMatchWhenKeyMgmtDiffers()
+            throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_OPEN,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_PREFIX);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager).enable(false);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+
+        assertNotNull(matchedNetworksCaptor.getValue());
+        // We expect no network match in this case.
+        assertEquals(0, matchedNetworksCaptor.getValue().size());
+    }
+
     // Simulates the periodic scans performed to find a matching network.
     // a) Start scan
     // b) Scan results received.
@@ -504,7 +822,7 @@ public class WifiNetworkFactoryTest {
 
     private WifiNetworkSpecifier createWifiNetworkSpecifier(int uid, boolean isHidden) {
         PatternMatcher ssidPatternMatch =
-                new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL);
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
         Pair<MacAddress, MacAddress> bssidPatternMatch =
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
         WifiConfiguration wifiConfiguration;
@@ -515,5 +833,49 @@ public class WifiNetworkFactoryTest {
         }
         return new WifiNetworkSpecifier(
                 ssidPatternMatch, bssidPatternMatch, wifiConfiguration, uid);
+    }
+
+    private static final int SCAN_RESULT_TYPE_OPEN = 0;
+    private static final int SCAN_RESULT_TYPE_WPA_PSK = 1;
+    private static final int SCAN_RESULT_TYPE_WPA_EAP = 2;
+
+    private String getScanResultCapsForType(int scanResultType) {
+        switch (scanResultType) {
+            case SCAN_RESULT_TYPE_OPEN:
+                return WifiConfigurationTestUtil.getScanResultCapsForNetwork(
+                        WifiConfigurationTestUtil.createOpenNetwork());
+            case SCAN_RESULT_TYPE_WPA_PSK:
+                return WifiConfigurationTestUtil.getScanResultCapsForNetwork(
+                        WifiConfigurationTestUtil.createPskNetwork());
+            case SCAN_RESULT_TYPE_WPA_EAP:
+                return WifiConfigurationTestUtil.getScanResultCapsForNetwork(
+                        WifiConfigurationTestUtil.createEapNetwork());
+        }
+        fail("Invalid scan result type " + scanResultType);
+        return "";
+    }
+
+    // Helper method to setup the scan data for verifying the matching algo.
+    private void setupScanData(int scanResultType, String ssid1, String ssid2, String ssid3,
+            String ssid4) {
+        // 4 scan results,
+        assertEquals(1, mTestScanDatas.length);
+        ScanResult[] scanResults = mTestScanDatas[0].getResults();
+        assertEquals(4, scanResults.length);
+
+        String caps = getScanResultCapsForType(scanResultType);
+
+        scanResults[0].SSID = ssid1;
+        scanResults[0].BSSID = TEST_BSSID_1;
+        scanResults[0].capabilities = caps;
+        scanResults[1].SSID = ssid2;
+        scanResults[1].BSSID = TEST_BSSID_2;
+        scanResults[1].capabilities = caps;
+        scanResults[2].SSID = ssid3;
+        scanResults[2].BSSID = TEST_BSSID_3;
+        scanResults[2].capabilities = caps;
+        scanResults[3].SSID = ssid4;
+        scanResults[3].BSSID = TEST_BSSID_4;
+        scanResults[3].capabilities = caps;
     }
 }
