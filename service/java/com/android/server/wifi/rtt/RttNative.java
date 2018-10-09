@@ -57,6 +57,40 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
     private volatile IWifiRttController mIWifiRttController;
     private volatile RttCapabilities mRttCapabilities;
 
+    private final HalDeviceManager.InterfaceRttControllerLifecycleCallback mRttLifecycleCb =
+            new HalDeviceManager.InterfaceRttControllerLifecycleCallback() {
+                @Override
+                public void onNewRttController(IWifiRttController controller) {
+                    if (mDbg) Log.d(TAG, "onNewRttController: controller=" + controller);
+                    synchronized (mLock) {
+                        try {
+                            controller.registerEventCallback(RttNative.this);
+                        } catch (RemoteException e) {
+                            Log.e(TAG, "onNewRttController: exception registering callback: " + e);
+                            if (mIWifiRttController != null) {
+                                mIWifiRttController = null;
+                                mRttService.disable();
+                            }
+                            return;
+                        }
+
+                        mIWifiRttController = controller;
+                        mRttService.enableIfPossible();
+                        updateRttCapabilities();
+                    }
+                }
+
+                @Override
+                public void onRttControllerDestroyed() {
+                    if (mDbg) Log.d(TAG, "onRttControllerDestroyed");
+                    synchronized (mLock) {
+                        mIWifiRttController = null;
+                        mRttCapabilities = null;
+                        mRttService.disable();
+                    }
+                }
+            };
+
     public RttNative(RttServiceImpl rttService, HalDeviceManager halDeviceManager) {
         mRttService = rttService;
         mHalDeviceManager = halDeviceManager;
@@ -70,9 +104,14 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
             mHalDeviceManager.initialize();
             mHalDeviceManager.registerStatusListener(() -> {
                 if (VDBG) Log.d(TAG, "hdm.onStatusChanged");
-                updateController();
+                if (mHalDeviceManager.isStarted()) {
+                    mHalDeviceManager.registerRttControllerLifecycleCallback(mRttLifecycleCb,
+                            handler);
+                }
             }, handler);
-            updateController();
+            if (mHalDeviceManager.isStarted()) {
+                mHalDeviceManager.registerRttControllerLifecycleCallback(mRttLifecycleCb, handler);
+            }
         }
     }
 
@@ -83,67 +122,36 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
         return mIWifiRttController != null;
     }
 
-    private void updateController() {
-        if (mDbg) Log.v(TAG, "updateController: mIWifiRttController=" + mIWifiRttController);
-
-        // only care about isStarted (Wi-Fi started) not isReady - since if not
-        // ready then Wi-Fi will also be down.
-        synchronized (mLock) {
-            IWifiRttController localWifiRttController = mIWifiRttController;
-            if (mHalDeviceManager.isStarted()) {
-                if (localWifiRttController == null) {
-                    localWifiRttController = mHalDeviceManager.createRttController();
-                    if (localWifiRttController == null) {
-                        Log.e(TAG, "updateController: Failed creating RTT controller - but Wifi is "
-                                + "started!");
-                    } else {
-                        try {
-                            localWifiRttController.registerEventCallback(this);
-                        } catch (RemoteException e) {
-                            Log.e(TAG, "updateController: exception registering callback: " + e);
-                            localWifiRttController = null;
-                        }
-                    }
-                }
-            } else {
-                localWifiRttController = null;
-            }
-            mIWifiRttController = localWifiRttController;
-
-            if (mIWifiRttController == null) {
-                mRttService.disable();
-            } else {
-                mRttService.enableIfPossible();
-                updateRttCapabilities();
-            }
-        }
-    }
-
     /**
      * Updates the RTT capabilities.
      */
     void updateRttCapabilities() {
+        if (mIWifiRttController == null) {
+            Log.e(TAG, "updateRttCapabilities: but a RTT controll is NULL!?");
+            return;
+        }
         if (mRttCapabilities != null) {
             return;
         }
+        if (mDbg) Log.v(TAG, "updateRttCapabilities");
 
         synchronized (mLock) {
             try {
                 mIWifiRttController.getCapabilities(
                         (status, capabilities) -> {
                             if (status.code != WifiStatusCode.SUCCESS) {
-                                Log.e(TAG,
-                                        "updateController: error requesting capabilities -- code="
-                                                + status.code);
+                                Log.e(TAG, "updateRttCapabilities: error requesting capabilities "
+                                        + "-- code=" + status.code);
                                 return;
                             }
                             if (mDbg) {
-                                Log.v(TAG, "updateController: RTT capabilities=" + capabilities);
+                                Log.v(TAG, "updateRttCapabilities: RTT capabilities="
+                                        + capabilities);
                             }
                             mRttCapabilities = capabilities;
                         });
             } catch (RemoteException e) {
-                Log.e(TAG, "updateController: exception requesting capabilities: " + e);
+                Log.e(TAG, "updateRttCapabilities: exception requesting capabilities: " + e);
             }
 
             if (mRttCapabilities != null && !mRttCapabilities.rttFtmSupported) {
@@ -166,27 +174,17 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      */
     public boolean rangeRequest(int cmdId, RangingRequest request,
             boolean isCalledFromPrivilegedContext) {
-        return rangeRequestInternal(cmdId, request, isCalledFromPrivilegedContext, true);
-    }
-
-    private boolean rangeRequestInternal(int cmdId, RangingRequest request,
-            boolean isCalledFromPrivilegedContext, boolean tryToReinitIfNecessary) {
         if (mDbg) {
             Log.v(TAG,
                     "rangeRequest: cmdId=" + cmdId + ", # of requests=" + request.mRttPeers.size());
         }
         if (VDBG) Log.v(TAG, "rangeRequest: request=" + request);
-        updateRttCapabilities();
         synchronized (mLock) {
             if (!isReady()) {
                 Log.e(TAG, "rangeRequest: RttController is null");
-                if (tryToReinitIfNecessary) {
-                    updateController();
-                    return rangeRequestInternal(cmdId, request, isCalledFromPrivilegedContext,
-                            false);
-                }
                 return false;
             }
+            updateRttCapabilities();
 
             ArrayList<RttConfig> rttConfig = convertRangingRequestToRttConfigs(request,
                     isCalledFromPrivilegedContext, mRttCapabilities);
@@ -202,14 +200,6 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
 
             try {
                 WifiStatus status = mIWifiRttController.rangeRequest(cmdId, rttConfig);
-                if (status.code == WifiStatusCode.ERROR_WIFI_RTT_CONTROLLER_INVALID
-                        && tryToReinitIfNecessary) {
-                    Log.d(TAG, "rangeRequest: RTT controller invalidated from under us - reinit!");
-                    mIWifiRttController = null;
-                    updateController();
-                    return rangeRequestInternal(cmdId, request, isCalledFromPrivilegedContext,
-                            false);
-                }
                 if (status.code != WifiStatusCode.SUCCESS) {
                     Log.e(TAG, "rangeRequest: cannot issue range request -- code=" + status.code);
                     return false;

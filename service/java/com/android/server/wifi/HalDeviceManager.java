@@ -384,6 +384,49 @@ public class HalDeviceManager {
     }
 
     /**
+     * Register a callback object for RTT life-cycle events. The callback object registration
+     * indicates that an RTT controller should be created whenever possible. The callback object
+     * will be called with a new RTT controller whenever it is created (or at registration time
+     * if an RTT controller already exists). The callback object will also be triggered whenever
+     * an existing RTT controller is destroyed (the previous copies must be discarded by the
+     * recipient).
+     *
+     * @param callback InterfaceRttControllerLifecycleCallback object.
+     * @param handler Handler on which to dispatch callback
+     */
+    public void registerRttControllerLifecycleCallback(
+            @NonNull InterfaceRttControllerLifecycleCallback callback, @NonNull Handler handler) {
+        if (VDBG) {
+            Log.d(TAG, "registerRttControllerLifecycleCallback: callback=" + callback + ", handler="
+                    + handler);
+        }
+
+        if (callback == null || handler == null) {
+            Log.wtf(TAG, "registerRttControllerLifecycleCallback with nulls!? callback=" + callback
+                    + ", handler=" + handler);
+            return;
+        }
+
+        synchronized (mLock) {
+            InterfaceRttControllerLifecycleCallbackProxy proxy =
+                    new InterfaceRttControllerLifecycleCallbackProxy(callback, handler);
+            if (!mRttControllerLifecycleCallbacks.add(proxy)) {
+                Log.d(TAG,
+                        "registerRttControllerLifecycleCallback: registering an existing callback="
+                                + callback);
+                return;
+            }
+
+            if (mIWifiRttController == null) {
+                mIWifiRttController = createRttControllerIfPossible();
+            }
+            if (mIWifiRttController != null) {
+                proxy.onNewRttController(mIWifiRttController);
+            }
+        }
+    }
+
+    /**
      * Return the name of the input interface or null on error.
      */
     public static String getName(IWifiIface iface) {
@@ -437,49 +480,31 @@ public class HalDeviceManager {
     }
 
     /**
-     * Creates a IWifiRttController. A direct match to the IWifiChip.createRttController() method.
+     * Called on RTT controller lifecycle events. RTT controller is a singleton which will be
+     * created when possible (after first lifecycle registration) and destroyed if necessary.
      *
-     * Returns the created IWifiRttController or a null on error.
+     * Determination of availability is determined by the HAL. Creation attempts (if requested
+     * by registration of interface) will be done on any mode changes.
      */
-    public IWifiRttController createRttController() {
-        if (VDBG) Log.d(TAG, "createRttController");
-        synchronized (mLock) {
-            if (mWifi == null) {
-                Log.e(TAG, "createRttController: null IWifi");
-                return null;
-            }
+    public interface InterfaceRttControllerLifecycleCallback {
+        /**
+         * Called when an RTT controller was created (or for newly registered listeners - if it
+         * was already available). The controller provided by this callback may be destroyed by
+         * the HAL at which point the {@link #onRttControllerDestroyed()} will be called.
+         *
+         * Note: this callback can be triggered to replace an existing controller (instead of
+         * calling the Destroyed callback in between).
+         *
+         * @param controller The RTT controller object.
+         */
+        void onNewRttController(@NonNull IWifiRttController controller);
 
-            WifiChipInfo[] chipInfos = getAllChipInfo();
-            if (chipInfos == null) {
-                Log.e(TAG, "createRttController: no chip info found");
-                stopWifi(); // major error: shutting down
-                return null;
-            }
-
-            for (WifiChipInfo chipInfo : chipInfos) {
-                Mutable<IWifiRttController> rttResp = new Mutable<>();
-                try {
-                    chipInfo.chip.createRttController(null,
-                            (WifiStatus status, IWifiRttController rtt) -> {
-                                if (status.code == WifiStatusCode.SUCCESS) {
-                                    rttResp.value = rtt;
-                                } else {
-                                    Log.e(TAG,
-                                            "IWifiChip.createRttController failed: " + statusString(
-                                                    status));
-                                }
-                            });
-                } catch (RemoteException e) {
-                    Log.e(TAG, "IWifiChip.createRttController exception: " + e);
-                }
-                if (rttResp.value != null) {
-                    return rttResp.value;
-                }
-            }
-
-            Log.e(TAG, "createRttController: not available from any of the chips");
-            return null;
-        }
+        /**
+         * Called when the previously provided RTT controller is destroyed. Clients must discard
+         * their copy. A new copy may be provided later by
+         * {@link #onNewRttController(IWifiRttController)}.
+         */
+        void onRttControllerDestroyed();
     }
 
     // internal state
@@ -496,8 +521,11 @@ public class HalDeviceManager {
 
     private IServiceManager mServiceManager;
     private IWifi mWifi;
+    private IWifiRttController mIWifiRttController;
     private final WifiEventCallback mWifiEventCallback = new WifiEventCallback();
     private final Set<ManagerStatusListenerProxy> mManagerStatusListeners = new HashSet<>();
+    private final Set<InterfaceRttControllerLifecycleCallbackProxy>
+            mRttControllerLifecycleCallbacks = new HashSet<>();
     private final SparseArray<Map<InterfaceAvailableForRequestListenerProxy, Boolean>>
             mInterfaceAvailableForRequestListeners = new SparseArray<>();
     private final SparseArray<IWifiChipEventCallback.Stub> mDebugCallbacks = new SparseArray<>();
@@ -594,6 +622,10 @@ public class HalDeviceManager {
         mInterfaceAvailableForRequestListeners.get(IfaceType.AP).clear();
         mInterfaceAvailableForRequestListeners.get(IfaceType.P2P).clear();
         mInterfaceAvailableForRequestListeners.get(IfaceType.NAN).clear();
+
+        mIWifiRttController = null;
+        dispatchRttControllerLifecycleOnDestroyed();
+        mRttControllerLifecycleCallbacks.clear();
     }
 
     private final HwRemoteBinder.DeathRecipient mServiceManagerDeathRecipient =
@@ -1787,6 +1819,7 @@ public class HalDeviceManager {
 
                     WifiStatus status = ifaceCreationData.chipInfo.chip.configureChip(
                             ifaceCreationData.chipModeId);
+                    updateRttControllerOnModeChange();
                     if (status.code != WifiStatusCode.SUCCESS) {
                         Log.e(TAG, "executeChipReconfiguration: configureChip error: "
                                 + statusString(status));
@@ -2075,6 +2108,135 @@ public class HalDeviceManager {
         protected void actionWithArg(boolean isAvailable) {
             mListener.onAvailabilityChanged(isAvailable);
         }
+    }
+
+    private class InterfaceRttControllerLifecycleCallbackProxy implements
+            InterfaceRttControllerLifecycleCallback {
+        private InterfaceRttControllerLifecycleCallback mCallback;
+        private Handler mHandler;
+
+        InterfaceRttControllerLifecycleCallbackProxy(
+                InterfaceRttControllerLifecycleCallback callback, Handler handler) {
+            mCallback = callback;
+            mHandler = handler;
+        }
+
+        // override equals & hash to make sure that the container HashSet is unique with respect to
+        // the contained listener
+        @Override
+        public boolean equals(Object obj) {
+            return mCallback == ((InterfaceRttControllerLifecycleCallbackProxy) obj).mCallback;
+        }
+
+        @Override
+        public int hashCode() {
+            return mCallback.hashCode();
+        }
+
+        @Override
+        public void onNewRttController(IWifiRttController controller) {
+            mHandler.post(() -> mCallback.onNewRttController(controller));
+        }
+
+        @Override
+        public void onRttControllerDestroyed() {
+            mHandler.post(() -> mCallback.onRttControllerDestroyed());
+        }
+    }
+
+    private void dispatchRttControllerLifecycleOnNew() {
+        if (VDBG) {
+            Log.v(TAG, "dispatchRttControllerLifecycleOnNew: # cbs="
+                    + mRttControllerLifecycleCallbacks.size());
+        }
+        for (InterfaceRttControllerLifecycleCallbackProxy cbp : mRttControllerLifecycleCallbacks) {
+            cbp.onNewRttController(mIWifiRttController);
+        }
+    }
+
+    private void dispatchRttControllerLifecycleOnDestroyed() {
+        for (InterfaceRttControllerLifecycleCallbackProxy cbp : mRttControllerLifecycleCallbacks) {
+            cbp.onRttControllerDestroyed();
+        }
+    }
+
+
+    /**
+     * Updates the RttController when the chip mode is changed:
+     * - Handles callbacks to registered listeners
+     * - Handles creation of new RttController
+     */
+    private void updateRttControllerOnModeChange() {
+        synchronized (mLock) {
+            boolean controllerDestroyed = mIWifiRttController != null;
+            mIWifiRttController = null;
+            if (mRttControllerLifecycleCallbacks.size() == 0) {
+                Log.d(TAG, "updateRttController: no one is interested in RTT controllers");
+                return;
+            }
+
+            IWifiRttController newRttController = createRttControllerIfPossible();
+            if (newRttController == null) {
+                if (controllerDestroyed) {
+                    dispatchRttControllerLifecycleOnDestroyed();
+                }
+            } else {
+                mIWifiRttController = newRttController;
+                dispatchRttControllerLifecycleOnNew();
+            }
+        }
+    }
+
+    /**
+     * Try to create a new RttController.
+     *
+     * @return The new RttController - or null on failure.
+     */
+    private IWifiRttController createRttControllerIfPossible() {
+        synchronized (mLock) {
+            if (!isWifiStarted()) {
+                Log.d(TAG, "createRttControllerIfPossible: Wifi is not started");
+                return null;
+            }
+
+            WifiChipInfo[] chipInfos = getAllChipInfo();
+            if (chipInfos == null) {
+                Log.d(TAG, "createRttControllerIfPossible: no chip info found - most likely chip "
+                        + "not up yet");
+                return null;
+            }
+
+            for (WifiChipInfo chipInfo : chipInfos) {
+                if (!chipInfo.currentModeIdValid) {
+                    if (VDBG) {
+                        Log.d(TAG, "createRttControllerIfPossible: chip not configured yet: "
+                                + chipInfo);
+                    }
+                    continue;
+                }
+
+                Mutable<IWifiRttController> rttResp = new Mutable<>();
+                try {
+                    chipInfo.chip.createRttController(null,
+                            (WifiStatus status, IWifiRttController rtt) -> {
+                                if (status.code == WifiStatusCode.SUCCESS) {
+                                    rttResp.value = rtt;
+                                } else {
+                                    Log.e(TAG, "IWifiChip.createRttController failed: "
+                                            + statusString(status));
+                                }
+                            });
+                } catch (RemoteException e) {
+                    Log.e(TAG, "IWifiChip.createRttController exception: " + e);
+                }
+                if (rttResp.value != null) {
+                    return rttResp.value;
+                }
+            }
+        }
+
+        Log.w(TAG, "createRttControllerIfPossible: not available from any of the chips");
+        return null;
     }
 
     // general utilities
