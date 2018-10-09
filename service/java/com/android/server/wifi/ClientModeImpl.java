@@ -51,6 +51,7 @@ import android.net.StaticIpConfiguration;
 import android.net.TrafficStats;
 import android.net.dhcp.DhcpClient;
 import android.net.ip.IpClient;
+import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.RssiPacketCountInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
@@ -5815,5 +5816,21 @@ public class ClientModeImpl extends StateMachine {
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
+    }
+
+    /**
+     * Add a network request match callback to {@link WifiNetworkFactory}.
+     */
+    public void addNetworkRequestMatchCallback(IBinder binder,
+                                               INetworkRequestMatchCallback callback,
+                                               int callbackIdentifier) {
+        mNetworkFactory.addCallback(binder, callback, callbackIdentifier);
+    }
+
+    /**
+     * Remove a network request match callback from {@link WifiNetworkFactory}.
+     */
+    public void removeNetworkRequestMatchCallback(int callbackIdentifier) {
+        mNetworkFactory.removeCallback(callbackIdentifier);
     }
 }

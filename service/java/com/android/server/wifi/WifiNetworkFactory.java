@@ -26,20 +26,26 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
+import android.net.wifi.INetworkRequestMatchCallback;
+import android.net.wifi.INetworkRequestUserSelectionCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.RemoteException;
 import android.os.WorkSource;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+
 
 /**
  * Network factory to handle trusted wifi network requests.
@@ -62,6 +68,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
     private final NetworkFactoryAlarmListener mPeriodicScanTimerListener;
+    private final ExternalCallbackTracker<INetworkRequestMatchCallback> mRegisteredCallbacks;
 
     private int mGenericConnectionReqCount = 0;
     private NetworkRequest mActiveSpecificNetworkRequest;
@@ -129,6 +136,32 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
     }
 
+    // Callback result from settings UI.
+    private class NetworkFactoryUserSelectionCallback extends
+            INetworkRequestUserSelectionCallback.Stub {
+        @Override
+        public void select(WifiConfiguration wifiConfiguration) {
+            mHandler.post(() -> {
+                if (mActiveSpecificNetworkRequest == null) {
+                    Log.e(TAG, "Stale callback select received");
+                    return;
+                }
+                // TODO(b/113878056): Trigger network connection to |wificonfiguration|.
+            });
+        }
+
+        @Override
+        public void reject() {
+            mHandler.post(() -> {
+                if (mActiveSpecificNetworkRequest == null) {
+                    Log.e(TAG, "Stale callback reject received");
+                    return;
+                }
+                // TODO(b/113878056): Clear the active network request.
+            });
+        }
+    }
+
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
                               Clock clock, WifiInjector wifiInjector,
@@ -150,6 +183,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mScanSettings.reportEvents = WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN;
         mScanListener = new NetworkFactoryScanListener();
         mPeriodicScanTimerListener = new NetworkFactoryAlarmListener();
+        mRegisteredCallbacks = new ExternalCallbackTracker<INetworkRequestMatchCallback>(mHandler);
 
         setScoreFilter(SCORE_FILTER);
     }
@@ -159,6 +193,37 @@ public class WifiNetworkFactory extends NetworkFactory {
      */
     public void enableVerboseLogging(int verbose) {
         mVerboseLoggingEnabled = (verbose > 0);
+    }
+
+    /**
+     * Add a new callback for network request match handling.
+     */
+    public void addCallback(IBinder binder, INetworkRequestMatchCallback callback,
+                            int callbackIdentifier) {
+        if (!mRegisteredCallbacks.add(binder, callback, callbackIdentifier)) {
+            Log.e(TAG, "Failed to add callback");
+            return;
+        }
+        // Register our user selection callback immediately.
+        try {
+            callback.onUserSelectionCallbackRegistration(new NetworkFactoryUserSelectionCallback());
+        } catch (RemoteException e) {
+            Log.e(TAG, "Unable to invoke user selection registration callback " + callback, e);
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Adding callback. Num callbacks: " + mRegisteredCallbacks.getNumCallbacks());
+        }
+    }
+
+    /**
+     * Remove an existing callback for network request match handling.
+     */
+    public void removeCallback(int callbackIdentifier) {
+        mRegisteredCallbacks.remove(callbackIdentifier);
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Removing callback. Num callbacks: "
+                    + mRegisteredCallbacks.getNumCallbacks());
+        }
     }
 
     /**

@@ -34,11 +34,13 @@ import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.ScanListener;
 import android.net.wifi.WifiScanner.ScanSettings;
+import android.os.IBinder;
 import android.os.PatternMatcher;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -61,8 +63,9 @@ import org.mockito.MockitoAnnotations;
 @SmallTest
 public class WifiNetworkFactoryTest {
     private static final int TEST_UID_1 = 10423;
-    private static final String TEST_PACKAGE_NAME_1 = "com.test.networkrequest.1";
     private static final int TEST_UID_2 = 10424;
+    private static final int TEST_CALLBACK_IDENTIFIER = 123;
+    private static final String TEST_PACKAGE_NAME_1 = "com.test.networkrequest.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.test.networkrequest.2";
     private static final String TEST_SSID = "test1234";
 
@@ -75,6 +78,8 @@ public class WifiNetworkFactoryTest {
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock WifiScanner mWifiScanner;
     @Mock PackageManager mPackageManager;
+    @Mock IBinder mAppBinder;
+    @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
     NetworkCapabilities mNetworkCapabilities;
     TestLooper mLooper;
     NetworkRequest mNetworkRequest;
@@ -434,6 +439,23 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
         // Cancel the alarm set for the next scan.
         verify(mAlarmManager).cancel(any(OnAlarmListener.class));
+    }
+
+    /**
+     * Verify callback registration/unregistration.
+     */
+    @Test
+    public void testHandleCallbackRegistrationAndUnregistration() throws Exception {
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+
+        //Ensure that we register the user selection callback using the newly registered callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                any(INetworkRequestUserSelectionCallback.class));
+
+        // TBD: Need to hook up the matching logic to invoke these callbacks to actually
+        // verify that they're in the database.
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
     }
 
     // Simulates the periodic scans performed to find a matching network.

@@ -66,6 +66,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.Uri;
+import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ScanResult;
@@ -139,6 +140,7 @@ public class WifiServiceImplTest {
     private static final int OTHER_TEST_UID = 1300000;
     private static final int TEST_USER_HANDLE = 13;
     private static final int TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER = 17;
+    private static final int TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER = 234;
     private static final String WIFI_IFACE_NAME = "wlan0";
     private static final String TEST_COUNTRY_CODE = "US";
 
@@ -202,6 +204,7 @@ public class WifiServiceImplTest {
     @Mock WifiTrafficPoller mWifiTrafficPolller;
     @Mock ScanRequestProxy mScanRequestProxy;
     @Mock ITrafficStateCallback mTrafficStateCallback;
+    @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
 
     @Spy FakeWifiLog mLog;
 
@@ -3008,5 +3011,83 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.unregisterTrafficStateCallback(0);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).removeCallback(0);
+    }
+
+    /**
+     * Verify that a call to registerNetworkRequestMatchCallback throws a SecurityException if the
+     * caller does not have NETWORK_SETTINGS permission.
+     */
+    @Test
+    public void registerNetworkRequestMatchCallbackThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.registerNetworkRequestMatchCallback(mAppBinder,
+                    mNetworkRequestMatchCallback,
+                    TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to registerNetworkRequestMatchCallback throws an IllegalArgumentException
+     * if the parameters are not provided.
+     */
+    @Test
+    public void
+            registerNetworkRequestMatchCallbackThrowsIllegalArgumentExceptionOnInvalidArguments() {
+        try {
+            mWifiServiceImpl.registerNetworkRequestMatchCallback(
+                    mAppBinder, null, TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+            fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to unregisterNetworkRequestMatchCallback throws a SecurityException if the
+     * caller does not have NETWORK_SETTINGS permission.
+     */
+    @Test
+    public void unregisterNetworkRequestMatchCallbackThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.unregisterNetworkRequestMatchCallback(
+                    TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that registerNetworkRequestMatchCallback adds callback to
+     * {@link ClientModeImpl}.
+     */
+    @Test
+    public void registerNetworkRequestMatchCallbackAndVerify() throws Exception {
+        mWifiServiceImpl.registerNetworkRequestMatchCallback(
+                mAppBinder, mNetworkRequestMatchCallback,
+                TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).addNetworkRequestMatchCallback(
+                mAppBinder, mNetworkRequestMatchCallback,
+                TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+    }
+
+    /**
+     * Verify that unregisterNetworkRequestMatchCallback removes callback from
+     * {@link ClientModeImpl}.
+     */
+    @Test
+    public void unregisterNetworkRequestMatchCallbackAndVerify() throws Exception {
+        mWifiServiceImpl.unregisterNetworkRequestMatchCallback(
+                TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).removeNetworkRequestMatchCallback(
+                TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
     }
 }
