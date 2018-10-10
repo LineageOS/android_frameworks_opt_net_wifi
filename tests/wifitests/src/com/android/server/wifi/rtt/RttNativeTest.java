@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -52,13 +52,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -68,12 +65,14 @@ import java.util.List;
 public class RttNativeTest {
     private RttNative mDut;
     private WifiStatus mStatusSuccess;
-    private WifiStatus mStatusRttControllerInvalid;
 
     private ArgumentCaptor<ArrayList> mRttConfigCaptor = ArgumentCaptor.forClass(ArrayList.class);
     private ArgumentCaptor<List> mRttResultCaptor = ArgumentCaptor.forClass(List.class);
     private ArgumentCaptor<HalDeviceManager.ManagerStatusListener> mHdmStatusListener =
             ArgumentCaptor.forClass(HalDeviceManager.ManagerStatusListener.class);
+    private ArgumentCaptor<HalDeviceManager.InterfaceRttControllerLifecycleCallback>
+            mRttLifecycleCbCaptor = ArgumentCaptor.forClass(
+            HalDeviceManager.InterfaceRttControllerLifecycleCallback.class);
     private ArgumentCaptor<IWifiRttController.getCapabilitiesCallback> mGetCapCbCatpr =
             ArgumentCaptor.forClass(IWifiRttController.getCapabilitiesCallback.class);
 
@@ -94,7 +93,6 @@ public class RttNativeTest {
         MockitoAnnotations.initMocks(this);
 
         when(mockHalDeviceManager.isStarted()).thenReturn(true);
-        when(mockHalDeviceManager.createRttController()).thenReturn(mockRttController);
 
         mStatusSuccess = new WifiStatus();
         mStatusSuccess.code = WifiStatusCode.SUCCESS;
@@ -104,12 +102,12 @@ public class RttNativeTest {
         when(mockRttController.rangeCancel(anyInt(), any(ArrayList.class))).thenReturn(
                 mStatusSuccess);
 
-        mStatusRttControllerInvalid = new WifiStatus();
-        mStatusRttControllerInvalid.code = WifiStatusCode.ERROR_WIFI_RTT_CONTROLLER_INVALID;
-
         mDut = new RttNative(mockRttServiceImpl, mockHalDeviceManager);
         mDut.start(null);
-        verify(mockHalDeviceManager).registerStatusListener(mHdmStatusListener.capture(), any());
+        verify(mockHalDeviceManager).initialize();
+        verify(mockHalDeviceManager).registerRttControllerLifecycleCallback(
+                mRttLifecycleCbCaptor.capture(), any());
+        mRttLifecycleCbCaptor.getValue().onNewRttController(mockRttController);
         verify(mockRttController).registerEventCallback(any());
         verify(mockRttServiceImpl).enableIfPossible();
         verify(mockRttController).getCapabilities(mGetCapCbCatpr.capture());
@@ -334,18 +332,35 @@ public class RttNativeTest {
         int cmdId = 55;
         RangingRequest request = RttTestUtils.getDummyRangingRequest((byte) 0);
 
-        InOrder order = inOrder(mockRttServiceImpl);
-
-        // (1) configure Wi-Fi down and send a status change indication
-        when(mockHalDeviceManager.isStarted()).thenReturn(false);
-        mHdmStatusListener.getValue().onStatusChanged();
-        order.verify(mockRttServiceImpl).disable();
+        // (1) simulate Wi-Fi down and send a status change indication
+        mRttLifecycleCbCaptor.getValue().onRttControllerDestroyed();
+        verify(mockRttServiceImpl).disable();
         assertFalse(mDut.isReady());
 
         // (2) issue range request
         mDut.rangeRequest(cmdId, request, true);
 
-        order.verify(mockRttServiceImpl).disable(); // due to re-init attempt
+        verifyNoMoreInteractions(mockRttServiceImpl, mockRttController);
+    }
+
+    /**
+     * Validate that we react correctly (i.e. enable/disable global RTT availability) when
+     * notified that the RTT controller has disappear and appeared.
+     */
+    @Test
+    public void testRttControllerLifecycle() throws Exception {
+        // RTT controller disappears
+        mRttLifecycleCbCaptor.getValue().onRttControllerDestroyed();
+        verify(mockRttServiceImpl).disable();
+        assertFalse(mDut.isReady());
+
+        // RTT controller re-appears (verification is x2 since 1st time is in setup())
+        mRttLifecycleCbCaptor.getValue().onNewRttController(mockRttController);
+        verify(mockRttController, times(2)).registerEventCallback(any());
+        verify(mockRttServiceImpl, times(2)).enableIfPossible();
+        verify(mockRttController, times(2)).getCapabilities(mGetCapCbCatpr.capture());
+        assertTrue(mDut.isReady());
+
         verifyNoMoreInteractions(mockRttServiceImpl, mockRttController);
     }
 
@@ -447,77 +462,6 @@ public class RttNativeTest {
         for (int i = 0; i < rttR.size(); ++i) {
             collector.checkThat("entry", rttR.get(i), IsNull.notNullValue());
         }
-    }
-
-    /**
-     * Validate correct re-initialization when the RTT Controller is invalid (which can happen
-     * due to mode change in the HAL). Expect a re-initialization and a rerun of the range request.
-     */
-    @Test
-    public void testRangeRequestInvalidRttControllerOnce() throws Exception {
-        int cmdId = 55;
-        RangingRequest request = RttTestUtils.getDummyRangingRequest((byte) 0);
-
-        InOrder inOrder = Mockito.inOrder(mockRttController);
-
-        // configure failure then success
-        when(mockRttController.rangeRequest(anyInt(), any(ArrayList.class))).thenReturn(
-                mStatusRttControllerInvalid).thenReturn(mStatusSuccess);
-
-        // issue range request
-        boolean result = mDut.rangeRequest(cmdId, request, true);
-        assertTrue("rangeRequest should succeeed", result);
-
-        // verify HAL call
-        inOrder.verify(mockRttController).rangeRequest(eq(cmdId), mRttConfigCaptor.capture());
-        ArrayList<RttConfig> halRequest1 = mRttConfigCaptor.getValue();
-
-        // verify re-initialization (i.e. callback re-registered)
-        inOrder.verify(mockRttController).registerEventCallback(any());
-
-        // verify HAL call
-        inOrder.verify(mockRttController).rangeRequest(eq(cmdId), mRttConfigCaptor.capture());
-        ArrayList<RttConfig> halRequest2 = mRttConfigCaptor.getValue();
-
-        assertTrue("HAL parameters different between calls!",
-                Arrays.equals(halRequest1.toArray(), halRequest2.toArray()));
-        verifyNoMoreInteractions(mockRttController);
-    }
-
-    /**
-     * Validate correct re-initialization when the RTT Controller is invalid (which can happen
-     * due to mode change in the HAL). Expect a re-initialization and a rerun of the range request -
-     * but only once (no infinite loop).
-     */
-    @Test
-    public void testRangeRequestInvalidRttControllerForever() throws Exception {
-        int cmdId = 55;
-        RangingRequest request = RttTestUtils.getDummyRangingRequest((byte) 0);
-
-        InOrder inOrder = Mockito.inOrder(mockRttController);
-
-        // configure failure
-        when(mockRttController.rangeRequest(anyInt(), any(ArrayList.class))).thenReturn(
-                mStatusRttControllerInvalid);
-
-        // issue range request
-        boolean result = mDut.rangeRequest(cmdId, request, true);
-        assertFalse("rangeRequest should fail", result);
-
-        // verify HAL call
-        inOrder.verify(mockRttController).rangeRequest(eq(cmdId), mRttConfigCaptor.capture());
-        ArrayList<RttConfig> halRequest1 = mRttConfigCaptor.getValue();
-
-        // verify re-initialization (i.e. callback re-registered)
-        inOrder.verify(mockRttController).registerEventCallback(any());
-
-        // verify HAL call
-        inOrder.verify(mockRttController).rangeRequest(eq(cmdId), mRttConfigCaptor.capture());
-        ArrayList<RttConfig> halRequest2 = mRttConfigCaptor.getValue();
-
-        assertTrue("HAL parameters different between calls!",
-                Arrays.equals(halRequest1.toArray(), halRequest2.toArray()));
-        verifyNoMoreInteractions(mockRttController);
     }
 
     // Utilities
