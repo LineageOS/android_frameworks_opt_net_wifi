@@ -105,10 +105,10 @@ public class WakeupLockTest {
         mWakeupLock.setLock(networks);
         assertFalse(mWakeupLock.isInitialized());
 
-        mWakeupLock.update(networks);
-        assertFalse(mWakeupLock.isInitialized());
-        mWakeupLock.update(networks);
-        assertFalse(mWakeupLock.isInitialized());
+        for (int i = 0; i < WakeupLock.CONSECUTIVE_MISSED_SCANS_REQUIRED_TO_EVICT - 1; i++) {
+            mWakeupLock.update(networks);
+            assertFalse(mWakeupLock.isInitialized());
+        }
         mWakeupLock.update(networks);
         assertTrue(mWakeupLock.isInitialized());
     }
@@ -283,7 +283,8 @@ public class WakeupLockTest {
         for (int i = 0; i < WakeupLock.CONSECUTIVE_MISSED_SCANS_REQUIRED_TO_EVICT; i++) {
             mWakeupLock.update(Collections.emptyList());
         }
-        verify(mWifiWakeMetrics).recordUnlockEvent(3 /* numScans */);
+        verify(mWifiWakeMetrics).recordUnlockEvent(
+                WakeupLock.CONSECUTIVE_MISSED_SCANS_REQUIRED_TO_EVICT /* numScans */);
     }
 
     private void setLockAndInitializeByTimeout(Collection<ScanResultMatchInfo> networks) {
