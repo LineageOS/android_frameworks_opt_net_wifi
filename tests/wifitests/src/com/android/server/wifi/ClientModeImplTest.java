@@ -3706,7 +3706,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 0, FRAMEWORK_NETWORK_ID, DEFAULT_TEST_SSID);
         mLooper.dispatchAll();
 
-        verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME, FRAMEWORK_NETWORK_ID,
+        verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME,
                 "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org", "");
     }
 

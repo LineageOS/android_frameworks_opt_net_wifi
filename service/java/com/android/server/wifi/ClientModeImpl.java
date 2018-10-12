@@ -4162,8 +4162,8 @@ public class ClientModeImpl extends StateMachine {
                                         mWifiInjector.getCarrierNetworkConfig());
                         Log.i(TAG, "SUP_REQUEST_IDENTITY: identityPair=" + identityPair);
                         if (identityPair != null && identityPair.first != null) {
-                            mWifiNative.simIdentityResponse(mInterfaceName, netId,
-                                    identityPair.first, identityPair.second);
+                            mWifiNative.simIdentityResponse(mInterfaceName, identityPair.first,
+                                    identityPair.second);
                             identitySent = true;
                         } else {
                             Log.e(TAG, "Unable to retrieve identity from Telephony");
@@ -6065,12 +6065,11 @@ public class ClientModeImpl extends StateMachine {
             }
         }
         if (response == null || response.length() == 0) {
-            mWifiNative.simAuthFailedResponse(mInterfaceName, requestData.networkId);
+            mWifiNative.simAuthFailedResponse(mInterfaceName);
         } else {
             logv("Supplicant Response -" + response);
             mWifiNative.simAuthResponse(
-                    mInterfaceName, requestData.networkId,
-                    WifiNative.SIM_AUTH_RESP_TYPE_GSM_AUTH, response);
+                    mInterfaceName, WifiNative.SIM_AUTH_RESP_TYPE_GSM_AUTH, response);
         }
     }
 
@@ -6088,9 +6087,9 @@ public class ClientModeImpl extends StateMachine {
                 TelephonyUtil.get3GAuthResponse(requestData, getTelephonyManager());
         if (response != null) {
             mWifiNative.simAuthResponse(
-                    mInterfaceName, requestData.networkId, response.type, response.response);
+                    mInterfaceName, response.type, response.response);
         } else {
-            mWifiNative.umtsAuthFailedResponse(mInterfaceName, requestData.networkId);
+            mWifiNative.umtsAuthFailedResponse(mInterfaceName);
         }
     }
 
