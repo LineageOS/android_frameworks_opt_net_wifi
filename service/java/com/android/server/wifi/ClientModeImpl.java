@@ -957,6 +957,12 @@ public class ClientModeImpl extends StateMachine {
                 mWifiMetrics.getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.NETWORK_CONNECTION_EVENT,
                 mWifiInjector.getWifiLastResortWatchdog().getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.ASSOCIATION_REJECTION_EVENT,
+                mSupplicantStateTracker.getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                mSupplicantStateTracker.getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT,
+                mSupplicantStateTracker.getHandler());
     }
 
     private void setMulticastFilter(boolean enabled) {
@@ -2568,8 +2574,7 @@ public class ClientModeImpl extends StateMachine {
         if (mVerboseLoggingEnabled) {
             logd(" handleScreenStateChanged Enter: screenOn=" + screenOn
                     + " mUserWantsSuspendOpt=" + mUserWantsSuspendOpt
-                    + " state " + getCurrentState().getName()
-                    + " suppState:" + mSupplicantStateTracker.getSupplicantStateName());
+                    + " state " + getCurrentState().getName());
         }
         enableRssiPolling(screenOn);
         if (mUserWantsSuspendOpt.get()) {
@@ -2932,8 +2937,6 @@ public class ClientModeImpl extends StateMachine {
                 }
             }
         }
-
-        mSupplicantStateTracker.sendMessage(Message.obtain(message));
         mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         return state;
     }
@@ -3978,7 +3981,6 @@ public class ClientModeImpl extends StateMachine {
                             .DISABLED_ASSOCIATION_REJECTION);
                     mWifiConfigManager.setRecentFailureAssociationStatus(mTargetNetworkId,
                             reasonCode);
-                    mSupplicantStateTracker.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT);
                     // If rejection occurred while Metrics is tracking a ConnnectionEvent, end it.
                     reportConnectionAttemptEnd(
                             timedOut
@@ -3994,7 +3996,6 @@ public class ClientModeImpl extends StateMachine {
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     mWifiDiagnostics.captureBugReportData(
                             WifiDiagnostics.REPORT_REASON_AUTH_FAILURE);
-                    mSupplicantStateTracker.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT);
                     int disableReason = WifiConfiguration.NetworkSelectionStatus
                             .DISABLED_AUTHENTICATION_FAILURE;
                     reasonCode = message.arg1;
@@ -4252,8 +4253,7 @@ public class ClientModeImpl extends StateMachine {
                         }
                     }
                     config = mWifiConfigManager.getConfiguredNetworkWithoutMasking(netId);
-                    logd("CMD_START_CONNECT sup state "
-                            + mSupplicantStateTracker.getSupplicantStateName()
+                    logd("CMD_START_CONNECT "
                             + " my state " + getCurrentState().getName()
                             + " nid=" + Integer.toString(netId)
                             + " roam=" + Boolean.toString(mIsAutoRoaming));
@@ -5759,7 +5759,6 @@ public class ClientModeImpl extends StateMachine {
                     mTargetNetworkId = netId;
 
                     logd("CMD_START_ROAM sup state "
-                            + mSupplicantStateTracker.getSupplicantStateName()
                             + " my state " + getCurrentState().getName()
                             + " nid=" + Integer.toString(netId)
                             + " config " + config.configKey()
@@ -6198,9 +6197,7 @@ public class ClientModeImpl extends StateMachine {
     private NetworkUpdateResult saveNetworkConfigAndSendReply(Message message) {
         WifiConfiguration config = (WifiConfiguration) message.obj;
         if (config == null) {
-            loge("SAVE_NETWORK with null configuration "
-                    + mSupplicantStateTracker.getSupplicantStateName()
-                    + " my state " + getCurrentState().getName());
+            loge("SAVE_NETWORK with null configuration my state " + getCurrentState().getName());
             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
             replyToMessage(message, WifiManager.SAVE_NETWORK_FAILED, WifiManager.ERROR);
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
