@@ -2114,7 +2114,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         // This simulates the behavior of roaming to network with |sBSSID1|, |sFreq1|.
         // Send a CMD_ASSOCIATED_BSSID, verify WifiInfo is updated.
-        mCmi.sendMessage(ClientModeImpl.CMD_ASSOCIATED_BSSID, 0, 0, sBSSID1);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATED_BSSID_EVENT, 0, 0, sBSSID1);
         mLooper.dispatchAll();
 
         WifiInfo wifiInfo = mCmi.getWifiInfo();

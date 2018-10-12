@@ -403,14 +403,14 @@ public class WifiMonitorTest extends WifiBaseTest {
     @Test
     public void testBroadcastAssociatedBssidEvent() {
         mWifiMonitor.registerHandler(
-                WLAN_IFACE_NAME, ClientModeImpl.CMD_ASSOCIATED_BSSID, mHandlerSpy);
+                WLAN_IFACE_NAME, WifiMonitor.ASSOCIATED_BSSID_EVENT, mHandlerSpy);
         String bssid = BSSID;
         mWifiMonitor.broadcastAssociatedBssidEvent(WLAN_IFACE_NAME, bssid);
         mLooper.dispatchAll();
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mHandlerSpy).handleMessage(messageCaptor.capture());
-        assertEquals(ClientModeImpl.CMD_ASSOCIATED_BSSID, messageCaptor.getValue().what);
+        assertEquals(WifiMonitor.ASSOCIATED_BSSID_EVENT, messageCaptor.getValue().what);
         assertEquals(bssid, (String) messageCaptor.getValue().obj);
     }
 

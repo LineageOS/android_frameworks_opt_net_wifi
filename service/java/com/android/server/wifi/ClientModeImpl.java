@@ -549,9 +549,6 @@ public class ClientModeImpl extends StateMachine {
     /* Link configuration (IP address, DNS, ...) changes notified via netlink */
     static final int CMD_UPDATE_LINKPROPERTIES                          = BASE + 140;
 
-    /* Supplicant is trying to associate to a given BSSID */
-    static final int CMD_TARGET_BSSID                                   = BASE + 141;
-
     static final int CMD_START_CONNECT                                  = BASE + 143;
 
     private static final int NETWORK_STATUS_UNWANTED_DISCONNECT         = 0;
@@ -561,8 +558,6 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_UNWANTED_NETWORK                               = BASE + 144;
 
     static final int CMD_START_ROAM                                     = BASE + 145;
-
-    static final int CMD_ASSOCIATED_BSSID                               = BASE + 147;
 
     static final int CMD_NETWORK_STATUS                                 = BASE + 148;
 
@@ -920,8 +915,9 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void registerForWifiMonitorEvents()  {
-        mWifiMonitor.registerHandler(mInterfaceName, CMD_TARGET_BSSID, getHandler());
-        mWifiMonitor.registerHandler(mInterfaceName, CMD_ASSOCIATED_BSSID, getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.TARGET_BSSID_EVENT, getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.ASSOCIATED_BSSID_EVENT,
+                getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.ANQP_DONE_EVENT, getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.ASSOCIATION_REJECTION_EVENT,
                 getHandler());
@@ -955,9 +951,9 @@ public class ClientModeImpl extends StateMachine {
                 mWifiMetrics.getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT,
                 mWifiMetrics.getHandler());
-        mWifiMonitor.registerHandler(mInterfaceName, CMD_ASSOCIATED_BSSID,
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.ASSOCIATED_BSSID_EVENT,
                 mWifiMetrics.getHandler());
-        mWifiMonitor.registerHandler(mInterfaceName, CMD_TARGET_BSSID,
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.TARGET_BSSID_EVENT,
                 mWifiMetrics.getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.NETWORK_CONNECTION_EVENT,
                 mWifiInjector.getWifiLastResortWatchdog().getHandler());
@@ -2217,8 +2213,8 @@ public class ClientModeImpl extends StateMachine {
                     sb.append(" last=").append(key);
                 }
                 break;
-            case CMD_TARGET_BSSID:
-            case CMD_ASSOCIATED_BSSID:
+            case WifiMonitor.TARGET_BSSID_EVENT:
+            case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -3544,10 +3540,10 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_POST_DHCP_ACTION:
                 case WifiMonitor.SUP_REQUEST_IDENTITY:
                 case WifiMonitor.SUP_REQUEST_SIM_AUTH:
-                case CMD_TARGET_BSSID:
+                case WifiMonitor.TARGET_BSSID_EVENT:
                 case CMD_START_CONNECT:
                 case CMD_START_ROAM:
-                case CMD_ASSOCIATED_BSSID:
+                case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                 case CMD_UNWANTED_NETWORK:
                 case CMD_DISCONNECTING_WATCHDOG_TIMER:
                 case CMD_ROAM_WATCHDOG_TIMER:
@@ -4410,7 +4406,7 @@ public class ClientModeImpl extends StateMachine {
                         sendMessage(CMD_DISCONNECT);
                     }
                     break;
-                case CMD_ASSOCIATED_BSSID:
+                case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                     // This is where we can confirm the connection BSSID. Use it to find the
                     // right ScanDetail to populate metrics.
                     String someBssid = (String) message.obj;
@@ -4538,7 +4534,7 @@ public class ClientModeImpl extends StateMachine {
                             mPasspointManager.getAllMatchingFqdnsForScanResults(
                                     (List<ScanResult>) message.obj));
                     break;
-                case CMD_TARGET_BSSID:
+                case WifiMonitor.TARGET_BSSID_EVENT:
                     // Trying to associate to this BSSID
                     if (message.obj != null) {
                         mTargetRoamBSSID = (String) message.obj;
@@ -5161,7 +5157,7 @@ public class ClientModeImpl extends StateMachine {
                                 WifiManager.RSSI_PKTCNT_FETCH_FAILED, WifiManager.ERROR);
                     }
                     break;
-                case CMD_ASSOCIATED_BSSID:
+                case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                     if ((String) message.obj == null) {
                         logw("Associated command w/o BSSID");
                         break;
@@ -5709,7 +5705,7 @@ public class ClientModeImpl extends StateMachine {
                     boolean accept = (message.arg1 != 0);
                     mWifiConfigManager.setNetworkNoInternetAccessExpected(mLastNetworkId, accept);
                     break;
-                case CMD_ASSOCIATED_BSSID:
+                case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                     // ASSOCIATING to a new BSSID while already connected, indicates
                     // that driver is roaming
                     mLastDriverRoamAttempt = mClock.getWallClockMillis();

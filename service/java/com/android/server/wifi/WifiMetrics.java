@@ -3664,10 +3664,10 @@ public class WifiMetrics {
                 StateChangeResult stateChangeResult = (StateChangeResult) msg.obj;
                 mSupplicantStateChangeBitmask |= supplicantStateToBit(stateChangeResult.state);
                 break;
-            case ClientModeImpl.CMD_ASSOCIATED_BSSID:
+            case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                 event.type = StaEvent.TYPE_CMD_ASSOCIATED_BSSID;
                 break;
-            case ClientModeImpl.CMD_TARGET_BSSID:
+            case WifiMonitor.TARGET_BSSID_EVENT:
                 event.type = StaEvent.TYPE_CMD_TARGET_BSSID;
                 break;
             default:
