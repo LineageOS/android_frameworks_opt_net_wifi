@@ -16,7 +16,9 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.NonNull;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -27,16 +29,21 @@ import com.android.org.bouncycastle.asn1.ASN1Sequence;
 import com.android.org.bouncycastle.asn1.DERTaggedObject;
 import com.android.org.bouncycastle.asn1.DERUTF8String;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Utility to provide parsing of SubjectAltNames extensions from X509Certificate
+ * Utility class to validate a server X.509 Certificate of a service provider.
  */
-public class ASN1SubjectAltNamesParser {
+public class ServiceProviderVerifier {
+    private static final String TAG = "ServiceProviderVerifier";
+
     private static final int OTHER_NAME = 0;
     private static final int ENTRY_COUNT = 2;
     private static final int LANGUAGE_CODE_LENGTH = 3;
@@ -165,7 +172,48 @@ public class ASN1SubjectAltNamesParser {
     }
 
     /**
-     *  Extract the language code and friendly Name from the alternativeName.
+     * Verifies a SHA-256 fingerprint of a X.509 Certificate.
+     *
+     * The SHA-256 fingerprint is calculated over the X.509 ASN.1 DER encoded certificate.
+     * @param x509Cert              a server X.509 Certificate to verify
+     * @param certSHA256Fingerprint a SHA-256 hash value stored in PPS(PerProviderSubscription)
+     *                              MO(Management Object)
+     *                              SubscriptionUpdate/TrustRoot/CertSHA256Fingerprint for
+     *                              remediation server
+     *                              AAAServerTrustRoot/CertSHA256Fingerprint for AAA server
+     *                              PolicyUpdate/TrustRoot/CertSHA256Fingerprint for Policy Server
+     *
+     * @return {@code true} if the fingerprint of {@code x509Cert} is equal to {@code
+     * certSHA256Fingerprint}, {@code false} otherwise.
+     */
+    public static boolean verifyCertFingerprint(@NonNull X509Certificate x509Cert,
+            @NonNull byte[] certSHA256Fingerprint) {
+        try {
+            byte[] fingerPrintSha256 = computeHash(x509Cert.getEncoded());
+            if (fingerPrintSha256 == null) return false;
+            if (Arrays.equals(fingerPrintSha256, certSHA256Fingerprint)) {
+                return true;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "verifyCertFingerprint err:" + e);
+        }
+        return false;
+    }
+
+    /**
+     * Computes a hash with SHA-256 algorithm for the input.
+     */
+    private static byte[] computeHash(byte[] input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input);
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Extracts the language code and friendly Name from the alternativeName.
      */
     private static Pair<Locale, String> getFriendlyName(String alternativeName) {
 
@@ -189,4 +237,3 @@ public class ASN1SubjectAltNamesParser {
         return Pair.create(locale, friendlyName);
     }
 }
-

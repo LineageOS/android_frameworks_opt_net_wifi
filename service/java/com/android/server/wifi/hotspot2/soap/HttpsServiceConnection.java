@@ -39,10 +39,14 @@ import javax.net.ssl.SSLSocketFactory;
  * https connection for SOAP message.
  */
 public class HttpsServiceConnection implements ServiceConnection {
+    // TODO(117906601): find an optimal value for a connection timeout
+    public static final int DEFAULT_TIMEOUT_MS  = 5000; // 5 seconds
     private HttpsURLConnection mConnection;
 
     public HttpsServiceConnection(Network network, URL url) throws IOException {
         mConnection = (HttpsURLConnection) network.openConnection(url);
+        mConnection.setConnectTimeout(DEFAULT_TIMEOUT_MS);
+        mConnection.setReadTimeout(DEFAULT_TIMEOUT_MS);
     }
 
     @Override
