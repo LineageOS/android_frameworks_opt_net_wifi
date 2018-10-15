@@ -123,11 +123,32 @@ public class WifiConfigurationUtil {
     }
 
     /**
+     * Helper method to check if the provided |config| corresponds to an SAE network or not.
+     */
+    public static boolean isConfigForSaeNetwork(WifiConfiguration config) {
+        return config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SAE);
+    }
+
+    /**
+     * Helper method to check if the provided |config| corresponds to an OWE network or not.
+     */
+    public static boolean isConfigForOweNetwork(WifiConfiguration config) {
+        return config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OWE);
+    }
+
+    /**
      * Helper method to check if the provided |config| corresponds to a EAP network or not.
      */
     public static boolean isConfigForEapNetwork(WifiConfiguration config) {
         return (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP)
                 || config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
+    }
+
+    /**
+     * Helper method to check if the provided |config| corresponds to a EAP Suite-B network or not.
+     */
+    public static boolean isConfigForEapSuiteBNetwork(WifiConfiguration config) {
+        return config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192);
     }
 
     /**
@@ -139,11 +160,13 @@ public class WifiConfigurationUtil {
     }
 
     /**
-     * Helper method to check if the provided |config| corresponds to an open network or not.
+     * Helper method to check if the provided |config| corresponds to an open or enhanced
+     * open network, or not.
      */
     public static boolean isConfigForOpenNetwork(WifiConfiguration config) {
-        return !(isConfigForWepNetwork(config) || isConfigForPskNetwork(config)
-                || isConfigForEapNetwork(config));
+        return (!(isConfigForWepNetwork(config) || isConfigForPskNetwork(config)
+                || isConfigForEapNetwork(config) || isConfigForSaeNetwork(config)
+                || isConfigForEapSuiteBNetwork(config)));
     }
 
     /**
@@ -262,6 +285,14 @@ public class WifiConfigurationUtil {
                 newConfig.allowedGroupCiphers)) {
             return true;
         }
+        if (!Objects.equals(existingConfig.allowedGroupMgmtCiphers,
+                newConfig.allowedGroupMgmtCiphers)) {
+            return true;
+        }
+        if (!Objects.equals(existingConfig.allowedSuiteBCiphers,
+                newConfig.allowedSuiteBCiphers)) {
+            return true;
+        }
         if (!Objects.equals(existingConfig.preSharedKey, newConfig.preSharedKey)) {
             return true;
         }
@@ -272,6 +303,9 @@ public class WifiConfigurationUtil {
             return true;
         }
         if (existingConfig.hiddenSSID != newConfig.hiddenSSID) {
+            return true;
+        }
+        if (existingConfig.requirePMF != newConfig.requirePMF) {
             return true;
         }
         if (hasEnterpriseConfigChanged(existingConfig.enterpriseConfig,
