@@ -21,6 +21,7 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.hardware.SystemSensorManager;
+import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.IWifiScanner;
@@ -533,8 +534,28 @@ public class WifiInjector {
                 mWifiNetworkSelector, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mWifiCoreHandlerThread.getLooper(),
-                mClock, mConnectivityLocalLog, true,
+                mClock, mConnectivityLocalLog,
                 mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator);
+    }
+
+    /**
+     * Construct a new instance of {@link WifiNetworkFactory}.
+     * TODO(b/116233964): Remove cyclic dependency between WifiConnectivityManager & ClientModeImpl.
+     */
+    public WifiNetworkFactory makeWifiNetworkFactory(
+            NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
+        return new WifiNetworkFactory(
+                mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
+    }
+
+    /**
+     * Construct a new instance of {@link UntrustedWifiNetworkFactory}.
+     * TODO(b/116233964): Remove cyclic dependency between WifiConnectivityManager & ClientModeImpl.
+     */
+    public UntrustedWifiNetworkFactory makeUntrustedWifiNetworkFactory(
+            NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
+        return new UntrustedWifiNetworkFactory(
+                mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
     }
 
     public WifiPermissionsUtil getWifiPermissionsUtil() {

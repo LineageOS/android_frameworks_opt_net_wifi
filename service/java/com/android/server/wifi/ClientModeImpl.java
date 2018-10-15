@@ -41,11 +41,9 @@ import android.net.MacAddress;
 import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
-import android.net.NetworkFactory;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
 import android.net.NetworkMisc;
-import android.net.NetworkRequest;
 import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.net.StaticIpConfiguration;
@@ -85,7 +83,6 @@ import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.internal.R;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
@@ -133,7 +130,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ClientModeImpl extends StateMachine {
 
     private static final String NETWORKTYPE = "WIFI";
-    private static final String NETWORKTYPE_UNTRUSTED = "WIFI_UT";
     @VisibleForTesting public static final short NUM_LOG_RECS_NORMAL = 100;
     @VisibleForTesting public static final short NUM_LOG_RECS_VERBOSE_LOW_MEMORY = 200;
     @VisibleForTesting public static final short NUM_LOG_RECS_VERBOSE = 3000;
@@ -387,14 +383,9 @@ public class ClientModeImpl extends StateMachine {
     // Used to initiate a connection with WifiP2pService
     private AsyncChannel mWifiP2pChannel;
 
-    @GuardedBy("mWifiReqCountLock")
-    private int mConnectionReqCount = 0;
     private WifiNetworkFactory mNetworkFactory;
-    @GuardedBy("mWifiReqCountLock")
-    private int mUntrustedReqCount = 0;
     private UntrustedWifiNetworkFactory mUntrustedNetworkFactory;
     private WifiNetworkAgent mNetworkAgent;
-    private final Object mWifiReqCountLock = new Object();
 
     private byte[] mRssiRanges;
 
@@ -815,6 +806,16 @@ public class ClientModeImpl extends StateMachine {
         mNetworkCapabilitiesFilter.setLinkDownstreamBandwidthKbps(1024 * 1024);
         // TODO - needs to be a bit more dynamic
         mDfltNetworkCapabilities = new NetworkCapabilities(mNetworkCapabilitiesFilter);
+
+        // Make the network factories.
+        mNetworkFactory = mWifiInjector.makeWifiNetworkFactory(
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+        // We can't filter untrusted network in the capabilities filter because a trusted
+        // network would still satisfy a request that accepts untrusted ones.
+        // We need a second network factory for untrusted network requests because we need a
+        // different score filter for these requests.
+        mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -1916,18 +1917,8 @@ public class ClientModeImpl extends StateMachine {
         pw.println("mUserWantsSuspendOpt " + mUserWantsSuspendOpt);
         pw.println("mSuspendOptNeedsDisabled " + mSuspendOptNeedsDisabled);
         mCountryCode.dump(fd, pw, args);
-
-        if (mNetworkFactory != null) {
-            mNetworkFactory.dump(fd, pw, args);
-        } else {
-            pw.println("mNetworkFactory is not initialized");
-        }
-
-        if (mUntrustedNetworkFactory != null) {
-            mUntrustedNetworkFactory.dump(fd, pw, args);
-        } else {
-            pw.println("mUntrustedNetworkFactory is not initialized");
-        }
+        mNetworkFactory.dump(fd, pw, args);
+        mUntrustedNetworkFactory.dump(fd, pw, args);
         pw.println("Wlan Wake Reasons:" + mWifiNative.getWlanWakeReasonCount());
         pw.println();
 
@@ -2432,10 +2423,15 @@ public class ClientModeImpl extends StateMachine {
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
-    private void checkAndSetConnectivityInstance() {
+    private boolean checkAndSetConnectivityInstance() {
         if (mCm == null) {
             mCm = (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         }
+        if (mCm == null) {
+            Log.e(TAG, "Cannot retrieve connectivity service");
+            return false;
+        }
+        return true;
     }
 
     private void setSuspendOptimizationsNative(int reason, boolean enabled) {
@@ -3100,98 +3096,10 @@ public class ClientModeImpl extends StateMachine {
         return true;
     }
 
-    private class WifiNetworkFactory extends NetworkFactory {
-        WifiNetworkFactory(Looper l, Context c, String tag, NetworkCapabilities f) {
-            super(l, c, tag, f);
-        }
-
-        @Override
-        protected void needNetworkFor(NetworkRequest networkRequest, int score) {
-            synchronized (mWifiReqCountLock) {
-                if (++mConnectionReqCount == 1) {
-                    if (mUntrustedReqCount == 0) {
-                        mWifiConnectivityManager.enable(true);
-                    }
-                }
-            }
-        }
-
-        @Override
-        protected void releaseNetworkFor(NetworkRequest networkRequest) {
-            synchronized (mWifiReqCountLock) {
-                if (--mConnectionReqCount == 0) {
-                    if (mUntrustedReqCount == 0) {
-                        mWifiConnectivityManager.enable(false);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
-            pw.println("mConnectionReqCount " + mConnectionReqCount);
-        }
-
-    }
-
-    private class UntrustedWifiNetworkFactory extends NetworkFactory {
-        UntrustedWifiNetworkFactory(Looper l, Context c, String tag, NetworkCapabilities f) {
-            super(l, c, tag, f);
-        }
-
-        @Override
-        protected void needNetworkFor(NetworkRequest networkRequest, int score) {
-            if (!networkRequest.networkCapabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_TRUSTED)) {
-                synchronized (mWifiReqCountLock) {
-                    if (++mUntrustedReqCount == 1) {
-                        if (mConnectionReqCount == 0) {
-                            mWifiConnectivityManager.enable(true);
-                        }
-                        mWifiConnectivityManager.setUntrustedConnectionAllowed(true);
-                    }
-                }
-            }
-        }
-
-        @Override
-        protected void releaseNetworkFor(NetworkRequest networkRequest) {
-            if (!networkRequest.networkCapabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_TRUSTED)) {
-                synchronized (mWifiReqCountLock) {
-                    if (--mUntrustedReqCount == 0) {
-                        mWifiConnectivityManager.setUntrustedConnectionAllowed(false);
-                        if (mConnectionReqCount == 0) {
-                            mWifiConnectivityManager.enable(false);
-                        }
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
-            pw.println("mUntrustedReqCount " + mUntrustedReqCount);
-        }
-    }
-
-    void maybeRegisterNetworkFactory() {
-        if (mNetworkFactory == null) {
-            checkAndSetConnectivityInstance();
-            if (mCm != null) {
-                mNetworkFactory = new WifiNetworkFactory(getHandler().getLooper(), mContext,
-                        NETWORKTYPE, mNetworkCapabilitiesFilter);
-                mNetworkFactory.setScoreFilter(60);
-                mNetworkFactory.register();
-
-                // We can't filter untrusted network in the capabilities filter because a trusted
-                // network would still satisfy a request that accepts untrusted ones.
-                mUntrustedNetworkFactory = new UntrustedWifiNetworkFactory(getHandler().getLooper(),
-                        mContext, NETWORKTYPE_UNTRUSTED, mNetworkCapabilitiesFilter);
-                mUntrustedNetworkFactory.setScoreFilter(Integer.MAX_VALUE);
-                mUntrustedNetworkFactory.register();
-            }
-        }
+    void registerNetworkFactory() {
+        if (!checkAndSetConnectivityInstance()) return;
+        mNetworkFactory.register();
+        mUntrustedNetworkFactory.register();
     }
 
     /**
@@ -3380,7 +3288,7 @@ public class ClientModeImpl extends StateMachine {
                     if (!mWifiConfigManager.loadFromStore()) {
                         Log.e(TAG, "Failed to load from config store");
                     }
-                    maybeRegisterNetworkFactory();
+                    registerNetworkFactory();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
                     handleScreenStateChanged(message.arg1 != 0);
@@ -4129,20 +4037,17 @@ public class ClientModeImpl extends StateMachine {
                     int uid = message.arg2;
                     bssid = (String) message.obj;
 
-                    synchronized (mWifiReqCountLock) {
-                        if (!hasConnectionRequests()) {
-                            if (mNetworkAgent == null) {
-                                loge("CMD_START_CONNECT but no requests and not connected,"
-                                        + " bailing");
-                                break;
-                            } else if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
-                                loge("CMD_START_CONNECT but no requests and connected, but app "
-                                        + "does not have sufficient permissions, bailing");
-                                break;
-                            }
+                    if (!hasConnectionRequests()) {
+                        if (mNetworkAgent == null) {
+                            loge("CMD_START_CONNECT but no requests and not connected,"
+                                    + " bailing");
+                            break;
+                        } else if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+                            loge("CMD_START_CONNECT but no requests and connected, but app "
+                                    + "does not have sufficient permissions, bailing");
+                            break;
                         }
                     }
-
                     config = mWifiConfigManager.getConfiguredNetworkWithoutMasking(netId);
                     logd("CMD_START_CONNECT sup state "
                             + mSupplicantStateTracker.getSupplicantStateName()
@@ -5874,10 +5779,10 @@ public class ClientModeImpl extends StateMachine {
 
     /**
      * Check if there is any connection request for WiFi network.
-     * Note, caller of this helper function must acquire mWifiReqCountLock.
      */
     private boolean hasConnectionRequests() {
-        return mConnectionReqCount > 0 || mUntrustedReqCount > 0;
+        return mNetworkFactory.hasConnectionRequests()
+                || mUntrustedNetworkFactory.hasConnectionRequests();
     }
 
     /**
