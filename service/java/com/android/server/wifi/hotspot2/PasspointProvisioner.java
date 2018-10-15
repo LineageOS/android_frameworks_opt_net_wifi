@@ -34,11 +34,13 @@ import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.hotspot2.soap.ExchangeCompleteMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
 import com.android.server.wifi.hotspot2.soap.RedirectListener;
 import com.android.server.wifi.hotspot2.soap.SppConstants;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
+import com.android.server.wifi.hotspot2.soap.UpdateResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
 import com.android.server.wifi.hotspot2.soap.command.PpsMoData;
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
@@ -151,6 +153,7 @@ public class PasspointProvisioner {
         static final int STATE_WAITING_FOR_FIRST_SOAP_RESPONSE = 5;
         static final int STATE_WAITING_FOR_REDIRECT_RESPONSE = 6;
         static final int STATE_WAITING_FOR_SECOND_SOAP_RESPONSE = 7;
+        static final int STATE_WAITING_FOR_THIRD_SOAP_RESPONSE = 8;
 
         private OsuProvider mOsuProvider;
         private IProvisioningCallback mProvisioningCallback;
@@ -429,7 +432,37 @@ public class PasspointProvisioner {
                 PasspointConfiguration passpointConfig = buildPasspointConfiguration(
                             (PpsMoData) devDataResponse.getSppCommand().getCommandData());
 
-                // TODO(b/74244324): Implement a routine to transmit third SOAP message.
+                thirdSoapExchange(passpointConfig == null);
+            } else if (mState == STATE_WAITING_FOR_THIRD_SOAP_RESPONSE) {
+                if (responseMessage.getMessageType()
+                        != SppResponseMessage.MessageType.EXCHANGE_COMPLETE) {
+                    Log.e(TAG, "Expected a ExchangeCompleteMessage, but got "
+                            + responseMessage.getMessageType());
+                    resetStateMachine(
+                            ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE);
+                    return;
+                }
+
+                ExchangeCompleteMessage exchangeCompleteMessage =
+                        (ExchangeCompleteMessage) responseMessage;
+                if (exchangeCompleteMessage.getStatus()
+                        != SppConstants.SppStatus.EXCHANGE_COMPLETE) {
+                    Log.e(TAG, "Expected a ExchangeCompleteMessage Status, but got "
+                            + exchangeCompleteMessage.getStatus());
+                    resetStateMachine(
+                            ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_STATUS);
+                    return;
+                }
+
+                if (exchangeCompleteMessage.getError() != SppConstants.INVALID_SPP_CONSTANT) {
+                    Log.e(TAG,
+                            "In the SppExchangeComplete, got error "
+                                    + exchangeCompleteMessage.getError());
+                    resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                    return;
+                }
+
+                // TODO(b/74244324): Implement a routine to get CAs for AAA, Remediation, Policy.
             } else {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "Received an unexpected SOAP message in state=" + mState);
@@ -622,6 +655,33 @@ public class PasspointProvisioner {
                 invokeProvisioningCallback(PROVISIONING_STATUS,
                         ProvisioningCallback.OSU_STATUS_SECOND_SOAP_EXCHANGE);
                 changeState(STATE_WAITING_FOR_SECOND_SOAP_RESPONSE);
+            } else {
+                Log.e(TAG, "HttpsConnection is not established for soap message exchange");
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
+                return;
+            }
+        }
+
+        /**
+         * Initiates the third SOAP message exchange with sending the sppUpdateResponse message.
+         */
+        private void thirdSoapExchange(boolean isError) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Initiates the third soap message exchange in state =" + mState);
+            }
+
+            if (mState != STATE_WAITING_FOR_SECOND_SOAP_RESPONSE) {
+                Log.e(TAG, "Initiates the third soap message exchange in wrong state=" + mState);
+                resetStateMachine(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+                return;
+            }
+
+            // Sending the sppUpdateResponse message.
+            if (mOsuServerConnection.exchangeSoapMessage(
+                    UpdateResponseMessage.serializeToSoapEnvelope(mSessionId, isError))) {
+                invokeProvisioningCallback(PROVISIONING_STATUS,
+                        ProvisioningCallback.OSU_STATUS_THIRD_SOAP_EXCHANGE);
+                changeState(STATE_WAITING_FOR_THIRD_SOAP_RESPONSE);
             } else {
                 Log.e(TAG, "HttpsConnection is not established for soap message exchange");
                 resetStateMachine(ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);

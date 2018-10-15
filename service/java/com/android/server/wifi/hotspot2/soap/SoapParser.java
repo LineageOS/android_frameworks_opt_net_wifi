@@ -37,6 +37,9 @@ public class SoapParser {
             case "sppPostDevDataResponse":
                 responseMessage = PostDevDataResponse.createInstance(response);
                 break;
+            case "sppExchangeComplete":
+                responseMessage = ExchangeCompleteMessage.createInstance(response);
+                break;
             default:
                 responseMessage = null;
         }
