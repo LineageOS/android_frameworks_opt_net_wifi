@@ -33,6 +33,7 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.provider.Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
@@ -160,6 +161,7 @@ public class WifiServiceImplTest {
     final ArgumentCaptor<Message> mMessageCaptor = ArgumentCaptor.forClass(Message.class);
     final ArgumentCaptor<SoftApModeConfiguration> mSoftApModeConfigCaptor =
             ArgumentCaptor.forClass(SoftApModeConfiguration.class);
+    final ArgumentCaptor<Handler> mHandlerCaptor = ArgumentCaptor.forClass(Handler.class);
 
     @Mock Context mContext;
     @Mock WifiInjector mWifiInjector;
@@ -270,6 +272,7 @@ public class WifiServiceImplTest {
         mHandler = spy(new Handler(mLooper.getLooper()));
         mAppMessenger = new Messenger(mHandler);
 
+        WifiInjector.sWifiInjector = mWifiInjector;
         when(mRequestInfo.getPid()).thenReturn(mPid);
         when(mRequestInfo2.getPid()).thenReturn(mPid2);
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
@@ -278,6 +281,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
         when(mClientModeImpl.syncInitialize(any())).thenReturn(true);
+        when(mClientModeImpl.getHandler()).thenReturn(new Handler());
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
@@ -1358,9 +1362,47 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that WifiServiceImpl does not send the stop ap message if there were no
-     * pending LOHS requests upon a binder death callback.
+     * Verify that by default startLocalOnlyHotspot starts access point at 2 GHz.
      */
+    @Test
+    public void testStartLocalOnlyHotspotAt2Ghz() {
+        registerLOHSRequestFull();
+        verifyLohsBand(WifiConfiguration.AP_BAND_2GHZ);
+    }
+
+    /**
+     * Verify that startLocalOnlyHotspot will start access point at 5 GHz if properly configured.
+     */
+    @Test
+    public void testStartLocalOnlyHotspotAt5Ghz() {
+        when(mResources.getBoolean(
+                eq(com.android.internal.R.bool.config_wifi_local_only_hotspot_5ghz)))
+                .thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
+        when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
+                .thenReturn(WIFI_FEATURE_INFRA_5G);
+
+        verify(mAsyncChannel).connect(any(), mHandlerCaptor.capture(), any(Handler.class));
+        final Handler handler = mHandlerCaptor.getValue();
+        handler.handleMessage(handler.obtainMessage(
+                AsyncChannel.CMD_CHANNEL_HALF_CONNECTED, AsyncChannel.STATUS_SUCCESSFUL, 0));
+
+        registerLOHSRequestFull();
+        verifyLohsBand(WifiConfiguration.AP_BAND_5GHZ);
+    }
+
+    private void verifyLohsBand(int expectedBand) {
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+        final WifiConfiguration configuration = mSoftApModeConfigCaptor.getValue().mConfig;
+        assertNotNull(configuration);
+        assertEquals(expectedBand, configuration.apBand);
+    }
+
+    /**
+         * Verify that WifiServiceImpl does not send the stop ap message if there were no
+         * pending LOHS requests upon a binder death callback.
+         */
     @Test
     public void testServiceImplNotCalledWhenBinderDeathTriggeredNoRequests() {
         LocalOnlyRequestorCallback binderDeathCallback =
