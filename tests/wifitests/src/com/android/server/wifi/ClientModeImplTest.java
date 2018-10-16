@@ -999,7 +999,7 @@ public class ClientModeImplTest {
         config.networkId = FRAMEWORK_NETWORK_ID + 1;
         setupAndStartConnectSequence(config);
         validateSuccessfulConnectSequence(config);
-        verify(mWifiPermissionsUtil, times(4)).checkNetworkSettingsPermission(anyInt());
+        verify(mWifiPermissionsUtil, atLeastOnce()).checkNetworkSettingsPermission(anyInt());
     }
 
     /**
