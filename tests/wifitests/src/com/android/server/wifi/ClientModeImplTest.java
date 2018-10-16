@@ -42,10 +42,8 @@ import android.net.LinkProperties;
 import android.net.MacAddress;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
-import android.net.NetworkFactory;
 import android.net.NetworkInfo;
 import android.net.NetworkMisc;
-import android.net.NetworkRequest;
 import android.net.dhcp.DhcpClient;
 import android.net.ip.IpClient;
 import android.net.wifi.ScanResult;
@@ -136,8 +134,6 @@ public class ClientModeImplTest {
     private static final int FRAMEWORK_NETWORK_ID = 0;
     private static final int TEST_RSSI = -54;
     private static final int TEST_NETWORK_ID = 54;
-    private static final int TEST_VALID_NETWORK_SCORE = 54;
-    private static final int TEST_OUTSCORED_NETWORK_SCORE = 100;
     private static final int WPS_SUPPLICANT_NETWORK_ID = 5;
     private static final int WPS_FRAMEWORK_NETWORK_ID = 10;
     private static final String DEFAULT_TEST_SSID = "\"GoogleGuest\"";
@@ -325,7 +321,6 @@ public class ClientModeImplTest {
     HandlerThread mP2pThread;
     HandlerThread mSyncThread;
     AsyncChannel  mCmiAsyncChannel;
-    AsyncChannel  mNetworkFactoryChannel;
     TestAlarmManager mAlarmManager;
     MockWifiMonitor mWifiMonitor;
     TestLooper mLooper;
@@ -334,7 +329,6 @@ public class ClientModeImplTest {
     FrameworkFacade mFrameworkFacade;
     IpClient.Callback mIpClientCallback;
     PhoneStateListener mPhoneStateListener;
-    NetworkRequest mDefaultNetworkRequest;
     OsuProvider mOsuProvider;
     ContentObserver mContentObserver;
 
@@ -369,6 +363,8 @@ public class ClientModeImplTest {
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
     @Mock WakeupController mWakeupController;
     @Mock WifiDataStall mWifiDataStall;
+    @Mock WifiNetworkFactory mWifiNetworkFactory;
+    @Mock UntrustedWifiNetworkFactory mUntrustedWifiNetworkFactory;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -415,7 +411,13 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
         when(mWifiInjector.getWifiDataStall()).thenReturn(mWifiDataStall);
+        when(mWifiInjector.makeWifiNetworkFactory(any(), any())).thenReturn(mWifiNetworkFactory);
+        when(mWifiInjector.makeUntrustedWifiNetworkFactory(any(), any()))
+                .thenReturn(mUntrustedWifiNetworkFactory);
         when(mWifiNative.initialize()).thenReturn(true);
+
+        when(mWifiNetworkFactory.hasConnectionRequests()).thenReturn(true);
+        when(mUntrustedWifiNetworkFactory.hasConnectionRequests()).thenReturn(true);
 
         mFrameworkFacade = getFrameworkFacade();
         mContext = getContext();
@@ -505,34 +507,12 @@ public class ClientModeImplTest {
         mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
         mLooper.dispatchAll();
 
-        /* Simulate the initial NetworkRequest sent in by ConnectivityService. */
-        ArgumentCaptor<Messenger> captor = ArgumentCaptor.forClass(Messenger.class);
-        verify(mConnectivityManager, atLeast(2)).registerNetworkFactory(
-                captor.capture(), anyString());
-        Messenger networkFactoryMessenger = captor.getAllValues().get(0);
-        registerAsyncChannel((x) -> {
-            mNetworkFactoryChannel = x;
-        }, networkFactoryMessenger);
-
-        mDefaultNetworkRequest = new NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .build();
-        sendDefaultNetworkRequest(TEST_VALID_NETWORK_SCORE);
+        verify(mWifiNetworkFactory).register();
+        verify(mUntrustedWifiNetworkFactory).register();
 
         mLooper.startAutoDispatch();
         mCmi.syncInitialize(mCmiAsyncChannel);
         mLooper.stopAutoDispatch();
-    }
-
-    /**
-     * Helper function to resend the cached network request (id == 0) with the specified score.
-     * Note: If you need to add a separate network request, don't use the builder to create one
-     * since the new request object will again default to id == 0.
-     */
-    private void sendDefaultNetworkRequest(int score) {
-        mNetworkFactoryChannel.sendMessage(
-                NetworkFactory.CMD_REQUEST_NETWORK, score, 0, mDefaultNetworkRequest);
-        mLooper.dispatchAll();
     }
 
     @After
@@ -548,7 +528,6 @@ public class ClientModeImplTest {
         mSyncThread = null;
         mCmiAsyncChannel = null;
         mCmi = null;
-        mNetworkFactoryChannel = null;
     }
 
     @Test
@@ -934,8 +913,10 @@ public class ClientModeImplTest {
     @Test
     public void triggerConnectWithNoNetworkRequest() throws Exception {
         loadComponentsInStaMode();
-        // Change the network score to remove the network request.
-        sendDefaultNetworkRequest(TEST_OUTSCORED_NETWORK_SCORE);
+        // Remove the network requests.
+        when(mWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
+        when(mUntrustedWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
+
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         config.networkId = FRAMEWORK_NETWORK_ID;
         setupAndStartConnectSequence(config);
@@ -1010,8 +991,9 @@ public class ClientModeImplTest {
         // Simulate the first connection.
         connect();
 
-        // Change the network score to remove the network request.
-        sendDefaultNetworkRequest(TEST_OUTSCORED_NETWORK_SCORE);
+        // Remove the network requests.
+        when(mWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
+        when(mUntrustedWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         config.networkId = FRAMEWORK_NETWORK_ID + 1;
@@ -1034,8 +1016,9 @@ public class ClientModeImplTest {
         // Simulate the first connection.
         connect();
 
-        // Change the network score to remove the network request.
-        sendDefaultNetworkRequest(TEST_OUTSCORED_NETWORK_SCORE);
+        // Remove the network requests.
+        when(mWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
+        when(mUntrustedWifiNetworkFactory.hasConnectionRequests()).thenReturn(false);
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
 

@@ -84,7 +84,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
-import android.net.wifi.WifiWakeReasonAndCounts;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
@@ -1893,7 +1892,7 @@ public class WifiVendorHalTest {
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
 
-        WifiWakeReasonAndCounts retrievedStats = mWifiVendorHal.getWlanWakeReasonCount();
+        WlanWakeReasonAndCounts retrievedStats = mWifiVendorHal.getWlanWakeReasonCount();
         verify(mIWifiChip).getDebugHostWakeReasonStats(
                 any(IWifiChip.getDebugHostWakeReasonStatsCallback.class));
         assertNotNull(retrievedStats);

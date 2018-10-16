@@ -52,7 +52,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
-import android.net.wifi.WifiWakeReasonAndCounts;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
@@ -1963,10 +1962,10 @@ public class WifiVendorHal {
      * @param h - Hal version of wake reason stats
      * @return framework version of same
      */
-    private static WifiWakeReasonAndCounts halToFrameworkWakeReasons(
+    private static WlanWakeReasonAndCounts halToFrameworkWakeReasons(
             WifiDebugHostWakeReasonStats h) {
         if (h == null) return null;
-        WifiWakeReasonAndCounts ans = new WifiWakeReasonAndCounts();
+        WlanWakeReasonAndCounts ans = new WlanWakeReasonAndCounts();
         ans.totalCmdEventWake = h.totalCmdEventWakeCnt;
         ans.totalDriverFwLocalWake = h.totalDriverFwLocalWakeCnt;
         ans.totalRxDataWake = h.totalRxPacketWakeCnt;
@@ -1989,9 +1988,9 @@ public class WifiVendorHal {
     /**
      * Fetch the host wakeup reasons stats from wlan driver.
      *
-     * @return the |WifiWakeReasonAndCounts| from the wlan driver, or null on failure.
+     * @return the |WlanWakeReasonAndCounts| from the wlan driver, or null on failure.
      */
-    public WifiWakeReasonAndCounts getWlanWakeReasonCount() {
+    public WlanWakeReasonAndCounts getWlanWakeReasonCount() {
         class AnswerBox {
             public WifiDebugHostWakeReasonStats value = null;
         }
