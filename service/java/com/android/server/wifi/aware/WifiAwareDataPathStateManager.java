@@ -37,6 +37,7 @@ import android.net.NetworkSpecifier;
 import android.net.RouteInfo;
 import android.net.wifi.aware.WifiAwareAgentNetworkSpecifier;
 import android.net.wifi.aware.WifiAwareManager;
+import android.net.wifi.aware.WifiAwareNetworkInfo;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
 import android.net.wifi.aware.WifiAwareUtils;
 import android.os.Build;
@@ -61,6 +62,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -527,6 +529,23 @@ public class WifiAwareDataPathStateManager {
                     Log.v(TAG, "onDataPathConfirm: interface already configured: "
                             + nnri.interfaceName);
                 }
+            }
+
+            try {
+                nnri.peerIpv6 = Inet6Address.getByAddress(null,
+                        MacAddress.fromBytes(mac).getLinkLocalIpv6FromEui48Mac().getAddress(),
+                        NetworkInterface.getByName(nnri.interfaceName));
+            } catch (SocketException | UnknownHostException e) {
+                Log.e(TAG, "onDataPathConfirm: error obtaining scoped IPv6 address -- " + e);
+                nnri.peerIpv6 = null;
+            }
+
+            if (nnri.peerIpv6 != null) {
+                networkCapabilities.setTransportInfo(new WifiAwareNetworkInfo(nnri.peerIpv6));
+            }
+            if (VDBG) {
+                Log.v(TAG, "onDataPathConfirm: AwareNetworkInfo="
+                        + networkCapabilities.getTransportInfo());
             }
 
             if (!mNiWrapper.configureAgentProperties(nnri, nnri.equivalentSpecifiers, ndpId,
@@ -1014,6 +1033,7 @@ public class WifiAwareDataPathStateManager {
         public byte[] peerDiscoveryMac = null;
         public int ndpId = 0; // 0 is never a valid ID!
         public byte[] peerDataMac;
+        public Inet6Address peerIpv6;
         public WifiAwareNetworkSpecifier networkSpecifier;
         public List<NanDataPathChannelInfo> channelInfo;
         public long startTimestamp = 0; // request is made (initiator) / get request (responder)
@@ -1051,6 +1071,9 @@ public class WifiAwareDataPathStateManager {
             NetworkCapabilities nc = new NetworkCapabilities(sNetworkCapabilitiesFilter);
             nc.setNetworkSpecifier(new WifiAwareAgentNetworkSpecifier(equivalentSpecifiers.toArray(
                     new WifiAwareNetworkSpecifier[equivalentSpecifiers.size()])));
+            if (peerIpv6 != null) {
+                nc.setTransportInfo(new WifiAwareNetworkInfo(peerIpv6));
+            }
             return nc;
         }
 
@@ -1223,7 +1246,8 @@ public class WifiAwareDataPathStateManager {
                             : String.valueOf(HexEncoding.encode(peerDiscoveryMac))).append(
                     ", ndpId=").append(ndpId).append(", peerDataMac=").append(
                     peerDataMac == null ? ""
-                            : String.valueOf(HexEncoding.encode(peerDataMac))).append(
+                            : String.valueOf(HexEncoding.encode(peerDataMac)))
+                    .append(", peerIpv6=").append(peerIpv6).append(
                     ", startTimestamp=").append(startTimestamp).append(", channelInfo=").append(
                     channelInfo).append(", equivalentSpecifiers=[");
             for (WifiAwareNetworkSpecifier ns: equivalentSpecifiers) {
