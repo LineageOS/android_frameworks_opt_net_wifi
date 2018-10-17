@@ -28,6 +28,7 @@ import static android.net.wifi.WifiManager.SAP_START_FAILURE_NO_CHANNEL;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
 import static com.android.server.wifi.WifiController.CMD_AIRPLANE_TOGGLED;
@@ -1382,8 +1383,14 @@ public class WifiServiceImpl extends IWifiManager.Stub {
                 }
             } else if (mLocalOnlyHotspotRequests.isEmpty()) {
                 // this is the first request, then set up our config and start LOHS
-                mLocalOnlyHotspotConfig =
-                        WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext);
+                boolean is5Ghz = hasAutomotiveFeature(mContext)
+                        && mContext.getResources().getBoolean(
+                        com.android.internal.R.bool.config_wifi_local_only_hotspot_5ghz)
+                        && is5GhzSupported();
+
+                mLocalOnlyHotspotConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext,
+                        is5Ghz ? WifiConfiguration.AP_BAND_5GHZ : WifiConfiguration.AP_BAND_2GHZ);
+
                 startSoftApInternal(mLocalOnlyHotspotConfig, WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
             }
 
@@ -1612,12 +1619,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         if (mVerboseLoggingEnabled) {
             mLog.info("getSupportedFeatures uid=%").c(Binder.getCallingUid()).flush();
         }
-        if (mClientModeImplChannel != null) {
-            return mClientModeImpl.syncGetSupportedFeatures(mClientModeImplChannel);
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-            return 0;
-        }
+        return getSupportedFeaturesInternal();
     }
 
     @Override
@@ -2869,5 +2871,23 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         mClientHandler.post(() -> {
             mTrafficPoller.removeCallback(callbackIdentifier);
         });
+    }
+
+    private boolean is5GhzSupported() {
+        return (getSupportedFeaturesInternal() & WIFI_FEATURE_INFRA_5G) == WIFI_FEATURE_INFRA_5G;
+    }
+
+    private int getSupportedFeaturesInternal() {
+        final AsyncChannel channel = mClientModeImplChannel;
+        if (channel != null) {
+            return mClientModeImpl.syncGetSupportedFeatures(channel);
+        } else {
+            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            return 0;
+        }
+    }
+
+    private static boolean hasAutomotiveFeature(Context context) {
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE);
     }
 }
