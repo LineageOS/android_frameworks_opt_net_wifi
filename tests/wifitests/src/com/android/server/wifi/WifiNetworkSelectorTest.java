@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 
 import android.content.Context;
 import android.net.wifi.ScanResult;
+import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiInfo;
@@ -179,6 +180,7 @@ public class WifiNetworkSelectorTest {
 
     private void setupWifiInfo() {
         // simulate a disconnected state
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.DISCONNECTED);
         when(mWifiInfo.is24GHz()).thenReturn(true);
         when(mWifiInfo.is5GHz()).thenReturn(false);
         when(mWifiInfo.getFrequency()).thenReturn(2400);
@@ -360,6 +362,7 @@ public class WifiNetworkSelectorTest {
 
         // connect to test1
         mWifiNetworkSelector.selectNetwork(scanDetails, blacklist, mWifiInfo, false, true, false);
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.COMPLETED);
         when(mWifiInfo.getNetworkId()).thenReturn(0);
         when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
         when(mWifiInfo.is24GHz()).thenReturn(false);
@@ -407,6 +410,7 @@ public class WifiNetworkSelectorTest {
 
         // connect to test1
         mWifiNetworkSelector.selectNetwork(scanDetails, blacklist, mWifiInfo, false, true, false);
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.COMPLETED);
         when(mWifiInfo.getNetworkId()).thenReturn(0);
         when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
         when(mWifiInfo.is24GHz()).thenReturn(false);
@@ -454,6 +458,7 @@ public class WifiNetworkSelectorTest {
 
         // connect to test1
         mWifiNetworkSelector.selectNetwork(scanDetails, blacklist, mWifiInfo, false, true, false);
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.COMPLETED);
         when(mWifiInfo.getNetworkId()).thenReturn(0);
         when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
         when(mWifiInfo.is24GHz()).thenReturn(false);
@@ -534,6 +539,7 @@ public class WifiNetworkSelectorTest {
         WifiConfiguration candidate = mWifiNetworkSelector.selectNetwork(scanDetails,
                 blacklist, mWifiInfo, false, true, false);
 
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.COMPLETED);
         when(mWifiInfo.getNetworkId()).thenReturn(0);
         when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
         when(mWifiInfo.is24GHz()).thenReturn(true);
@@ -962,6 +968,7 @@ public class WifiNetworkSelectorTest {
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanDetails.get(0).getScanResult(), candidate);
 
+        when(mWifiInfo.getSupplicantState()).thenReturn(SupplicantState.COMPLETED);
         when(mWifiInfo.getNetworkId()).thenReturn(0);
         when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
         when(mWifiInfo.is24GHz()).thenReturn(!ScanResult.is5GHz(freqs[0]));
