@@ -46,7 +46,7 @@ public class RedirectListener extends NanoHTTPD {
     @VisibleForTesting
     static final int USER_TIMEOUT_MILLIS = 4 * 60 * 1000;
 
-    private static final String TAG = "RedirectListener";
+    private static final String TAG = "PasspointRedirectListener";
 
     private final String mPath;
     private final URL mServerUrl;

@@ -33,7 +33,7 @@ import java.util.Objects;
  * For the details, refer to A.3.2 of Hotspot 2.0 rel2 technical specification.
  */
 public class SppCommand {
-    private static final String TAG = "SppCommand";
+    private static final String TAG = "PasspointSppCommand";
     private int mSppCommandId;
     private int mExecCommandId = -1;
     private SppCommandData mCommandData;

@@ -42,7 +42,7 @@ import java.util.Locale;
  * Utility class to validate a server X.509 Certificate of a service provider.
  */
 public class ServiceProviderVerifier {
-    private static final String TAG = "ServiceProviderVerifier";
+    private static final String TAG = "PasspointServiceProviderVerifier";
 
     private static final int OTHER_NAME = 0;
     private static final int ENTRY_COUNT = 2;

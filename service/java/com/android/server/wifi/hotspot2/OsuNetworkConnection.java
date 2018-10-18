@@ -38,7 +38,7 @@ import android.util.Log;
  * Responsible for setup/monitor on Wi-Fi state and connection to the OSU AP.
  */
 public class OsuNetworkConnection {
-    private static final String TAG = "OsuNetworkConnection";
+    private static final String TAG = "PasspointOsuNetworkConnection";
     private static final int TIMEOUT_MS = 10000;
 
     private final Context mContext;
