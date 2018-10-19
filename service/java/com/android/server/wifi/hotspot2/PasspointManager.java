@@ -167,9 +167,10 @@ public class PasspointManager {
     }
 
     /**
-     * Data provider for the Passpoint configuration store data {@link PasspointConfigStoreData}.
+     * Data provider for the Passpoint configuration store data
+     * {@link PasspointConfigUserStoreData}.
      */
-    private class DataSourceHandler implements PasspointConfigStoreData.DataSource {
+    private class UserDataSourceHandler implements PasspointConfigUserStoreData.DataSource {
         @Override
         public List<PasspointProvider> getProviders() {
             List<PasspointProvider> providers = new ArrayList<>();
@@ -186,7 +187,13 @@ public class PasspointManager {
                 mProviders.put(provider.getConfig().getHomeSp().getFqdn(), provider);
             }
         }
+    }
 
+    /**
+     * Data provider for the Passpoint configuration store data
+     * {@link PasspointConfigSharedStoreData}.
+     */
+    private class SharedDataSourceHandler implements PasspointConfigSharedStoreData.DataSource {
         @Override
         public long getProviderIndex() {
             return mProviderIndex;
@@ -214,8 +221,10 @@ public class PasspointManager {
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
-        wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigStoreData(
-                mKeyStore, mSimAccessor, new DataSourceHandler()));
+        wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigUserStoreData(
+                mKeyStore, mSimAccessor, new UserDataSourceHandler()));
+        wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
+                new SharedDataSourceHandler()));
         mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative);
         sPasspointManager = this;
     }

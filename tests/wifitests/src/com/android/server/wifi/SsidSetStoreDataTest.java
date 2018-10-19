@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
@@ -73,15 +72,14 @@ public class SsidSetStoreDataTest {
     /**
      * Helper function for serializing configuration data to a XML block.
      *
-     * @param shared Flag indicating serializing shared or user configurations
      * @return byte[] of the XML data
      * @throws Exception
      */
-    private byte[] serializeData(boolean shared) throws Exception {
+    private byte[] serializeData() throws Exception {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mSsidSetStoreData.serializeData(out, shared);
+        mSsidSetStoreData.serializeData(out);
         out.flush();
         return outputStream.toByteArray();
     }
@@ -90,36 +88,13 @@ public class SsidSetStoreDataTest {
      * Helper function for parsing configuration data from a XML block.
      *
      * @param data XML data to parse from
-     * @param shared Flag indicating parsing of shared or user configurations
      * @throws Exception
      */
-    private void deserializeData(byte[] data, boolean shared) throws Exception {
+    private void deserializeData(byte[] data) throws Exception {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
-        mSsidSetStoreData.deserializeData(in, in.getDepth(), shared);
-    }
-
-    /**
-     * Verify that a XmlPullParserException will be thrown when attempting to serialize data
-     * to the share store.
-     *
-     * @throws Exception
-     */
-    @Test(expected = XmlPullParserException.class)
-    public void serializeShareData() throws Exception {
-        serializeData(true /* shared */);
-    }
-
-    /**
-     * Verify that a XmlPullParserException will be thrown when attempting to deserialize
-     * data from the share store.
-     *
-     * @throws Exception
-     */
-    @Test(expected = XmlPullParserException.class)
-    public void deserializeShareData() throws Exception {
-        deserializeData(new byte[0], true /* shared */);
+        mSsidSetStoreData.deserializeData(in, in.getDepth());
     }
 
     /**
@@ -131,7 +106,7 @@ public class SsidSetStoreDataTest {
     @Test
     public void serializeEmptyConfigs() throws Exception {
         when(mDataSource.getSsids()).thenReturn(new HashSet<String>());
-        assertEquals(0, serializeData(false /* shared */).length);
+        assertEquals(0, serializeData().length);
     }
 
     /**
@@ -142,18 +117,20 @@ public class SsidSetStoreDataTest {
      */
     @Test
     public void deserializeEmptyStoreData() throws Exception {
-        deserializeData(new byte[0], false /* shared */);
+        deserializeData(new byte[0]);
         verify(mDataSource, never()).setSsids(any(Set.class));
     }
 
     /**
-     * Verify that {@link SsidSetStoreData} does not support share data.
+     * Verify that SsidSetStoreData is written to
+     * {@link WifiConfigStore#STORE_FILE_NAME_USER_GENERAL}.
      *
      * @throws Exception
      */
     @Test
-    public void supportShareData() throws Exception {
-        assertFalse(mSsidSetStoreData.supportShareData());
+    public void getUserStoreFileId() throws Exception {
+        assertEquals(WifiConfigStore.STORE_FILE_USER_GENERAL,
+                mSsidSetStoreData.getStoreFileId());
     }
 
     /**
@@ -167,7 +144,7 @@ public class SsidSetStoreDataTest {
         ssidSet.add(TEST_SSID1);
         ssidSet.add(TEST_SSID2);
         when(mDataSource.getSsids()).thenReturn(ssidSet);
-        byte[] actualData = serializeData(false /* shared */);
+        byte[] actualData = serializeData();
         assertTrue(Arrays.equals(TEST_SSID_SET_XML_BYTES, actualData));
     }
 
@@ -181,7 +158,7 @@ public class SsidSetStoreDataTest {
         Set<String> ssidSet = new HashSet<>();
         ssidSet.add(TEST_SSID1);
         ssidSet.add(TEST_SSID2);
-        deserializeData(TEST_SSID_SET_XML_BYTES, false /* shared */);
+        deserializeData(TEST_SSID_SET_XML_BYTES);
         verify(mDataSource).setSsids(eq(ssidSet));
     }
 
@@ -199,6 +176,6 @@ public class SsidSetStoreDataTest {
                         + "<string>" + TEST_SSID2 + "</string>\n"
                         + "<Unknown>" + "badInput" + "</Unknown>" // Unknown tag.
                         + "</set>\n";
-        deserializeData(ssidSet.getBytes(StandardCharsets.UTF_8), false /* shared */);
+        deserializeData(ssidSet.getBytes(StandardCharsets.UTF_8));
     }
 }
