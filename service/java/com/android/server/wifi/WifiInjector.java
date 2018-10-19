@@ -80,7 +80,7 @@ public class WifiInjector {
     private final FrameworkFacade mFrameworkFacade = new FrameworkFacade();
     private final HandlerThread mWifiServiceHandlerThread;
     private final HandlerThread mWifiCoreHandlerThread;
-    private final WifiTrafficPoller mTrafficPoller;
+    private final WifiTrafficPoller mWifiTrafficPoller;
     private final WifiCountryCode mCountryCode;
     private final BackupManagerProxy mBackupManagerProxy = new BackupManagerProxy();
     private final WifiApConfigStore mWifiApConfigStore;
@@ -201,8 +201,7 @@ public class WifiInjector {
         mWifiP2pNative = new WifiP2pNative(mSupplicantP2pIfaceHal, mHalDeviceManager);
 
         // Now get instances of all the objects that depend on the HandlerThreads
-        mTrafficPoller = new WifiTrafficPoller(mContext, mWifiServiceHandlerThread.getLooper(),
-                mWifiNative);
+        mWifiTrafficPoller = new WifiTrafficPoller(mWifiServiceHandlerThread.getLooper());
         mCountryCode = new WifiCountryCode(mWifiNative,
                 SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE),
                 mContext.getResources()
@@ -273,7 +272,7 @@ public class WifiInjector {
                 clientModeImplLooper, UserManager.get(mContext),
                 this, mBackupManagerProxy, mCountryCode, mWifiNative, mWifiScoreCard,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
-                mSarManager);
+                mSarManager, mWifiTrafficPoller);
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,
                 mWifiNative, new DefaultModeManager(mContext, clientModeImplLooper),
                 mBatteryStats);
@@ -360,7 +359,7 @@ public class WifiInjector {
     }
 
     public WifiTrafficPoller getWifiTrafficPoller() {
-        return mTrafficPoller;
+        return mWifiTrafficPoller;
     }
 
     public WifiCountryCode getWifiCountryCode() {
