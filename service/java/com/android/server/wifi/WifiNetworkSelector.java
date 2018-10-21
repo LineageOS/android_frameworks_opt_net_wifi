@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.net.NetworkKey;
 import android.net.wifi.ScanResult;
+import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.text.TextUtils;
@@ -81,7 +82,7 @@ public class WifiNetworkSelector {
     /**
      * Interface for WiFi Network Evaluator
      *
-     * A network scorer evaulates all the networks from the scan results and
+     * A network scorer evaluates all the networks from the scan results and
      * recommends the best network in its category to connect or roam to.
      */
     public interface NetworkEvaluator {
@@ -110,7 +111,7 @@ public class WifiNetworkSelector {
          *                       disconnected
          * @param connected      a flag to indicate if ClientModeImpl is in connected
          *                       state
-         * @param untrustedNetworkAllowed a flag to indidate if untrusted networks like
+         * @param untrustedNetworkAllowed a flag to indicate if untrusted networks like
          *                                ephemeral networks are allowed
          * @param connectableNetworks     a list of the ScanDetail and WifiConfiguration
          *                                pair which is used by the WifiLastResortWatchdog
@@ -137,12 +138,12 @@ public class WifiNetworkSelector {
                             mWifiConfigManager.getConfiguredNetwork(wifiInfo.getNetworkId());
 
         // Currently connected?
-        if (network == null) {
+        if (wifiInfo.getSupplicantState() != SupplicantState.COMPLETED) {
             localLog("No current connected network.");
             return false;
         } else {
-            localLog("Current connected network: " + network.SSID
-                    + " , ID: " + network.networkId);
+            localLog("Current connected network: " + wifiInfo.getSSID()
+                    + " , ID: " + wifiInfo.getNetworkId());
         }
 
         int currentRssi = wifiInfo.getRssi();
@@ -156,7 +157,7 @@ public class WifiNetworkSelector {
         }
 
         // Ephemeral network is not qualified.
-        if (network.ephemeral) {
+        if (wifiInfo.isEphemeral()) {
             localLog("Current network is an ephemeral one.");
             return false;
         }
