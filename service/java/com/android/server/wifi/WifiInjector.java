@@ -227,7 +227,8 @@ public class WifiInjector {
                 mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
-                new DeletedEphemeralSsidsStoreData());
+                new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
+                mWifiCoreHandlerThread.getLooper());
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
