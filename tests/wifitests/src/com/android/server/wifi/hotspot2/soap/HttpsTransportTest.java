@@ -17,6 +17,8 @@
 package com.android.server.wifi.hotspot2.soap;
 
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.net.Network;
@@ -29,6 +31,8 @@ import org.mockito.Mock;
 import java.io.IOException;
 import java.net.URL;
 
+import javax.net.ssl.HttpsURLConnection;
+
 /**
  * Unit tests for {@link HttpsTransport}.
  */
@@ -39,6 +43,7 @@ public class HttpsTransportTest {
     private HttpsTransport mHttpsTransport;
 
     @Mock Network mNetwork;
+    @Mock HttpsURLConnection mHttpsURLConnection;
 
     /**
      * Sets up test.
@@ -47,6 +52,7 @@ public class HttpsTransportTest {
     public void setUp() throws Exception {
         initMocks(this);
         mUrl = new URL(TEST_URL);
+        when(mNetwork.openConnection(any(URL.class))).thenReturn(mHttpsURLConnection);
         mHttpsTransport = HttpsTransport.createInstance(mNetwork, mUrl);
     }
 
