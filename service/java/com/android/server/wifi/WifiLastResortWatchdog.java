@@ -87,7 +87,7 @@ public class WifiLastResortWatchdog {
     private boolean mWatchdogAllowedToTrigger = true;
     private long mTimeLastTrigger;
 
-    private SelfRecovery mSelfRecovery;
+    private WifiInjector mWifiInjector;
     private WifiMetrics mWifiMetrics;
     private ClientModeImpl mClientModeImpl;
     private Looper mClientModeImplLooper;
@@ -97,9 +97,9 @@ public class WifiLastResortWatchdog {
     // did not fix the problem
     private boolean mWatchdogFixedWifi = true;
 
-    WifiLastResortWatchdog(SelfRecovery selfRecovery, Clock clock, WifiMetrics wifiMetrics,
+    WifiLastResortWatchdog(WifiInjector wifiInjector, Clock clock, WifiMetrics wifiMetrics,
             ClientModeImpl clientModeImpl, Looper clientModeImplLooper) {
-        mSelfRecovery = selfRecovery;
+        mWifiInjector = wifiInjector;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
         mClientModeImpl = clientModeImpl;
@@ -225,8 +225,7 @@ public class WifiLastResortWatchdog {
             mWatchdogFixedWifi = true;
             Log.e(TAG, "Watchdog triggering recovery");
             mTimeLastTrigger = mClock.getElapsedSinceBootMillis();
-            mSelfRecovery.trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-            // increment various watchdog trigger count stats
+            mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
             incrementWifiMetricsTriggerCounts();
             clearAllFailureCounts();
         }

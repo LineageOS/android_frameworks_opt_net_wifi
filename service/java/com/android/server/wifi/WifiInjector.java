@@ -526,7 +526,7 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
                 mWifiConfigManager, mWifiConfigStore, clientModeImpl,
                 new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
-        mWifiLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock,
+        mWifiLastResortWatchdog = new WifiLastResortWatchdog(this, mClock,
                 mWifiMetrics, clientModeImpl, clientModeImpl.getHandler().getLooper());
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
