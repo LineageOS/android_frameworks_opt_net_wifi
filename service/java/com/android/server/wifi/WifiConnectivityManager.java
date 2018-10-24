@@ -123,11 +123,6 @@ public class WifiConnectivityManager {
     public static final int WIFI_STATE_DISCONNECTED = 2;
     public static final int WIFI_STATE_TRANSITIONING = 3;
 
-    // Saved network evaluator priority
-    private static final int SAVED_NETWORK_EVALUATOR_PRIORITY = 1;
-    private static final int PASSPOINT_NETWORK_EVALUATOR_PRIORITY = 2;
-    private static final int SCORED_NETWORK_EVALUATOR_PRIORITY = 3;
-
     // Log tag for this class
     private static final String TAG = "WifiConnectivityManager";
 
@@ -439,7 +434,7 @@ public class WifiConnectivityManager {
         }
     }
 
-    // PNO scan results listener for both disconected and connected PNO scanning.
+    // PNO scan results listener for both disconnected and connected PNO scanning.
     // A PNO scan is initiated when screen is off.
     private class PnoScanListener implements WifiScanner.PnoScanListener {
         private List<ScanDetail> mScanDetails = new ArrayList<ScanDetail>();
@@ -637,15 +632,12 @@ public class WifiConnectivityManager {
                 PackageManager.FEATURE_WIFI_PASSPOINT);
         localLog("Passpoint is: " + (hs2Enabled ? "enabled" : "disabled"));
 
-        // Register the network evaluators
-        mNetworkSelector.registerNetworkEvaluator(savedNetworkEvaluator,
-                SAVED_NETWORK_EVALUATOR_PRIORITY);
+        // Register the network evaluators, in order
+        mNetworkSelector.registerNetworkEvaluator(savedNetworkEvaluator);
         if (hs2Enabled) {
-            mNetworkSelector.registerNetworkEvaluator(passpointNetworkEvaluator,
-                    PASSPOINT_NETWORK_EVALUATOR_PRIORITY);
+            mNetworkSelector.registerNetworkEvaluator(passpointNetworkEvaluator);
         }
-        mNetworkSelector.registerNetworkEvaluator(scoredNetworkEvaluator,
-                SCORED_NETWORK_EVALUATOR_PRIORITY);
+        mNetworkSelector.registerNetworkEvaluator(scoredNetworkEvaluator);
 
         // Listen to WifiConfigManager network update events
         mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());

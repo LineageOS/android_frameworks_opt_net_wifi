@@ -41,6 +41,7 @@ import java.util.List;
 @SmallTest
 public class WifiLastResortWatchdogTest {
     WifiLastResortWatchdog mLastResortWatchdog;
+    @Mock WifiInjector mWifiInjector;
     @Mock WifiMetrics mWifiMetrics;
     @Mock SelfRecovery mSelfRecovery;
     @Mock ClientModeImpl mClientModeImpl;
@@ -61,7 +62,8 @@ public class WifiLastResortWatchdogTest {
     public void setUp() throws Exception {
         initMocks(this);
         mLooper = new TestLooper();
-        mLastResortWatchdog = new WifiLastResortWatchdog(mSelfRecovery, mClock, mWifiMetrics,
+        when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
+        mLastResortWatchdog = new WifiLastResortWatchdog(mWifiInjector, mClock, mWifiMetrics,
                 mClientModeImpl, mLooper.getLooper());
         mLastResortWatchdog.setBugReportProbability(1);
     }

@@ -70,7 +70,7 @@ public class WifiNetworkSelectorTest {
                 new ScoringParams(mContext),
                 mWifiConfigManager, mClock,
                 mLocalLog);
-        mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator, 1);
+        mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
         when(mCarrierNetworkConfig.isCarrierNetwork(any())).thenReturn(true);

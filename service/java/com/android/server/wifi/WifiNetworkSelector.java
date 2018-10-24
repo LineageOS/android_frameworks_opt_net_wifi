@@ -30,6 +30,7 @@ import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.Preconditions;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
@@ -44,8 +45,10 @@ public class WifiNetworkSelector {
     private static final String TAG = "WifiNetworkSelector";
 
     private static final long INVALID_TIME_STAMP = Long.MIN_VALUE;
-    // Minimum time gap between last successful network selection and a new selection
-    // attempt.
+    /**
+     * Minimum time gap between last successful network selection and a
+     * new selection attempt.
+     */
     @VisibleForTesting
     public static final int MINIMUM_NETWORK_SELECTION_INTERVAL_MS = 10 * 1000;
 
@@ -64,26 +67,18 @@ public class WifiNetworkSelector {
     private final boolean mEnableAutoJoinWhenAssociated;
 
     /**
-     * WiFi Network Selector supports various types of networks. Each type can
-     * have its evaluator to choose the best WiFi network for the device to connect
-     * to. When registering a WiFi network evaluator with the WiFi Network Selector,
-     * the priority of the network must be specified, and it must be a value between
-     * 0 and (EVALUATOR_MIN_PIRORITY - 1) with 0 being the highest priority. Wifi
-     * Network Selector iterates through the registered scorers from the highest priority
-     * to the lowest till a network is selected.
+     * WiFi Network Selector supports various categories of networks. Each category
+     * has an evaluator to choose the best WiFi network to connect to. Evaluators
+     * should be registered in order, by decreasing importance.
+     * Wifi Network Selector iterates through the registered scorers in registration order
+     * until a network is selected.
      */
-    public static final int EVALUATOR_MIN_PRIORITY = 6;
-
-    /**
-     * Maximum number of evaluators can be registered with Wifi Network Selector.
-     */
-    public static final int MAX_NUM_EVALUATORS = EVALUATOR_MIN_PRIORITY;
 
     /**
      * Interface for WiFi Network Evaluator
      *
      * A network scorer evaluates all the networks from the scan results and
-     * recommends the best network in its category to connect or roam to.
+     * recommends the best network in its category to connect to.
      */
     public interface NetworkEvaluator {
         /**
@@ -95,7 +90,7 @@ public class WifiNetworkSelector {
          * Update the evaluator.
          *
          * Certain evaluators have to be updated with the new scan results. For example
-         * the ExternalScoreEvalutor needs to refresh its Score Cache.
+         * the ScoredNetworkEvaluator needs to refresh its Score Cache.
          *
          * @param scanDetails    a list of scan details constructed from the scan results
          */
@@ -125,7 +120,7 @@ public class WifiNetworkSelector {
                         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks);
     }
 
-    private final NetworkEvaluator[] mEvaluators = new NetworkEvaluator[MAX_NUM_EVALUATORS];
+    private final List<NetworkEvaluator> mEvaluators = new ArrayList<>(3);
 
     // A helper to log debugging information in the local log buffer, which can
     // be retrieved in bugreport.
@@ -451,8 +446,7 @@ public class WifiNetworkSelector {
             }
 
             if (status.getSeenInLastQualifiedNetworkSelection()
-                    && (status.getConnectChoice() == null
-                    || !status.getConnectChoice().equals(key))) {
+                        && !key.equals(status.getConnectChoice())) {
                 localLog("Add key: " + key + " Set Time: " + currentTime + " to "
                         + toNetworkString(network));
                 mWifiConfigManager.setNetworkConnectChoice(network.networkId, key, currentTime);
@@ -471,7 +465,7 @@ public class WifiNetworkSelector {
      */
     private WifiConfiguration overrideCandidateWithUserConnectChoice(
             @NonNull WifiConfiguration candidate) {
-        WifiConfiguration tempConfig = candidate;
+        WifiConfiguration tempConfig = Preconditions.checkNotNull(candidate);
         WifiConfiguration originalCandidate = candidate;
         ScanResult scanResultCandidate = candidate.getNetworkSelectionStatus().getCandidate();
 
@@ -536,9 +530,7 @@ public class WifiNetworkSelector {
 
         // Update the registered network evaluators.
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
-            if (registeredEvaluator != null) {
-                registeredEvaluator.update(scanDetails);
-            }
+            registeredEvaluator.update(scanDetails);
         }
 
         // Filter out unwanted networks.
@@ -548,21 +540,18 @@ public class WifiNetworkSelector {
             return null;
         }
 
-        // Go through the registered network evaluators from the highest priority
-        // one to the lowest till a network is selected.
+        // Go through the registered network evaluators in order until a network is selected.
         WifiConfiguration selectedNetwork = null;
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
-            if (registeredEvaluator != null) {
-                localLog("About to run " + registeredEvaluator.getName() + " :");
-                selectedNetwork = registeredEvaluator.evaluateNetworks(
-                        new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
-                        untrustedNetworkAllowed, mConnectableNetworks);
-                if (selectedNetwork != null) {
-                    localLog(registeredEvaluator.getName() + " selects "
-                            + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
-                            + selectedNetwork.getNetworkSelectionStatus().getCandidate().BSSID);
-                    break;
-                }
+            localLog("About to run " + registeredEvaluator.getName() + " :");
+            selectedNetwork = registeredEvaluator.evaluateNetworks(
+                    new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
+                    untrustedNetworkAllowed, mConnectableNetworks);
+            if (selectedNetwork != null) {
+                localLog(registeredEvaluator.getName() + " selects "
+                        + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
+                        + selectedNetwork.getNetworkSelectionStatus().getCandidate().BSSID);
+                break;
             }
         }
 
@@ -578,30 +567,14 @@ public class WifiNetworkSelector {
      * Register a network evaluator
      *
      * @param evaluator the network evaluator to be registered
-     * @param priority a value between 0 and (SCORER_MIN_PRIORITY-1)
      *
-     * @return true if the evaluator is successfully registered with QNS;
-     *         false if failed to register the evaluator
      */
-    public boolean registerNetworkEvaluator(NetworkEvaluator evaluator, int priority) {
-        if (priority < 0 || priority >= EVALUATOR_MIN_PRIORITY) {
-            localLog("Invalid network evaluator priority: " + priority);
-            return false;
-        }
-
-        if (mEvaluators[priority] != null) {
-            localLog("Priority " + priority + " is already registered by "
-                    + mEvaluators[priority].getName());
-            return false;
-        }
-
-        mEvaluators[priority] = evaluator;
-        return true;
+    public void registerNetworkEvaluator(@NonNull NetworkEvaluator evaluator) {
+        mEvaluators.add(Preconditions.checkNotNull(evaluator));
     }
 
     WifiNetworkSelector(Context context, ScoringParams scoringParams,
-            WifiConfigManager configManager, Clock clock,
-            LocalLog localLog) {
+            WifiConfigManager configManager, Clock clock, LocalLog localLog) {
         mWifiConfigManager = configManager;
         mClock = clock;
         mScoringParams = scoringParams;

@@ -16,11 +16,12 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static com.android.server.wifi.hotspot2.ASN1SubjectAltNamesParser
+import static com.android.server.wifi.hotspot2.ServiceProviderVerifier
         .ID_WFA_OID_HOTSPOT_FRIENDLYNAME;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doThrow;
@@ -50,10 +51,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Unit tests for {@link com.android.server.wifi.hotspot2.ASN1SubjectAltNamesParser}.
+ * Unit tests for {@link ServiceProviderVerifier}.
  */
 @SmallTest
-public class ASN1SubjectAltNamesParserTest {
+public class ServiceProviderVerifierTest {
     private List<List<?>> mNewNames;
     private static final String LOCAL_HOST_NAME = "localhost";
     private static final byte[] LOCAL_HOST_ADDRESS = {127, 0, 0, 1};
@@ -80,7 +81,7 @@ public class ASN1SubjectAltNamesParserTest {
      */
     @Test
     public void testNullForProviderCertShouldReturnEmptyList() {
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(null).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(null).isEmpty());
     }
 
     /**
@@ -90,7 +91,7 @@ public class ASN1SubjectAltNamesParserTest {
     @Test
     public void testNullFromgetSubjectAlternativeNamesShouldReturnEmptyList() throws Exception {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(null);
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -101,7 +102,7 @@ public class ASN1SubjectAltNamesParserTest {
     public void testEmptyListFromGetSubjectAlternativeNamesShouldReturnEmptyList()
             throws Exception {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(Collections.emptySet());
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -114,7 +115,7 @@ public class ASN1SubjectAltNamesParserTest {
         doThrow(new CertificateParsingException()).when(
                 mX509Certificate).getSubjectAlternativeNames();
 
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -131,7 +132,7 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -149,7 +150,7 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        assertTrue(ASN1SubjectAltNamesParser.getProviderNames(mX509Certificate).isEmpty());
+        assertTrue(ServiceProviderVerifier.getProviderNames(mX509Certificate).isEmpty());
     }
 
     /**
@@ -169,11 +170,41 @@ public class ASN1SubjectAltNamesParserTest {
         when(mX509Certificate.getSubjectAlternativeNames()).thenReturn(
                 Collections.unmodifiableCollection(mNewNames));
 
-        List<Pair<Locale, String>> result = ASN1SubjectAltNamesParser.getProviderNames(
+        List<Pair<Locale, String>> result = ServiceProviderVerifier.getProviderNames(
                 mX509Certificate);
 
         assertThat(result.size(), is(1));
         assertEquals(EXPECTED_RESULT, result.get(0));
+    }
+
+    /**
+     * Verify that verifyCertFingerPrint should return {@code true} when a fingerprint of {@link
+     * X509Certificate} is same with a value of hash provided.
+     */
+    @Test
+    public void testVerifyFingerPrintOfCertificateWithSameFingerPrintValueReturnTrue()
+            throws Exception {
+        String testData = "testData";
+        String testHash = "ba477a0ac57e10dd90bb5bf0289c5990fe839c619b26fde7c2aac62f526d4113";
+        when(mX509Certificate.getEncoded()).thenReturn(testData.getBytes());
+
+        assertTrue(ServiceProviderVerifier.verifyCertFingerprint(mX509Certificate,
+                hexToBytes(testHash)));
+    }
+
+    /**
+     * Verify that verifyCertFingerPrint should return {@code false} when a fingerprint of {@link
+     * X509Certificate} is different with a value of hash provided.
+     */
+    @Test
+    public void testVerifyFingerPrintOfCertificateWithDifferentFingerPrintValueReturnFalse()
+            throws Exception {
+        String testData = "differentData";
+        String testHash = "ba477a0ac57e10dd90bb5bf0289c5990fe839c619b26fde7c2aac62f526d4113";
+        when(mX509Certificate.getEncoded()).thenReturn(testData.getBytes());
+
+        assertFalse(ServiceProviderVerifier.verifyCertFingerprint(mX509Certificate,
+                hexToBytes(testHash)));
     }
 
     /**
@@ -186,5 +217,32 @@ public class ASN1SubjectAltNamesParserTest {
         nameEntry.add(name.getEncoded(encoding));
 
         return nameEntry;
+    }
+
+    /**
+     * Converts a hex string to an array of bytes. The {@code hex} should have an even length. If
+     * not, the last character will be ignored.
+     */
+    private byte[] hexToBytes(String hex) {
+        byte[] output = new byte[hex.length() / 2];
+        for (int i = 0, j = 0; i + 1 < hex.length(); i += 2, j++) {
+            output[j] = (byte) (charToByte(hex.charAt(i)) << 4 | charToByte(hex.charAt(i + 1)));
+        }
+        return output;
+    }
+
+    /**
+     * Converts a character of [0-9a-aA-F] to its hex value in a byte. If the character is not a
+     * hex number, 0 will be returned.
+     */
+    private byte charToByte(char c) {
+        if (c >= 0x30 && c <= 0x39) {
+            return (byte) (c - 0x30);
+        } else if (c >= 0x41 && c <= 0x46) {
+            return (byte) (c - 0x37);
+        } else if (c >= 0x61 && c <= 0x66) {
+            return (byte) (c - 0x57);
+        }
+        return 0;
     }
 }

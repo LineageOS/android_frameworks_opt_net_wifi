@@ -32,19 +32,28 @@ import com.android.server.wifi.hotspot2.soap.HttpsTransport;
 import com.android.server.wifi.hotspot2.soap.SoapParser;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
 
+import org.ksoap2.HeaderProperty;
 import org.ksoap2.serialization.AttributeInfo;
 import org.ksoap2.serialization.SoapObject;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -76,6 +85,10 @@ public class OsuServerConnection {
     private boolean mVerboseLoggingEnabled = false;
     private Looper mLooper;
 
+    public static final int TRUST_CERT_TYPE_AAA = 1;
+    public static final int TRUST_CERT_TYPE_REMEDIATION = 2;
+    public static final int TRUST_CERT_TYPE_POLICY = 3;
+
     @VisibleForTesting
     /* package */ OsuServerConnection(Looper looper) {
         mLooper = looper;
@@ -91,9 +104,9 @@ public class OsuServerConnection {
     }
 
     /**
-     * Initialize socket factory for server connection using HTTPS
+     * Initializes socket factory for server connection using HTTPS
      *
-     * @param tlsContext SSLContext that will be used for HTTPS connection
+     * @param tlsContext       SSLContext that will be used for HTTPS connection
      * @param trustManagerImpl TrustManagerImpl delegate to validate certs
      */
     public void init(SSLContext tlsContext, TrustManagerImpl trustManagerImpl) {
@@ -102,7 +115,7 @@ public class OsuServerConnection {
         }
         try {
             mTrustManager = new WFATrustManager(trustManagerImpl);
-            tlsContext.init(null, new TrustManager[] { mTrustManager }, null);
+            tlsContext.init(null, new TrustManager[]{mTrustManager}, null);
             mSocketFactory = tlsContext.getSocketFactory();
         } catch (KeyManagementException e) {
             Log.w(TAG, "Initialization failed");
@@ -141,7 +154,7 @@ public class OsuServerConnection {
     /**
      * Connect to the OSU server
      *
-     * @param url Osu Server's URL
+     * @param url     Osu Server's URL
      * @param network current network connection
      * @return boolean value, true if connection was successful
      *
@@ -155,6 +168,8 @@ public class OsuServerConnection {
         try {
             urlConnection = (HttpsURLConnection) mNetwork.openConnection(mUrl);
             urlConnection.setSSLSocketFactory(mSocketFactory);
+            urlConnection.setConnectTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
+            urlConnection.setReadTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
             urlConnection.connect();
         } catch (IOException e) {
             Log.e(TAG, "Unable to establish a URL connection");
@@ -183,7 +198,7 @@ public class OsuServerConnection {
             return false;
         }
 
-        for (Pair<Locale, String> identity : ASN1SubjectAltNamesParser.getProviderNames(
+        for (Pair<Locale, String> identity : ServiceProviderVerifier.getProviderNames(
                 mTrustManager.getProviderCert())) {
             if (identity.first == null) continue;
 
@@ -227,6 +242,36 @@ public class OsuServerConnection {
         return true;
     }
 
+    /**
+     * Retrieves Trust Root CA certificates for AAA, Remediation, Policy Server
+     *
+     * @param trustCertsInfo trust cert information for each type (AAA,Remediation and Policy).
+     *                       {@code Key} is the cert type.
+     *                       {@code Value} is the map that has a key for certUrl and a value for
+     *                       fingerprint of the certificate.
+     * @return {@code true} if {@link Network} is valid and {@code trustCertsInfo} is not null,
+     * {@code false} otherwise.
+     */
+    public boolean retrieveTrustRootCerts(
+            @NonNull Map<Integer, Map<String, byte[]>> trustCertsInfo) {
+        if (mNetwork == null) {
+            Log.e(TAG, "Network is not established");
+            return false;
+        }
+
+        if (mUrlConnection == null) {
+            Log.e(TAG, "Server certificate is not validated");
+            return false;
+        }
+
+        if (trustCertsInfo == null || trustCertsInfo.isEmpty()) {
+            Log.e(TAG, "TrustCertsInfo is not valid");
+            return false;
+        }
+        mHandler.post(() -> performRetrievingTrustRootCerts(trustCertsInfo));
+        return true;
+    }
+
     private void performSoapMessageExchange(@NonNull SoapSerializationEnvelope soapEnvelope) {
         if (mServiceConnection != null) {
             mServiceConnection.disconnect();
@@ -241,7 +286,7 @@ public class OsuServerConnection {
             return;
         }
 
-        SppResponseMessage sppResponse = null;
+        SppResponseMessage sppResponse;
         try {
             // Sending the SOAP message
             mHttpsTransport.call("", soapEnvelope);
@@ -294,8 +339,149 @@ public class OsuServerConnection {
         }
     }
 
+    private void performRetrievingTrustRootCerts(
+            @NonNull Map<Integer, Map<String, byte[]>> trustCertsInfo) {
+        // Key: CERT_TYPE (AAA, REMEDIATION, POLICY), Value: a list of X509Certificate retrieved for
+        // the type.
+        Map<Integer, List<X509Certificate>> trustRootCertificates = new HashMap<>();
+
+        for (Map.Entry<Integer, Map<String, byte[]>> certInfoPerType : trustCertsInfo.entrySet()) {
+            List<X509Certificate> certificates = new ArrayList<>();
+
+            // Iterates certInfo to get a cert with a url provided in certInfo.key().
+            // Key: Cert url, Value: SHA-256 hash bytes to match the fingerprint of a
+            // certificates retrieved from server.
+            for (Map.Entry<String, byte[]> certInfo : certInfoPerType.getValue().entrySet()) {
+                if (certInfo.getValue() == null) {
+                    // clear all of retrieved CA certs so that PasspointProvisioner aborts
+                    // current flow.
+                    trustRootCertificates.clear();
+                    break;
+                }
+                X509Certificate certificate = getCert(certInfo.getKey());
+
+                if (certificate == null || !ServiceProviderVerifier.verifyCertFingerprint(
+                        certificate, certInfo.getValue())) {
+                    // If any failure happens, clear all of retrieved CA certs so that
+                    // PasspointProvisioner aborts current flow.
+                    trustRootCertificates.clear();
+                    break;
+                }
+                certificates.add(certificate);
+            }
+            if (!certificates.isEmpty()) {
+                trustRootCertificates.put(certInfoPerType.getKey(), certificates);
+            }
+        }
+
+        if (mOsuServerCallbacks != null) {
+            // If it passes empty trustRootCertificates here, PasspointProvisioner will abort
+            // current flow because it indicates that client device doesn't get any trust root
+            // certificates from server.
+            mOsuServerCallbacks.onReceivedTrustRootCertificates(mOsuServerCallbacks.getSessionId(),
+                    trustRootCertificates);
+        }
+    }
+
     /**
-     * Get the HTTPS service connection used for SOAP message exchange.
+     * Retrieves a X.509 Certificate from server.
+     *
+     * @param certUrl url to retrieve a X.509 Certificate
+     * @return {@link X509Certificate} in success, {@code null} otherwise.
+     */
+    private X509Certificate getCert(@NonNull String certUrl) {
+        if (certUrl == null || !certUrl.toLowerCase(Locale.US).startsWith("https://")) {
+            Log.e(TAG, "invalid certUrl provided");
+            return null;
+        }
+
+        try {
+            URL serverUrl = new URL(certUrl);
+            CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+            if (mServiceConnection != null) {
+                mServiceConnection.disconnect();
+            }
+            mServiceConnection = getServiceConnection(serverUrl, mNetwork);
+            mServiceConnection.setRequestMethod("GET");
+            mServiceConnection.setRequestProperty("Accept-Encoding", "gzip");
+
+            if (mServiceConnection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                Log.e(TAG, "The response code of the HTTPS GET to " + certUrl
+                        + " is not OK, but " + mServiceConnection.getResponseCode());
+                return null;
+            }
+            boolean bPkcs7 = false;
+            boolean bBase64 = false;
+            List<HeaderProperty> properties = mServiceConnection.getResponseProperties();
+            for (HeaderProperty property : properties) {
+                if (property == null || property.getKey() == null || property.getValue() == null) {
+                    continue;
+                }
+                if (property.getKey().equalsIgnoreCase("Content-Type")) {
+                    if (property.getValue().equals("application/pkcs7-mime")
+                            || property.getValue().equals("application/x-x509-ca-cert")) {
+                        // application/x-x509-ca-cert : File content is a DER encoded X.509
+                        // certificate
+                        if (mVerboseLoggingEnabled) {
+                            Log.v(TAG, "a certificate found in a HTTPS response from " + certUrl);
+                        }
+
+                        // ca cert
+                        bPkcs7 = true;
+                    }
+                }
+                if (property.getKey().equalsIgnoreCase("Content-Transfer-Encoding")
+                        && property.getValue().equalsIgnoreCase("base64")) {
+                    if (mVerboseLoggingEnabled) {
+                        Log.v(TAG,
+                                "base64 encoding content in a HTTP response from " + certUrl);
+                    }
+                    bBase64 = true;
+                }
+            }
+            if (!bPkcs7) {
+                Log.e(TAG, "no X509Certificate found in the HTTPS response");
+                return null;
+            }
+            InputStream in = mServiceConnection.openInputStream();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            while (true) {
+                int rd = in.read(buf, 0, 8192);
+                if (rd == -1) {
+                    break;
+                }
+                bos.write(buf, 0, rd);
+            }
+            in.close();
+            bos.flush();
+            byte[] byteArray = bos.toByteArray();
+            if (bBase64) {
+                String s = new String(byteArray);
+                byteArray = android.util.Base64.decode(s, android.util.Base64.DEFAULT);
+            }
+
+            X509Certificate certificate = (X509Certificate) certFactory.generateCertificate(
+                    new ByteArrayInputStream(byteArray));
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "cert : " + certificate.getSubjectDN());
+            }
+            return certificate;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to get the data from " + certUrl + ": " + e);
+        } catch (CertificateException e) {
+            Log.e(TAG, "Failed to get instance for CertificateFactory " + e);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to decode the data: " + e);
+        } finally {
+            mServiceConnection.disconnect();
+            mServiceConnection = null;
+        }
+        return null;
+    }
+
+    /**
+     * Gets the HTTPS service connection used for SOAP message exchange.
      *
      * @return {@link HttpsServiceConnection}
      */
@@ -317,7 +503,7 @@ public class OsuServerConnection {
     }
 
     /**
-     * Clean up
+     * Cleans up
      */
     public void cleanup() {
         if (mUrlConnection != null) {
