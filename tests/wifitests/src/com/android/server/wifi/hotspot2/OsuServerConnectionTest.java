@@ -133,12 +133,7 @@ public class OsuServerConnectionTest {
             when(ServiceProviderVerifier.getProviderNames(any(X509Certificate.class))).thenReturn(
                     mProviderIdentities);
 
-            mOsuServerConnection.init(mTlsContext, mDelegate);
-            mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
-
-            assertTrue(mOsuServerConnection.canValidateServer());
-            assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-            verify(mTlsContext).init(isNull(), mTrustManagerCaptor.capture(), isNull());
+            establishServerConnection();
 
             TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
             X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
@@ -187,7 +182,11 @@ public class OsuServerConnectionTest {
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
 
         assertTrue(mOsuServerConnection.canValidateServer());
-        assertFalse(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+
+        mLooper.dispatchAll();
+
+        verify(mOsuServerCallbacks).onServerConnectionStatus(anyInt(), eq(false));
     }
 
     /**
@@ -201,7 +200,11 @@ public class OsuServerConnectionTest {
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
 
         assertTrue(mOsuServerConnection.canValidateServer());
-        assertFalse(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+
+        mLooper.dispatchAll();
+
+        verify(mOsuServerCallbacks).onServerConnectionStatus(anyInt(), eq(false));
     }
 
     /**
@@ -209,13 +212,7 @@ public class OsuServerConnectionTest {
      */
     @Test
     public void verifyInitAndConnectCertValidationFailure() throws Exception {
-        mOsuServerConnection.init(mTlsContext, mDelegate);
-        mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
-
-        assertTrue(mOsuServerConnection.canValidateServer());
-        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-        verify(mTlsContext).init(isNull(), mTrustManagerCaptor.capture(), isNull());
-
+        establishServerConnection();
         TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
         X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
         doThrow(new CertificateException()).when(mDelegate)
@@ -231,7 +228,7 @@ public class OsuServerConnectionTest {
      * Verifies initialization and connecting to the OSU server, friendly name mismatch
      */
     @Test
-    public void verifyInitAndConnectInvalidProviderIdentity() throws Exception {
+    public void verifyInitAndConnectInvalidProviderIdentity()throws Exception  {
         // static mocking
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 ServiceProviderVerifier.class).startMocking();
@@ -239,12 +236,7 @@ public class OsuServerConnectionTest {
             when(ServiceProviderVerifier.getProviderNames(any(X509Certificate.class))).thenReturn(
                     mProviderIdentities);
 
-            mOsuServerConnection.init(mTlsContext, mDelegate);
-            mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
-
-            assertTrue(mOsuServerConnection.canValidateServer());
-            assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
-            verify(mTlsContext).init(isNull(), mTrustManagerCaptor.capture(), isNull());
+            establishServerConnection();
 
             TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
             X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
@@ -272,7 +264,7 @@ public class OsuServerConnectionTest {
      * {@code null}
      */
     @Test
-    public void verifyExchangeSoapMessageWithInvalidArgument() {
+    public void verifyExchangeSoapMessageWithInvalidArgument() throws Exception {
         establishServerConnection();
         assertFalse(mOsuServerConnection.exchangeSoapMessage(null));
     }
@@ -287,18 +279,17 @@ public class OsuServerConnectionTest {
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).startMocking();
         try {
-            mOsuServerConnection.init(mTlsContext, mDelegate);
-            mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
+            establishServerConnection();
             when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
                     mHttpsTransport);
             doThrow(new IOException()).when(mHttpsTransport).call(any(String.class),
                     any(SoapSerializationEnvelope.class));
 
-            assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
             assertTrue(mOsuServerConnection.exchangeSoapMessage(
                     new SoapSerializationEnvelope(SoapEnvelope.VER12)));
 
             mLooper.dispatchAll();
+
             verify(mOsuServerCallbacks).onReceivedSoapMessage(anyInt(), isNull());
         } finally {
             session.finishMocking();
@@ -309,7 +300,7 @@ public class OsuServerConnectionTest {
      * Verifies {@code ExchangeSoapMessage} should return an instance of {@link SppResponseMessage}.
      */
     @Test
-    public void verifyExchangeSoapMessage() {
+    public void verifyExchangeSoapMessage() throws Exception {
         // static mocking
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).mockStatic(SoapParser.class).startMocking();
@@ -325,6 +316,7 @@ public class OsuServerConnectionTest {
             assertTrue(mOsuServerConnection.exchangeSoapMessage(envelope));
 
             mLooper.dispatchAll();
+
             verify(mOsuServerCallbacks).onReceivedSoapMessage(anyInt(), eq(mSppResponseMessage));
         } finally {
             session.finishMocking();
@@ -356,7 +348,7 @@ public class OsuServerConnectionTest {
      * server to get root CA certificate is not HTTP OK.
      */
     @Test
-    public void verifyRetrieveTrustRootCertsWithErrorInHTTPSResponse() throws IOException {
+    public void verifyRetrieveTrustRootCertsWithErrorInHTTPSResponse() throws Exception {
         // static mocking
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).startMocking();
@@ -393,8 +385,7 @@ public class OsuServerConnectionTest {
      * downloading root CA certificate from each {@code URL} provided
      */
     @Test
-    public void verifyRetrieveTrustRootCertsWithoutError() throws IOException,
-            CertificateException {
+    public void verifyRetrieveTrustRootCertsWithoutError() throws Exception {
         // static mocking
         MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
                 HttpsTransport.class).mockStatic(CertificateFactory.class).mockStatic(
@@ -447,10 +438,15 @@ public class OsuServerConnectionTest {
         }
     }
 
-    private void establishServerConnection() {
+    private void establishServerConnection() throws Exception {
         mOsuServerConnection.init(mTlsContext, mDelegate);
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
+        verify(mTlsContext).init(isNull(), mTrustManagerCaptor.capture(), isNull());
 
+        assertTrue(mOsuServerConnection.canValidateServer());
         assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        mLooper.dispatchAll();
+
+        verify(mOsuServerCallbacks).onServerConnectionStatus(anyInt(), eq(true));
     }
 }
