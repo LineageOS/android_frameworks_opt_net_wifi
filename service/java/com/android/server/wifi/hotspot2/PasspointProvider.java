@@ -309,6 +309,9 @@ public class PasspointProvider {
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
 
+        // Set RSN only to tell wpa_supplicant that this network is for Passpoint.
+        wifiConfig.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+
         WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
         enterpriseConfig.setRealm(mConfig.getCredential().getRealm());
         enterpriseConfig.setDomainSuffixMatch(mConfig.getHomeSp().getFqdn());
