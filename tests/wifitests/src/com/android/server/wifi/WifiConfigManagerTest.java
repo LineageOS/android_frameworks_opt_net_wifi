@@ -1130,6 +1130,12 @@ public class WifiConfigManagerTest {
                 WifiConfigurationTestUtil.createPskNetwork());
         verifyAddSingleNetworkAndMatchScanDetailToNetworkAndCache(
                 WifiConfigurationTestUtil.createEapNetwork());
+        verifyAddSingleNetworkAndMatchScanDetailToNetworkAndCache(
+                WifiConfigurationTestUtil.createSaeNetwork());
+        verifyAddSingleNetworkAndMatchScanDetailToNetworkAndCache(
+                WifiConfigurationTestUtil.createOweNetwork());
+        verifyAddSingleNetworkAndMatchScanDetailToNetworkAndCache(
+                WifiConfigurationTestUtil.createEapSuiteBNetwork());
     }
 
     /**
@@ -1144,18 +1150,27 @@ public class WifiConfigManagerTest {
         WifiConfiguration wepNetwork = WifiConfigurationTestUtil.createWepNetwork();
         WifiConfiguration pskNetwork = WifiConfigurationTestUtil.createPskNetwork();
         WifiConfiguration eapNetwork = WifiConfigurationTestUtil.createEapNetwork();
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil.createSaeNetwork();
+        WifiConfiguration oweNetwork = WifiConfigurationTestUtil.createOweNetwork();
+        WifiConfiguration eapSuiteBNetwork = WifiConfigurationTestUtil.createEapSuiteBNetwork();
 
         // Now add them to WifiConfigManager.
         verifyAddNetworkToWifiConfigManager(openNetwork);
         verifyAddNetworkToWifiConfigManager(wepNetwork);
         verifyAddNetworkToWifiConfigManager(pskNetwork);
         verifyAddNetworkToWifiConfigManager(eapNetwork);
+        verifyAddNetworkToWifiConfigManager(saeNetwork);
+        verifyAddNetworkToWifiConfigManager(oweNetwork);
+        verifyAddNetworkToWifiConfigManager(eapSuiteBNetwork);
 
         // Now create dummy scan detail corresponding to the networks.
         ScanDetail openNetworkScanDetail = createScanDetailForNetwork(openNetwork);
         ScanDetail wepNetworkScanDetail = createScanDetailForNetwork(wepNetwork);
         ScanDetail pskNetworkScanDetail = createScanDetailForNetwork(pskNetwork);
         ScanDetail eapNetworkScanDetail = createScanDetailForNetwork(eapNetwork);
+        ScanDetail saeNetworkScanDetail = createScanDetailForNetwork(saeNetwork);
+        ScanDetail oweNetworkScanDetail = createScanDetailForNetwork(oweNetwork);
+        ScanDetail eapSuiteBNetworkScanDetail = createScanDetailForNetwork(eapSuiteBNetwork);
 
         // Now mix and match parameters from different scan details.
         openNetworkScanDetail.getScanResult().SSID =
@@ -1165,7 +1180,14 @@ public class WifiConfigManagerTest {
         pskNetworkScanDetail.getScanResult().capabilities =
                 eapNetworkScanDetail.getScanResult().capabilities;
         eapNetworkScanDetail.getScanResult().capabilities =
+                saeNetworkScanDetail.getScanResult().capabilities;
+        saeNetworkScanDetail.getScanResult().capabilities =
+                oweNetworkScanDetail.getScanResult().capabilities;
+        oweNetworkScanDetail.getScanResult().capabilities =
+                eapSuiteBNetworkScanDetail.getScanResult().capabilities;
+        eapSuiteBNetworkScanDetail.getScanResult().capabilities =
                 openNetworkScanDetail.getScanResult().capabilities;
+
 
         // Try to lookup a saved network using the modified scan details. All of these should fail.
         assertNull(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
@@ -1176,12 +1198,21 @@ public class WifiConfigManagerTest {
                 pskNetworkScanDetail));
         assertNull(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
                 eapNetworkScanDetail));
+        assertNull(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                saeNetworkScanDetail));
+        assertNull(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                oweNetworkScanDetail));
+        assertNull(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(
+                eapSuiteBNetworkScanDetail));
 
         // All the cache's should be empty as well.
         assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(openNetwork.networkId));
         assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(wepNetwork.networkId));
         assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(pskNetwork.networkId));
         assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(eapNetwork.networkId));
+        assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(saeNetwork.networkId));
+        assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(oweNetwork.networkId));
+        assertNull(mWifiConfigManager.getScanDetailCacheForNetwork(eapSuiteBNetwork.networkId));
     }
 
     /**
@@ -1420,11 +1451,11 @@ public class WifiConfigManagerTest {
     }
 
     /**
-     * Verifies that hasEverConnected is not cleared when a network config |requirePMF| is
+     * Verifies that hasEverConnected is cleared when a network config |requirePMF| is
      * updated.
      */
     @Test
-    public void testUpdateRequirePMFDoesNotClearHasEverConnected() {
+    public void testUpdateRequirePMFClearsHasEverConnected() {
         WifiConfiguration pskNetwork = WifiConfigurationTestUtil.createPskNetwork();
         verifyAddNetworkHasEverConnectedFalse(pskNetwork);
         verifyUpdateNetworkAfterConnectHasEverConnectedTrue(pskNetwork.networkId);
@@ -1436,9 +1467,9 @@ public class WifiConfigManagerTest {
                 verifyUpdateNetworkToWifiConfigManagerWithoutIpChange(pskNetwork);
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
-        assertTrue("Updating network non-credentials config should not clear hasEverConnected.",
+        assertFalse("Updating network credentials config must clear hasEverConnected.",
                 retrievedNetwork.getNetworkSelectionStatus().getHasEverConnected());
-        assertFalse(result.hasCredentialChanged());
+        assertTrue(result.hasCredentialChanged());
     }
 
     /**
