@@ -3965,6 +3965,7 @@ public class ClientModeImpl extends StateMachine {
                         Pair<String, String> identityPair =
                                 TelephonyUtil.getSimIdentity(getTelephonyManager(),
                                         new TelephonyUtil(), mTargetWifiConfiguration);
+                        Log.i(TAG, "SUP_REQUEST_IDENTITY: identityPair=" + identityPair);
                         if (identityPair != null && identityPair.first != null) {
                             mWifiNative.simIdentityResponse(mInterfaceName, netId,
                                     identityPair.first, identityPair.second);
