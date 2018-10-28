@@ -27,7 +27,7 @@ import java.util.Objects;
  * Represents URI of LaunchBrowser command defined by SPP (Subscription Provisioning Protocol).
  */
 public class BrowserUri implements SppCommand.SppCommandData {
-    private static final String TAG = "BrowserUri";
+    private static final String TAG = "PasspointBrowserUri";
     private final String mUri;
 
     private BrowserUri(PropertyInfo command) {

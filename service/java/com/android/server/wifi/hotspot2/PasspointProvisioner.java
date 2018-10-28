@@ -153,7 +153,7 @@ public class PasspointProvisioner {
      * Handles the provisioning flow state transitions
      */
     class ProvisioningStateMachine {
-        private static final String TAG = "ProvisioningStateMachine";
+        private static final String TAG = "PasspointProvisioningStateMachine";
 
         static final int STATE_INIT = 1;
         static final int STATE_WAITING_TO_CONNECT = 2;

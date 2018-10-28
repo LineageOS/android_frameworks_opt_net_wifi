@@ -39,7 +39,7 @@ public class PpsMoData implements SppCommand.SppCommandData {
     @VisibleForTesting
     public static final String ATTRIBUTE_MO_URN = "moURN";
 
-    private static final String TAG = "PpsMoData";
+    private static final String TAG = "PasspointPpsMoData";
     private final String mBaseUri;
     private final String mUrn;
     private final String mPpsMoTree;

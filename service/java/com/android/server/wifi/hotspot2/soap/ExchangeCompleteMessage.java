@@ -26,7 +26,7 @@ import org.ksoap2.serialization.SoapObject;
  * For the details, refer to A.3.2 section in Hotspot2.0 rel2 specification.
  */
 public class ExchangeCompleteMessage extends SppResponseMessage  {
-    private static final String TAG = "ExchangeCompleteMessage";
+    private static final String TAG = "PasspointExchangeCompleteMessage";
 
     private ExchangeCompleteMessage(@NonNull SoapObject response) throws IllegalArgumentException {
         super(response, MessageType.EXCHANGE_COMPLETE);

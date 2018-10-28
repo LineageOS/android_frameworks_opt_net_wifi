@@ -67,7 +67,7 @@ import javax.net.ssl.X509TrustManager;
  * Provides methods to interface with the OSU server
  */
 public class OsuServerConnection {
-    private static final String TAG = "OsuServerConnection";
+    private static final String TAG = "PasspointOsuServerConnection";
 
     private static final int DNS_NAME = 2;
 

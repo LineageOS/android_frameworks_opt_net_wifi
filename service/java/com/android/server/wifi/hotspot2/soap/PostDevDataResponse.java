@@ -31,7 +31,7 @@ import java.util.Objects;
  * For the details, refer to A.3.2 section in Hotspot2.0 rel2 specification.
  */
 public class PostDevDataResponse extends SppResponseMessage {
-    private static final String TAG = "PostDevDataResponse";
+    private static final String TAG = "PasspointPostDevDataResponse";
     private static final int MAX_COMMAND_COUNT = 1;
     private final SppCommand mSppCommand;
 
