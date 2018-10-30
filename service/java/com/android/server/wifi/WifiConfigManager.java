@@ -69,6 +69,7 @@ import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -2465,7 +2466,23 @@ public class WifiConfigManager {
                 iter.remove();
             }
         }
+        if (networks.isEmpty()) {
+            return pnoList;
+        }
+
+        // Sort the networks with the most frequent ones at the front of the network list.
         Collections.sort(networks, sScanListComparator);
+        // Find the most recently connected network and add it to the front of the network list.
+        WifiConfiguration lastConnectedNetwork =
+                networks.stream()
+                        .max(Comparator.comparing(
+                                (WifiConfiguration config) -> config.lastConnected))
+                        .get();
+        if (lastConnectedNetwork.lastConnected != 0) {
+            int lastConnectedNetworkIdx = networks.indexOf(lastConnectedNetwork);
+            networks.remove(lastConnectedNetworkIdx);
+            networks.add(0, lastConnectedNetwork);
+        }
         for (WifiConfiguration config : networks) {
             WifiScanner.PnoSettings.PnoNetwork pnoNetwork =
                     WifiConfigurationUtil.createPnoNetwork(config);
