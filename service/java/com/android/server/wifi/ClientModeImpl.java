@@ -512,20 +512,6 @@ public class ClientModeImpl extends StateMachine {
     int mDisconnectingWatchdogCount = 0;
     static final int DISCONNECTING_GUARD_TIMER_MSEC = 5000;
 
-    /* Disable p2p watchdog */
-    static final int CMD_DISABLE_P2P_WATCHDOG_TIMER                   = BASE + 112;
-
-    int mDisableP2pWatchdogCount = 0;
-    static final int DISABLE_P2P_GUARD_TIMER_MSEC = 2000;
-
-    /* P2p commands */
-    /* We are ok with no response here since we wont do much with it anyway */
-    public static final int CMD_ENABLE_P2P                              = BASE + 131;
-    /* In order to shut down supplicant cleanly, we wait till p2p has
-     * been disabled */
-    public static final int CMD_DISABLE_P2P_REQ                         = BASE + 132;
-    public static final int CMD_DISABLE_P2P_RSP                         = BASE + 133;
-
     /**
      * Indicates the end of boot process, should be used to trigger load from config store,
      * initiate connection attempt, etc.
@@ -2351,13 +2337,6 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(Integer.toString(msg.arg2));
                 sb.append(" cur=").append(mDisconnectingWatchdogCount);
                 break;
-            case CMD_DISABLE_P2P_WATCHDOG_TIMER:
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg1));
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg2));
-                sb.append(" cur=").append(mDisableP2pWatchdogCount);
-                break;
             case CMD_START_RSSI_MONITORING_OFFLOAD:
             case CMD_STOP_RSSI_MONITORING_OFFLOAD:
             case CMD_RSSI_THRESHOLD_BREACHED:
@@ -3305,15 +3284,6 @@ public class ClientModeImpl extends StateMachine {
                     if (ac == mWifiP2pChannel) {
                         if (message.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
                             p2pSendMessage(AsyncChannel.CMD_CHANNEL_FULL_CONNECTION);
-                            // since the p2p channel is connected, we should enable p2p if we are in
-                            // connect mode.  We may not be in connect mode yet, we may have just
-                            // set the operational mode and started to set up for connect mode.
-                            if (mOperationalMode == CONNECT_MODE) {
-                                // This message will only be handled if we are in Connect mode.
-                                // If we are not in connect mode yet, this will be dropped and the
-                                // ConnectMode.enter method will call to enable p2p.
-                                sendMessage(CMD_ENABLE_P2P);
-                            }
                         } else {
                             // TODO: We should probably do some cleanup or attempt a retry
                             // b/34283611
@@ -3406,8 +3376,6 @@ public class ClientModeImpl extends StateMachine {
                 case DhcpClient.CMD_PRE_DHCP_ACTION:
                 case DhcpClient.CMD_PRE_DHCP_ACTION_COMPLETE:
                 case DhcpClient.CMD_POST_DHCP_ACTION:
-                case CMD_ENABLE_P2P:
-                case CMD_DISABLE_P2P_RSP:
                 case WifiMonitor.SUP_REQUEST_IDENTITY:
                 case WifiMonitor.SUP_REQUEST_SIM_AUTH:
                 case CMD_TARGET_BSSID:
@@ -3417,7 +3385,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_UNWANTED_NETWORK:
                 case CMD_DISCONNECTING_WATCHDOG_TIMER:
                 case CMD_ROAM_WATCHDOG_TIMER:
-                case CMD_DISABLE_P2P_WATCHDOG_TIMER:
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
@@ -3747,10 +3714,6 @@ public class ClientModeImpl extends StateMachine {
 
         mWifiNative.setPowerSave(mInterfaceName, true);
 
-        if (mP2pSupported) {
-            p2pSendMessage(ClientModeImpl.CMD_ENABLE_P2P);
-        }
-
         // Disable wpa_supplicant from auto reconnecting.
         mWifiNative.enableStaAutoReconnect(mInterfaceName, false);
         // STA has higher priority over P2P
@@ -3763,12 +3726,6 @@ public class ClientModeImpl extends StateMachine {
     private void stopClientMode() {
         // exiting supplicant started state is now only applicable to client mode
         mWifiDiagnostics.stopLogging();
-
-        if (mP2pSupported) {
-            // we are not going to wait for a response - will still temporarily send the
-            // disable command until p2p can detect the interface up/down on its own.
-            p2pSendMessage(ClientModeImpl.CMD_DISABLE_P2P_REQ);
-        }
 
         mIsRunning = false;
         updateBatteryWorkSource(null);
@@ -3866,8 +3823,6 @@ public class ClientModeImpl extends StateMachine {
             // Inform metrics that Wifi is Enabled (but not yet connected)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
-            // Inform p2p service that wifi is up and ready when applicable
-            p2pSendMessage(ClientModeImpl.CMD_ENABLE_P2P);
             // Inform sar manager that wifi is Enabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
         }
@@ -4410,9 +4365,6 @@ public class ClientModeImpl extends StateMachine {
                     } else {
                         replyToMessage(message, message.what, FAILURE);
                     }
-                    break;
-                case CMD_ENABLE_P2P:
-                    p2pSendMessage(ClientModeImpl.CMD_ENABLE_P2P);
                     break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what,
