@@ -28,6 +28,7 @@ import android.util.Slog;
 import android.util.SparseArray;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.server.wifi.util.WifiAsyncChannel;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -38,6 +39,13 @@ import java.util.List;
  */
 public class WifiLockManager {
     private static final String TAG = "WifiLockManager";
+
+    private static final int LOW_LATENCY_SUPPORT_UNDEFINED = -1;
+    private static final int LOW_LATENCY_NOT_SUPPORTED     =  0;
+    private static final int LOW_LATENCY_SUPPORTED         =  1;
+
+    private int mLatencyModeSupport = LOW_LATENCY_SUPPORT_UNDEFINED;
+
     private boolean mVerboseLoggingEnabled = false;
 
     private final Context mContext;
@@ -45,6 +53,7 @@ public class WifiLockManager {
     private final FrameworkFacade mFrameworkFacade;
     private final ClientModeImpl mClientModeImpl;
     private final ActivityManager mActivityManager;
+    private final WifiAsyncChannel mChannel;
 
     private final List<WifiLock> mWifiLocks = new ArrayList<>();
     // map UIDs to their corresponding records (for low-latency locks)
@@ -69,6 +78,7 @@ public class WifiLockManager {
         mClientModeImpl = clientModeImpl;
         mFrameworkFacade = frameworkFacade;
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
+        mChannel = mFrameworkFacade.makeWifiAsyncChannel(TAG);
         mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
 
         // Register for UID fg/bg transitions
@@ -464,7 +474,7 @@ public class WifiLockManager {
                 break;
 
             case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
-                if (!mClientModeImpl.setLowLatencyMode(false)) {
+                if (!setLowLatencyMode(false)) {
                     Slog.e(TAG, "Failed to reset the OpMode from low-latency to Normal");
                     return false;
                 }
@@ -489,7 +499,7 @@ public class WifiLockManager {
                 break;
 
             case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
-                if (!mClientModeImpl.setLowLatencyMode(true)) {
+                if (!setLowLatencyMode(true)) {
                     Slog.e(TAG, "Failed to set the OpMode to low-latency");
                     return false;
                 }
@@ -508,6 +518,40 @@ public class WifiLockManager {
         // Now set the mode to the new value
         mCurrentOpMode = newLockMode;
         return true;
+    }
+
+    private int getLowLatencyModeSupport() {
+        if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED) {
+            int supportedFeatures = mClientModeImpl.syncGetSupportedFeatures(mChannel);
+            if (supportedFeatures != 0) {
+                if ((supportedFeatures & WifiManager.WIFI_FEATURE_LOW_LATENCY) != 0) {
+                    mLatencyModeSupport = LOW_LATENCY_SUPPORTED;
+                } else {
+                    mLatencyModeSupport = LOW_LATENCY_NOT_SUPPORTED;
+                }
+            }
+        }
+
+        return mLatencyModeSupport;
+    }
+
+    private boolean setLowLatencyMode(boolean enabled) {
+        int lowLatencySupport = getLowLatencyModeSupport();
+
+        if (lowLatencySupport == LOW_LATENCY_SUPPORTED) {
+            return mClientModeImpl.setLowLatencyMode(enabled);
+        } else if (lowLatencySupport == LOW_LATENCY_NOT_SUPPORTED) {
+            // Since low-latency mode is not supported, use power save instead
+            // Note: low-latency mode enabled ==> power-save disabled
+            if (mVerboseLoggingEnabled) {
+                Slog.d(TAG, "low-latency is not supported, using power-save instead");
+            }
+
+            return mClientModeImpl.setPowerSave(!enabled);
+        } else {
+            // Support undefined, no need to attempt either functions
+            return false;
+        }
     }
 
     private synchronized WifiLock findLockByBinder(IBinder binder) {

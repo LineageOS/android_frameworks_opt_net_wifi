@@ -748,6 +748,24 @@ public class WifiVendorHalTest {
     }
 
     /**
+     * Test translation to WifiManager.WIFI_FEATURE_* for V1.3
+     *
+     * Test the added features in V1.3
+     */
+    @Test
+    public void testChipFeatureMaskTranslation_1_3() {
+        int caps = (
+                android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.SET_LATENCY_MODE
+                        | android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.D2D_RTT
+        );
+        int expected = (
+                WifiManager.WIFI_FEATURE_LOW_LATENCY
+                        | WifiManager.WIFI_FEATURE_D2D_RTT
+        );
+        assertEquals(expected, mWifiVendorHal.wifiFeatureMaskFromChipCapabilities_1_3(caps));
+    }
+
+    /**
      * Test get supported features. Tests whether we coalesce information from different sources
      * (IWifiStaIface, IWifiChip and HalDeviceManager) into the bitmask of supported features
      * correctly.
