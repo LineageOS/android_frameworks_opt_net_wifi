@@ -316,6 +316,7 @@ public class WifiInjector {
         mHalDeviceManager.enableVerboseLogging(verbose);
         mScanRequestProxy.enableVerboseLogging(verbose);
         mWakeupController.enableVerboseLogging(verbose);
+        mCarrierNetworkConfig.enableVerboseLogging(verbose);
         LogcatLog.enableVerboseLogging(verbose);
     }
 
