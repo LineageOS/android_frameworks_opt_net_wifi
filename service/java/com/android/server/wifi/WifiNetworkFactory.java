@@ -326,7 +326,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             startPeriodicScans();
             // Disable Auto-join so that NetworkFactory can take control of the network selection.
             // TODO(b/117979585): Defer turning off auto-join.
-            mWifiConnectivityManager.enable(false);
+            mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
         }
     }
 
@@ -357,10 +357,8 @@ public class WifiNetworkFactory extends NetworkFactory {
             mActiveSpecificNetworkRequestSpecifier = null;
             // Cancel the periodic scans.
             cancelPeriodicScans();
-            // Re-enable Auto-join (if there is a generic request pending).
-            if (mGenericConnectionReqCount > 0) {
-                mWifiConnectivityManager.enable(true);
-            }
+            // Re-enable Auto-join.
+            mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
         }
     }
 

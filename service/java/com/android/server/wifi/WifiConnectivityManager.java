@@ -153,6 +153,7 @@ public class WifiConnectivityManager {
     private int mWifiState = WIFI_STATE_UNKNOWN;
     private boolean mUntrustedConnectionAllowed = false;
     private boolean mTrustedConnectionAllowed = false;
+    private boolean mSpecificNetworkRequestInProgress = false;
     private int mScanRestartCount = 0;
     private int mSingleScanRestartCount = 0;
     private int mTotalConnectivityAttemptsRateLimited = 0;
@@ -1139,32 +1140,48 @@ public class WifiConnectivityManager {
         }
     }
 
+    // Enable auto-join if we have any pending network request (trusted or untrusted) and no
+    // specific network request in progress.
+    private void checkStateAndEnable() {
+        enable(!mSpecificNetworkRequestInProgress
+                && (mUntrustedConnectionAllowed || mTrustedConnectionAllowed));
+        startConnectivityScan(SCAN_IMMEDIATELY);
+    }
+
     /**
-     * Handler when connectivity allows/disallows trusted connections (all of autojoin).
+     * Triggered when {@link WifiNetworkFactory} has a pending general network request.
      */
     public void setTrustedConnectionAllowed(boolean allowed) {
         localLog("setTrustedConnectionAllowed: allowed=" + allowed);
 
         if (mTrustedConnectionAllowed != allowed) {
             mTrustedConnectionAllowed = allowed;
-            // Enable auto-join if we have any pending network request (trusted or untrusted).
-            enable(mUntrustedConnectionAllowed || mTrustedConnectionAllowed);
-            startConnectivityScan(SCAN_IMMEDIATELY);
+            checkStateAndEnable();
         }
     }
 
 
     /**
-     * Handler when connectivity allows/disallows untrusted connections (ephemeral networks).
+     * Triggered when {@link UntrustedWifiNetworkFactory} has a pending ephemeral network request.
      */
     public void setUntrustedConnectionAllowed(boolean allowed) {
         localLog("setUntrustedConnectionAllowed: allowed=" + allowed);
 
         if (mUntrustedConnectionAllowed != allowed) {
             mUntrustedConnectionAllowed = allowed;
-            // Enable auto-join if we have any pending network request (trusted or untrusted).
-            enable(mUntrustedConnectionAllowed || mTrustedConnectionAllowed);
-            startConnectivityScan(SCAN_IMMEDIATELY);
+            checkStateAndEnable();
+        }
+    }
+
+    /**
+     * Triggered when {@link WifiNetworkFactory} is processing a specific network request.
+     */
+    public void setSpecificNetworkRequestInProgress(boolean inProgress) {
+        localLog("setsetSpecificNetworkRequestInProgress : inProgress=" + inProgress);
+
+        if (mSpecificNetworkRequestInProgress != inProgress) {
+            mSpecificNetworkRequestInProgress = inProgress;
+            checkStateAndEnable();
         }
     }
 
@@ -1383,7 +1400,6 @@ public class WifiConnectivityManager {
         retrieveWifiScanner();
         mConnectivityHelper.getFirmwareRoamingInfo();
         clearBssidBlacklist();
-        startConnectivityScan(SCAN_IMMEDIATELY);
         mRunning = true;
     }
 
