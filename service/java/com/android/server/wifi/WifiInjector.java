@@ -142,6 +142,7 @@ public class WifiInjector {
     private final BaseWifiDiagnostics mWifiDiagnostics;
     private final WifiDataStall mWifiDataStall;
     private final WifiScoreCard mWifiScoreCard;
+    private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -296,6 +297,7 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
+        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager();
     }
 
     /**
@@ -323,6 +325,7 @@ public class WifiInjector {
         mScanRequestProxy.enableVerboseLogging(verbose);
         mWakeupController.enableVerboseLogging(verbose);
         mCarrierNetworkConfig.enableVerboseLogging(verbose);
+        mWifiNetworkSuggestionsManager.enableVerboseLogging(verbose);
         LogcatLog.enableVerboseLogging(verbose);
     }
 
@@ -647,5 +650,9 @@ public class WifiInjector {
 
     public WifiDataStall getWifiDataStall() {
         return mWifiDataStall;
+    }
+
+    public WifiNetworkSuggestionsManager getWifiNetworkSuggestionsManager() {
+        return mWifiNetworkSuggestionsManager;
     }
 }
