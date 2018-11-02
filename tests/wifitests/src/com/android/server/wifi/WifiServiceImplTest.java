@@ -55,6 +55,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.atLeastOnce;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
@@ -81,6 +82,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -3089,5 +3091,65 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mClientModeImpl).removeNetworkRequestMatchCallback(
                 TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
+    }
+
+    /**
+     * Verify that Wifi configuration and Passpoint configuration are removed in factoryReset.
+     */
+    @Test
+    public void testFactoryReset() throws Exception {
+        final String fqdn = "example.com";
+        WifiConfiguration network = WifiConfigurationTestUtil.createOpenNetwork();
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(fqdn);
+        config.setHomeSp(homeSp);
+
+        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+                .thenReturn(Arrays.asList(network));
+        when(mClientModeImpl.syncGetPasspointConfigs(any())).thenReturn(Arrays.asList(config));
+
+        mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+
+        verify(mClientModeImpl).syncRemoveNetwork(mAsyncChannel, network.networkId);
+        verify(mClientModeImpl).syncRemovePasspointConfig(mAsyncChannel, fqdn);
+    }
+
+    /**
+     * Verify that Passpoint configuration is not removed in factoryReset if Passpoint feature
+     * is not supported.
+     */
+    @Test
+    public void testFactoryResetWithoutPasspointSupport() throws Exception {
+        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
+        when(mPackageManager.hasSystemFeature(
+                PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
+
+        mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+
+        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any());
+        verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
+        verify(mClientModeImpl, never()).syncRemovePasspointConfig(any(), anyString());
+    }
+
+    /**
+     * Verify that a call to factoryReset throws a SecurityException if the caller does not have
+     * the CONNECTIVITY_INTERNAL permission.
+     */
+    @Test
+    public void testFactoryResetWithoutConnectivityInternalPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
+                        eq("ConnectivityService"));
+        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
+
+        try {
+            mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+            fail();
+        } catch (SecurityException e) {
+        }
+        verify(mClientModeImpl, never()).syncGetConfiguredNetworks(anyInt(), any());
+        verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
     }
 }
