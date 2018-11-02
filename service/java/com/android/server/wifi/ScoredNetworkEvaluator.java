@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.database.ContentObserver;
@@ -32,7 +33,6 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
-import android.util.Pair;
 
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -126,7 +126,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
-            List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks) {
+            @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
         if (!mNetworkRecommendationsEnabled) {
             mLocalLog.log("Skipping evaluateNetworks; Network recommendations disabled.");
             return null;
@@ -180,9 +180,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
                 scoreTracker.trackExternallyScoredCandidate(
                         scanResult, configuredNetwork, isCurrentNetwork);
             }
-            if (connectableNetworks != null) {
-                connectableNetworks.add(Pair.create(scanDetail, configuredNetwork));
-            }
+            onConnectableListener.onConnectable(scanDetail, configuredNetwork, 0);
         }
 
         return scoreTracker.getCandidateConfiguration();

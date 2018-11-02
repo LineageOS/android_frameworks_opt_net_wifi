@@ -16,11 +16,11 @@
 
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.util.LocalLog;
-import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -234,7 +234,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
-                    List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks) {
+                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
         int highestScore = Integer.MIN_VALUE;
         ScanResult scanResultCandidate = null;
         WifiConfiguration candidate = null;
@@ -305,11 +305,10 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                 continue;
             }
 
-            if (connectableNetworks != null) {
-                connectableNetworks.add(Pair.create(scanDetail,
-                        mWifiConfigManager.getConfiguredNetwork(network.networkId)));
-            }
+            onConnectableListener.onConnectable(scanDetail,
+                    mWifiConfigManager.getConfiguredNetwork(network.networkId), score);
 
+            // TODO(b/112196799) - pull into common code
             if (score > highestScore
                     || (score == highestScore
                     && scanResultCandidate != null

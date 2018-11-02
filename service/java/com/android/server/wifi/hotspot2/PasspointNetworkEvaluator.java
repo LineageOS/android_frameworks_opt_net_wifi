@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.NonNull;
 import android.net.wifi.WifiConfiguration;
 import android.os.Process;
 import android.text.TextUtils;
@@ -76,7 +77,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid,
                     boolean connected, boolean untrustedNetworkAllowed,
-                    List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks) {
+                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
         // Sweep the ANQP cache to remove any expired ANQP entries.
         mPasspointManager.sweepCache();
 
@@ -116,19 +117,18 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                 ScanResultUtil.createQuotedSSID(bestNetwork.mScanDetail.getSSID()))) {
             localLog("Staying with current Passpoint network " + currentNetwork.SSID);
 
-            // Update current network with the latest scan info.
+            // Update current network with the latest scan info. TODO - pull into common code
             mWifiConfigManager.setNetworkCandidateScanResult(currentNetwork.networkId,
                     bestNetwork.mScanDetail.getScanResult(), 0);
             mWifiConfigManager.updateScanDetailForNetwork(currentNetwork.networkId,
                     bestNetwork.mScanDetail);
-
-            connectableNetworks.add(Pair.create(bestNetwork.mScanDetail, currentNetwork));
+            onConnectableListener.onConnectable(bestNetwork.mScanDetail, currentNetwork, 0);
             return currentNetwork;
         }
 
         WifiConfiguration config = createWifiConfigForProvider(bestNetwork);
         if (config != null) {
-            connectableNetworks.add(Pair.create(bestNetwork.mScanDetail, config));
+            onConnectableListener.onConnectable(bestNetwork.mScanDetail, config, 0);
             localLog("Passpoint network to connect to: " + config.SSID);
         }
         return config;

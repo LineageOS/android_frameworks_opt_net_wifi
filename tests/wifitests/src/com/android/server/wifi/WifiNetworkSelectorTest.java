@@ -23,6 +23,7 @@ import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_PSK;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
@@ -32,7 +33,6 @@ import android.net.wifi.WifiInfo;
 import android.os.SystemClock;
 import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
-import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
@@ -117,17 +117,17 @@ public class WifiNetworkSelectorTest {
         public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
-                    List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks) {
+                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
             if (!mEvaluatorShouldSelectCandidate) {
                 return null;
             }
             ScanDetail scanDetail = scanDetails.get(0);
             mWifiConfigManager.setNetworkCandidateScanResult(0, scanDetail.getScanResult(), 100);
-
-            assertNotNull("Saved network must not be null",
-                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail));
-
-            return mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
+            WifiConfiguration config =
+                    mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
+            assertNotNull("Saved network must not be null", config);
+            onConnectableListener.onConnectable(scanDetail, config, 100);
+            return config;
         }
     }
 

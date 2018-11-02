@@ -58,7 +58,7 @@ public class WifiNetworkSelector {
     private long mLastNetworkSelectionTimeStamp = INVALID_TIME_STAMP;
     // Buffer of filtered scan results (Scan results considered by network selection) & associated
     // WifiConfiguration (if any).
-    private volatile List<Pair<ScanDetail, WifiConfiguration>> mConnectableNetworks =
+    private final List<Pair<ScanDetail, WifiConfiguration>> mConnectableNetworks =
             new ArrayList<>();
     private List<ScanDetail> mFilteredNetworks = new ArrayList<>();
     private final ScoringParams mScoringParams;
@@ -108,8 +108,8 @@ public class WifiNetworkSelector {
          *                       state
          * @param untrustedNetworkAllowed a flag to indicate if untrusted networks like
          *                                ephemeral networks are allowed
-         * @param connectableNetworks     a list of the ScanDetail and WifiConfiguration
-         *                                pair which is used by the WifiLastResortWatchdog
+         * @param onConnectableListener callback to record all of the connectable networks
+         *
          * @return configuration of the chosen network;
          *         null if no network in this category is available.
          */
@@ -117,7 +117,21 @@ public class WifiNetworkSelector {
         WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                         WifiConfiguration currentNetwork, String currentBssid,
                         boolean connected, boolean untrustedNetworkAllowed,
-                        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks);
+                        OnConnectableListener onConnectableListener);
+    }
+
+    /**
+     * Callback for recording connectable candidates
+     */
+    public interface OnConnectableListener {
+        /**
+         * Notes that an access point is an eligible connection candidate
+         *
+         * @param scanDetail describes the specific access point
+         * @param config is the WifiConfiguration for the network
+         * @param score is the score assigned by the evaluator
+         */
+        void onConnectable(ScanDetail scanDetail, WifiConfiguration config, int score);
     }
 
     private final List<NetworkEvaluator> mEvaluators = new ArrayList<>(3);
@@ -551,7 +565,13 @@ public class WifiNetworkSelector {
             localLog("About to run " + registeredEvaluator.getName() + " :");
             selectedNetwork = registeredEvaluator.evaluateNetworks(
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
-                    untrustedNetworkAllowed, mConnectableNetworks);
+                    untrustedNetworkAllowed,
+                    (scanDetail, config, score) -> {
+                        if (config != null) {
+                            mConnectableNetworks.add(Pair.create(scanDetail, config));
+                        }
+                    }
+                    );
             if (selectedNetwork != null) {
                 localLog(registeredEvaluator.getName() + " selects "
                         + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
