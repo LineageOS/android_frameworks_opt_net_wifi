@@ -4809,6 +4809,8 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_IP_REACHABILITY_LOST:
                     if (mVerboseLoggingEnabled && message.obj != null) log((String) message.obj);
+                    mWifiDiagnostics.captureBugReportData(
+                            WifiDiagnostics.REPORT_REASON_REACHABILITY_LOST);
                     if (mIpReachabilityDisconnectEnabled) {
                         handleIpReachabilityLost();
                         transitionTo(mDisconnectingState);

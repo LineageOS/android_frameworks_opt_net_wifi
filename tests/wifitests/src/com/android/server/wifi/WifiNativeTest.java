@@ -659,4 +659,14 @@ public class WifiNativeTest {
         assertNotNull(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME));
         verify(mWifiVendorHal).getFactoryMacAddress(any());
     }
+
+    /**
+     * Test that flushRingBufferData(), results in calling into WifiVendorHal
+     */
+    @Test
+    public void testFlushRingBufferDataTrue() throws Exception {
+        when(mWifiVendorHal.flushRingBufferData()).thenReturn(true);
+        assertTrue(mWifiNative.flushRingBufferData());
+        verify(mWifiVendorHal).flushRingBufferData();
+    }
 }

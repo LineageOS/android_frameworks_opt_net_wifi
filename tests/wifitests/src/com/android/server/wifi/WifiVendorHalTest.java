@@ -1460,6 +1460,23 @@ public class WifiVendorHalTest {
     }
 
     /**
+     * Test flush ring buffer to files.
+     *
+     * Try once before hal start, and once after.
+     */
+    @Test
+    public void testFlushRingBufferToFile() throws Exception {
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        when(mIWifiChipV13.flushRingBufferToFile()).thenReturn(mWifiStatusSuccess);
+
+        assertFalse(mWifiVendorHal.flushRingBufferData());
+
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        assertTrue(mWifiVendorHal.flushRingBufferData());
+        verify(mIWifiChipV13).flushRingBufferToFile();
+    }
+
+    /**
      * Tests the start of packet fate monitoring.
      *
      * Try once before hal start, and once after (one success, one failure).
