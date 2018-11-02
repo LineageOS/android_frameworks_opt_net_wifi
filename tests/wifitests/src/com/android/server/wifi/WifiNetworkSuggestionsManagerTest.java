@@ -18,8 +18,10 @@ package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -217,5 +219,93 @@ public class WifiNetworkSuggestionsManagerTest {
         assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
         // Remove should fail because the network list is different.
         assertFalse(mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_1));
+    }
+
+    /**
+     * Verify a successful lookup of a single network suggestion matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithOneMatch() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                add(networkSuggestion);
+            }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+
+        ScanDetail scanDetail = createScanDetailForNetwork(networkSuggestion.wifiConfiguration);
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                add(networkSuggestion);
+            }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                add(networkSuggestion1);
+            }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                add(networkSuggestion2);
+            }};
+
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        ScanDetail scanDetail = createScanDetailForNetwork(networkSuggestion1.wifiConfiguration);
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                add(networkSuggestion1);
+                add(networkSuggestion2);
+            }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify failure to lookup any network suggestion matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailFailure() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                add(networkSuggestion);
+            }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+
+        // Create a scan result corresponding to a different network.
+        ScanDetail scanDetail = createScanDetailForNetwork(
+                WifiConfigurationTestUtil.createPskNetwork());
+
+        assertNull(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail));
+    }
+
+    /**
+     * Creates a scan detail corresponding to the provided network values.
+     */
+    private ScanDetail createScanDetailForNetwork(WifiConfiguration configuration) {
+        return WifiConfigurationTestUtil.createScanDetailForNetwork(configuration,
+                MacAddress.createRandomUnicastAddress().toString(), -45, 0, 0, 0);
     }
 }

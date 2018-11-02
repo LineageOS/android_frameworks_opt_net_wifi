@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.util.Log;
 
@@ -45,6 +47,16 @@ public class WifiNetworkSuggestionsManager {
      */
     private final Map<String, Set<WifiNetworkSuggestion>> mActiveNetworkSuggestionsPerApp =
             new HashMap<>();
+    /**
+     * Map maintained to help lookup all the network suggestions that match a provided scan result.
+     * Note:
+     * <li>There could be multiple suggestions (provided by different apps) that match a single
+     * scan result.</li>
+     * <li>Adding/Removing to this set for scan result lookup is expensive. But, we expect scan
+     * result lookup to happen much more often than apps modifying network suggestions.</li>
+     */
+    private final Map<ScanResultMatchInfo, Set<WifiNetworkSuggestion>> mActiveScanResultMatchInfo =
+            new HashMap<>();
 
     /**
      * Verbose logging flag.
@@ -56,6 +68,40 @@ public class WifiNetworkSuggestionsManager {
      */
     public void enableVerboseLogging(int verbose) {
         mVerboseLoggingEnabled = verbose > 0;
+    }
+
+    private void addToScanResultMatchInfoMap(List<WifiNetworkSuggestion> networkSuggestions) {
+        for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
+            ScanResultMatchInfo scanResultMatchInfo =
+                    ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
+            Set<WifiNetworkSuggestion> activeNetworkSuggestionsForScanResultMatchInfo =
+                    mActiveScanResultMatchInfo.get(scanResultMatchInfo);
+            if (activeNetworkSuggestionsForScanResultMatchInfo == null) {
+                activeNetworkSuggestionsForScanResultMatchInfo = new HashSet<>();
+                mActiveScanResultMatchInfo.put(
+                        scanResultMatchInfo, activeNetworkSuggestionsForScanResultMatchInfo);
+            }
+            activeNetworkSuggestionsForScanResultMatchInfo.add(networkSuggestion);
+        }
+    }
+
+    private void removeFromScanResultMatchInfoMap(List<WifiNetworkSuggestion> networkSuggestions) {
+        for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
+            ScanResultMatchInfo scanResultMatchInfo =
+                    ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
+            Set<WifiNetworkSuggestion> activeNetworkSuggestionsForScanResultMatchInfo =
+                    mActiveScanResultMatchInfo.get(scanResultMatchInfo);
+            // This should never happen because we should have done necessary error checks in
+            // the parent method.
+            if (activeNetworkSuggestionsForScanResultMatchInfo == null) {
+                Log.wtf(TAG, "No scan result match info found.");
+            }
+            activeNetworkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
+            // Remove the set from map if empty.
+            if (activeNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
+                mActiveScanResultMatchInfo.remove(scanResultMatchInfo);
+            }
+        }
     }
 
     /**
@@ -78,6 +124,7 @@ public class WifiNetworkSuggestionsManager {
             return false;
         }
         activeNetworkSuggestionsForApp.addAll(networkSuggestions);
+        addToScanResultMatchInfoMap(networkSuggestions);
         return true;
     }
 
@@ -111,6 +158,7 @@ public class WifiNetworkSuggestionsManager {
         if (activeNetworkSuggestionsForApp.isEmpty()) {
             mActiveNetworkSuggestionsPerApp.remove(packageName);
         }
+        removeFromScanResultMatchInfoMap(networkSuggestions);
         return true;
     }
 
@@ -123,6 +171,32 @@ public class WifiNetworkSuggestionsManager {
                 .stream()
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Returns a set of all network suggestions matching the provided scan detail.
+     */
+    public @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForScanDetail(
+            ScanDetail scanDetail) {
+        ScanResult scanResult = scanDetail.getScanResult();
+        if (scanResult == null) {
+            Log.e(TAG, "No scan result found in scan detail");
+            return null;
+        }
+        Set<WifiNetworkSuggestion> networkSuggestions = null;
+        try {
+            networkSuggestions = mActiveScanResultMatchInfo.get(
+                    ScanResultMatchInfo.fromScanResult(scanResult));
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to lookup network from scan result match info map", e);
+        }
+        if (networkSuggestions != null) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "getNetworkSuggestionsForScanDetail Found " + networkSuggestions
+                        + " for " + scanResult.SSID + "[" + scanResult.capabilities + "]");
+            }
+        }
+        return networkSuggestions;
     }
 
     /**
