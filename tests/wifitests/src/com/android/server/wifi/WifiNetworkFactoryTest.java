@@ -499,17 +499,13 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
+        assertNotNull(matchedScanResultsCaptor.getValue());
         // We only expect 1 network match in this case.
-        assertEquals(1, matchedNetworksCaptor.getValue().size());
-        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
-        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
-        assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
-        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+        validateScanResults(matchedScanResultsCaptor.getValue(), mTestScanDatas[0].getResults()[0]);
     }
 
     /**
@@ -540,26 +536,14 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
-        // We expect 2 network matches in this case.
-        assertEquals(2, matchedNetworksCaptor.getValue().size());
-        for (WifiConfiguration matchedNetwork : matchedNetworksCaptor.getValue()) {
-            if (matchedNetwork.SSID.equals("\"" + TEST_SSID_1 + "\"")) {
-                assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
-                assertTrue(matchedNetwork.allowedKeyManagement
-                        .get(WifiConfiguration.KeyMgmt.NONE));
-            } else if (matchedNetwork.SSID.equals("\"" + TEST_SSID_2 + "\"")) {
-                assertEquals(TEST_BSSID_2, matchedNetwork.BSSID);
-                assertTrue(matchedNetwork.allowedKeyManagement
-                        .get(WifiConfiguration.KeyMgmt.NONE));
-            } else {
-                fail();
-            }
-        }
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        // We expect 2 scan result matches in this case.
+        validateScanResults(matchedScanResultsCaptor.getValue(),
+                mTestScanDatas[0].getResults()[0], mTestScanDatas[0].getResults()[1]);
     }
 
     /**
@@ -590,17 +574,13 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
-        // We only expect 1 network match in this case.
-        assertEquals(1, matchedNetworksCaptor.getValue().size());
-        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
-        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
-        assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
-        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        // We only expect 1 scan result match in this case.
+        validateScanResults(matchedScanResultsCaptor.getValue(), mTestScanDatas[0].getResults()[0]);
     }
 
     /**
@@ -632,26 +612,14 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
-        // We expect 2 network matches in this case.
-        assertEquals(2, matchedNetworksCaptor.getValue().size());
-        for (WifiConfiguration matchedNetwork : matchedNetworksCaptor.getValue()) {
-            if (matchedNetwork.SSID.equals("\"" + TEST_SSID_1 + "\"")) {
-                assertEquals(TEST_BSSID_1, matchedNetwork.BSSID);
-                assertTrue(matchedNetwork.allowedKeyManagement
-                        .get(WifiConfiguration.KeyMgmt.WPA_EAP));
-            } else if (matchedNetwork.SSID.equals("\"" + TEST_SSID_2 + "\"")) {
-                assertEquals(TEST_BSSID_2, matchedNetwork.BSSID);
-                assertTrue(matchedNetwork.allowedKeyManagement
-                        .get(WifiConfiguration.KeyMgmt.WPA_EAP));
-            } else {
-                fail();
-            }
-        }
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        // We expect 2 scan result matches in this case.
+        validateScanResults(matchedScanResultsCaptor.getValue(),
+                mTestScanDatas[0].getResults()[0], mTestScanDatas[0].getResults()[1]);
     }
 
     /**
@@ -683,19 +651,15 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
-        // We still only expect 1 network match in this case.
-        assertEquals(1, matchedNetworksCaptor.getValue().size());
-        WifiConfiguration matchedNetwork = matchedNetworksCaptor.getValue().get(0);
-        assertEquals("\"" + TEST_SSID_1 + "\"", matchedNetwork.SSID);
-        assertTrue(TEST_BSSID_1.equals(matchedNetwork.BSSID)
-                || TEST_BSSID_2.equals(matchedNetwork.BSSID)
-                || TEST_BSSID_3.equals(matchedNetwork.BSSID));
-        assertTrue(matchedNetwork.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK));
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        // We expect 3 scan result matches in this case.
+        validateScanResults(matchedScanResultsCaptor.getValue(),
+                mTestScanDatas[0].getResults()[0], mTestScanDatas[0].getResults()[1],
+                mTestScanDatas[0].getResults()[2]);
     }
 
     /**
@@ -728,13 +692,13 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
+        assertNotNull(matchedScanResultsCaptor.getValue());
         // We expect no network match in this case.
-        assertEquals(0, matchedNetworksCaptor.getValue().size());
+        assertEquals(0, matchedScanResultsCaptor.getValue().size());
     }
 
     /**
@@ -767,13 +731,13 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<WifiConfiguration>> matchedNetworksCaptor =
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedNetworksCaptor.capture());
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
 
-        assertNotNull(matchedNetworksCaptor.getValue());
+        assertNotNull(matchedScanResultsCaptor.getValue());
         // We expect no network match in this case.
-        assertEquals(0, matchedNetworksCaptor.getValue().size());
+        assertEquals(0, matchedScanResultsCaptor.getValue().size());
     }
 
     // Simulates the periodic scans performed to find a matching network.
@@ -877,5 +841,18 @@ public class WifiNetworkFactoryTest {
         scanResults[3].SSID = ssid4;
         scanResults[3].BSSID = TEST_BSSID_4;
         scanResults[3].capabilities = caps;
+    }
+
+    private void validateScanResults(
+            List<ScanResult> actualScanResults, ScanResult...expectedScanResults) {
+        assertEquals(expectedScanResults.length, actualScanResults.size());
+        for (int i = 0; i < expectedScanResults.length; i++) {
+            ScanResult expectedScanResult = expectedScanResults[i];
+            ScanResult actualScanResult = actualScanResults.stream()
+                    .filter(x -> x.BSSID.equals(expectedScanResult.BSSID))
+                    .findFirst()
+                    .orElse(null);
+            ScanTestUtil.assertScanResultEquals(expectedScanResult, actualScanResult);
+        }
     }
 }
