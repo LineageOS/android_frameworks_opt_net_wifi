@@ -156,14 +156,13 @@ public class PasspointProvisioner {
         private static final String TAG = "PasspointProvisioningStateMachine";
 
         static final int STATE_INIT = 1;
-        static final int STATE_WAITING_TO_CONNECT = 2;
-        static final int STATE_OSU_AP_CONNECTED = 3;
-        static final int STATE_OSU_SERVER_CONNECTED = 4;
-        static final int STATE_WAITING_FOR_FIRST_SOAP_RESPONSE = 5;
-        static final int STATE_WAITING_FOR_REDIRECT_RESPONSE = 6;
-        static final int STATE_WAITING_FOR_SECOND_SOAP_RESPONSE = 7;
-        static final int STATE_WAITING_FOR_THIRD_SOAP_RESPONSE = 8;
-        static final int STATE_WAITING_FOR_TRUST_ROOT_CERTS = 9;
+        static final int STATE_AP_CONNECTING = 2;
+        static final int STATE_OSU_SERVER_CONNECTING = 3;
+        static final int STATE_WAITING_FOR_FIRST_SOAP_RESPONSE = 4;
+        static final int STATE_WAITING_FOR_REDIRECT_RESPONSE = 5;
+        static final int STATE_WAITING_FOR_SECOND_SOAP_RESPONSE = 6;
+        static final int STATE_WAITING_FOR_THIRD_SOAP_RESPONSE = 7;
+        static final int STATE_WAITING_FOR_TRUST_ROOT_CERTS = 8;
 
         private OsuProvider mOsuProvider;
         private IProvisioningCallback mProvisioningCallback;
@@ -241,11 +240,11 @@ public class PasspointProvisioner {
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_AP_CONNECTING);
-            changeState(STATE_WAITING_TO_CONNECT);
+            changeState(STATE_AP_CONNECTING);
         }
 
         /**
-         * Handle Wifi Disable event
+         * Handles Wifi Disable event
          *
          * Note: Called on main thread (WifiService thread).
          */
@@ -261,8 +260,38 @@ public class PasspointProvisioner {
         }
 
         /**
-         * Handle server validation failure
+         * Handles server connection status
          *
+         * @param sessionId indicating current session ID
+         * @param succeeded boolean indicating success/failure of server connection
+         * Note: Called on main thread (WifiService thread).
+         */
+        public void handleServerConnectionStatus(int sessionId, boolean succeeded) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Server Connection status received in " + mState);
+            }
+            if (sessionId != mCurrentSessionId) {
+                Log.w(TAG, "Expected server connection failure callback for currentSessionId="
+                        + mCurrentSessionId);
+                return;
+            }
+            if (mState != STATE_OSU_SERVER_CONNECTING) {
+                Log.wtf(TAG, "Server Validation Failure unhandled in mState=" + mState);
+                return;
+            }
+            if (!succeeded) {
+                resetStateMachineForFailure(ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
+                return;
+            }
+            invokeProvisioningCallback(PROVISIONING_STATUS,
+                    ProvisioningCallback.OSU_STATUS_SERVER_CONNECTED);
+            mProvisioningStateMachine.getHandler().post(() -> initSoapExchange());
+        }
+
+        /**
+         * Handles server validation failure
+         *
+         * @param sessionId indicating current session ID
          * Note: Called on main thread (WifiService thread).
          */
         public void handleServerValidationFailure(int sessionId) {
@@ -274,7 +303,7 @@ public class PasspointProvisioner {
                         + mCurrentSessionId);
                 return;
             }
-            if (mState != STATE_OSU_SERVER_CONNECTED) {
+            if (mState != STATE_OSU_SERVER_CONNECTING) {
                 Log.wtf(TAG, "Server Validation Failure unhandled in mState=" + mState);
                 return;
             }
@@ -282,8 +311,9 @@ public class PasspointProvisioner {
         }
 
         /**
-         * Handle status of server validation success
+         * Handles status of server validation success
          *
+         * @param sessionId indicating current session ID
          * Note: Called on main thread (WifiService thread).
          */
         public void handleServerValidationSuccess(int sessionId) {
@@ -295,13 +325,18 @@ public class PasspointProvisioner {
                         + mCurrentSessionId);
                 return;
             }
-            if (mState != STATE_OSU_SERVER_CONNECTED) {
+            if (mState != STATE_OSU_SERVER_CONNECTING) {
                 Log.wtf(TAG, "Server validation success event unhandled in state=" + mState);
+                return;
+            }
+            if (!mOsuServerConnection.validateProvider(
+                    Locale.getDefault(), mOsuProvider.getFriendlyName())) {
+                resetStateMachineForFailure(
+                        ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION);
                 return;
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_SERVER_VALIDATED);
-            validateServiceProvider();
         }
 
         /**
@@ -352,14 +387,13 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Connected event received in state=" + mState);
             }
-            if (mState != STATE_WAITING_TO_CONNECT) {
+            if (mState != STATE_AP_CONNECTING) {
                 // Not waiting for a connection
                 Log.wtf(TAG, "Connection event unhandled in state=" + mState);
                 return;
             }
             invokeProvisioningCallback(PROVISIONING_STATUS,
                     ProvisioningCallback.OSU_STATUS_AP_CONNECTED);
-            changeState(STATE_OSU_AP_CONNECTED);
             initiateServerConnection(network);
         }
 
@@ -577,18 +611,15 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Initiating server connection in state=" + mState);
             }
-            if (mState != STATE_OSU_AP_CONNECTED) {
-                Log.wtf(TAG, "Initiating server connection aborted in invalid state=" + mState);
-                return;
-            }
+
             if (!mOsuServerConnection.connect(mServerUrl, network)) {
                 resetStateMachineForFailure(ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
                 return;
             }
             mNetwork = network;
-            changeState(STATE_OSU_SERVER_CONNECTED);
+            changeState(STATE_OSU_SERVER_CONNECTING);
             invokeProvisioningCallback(PROVISIONING_STATUS,
-                    ProvisioningCallback.OSU_STATUS_SERVER_CONNECTED);
+                    ProvisioningCallback.OSU_STATUS_SERVER_CONNECTING);
         }
 
         private void invokeProvisioningCallback(int callbackType, int status) {
@@ -622,26 +653,6 @@ public class PasspointProvisioner {
         }
 
         /**
-         * Validate the OSU Server certificate based on the procedure in 7.3.2.2 of Hotspot2.0
-         * rel2 spec.
-         */
-        private void validateServiceProvider() {
-            if (mVerboseLoggingEnabled) {
-                Log.v(TAG, "Validating the service provider of OSU Server certificate in state="
-                        + mState);
-            }
-            if (!mOsuServerConnection.validateProvider(
-                    Locale.getDefault(), mOsuProvider.getFriendlyName())) {
-                resetStateMachineForFailure(
-                        ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION);
-                return;
-            }
-            invokeProvisioningCallback(PROVISIONING_STATUS,
-                    ProvisioningCallback.OSU_STATUS_SERVICE_PROVIDER_VERIFIED);
-            mProvisioningStateMachine.getHandler().post(() -> initSoapExchange());
-        }
-
-        /**
          * Initiates the SOAP message exchange with sending the sppPostDevData message.
          */
         private void initSoapExchange() {
@@ -649,7 +660,7 @@ public class PasspointProvisioner {
                 Log.v(TAG, "Initiates soap message exchange in state =" + mState);
             }
 
-            if (mState != STATE_OSU_SERVER_CONNECTED) {
+            if (mState != STATE_OSU_SERVER_CONNECTING) {
                 Log.e(TAG, "Initiates soap message exchange in wrong state=" + mState);
                 resetStateMachineForFailure(ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
                 return;
@@ -971,6 +982,20 @@ public class PasspointProvisioner {
          */
         public int getSessionId() {
             return mSessionId;
+        }
+
+        /**
+         * Callback when a TLS connection to the server is failed.
+         *
+         * @param sessionId indicating current session ID
+         * @param succeeded boolean indicating success/failure of server connection
+         */
+        public void onServerConnectionStatus(int sessionId, boolean succeeded) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "OSU Server connection status=" + succeeded + " sessionId=" + sessionId);
+            }
+            mProvisioningStateMachine.getHandler().post(() ->
+                    mProvisioningStateMachine.handleServerConnectionStatus(sessionId, succeeded));
         }
 
         /**

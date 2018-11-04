@@ -152,36 +152,31 @@ public class OsuServerConnection {
     }
 
     /**
-     * Connect to the OSU server
+     * Connects to the OSU server
      *
      * @param url     Osu Server's URL
      * @param network current network connection
-     * @return boolean value, true if connection was successful
+     * @return {@code true} if {@code url} and {@code network} are not null
      *
      * Note: Relies on the caller to ensure that the capability to validate the OSU
      * Server is available.
      */
-    public boolean connect(URL url, Network network) {
-        mNetwork = network;
-        mUrl = url;
-        HttpsURLConnection urlConnection;
-        try {
-            urlConnection = (HttpsURLConnection) mNetwork.openConnection(mUrl);
-            urlConnection.setSSLSocketFactory(mSocketFactory);
-            urlConnection.setConnectTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
-            urlConnection.setReadTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
-            urlConnection.connect();
-        } catch (IOException e) {
-            Log.e(TAG, "Unable to establish a URL connection");
-            e.printStackTrace();
+    public boolean connect(@NonNull URL url, @NonNull Network network) {
+        if (url == null) {
+            Log.e(TAG, "url is null");
             return false;
         }
-        mUrlConnection = urlConnection;
+        if (network == null) {
+            Log.e(TAG, "network is null");
+            return false;
+        }
+
+        mHandler.post(() -> performTlsConnection(url, network));
         return true;
     }
 
     /**
-     * Validate the service provider by comparing its identities found in OSU Server cert
+     * Validates the service provider by comparing its identities found in OSU Server cert
      * to the friendlyName obtained from ANQP exchange that is displayed to the user.
      *
      * @param locale       a {@link Locale} object used for matching the friendly name in
@@ -219,8 +214,8 @@ public class OsuServerConnection {
      * The helper method to exchange a SOAP message.
      *
      * @param soapEnvelope the soap message to be sent.
-     * @return {@code true} if {@link Network} is valid and {@code soapEnvelope} is not null,
-     * {@code false} otherwise.
+     * @return {@code true} if {@link Network} is valid and {@code soapEnvelope} is not {@code
+     * null}, {@code false} otherwise.
      */
     public boolean exchangeSoapMessage(@NonNull SoapSerializationEnvelope soapEnvelope) {
         if (mNetwork == null) {
@@ -249,8 +244,8 @@ public class OsuServerConnection {
      *                       {@code Key} is the cert type.
      *                       {@code Value} is the map that has a key for certUrl and a value for
      *                       fingerprint of the certificate.
-     * @return {@code true} if {@link Network} is valid and {@code trustCertsInfo} is not null,
-     * {@code false} otherwise.
+     * @return {@code true} if {@link Network} is valid and {@code trustCertsInfo} is not {@code
+     * null}, {@code false} otherwise.
      */
     public boolean retrieveTrustRootCerts(
             @NonNull Map<Integer, Map<String, byte[]>> trustCertsInfo) {
@@ -270,6 +265,31 @@ public class OsuServerConnection {
         }
         mHandler.post(() -> performRetrievingTrustRootCerts(trustCertsInfo));
         return true;
+    }
+
+    private void performTlsConnection(URL url, Network network) {
+        mNetwork = network;
+        mUrl = url;
+
+        HttpsURLConnection urlConnection;
+        try {
+            urlConnection = (HttpsURLConnection) mNetwork.openConnection(mUrl);
+            urlConnection.setSSLSocketFactory(mSocketFactory);
+            urlConnection.setConnectTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
+            urlConnection.setReadTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
+            urlConnection.connect();
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to establish a URL connection: " + e);
+            if (mOsuServerCallbacks != null) {
+                mOsuServerCallbacks.onServerConnectionStatus(mOsuServerCallbacks.getSessionId(),
+                        false);
+            }
+            return;
+        }
+        mUrlConnection = urlConnection;
+        if (mOsuServerCallbacks != null) {
+            mOsuServerCallbacks.onServerConnectionStatus(mOsuServerCallbacks.getSessionId(), true);
+        }
     }
 
     private void performSoapMessageExchange(@NonNull SoapSerializationEnvelope soapEnvelope) {
