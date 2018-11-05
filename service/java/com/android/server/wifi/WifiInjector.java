@@ -225,7 +225,8 @@ public class WifiInjector {
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
                 UserManager.get(mContext), TelephonyManager.from(mContext),
                 mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy, mWifiPermissionsUtil,
-                mWifiPermissionsWrapper, new NetworkListStoreData(mContext),
+                mWifiPermissionsWrapper, new NetworkListSharedStoreData(mContext),
+                new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData());
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);

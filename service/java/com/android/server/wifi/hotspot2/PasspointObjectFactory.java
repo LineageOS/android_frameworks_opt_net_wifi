@@ -61,16 +61,26 @@ public class PasspointObjectFactory{
     }
 
     /**
-     * Create a {@link PasspointConfigStoreData} instance.
+     * Create a {@link PasspointConfigUserStoreData} instance.
      *
      * @param keyStore Instance of {@link WifiKeyStore}
      * @param simAccessor Instance of {@link SIMAccessor}
      * @param dataSource Passpoint configuration data source
-     * @return {@link PasspointConfigStoreData}
+     * @return {@link PasspointConfigUserStoreData}
      */
-    public PasspointConfigStoreData makePasspointConfigStoreData(WifiKeyStore keyStore,
-            SIMAccessor simAccessor, PasspointConfigStoreData.DataSource dataSource) {
-        return new PasspointConfigStoreData(keyStore, simAccessor, dataSource);
+    public PasspointConfigUserStoreData makePasspointConfigUserStoreData(WifiKeyStore keyStore,
+            SIMAccessor simAccessor, PasspointConfigUserStoreData.DataSource dataSource) {
+        return new PasspointConfigUserStoreData(keyStore, simAccessor, dataSource);
+    }
+
+    /**
+     * Create a {@link PasspointConfigSharedStoreData} instance.
+     * @param dataSource Passpoint configuration data source
+     * @return {@link PasspointConfigSharedStoreData}
+     */
+    public PasspointConfigSharedStoreData makePasspointConfigSharedStoreData(
+            PasspointConfigSharedStoreData.DataSource dataSource) {
+        return new PasspointConfigSharedStoreData(dataSource);
     }
 
     /**

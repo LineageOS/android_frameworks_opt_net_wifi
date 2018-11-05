@@ -48,7 +48,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Unit tests for {@link com.android.server.wifi.NetworksListStoreData}.
+ * Unit tests for {@link com.android.server.wifi.NetworkListStoreData}.
  */
 @SmallTest
 public class NetworkListStoreDataTest {
@@ -182,7 +182,9 @@ public class NetworkListStoreDataTest {
                     + "</WifiEnterpriseConfiguration>\n"
                     + "</Network>\n";
 
-    private NetworkListStoreData mNetworkListStoreData;
+    // We use {@link NetworkListSharedStoreData} instance because {@link NetworkListStoreData} is
+    // abstract.
+    private NetworkListSharedStoreData mNetworkListSharedStoreData;
     @Mock private Context mContext;
     @Mock private PackageManager mPackageManager;
 
@@ -191,21 +193,20 @@ public class NetworkListStoreDataTest {
         MockitoAnnotations.initMocks(this);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn(TEST_CREATOR_NAME);
-        mNetworkListStoreData = new NetworkListStoreData(mContext);
+        mNetworkListSharedStoreData = new NetworkListSharedStoreData(mContext);
     }
 
     /**
      * Helper function for serializing configuration data to a XML block.
      *
-     * @param shared Flag indicating serializing shared or user configurations
      * @return byte[] of the XML data
      * @throws Exception
      */
-    private byte[] serializeData(boolean shared) throws Exception {
+    private byte[] serializeData() throws Exception {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mNetworkListStoreData.serializeData(out, shared);
+        mNetworkListSharedStoreData.serializeData(out);
         out.flush();
         return outputStream.toByteArray();
     }
@@ -214,20 +215,15 @@ public class NetworkListStoreDataTest {
      * Helper function for parsing configuration data from a XML block.
      *
      * @param data XML data to parse from
-     * @param shared Flag indicating parsing of shared or user configurations
      * @return List of WifiConfiguration parsed
      * @throws Exception
      */
-    private List<WifiConfiguration> deserializeData(byte[] data, boolean shared) throws Exception {
+    private List<WifiConfiguration> deserializeData(byte[] data) throws Exception {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
-        mNetworkListStoreData.deserializeData(in, in.getDepth(), shared);
-        if (shared) {
-            return mNetworkListStoreData.getSharedConfigurations();
-        } else {
-            return mNetworkListStoreData.getUserConfigurations();
-        }
+        mNetworkListSharedStoreData.deserializeData(in, in.getDepth());
+        return mNetworkListSharedStoreData.getConfigurations();
     }
 
     /**
@@ -288,8 +284,7 @@ public class NetworkListStoreDataTest {
      */
     @Test
     public void serializeEmptyConfigs() throws Exception {
-        assertEquals(0, serializeData(true /* shared */).length);
-        assertEquals(0, serializeData(false /* shared */).length);
+        assertEquals(0, serializeData().length);
     }
 
     /**
@@ -300,18 +295,23 @@ public class NetworkListStoreDataTest {
      */
     @Test
     public void deserializeEmptyData() throws Exception {
-        assertTrue(deserializeData(new byte[0], true /* shared */).isEmpty());
-        assertTrue(deserializeData(new byte[0], false /* shared */).isEmpty());
+        assertTrue(deserializeData(new byte[0]).isEmpty());
     }
 
     /**
-     * Verify that NetworkListStoreData does support share data.
+     * Verify that {@link NetworkListSharedStoreData} is written to
+     * {@link WifiConfigStore#STORE_FILE_NAME_SHARED_GENERAL}.
+     * Verify that {@link NetworkListUserStoreData} is written to
+     * {@link WifiConfigStore#STORE_FILE_NAME_USER_GENERAL}.
      *
      * @throws Exception
      */
     @Test
-    public void supportShareData() throws Exception {
-        assertTrue(mNetworkListStoreData.supportShareData());
+    public void getUserStoreFileId() throws Exception {
+        assertEquals(WifiConfigStore.STORE_FILE_SHARED_GENERAL,
+                mNetworkListSharedStoreData.getStoreFileId());
+        assertEquals(WifiConfigStore.STORE_FILE_USER_GENERAL,
+                new NetworkListUserStoreData(mContext).getStoreFileId());
     }
 
     /**
@@ -323,9 +323,9 @@ public class NetworkListStoreDataTest {
     @Test
     public void serializeSharedConfigurations() throws Exception {
         List<WifiConfiguration> networkList = getTestNetworksConfig(true /* shared */);
-        mNetworkListStoreData.setSharedConfigurations(networkList);
+        mNetworkListSharedStoreData.setConfigurations(networkList);
         byte[] expectedData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
-        assertTrue(Arrays.equals(expectedData, serializeData(true /* shared */)));
+        assertTrue(Arrays.equals(expectedData, serializeData()));
     }
 
     /**
@@ -338,34 +338,7 @@ public class NetworkListStoreDataTest {
         List<WifiConfiguration> networkList = getTestNetworksConfig(true /* shared */);
         byte[] xmlData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
         WifiConfigurationTestUtil.assertConfigurationsEqualForConfigStore(
-                networkList, deserializeData(xmlData, true /* shared */));
-    }
-
-    /**
-     * Verify that the user configurations (containing an open and an EAP network) are serialized
-     * correctly, matching the expected XML string.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void serializeUserConfigurations() throws Exception {
-        List<WifiConfiguration> networkList = getTestNetworksConfig(false /* shared */);
-        mNetworkListStoreData.setUserConfigurations(networkList);
-        byte[] expectedData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
-        assertTrue(Arrays.equals(expectedData, serializeData(false /* shared */)));
-    }
-
-    /**
-     * Verify that the user configurations are parsed correctly from a XML string containing
-     * test networks (an open and an EAP network).
-     * @throws Exception
-     */
-    @Test
-    public void deserializeUserConfigurations() throws Exception {
-        List<WifiConfiguration> networkList = getTestNetworksConfig(false /* shared */);
-        byte[] xmlData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
-        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigStore(
-                networkList, deserializeData(xmlData, false /* shared */));
+                networkList, deserializeData(xmlData));
     }
 
     /**
@@ -432,7 +405,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.SSID.replaceAll("\"", "&quot;"),
                 openNetwork.shared, openNetwork.creatorUid, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        deserializeData(xmlData, true);
+        deserializeData(xmlData);
     }
 
     /**
@@ -450,7 +423,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.shared, openNetwork.creatorUid,
                 openNetwork.creatorName, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        deserializeData(xmlData, true);
+        deserializeData(xmlData);
     }
 
     /**
@@ -470,7 +443,7 @@ public class NetworkListStoreDataTest {
                 String.format(XmlUtilTest.XML_STRING_EAP_METHOD_REPLACE_FORMAT,
                         WifiEnterpriseConfig.Eap.NONE));
         List<WifiConfiguration> retrievedNetworkList =
-                deserializeData(xmlString.getBytes(StandardCharsets.UTF_8), true /* shared */);
+                deserializeData(xmlString.getBytes(StandardCharsets.UTF_8));
         // Retrieved network should not contain the eap network.
         assertEquals(1, retrievedNetworkList.size());
         for (WifiConfiguration network : retrievedNetworkList) {
@@ -495,7 +468,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.shared, openNetwork.creatorUid,
                 openNetwork.creatorName, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData, true);
+        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData);
         assertEquals(1, deserializedNetworks.size());
         assertEquals(openNetwork.configKey(), deserializedNetworks.get(0).configKey());
         assertEquals(SYSTEM_UID, deserializedNetworks.get(0).creatorUid);
@@ -523,7 +496,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.shared, openNetwork.creatorUid,
                 openNetwork.creatorName, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData, true);
+        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData);
         assertEquals(1, deserializedNetworks.size());
         assertEquals(openNetwork.configKey(), deserializedNetworks.get(0).configKey());
         assertEquals(openNetwork.creatorUid, deserializedNetworks.get(0).creatorUid);
@@ -550,7 +523,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.shared, openNetwork.creatorUid,
                 openNetwork.creatorName, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData, true);
+        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData);
         assertEquals(1, deserializedNetworks.size());
         assertEquals(openNetwork.configKey(), deserializedNetworks.get(0).configKey());
         assertEquals(openNetwork.creatorUid, deserializedNetworks.get(0).creatorUid);
@@ -571,7 +544,7 @@ public class NetworkListStoreDataTest {
                 openNetwork.shared, openNetwork.creatorUid,
                 openNetwork.creatorName, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData, true);
+        List<WifiConfiguration> deserializedNetworks = deserializeData(xmlData);
         assertEquals(1, deserializedNetworks.size());
         assertEquals(openNetwork.configKey(), deserializedNetworks.get(0).configKey());
         assertEquals(openNetwork.creatorUid, deserializedNetworks.get(0).creatorUid);

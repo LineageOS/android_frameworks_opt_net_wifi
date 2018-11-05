@@ -136,7 +136,8 @@ public class PasspointManagerTest {
     @Mock CertificateVerifier mCertVerifier;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiConfigStore mWifiConfigStore;
-    @Mock PasspointConfigStoreData.DataSource mDataSource;
+    @Mock PasspointConfigSharedStoreData.DataSource mSharedDataSource;
+    @Mock PasspointConfigUserStoreData.DataSource mUserDataSource;
     @Mock WifiMetrics mWifiMetrics;
     @Mock OsuNetworkConnection mOsuNetworkConnection;
     @Mock OsuServerConnection mOsuServerConnection;
@@ -170,12 +171,16 @@ public class PasspointManagerTest {
                 ArgumentCaptor.forClass(PasspointEventHandler.Callbacks.class);
         verify(mObjectFactory).makePasspointEventHandler(any(WifiNative.class),
                                                          callbacks.capture());
-        ArgumentCaptor<PasspointConfigStoreData.DataSource> dataSource =
-                ArgumentCaptor.forClass(PasspointConfigStoreData.DataSource.class);
-        verify(mObjectFactory).makePasspointConfigStoreData(
-                any(WifiKeyStore.class), any(SIMAccessor.class), dataSource.capture());
+        ArgumentCaptor<PasspointConfigSharedStoreData.DataSource> sharedDataSource =
+                ArgumentCaptor.forClass(PasspointConfigSharedStoreData.DataSource.class);
+        verify(mObjectFactory).makePasspointConfigSharedStoreData(sharedDataSource.capture());
+        ArgumentCaptor<PasspointConfigUserStoreData.DataSource> userDataSource =
+                ArgumentCaptor.forClass(PasspointConfigUserStoreData.DataSource.class);
+        verify(mObjectFactory).makePasspointConfigUserStoreData(
+                any(WifiKeyStore.class), any(SIMAccessor.class), userDataSource.capture());
         mCallbacks = callbacks.getValue();
-        mDataSource = dataSource.getValue();
+        mSharedDataSource = sharedDataSource.getValue();
+        mUserDataSource = userDataSource.getValue();
         mLooper = new TestLooper();
     }
 
@@ -491,11 +496,11 @@ public class PasspointManagerTest {
         reset(mWifiConfigManager);
 
         // Verify content in the data source.
-        List<PasspointProvider> providers = mDataSource.getProviders();
+        List<PasspointProvider> providers = mUserDataSource.getProviders();
         assertEquals(1, providers.size());
         assertEquals(config, providers.get(0).getConfig());
         // Provider index start with 0, should be 1 after adding a provider.
-        assertEquals(1, mDataSource.getProviderIndex());
+        assertEquals(1, mSharedDataSource.getProviderIndex());
 
         // Remove the provider.
         assertTrue(mManager.removeProvider(TEST_FQDN));
@@ -506,9 +511,9 @@ public class PasspointManagerTest {
         assertTrue(mManager.getProviderConfigs().isEmpty());
 
         // Verify content in the data source.
-        assertTrue(mDataSource.getProviders().isEmpty());
+        assertTrue(mUserDataSource.getProviders().isEmpty());
         // Removing a provider should not change the provider index.
-        assertEquals(1, mDataSource.getProviderIndex());
+        assertEquals(1, mSharedDataSource.getProviderIndex());
     }
 
     /**
@@ -531,11 +536,11 @@ public class PasspointManagerTest {
         reset(mWifiConfigManager);
 
         // Verify content in the data source.
-        List<PasspointProvider> providers = mDataSource.getProviders();
+        List<PasspointProvider> providers = mUserDataSource.getProviders();
         assertEquals(1, providers.size());
         assertEquals(config, providers.get(0).getConfig());
         // Provider index start with 0, should be 1 after adding a provider.
-        assertEquals(1, mDataSource.getProviderIndex());
+        assertEquals(1, mSharedDataSource.getProviderIndex());
 
         // Remove the provider.
         assertTrue(mManager.removeProvider(TEST_FQDN));
@@ -546,9 +551,9 @@ public class PasspointManagerTest {
         assertTrue(mManager.getProviderConfigs().isEmpty());
 
         // Verify content in the data source.
-        assertTrue(mDataSource.getProviders().isEmpty());
+        assertTrue(mUserDataSource.getProviders().isEmpty());
         // Removing a provider should not change the provider index.
-        assertEquals(1, mDataSource.getProviderIndex());
+        assertEquals(1, mSharedDataSource.getProviderIndex());
     }
 
     /**
@@ -574,10 +579,10 @@ public class PasspointManagerTest {
         reset(mWifiConfigManager);
 
         // Verify data source content.
-        List<PasspointProvider> origProviders = mDataSource.getProviders();
+        List<PasspointProvider> origProviders = mUserDataSource.getProviders();
         assertEquals(1, origProviders.size());
         assertEquals(origConfig, origProviders.get(0).getConfig());
-        assertEquals(1, mDataSource.getProviderIndex());
+        assertEquals(1, mSharedDataSource.getProviderIndex());
 
         // Add another provider with the same base domain as the existing provider.
         // This should replace the existing provider with the new configuration.
@@ -592,10 +597,10 @@ public class PasspointManagerTest {
         verify(mWifiMetrics).incrementNumPasspointProviderInstallSuccess();
 
         // Verify data source content.
-        List<PasspointProvider> newProviders = mDataSource.getProviders();
+        List<PasspointProvider> newProviders = mUserDataSource.getProviders();
         assertEquals(1, newProviders.size());
         assertEquals(newConfig, newProviders.get(0).getConfig());
-        assertEquals(2, mDataSource.getProviderIndex());
+        assertEquals(2, mSharedDataSource.getProviderIndex());
     }
 
     /**
@@ -1084,7 +1089,7 @@ public class PasspointManagerTest {
         PasspointProvider provider = createMockProvider(config);
         List<PasspointProvider> providers = new ArrayList<>();
         providers.add(provider);
-        mDataSource.setProviders(providers);
+        mUserDataSource.setProviders(providers);
 
         // Verify the providers maintained by PasspointManager.
         assertEquals(1, mManager.getProviderConfigs().size());
@@ -1100,8 +1105,8 @@ public class PasspointManagerTest {
     @Test
     public void verifyProviderIndexAfterDataSourceUpdate() throws Exception {
         long providerIndex = 9;
-        mDataSource.setProviderIndex(providerIndex);
-        assertEquals(providerIndex, mDataSource.getProviderIndex());
+        mSharedDataSource.setProviderIndex(providerIndex);
+        assertEquals(providerIndex, mSharedDataSource.getProviderIndex());
 
         // Add a provider.
         PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
