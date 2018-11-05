@@ -297,7 +297,8 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
-        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager();
+        mWifiNetworkSuggestionsManager =
+                new WifiNetworkSuggestionsManager(mContext, mWifiPermissionsUtil);
     }
 
     /**

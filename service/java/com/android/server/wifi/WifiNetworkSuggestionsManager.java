@@ -16,12 +16,19 @@
 
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.Context;
+import android.content.Intent;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -42,6 +49,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class WifiNetworkSuggestionsManager {
     private static final String TAG = "WifiNetworkSuggestionsManager";
+
+    private final Context mContext;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
     /**
      * Map of package name of an app to the set of active network suggestions provided by the app.
      */
@@ -62,6 +72,11 @@ public class WifiNetworkSuggestionsManager {
      * Verbose logging flag.
      */
     private boolean mVerboseLoggingEnabled = false;
+
+    public WifiNetworkSuggestionsManager(Context context, WifiPermissionsUtil wifiPermissionsUtil) {
+        mContext = context;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
+    }
 
     /**
      * Enable verbose logging.
@@ -177,7 +192,7 @@ public class WifiNetworkSuggestionsManager {
      * Returns a set of all network suggestions matching the provided scan detail.
      */
     public @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForScanDetail(
-            ScanDetail scanDetail) {
+            @NonNull ScanDetail scanDetail) {
         ScanResult scanResult = scanDetail.getScanResult();
         if (scanResult == null) {
             Log.e(TAG, "No scan result found in scan detail");
@@ -197,6 +212,84 @@ public class WifiNetworkSuggestionsManager {
             }
         }
         return networkSuggestions;
+    }
+
+    /**
+     * Returns a set of all network suggestions matching the provided the WifiConfiguration.
+     */
+    private @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForWifiConfiguration(
+            @NonNull WifiConfiguration wifiConfiguration) {
+        Set<WifiNetworkSuggestion> networkSuggestions = null;
+        try {
+            networkSuggestions = mActiveScanResultMatchInfo.get(
+                    ScanResultMatchInfo.fromWifiConfiguration(wifiConfiguration));
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to lookup network from scan result match info map", e);
+        }
+        if (networkSuggestions != null) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "getNetworkSuggestionsFoWifiConfiguration Found "
+                        + networkSuggestions + " for " + wifiConfiguration.SSID
+                        + "[" + wifiConfiguration.allowedKeyManagement + "]");
+            }
+        }
+        return networkSuggestions;
+    }
+
+    /**
+     * Helper method to send the post connection broadcast to specified package.
+     */
+    private void sendPostConnectionBroadcast(
+            String packageName, WifiNetworkSuggestion networkSuggestion) {
+        Intent intent = new Intent(WifiManager.ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION);
+        intent.putExtra(WifiManager.EXTRA_NETWORK_SUGGESTION, networkSuggestion);
+        // Intended to wakeup the receiving app so set the specific package name.
+        intent.setPackage(packageName);
+        mContext.sendBroadcastAsUser(
+                intent, UserHandle.getUserHandleForUid(networkSuggestion.suggestorUid));
+    }
+
+    /**
+     * Send out the {@link WifiManager#ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION} to all the
+     * network suggestion credentials that match the current connection network.
+     *
+     * @param connectedNetwork {@link WifiConfiguration} representing the network connected to.
+     */
+    public void handleNetworkConnection(@NonNull WifiConfiguration connectedNetwork) {
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                getNetworkSuggestionsForWifiConfiguration(connectedNetwork);
+        if (matchingNetworkSuggestions == null || matchingNetworkSuggestions.size() == 0) return;
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithReqAppInteraction =
+                matchingNetworkSuggestions.stream()
+                        .filter(x -> x.isAppInteractionRequired)
+                        .collect(Collectors.toSet());
+        if (matchingNetworkSuggestions.size() == 0) return;
+
+        // Iterate over the active network suggestions list:
+        // a) Find package names of all apps which made a matching suggestion.
+        // b) Ensure that these apps have the necessary location permissions.
+        // c) Send directed broadcast to the app with their corresponding network suggestion.
+        for (Map.Entry<String, Set<WifiNetworkSuggestion>> entry :
+                mActiveNetworkSuggestionsPerApp.entrySet()) {
+            WifiNetworkSuggestion matchingNetworkSuggestion =
+                    entry.getValue()
+                            .stream()
+                            .filter(matchingNetworkSuggestionsWithReqAppInteraction::contains)
+                            .findFirst()
+                            .orElse(null);
+            if (matchingNetworkSuggestion == null) continue;
+            try {
+                mWifiPermissionsUtil.enforceCanAccessScanResults(
+                        entry.getKey(), matchingNetworkSuggestion.suggestorUid);
+            } catch (SecurityException se) {
+                continue;
+            }
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Sending post connection broadcast to " + entry.getKey());
+            }
+            sendPostConnectionBroadcast(entry.getKey(), matchingNetworkSuggestion);
+        }
     }
 
     /**

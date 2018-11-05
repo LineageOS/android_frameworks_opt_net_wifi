@@ -20,15 +20,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.*;
 
+import android.content.Context;
+import android.content.Intent;
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.os.UserHandle;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
@@ -46,6 +55,10 @@ public class WifiNetworkSuggestionsManagerTest {
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
 
+    private @Mock Context mContext;
+    private @Mock WifiPermissionsUtil mWifiPermissionsUtil;
+    private InOrder mInorder;
+
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private List<WifiNetworkSuggestion> mWifiNetworkSuggestionsList1;
     private List<WifiNetworkSuggestion> mWifiNetworkSuggestionsList2;
@@ -57,7 +70,9 @@ public class WifiNetworkSuggestionsManagerTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager();
+        mInorder = inOrder(mContext, mWifiPermissionsUtil);
+        mWifiNetworkSuggestionsManager =
+                new WifiNetworkSuggestionsManager(mContext, mWifiPermissionsUtil);
     }
 
     /**
@@ -302,10 +317,153 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify a successful lookup of a single network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to the app.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithOneMatch() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+
+        // Verify that the correct broadcast was sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to all the apps.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithMulitpleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleNetworkConnection(wifiConfiguration);
+
+        // Verify that the correct broadcasts were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of a single network suggestion matching the connected network.
+     * a) The corresponding network suggestion does not have the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should not trigger a broadcast to the app.
+     */
+    @Test
+    public void testOnNetworkConnectionWhenIsAppInteractionRequiredNotSet() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+
+        // Verify no broadcast was sent out.
+        verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
+    }
+
+    /**
+     * Verify a successful lookup of a single network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app does not hold location permission.
+     * This should not trigger a broadcast to the app.
+     */
+    @Test
+    public void testOnNetworkConnectionWhenAppDoesNotHoldLocationPermission() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        doThrow(new SecurityException())
+                .when(mWifiPermissionsUtil).enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+
+        // Verify no broadcast was sent out.
+        verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
+    }
+
+    /**
      * Creates a scan detail corresponding to the provided network values.
      */
     private ScanDetail createScanDetailForNetwork(WifiConfiguration configuration) {
         return WifiConfigurationTestUtil.createScanDetailForNetwork(configuration,
                 MacAddress.createRandomUnicastAddress().toString(), -45, 0, 0, 0);
+    }
+
+    private void validatePostConnectionBroadcastSent(
+            String expectedPackageName, WifiNetworkSuggestion expectedNetworkSuggestion) {
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<UserHandle> userHandleCaptor = ArgumentCaptor.forClass(UserHandle.class);
+        mInorder.verify(mContext,  calls(1)).sendBroadcastAsUser(
+                intentCaptor.capture(), userHandleCaptor.capture());
+
+        assertEquals(userHandleCaptor.getValue(), UserHandle.SYSTEM);
+
+        Intent intent = intentCaptor.getValue();
+        assertEquals(WifiManager.ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION,
+                intent.getAction());
+        String packageName = intent.getPackage();
+        WifiNetworkSuggestion networkSuggestion =
+                intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_SUGGESTION);
+        assertEquals(expectedPackageName, packageName);
+        assertEquals(expectedNetworkSuggestion, networkSuggestion);
     }
 }
