@@ -79,7 +79,6 @@ import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
-import com.android.server.wifi.ClientModeImpl;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
@@ -978,11 +977,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case DISABLE_P2P:
                         // If we end up handling in default, p2p is not enabled
-                        if (mWifiChannel !=  null) {
-                            mWifiChannel.sendMessage(ClientModeImpl.CMD_DISABLE_P2P_RSP);
-                        } else {
-                            loge("Unexpected disable request when WifiChannel is null");
-                        }
                         break;
                     case WifiP2pMonitor.P2P_GROUP_STARTED_EVENT:
                         // unexpected group created, remove
@@ -1132,15 +1126,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         return NOT_HANDLED;
                 }
                 return HANDLED;
-            }
-
-            @Override
-            public void exit() {
-                if (mWifiChannel != null) {
-                    mWifiChannel.sendMessage(ClientModeImpl.CMD_DISABLE_P2P_RSP);
-                } else {
-                    loge("P2pDisablingState exit(): WifiChannel is null");
-                }
             }
         }
 
