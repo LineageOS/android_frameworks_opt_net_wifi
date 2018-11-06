@@ -31,11 +31,14 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.INetworkRequestUserSelectionCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.Message;
+import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.util.Log;
@@ -59,6 +62,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     private static final int SCORE_FILTER = 60;
     @VisibleForTesting
     public static final int PERIODIC_SCAN_INTERVAL_MS = 10 * 1000; // 10 seconds
+    @VisibleForTesting
+    public static final int NETWORK_CONNECTION_TIMEOUT_MS = 30 * 1000; // 30 seconds
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -70,13 +75,16 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
-    private final NetworkFactoryAlarmListener mPeriodicScanTimerListener;
+    private final PeriodicScanAlarmListener mPeriodicScanTimerListener;
+    private final ConnectionTimeoutAlarmListener mConnectionTimeoutAlarmListener;
     private final ExternalCallbackTracker<INetworkRequestMatchCallback> mRegisteredCallbacks;
+    private final Messenger mSrcMessenger;
     private WifiScanner mWifiScanner;
 
     private int mGenericConnectionReqCount = 0;
     private NetworkRequest mActiveSpecificNetworkRequest;
     private WifiNetworkSpecifier mActiveSpecificNetworkRequestSpecifier;
+    private WifiConfiguration mUserSelectedNetwork;
     private List<ScanResult> mActiveMatchedScanResults;
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
@@ -135,11 +143,19 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
     };
 
-    private class NetworkFactoryAlarmListener implements AlarmManager.OnAlarmListener {
+    private class PeriodicScanAlarmListener implements AlarmManager.OnAlarmListener {
         @Override
         public void onAlarm() {
             // Trigger the next scan.
             startScan();
+        }
+    }
+
+    private class ConnectionTimeoutAlarmListener implements AlarmManager.OnAlarmListener {
+        @Override
+        public void onAlarm() {
+            Log.e(TAG, "Timed-out connecting to network");
+            handleNetworkConnectionFailure();
         }
     }
 
@@ -153,7 +169,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                     Log.e(TAG, "Stale callback select received");
                     return;
                 }
-                // TODO(b/113878056): Trigger network connection to |wificonfiguration|.
+                handleConnectToNetworkUserSelection(wifiConfiguration);
             });
         }
 
@@ -164,10 +180,29 @@ public class WifiNetworkFactory extends NetworkFactory {
                     Log.e(TAG, "Stale callback reject received");
                     return;
                 }
-                // TODO(b/113878056): Clear the active network request.
+                handleRejectUserSelection();
             });
         }
     }
+
+    private final Handler.Callback mNetworkConnectionTriggerCallback = (Message msg) -> {
+        switch (msg.what) {
+            // Success here means that an attempt to connect to the network has been initiated.
+            case WifiManager.CONNECT_NETWORK_SUCCEEDED:
+                if (mVerboseLoggingEnabled) {
+                    Log.v(TAG, "Triggered network connection");
+                }
+                break;
+            case WifiManager.CONNECT_NETWORK_FAILED:
+                Log.e(TAG, "Failed to trigger network connection");
+                handleNetworkConnectionFailure();
+                break;
+            default:
+                Log.e(TAG, "Unknown message " + msg.what);
+        }
+        return true;
+    };
+
 
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
@@ -189,8 +224,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         mScanSettings.band = WifiScanner.WIFI_BAND_BOTH_WITH_DFS;
         mScanSettings.reportEvents = WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN;
         mScanListener = new NetworkFactoryScanListener();
-        mPeriodicScanTimerListener = new NetworkFactoryAlarmListener();
+        mPeriodicScanTimerListener = new PeriodicScanAlarmListener();
+        mConnectionTimeoutAlarmListener = new ConnectionTimeoutAlarmListener();
         mRegisteredCallbacks = new ExternalCallbackTracker<INetworkRequestMatchCallback>(mHandler);
+        mSrcMessenger = new Messenger(new Handler(looper, mNetworkConnectionTriggerCallback));
 
         setScoreFilter(SCORE_FILTER);
     }
@@ -349,13 +386,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Network specifier does not match the active request. Ignoring");
                 return;
             }
-            // Release the active network request.
-            mActiveSpecificNetworkRequest = null;
-            mActiveSpecificNetworkRequestSpecifier = null;
-            // Cancel the periodic scans.
-            cancelPeriodicScans();
-            // Re-enable Auto-join.
-            mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+            resetState();
         }
     }
 
@@ -371,6 +402,63 @@ public class WifiNetworkFactory extends NetworkFactory {
      */
     public boolean hasConnectionRequests() {
         return mGenericConnectionReqCount > 0 || mActiveSpecificNetworkRequest != null;
+    }
+
+    private void handleConnectToNetworkUserSelection(WifiConfiguration network) {
+        Log.d(TAG, "User initiated connect to  network: " + network.SSID);
+
+        // Cancel the ongoing scans after user selection.
+        cancelPeriodicScans();
+
+        // Mark the network ephemeral so that it's automatically removed at the end of connection.
+        // TODO(b/113878056): This marks the network untrusted currently, need to handle that.
+        network.ephemeral = true;
+
+        // Send the connect request to ClientModeImpl.
+        Message msg = Message.obtain();
+        msg.what = WifiManager.CONNECT_NETWORK;
+        msg.arg1 = WifiConfiguration.INVALID_NETWORK_ID;
+        msg.obj = network;
+        msg.replyTo = mSrcMessenger;
+        mWifiInjector.getClientModeImpl().sendMessage(msg);
+
+        // Store the user selected network.
+        mUserSelectedNetwork = network;
+
+        // Post an alarm to handle connection timeout.
+        mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                mClock.getElapsedSinceBootMillis() + NETWORK_CONNECTION_TIMEOUT_MS,
+                TAG, mConnectionTimeoutAlarmListener, mHandler);
+    }
+
+    private void handleRejectUserSelection() {
+        Log.w(TAG, "User dismissed notification");
+        resetState();
+    }
+
+    /**
+     * Invoked by {@link ClientModeImpl} on successful connection to a network.
+     */
+    public void handleNetworkConnectionSuccess(WifiConfiguration network) {
+        // TODO(b/113878056): Handle network connection
+    }
+
+    /**
+     * Invoked by {@link ClientModeImpl} on failure to connect to a network.
+     */
+    public void handleNetworkConnectionFailure() {
+        // TODO(b/113878056): Handle connection failure.
+    }
+
+    private void resetState() {
+        // Reset the active network request.
+        mActiveSpecificNetworkRequest = null;
+        mActiveSpecificNetworkRequestSpecifier = null;
+        mUserSelectedNetwork = null;
+        cancelPeriodicScans();
+        // Re-enable Auto-join.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+        // TODO: Force-release the network request to let the app know that the attempt failed.
     }
 
     /**
