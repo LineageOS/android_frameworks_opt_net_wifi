@@ -328,7 +328,8 @@ public class WifiConfigManager {
 
     // Store data for network list and deleted ephemeral SSID list.  Used for serializing
     // parsing data to/from the config store.
-    private final NetworkListStoreData mNetworkListStoreData;
+    private final NetworkListSharedStoreData mNetworkListSharedStoreData;
+    private final NetworkListUserStoreData mNetworkListUserStoreData;
     private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
 
     // Store the saved network update listener.
@@ -343,7 +344,8 @@ public class WifiConfigManager {
             WifiConfigStore wifiConfigStore, WifiConfigStoreLegacy wifiConfigStoreLegacy,
             WifiPermissionsUtil wifiPermissionsUtil,
             WifiPermissionsWrapper wifiPermissionsWrapper,
-            NetworkListStoreData networkListStoreData,
+            NetworkListSharedStoreData networkListSharedStoreData,
+            NetworkListUserStoreData networkListUserStoreData,
             DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData) {
         mContext = context;
         mClock = clock;
@@ -361,9 +363,11 @@ public class WifiConfigManager {
         mDeletedEphemeralSSIDs = new HashSet<>();
 
         // Register store data for network list and deleted ephemeral SSIDs.
-        mNetworkListStoreData = networkListStoreData;
+        mNetworkListSharedStoreData = networkListSharedStoreData;
+        mNetworkListUserStoreData = networkListUserStoreData;
         mDeletedEphemeralSsidsStoreData = deletedEphemeralSsidsStoreData;
-        mWifiConfigStore.registerStoreData(mNetworkListStoreData);
+        mWifiConfigStore.registerStoreData(mNetworkListSharedStoreData);
+        mWifiConfigStore.registerStoreData(mNetworkListUserStoreData);
         mWifiConfigStore.registerStoreData(mDeletedEphemeralSsidsStoreData);
 
         mOnlyLinkSameCredentialConfigurations = mContext.getResources().getBoolean(
@@ -2754,7 +2758,7 @@ public class WifiConfigManager {
         // Setup user store for the current user in case it have not setup yet, so that data
         // owned by the current user will be backed to the user store.
         if (mDeferredUserUnlockRead) {
-            mWifiConfigStore.setUserStore(WifiConfigStore.createUserFile(mCurrentUserId));
+            mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
             mDeferredUserUnlockRead = false;
         }
 
@@ -2783,7 +2787,7 @@ public class WifiConfigManager {
         // configurations for the current user will also being loaded.
         if (mDeferredUserUnlockRead) {
             Log.i(TAG, "Handling user unlock before loading from store.");
-            mWifiConfigStore.setUserStore(WifiConfigStore.createUserFile(mCurrentUserId));
+            mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
             mDeferredUserUnlockRead = false;
         }
         if (!mWifiConfigStore.areStoresPresent()) {
@@ -2803,8 +2807,8 @@ public class WifiConfigManager {
             Log.wtf(TAG, "XML deserialization of store failed. All saved networks are lost!", e);
             return false;
         }
-        loadInternalData(mNetworkListStoreData.getSharedConfigurations(),
-                mNetworkListStoreData.getUserConfigurations(),
+        loadInternalData(mNetworkListSharedStoreData.getConfigurations(),
+                mNetworkListUserStoreData.getConfigurations(),
                 mDeletedEphemeralSsidsStoreData.getSsidList());
         return true;
     }
@@ -2823,7 +2827,7 @@ public class WifiConfigManager {
      */
     public boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
         try {
-            mWifiConfigStore.switchUserStoreAndRead(WifiConfigStore.createUserFile(userId));
+            mWifiConfigStore.switchUserStoresAndRead(WifiConfigStore.createUserFiles(userId));
         } catch (IOException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved private networks are lost!", e);
             return false;
@@ -2832,7 +2836,7 @@ public class WifiConfigManager {
                     "lost!", e);
             return false;
         }
-        loadInternalDataFromUserStore(mNetworkListStoreData.getUserConfigurations(),
+        loadInternalDataFromUserStore(mNetworkListUserStoreData.getConfigurations(),
                 mDeletedEphemeralSsidsStoreData.getSsidList());
         return true;
     }
@@ -2892,8 +2896,8 @@ public class WifiConfigManager {
         }
 
         // Setup store data for write.
-        mNetworkListStoreData.setSharedConfigurations(sharedConfigurations);
-        mNetworkListStoreData.setUserConfigurations(userConfigurations);
+        mNetworkListSharedStoreData.setConfigurations(sharedConfigurations);
+        mNetworkListUserStoreData.setConfigurations(userConfigurations);
         mDeletedEphemeralSsidsStoreData.setSsidList(mDeletedEphemeralSSIDs);
 
         try {
@@ -2932,6 +2936,7 @@ public class WifiConfigManager {
         pw.println("WifiConfigManager - Configured networks End ----");
         pw.println("WifiConfigManager - Next network ID to be allocated " + mNextNetworkId);
         pw.println("WifiConfigManager - Last selected network ID " + mLastSelectedNetworkId);
+        mWifiConfigStore.dump(fd, pw, args);
     }
 
     /**

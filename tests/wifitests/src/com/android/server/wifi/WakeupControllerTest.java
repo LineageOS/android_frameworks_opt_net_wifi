@@ -142,7 +142,7 @@ public class WakeupControllerTest {
 
     private void readUserStore() {
         try {
-            mWakeupConfigStoreData.deserializeData(null, 0, false);
+            mWakeupConfigStoreData.deserializeData(null, 0);
         } catch (XmlPullParserException | IOException e) {
             // unreachable
         }

@@ -29,6 +29,7 @@ import android.util.Xml;
 
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.SIMAccessor;
+import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
 
 import org.junit.Before;
@@ -51,10 +52,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointConfigStoreData}.
+ * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointConfigUserStoreData}.
  */
 @SmallTest
-public class PasspointConfigStoreDataTest {
+public class PasspointConfigUserStoreDataTest {
     private static final String TEST_CA_CERTIFICATE_ALIAS = "CaCert";
     private static final String TEST_CLIENT_CERTIFICATE_ALIAS = "ClientCert";
     private static final String TEST_CLIENT_PRIVATE_KEY_ALIAS = "ClientPrivateKey";
@@ -65,14 +66,14 @@ public class PasspointConfigStoreDataTest {
 
     @Mock WifiKeyStore mKeyStore;
     @Mock SIMAccessor mSimAccessor;
-    @Mock PasspointConfigStoreData.DataSource mDataSource;
-    PasspointConfigStoreData mConfigStoreData;
+    @Mock PasspointConfigUserStoreData.DataSource mDataSource;
+    PasspointConfigUserStoreData mConfigStoreData;
 
     /** Sets up test. */
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mConfigStoreData = new PasspointConfigStoreData(mKeyStore, mSimAccessor, mDataSource);
+        mConfigStoreData = new PasspointConfigUserStoreData(mKeyStore, mSimAccessor, mDataSource);
     }
 
     /**
@@ -200,15 +201,14 @@ public class PasspointConfigStoreDataTest {
     /**
      * Helper function for serializing store data to a XML block.
      *
-     * @param share Flag indicating share or user data
      * @return byte[]
      * @throws Exception
      */
-    private byte[] serializeData(boolean share) throws Exception {
+    private byte[] serializeData() throws Exception {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mConfigStoreData.serializeData(out, share);
+        mConfigStoreData.serializeData(out);
         out.flush();
         return outputStream.toByteArray();
     }
@@ -217,14 +217,13 @@ public class PasspointConfigStoreDataTest {
      * Helper function for deserializing store data from a XML block.
      *
      * @param data The XML block data bytes
-     * @param share Flag indicating share or user data
      * @throws Exception
      */
-    private void deserializeData(byte[] data, boolean share) throws Exception {
+    private void deserializeData(byte[] data) throws Exception {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
-        mConfigStoreData.deserializeData(in, in.getDepth(), share);
+        mConfigStoreData.deserializeData(in, in.getDepth());
     }
 
     /**
@@ -244,33 +243,13 @@ public class PasspointConfigStoreDataTest {
 
         // Serialize data for user store.
         when(mDataSource.getProviders()).thenReturn(providerList);
-        byte[] data = serializeData(false);
+        byte[] data = serializeData();
 
         // Deserialize data for user store and verify the content.
         ArgumentCaptor<ArrayList> providersCaptor = ArgumentCaptor.forClass(ArrayList.class);
-        deserializeData(data, false);
+        deserializeData(data);
         verify(mDataSource).setProviders(providersCaptor.capture());
         assertEquals(providerList, providersCaptor.getValue());
-    }
-
-    /**
-     * Verify that the serialization and deserialization of share store data works as expected.
-     * The data used for serialization matches the result of the deserialization.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void serializeAndDeserializeShareStoreData() throws Exception {
-        // Setup expected data.
-        long providerIndex = 412;
-
-        // Serialize data for share store.
-        when(mDataSource.getProviderIndex()).thenReturn(providerIndex);
-        byte[] data = serializeData(true);
-
-        // Deserialize data for share store and verify the content.
-        deserializeData(data, true);
-        verify(mDataSource).setProviderIndex(providerIndex);
     }
 
     /**
@@ -281,19 +260,19 @@ public class PasspointConfigStoreDataTest {
      */
     @Test
     public void deserializeEmptyUserStoreData() throws Exception {
-        deserializeData(new byte[0], false);
+        deserializeData(new byte[0]);
         verify(mDataSource, never()).setProviders(any(ArrayList.class));
     }
 
     /**
-     * Verify that deserialization of an empty share store data doesn't cause any exception
-     * and the corresponding data source should not be updated.
+     * Verify that PasspointConfigUserStoreData is written to
+     * {@link WifiConfigStore#STORE_FILE_NAME_USER_GENERAL}.
      *
      * @throws Exception
      */
     @Test
-    public void deserializeEmptyShareStoreData() throws Exception {
-        deserializeData(new byte[0], true);
-        verify(mDataSource, never()).setProviderIndex(anyLong());
+    public void getUserStoreFileId() throws Exception {
+        assertEquals(WifiConfigStore.STORE_FILE_USER_GENERAL,
+                mConfigStoreData.getStoreFileId());
     }
 }

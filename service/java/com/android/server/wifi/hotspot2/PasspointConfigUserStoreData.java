@@ -49,7 +49,7 @@ import java.util.List;
  * - Provider list - list of Passpoint provider configurations
  *
  */
-public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
+public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_CONFIG_DATA =
             "PasspointConfigData";
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER_LIST =
@@ -65,7 +65,6 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_CLIENT_CERTIFICATE_ALIAS = "ClientCertificateAlias";
     private static final String XML_TAG_CLIENT_PRIVATE_KEY_ALIAS = "ClientPrivateKeyAlias";
 
-    private static final String XML_TAG_PROVIDER_INDEX = "ProviderIndex";
     private static final String XML_TAG_HAS_EVER_CONNECTED = "HasEverConnected";
 
     private final WifiKeyStore mKeyStore;
@@ -89,23 +88,9 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
          * @param providers The list of providers
          */
         void setProviders(List<PasspointProvider> providers);
-
-        /**
-         * Retrieve the current provider index.
-         *
-         * @return long
-         */
-        long getProviderIndex();
-
-        /**
-         * Set the current provider index.
-         *
-         * @param providerIndex The provider index used for provider creation
-         */
-        void setProviderIndex(long providerIndex);
     }
 
-    PasspointConfigStoreData(WifiKeyStore keyStore, SIMAccessor simAccessor,
+    PasspointConfigUserStoreData(WifiKeyStore keyStore, SIMAccessor simAccessor,
             DataSource dataSource) {
         mKeyStore = keyStore;
         mSimAccessor = simAccessor;
@@ -113,36 +98,33 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
     }
 
     @Override
-    public void serializeData(XmlSerializer out, boolean shared)
+    public void serializeData(XmlSerializer out)
             throws XmlPullParserException, IOException {
-        if (shared) {
-            serializeShareData(out);
-        } else {
-            serializeUserData(out);
-        }
+        serializeUserData(out);
     }
 
     @Override
-    public void deserializeData(XmlPullParser in, int outerTagDepth, boolean shared)
+    public void deserializeData(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {
             return;
         }
-        if (shared) {
-            deserializeShareData(in, outerTagDepth);
-        } else {
-            deserializeUserData(in, outerTagDepth);
-        }
+        deserializeUserData(in, outerTagDepth);
+    }
+
+    /**
+     * Reset user data (user specific Passpoint configurations).
+     */
+    @Override
+    public void resetData() {
+        mDataSource.setProviders(new ArrayList<PasspointProvider>());
     }
 
     @Override
-    public void resetData(boolean shared) {
-        if (shared) {
-            resetShareData();
-        } else {
-            resetUserData();
-        }
+    public boolean hasNewDataToSerialize() {
+        // always persist.
+        return true;
     }
 
     @Override
@@ -151,19 +133,9 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
     }
 
     @Override
-    public boolean supportShareData() {
-        return true;
-    }
-
-    /**
-     * Serialize share data (system wide Passpoint configurations) to a XML block.
-     *
-     * @param out The output stream to serialize data to
-     * @throws XmlPullParserException
-     * @throws IOException
-     */
-    private void serializeShareData(XmlSerializer out) throws XmlPullParserException, IOException {
-        XmlUtil.writeNextValue(out, XML_TAG_PROVIDER_INDEX, mDataSource.getProviderIndex());
+    public @WifiConfigStore.StoreFileId int getStoreFileId() {
+        // Shared general store.
+        return WifiConfigStore.STORE_FILE_USER_GENERAL;
     }
 
     /**
@@ -223,33 +195,6 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
         }
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER);
-    }
-
-    /**
-     * Deserialize share data (system wide Passpoint configurations) from the input stream.
-     *
-     * @param in The input stream to read data from
-     * @param outerTagDepth The tag depth of the current XML section
-     * @throws XmlPullParserException
-     * @throws IOException
-     */
-    private void deserializeShareData(XmlPullParser in, int outerTagDepth)
-            throws XmlPullParserException, IOException {
-        while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
-            String[] valueName = new String[1];
-            Object value = XmlUtil.readCurrentValue(in, valueName);
-            if (valueName[0] == null) {
-                throw new XmlPullParserException("Missing value name");
-            }
-            switch (valueName[0]) {
-                case XML_TAG_PROVIDER_INDEX:
-                    mDataSource.setProviderIndex((long) value);
-                    break;
-                default:
-                    throw new XmlPullParserException("Unknown value under share store data "
-                            + valueName[0]);
-            }
-        }
     }
 
     /**
@@ -357,20 +302,6 @@ public class PasspointConfigStoreData implements WifiConfigStore.StoreData {
         return new PasspointProvider(config, mKeyStore, mSimAccessor, providerId, creatorUid,
                 caCertificateAlias, clientCertificateAlias, clientPrivateKeyAlias,
                 hasEverConnected, shared);
-    }
-
-    /**
-     * Reset share data (system wide Passpoint configurations).
-     */
-    private void resetShareData() {
-        mDataSource.setProviderIndex(0);
-    }
-
-    /**
-     * Reset user data (user specific Passpoint configurations).
-     */
-    private void resetUserData() {
-        mDataSource.setProviders(new ArrayList<PasspointProvider>());
     }
 }
 

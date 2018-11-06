@@ -40,27 +40,20 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
     DeletedEphemeralSsidsStoreData() {}
 
     @Override
-    public void serializeData(XmlSerializer out, boolean shared)
+    public void serializeData(XmlSerializer out)
             throws XmlPullParserException, IOException {
-        if (shared) {
-            throw new XmlPullParserException("Share data not supported");
-        }
         if (mSsidList != null) {
             XmlUtil.writeNextValue(out, XML_TAG_SSID_LIST, mSsidList);
         }
     }
 
     @Override
-    public void deserializeData(XmlPullParser in, int outerTagDepth, boolean shared)
+    public void deserializeData(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {
             return;
         }
-        if (shared) {
-            throw new XmlPullParserException("Share data not supported");
-        }
-
         while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
             String[] valueName = new String[1];
             Object value = XmlUtil.readCurrentValue(in, valueName);
@@ -80,10 +73,14 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
     }
 
     @Override
-    public void resetData(boolean shared) {
-        if (!shared) {
-            mSsidList = null;
-        }
+    public void resetData() {
+        mSsidList = null;
+    }
+
+    @Override
+    public boolean hasNewDataToSerialize() {
+        // always persist.
+        return true;
     }
 
     @Override
@@ -92,8 +89,9 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
     }
 
     @Override
-    public boolean supportShareData() {
-        return false;
+    public @WifiConfigStore.StoreFileId int getStoreFileId() {
+        // Shared general store.
+        return WifiConfigStore.STORE_FILE_USER_GENERAL;
     }
 
     /**
