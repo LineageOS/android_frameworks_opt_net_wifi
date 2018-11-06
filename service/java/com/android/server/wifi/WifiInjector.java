@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.app.ActivityManager;
+import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.hardware.SystemSensorManager;
@@ -548,7 +549,10 @@ public class WifiInjector {
     public WifiNetworkFactory makeWifiNetworkFactory(
             NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
         return new WifiNetworkFactory(
-                mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
+                mWifiCoreHandlerThread.getLooper(), mContext, nc,
+                (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
+                (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
+                mClock, this, wifiConnectivityManager, mWifiPermissionsUtil);
     }
 
     /**

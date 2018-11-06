@@ -425,12 +425,9 @@ public class WifiConfigurationTestUtil {
     }
 
     /**
-     * Creates a scan detail corresponding to the provided network and given BSSID, level &frequency
-     * values.
+     * Gets scan result capabilities for a particular network configuration.
      */
-    public static ScanDetail createScanDetailForNetwork(
-            WifiConfiguration configuration, String bssid, int level, int frequency,
-            long tsf, long seen) {
+    public static String getScanResultCapsForNetwork(WifiConfiguration configuration) {
         String caps;
         if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)) {
             caps = "[WPA2-PSK-CCMP]";
@@ -443,6 +440,16 @@ public class WifiConfigurationTestUtil {
         } else {
             caps = "[]";
         }
+        return caps;
+    }
+
+    /**
+     * Creates a scan detail corresponding to the provided network and given BSSID, etc.
+     */
+    public static ScanDetail createScanDetailForNetwork(
+            WifiConfiguration configuration, String bssid, int level, int frequency,
+            long tsf, long seen) {
+        String caps = getScanResultCapsForNetwork(configuration);
         WifiSsid ssid = WifiSsid.createFromAsciiEncoded(configuration.getPrintableSsid());
         return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
     }
