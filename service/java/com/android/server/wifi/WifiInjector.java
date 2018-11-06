@@ -284,7 +284,8 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(),
                 new WakeupLock(mWifiConfigManager, mWifiMetrics.getWakeupMetrics(), mClock),
                 WakeupEvaluator.fromContext(mContext), wakeupOnboarding, mWifiConfigManager,
-                mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade);
+                mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade,
+                mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService());
         mWifiController = new WifiController(mContext, mClientModeImpl, clientModeImplLooper,
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,

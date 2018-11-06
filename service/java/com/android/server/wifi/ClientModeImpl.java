@@ -2773,6 +2773,12 @@ public class ClientModeImpl extends StateMachine {
                     + " - " + Thread.currentThread().getStackTrace()[5].getMethodName());
         }
 
+        WifiConfiguration wifiConfig = getCurrentWifiConfiguration();
+        if (wifiConfig != null) {
+            ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromWifiConfiguration(wifiConfig);
+            mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
+        }
+
         stopRssiMonitoringOffload();
 
         clearTargetBssid("handleNetworkDisconnect");
