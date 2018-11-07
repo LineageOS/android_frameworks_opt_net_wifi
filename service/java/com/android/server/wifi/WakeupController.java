@@ -62,6 +62,7 @@ public class WakeupController {
     private final WifiInjector mWifiInjector;
     private final WakeupConfigStoreData mWakeupConfigStoreData;
     private final WifiWakeMetrics mWifiWakeMetrics;
+    private final Clock mClock;
 
     private final WifiScanner.ScanListener mScanListener = new WifiScanner.ScanListener() {
         @Override
@@ -104,6 +105,20 @@ public class WakeupController {
     /** Whether Wifi verbose logging is enabled. */
     private boolean mVerboseLoggingEnabled;
 
+    /**
+     * The timestamp of when the Wifi network was last disconnected (either device disconnected
+     * from the network or Wifi was turned off entirely).
+     * Note: mLastDisconnectTimestampMillis and mLastDisconnectInfo must always be updated together.
+     */
+    private long mLastDisconnectTimestampMillis;
+
+    /**
+     * The SSID of the last Wifi network the device was connected to (either device disconnected
+     * from the network or Wifi was turned off entirely).
+     * Note: mLastDisconnectTimestampMillis and mLastDisconnectInfo must always be updated together.
+     */
+    private ScanResultMatchInfo mLastDisconnectInfo;
+
     public WakeupController(
             Context context,
             Looper looper,
@@ -114,7 +129,8 @@ public class WakeupController {
             WifiConfigStore wifiConfigStore,
             WifiWakeMetrics wifiWakeMetrics,
             WifiInjector wifiInjector,
-            FrameworkFacade frameworkFacade) {
+            FrameworkFacade frameworkFacade,
+            Clock clock) {
         mContext = context;
         mHandler = new Handler(looper);
         mWakeupLock = wakeupLock;
@@ -143,6 +159,9 @@ public class WakeupController {
                 mWakeupOnboarding.getNotificationsDataSource(),
                 mWakeupLock.getDataSource());
         wifiConfigStore.registerStoreData(mWakeupConfigStoreData);
+        mClock = clock;
+        mLastDisconnectTimestampMillis = 0;
+        mLastDisconnectInfo = null;
     }
 
     private void readWifiWakeupEnabledFromSettings() {
@@ -158,6 +177,39 @@ public class WakeupController {
             mWifiConfigManager.saveToStore(false /* forceWrite */);
         }
     }
+
+    /**
+     * Saves the SSID of the last Wifi network that was disconnected. Should only be called before
+     * WakeupController is active.
+     */
+    public void setLastDisconnectInfo(ScanResultMatchInfo scanResultMatchInfo) {
+        if (mIsActive) {
+            Log.e(TAG, "Unexpected setLastDisconnectInfo when WakeupController is active!");
+            return;
+        }
+        if (scanResultMatchInfo == null) {
+            Log.e(TAG, "Unexpected setLastDisconnectInfo(null)");
+            return;
+        }
+        mLastDisconnectTimestampMillis = mClock.getElapsedSinceBootMillis();
+        mLastDisconnectInfo = scanResultMatchInfo;
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "mLastDisconnectInfo set to " + scanResultMatchInfo);
+        }
+    }
+
+    /**
+     * If Wifi was disabled within LAST_DISCONNECT_TIMEOUT_MILLIS of losing a Wifi connection,
+     * add that Wifi connection to the Wakeup Lock as if Wifi was disabled while connected to that
+     * connection.
+     * Often times, networks with poor signal intermittently connect and disconnect, causing the
+     * user to manually turn off Wifi. If the Wifi was turned off during the disconnected phase of
+     * the intermittent connection, then that connection normally would not be added to the Wakeup
+     * Lock. This constant defines the timeout after disconnecting, in milliseconds, within which
+     * if Wifi was disabled, the network would still be added to the wakeup lock.
+     */
+    @VisibleForTesting
+    static final long LAST_DISCONNECT_TIMEOUT_MILLIS = 5 * 1000;
 
     /**
      * Starts listening for incoming scans.
@@ -186,6 +238,18 @@ public class WakeupController {
             Set<ScanResultMatchInfo> matchInfos = toMatchInfos(scanResults);
             matchInfos.retainAll(getGoodSavedNetworks());
 
+            // ensure that the last disconnected network is added to the wakeup lock, since we don't
+            // want to automatically reconnect to the same network that the user manually
+            // disconnected from
+            long now = mClock.getElapsedSinceBootMillis();
+            if (mLastDisconnectInfo != null && ((now - mLastDisconnectTimestampMillis)
+                    <= LAST_DISCONNECT_TIMEOUT_MILLIS)) {
+                matchInfos.add(mLastDisconnectInfo);
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "Added last connected network to lock: " + mLastDisconnectInfo);
+                }
+            }
+
             if (mVerboseLoggingEnabled) {
                 Log.d(TAG, "Saved networks in most recent scan:" + matchInfos);
             }
@@ -204,6 +268,8 @@ public class WakeupController {
      */
     public void stop() {
         Log.d(TAG, "stop()");
+        mLastDisconnectTimestampMillis = 0;
+        mLastDisconnectInfo = null;
         mWifiInjector.getWifiScanner().deregisterScanListener(mScanListener);
         mWakeupOnboarding.onStop();
     }

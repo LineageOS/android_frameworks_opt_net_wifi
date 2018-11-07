@@ -15,11 +15,15 @@
  */
 package com.android.server.wifi;
 
+import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+import android.annotation.IntDef;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
 import com.android.server.wifi.util.ScanResultUtil;
 
+import java.lang.annotation.Retention;
 import java.util.Objects;
 
 /**
@@ -31,6 +35,15 @@ public class ScanResultMatchInfo {
     public static final int NETWORK_TYPE_PSK = 2;
     public static final int NETWORK_TYPE_EAP = 3;
 
+    @Retention(SOURCE)
+    @IntDef(prefix = { "NETWORK_TYPE_" }, value = {
+            NETWORK_TYPE_OPEN,
+            NETWORK_TYPE_WEP,
+            NETWORK_TYPE_PSK,
+            NETWORK_TYPE_EAP
+    })
+    public @interface NetworkType {}
+
     /**
      * SSID of the network.
      */
@@ -38,7 +51,23 @@ public class ScanResultMatchInfo {
     /**
      * Security Type of the network.
      */
-    public int networkType;
+    public @NetworkType int networkType;
+
+    /**
+     * Fetch network type from network configuration.
+     */
+    public static @NetworkType int getNetworkType(WifiConfiguration config) {
+        if (WifiConfigurationUtil.isConfigForPskNetwork(config)) {
+            return NETWORK_TYPE_PSK;
+        } else if (WifiConfigurationUtil.isConfigForEapNetwork(config)) {
+            return NETWORK_TYPE_EAP;
+        } else if (WifiConfigurationUtil.isConfigForWepNetwork(config)) {
+            return NETWORK_TYPE_WEP;
+        } else if (WifiConfigurationUtil.isConfigForOpenNetwork(config)) {
+            return NETWORK_TYPE_OPEN;
+        }
+        throw new IllegalArgumentException("Invalid WifiConfiguration: " + config);
+    }
 
     /**
      * Get the ScanResultMatchInfo for the given WifiConfiguration
@@ -46,18 +75,24 @@ public class ScanResultMatchInfo {
     public static ScanResultMatchInfo fromWifiConfiguration(WifiConfiguration config) {
         ScanResultMatchInfo info = new ScanResultMatchInfo();
         info.networkSsid = config.SSID;
-        if (WifiConfigurationUtil.isConfigForPskNetwork(config)) {
-            info.networkType = NETWORK_TYPE_PSK;
-        } else if (WifiConfigurationUtil.isConfigForEapNetwork(config)) {
-            info.networkType = NETWORK_TYPE_EAP;
-        } else if (WifiConfigurationUtil.isConfigForWepNetwork(config)) {
-            info.networkType = NETWORK_TYPE_WEP;
-        } else if (WifiConfigurationUtil.isConfigForOpenNetwork(config)) {
-            info.networkType = NETWORK_TYPE_OPEN;
-        } else {
-            throw new IllegalArgumentException("Invalid WifiConfiguration: " + config);
-        }
+        info.networkType = getNetworkType(config);
         return info;
+    }
+
+    /**
+     * Fetch network type from scan result.
+     */
+    public static @NetworkType int getNetworkType(ScanResult scanResult) {
+        if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
+            return NETWORK_TYPE_PSK;
+        } else if (ScanResultUtil.isScanResultForEapNetwork(scanResult)) {
+            return NETWORK_TYPE_EAP;
+        } else if (ScanResultUtil.isScanResultForWepNetwork(scanResult)) {
+            return NETWORK_TYPE_WEP;
+        } else if (ScanResultUtil.isScanResultForOpenNetwork(scanResult)) {
+            return NETWORK_TYPE_OPEN;
+        }
+        throw new IllegalArgumentException("Invalid ScanResult: " + scanResult);
     }
 
     /**
@@ -70,17 +105,7 @@ public class ScanResultMatchInfo {
         // However, according to our public documentation ths {@link WifiConfiguration#SSID} can
         // either have a hex string or quoted ASCII string SSID.
         info.networkSsid = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-        if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
-            info.networkType = NETWORK_TYPE_PSK;
-        } else if (ScanResultUtil.isScanResultForEapNetwork(scanResult)) {
-            info.networkType = NETWORK_TYPE_EAP;
-        } else if (ScanResultUtil.isScanResultForWepNetwork(scanResult)) {
-            info.networkType = NETWORK_TYPE_WEP;
-        } else if (ScanResultUtil.isScanResultForOpenNetwork(scanResult)) {
-            info.networkType = NETWORK_TYPE_OPEN;
-        } else {
-            throw new IllegalArgumentException("Invalid ScanResult: " + scanResult);
-        }
+        info.networkType = getNetworkType(scanResult);
         return info;
     }
 

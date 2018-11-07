@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.app.ActivityManager;
+import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.hardware.SystemSensorManager;
@@ -227,7 +228,8 @@ public class WifiInjector {
                 mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
-                new DeletedEphemeralSsidsStoreData());
+                new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
+                mWifiCoreHandlerThread.getLooper());
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
@@ -282,7 +284,8 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(),
                 new WakeupLock(mWifiConfigManager, mWifiMetrics.getWakeupMetrics(), mClock),
                 WakeupEvaluator.fromContext(mContext), wakeupOnboarding, mWifiConfigManager,
-                mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade);
+                mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade,
+                mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService());
         mWifiController = new WifiController(mContext, mClientModeImpl, clientModeImplLooper,
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,
@@ -547,7 +550,10 @@ public class WifiInjector {
     public WifiNetworkFactory makeWifiNetworkFactory(
             NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
         return new WifiNetworkFactory(
-                mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
+                mWifiCoreHandlerThread.getLooper(), mContext, nc,
+                (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
+                (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
+                mClock, this, wifiConnectivityManager, mWifiPermissionsUtil);
     }
 
     /**

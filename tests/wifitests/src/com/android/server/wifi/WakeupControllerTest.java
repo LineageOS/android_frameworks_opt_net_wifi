@@ -75,6 +75,7 @@ public class WakeupControllerTest {
     @Mock private WifiWakeMetrics mWifiWakeMetrics;
     @Mock private WifiController mWifiController;
     @Mock private WifiNative mWifiNative;
+    @Mock private Clock mClock;
 
     private TestLooper mLooper;
     private WakeupController mWakeupController;
@@ -129,7 +130,8 @@ public class WakeupControllerTest {
                 mWifiConfigStore,
                 mWifiWakeMetrics,
                 mWifiInjector,
-                mFrameworkFacade);
+                mFrameworkFacade,
+                mClock);
 
         ArgumentCaptor<WakeupConfigStoreData> captor =
                 ArgumentCaptor.forClass(WakeupConfigStoreData.class);
@@ -562,5 +564,58 @@ public class WakeupControllerTest {
         ContentObserver contentObserver = argumentCaptor.getValue();
         contentObserver.onChange(false /* selfChange */);
         verify(mWakeupOnboarding).setOnboarded();
+    }
+
+    /**
+     * When Wifi disconnects from a network, and within LAST_DISCONNECT_TIMEOUT_MILLIS Wifi is
+     * disabled, then the last connected Wifi network should be added to the wakeup lock.
+     *
+     * This simulates when a Wifi network sporadically connects and disconnects. During the
+     * disconnected phase, the user forcibly disables Wifi to stop this intermittent behavior. Then,
+     * we should add the network to the wake lock to ensure Wifi Wake does not automatically
+     * reconnect to this network.
+     *
+     * Also verifies that after the above flow, when Wifi is re-enabled, then disabled again, the
+     * last connected network should be reset and no networks should be added to the wakeup lock.
+     */
+    @Test
+    public void lastConnectedNetworkAddedToLock() {
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L,
+                (long) (0.8 * WakeupController.LAST_DISCONNECT_TIMEOUT_MILLIS));
+        ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(mTestScanResult);
+        when(mWifiConfigManager.getSavedNetworks()).thenReturn(Collections.emptyList());
+        when(mWifiScanner.getSingleScanResults()).thenReturn(Collections.emptyList());
+        initializeWakeupController(true);
+
+        mWakeupController.setLastDisconnectInfo(matchInfo);
+        mWakeupController.start();
+
+        verify(mWakeupLock).setLock(eq(Collections.singleton(matchInfo)));
+
+        mWakeupController.stop();
+        mWakeupController.reset();
+        mWakeupController.start();
+
+        verify(mWakeupLock).setLock(eq(Collections.emptySet()));
+    }
+
+    /**
+     * When Wifi disconnects from a network, and Wifi is disabled after more than
+     * LAST_DISCONNECT_TIMEOUT_MILLIS, the last connected Wifi network should not be added to the
+     * wakeup lock.
+     */
+    @Test
+    public void expiredLastConnectedNetworkNotAddedToLock() {
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L,
+                (long) (1.2 * WakeupController.LAST_DISCONNECT_TIMEOUT_MILLIS));
+        ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(mTestScanResult);
+        when(mWifiConfigManager.getSavedNetworks()).thenReturn(Collections.emptyList());
+        when(mWifiScanner.getSingleScanResults()).thenReturn(Collections.emptyList());
+        initializeWakeupController(true);
+
+        mWakeupController.setLastDisconnectInfo(matchInfo);
+        mWakeupController.start();
+
+        verify(mWakeupLock).setLock(eq(Collections.emptySet()));
     }
 }

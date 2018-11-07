@@ -58,6 +58,7 @@ import android.net.Network;
 import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClient;
+import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.IWifiManager;
@@ -75,6 +76,7 @@ import android.os.AsyncTask;
 import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
@@ -2822,7 +2824,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
     /**
      * see {@link android.net.wifi.WifiManager#registerTrafficStateCallback(
-     * TrafficStateCallback, Handler)}
+     * WifiManager.TrafficStateCallback, Handler)}
      *
      * @param binder IBinder instance to allow cleanup if the app dies
      * @param callback Traffic State callback to register
@@ -2889,5 +2891,62 @@ public class WifiServiceImpl extends IWifiManager.Stub {
 
     private static boolean hasAutomotiveFeature(Context context) {
         return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE);
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#registerNetworkRequestMatchCallback(
+     * WifiManager.NetworkRequestMatchCallback, Handler)} (
+     *
+     * @param binder IBinder instance to allow cleanup if the app dies
+     * @param callback Network Request Match callback to register
+     * @param callbackIdentifier Unique ID of the registering callback. This ID will be used to
+     *                           unregister the callback.
+     *                           See {@link #unregisterNetworkRequestMatchCallback(int)} (int)}
+     *
+     * @throws SecurityException if the caller does not have permission to register a callback
+     * @throws RemoteException if remote exception happens
+     * @throws IllegalArgumentException if the arguments are null or invalid
+     */
+    @Override
+    public void registerNetworkRequestMatchCallback(IBinder binder,
+                                                    INetworkRequestMatchCallback callback,
+                                                    int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback must not be null");
+        }
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("registerNetworkRequestMatchCallback uid=%")
+                    .c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        mClientHandler.post(() -> {
+            mClientModeImpl.addNetworkRequestMatchCallback(binder, callback, callbackIdentifier);
+        });
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#unregisterNetworkRequestMatchCallback(
+     * WifiManager.NetworkRequestMatchCallback)}
+     *
+     * @param callbackIdentifier Unique ID of the callback to be unregistered.
+     *
+     * @throws SecurityException if the caller does not have permission to register a callback
+     */
+    @Override
+    public void unregisterNetworkRequestMatchCallback(int callbackIdentifier) {
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("unregisterNetworkRequestMatchCallback uid=%")
+                    .c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        mClientHandler.post(() -> {
+            mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier);
+        });
     }
 }

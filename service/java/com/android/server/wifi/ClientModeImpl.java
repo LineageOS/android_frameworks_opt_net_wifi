@@ -38,6 +38,7 @@ import android.net.IpConfiguration;
 import android.net.KeepalivePacketData;
 import android.net.LinkProperties;
 import android.net.MacAddress;
+import android.net.MatchAllNetworkSpecifier;
 import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
@@ -50,6 +51,7 @@ import android.net.StaticIpConfiguration;
 import android.net.TrafficStats;
 import android.net.dhcp.DhcpClient;
 import android.net.ip.IpClient;
+import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.RssiPacketCountInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
@@ -793,15 +795,18 @@ public class ClientModeImpl extends StateMachine {
         // TODO - needs to be a bit more dynamic
         mDfltNetworkCapabilities = new NetworkCapabilities(mNetworkCapabilitiesFilter);
 
+        NetworkCapabilities factoryNetworkCapabilities =
+                new NetworkCapabilities(mNetworkCapabilitiesFilter);
+        factoryNetworkCapabilities.setNetworkSpecifier(new MatchAllNetworkSpecifier());
         // Make the network factories.
         mNetworkFactory = mWifiInjector.makeWifiNetworkFactory(
-                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+                factoryNetworkCapabilities, mWifiConnectivityManager);
         // We can't filter untrusted network in the capabilities filter because a trusted
         // network would still satisfy a request that accepts untrusted ones.
         // We need a second network factory for untrusted network requests because we need a
         // different score filter for these requests.
         mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
-                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
+                factoryNetworkCapabilities, mWifiConnectivityManager);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -1063,6 +1068,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiConfigManager.enableVerboseLogging(verbose);
         mSupplicantStateTracker.enableVerboseLogging(verbose);
         mPasspointManager.enableVerboseLogging(verbose);
+        mNetworkFactory.enableVerboseLogging(verbose);
     }
 
     private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
@@ -2765,6 +2771,12 @@ public class ClientModeImpl extends StateMachine {
                     + " - " + Thread.currentThread().getStackTrace()[3].getMethodName()
                     + " - " + Thread.currentThread().getStackTrace()[4].getMethodName()
                     + " - " + Thread.currentThread().getStackTrace()[5].getMethodName());
+        }
+
+        WifiConfiguration wifiConfig = getCurrentWifiConfiguration();
+        if (wifiConfig != null) {
+            ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromWifiConfiguration(wifiConfig);
+            mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
         }
 
         stopRssiMonitoringOffload();
@@ -5762,5 +5774,21 @@ public class ClientModeImpl extends StateMachine {
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
+    }
+
+    /**
+     * Add a network request match callback to {@link WifiNetworkFactory}.
+     */
+    public void addNetworkRequestMatchCallback(IBinder binder,
+                                               INetworkRequestMatchCallback callback,
+                                               int callbackIdentifier) {
+        mNetworkFactory.addCallback(binder, callback, callbackIdentifier);
+    }
+
+    /**
+     * Remove a network request match callback from {@link WifiNetworkFactory}.
+     */
+    public void removeNetworkRequestMatchCallback(int callbackIdentifier) {
+        mNetworkFactory.removeCallback(callbackIdentifier);
     }
 }

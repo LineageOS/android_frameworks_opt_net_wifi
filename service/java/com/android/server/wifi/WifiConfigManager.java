@@ -24,6 +24,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.database.ContentObserver;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.ProxyInfo;
@@ -35,6 +36,8 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -61,6 +64,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Collection;
@@ -212,6 +216,15 @@ public class WifiConfigManager {
      * Maximum age of scan results that can be used for averaging out RSSI value.
      */
     private static final int SCAN_RESULT_MAXIMUM_AGE_MS = 40000;
+
+    /**
+     * Maximum age of frequencies last seen to be included in pno scans. (30 days)
+     */
+    @VisibleForTesting
+    public static final long MAX_PNO_SCAN_FREQUENCY_AGE_MS = (long) 1000 * 3600 * 24 * 30;
+
+    private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 0; // 0 = disabled
+
     /**
      * General sorting algorithm of all networks for scanning purposes:
      * Place the configurations in descending order of their |numAssociation| values. If networks
@@ -278,6 +291,9 @@ public class WifiConfigManager {
      * Number of channels to scan for during partial scans initiated while connected.
      */
     private final int mMaxNumActiveChannelsForPartialScans;
+
+    private final FrameworkFacade mFrameworkFacade;
+
     /**
      * Verbose logging flag. Toggled by developer options.
      */
@@ -335,6 +351,9 @@ public class WifiConfigManager {
     // Store the saved network update listener.
     private OnSavedNetworkUpdateListener mListener = null;
 
+    private boolean mPnoFrequencyCullingEnabled = false;
+
+
     /**
      * Create new instance of WifiConfigManager.
      */
@@ -346,7 +365,8 @@ public class WifiConfigManager {
             WifiPermissionsWrapper wifiPermissionsWrapper,
             NetworkListSharedStoreData networkListSharedStoreData,
             NetworkListUserStoreData networkListUserStoreData,
-            DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData) {
+            DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData,
+            FrameworkFacade frameworkFacade, Looper looper) {
         mContext = context;
         mClock = clock;
         mUserManager = userManager;
@@ -374,7 +394,16 @@ public class WifiConfigManager {
                 R.bool.config_wifi_only_link_same_credential_configurations);
         mMaxNumActiveChannelsForPartialScans = mContext.getResources().getInteger(
                 R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels);
-
+        mFrameworkFacade = frameworkFacade;
+        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
+                Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED), false,
+                new ContentObserver(new Handler(looper)) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updatePnoFrequencyCullingSetting();
+                    }
+                });
+        updatePnoFrequencyCullingSetting();
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
                     PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
@@ -410,6 +439,13 @@ public class WifiConfigManager {
         }
         mWifiConfigStore.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiKeyStore.enableVerboseLogging(mVerboseLoggingEnabled);
+    }
+
+    private void updatePnoFrequencyCullingSetting() {
+        int flag = mFrameworkFacade.getIntegerSetting(
+                mContext, Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED,
+                WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT);
+        mPnoFrequencyCullingEnabled = (flag == 1);
     }
 
     /**
@@ -2358,6 +2394,42 @@ public class WifiConfigManager {
     }
 
     /**
+     * Retrieve a set of channels on which AP's for the provided network was seen using the
+     * internal ScanResult's cache {@link #mScanDetailCaches}. This is used to reduced the list
+     * of frequencies for pno scans.
+     *
+     * @param networkId       network ID corresponding to the network.
+     * @param ageInMillis     only consider scan details whose timestamps are earlier than this.
+     * @return Set containing the frequencies on which this network was found, null if the network
+     * was not found or there are no associated scan details in the cache.
+     */
+    private Set<Integer> fetchChannelSetForNetworkForPnoScan(int networkId, long ageInMillis) {
+        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
+        if (config == null) {
+            return null;
+        }
+        ScanDetailCache scanDetailCache = getScanDetailCacheForNetwork(networkId);
+        if (scanDetailCache == null) {
+            return null;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, new StringBuilder("fetchChannelSetForNetworkForPnoScan ageInMillis ")
+                    .append(ageInMillis)
+                    .append(" for ")
+                    .append(config.configKey())
+                    .append(" bssids " + scanDetailCache.size())
+                    .toString());
+        }
+        Set<Integer> channelSet = new HashSet<>();
+        long nowInMillis = mClock.getWallClockMillis();
+
+        // Add channels for the network to the output.
+        addToChannelSetForNetworkFromScanDetailCache(channelSet, scanDetailCache, nowInMillis,
+                ageInMillis, Integer.MAX_VALUE);
+        return channelSet;
+    }
+
+    /**
      * Retrieves a list of all the saved networks before enabling disconnected/connected PNO.
      *
      * PNO network list sent to the firmware has limited size. If there are a lot of saved
@@ -2382,9 +2454,24 @@ public class WifiConfigManager {
             }
         }
         Collections.sort(networks, sScanListComparator);
-        // The most frequently connected network has the highest priority now.
         for (WifiConfiguration config : networks) {
-            pnoList.add(WifiConfigurationUtil.createPnoNetwork(config));
+            WifiScanner.PnoSettings.PnoNetwork pnoNetwork =
+                    WifiConfigurationUtil.createPnoNetwork(config);
+            pnoList.add(pnoNetwork);
+            if (!mPnoFrequencyCullingEnabled) {
+                continue;
+            }
+            Set<Integer> channelSet = fetchChannelSetForNetworkForPnoScan(config.networkId,
+                    MAX_PNO_SCAN_FREQUENCY_AGE_MS);
+            if (channelSet != null) {
+                pnoNetwork.frequencies = channelSet.stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray();
+            }
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "retrievePnoNetworkList " + pnoNetwork.ssid + ":"
+                        + Arrays.toString(pnoNetwork.frequencies));
+            }
         }
         return pnoList;
     }
@@ -2936,6 +3023,8 @@ public class WifiConfigManager {
         pw.println("WifiConfigManager - Configured networks End ----");
         pw.println("WifiConfigManager - Next network ID to be allocated " + mNextNetworkId);
         pw.println("WifiConfigManager - Last selected network ID " + mLastSelectedNetworkId);
+        pw.println("WifiConfigManager - PNO scan frequency culling enabled = "
+                + mPnoFrequencyCullingEnabled);
         mWifiConfigStore.dump(fd, pw, args);
     }
 
