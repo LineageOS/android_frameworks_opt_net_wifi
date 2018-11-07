@@ -85,6 +85,7 @@ public class WifiBackupRestoreTest {
 
     // |AllowedKeyMgmt|, |AllowedProtocols|, |AllowedAuthAlgorithms|, |AllowedGroupCiphers| and
     // |AllowedPairwiseCiphers| fields have invalid values in them.
+    // NOTE: The byte values are encoded in little endian
     private static final String WIFI_BACKUP_DATA_WITH_UNSUPPORTED_VALUES_IN_BITSETS =
             "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
                     + "<WifiBackupData>"
@@ -101,15 +102,15 @@ public class WifiBackupRestoreTest {
                     + "<boolean name=\"HiddenSSID\" value=\"false\" />"
                     + "<boolean name=\"RequirePMF\" value=\"false\" />"
                     // Valid Value: 01
-                    + "<byte-array name=\"AllowedKeyMgmt\" num=\"2\">0101</byte-array>"
+                    + "<byte-array name=\"AllowedKeyMgmt\" num=\"2\">0180</byte-array>"
                     // Valid Value: 03
                     + "<byte-array name=\"AllowedProtocols\" num=\"1\">0b</byte-array>"
                     // Valid Value: 01
                     + "<byte-array name=\"AllowedAuthAlgos\" num=\"1\">09</byte-array>"
                     // Valid Value: 0f
-                    + "<byte-array name=\"AllowedGroupCiphers\" num=\"1\">2f</byte-array>"
+                    + "<byte-array name=\"AllowedGroupCiphers\" num=\"1\">4f</byte-array>"
                     // Valid Value: 06
-                    + "<byte-array name=\"AllowedPairwiseCiphers\" num=\"1\">0e</byte-array>"
+                    + "<byte-array name=\"AllowedPairwiseCiphers\" num=\"1\">26</byte-array>"
                     + "<boolean name=\"Shared\" value=\"true\" />"
                     + "<null name=\"SimSlot\" />"
                     + "</WifiConfiguration>"
@@ -432,6 +433,7 @@ public class WifiBackupRestoreTest {
     public void testSingleEnterpriseNetworkNotBackupRestore() {
         List<WifiConfiguration> configurations = new ArrayList<>();
         configurations.add(WifiConfigurationTestUtil.createEapNetwork());
+        configurations.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
 
         byte[] backupData = mWifiBackupRestore.retrieveBackupDataFromConfigurations(configurations);
         List<WifiConfiguration> retrievedConfigurations =
@@ -527,6 +529,8 @@ public class WifiBackupRestoreTest {
         configurations.add(WifiConfigurationTestUtil.createWepNetwork());
         configurations.add(WifiConfigurationTestUtil.createPskNetwork());
         configurations.add(WifiConfigurationTestUtil.createOpenNetwork());
+        configurations.add(WifiConfigurationTestUtil.createOweNetwork());
+        configurations.add(WifiConfigurationTestUtil.createSaeNetwork());
 
         byte[] backupData = mWifiBackupRestore.retrieveBackupDataFromConfigurations(configurations);
         List<WifiConfiguration> retrievedConfigurations =
@@ -549,6 +553,7 @@ public class WifiBackupRestoreTest {
         expectedConfigurations.add(wepNetwork);
 
         configurations.add(WifiConfigurationTestUtil.createEapNetwork());
+        configurations.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
 
         WifiConfiguration pskNetwork = WifiConfigurationTestUtil.createPskNetwork();
         configurations.add(pskNetwork);
@@ -557,6 +562,14 @@ public class WifiBackupRestoreTest {
         WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
         configurations.add(openNetwork);
         expectedConfigurations.add(openNetwork);
+
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil.createSaeNetwork();
+        configurations.add(saeNetwork);
+        expectedConfigurations.add(saeNetwork);
+
+        WifiConfiguration oweNetwork = WifiConfigurationTestUtil.createOweNetwork();
+        configurations.add(oweNetwork);
+        expectedConfigurations.add(oweNetwork);
 
         byte[] backupData = mWifiBackupRestore.retrieveBackupDataFromConfigurations(configurations);
         List<WifiConfiguration> retrievedConfigurations =

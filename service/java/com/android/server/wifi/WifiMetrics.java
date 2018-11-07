@@ -872,10 +872,12 @@ public class WifiMetrics {
             if (ScanResultUtil.isScanResultForWepNetwork(scanResult)) {
                 mCurrentConnectionEvent.mRouterFingerPrint.mRouterFingerPrintProto.authentication =
                         WifiMetricsProto.RouterFingerPrint.AUTH_PERSONAL;
-            } else if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
+            } else if (ScanResultUtil.isScanResultForPskNetwork(scanResult)
+                    || ScanResultUtil.isScanResultForSaeNetwork(scanResult)) {
                 mCurrentConnectionEvent.mRouterFingerPrint.mRouterFingerPrintProto.authentication =
                         WifiMetricsProto.RouterFingerPrint.AUTH_PERSONAL;
-            } else if (ScanResultUtil.isScanResultForEapNetwork(scanResult)) {
+            } else if (ScanResultUtil.isScanResultForEapNetwork(scanResult)
+                    || ScanResultUtil.isScanResultForEapSuiteBNetwork(scanResult)) {
                 mCurrentConnectionEvent.mRouterFingerPrint.mRouterFingerPrintProto.authentication =
                         WifiMetricsProto.RouterFingerPrint.AUTH_ENTERPRISE;
             }
@@ -1367,10 +1369,12 @@ public class WifiMetrics {
                 }
             }
             if (scanResult != null && scanResult.capabilities != null) {
-                if (ScanResultUtil.isScanResultForEapNetwork(scanResult)) {
+                if (ScanResultUtil.isScanResultForEapNetwork(scanResult)
+                        || ScanResultUtil.isScanResultForEapSuiteBNetwork(scanResult)) {
                     enterpriseNetworks++;
                 } else if (ScanResultUtil.isScanResultForPskNetwork(scanResult)
-                        || ScanResultUtil.isScanResultForWepNetwork(scanResult)) {
+                        || ScanResultUtil.isScanResultForWepNetwork(scanResult)
+                        || ScanResultUtil.isScanResultForSaeNetwork(scanResult)) {
                     personalNetworks++;
                 } else {
                     openNetworks++;

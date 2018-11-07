@@ -34,13 +34,19 @@ public class ScanResultMatchInfo {
     public static final int NETWORK_TYPE_WEP = 1;
     public static final int NETWORK_TYPE_PSK = 2;
     public static final int NETWORK_TYPE_EAP = 3;
+    public static final int NETWORK_TYPE_SAE = 4;
+    public static final int NETWORK_TYPE_EAP_SUITE_B = 5;
+    public static final int NETWORK_TYPE_OWE = 6;
 
     @Retention(SOURCE)
     @IntDef(prefix = { "NETWORK_TYPE_" }, value = {
             NETWORK_TYPE_OPEN,
             NETWORK_TYPE_WEP,
             NETWORK_TYPE_PSK,
-            NETWORK_TYPE_EAP
+            NETWORK_TYPE_EAP,
+            NETWORK_TYPE_SAE,
+            NETWORK_TYPE_EAP_SUITE_B,
+            NETWORK_TYPE_OWE
     })
     public @interface NetworkType {}
 
@@ -57,12 +63,18 @@ public class ScanResultMatchInfo {
      * Fetch network type from network configuration.
      */
     public static @NetworkType int getNetworkType(WifiConfiguration config) {
-        if (WifiConfigurationUtil.isConfigForPskNetwork(config)) {
+        if (WifiConfigurationUtil.isConfigForSaeNetwork(config)) {
+            return NETWORK_TYPE_SAE;
+        } else if (WifiConfigurationUtil.isConfigForPskNetwork(config)) {
             return NETWORK_TYPE_PSK;
         } else if (WifiConfigurationUtil.isConfigForEapNetwork(config)) {
             return NETWORK_TYPE_EAP;
+        } else if (WifiConfigurationUtil.isConfigForEapSuiteBNetwork(config)) {
+            return NETWORK_TYPE_EAP_SUITE_B;
         } else if (WifiConfigurationUtil.isConfigForWepNetwork(config)) {
             return NETWORK_TYPE_WEP;
+        } else if (WifiConfigurationUtil.isConfigForOweNetwork(config)) {
+            return NETWORK_TYPE_OWE;
         } else if (WifiConfigurationUtil.isConfigForOpenNetwork(config)) {
             return NETWORK_TYPE_OPEN;
         }
@@ -83,16 +95,23 @@ public class ScanResultMatchInfo {
      * Fetch network type from scan result.
      */
     public static @NetworkType int getNetworkType(ScanResult scanResult) {
-        if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
+        if (ScanResultUtil.isScanResultForSaeNetwork(scanResult)) {
+            return NETWORK_TYPE_SAE;
+        } else if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
             return NETWORK_TYPE_PSK;
+        } else if (ScanResultUtil.isScanResultForEapSuiteBNetwork(scanResult)) {
+            return NETWORK_TYPE_EAP_SUITE_B;
         } else if (ScanResultUtil.isScanResultForEapNetwork(scanResult)) {
             return NETWORK_TYPE_EAP;
         } else if (ScanResultUtil.isScanResultForWepNetwork(scanResult)) {
             return NETWORK_TYPE_WEP;
+        } else if (ScanResultUtil.isScanResultForOweNetwork(scanResult)) {
+            return NETWORK_TYPE_OWE;
         } else if (ScanResultUtil.isScanResultForOpenNetwork(scanResult)) {
             return NETWORK_TYPE_OPEN;
+        } else {
+            throw new IllegalArgumentException("Invalid ScanResult: " + scanResult);
         }
-        throw new IllegalArgumentException("Invalid ScanResult: " + scanResult);
     }
 
     /**
