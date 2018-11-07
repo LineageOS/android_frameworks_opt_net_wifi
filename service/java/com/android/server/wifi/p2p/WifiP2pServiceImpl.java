@@ -157,7 +157,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private static final int DROP_WIFI_USER_REJECT          =   BASE + 5;
     // Delayed message to timeout p2p disable
     public static final int DISABLE_P2P_TIMED_OUT           =   BASE + 6;
-
+    // User confirm a peer request
+    public static final int PEER_CONNECTION_USER_CONFIRM    =   BASE + 7;
 
     // Commands to the ClientModeImpl
     public static final int P2P_CONNECTION_CHANGED          =   BASE + 11;
@@ -1517,7 +1518,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
                             break;
                         }
-
                         mAutonomousGroup = false;
                         mWifiNative.p2pStopFind();
                         if (reinvokePersistentGroup(config)) {
@@ -1618,11 +1618,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             loge("Device entry is null");
                             break;
                         }
+                        mSavedPeerConfig = new WifiP2pConfig();
+                        mSavedPeerConfig.wps.setup = WpsInfo.KEYPAD;
+                        mSavedPeerConfig.deviceAddress = device.deviceAddress;
+                        mSavedPeerConfig.wps.pin = provDisc.pin;
 
                         notifyP2pProvDiscShowPinRequest(provDisc.pin, device.deviceAddress);
                         mPeers.updateStatus(device.deviceAddress, WifiP2pDevice.INVITED);
                         sendPeersChangedBroadcast();
-                        transitionTo(mGroupNegotiationState);
+                        transitionTo(mUserAuthorizingNegotiationRequestState);
                         break;
                     case WifiP2pManager.CREATE_GROUP:
                         mAutonomousGroup = true;
@@ -1814,7 +1818,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             @Override
             public void enter() {
                 if (DBG) logd(getName());
-                notifyInvitationReceived();
+                if (mSavedPeerConfig.wps.setup == WpsInfo.PBC
+                            || TextUtils.isEmpty(mSavedPeerConfig.wps.pin)) {
+                    notifyInvitationReceived();
+                }
             }
 
             @Override
@@ -1832,6 +1839,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case PEER_CONNECTION_USER_REJECT:
                         if (DBG) logd("User rejected negotiation " + mSavedPeerConfig);
                         transitionTo(mInactiveState);
+                        break;
+                    case PEER_CONNECTION_USER_CONFIRM:
+                        mSavedPeerConfig.wps.setup = WpsInfo.DISPLAY;
+                        mWifiNative.p2pConnect(mSavedPeerConfig, FORM_GROUP);
+                        transitionTo(mGroupNegotiationState);
                         break;
                     default:
                         return NOT_HANDLED;
@@ -2722,8 +2734,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void notifyP2pProvDiscShowPinRequest(String pin, String peerAddress) {
             Resources r = Resources.getSystem();
-            final String tempDevAddress = peerAddress;
-            final String tempPin = pin;
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
@@ -2736,11 +2746,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     .setView(textEntryView)
                     .setPositiveButton(r.getString(R.string.accept), new OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
-                                mSavedPeerConfig = new WifiP2pConfig();
-                                mSavedPeerConfig.deviceAddress = tempDevAddress;
-                                mSavedPeerConfig.wps.setup = WpsInfo.DISPLAY;
-                                mSavedPeerConfig.wps.pin = tempPin;
-                                mWifiNative.p2pConnect(mSavedPeerConfig, FORM_GROUP);
+                                sendMessage(PEER_CONNECTION_USER_CONFIRM);
                             }
                     })
                     .create();
