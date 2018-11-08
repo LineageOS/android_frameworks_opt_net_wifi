@@ -40,6 +40,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.text.TextUtils;
@@ -427,6 +428,24 @@ public class WifiNetworkFactory extends NetworkFactory {
      */
     public boolean hasConnectionRequests() {
         return mGenericConnectionReqCount > 0 || mActiveSpecificNetworkRequest != null;
+    }
+
+    /**
+     * Return the uid of the specific network request being processed if connected to the requested
+     * network.
+     *
+     * @param connectedNetwork WifiConfiguration corresponding to the connected network.
+     * @return uid of the specific request (if any), else -1.
+     */
+    public int getActiveSpecificNetworkRequestUid(@NonNull WifiConfiguration connectedNetwork) {
+        if (mUserSelectedNetwork == null || connectedNetwork == null) return Process.INVALID_UID;
+        if (!isUserSelectedNetwork(connectedNetwork)) {
+            Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
+            return Process.INVALID_UID;
+        }
+        return mActiveSpecificNetworkRequestSpecifier != null
+                ? mActiveSpecificNetworkRequestSpecifier.requestorUid
+                : Process.INVALID_UID;
     }
 
     private void handleConnectToNetworkUserSelection(WifiConfiguration network) {

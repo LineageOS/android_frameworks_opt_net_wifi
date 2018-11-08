@@ -59,6 +59,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -4331,6 +4332,15 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    private WifiNetworkAgentSpecifier getNetworkAgentSpecifier() {
+        WifiConfiguration currentWifiConfiguration = getCurrentWifiConfiguration();
+        if (currentWifiConfiguration == null) return null;
+        currentWifiConfiguration.BSSID = getCurrentBSSID();
+        WifiNetworkAgentSpecifier wns = new WifiNetworkAgentSpecifier(currentWifiConfiguration,
+                mNetworkFactory.getActiveSpecificNetworkRequestUid(currentWifiConfiguration));
+        return wns;
+    }
+
     /**
      * Method to update network capabilities from the current WifiConfiguration.
      */
@@ -4368,6 +4378,8 @@ public class ClientModeImpl extends StateMachine {
         } else {
             result.setSSID(null);
         }
+        // Fill up the network specifier for this connection.
+        result.setNetworkSpecifier(getNetworkAgentSpecifier());
 
         mNetworkAgent.sendNetworkCapabilities(result);
     }
@@ -4596,6 +4608,8 @@ public class ClientModeImpl extends StateMachine {
             } else {
                 nc = mNetworkCapabilitiesFilter;
             }
+            // Fill up the network specifier for this connection.
+            nc.setNetworkSpecifier(getNetworkAgentSpecifier());
             mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
                     "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkMisc);
 

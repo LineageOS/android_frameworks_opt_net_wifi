@@ -47,6 +47,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PatternMatcher;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
@@ -1032,6 +1033,30 @@ public class WifiNetworkFactoryTest {
         // Re-enable connectivity manager .
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
+
+    /**
+     * Verify we return the correct UID when processing network request with network specifier.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierGetUid() throws Exception {
+        assertEquals(Process.INVALID_UID,
+                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(new WifiConfiguration()));
+
+        sendNetworkRequestAndSetupForConnectionStatus();
+        assertNotNull(mSelectedNetwork);
+
+        // connected to a different network.
+        WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
+        connectedNetwork.SSID += "test";
+        assertEquals(Process.INVALID_UID,
+                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(connectedNetwork));
+
+        // connected to the correct network.
+        connectedNetwork = new WifiConfiguration(mSelectedNetwork);
+        assertEquals(TEST_UID_1,
+                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(connectedNetwork));
+    }
+
 
     // Helper method to setup the necessary pre-requisite steps for tracking connection status.
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
