@@ -162,10 +162,16 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Callback result from settings UI.
     private class NetworkFactoryUserSelectionCallback extends
             INetworkRequestUserSelectionCallback.Stub {
+        private final NetworkRequest mNetworkRequest;
+
+        NetworkFactoryUserSelectionCallback(NetworkRequest networkRequest) {
+            mNetworkRequest = networkRequest;
+        }
+
         @Override
         public void select(WifiConfiguration wifiConfiguration) {
             mHandler.post(() -> {
-                if (mActiveSpecificNetworkRequest == null) {
+                if (mActiveSpecificNetworkRequest != mNetworkRequest) {
                     Log.e(TAG, "Stale callback select received");
                     return;
                 }
@@ -176,7 +182,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         @Override
         public void reject() {
             mHandler.post(() -> {
-                if (mActiveSpecificNetworkRequest == null) {
+                if (mActiveSpecificNetworkRequest != mNetworkRequest) {
                     Log.e(TAG, "Stale callback reject received");
                     return;
                 }
@@ -244,18 +250,24 @@ public class WifiNetworkFactory extends NetworkFactory {
      */
     public void addCallback(IBinder binder, INetworkRequestMatchCallback callback,
                             int callbackIdentifier) {
+        if (mActiveSpecificNetworkRequest == null) {
+            Log.wtf(TAG, "No valid network request. Ignoring callback registration");
+            // TODO(b/113878056): End UI flow here.
+            return;
+        }
         if (!mRegisteredCallbacks.add(binder, callback, callbackIdentifier)) {
             Log.e(TAG, "Failed to add callback");
             return;
         }
-        // Register our user selection callback immediately.
-        try {
-            callback.onUserSelectionCallbackRegistration(new NetworkFactoryUserSelectionCallback());
-        } catch (RemoteException e) {
-            Log.e(TAG, "Unable to invoke user selection registration callback " + callback, e);
-        }
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding callback. Num callbacks: " + mRegisteredCallbacks.getNumCallbacks());
+        }
+        // Register our user selection callback.
+        try {
+            callback.onUserSelectionCallbackRegistration(
+                    new NetworkFactoryUserSelectionCallback(mActiveSpecificNetworkRequest));
+        } catch (RemoteException e) {
+            Log.e(TAG, "Unable to invoke user selection registration callback " + callback, e);
         }
     }
 
@@ -356,6 +368,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
                     wns.requestorUid);
 
+            // TODO(b/113878056): Start UI flow here.
             // Trigger periodic scans for finding a network in the request.
             startPeriodicScans();
             // Disable Auto-join so that NetworkFactory can take control of the network selection.
@@ -458,7 +471,9 @@ public class WifiNetworkFactory extends NetworkFactory {
         cancelPeriodicScans();
         // Re-enable Auto-join.
         mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
-        // TODO: Force-release the network request to let the app know that the attempt failed.
+        // TODO(b/113878056): Force-release the network request to let the app know early that the
+        // attempt failed.
+        // TODO(b/113878056): End UI flow here.
     }
 
     /**

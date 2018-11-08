@@ -466,6 +466,10 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testHandleCallbackRegistrationAndUnregistration() throws Exception {
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
 
@@ -484,8 +488,6 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatch() throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -502,6 +504,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -521,8 +526,6 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testNetworkSpecifierMatchSuccessUsingPrefixSsidMatch() throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_OPEN,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -539,6 +542,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -559,8 +565,6 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testNetworkSpecifierMatchSuccessUsingLiteralBssidMatch() throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -577,6 +581,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -596,8 +603,6 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testNetworkSpecifierMatchSuccessUsingOuiPrefixBssidMatch() throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_EAP,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -615,6 +620,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -636,8 +644,6 @@ public class WifiNetworkFactoryTest {
     @Test
     public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatchWithMultipleBssidMatches()
             throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_1, TEST_SSID_1, TEST_SSID_2);
@@ -654,6 +660,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -677,8 +686,6 @@ public class WifiNetworkFactoryTest {
     @Test
     public void testNetworkSpecifierMatchFailUsingLiteralSsidMatchWhenSsidNotFound()
             throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_1, TEST_SSID_2, TEST_SSID_2);
@@ -695,6 +702,9 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
@@ -716,8 +726,6 @@ public class WifiNetworkFactoryTest {
     @Test
     public void testNetworkSpecifierMatchFailUsingLiteralSsidMatchWhenKeyMgmtDiffers()
             throws Exception {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_OPEN,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -735,6 +743,9 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
@@ -748,7 +759,7 @@ public class WifiNetworkFactoryTest {
     }
 
     /**
-     * Verify handling of stale user selection.
+     * Verify handling of stale user selection (previous request released).
      */
     @Test
     public void testNetworkSpecifierHandleUserSelectionConnectToNetworkWithoutActiveRequest()
@@ -767,13 +778,32 @@ public class WifiNetworkFactoryTest {
         networkRequestUserSelectionCallback.select(selectedNetwork);
         mLooper.dispatchAll();
 
-        // Cancel periodic scans.
-        verify(mAlarmManager).cancel(any(OnAlarmListener.class));
+        // Verify we did not attempt to trigger a connection.
+        verifyNoMoreInteractions(mClientModeImpl);
+    }
+
+    /**
+     * Verify handling of stale user selection (new request replacing the previous request).
+     */
+    @Test
+    public void testNetworkSpecifierHandleUserSelectionConnectToNetworkWithDifferentActiveRequest()
+            throws Exception {
+        sendNetworkRequestAndSetupForUserSelection();
+
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+
+        // Now send another network request.
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        // Now trigger user selection to some network.
+        WifiConfiguration selectedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        networkRequestUserSelectionCallback.select(selectedNetwork);
+        mLooper.dispatchAll();
 
         // Verify we did not attempt to trigger a connection.
         verifyNoMoreInteractions(mClientModeImpl);
-        // Verify we reset the network request handling.
-        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
 
     /**
@@ -833,10 +863,6 @@ public class WifiNetworkFactoryTest {
 
     // Helper method to setup the necessary pre-requisite steps for user selection.
     private void sendNetworkRequestAndSetupForUserSelection() throws RemoteException {
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
-        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
-                mNetworkRequestUserSelectionCallback.capture());
         // Setup scan data for open networks.
         setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
                 TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
@@ -853,6 +879,11 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
 
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
