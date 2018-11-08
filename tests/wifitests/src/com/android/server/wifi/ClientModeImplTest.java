@@ -346,6 +346,7 @@ public class ClientModeImplTest {
     @Mock SarManager mSarManager;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiNative mWifiNative;
+    @Mock WifiScoreCard mWifiScoreCard;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock WifiStateTracker mWifiStateTracker;
     @Mock PasspointManager mPasspointManager;
@@ -494,7 +495,7 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWrongPasswordNotifier, mSarManager);
+                mWifiScoreCard, mWrongPasswordNotifier, mSarManager);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {

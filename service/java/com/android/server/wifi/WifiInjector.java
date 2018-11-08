@@ -141,6 +141,7 @@ public class WifiInjector {
     private final SarManager mSarManager;
     private final BaseWifiDiagnostics mWifiDiagnostics;
     private final WifiDataStall mWifiDataStall;
+    private final WifiScoreCard mWifiScoreCard;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -230,6 +231,7 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
                 mWifiCoreHandlerThread.getLooper());
+        mWifiScoreCard = new WifiScoreCard(mClock);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
@@ -268,7 +270,7 @@ public class WifiInjector {
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 clientModeImplLooper, UserManager.get(mContext),
-                this, mBackupManagerProxy, mCountryCode, mWifiNative,
+                this, mBackupManagerProxy, mCountryCode, mWifiNative, mWifiScoreCard,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager);
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,

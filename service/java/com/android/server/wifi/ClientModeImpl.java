@@ -186,7 +186,7 @@ public class ClientModeImpl extends StateMachine {
     private final PropertyService mPropertyService;
     private final BuildProperties mBuildProperties;
     private final WifiCountryCode mCountryCode;
-    // Object holding most recent wifi score report and bad Linkspeed count
+    private final WifiScoreCard mWifiScoreCard;
     private final WifiScoreReport mWifiScoreReport;
     private final SarManager mSarManager;
     public WifiScoreReport getWifiScoreReport() {
@@ -731,7 +731,7 @@ public class ClientModeImpl extends StateMachine {
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
-                            WifiNative wifiNative,
+                            WifiNative wifiNative, WifiScoreCard wifiScoreCard,
                             WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager) {
         super(TAG, looper);
@@ -743,11 +743,11 @@ public class ClientModeImpl extends StateMachine {
         mContext = context;
         mFacade = facade;
         mWifiNative = wifiNative;
+        mWifiScoreCard = wifiScoreCard;
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
 
-        // TODO refactor WifiNative use of context out into it's own class
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStats = IBatteryStats.Stub.asInterface(mFacade.getService(
                 BatteryStats.SERVICE_NAME));
