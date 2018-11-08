@@ -473,9 +473,21 @@ public class WifiNetworkFactory extends NetworkFactory {
     }
 
     /**
+     * Invoked by {@link ClientModeImpl} on end of connection attempt to a network.
+     */
+    public void handleConnectionAttemptEnded(
+            int failureCode, @NonNull WifiConfiguration network) {
+        if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+            handleNetworkConnectionSuccess(network);
+        } else {
+            handleNetworkConnectionFailure(network);
+        }
+    }
+
+    /**
      * Invoked by {@link ClientModeImpl} on successful connection to a network.
      */
-    public void handleNetworkConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
+    private void handleNetworkConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
         if (mUserSelectedNetwork == null || connectedNetwork == null) return;
         if (!isUserSelectedNetwork(connectedNetwork)) {
             Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
@@ -499,7 +511,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     /**
      * Invoked by {@link ClientModeImpl} on failure to connect to a network.
      */
-    public void handleNetworkConnectionFailure(@NonNull WifiConfiguration failedNetwork) {
+    private void handleNetworkConnectionFailure(@NonNull WifiConfiguration failedNetwork) {
         if (mUserSelectedNetwork == null || failedNetwork == null) return;
         if (!isUserSelectedNetwork(failedNetwork)) {
             Log.w(TAG, "Connection failed to unknown network " + failedNetwork + ". Ignoring...");

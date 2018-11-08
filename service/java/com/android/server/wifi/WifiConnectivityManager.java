@@ -1110,13 +1110,6 @@ public class WifiConnectivityManager {
 
         mWifiState = state;
 
-        if (mWifiState == WIFI_STATE_CONNECTED) {
-            mOpenNetworkNotifier.handleWifiConnected(
-                    (mWifiInfo.getWifiSsid() == null) ? null : mWifiInfo.getWifiSsid().toString());
-            mCarrierNetworkNotifier.handleWifiConnected(
-                    (mWifiInfo.getWifiSsid() == null) ? null : mWifiInfo.getWifiSsid().toString());
-        }
-
         // Reset BSSID of last connection attempt and kick off
         // the watchdog timer if entering disconnected state.
         if (mWifiState == WIFI_STATE_DISCONNECTED) {
@@ -1134,7 +1127,13 @@ public class WifiConnectivityManager {
      * @param failureCode {@link WifiMetrics.ConnectionEvent} failure code.
      */
     public void handleConnectionAttemptEnded(int failureCode) {
-        if (failureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+        if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+            String ssid = (mWifiInfo.getWifiSsid() == null)
+                    ? null
+                    : mWifiInfo.getWifiSsid().toString();
+            mOpenNetworkNotifier.handleWifiConnected(ssid);
+            mCarrierNetworkNotifier.handleWifiConnected(ssid);
+        } else {
             mOpenNetworkNotifier.handleConnectionFailure();
             mCarrierNetworkNotifier.handleConnectionFailure();
         }

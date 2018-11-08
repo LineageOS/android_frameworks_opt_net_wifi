@@ -2868,13 +2868,7 @@ public class ClientModeImpl extends StateMachine {
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
 
-    /**
-     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
-     * the current connection attempt has concluded.
-     */
-    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
-        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
-        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+    private void handleConnectionAttemptEndForDiagnostics(int level2FailureCode) {
         switch (level2FailureCode) {
             case WifiMetrics.ConnectionEvent.FAILURE_NONE:
                 // Ideally, we'd wait until IP reachability has been confirmed. this code falls
@@ -2898,6 +2892,18 @@ public class ClientModeImpl extends StateMachine {
                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
+    }
+
+    /**
+     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
+     * the current connection attempt has concluded.
+     */
+    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+        mNetworkFactory.handleConnectionAttemptEnded(
+                level2FailureCode, getCurrentWifiConfiguration());
+        handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
     private void handleIPv4Success(DhcpResults dhcpResults) {

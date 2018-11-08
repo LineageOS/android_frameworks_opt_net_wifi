@@ -913,7 +913,8 @@ public class WifiNetworkFactoryTest {
 
         // Send network connection failure indication.
         assertNotNull(mSelectedNetwork);
-        mWifiNetworkFactory.handleNetworkConnectionFailure(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
 
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
@@ -934,7 +935,8 @@ public class WifiNetworkFactoryTest {
         assertNotNull(mSelectedNetwork);
         WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
         connectedNetwork.SSID += "test";
-        mWifiNetworkFactory.handleNetworkConnectionFailure(connectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, connectedNetwork);
 
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback, never())
@@ -947,7 +949,8 @@ public class WifiNetworkFactoryTest {
                 .setSpecificNetworkRequestInProgress(false);
 
         // Send network connection success to the correct network indication.
-        mWifiNetworkFactory.handleNetworkConnectionFailure(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
 
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
@@ -966,7 +969,8 @@ public class WifiNetworkFactoryTest {
 
         // Send network connection success indication.
         assertNotNull(mSelectedNetwork);
-        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
 
         // Verify that we sent the connection success callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
@@ -985,7 +989,8 @@ public class WifiNetworkFactoryTest {
         assertNotNull(mSelectedNetwork);
         WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
         connectedNetwork.SSID += "test";
-        mWifiNetworkFactory.handleNetworkConnectionSuccess(connectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, connectedNetwork);
 
         // verify that we did not send out the success callback and did not stop the alarm timeout.
         verify(mNetworkRequestMatchCallback, never())
@@ -994,7 +999,8 @@ public class WifiNetworkFactoryTest {
                 .cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
 
         // Send network connection success to the correct network indication.
-        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
 
         // Verify that we sent the connection success callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
@@ -1011,7 +1017,8 @@ public class WifiNetworkFactoryTest {
 
         // Send network connection success indication.
         assertNotNull(mSelectedNetwork);
-        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
 
         // Verify that we sent the connection success callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
