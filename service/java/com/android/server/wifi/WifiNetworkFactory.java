@@ -454,7 +454,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         cancelPeriodicScans();
 
         // Mark the network ephemeral so that it's automatically removed at the end of connection.
-        // TODO(b/113878056): This marks the network untrusted currently, need to handle that.
         network.ephemeral = true;
 
         // Send the connect request to ClientModeImpl.

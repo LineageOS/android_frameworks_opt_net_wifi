@@ -2723,6 +2723,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
@@ -2933,6 +2934,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
         }
 
         // Set meteredHint if DHCP result says network is metered
@@ -4355,10 +4357,10 @@ public class ClientModeImpl extends StateMachine {
 
         final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-        if (mWifiInfo != null && !mWifiInfo.isEphemeral()) {
-            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
-        } else {
+        if (mWifiInfo != null && !mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
+        } else {
+            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
         if (mWifiInfo != null && !WifiConfiguration.isMetered(config, mWifiInfo)) {
