@@ -4759,6 +4759,7 @@ public class ClientModeImpl extends StateMachine {
                             mIpClient.confirmConfiguration();
                             mWifiScoreReport.noteIpCheck();
                         }
+                        mWifiScoreCard.noteSignalPoll(mWifiInfo);
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());

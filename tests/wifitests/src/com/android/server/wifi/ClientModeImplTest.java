@@ -2162,6 +2162,7 @@ public class ClientModeImplTest {
         assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
         assertEquals(signalPollResult.txBitrate, wifiInfo.getLinkSpeed());
         assertEquals(sFreq, wifiInfo.getFrequency());
+        verify(mWifiScoreCard).noteSignalPoll(any());
     }
 
     /**
