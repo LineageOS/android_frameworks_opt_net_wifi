@@ -647,7 +647,7 @@ public class ClientModeImpl extends StateMachine {
     private AtomicBoolean mUserWantsSuspendOpt = new AtomicBoolean(true);
 
     /* Tracks if user has enabled Connected Mac Randomization through settings */
-    private AtomicBoolean mEnableConnectedMacRandomization = new AtomicBoolean(false);
+    private boolean mEnableConnectedMacRandomization = false;
 
     /**
      * Supplicant scan interval in milliseconds.
@@ -846,7 +846,7 @@ public class ClientModeImpl extends StateMachine {
                 new ContentObserver(getHandler()) {
                     @Override
                     public void onChange(boolean selfChange) {
-                        updateConnectedMacRandomizationSetting();
+                        updateConnectedMacRandomizationGlobalToggle();
                     }
                 });
 
@@ -862,7 +862,7 @@ public class ClientModeImpl extends StateMachine {
         mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
 
-        updateConnectedMacRandomizationSetting();
+        getHandler().post(() -> updateConnectedMacRandomizationGlobalToggle());
 
         PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getName());
@@ -3241,7 +3241,6 @@ public class ClientModeImpl extends StateMachine {
         MacAddress currentMac = MacAddress.fromString(mWifiNative.getMacAddress(mInterfaceName));
         MacAddress newMac = config.getOrCreateRandomizedMacAddress();
         mWifiConfigManager.setNetworkRandomizedMacAddress(config.networkId, newMac);
-
         if (!WifiConfiguration.isValidMacAddressForRandomization(newMac)) {
             Log.wtf(TAG, "Config generated an invalid MAC address");
         } else if (currentMac.equals(newMac)) {
@@ -3257,18 +3256,45 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Update whether Connected MAC Randomization is enabled in ClientModeImpl
-     * and WifiInfo.
+     * Sets the current MAC to the factory MAC address.
      */
-    private void updateConnectedMacRandomizationSetting() {
+    private void setCurrentMacToFactoryMac(WifiConfiguration config) {
+        MacAddress factoryMac = mWifiNative.getFactoryMacAddress(mInterfaceName);
+        if (factoryMac == null) {
+            Log.e(TAG, "Fail to set factory MAC address. Factory MAC is null.");
+            return;
+        }
+        String currentMacStr = mWifiNative.getMacAddress(mInterfaceName);
+        if (!TextUtils.equals(currentMacStr, factoryMac.toString())) {
+            if (mWifiNative.setMacAddress(mInterfaceName, factoryMac)) {
+                mWifiMetrics.logStaEvent(StaEvent.TYPE_MAC_CHANGE, config);
+            } else {
+                Log.e(TAG, "Failed to set MAC address to " + "'" + factoryMac.toString() + "'");
+            }
+        }
+    }
+
+    /**
+     * Set Connected MAC Randomization to on/off depending on the current Settings.Global flag,
+     * and also reassociate to update the MAC address if needed.
+     */
+    private void updateConnectedMacRandomizationGlobalToggle() {
         int macRandomizationFlag = mFacade.getIntegerSetting(
                 mContext, Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0);
         boolean macRandomizationEnabled = (macRandomizationFlag == 1);
-        mEnableConnectedMacRandomization.set(macRandomizationEnabled);
-        mWifiInfo.setEnableConnectedMacRandomization(macRandomizationEnabled);
-        mWifiMetrics.setIsMacRandomizationOn(macRandomizationEnabled);
-        Log.d(TAG, "EnableConnectedMacRandomization Setting changed to "
-                + macRandomizationEnabled);
+        if (mEnableConnectedMacRandomization != macRandomizationEnabled) {
+            mEnableConnectedMacRandomization = macRandomizationEnabled;
+            mWifiInfo.setEnableConnectedMacRandomization(macRandomizationEnabled);
+            mWifiMetrics.setIsMacRandomizationOn(macRandomizationEnabled);
+            Log.d(TAG, "EnableConnectedMacRandomization Setting changed to "
+                    + macRandomizationEnabled);
+            // Reconnect to the network (if there is one) to update the MAC address
+            WifiConfiguration config = getCurrentWifiConfiguration();
+            if (config != null) {
+                disconnectCommand();
+                startConnectToNetwork(config.networkId, Process.WIFI_UID, config.BSSID);
+            }
+        }
     }
 
     /**
@@ -3278,7 +3304,7 @@ public class ClientModeImpl extends StateMachine {
      * @return boolean true if Connected MAC randomization is enabled, false otherwise
      */
     public boolean isConnectedMacRandomizationEnabled() {
-        return mEnableConnectedMacRandomization.get();
+        return mEnableConnectedMacRandomization;
     }
 
     /**
@@ -4051,8 +4077,11 @@ public class ClientModeImpl extends StateMachine {
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
 
-                    if (mEnableConnectedMacRandomization.get()) {
+                    if (mEnableConnectedMacRandomization && config.macRandomizationSetting
+                            == WifiConfiguration.RANDOMIZATION_PERSISTENT) {
                         configureRandomizedMacAddress(config);
+                    } else {
+                        setCurrentMacToFactoryMac(config);
                     }
 
                     String currentMacAddress = mWifiNative.getMacAddress(mInterfaceName);
