@@ -136,6 +136,7 @@ public class OsuNetworkConnection {
             }
             return;
         }
+        mConnectivityManager.unregisterNetworkCallback(mConnectivityCallbacks);
         mWifiManager.removeNetwork(mNetworkId);
         mNetworkId = -1;
         mNetwork = null;
