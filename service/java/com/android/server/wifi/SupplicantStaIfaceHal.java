@@ -15,9 +15,14 @@
  */
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
+
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQP3GPPNetwork;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPDomName;
-import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPIPAddrAvailability;
+import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType
+        .ANQPIPAddrAvailability;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPNAIRealm;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPRoamingConsortium;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPVenueName;
@@ -33,12 +38,11 @@ import android.hardware.wifi.supplicant.V1_0.ISupplicantIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantNetwork;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
-import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback.BssidChangeReason;
-import android.hardware.wifi.supplicant.V1_0.ISupplicantStaNetwork;
 import android.hardware.wifi.supplicant.V1_0.IfaceType;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
+import android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.IpConfiguration;
@@ -2736,5 +2740,44 @@ public class SupplicantStaIfaceHal {
 
     private static void loge(String s) {
         Log.e(TAG, s);
+    }
+
+    /**
+     * Returns a bitmask of advanced key management capabilities: WPA3 SAE/SUITE B and OWE
+     * Bitmask used is:
+     * - WIFI_FEATURE_WPA3_SAE
+     * - WIFI_FEATURE_WPA3_SUITE_B
+     * - WIFI_FEATURE_OWE
+     */
+    public int getAdvancedKeyMgmtCapabilities(
+            @NonNull String ifaceName) {
+        final String methodStr = "getAdvancedKeyMgmtCapabilities";
+
+        synchronized (mLock) {
+            SupplicantStaNetworkHal networkHal = getCurrentNetworkRemoteHandle(ifaceName);
+            if (networkHal == null) {
+                Log.e(TAG, "Can't call " + methodStr + ", SupplicantStaNetwork is null");
+                return 0;
+            }
+
+            int capabilities = networkHal.getKeyMgmtCapabilities();
+            int advancedCapabilities = 0;
+
+            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.SAE) != 0) {
+                advancedCapabilities |= WIFI_FEATURE_WPA3_SAE;
+            }
+
+            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192) != 0) {
+                advancedCapabilities |= WIFI_FEATURE_WPA3_SUITE_B;
+            }
+
+            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.OWE) != 0) {
+                advancedCapabilities |= WIFI_FEATURE_OWE;
+            }
+
+            logi(methodStr + ": Capability flags = " + capabilities);
+
+            return advancedCapabilities;
+        }
     }
 }

@@ -323,6 +323,8 @@ public class XmlUtil {
         public static final String XML_TAG_ALLOWED_AUTH_ALGOS = "AllowedAuthAlgos";
         public static final String XML_TAG_ALLOWED_GROUP_CIPHERS = "AllowedGroupCiphers";
         public static final String XML_TAG_ALLOWED_PAIRWISE_CIPHERS = "AllowedPairwiseCiphers";
+        public static final String XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS = "AllowedGroupMgmtCiphers";
+        public static final String XML_TAG_ALLOWED_SUITE_B_CIPHERS = "AllowedSuiteBCiphers";
         public static final String XML_TAG_SHARED = "Shared";
         public static final String XML_TAG_STATUS = "Status";
         public static final String XML_TAG_FQDN = "FQDN";
@@ -406,6 +408,12 @@ public class XmlUtil {
             XmlUtil.writeNextValue(
                     out, XML_TAG_ALLOWED_PAIRWISE_CIPHERS,
                     configuration.allowedPairwiseCiphers.toByteArray());
+            XmlUtil.writeNextValue(
+                    out, XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS,
+                    configuration.allowedGroupMgmtCiphers.toByteArray());
+            XmlUtil.writeNextValue(
+                    out, XML_TAG_ALLOWED_SUITE_B_CIPHERS,
+                    configuration.allowedSuiteBCiphers.toByteArray());
             XmlUtil.writeNextValue(out, XML_TAG_SHARED, configuration.shared);
         }
 
@@ -561,6 +569,16 @@ public class XmlUtil {
                         byte[] allowedPairwiseCiphers = (byte[]) value;
                         configuration.allowedPairwiseCiphers =
                                 BitSet.valueOf(allowedPairwiseCiphers);
+                        break;
+                    case XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS:
+                        byte[] allowedGroupMgmtCiphers = (byte[]) value;
+                        configuration.allowedGroupMgmtCiphers =
+                                BitSet.valueOf(allowedGroupMgmtCiphers);
+                        break;
+                    case XML_TAG_ALLOWED_SUITE_B_CIPHERS:
+                        byte[] allowedSuiteBCiphers = (byte[]) value;
+                        configuration.allowedSuiteBCiphers =
+                                BitSet.valueOf(allowedSuiteBCiphers);
                         break;
                     case XML_TAG_SHARED:
                         configuration.shared = (boolean) value;

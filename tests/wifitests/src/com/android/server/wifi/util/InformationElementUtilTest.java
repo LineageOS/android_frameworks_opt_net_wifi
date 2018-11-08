@@ -267,7 +267,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[WPA2-PSK-CCMP+TKIP]", result);
+        assertEquals("[RSN-PSK-CCMP+TKIP]", result);
     }
 
     /**
@@ -293,7 +293,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[WPA2]", result);
+        assertEquals("[RSN]", result);
     }
 
     /**
@@ -383,7 +383,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[WPA-PSK-CCMP+TKIP][WPA2-PSK-CCMP+TKIP]", result);
+        assertEquals("[WPA-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
     }
 
     /**
@@ -415,7 +415,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[WPA][WPA2]", result);
+        assertEquals("[WPA][RSN]", result);
     }
 
     /**
@@ -783,4 +783,5 @@ public class InformationElementUtilTest {
         assertEquals(0x112233445566L, interworking.hessid);
     }
 
+    // TODO: SAE, OWN, SUITE_B
 }

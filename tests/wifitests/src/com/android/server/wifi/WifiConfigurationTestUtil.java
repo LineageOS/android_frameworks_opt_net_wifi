@@ -46,6 +46,9 @@ public class WifiConfigurationTestUtil {
     public static final int SECURITY_WEP =  1 << 0;
     public static final int SECURITY_PSK =  1 << 1;
     public static final int SECURITY_EAP =  1 << 2;
+    public static final int SECURITY_SAE =  1 << 3;
+    public static final int SECURITY_OWE =  1 << 4;
+    public static final int SECURITY_EAP_SUITE_B =  1 << 5;
 
     /**
      * These values are used to describe ip configuration parameters for a network.
@@ -138,11 +141,27 @@ public class WifiConfigurationTestUtil {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
             }
 
+            if ((security & SECURITY_SAE) != 0) {
+                config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+                config.requirePMF = true;
+            }
+
+            if ((security & SECURITY_OWE) != 0) {
+                config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
+                config.requirePMF = true;
+            }
+
             if ((security & SECURITY_EAP) != 0) {
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
                 config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
                 config.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TTLS);
             }
+
+            if ((security & SECURITY_EAP_SUITE_B) != 0) {
+                config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SUITE_B_192);
+                config.requirePMF = true;
+            }
+
         }
         return config;
     }
@@ -224,6 +243,15 @@ public class WifiConfigurationTestUtil {
      * Helper methods to generate predefined WifiConfiguration objects of the required type. These
      * use a static index to avoid duplicate configurations.
      */
+    public static WifiConfiguration createOweNetwork() {
+        return createOweNetwork(createNewSSID());
+    }
+
+    public static WifiConfiguration createOweNetwork(String ssid) {
+        return generateWifiConfig(TEST_NETWORK_ID, TEST_UID, ssid, true, true, null,
+                null, SECURITY_OWE);
+    }
+
     public static WifiConfiguration createOpenNetwork() {
         return createOpenNetwork(createNewSSID());
     }
@@ -242,6 +270,17 @@ public class WifiConfigurationTestUtil {
     public static WifiConfiguration createOpenHiddenNetwork() {
         WifiConfiguration configuration = createOpenNetwork();
         configuration.hiddenSSID = true;
+        return configuration;
+    }
+
+    public static WifiConfiguration createSaeNetwork() {
+        WifiConfiguration configuration =
+                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true, null,
+                        null, SECURITY_SAE);
+
+        // SAE password uses the same member.
+        configuration.preSharedKey = TEST_PSK;
+        configuration.requirePMF = true;
         return configuration;
     }
 
@@ -314,6 +353,17 @@ public class WifiConfigurationTestUtil {
                         null, null, SECURITY_EAP);
         configuration.enterpriseConfig.setEapMethod(eapMethod);
         configuration.enterpriseConfig.setPhase2Method(phase2Method);
+        return configuration;
+    }
+
+    public static WifiConfiguration createEapSuiteBNetwork() {
+        WifiConfiguration configuration =
+                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true,
+                        null, null, SECURITY_EAP_SUITE_B);
+
+        configuration.requirePMF = true;
+        configuration.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
+        configuration.enterpriseConfig.setPhase2Method(WifiEnterpriseConfig.Phase2.NONE);
         return configuration;
     }
 
@@ -430,13 +480,19 @@ public class WifiConfigurationTestUtil {
     public static String getScanResultCapsForNetwork(WifiConfiguration configuration) {
         String caps;
         if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)) {
-            caps = "[WPA2-PSK-CCMP]";
+            caps = "[RSN-PSK-CCMP]";
         } else if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP)
                 || configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X)) {
-            caps = "[WPA2-EAP-CCMP]";
+            caps = "[RSN-EAP-CCMP]";
         } else if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.NONE)
                 && WifiConfigurationUtil.hasAnyValidWepKey(configuration.wepKeys)) {
             caps = "[WEP]";
+        } else if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SAE)) {
+            caps = "[RSN-SAE-CCMP]";
+        } else if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OWE)) {
+            caps = "[RSN-OWE-CCMP]";
+        } else if (configuration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            caps = "[RSN-SUITE-B-192-CCMP]";
         } else {
             caps = "[]";
         }

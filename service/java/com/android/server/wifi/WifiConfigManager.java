@@ -822,6 +822,8 @@ public class WifiConfigManager {
             internalConfig.BSSID = externalConfig.BSSID.toLowerCase();
         }
         internalConfig.hiddenSSID = externalConfig.hiddenSSID;
+        internalConfig.requirePMF = externalConfig.requirePMF;
+
         if (externalConfig.preSharedKey != null
                 && !externalConfig.preSharedKey.equals(PASSWORD_MASK)) {
             internalConfig.preSharedKey = externalConfig.preSharedKey;
@@ -876,6 +878,16 @@ public class WifiConfigManager {
                 && !externalConfig.allowedGroupCiphers.isEmpty()) {
             internalConfig.allowedGroupCiphers =
                     (BitSet) externalConfig.allowedGroupCiphers.clone();
+        }
+        if (externalConfig.allowedGroupMgmtCiphers != null
+                && !externalConfig.allowedGroupMgmtCiphers.isEmpty()) {
+            internalConfig.allowedGroupMgmtCiphers =
+                    (BitSet) externalConfig.allowedGroupMgmtCiphers.clone();
+        }
+        if (externalConfig.allowedSuiteBCiphers != null
+                && !externalConfig.allowedSuiteBCiphers.isEmpty()) {
+            internalConfig.allowedSuiteBCiphers =
+                    (BitSet) externalConfig.allowedSuiteBCiphers.clone();
         }
 
         // Copy over the |IpConfiguration| parameters if set.
