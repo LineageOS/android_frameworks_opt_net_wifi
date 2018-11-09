@@ -55,6 +55,8 @@ import android.os.HwRemoteBinder;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.MutableBoolean;
+import android.util.MutableInt;
 import android.util.Pair;
 import android.util.SparseArray;
 
@@ -296,6 +298,7 @@ public class SupplicantStaIfaceHal {
         final String methodStr = "setupIface";
         if (checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr) != null) return false;
         ISupplicantIface ifaceHwBinder;
+
         if (isV1_1()) {
             ifaceHwBinder = addIfaceV1_1(ifaceName);
         } else {
@@ -307,9 +310,20 @@ public class SupplicantStaIfaceHal {
         }
         SupplicantStaIfaceHalCallback callback = new SupplicantStaIfaceHalCallback(ifaceName);
 
-        if (isV1_1()) {
+        if (isV1_2()) {
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface iface =
+                    getStaIfaceMockableV1_2(ifaceHwBinder);
+            SupplicantStaIfaceHalCallbackV1_1 callbackV11 =
+                    new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
+
+            if (!registerCallbackV1_1(iface, callbackV11)) {
+                return false;
+            }
+            mISupplicantStaIfaces.put(ifaceName, iface);
+            mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV11);
+        } else if (isV1_1()) {
             android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface iface =
-                getStaIfaceMockableV1_1(ifaceHwBinder);
+                    getStaIfaceMockableV1_1(ifaceHwBinder);
             SupplicantStaIfaceHalCallbackV1_1 callbackV1_1 =
                 new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
 
@@ -338,6 +352,10 @@ public class SupplicantStaIfaceHal {
      */
     private ISupplicantIface getIfaceV1_0(@NonNull String ifaceName) {
         synchronized (mLock) {
+            if (mISupplicant == null) {
+                return null;
+            }
+
             /** List all supplicant Ifaces */
             final ArrayList<ISupplicant.IfaceInfo> supplicantIfaces = new ArrayList<>();
             try {
@@ -633,6 +651,14 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    protected android.hardware.wifi.supplicant.V1_2.ISupplicant getSupplicantMockableV1_2()
+            throws RemoteException, NoSuchElementException {
+        synchronized (mLock) {
+            return android.hardware.wifi.supplicant.V1_2.ISupplicant.castFrom(
+                    ISupplicant.getService());
+        }
+    }
+
     protected ISupplicantStaIface getStaIfaceMockable(ISupplicantIface iface) {
         synchronized (mLock) {
             return ISupplicantStaIface.asInterface(iface.asBinder());
@@ -647,21 +673,47 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    protected android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+            getStaIfaceMockableV1_2(ISupplicantIface iface) {
+        synchronized (mLock) {
+            return android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                    .asInterface(iface.asBinder());
+        }
+    }
+
     /**
      * Uses the IServiceManager to check if the device is running V1_1 of the HAL from the VINTF for
      * the device.
      * @return true if supported, false otherwise.
      */
     private boolean isV1_1() {
+        return checkHalVersionByInterfaceName(
+                android.hardware.wifi.supplicant.V1_1.ISupplicant.kInterfaceName);
+    }
+
+    /**
+     * Uses the IServiceManager to check if the device is running V1_2 of the HAL from the VINTF for
+     * the device.
+     * @return true if supported, false otherwise.
+     */
+    private boolean isV1_2() {
+        return checkHalVersionByInterfaceName(
+                android.hardware.wifi.supplicant.V1_2.ISupplicant.kInterfaceName);
+    }
+
+    private boolean checkHalVersionByInterfaceName(String interfaceName) {
+        if (interfaceName == null) {
+            return false;
+        }
         synchronized (mLock) {
             if (mIServiceManager == null) {
-                Log.e(TAG, "isV1_1: called but mServiceManager is null!?");
+                Log.e(TAG, "checkHalVersionByInterfaceName: called but mServiceManager is null");
                 return false;
             }
             try {
                 return (mIServiceManager.getTransport(
-                            android.hardware.wifi.supplicant.V1_1.ISupplicant.kInterfaceName,
-                            HAL_INSTANCE_NAME)
+                        interfaceName,
+                        HAL_INSTANCE_NAME)
                         != IServiceManager.Transport.EMPTY);
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception while operating on IServiceManager: " + e);
@@ -2748,36 +2800,87 @@ public class SupplicantStaIfaceHal {
      * - WIFI_FEATURE_WPA3_SAE
      * - WIFI_FEATURE_WPA3_SUITE_B
      * - WIFI_FEATURE_OWE
+     *
+     *  This is a v1.2+ HAL feature.
+     *  On error, or if these features are not supported, 0 is returned.
      */
-    public int getAdvancedKeyMgmtCapabilities(
-            @NonNull String ifaceName) {
+    public int getAdvancedKeyMgmtCapabilities(@NonNull String ifaceName) {
         final String methodStr = "getAdvancedKeyMgmtCapabilities";
 
-        synchronized (mLock) {
-            SupplicantStaNetworkHal networkHal = getCurrentNetworkRemoteHandle(ifaceName);
-            if (networkHal == null) {
-                Log.e(TAG, "Can't call " + methodStr + ", SupplicantStaNetwork is null");
+        int advancedCapabilities = 0;
+        int keyMgmtCapabilities = getKeyMgmtCapabilities(ifaceName);
+
+        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.SAE) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_WPA3_SAE;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": SAE supported");
+            }
+        }
+
+        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_WPA3_SUITE_B;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": SUITE_B supported");
+            }
+        }
+
+        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.OWE) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_OWE;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": OWE supported");
+            }
+        }
+
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, methodStr + ": Capability flags = " + keyMgmtCapabilities);
+        }
+
+        return advancedCapabilities;
+    }
+
+    private int getKeyMgmtCapabilities(@NonNull String ifaceName) {
+        final String methodStr = "getKeyMgmtCapabilities";
+        MutableBoolean status = new MutableBoolean(false);
+        MutableInt keyMgmtMask = new MutableInt(0);
+
+        if (isV1_2()) {
+            ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+            if (iface == null) {
                 return 0;
             }
 
-            int capabilities = networkHal.getKeyMgmtCapabilities();
-            int advancedCapabilities = 0;
+            // Get a v1.2 supplicant STA Interface
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                    getStaIfaceMockableV1_2(iface);
 
-            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.SAE) != 0) {
-                advancedCapabilities |= WIFI_FEATURE_WPA3_SAE;
+            if (staIfaceV12 == null) {
+                Log.e(TAG, methodStr
+                        + ": ISupplicantStaIface is null, cannot get advanced capabilities");
+                return 0;
             }
 
-            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192) != 0) {
-                advancedCapabilities |= WIFI_FEATURE_WPA3_SUITE_B;
+            try {
+                // Support for new key management types; SAE, SUITE_B, OWE
+                // Requires HAL v1.2 or higher
+                staIfaceV12.getKeyMgmtCapabilities(
+                        (SupplicantStatus statusInternal, int keyMgmtMaskInternal) -> {
+                            status.value = statusInternal.code == SupplicantStatusCode.SUCCESS;
+                            if (status.value) {
+                                keyMgmtMask.value = keyMgmtMaskInternal;
+                            }
+                            checkStatusAndLogFailure(statusInternal, methodStr);
+                        });
+            } catch (RemoteException e) {
+                handleRemoteException(e, methodStr);
             }
-
-            if ((capabilities & ISupplicantStaNetwork.KeyMgmtMask.OWE) != 0) {
-                advancedCapabilities |= WIFI_FEATURE_OWE;
-            }
-
-            logi(methodStr + ": Capability flags = " + capabilities);
-
-            return advancedCapabilities;
+        } else {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
         }
+
+        // 0 is returned in case of an error
+        return keyMgmtMask.value;
     }
 }
