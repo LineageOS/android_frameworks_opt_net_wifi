@@ -2425,6 +2425,18 @@ public class ClientModeImplTest {
         verify(mWifiScoreCard, never()).noteConnectionAttempt(any());
         mLooper.dispatchAll();
         verify(mWifiScoreCard).noteConnectionAttempt(any());
+        // But don't expect to see connection success yet
+        verify(mWifiScoreCard, never()).noteIpConfiguration(any());
+    }
+
+    /**
+     * Verify that score card is notified of a successful connection
+     */
+    @Test
+    public void testScoreCardNoteConnectionComplete() throws Exception {
+        connect();
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard).noteIpConfiguration(any());
     }
 
     /**
