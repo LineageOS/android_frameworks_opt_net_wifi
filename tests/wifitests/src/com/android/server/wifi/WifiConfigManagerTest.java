@@ -128,7 +128,8 @@ public class WifiConfigManagerTest {
     private WifiConfigManager mWifiConfigManager;
     private boolean mStoreReadTriggered = false;
     private TestLooper mLooper = new TestLooper();
-    private ContentObserver mContentObserver;
+    private ContentObserver mContentObserverPnoChannelCulling;
+    private ContentObserver mContentObserverPnoRecencySorting;
 
     /**
      * Setup the mocks and an instance of WifiConfigManager before each test.
@@ -203,7 +204,11 @@ public class WifiConfigManagerTest {
         verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
                 Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED)), eq(false),
                 observerCaptor.capture());
-        mContentObserver = observerCaptor.getValue();
+        mContentObserverPnoChannelCulling = observerCaptor.getValue();
+        verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
+                Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED)), eq(false),
+                observerCaptor.capture());
+        mContentObserverPnoRecencySorting = observerCaptor.getValue();
     }
 
     /**
@@ -1652,7 +1657,7 @@ public class WifiConfigManagerTest {
         when(mFrameworkFacade.getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED),
                 anyInt())).thenReturn(1);
-        mContentObserver.onChange(false);
+        mContentObserverPnoChannelCulling.onChange(false);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -1717,7 +1722,7 @@ public class WifiConfigManagerTest {
         when(mFrameworkFacade.getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED),
                 anyInt())).thenReturn(0);
-        mContentObserver.onChange(false);
+        mContentObserverPnoChannelCulling.onChange(false);
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         verifyAddNetworkToWifiConfigManager(network1);
         assertTrue(mWifiConfigManager.enableNetwork(network1.networkId, false, TEST_CREATOR_UID));
@@ -1738,6 +1743,10 @@ public class WifiConfigManagerTest {
      */
     @Test
     public void testRetrievePnoListPrefersLastConnectedNetwork() {
+        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
+                anyInt())).thenReturn(1);
+        mContentObserverPnoRecencySorting.onChange(false);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -1777,6 +1786,10 @@ public class WifiConfigManagerTest {
      */
     @Test
     public void testRetrievePnoListPrefersLastConnectedNetworkThenMostConnectedNetworks() {
+        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
+                anyInt())).thenReturn(1);
+        mContentObserverPnoRecencySorting.onChange(false);
         // Create and add 3 networks.
         WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
@@ -1822,6 +1835,52 @@ public class WifiConfigManagerTest {
         assertEquals(network3.SSID, pnoNetworks.get(0).ssid);
         assertEquals(network2.SSID, pnoNetworks.get(1).ssid);
         assertEquals(network1.SSID, pnoNetworks.get(2).ssid);
+    }
+
+    /**
+     * Verify that pno recency consideration feature is disabled by the flag.
+     * {@link WifiConfigManager#retrievePnoNetworkList()}.
+     */
+    @Test
+    public void testRetrievePnoListRecencyFlagDisabled() {
+        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED),
+                anyInt())).thenReturn(0);
+        mContentObserverPnoRecencySorting.onChange(false);
+        // Create and add 3 networks.
+        WifiConfiguration network1 = WifiConfigurationTestUtil.createEapNetwork();
+        WifiConfiguration network2 = WifiConfigurationTestUtil.createPskNetwork();
+        WifiConfiguration network3 = WifiConfigurationTestUtil.createOpenHiddenNetwork();
+        verifyAddNetworkToWifiConfigManager(network1);
+        verifyAddNetworkToWifiConfigManager(network2);
+        verifyAddNetworkToWifiConfigManager(network3);
+
+        // Enable all of them.
+        assertTrue(mWifiConfigManager.enableNetwork(network1.networkId, false, TEST_CREATOR_UID));
+        assertTrue(mWifiConfigManager.enableNetwork(network2.networkId, false, TEST_CREATOR_UID));
+        assertTrue(mWifiConfigManager.enableNetwork(network3.networkId, false, TEST_CREATOR_UID));
+
+        long firstConnectionTimeMillis = 45677;
+        long secondConnectionTimeMillis = firstConnectionTimeMillis + 45;
+        long thridConnectionTimeMillis = secondConnectionTimeMillis + 45;
+
+        // Simulate connecting to network1 2 times
+        when(mClock.getWallClockMillis()).thenReturn(firstConnectionTimeMillis);
+        assertTrue(mWifiConfigManager.updateNetworkAfterConnect(network1.networkId));
+        when(mClock.getWallClockMillis()).thenReturn(secondConnectionTimeMillis);
+        assertTrue(mWifiConfigManager.updateNetworkAfterConnect(network1.networkId));
+
+        // Simulate connecting to network2 once with the newest timestamp
+        when(mClock.getWallClockMillis()).thenReturn(thridConnectionTimeMillis);
+        assertTrue(mWifiConfigManager.updateNetworkAfterConnect(network2.networkId));
+
+        // Retrieve the Pno network list & verify the order of the networks returned.
+        List<WifiScanner.PnoSettings.PnoNetwork> pnoNetworks =
+                mWifiConfigManager.retrievePnoNetworkList();
+        assertEquals(3, pnoNetworks.size());
+        assertEquals(network1.SSID, pnoNetworks.get(0).ssid);
+        assertEquals(network2.SSID, pnoNetworks.get(1).ssid);
+        assertEquals(network3.SSID, pnoNetworks.get(2).ssid);
     }
 
     /**
