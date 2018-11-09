@@ -2437,6 +2437,18 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Verify that score card is notified of a connection attempt
+     */
+    @Test
+    public void testScoreCardNoteConnectionAttemptAfterCmdStartConnect() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        verify(mWifiScoreCard, never()).noteConnectionAttempt(any());
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard).noteConnectionAttempt(any());
+    }
+
+    /**
      * Verify that we do not crash on quick toggling wifi on/off
      */
     @Test

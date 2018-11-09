@@ -2876,6 +2876,7 @@ public class ClientModeImpl extends StateMachine {
     private void reportConnectionAttemptStart(
             WifiConfiguration config, String targetBSSID, int roamType) {
         mWifiMetrics.startConnectionEvent(config, targetBSSID, roamType);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
         // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl

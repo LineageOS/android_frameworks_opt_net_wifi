@@ -29,6 +29,8 @@ public class WifiScoreCard {
 
     private final Clock mClock;
 
+    private long mConnectionAttemptStartTimeMills = 0;
+
     /**
      * @param clock is the time source
      */
@@ -64,6 +66,16 @@ public class WifiScoreCard {
      */
     public void noteIpConfiguration(ExtendedWifiInfo wifiInfo) {
         update(Event.IP_CONFIGURATION_SUCCESS, wifiInfo);
+    }
+
+    /**
+     * Records the start of a connection attempt
+     *
+     * @param wifiInfo may have state about an existing connection
+     */
+    public void noteConnectionAttempt(ExtendedWifiInfo wifiInfo) {
+        mConnectionAttemptStartTimeMills = mClock.getWallClockMillis();
+        // TODO(b/112196799) If currently connected, record any needed state
     }
 
     /**
