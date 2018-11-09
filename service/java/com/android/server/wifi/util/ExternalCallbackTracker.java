@@ -174,4 +174,14 @@ public class ExternalCallbackTracker<T> {
     public int getNumCallbacks() {
         return mCallbacks.size();
     }
+
+    /**
+     * Remove all callbacks registered.
+     */
+    public void clear() {
+        for (ExternalCallbackHolder<T> externalCallback : mCallbacks.values()) {
+            externalCallback.reset();
+        }
+        mCallbacks.clear();
+    }
 }

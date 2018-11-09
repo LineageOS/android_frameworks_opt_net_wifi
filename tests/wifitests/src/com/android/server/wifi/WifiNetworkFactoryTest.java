@@ -110,6 +110,8 @@ public class WifiNetworkFactoryTest {
             ArgumentCaptor.forClass(WorkSource.class);
     ArgumentCaptor<INetworkRequestUserSelectionCallback> mNetworkRequestUserSelectionCallback =
             ArgumentCaptor.forClass(INetworkRequestUserSelectionCallback.class);
+    ArgumentCaptor<OnAlarmListener> mPeriodicScanListenerArgumentCaptor =
+            ArgumentCaptor.forClass(OnAlarmListener.class);
     ArgumentCaptor<OnAlarmListener> mConnectionTimeoutAlarmListenerArgumentCaptor =
             ArgumentCaptor.forClass(OnAlarmListener.class);
 
@@ -1057,6 +1059,149 @@ public class WifiNetworkFactoryTest {
                 mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(connectedNetwork));
     }
 
+    /**
+     *  Verify handling for new network request while processing another one.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierWhenScanning() throws Exception {
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        // Send second request.
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+
+        // Remove the stale request1 & ensure nothing happens.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
+                mAlarmManager);
+
+        // Remove the active request2 & ensure auto-join is re-enabled.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     *  Verify handling for new network request while processing another one.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierAfterMatch() throws Exception {
+        sendNetworkRequestAndSetupForUserSelection();
+        WifiNetworkSpecifier specifier1 =
+                (WifiNetworkSpecifier) mNetworkRequest.networkCapabilities.getNetworkSpecifier();
+
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+
+        // Send second request.
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        // Ignore stale callbacks.
+        WifiConfiguration selectedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        networkRequestUserSelectionCallback.select(selectedNetwork);
+        mLooper.dispatchAll();
+
+        verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
+
+        // Remove the stale request1 & ensure nothing happens.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
+                mAlarmManager);
+
+        // Remove the active request2 & ensure auto-join is re-enabled.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     *  Verify handling for new network request while processing another one.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierAfterConnect() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+        WifiNetworkSpecifier specifier1 =
+                (WifiNetworkSpecifier) mNetworkRequest.networkCapabilities.getNetworkSpecifier();
+
+        // Send second request.
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        // Remove the stale request1 & ensure nothing happens.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
+                mAlarmManager);
+
+        // Remove the active request2 & ensure auto-join is re-enabled.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     *  Verify handling for new network request while processing another one.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierAfterConnectionSuccess() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+        WifiNetworkSpecifier specifier1 =
+                (WifiNetworkSpecifier) mNetworkRequest.networkCapabilities.getNetworkSpecifier();
+
+        // Send network connection success indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
+
+        // Cancel the connection timeout.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        // Send second request.
+        WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
+        verify(mWifiScanner, times(2)).startScan(any(), any(), any());
+        verify(mClientModeImpl).disconnectCommand();
+
+        // Remove the stale request1 & ensure nothing happens.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
+                mAlarmManager);
+
+        // Remove the active request2 & ensure auto-join is re-enabled.
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
 
     // Helper method to setup the necessary pre-requisite steps for tracking connection status.
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
@@ -1072,6 +1217,9 @@ public class WifiNetworkFactoryTest {
         mSelectedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
         networkRequestUserSelectionCallback.select(mSelectedNetwork);
         mLooper.dispatchAll();
+
+        // Cancel the periodic scan timer.
+        verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(messageCaptor.capture());
@@ -1126,8 +1274,6 @@ public class WifiNetworkFactoryTest {
     private void verifyPeriodicScans(long...expectedIntervalsInSeconds) {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
 
-        ArgumentCaptor<OnAlarmListener> alarmListenerArgumentCaptor =
-                ArgumentCaptor.forClass(OnAlarmListener.class);
         OnAlarmListener alarmListener = null;
         ArgumentCaptor<ScanListener> scanListenerArgumentCaptor =
                 ArgumentCaptor.forClass(ScanListener.class);
@@ -1154,8 +1300,8 @@ public class WifiNetworkFactoryTest {
 
             inOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                     eq(expectedNextIntervalInMs), any(),
-                    alarmListenerArgumentCaptor.capture(), any());
-            alarmListener = alarmListenerArgumentCaptor.getValue();
+                    mPeriodicScanListenerArgumentCaptor.capture(), any());
+            alarmListener = mPeriodicScanListenerArgumentCaptor.getValue();
             assertNotNull(alarmListener);
         }
 

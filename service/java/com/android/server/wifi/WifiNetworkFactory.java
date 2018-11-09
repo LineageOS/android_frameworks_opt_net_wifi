@@ -93,6 +93,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
     private boolean mPeriodicScanTimerSet = false;
+    private boolean mConnectionTimeoutSet = false;
     private boolean mIsConnectedToUserSelectedNetwork = false;
 
     // Scan listener for scan requests.
@@ -365,6 +366,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                 return;
             }
             retrieveWifiScanner();
+            // Reset state from any previous request.
+            resetStateForActiveRequestStart();
 
             // Store the active network request.
             mActiveSpecificNetworkRequest = new NetworkRequest(networkRequest);
@@ -408,11 +411,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Network specifier does not match the active request. Ignoring");
                 return;
             }
-            if (mIsConnectedToUserSelectedNetwork) {
-                Log.i(TAG, "Disconnecting from network on request release");
-                mWifiInjector.getClientModeImpl().disconnectCommand();
-            }
-            resetState();
+            resetStateForActiveRequestEnd();
         }
     }
 
@@ -470,14 +469,12 @@ public class WifiNetworkFactory extends NetworkFactory {
         mUserSelectedNetwork = network;
 
         // Post an alarm to handle connection timeout.
-        mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                mClock.getElapsedSinceBootMillis() + NETWORK_CONNECTION_TIMEOUT_MS,
-                TAG, mConnectionTimeoutAlarmListener, mHandler);
+        scheduleConnectionTimeout();
     }
 
     private void handleRejectUserSelection() {
         Log.w(TAG, "User dismissed notification");
-        resetState();
+        resetStateForActiveRequestEnd();
     }
 
     private boolean isUserSelectedNetwork(WifiConfiguration config) {
@@ -522,7 +519,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
         }
         // Cancel connection timeout alarm.
-        mAlarmManager.cancel(mConnectionTimeoutAlarmListener);
+        cancelConnectionTimeout();
         // Set the connection status.
         mIsConnectedToUserSelectedNetwork = true;
     }
@@ -545,23 +542,37 @@ public class WifiNetworkFactory extends NetworkFactory {
                         + callback, e);
             }
         }
-        // Cancel any connection timeout alarm.
-        mAlarmManager.cancel(mConnectionTimeoutAlarmListener);
-        resetState();
+        resetStateForActiveRequestEnd();
     }
 
     private void resetState() {
+        if (mIsConnectedToUserSelectedNetwork) {
+            Log.i(TAG, "Disconnecting from network on reset");
+            mWifiInjector.getClientModeImpl().disconnectCommand();
+        }
         // Reset the active network request.
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
         mUserSelectedNetwork = null;
         mIsConnectedToUserSelectedNetwork = false;
         cancelPeriodicScans();
-        // Re-enable Auto-join.
-        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+        cancelConnectionTimeout();
+        // Remove any callbacks registered for the request.
+        mRegisteredCallbacks.clear();
         // TODO(b/113878056): Force-release the network request to let the app know early that the
         // attempt failed.
         // TODO(b/113878056): End UI flow here.
+    }
+
+    // Invoked at the termination of previous active request processing.
+    private void resetStateForActiveRequestEnd() {
+        resetState();
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+    }
+
+    // Invoked at the start of new active request processing.
+    private void resetStateForActiveRequestStart() {
+        resetState();
     }
 
     /**
@@ -706,6 +717,20 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Unable to invoke network request match callback " + callback, e);
             }
         }
+    }
+
+    private void cancelConnectionTimeout() {
+        if (mConnectionTimeoutSet) {
+            mAlarmManager.cancel(mConnectionTimeoutAlarmListener);
+            mConnectionTimeoutSet = false;
+        }
+    }
+
+    private void scheduleConnectionTimeout() {
+        mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                mClock.getElapsedSinceBootMillis() + NETWORK_CONNECTION_TIMEOUT_MS,
+                TAG, mConnectionTimeoutAlarmListener, mHandler);
+        mConnectionTimeoutSet = true;
     }
 }
 
