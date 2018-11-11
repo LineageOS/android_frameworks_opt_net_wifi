@@ -61,7 +61,6 @@ import android.net.ip.IpClient;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
-import android.net.wifi.IWifiManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiConfiguration;
@@ -136,7 +135,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @hide
  */
-public class WifiServiceImpl extends IWifiManager.Stub {
+public class WifiServiceImpl extends AbstractWifiService {
     private static final String TAG = "WifiService";
     private static final boolean VDBG = false;
 
@@ -559,11 +558,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         // If we are already disabled (could be due to airplane mode), avoid changing persist
         // state here
         if (wifiEnabled) {
-            try {
-                setWifiEnabled(mContext.getPackageName(), wifiEnabled);
-            } catch (RemoteException e) {
-                /* ignore - local call */
-            }
+            setWifiEnabled(mContext.getPackageName(), wifiEnabled);
         }
     }
 
@@ -784,8 +779,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      *         started or is already in the queue.
      */
     @Override
-    public synchronized boolean setWifiEnabled(String packageName, boolean enable)
-            throws RemoteException {
+    public synchronized boolean setWifiEnabled(String packageName, boolean enable) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return false;
         }
@@ -2338,7 +2332,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
      * an AsyncChannel communication with WifiService
      */
     @Override
-    public Messenger getWifiServiceMessenger(String packageName) throws RemoteException {
+    public Messenger getWifiServiceMessenger(String packageName) {
         enforceAccessPermission();
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             // We don't have a good way of creating a fake Messenger, and returning null would
@@ -2385,8 +2379,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
         }
     };
 
-    private boolean startConsentUi(String packageName,
-            int callingUid, String intentAction) throws RemoteException {
+    private boolean startConsentUi(String packageName, int callingUid, String intentAction) {
         if (UserHandle.getAppId(callingUid) == Process.SYSTEM_UID
                 || checkWifiPermissionWhenWirelessConsentRequired()) {
             return false;
@@ -2410,7 +2403,7 @@ public class WifiServiceImpl extends IWifiManager.Stub {
             mContext.startActivity(intent);
             return true;
         } catch (PackageManager.NameNotFoundException e) {
-            throw new RemoteException(e.getMessage());
+            throw new RemoteException(e.getMessage()).rethrowFromSystemServer();
         }
     }
 

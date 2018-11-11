@@ -58,9 +58,11 @@ import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
@@ -79,6 +81,7 @@ import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
@@ -355,6 +358,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.REQUEST_GROUP_INFO:
                 case WifiP2pManager.DELETE_PERSISTENT_GROUP:
                 case WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO:
+                case WifiP2pManager.FACTORY_RESET:
                     mP2pStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 default:
@@ -993,6 +997,14 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         // a group removed event. Flushing things at group formation
                         // failure causes supplicant issues. Ignore right now.
                         break;
+                    case WifiP2pManager.FACTORY_RESET:
+                        if (factoryReset((Bundle) message.obj, message.sendingUid)) {
+                            replyToMessage(message, WifiP2pManager.FACTORY_RESET_SUCCEEDED);
+                        } else {
+                            replyToMessage(message, WifiP2pManager.FACTORY_RESET_FAILED,
+                                    WifiP2pManager.ERROR);
+                        }
+                        break;
                     default:
                         loge("Unhandled message " + message);
                         return NOT_HANDLED;
@@ -1088,6 +1100,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         replyToMessage(message, WifiP2pManager.STOP_LISTEN_FAILED,
                                 WifiP2pManager.P2P_UNSUPPORTED);
                         break;
+                    case WifiP2pManager.FACTORY_RESET:
+                        replyToMessage(message, WifiP2pManager.FACTORY_RESET_FAILED,
+                                WifiP2pManager.P2P_UNSUPPORTED);
+                        break;
 
                     default:
                         return NOT_HANDLED;
@@ -1173,6 +1189,14 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             public void enter() {
                 if (DBG) logd(getName());
                 mNetworkInfo.setIsAvailable(true);
+
+                if (isPendingFactoryReset()) {
+                    Bundle callingPackage = new Bundle();
+                    callingPackage.putString(WifiP2pManager.CALLING_PACKAGE,
+                            mContext.getOpPackageName());
+                    factoryReset(callingPackage, Process.SYSTEM_UID);
+                }
+
                 sendP2pConnectionChangedBroadcast();
                 initializeP2pSettings();
             }
@@ -3514,6 +3538,64 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 return new WifiP2pDeviceList();
             }
         }
+
+        private void setPendingFactoryReset(boolean pending) {
+            if (mWifiInjector == null) {
+                mWifiInjector = WifiInjector.getInstance();
+            }
+            FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
+            facade.setIntegerSetting(mContext,
+                    Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
+                    pending ? 1 : 0);
+        }
+
+        private boolean isPendingFactoryReset() {
+            if (mWifiInjector == null) {
+                mWifiInjector = WifiInjector.getInstance();
+            }
+            FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
+            int val = facade.getIntegerSetting(mContext,
+                    Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
+                    0);
+            return (val != 0);
+        }
+
+        /**
+         * Enforces permissions on the caller who is requesting factory reset.
+         * @param pkg Bundle containing the calling package string.
+         * @param uid The caller uid.
+         */
+        private boolean factoryReset(Bundle pkg, int uid) {
+            String pkgName = pkg.getString(WifiP2pManager.CALLING_PACKAGE);
+            if (mWifiInjector == null) {
+                mWifiInjector = WifiInjector.getInstance();
+            }
+            WifiPermissionsUtil wifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
+            UserManager userManager = mWifiInjector.getUserManager();
+
+            if (!wifiPermissionsUtil.checkNetworkSettingsPermission(uid)) return false;
+
+            if (userManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)) return false;
+
+            if (userManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) return false;
+
+            Log.i(TAG, "factoryReset uid=" + uid + " pkg=" + pkgName);
+
+            if (mNetworkInfo.isAvailable()) {
+                if (mWifiNative.p2pListNetworks(mGroups)) {
+                    for (WifiP2pGroup group : mGroups.getGroupList()) {
+                        mWifiNative.removeP2pNetwork(group.getNetworkId());
+                    }
+                }
+                // reload will save native config and broadcast changed event.
+                updatePersistentNetworks(true);
+                setPendingFactoryReset(false);
+            } else {
+                setPendingFactoryReset(true);
+            }
+            return true;
+        }
+
     }
 
     /**
