@@ -64,6 +64,7 @@ public class WifiNetworkSuggestionsManagerTest {
     private @Mock WifiConfigStore mWifiConfigStore;
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
+    private @Mock ClientModeImpl mClientModeImpl;
 
     private InOrder mInorder;
 
@@ -81,6 +82,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
         when(mWifiInjector.makeNetworkSuggestionStoreData(any()))
                 .thenReturn(mNetworkSuggestionStoreData);
+        when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
 
         mWifiNetworkSuggestionsManager =
                 new WifiNetworkSuggestionsManager(mContext, mWifiInjector, mWifiPermissionsUtil,
@@ -353,7 +355,8 @@ public class WifiNetworkSuggestionsManagerTest {
         assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
 
         // Simulate connecting to the network.
-        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
 
         // Verify that the correct broadcast was sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -372,7 +375,7 @@ public class WifiNetworkSuggestionsManagerTest {
      * This should trigger a broadcast to all the apps.
      */
     @Test
-    public void testOnNetworkConnectionSuccessWithMulitpleMatch() {
+    public void testOnNetworkConnectionSuccessWithMultipleMatch() {
         WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
                 wifiConfiguration, true, false, TEST_UID_1);
@@ -391,7 +394,8 @@ public class WifiNetworkSuggestionsManagerTest {
         assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
 
         // Simulate connecting to the network.
-        mWifiNetworkSuggestionsManager.handleNetworkConnection(wifiConfiguration);
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
 
         // Verify that the correct broadcasts were sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -423,7 +427,8 @@ public class WifiNetworkSuggestionsManagerTest {
         assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
 
         // Simulate connecting to the network.
-        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
 
         // Verify no broadcast was sent out.
         verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
@@ -450,7 +455,8 @@ public class WifiNetworkSuggestionsManagerTest {
                 .when(mWifiPermissionsUtil).enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
 
         // Simulate connecting to the network.
-        mWifiNetworkSuggestionsManager.handleNetworkConnection(networkSuggestion.wifiConfiguration);
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
 
         mInorder.verify(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
@@ -607,6 +613,117 @@ public class WifiNetworkSuggestionsManagerTest {
         // Ensure that the previous network can no longer be looked up.
         ScanDetail scanDetail1 = createScanDetailForNetwork(networkSuggestion1.wifiConfiguration);
         assertNull(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail1));
+    }
+
+    /**
+     * Verify that we disconnect from the network if the only network suggestion matching the
+     * connected network is removed.
+     */
+    @Test
+    public void testRemoveNetworkSuggestionsMatchingConnectionSuccessWithOneMatch() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+
+        // Now remove the network suggestion and ensure we trigger a disconnect.
+        assertTrue(mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
+        verify(mClientModeImpl).disconnectCommand();
+    }
+
+    /**
+     * Verify that we do not disconnect from the network if there are network suggestion matching
+     * the connected network when one of them is removed.
+     */
+    @Test
+    public void testRemoveNetworkSuggestionsMatchingConnectionSuccessWithMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
+
+        // Now remove one of the network suggestion and ensure we did not trigger a disconnect.
+        assertTrue(mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        verify(mClientModeImpl, never()).disconnectCommand();
+
+        // Now remove the other one and ensure we trigger a disconnect.
+        assertTrue(mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_2));
+        verify(mClientModeImpl).disconnectCommand();
+    }
+
+    /**
+     * Verify that we do not disconnect from the network if there are no network suggestion matching
+     * the connected network when one of them is removed.
+     */
+    @Test
+    public void testRemoveNetworkSuggestionsNotMatchingConnectionSuccess() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        // Simulate connecting to some other network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiConfigurationTestUtil.createEapNetwork());
+
+        // Now remove the network suggestion and ensure we did not trigger a disconnect.
+        assertTrue(mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
+        verify(mClientModeImpl, never()).disconnectCommand();
+    }
+
+    /**
+     * Verify that we do not disconnect from the network if there are no network suggestion matching
+     * the connected network when one of them is removed.
+     */
+    @Test
+    public void testRemoveNetworkSuggestionsNotMatchingConnectionSuccessAfterConnectionFailure() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertTrue(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        // Simulate failing connection to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration);
+
+        // Simulate connecting to some other network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiConfigurationTestUtil.createEapNetwork());
+
+        // Now remove the network suggestion and ensure we did not trigger a disconnect.
+        assertTrue(mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
+        verify(mClientModeImpl, never()).disconnectCommand();
     }
 
     /**
