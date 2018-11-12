@@ -45,6 +45,7 @@ import android.net.wifi.WifiScanner.ScanListener;
 import android.net.wifi.WifiScanner.ScanSettings;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.Messenger;
 import android.os.PatternMatcher;
 import android.os.RemoteException;
 import android.os.WorkSource;
@@ -101,12 +102,15 @@ public class WifiNetworkFactoryTest {
     TestLooper mLooper;
     NetworkRequest mNetworkRequest;
     WifiScanner.ScanData[] mTestScanDatas;
+    WifiConfiguration mSelectedNetwork;
     ArgumentCaptor<ScanSettings> mScanSettingsArgumentCaptor =
             ArgumentCaptor.forClass(ScanSettings.class);
     ArgumentCaptor<WorkSource> mWorkSourceArgumentCaptor =
             ArgumentCaptor.forClass(WorkSource.class);
     ArgumentCaptor<INetworkRequestUserSelectionCallback> mNetworkRequestUserSelectionCallback =
             ArgumentCaptor.forClass(INetworkRequestUserSelectionCallback.class);
+    ArgumentCaptor<OnAlarmListener> mConnectionTimeoutAlarmListenerArgumentCaptor =
+            ArgumentCaptor.forClass(OnAlarmListener.class);
 
     private WifiNetworkFactory mWifiNetworkFactory;
 
@@ -419,6 +423,8 @@ public class WifiNetworkFactoryTest {
 
         // Release the network request.
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+        // Verify that we did not trigger a disconnect because we've not yet connected.
+        verify(mClientModeImpl, never()).disconnectCommand();
         // Re-enable connectivity manager .
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
@@ -861,6 +867,195 @@ public class WifiNetworkFactoryTest {
         verifyNoMoreInteractions(mClientModeImpl);
     }
 
+    /**
+     * Verify handling of connection timeout.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionTimeout() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Simulate connection timeout.
+        mConnectionTimeoutAlarmListenerArgumentCaptor.getValue().onAlarm();
+
+        // Verify that we sent the connection failure callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
+        // Verify we reset the network request handling.
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     * Verify handling of connection trigger failure.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionTriggerFailure() throws Exception {
+        Messenger replyToMsgr = sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send failure message.
+        Message failureMsg = Message.obtain();
+        failureMsg.what = WifiManager.CONNECT_NETWORK_FAILED;
+        replyToMsgr.send(failureMsg);
+        mLooper.dispatchAll();
+
+        // Verify that we sent the connection failure callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        // Verify we reset the network request handling.
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     * Verify handling of connection failure.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionFailure() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection failure indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleNetworkConnectionFailure(mSelectedNetwork);
+
+        // Verify that we sent the connection failure callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        // Verify we reset the network request handling.
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     * Verify handling of connection failure to a different network.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionFailureToWrongNetwork() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection failure to a different network indication.
+        assertNotNull(mSelectedNetwork);
+        WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
+        connectedNetwork.SSID += "test";
+        mWifiNetworkFactory.handleNetworkConnectionFailure(connectedNetwork);
+
+        // Verify that we sent the connection failure callback.
+        verify(mNetworkRequestMatchCallback, never())
+                .onUserSelectionConnectFailure(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager, never())
+                .cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        // Verify we reset the network request handling.
+        verify(mWifiConnectivityManager, never())
+                .setSpecificNetworkRequestInProgress(false);
+
+        // Send network connection success to the correct network indication.
+        mWifiNetworkFactory.handleNetworkConnectionFailure(mSelectedNetwork);
+
+        // Verify that we sent the connection failure callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        // Verify we reset the network request handling.
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     * Verify handling of connection success.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionSuccess() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection success indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+
+        // Verify that we sent the connection success callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+    }
+
+    /**
+     * Verify handling of connection success to a different network.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionSuccessToWrongNetwork() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection success to a different network indication.
+        assertNotNull(mSelectedNetwork);
+        WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
+        connectedNetwork.SSID += "test";
+        mWifiNetworkFactory.handleNetworkConnectionSuccess(connectedNetwork);
+
+        // verify that we did not send out the success callback and did not stop the alarm timeout.
+        verify(mNetworkRequestMatchCallback, never())
+                .onUserSelectionConnectSuccess(mSelectedNetwork);
+        verify(mAlarmManager, never())
+                .cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        // Send network connection success to the correct network indication.
+        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+
+        // Verify that we sent the connection success callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+    }
+
+    /**
+     * Verify handling of request release after connecting to the network.
+     */
+    @Test
+    public void testHandleNetworkReleaseWithSpecifierAfterConnectionSuccess() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection success indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleNetworkConnectionSuccess(mSelectedNetwork);
+
+        // Verify that we sent the connection success callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(mSelectedNetwork);
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        // Now release the network request.
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+        // Verify that we triggered a disconnect.
+        verify(mClientModeImpl).disconnectCommand();
+        // Re-enable connectivity manager .
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    // Helper method to setup the necessary pre-requisite steps for tracking connection status.
+    private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
+
+        sendNetworkRequestAndSetupForUserSelection();
+
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+
+        // Now trigger user selection to one of the network.
+        mSelectedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
+
+        Message message = messageCaptor.getValue();
+        assertNotNull(message);
+
+        // Start the connection timeout alarm.
+        verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                eq((long) WifiNetworkFactory.NETWORK_CONNECTION_TIMEOUT_MS), any(),
+                mConnectionTimeoutAlarmListenerArgumentCaptor.capture(), any());
+        assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        return message.replyTo;
+    }
+
     // Helper method to setup the necessary pre-requisite steps for user selection.
     private void sendNetworkRequestAndSetupForUserSelection() throws RemoteException {
         // Setup scan data for open networks.
@@ -888,8 +1083,6 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
-                ArgumentCaptor.forClass(List.class);
         verify(mNetworkRequestMatchCallback).onMatch(anyList());
     }
 

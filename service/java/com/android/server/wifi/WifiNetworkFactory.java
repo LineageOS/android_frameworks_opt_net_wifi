@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static com.android.internal.util.Preconditions.checkNotNull;
 import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.content.Context;
@@ -41,6 +42,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.WorkSource;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -51,6 +53,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -89,6 +92,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
     private boolean mPeriodicScanTimerSet = false;
+    private boolean mIsConnectedToUserSelectedNetwork = false;
 
     // Scan listener for scan requests.
     private class NetworkFactoryScanListener implements WifiScanner.ScanListener {
@@ -155,7 +159,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         @Override
         public void onAlarm() {
             Log.e(TAG, "Timed-out connecting to network");
-            handleNetworkConnectionFailure();
+            handleNetworkConnectionFailure(mUserSelectedNetwork);
         }
     }
 
@@ -201,7 +205,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                 break;
             case WifiManager.CONNECT_NETWORK_FAILED:
                 Log.e(TAG, "Failed to trigger network connection");
-                handleNetworkConnectionFailure();
+                handleNetworkConnectionFailure(mUserSelectedNetwork);
                 break;
             default:
                 Log.e(TAG, "Unknown message " + msg.what);
@@ -395,9 +399,17 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Invalid network specifier mentioned. Ingoring");
                 return;
             }
+            if (mActiveSpecificNetworkRequest == null) {
+                Log.e(TAG, "Network release received with no active request. Ignoring");
+                return;
+            }
             if (!mActiveSpecificNetworkRequest.equals(networkRequest)) {
                 Log.e(TAG, "Network specifier does not match the active request. Ignoring");
                 return;
+            }
+            if (mIsConnectedToUserSelectedNetwork) {
+                Log.i(TAG, "Disconnecting from network on request release");
+                mWifiInjector.getClientModeImpl().disconnectCommand();
             }
             resetState();
         }
@@ -449,18 +461,62 @@ public class WifiNetworkFactory extends NetworkFactory {
         resetState();
     }
 
+    private boolean isUserSelectedNetwork(WifiConfiguration config) {
+        if (!TextUtils.equals(mUserSelectedNetwork.SSID, config.SSID)) {
+            return false;
+        }
+        if (!Objects.equals(
+                mUserSelectedNetwork.allowedKeyManagement, config.allowedKeyManagement)) {
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Invoked by {@link ClientModeImpl} on successful connection to a network.
      */
-    public void handleNetworkConnectionSuccess(WifiConfiguration network) {
-        // TODO(b/113878056): Handle network connection
+    public void handleNetworkConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
+        if (mUserSelectedNetwork == null || connectedNetwork == null) return;
+        if (!isUserSelectedNetwork(connectedNetwork)) {
+            Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
+            return;
+        }
+        Log.d(TAG, "Connected to network " + mUserSelectedNetwork);
+        for (INetworkRequestMatchCallback callback : mRegisteredCallbacks.getCallbacks()) {
+            try {
+                callback.onUserSelectionConnectSuccess(mUserSelectedNetwork);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke network request connect failure callback "
+                        + callback, e);
+            }
+        }
+        // Cancel connection timeout alarm.
+        mAlarmManager.cancel(mConnectionTimeoutAlarmListener);
+        // Set the connection status.
+        mIsConnectedToUserSelectedNetwork = true;
     }
 
     /**
      * Invoked by {@link ClientModeImpl} on failure to connect to a network.
      */
-    public void handleNetworkConnectionFailure() {
-        // TODO(b/113878056): Handle connection failure.
+    public void handleNetworkConnectionFailure(@NonNull WifiConfiguration failedNetwork) {
+        if (mUserSelectedNetwork == null || failedNetwork == null) return;
+        if (!isUserSelectedNetwork(failedNetwork)) {
+            Log.w(TAG, "Connection failed to unknown network " + failedNetwork + ". Ignoring...");
+            return;
+        }
+        Log.e(TAG, "Failed to Connect to network " + mUserSelectedNetwork);
+        for (INetworkRequestMatchCallback callback : mRegisteredCallbacks.getCallbacks()) {
+            try {
+                callback.onUserSelectionConnectFailure(mUserSelectedNetwork);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke network request connect failure callback "
+                        + callback, e);
+            }
+        }
+        // Cancel any connection timeout alarm.
+        mAlarmManager.cancel(mConnectionTimeoutAlarmListener);
+        resetState();
     }
 
     private void resetState() {
@@ -468,6 +524,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
         mUserSelectedNetwork = null;
+        mIsConnectedToUserSelectedNetwork = false;
         cancelPeriodicScans();
         // Re-enable Auto-join.
         mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
