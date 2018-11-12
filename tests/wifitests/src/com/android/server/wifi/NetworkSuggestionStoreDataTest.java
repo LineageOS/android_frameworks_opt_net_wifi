@@ -219,7 +219,7 @@ public class NetworkSuggestionStoreDataTest {
     private void assertSerializeDeserialize(
             Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap) throws Exception {
         // Setup the data to serialize.
-        when(mDataSource.getNetworkSuggestions()).thenReturn(networkSuggestionsMap);
+        when(mDataSource.toSerialize()).thenReturn(networkSuggestionsMap);
 
         // Serialize/deserialize data.
         deserializeData(serializeData());
@@ -227,7 +227,7 @@ public class NetworkSuggestionStoreDataTest {
         // Verify the deserialized data.
         ArgumentCaptor<HashMap> deserializedNetworkSuggestionsMap =
                 ArgumentCaptor.forClass(HashMap.class);
-        verify(mDataSource).setNetworkSuggestions(deserializedNetworkSuggestionsMap.capture());
+        verify(mDataSource).fromDeserialized(deserializedNetworkSuggestionsMap.capture());
         assertEquals(networkSuggestionsMap, deserializedNetworkSuggestionsMap.getValue());
     }
 }

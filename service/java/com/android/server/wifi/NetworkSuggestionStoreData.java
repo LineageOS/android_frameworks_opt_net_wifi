@@ -61,18 +61,18 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      */
     public interface DataSource {
         /**
-         * Retrieve the network suggestion list from the data source.
+         * Retrieve the network suggestion list from the data source to serialize them to disk.
          *
          * @return Map of package name to set of {@link WifiNetworkSuggestion}
          */
-        Map<String, Set<WifiNetworkSuggestion>> getNetworkSuggestions();
+        Map<String, Set<WifiNetworkSuggestion>> toSerialize();
 
         /**
-         * Set the network suggestions list in the data source.
+         * Set the network suggestions list in the data source after serializing them from disk.
          *
          * @param networkSuggestions Map of package name to set of {@link WifiNetworkSuggestion}
          */
-        void setNetworkSuggestions(Map<String, Set<WifiNetworkSuggestion>> networkSuggestions);
+        void fromDeserialized(Map<String, Set<WifiNetworkSuggestion>> networkSuggestions);
 
         /**
          * Clear internal data structure in preparation for user switch or initial store read.
@@ -94,7 +94,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     @Override
     public void serializeData(XmlSerializer out)
             throws XmlPullParserException, IOException {
-        serializeNetworkSuggestionsMap(out, mDataSource.getNetworkSuggestions());
+        serializeNetworkSuggestionsMap(out, mDataSource.toSerialize());
     }
 
     @Override
@@ -104,7 +104,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         if (in == null) {
             return;
         }
-        mDataSource.setNetworkSuggestions(parseNetworkSuggestionsMap(in, outerTagDepth));
+        mDataSource.fromDeserialized(parseNetworkSuggestionsMap(in, outerTagDepth));
     }
 
     @Override
@@ -134,7 +134,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestionsMap(
-            XmlSerializer out, Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap)
+            XmlSerializer out, final Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap)
             throws XmlPullParserException, IOException {
         if (networkSuggestionsMap == null) {
             return;
@@ -157,7 +157,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestions(
-            XmlSerializer out, Set<WifiNetworkSuggestion> networkSuggestions)
+            XmlSerializer out, final Set<WifiNetworkSuggestion> networkSuggestions)
             throws XmlPullParserException, IOException {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             serializeNetworkSuggestion(out, networkSuggestion);
@@ -170,7 +170,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private void serializeNetworkSuggestion(XmlSerializer out, WifiNetworkSuggestion suggestion)
+    private void serializeNetworkSuggestion(XmlSerializer out,
+                                            final WifiNetworkSuggestion suggestion)
             throws XmlPullParserException, IOException {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
 

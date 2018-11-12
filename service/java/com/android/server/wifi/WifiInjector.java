@@ -297,8 +297,8 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
-        mWifiNetworkSuggestionsManager =
-                new WifiNetworkSuggestionsManager(mContext, mWifiPermissionsUtil);
+        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, this,
+                mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
     }
 
     /**
@@ -570,6 +570,14 @@ public class WifiInjector {
             NetworkCapabilities nc, WifiConnectivityManager wifiConnectivityManager) {
         return new UntrustedWifiNetworkFactory(
                 mWifiCoreHandlerThread.getLooper(), mContext, nc, wifiConnectivityManager);
+    }
+
+    /**
+     * Construct an instance of {@link NetworkSuggestionStoreData}.
+     */
+    public NetworkSuggestionStoreData makeNetworkSuggestionStoreData(
+            NetworkSuggestionStoreData.DataSource dataSource) {
+        return new NetworkSuggestionStoreData(dataSource);
     }
 
     public WifiPermissionsUtil getWifiPermissionsUtil() {
