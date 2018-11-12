@@ -1532,22 +1532,41 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.CONNECT:
                         if (DBG) logd(getName() + " sending connect");
                         WifiP2pConfig config = (WifiP2pConfig) message.obj;
-                        if (isConfigInvalid(config)) {
-                            loge("Dropping connect requeset " + config);
-                            replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
-                            break;
-                        }
-                        mAutonomousGroup = false;
-                        mWifiNative.p2pStopFind();
-                        if (reinvokePersistentGroup(config)) {
-                            transitionTo(mGroupNegotiationState);
+
+                        boolean isConnectFailed = false;
+                        if (isConfigValidAsGroup(config)) {
+                            mAutonomousGroup = false;
+                            mWifiNative.p2pStopFind();
+                            if (mWifiNative.p2pGroupAdd(config, true)) {
+                                transitionTo(mGroupNegotiationState);
+                            } else {
+                                loge("Cannot join a group with config.");
+                                isConnectFailed = true;
+                                replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
+                            }
                         } else {
-                            transitionTo(mProvisionDiscoveryState);
+                            if (isConfigInvalid(config)) {
+                                loge("Dropping connect request " + config);
+                                isConnectFailed = true;
+                                replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
+                            } else {
+                                mAutonomousGroup = false;
+                                mWifiNative.p2pStopFind();
+                                if (reinvokePersistentGroup(config)) {
+                                    transitionTo(mGroupNegotiationState);
+                                } else {
+                                    transitionTo(mProvisionDiscoveryState);
+                                }
+                            }
                         }
-                        mSavedPeerConfig = config;
-                        mPeers.updateStatus(mSavedPeerConfig.deviceAddress, WifiP2pDevice.INVITED);
-                        sendPeersChangedBroadcast();
-                        replyToMessage(message, WifiP2pManager.CONNECT_SUCCEEDED);
+
+                        if (!isConnectFailed) {
+                            mSavedPeerConfig = config;
+                            mPeers.updateStatus(mSavedPeerConfig.deviceAddress,
+                                    WifiP2pDevice.INVITED);
+                            sendPeersChangedBroadcast();
+                            replyToMessage(message, WifiP2pManager.CONNECT_SUCCEEDED);
+                        }
                         break;
                     case WifiP2pManager.STOP_DISCOVERY:
                         if (mWifiNative.p2pStopFind()) {
