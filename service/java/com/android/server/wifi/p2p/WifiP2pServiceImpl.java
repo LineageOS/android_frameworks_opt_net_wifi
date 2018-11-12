@@ -1627,8 +1627,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.CREATE_GROUP:
                         mAutonomousGroup = true;
                         int netId = message.arg1;
+                        config = (WifiP2pConfig) message.obj;
                         boolean ret = false;
-                        if (netId == WifiP2pGroup.PERSISTENT_NET_ID) {
+                        if (config != null) {
+                            if (isConfigValidAsGroup(config)) {
+                                ret = mWifiNative.p2pGroupAdd(config, false);
+                            } else {
+                                ret = false;
+                            }
+                        } else if (netId == WifiP2pGroup.PERSISTENT_NET_ID) {
                             // check if the go persistent group is present.
                             netId = mGroups.getNetworkId(mThisDevice.deviceAddress);
                             if (netId != -1) {
@@ -2866,6 +2873,24 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             if (config == null) return true;
             if (TextUtils.isEmpty(config.deviceAddress)) return true;
             if (mPeers.get(config.deviceAddress) == null) return true;
+            return false;
+        }
+
+        /**
+         * A config is valid as a group if it has network name and passphrase.
+         * Supplicant can construct a group on the fly for creating a group with specified config
+         * or join a group without negotiation and WPS.
+         * @param WifiP2pConfig config to be validated
+         * @return true if it is valid, false otherwise
+         */
+        private boolean isConfigValidAsGroup(WifiP2pConfig config) {
+            if (config == null) return false;
+            if (TextUtils.isEmpty(config.deviceAddress)) return false;
+            if (!TextUtils.isEmpty(config.networkName)
+                    && !TextUtils.isEmpty(config.passphrase)) {
+                return true;
+            }
+
             return false;
         }
 
