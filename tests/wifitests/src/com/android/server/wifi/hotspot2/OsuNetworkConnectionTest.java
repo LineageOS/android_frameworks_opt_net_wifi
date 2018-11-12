@@ -220,7 +220,11 @@ public class OsuNetworkConnectionTest {
 
         callback.onLost(mCurrentNetwork);
         verify(mNetworkCallbacks).onDisconnected();
+
         mNetworkConnection.disconnectIfNeeded();
+
+        verify(mConnectivityManager).unregisterNetworkCallback(any(ConnectivityManager
+                .NetworkCallback.class));
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
     }
 
@@ -246,7 +250,11 @@ public class OsuNetworkConnectionTest {
 
         callback.onUnavailable();
         verify(mNetworkCallbacks).onTimeOut();
+
         mNetworkConnection.disconnectIfNeeded();
+
+        verify(mConnectivityManager).unregisterNetworkCallback(any(ConnectivityManager
+                .NetworkCallback.class));
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
     }
 
@@ -258,7 +266,11 @@ public class OsuNetworkConnectionTest {
     public void verifyNetworkDisconnect() {
         mNetworkConnection.init(mHandler);
         assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+
         mNetworkConnection.disconnectIfNeeded();
+
+        verify(mConnectivityManager).unregisterNetworkCallback(any(ConnectivityManager
+                .NetworkCallback.class));
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
     }
 
