@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.util.SparseArray;
+
 import java.util.Arrays;
 
 /**
@@ -116,7 +118,27 @@ public class WifiLinkLayerStats {
      * Cumulative milliseconds when radio is awake due to hotspot 2.0 scan amd GAS exchange
      */
     public int on_time_hs20_scan = -1;
-
+    /**
+     * channel stats
+     */
+    public static class ChannelStats {
+        /**
+         * Channel frequency in MHz;
+         */
+        public int frequency;
+        /**
+         * Cumulative milliseconds radio is awake on this channel
+         */
+        public int radioOnTimeMs;
+        /**
+         * Cumulative milliseconds CCA is held busy on this channel
+         */
+        public int ccaBusyTimeMs;
+    }
+    /**
+     * Channel stats list
+     */
+    public final SparseArray<ChannelStats> channelStatsMap = new SparseArray<>();
 
     /**
      * TimeStamp - absolute milliseconds from boot when these stats were sampled.
@@ -161,7 +183,15 @@ public class WifiLinkLayerStats {
                 .append(Integer.toString(this.on_time_pno_scan)).append('\n')
                 .append(" hs2.0_scan_time=")
                 .append(Integer.toString(this.on_time_hs20_scan)).append('\n')
-                .append(" tx_time_per_level=" + Arrays.toString(tx_time_per_level));
+                .append(" tx_time_per_level=" + Arrays.toString(tx_time_per_level)).append('\n');
+        int numChanStats = this.channelStatsMap.size();
+        sbuf.append(" Number of channel stats=").append(numChanStats).append('\n');
+        for (int i = 0; i < numChanStats; ++i) {
+            ChannelStats channelStatsEntry = this.channelStatsMap.valueAt(i);
+            sbuf.append(" Frequency=").append(channelStatsEntry.frequency)
+                    .append(" radioOnTimeMs=").append(channelStatsEntry.radioOnTimeMs)
+                    .append(" ccaBusyTimeMs=").append(channelStatsEntry.ccaBusyTimeMs).append('\n');
+        }
         sbuf.append(" ts=" + timeStampInMs);
         return sbuf.toString();
     }

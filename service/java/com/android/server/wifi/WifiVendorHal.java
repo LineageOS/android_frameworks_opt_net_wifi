@@ -64,6 +64,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.HexDump;
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
+import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;
 import com.android.server.wifi.util.BitMask;
 import com.android.server.wifi.util.NativeUtil;
 
@@ -1026,6 +1027,16 @@ public class WifiVendorHal {
             stats.on_time_roam_scan = radioStats.onTimeInMsForRoamScan;
             stats.on_time_pno_scan = radioStats.onTimeInMsForPnoScan;
             stats.on_time_hs20_scan = radioStats.onTimeInMsForHs20Scan;
+            /* Copy list of channel stats */
+            for (int i = 0; i < radioStats.channelStats.size(); i++) {
+                android.hardware.wifi.V1_3.WifiChannelStats channelStats =
+                        radioStats.channelStats.get(i);
+                ChannelStats channelStatsEntry = new ChannelStats();
+                channelStatsEntry.frequency = channelStats.channel.centerFreq;
+                channelStatsEntry.radioOnTimeMs = channelStats.onTimeInMs;
+                channelStatsEntry.ccaBusyTimeMs = channelStats.ccaBusyTimeInMs;
+                stats.channelStatsMap.put(channelStats.channel.centerFreq, channelStatsEntry);
+            }
         }
     }
 

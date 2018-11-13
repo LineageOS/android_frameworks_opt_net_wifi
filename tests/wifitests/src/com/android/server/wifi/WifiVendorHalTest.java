@@ -77,6 +77,7 @@ import android.hardware.wifi.V1_0.WifiStatus;
 import android.hardware.wifi.V1_0.WifiStatusCode;
 import android.hardware.wifi.V1_2.IWifiChipEventCallback.IfaceInfo;
 import android.hardware.wifi.V1_2.IWifiChipEventCallback.RadioModeInfo;
+import android.hardware.wifi.V1_3.WifiChannelStats;
 import android.net.KeepalivePacketData;
 import android.net.MacAddress;
 import android.net.apf.ApfCapabilities;
@@ -92,6 +93,7 @@ import android.system.OsConstants;
 import android.util.Pair;
 
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
+import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;
 import com.android.server.wifi.util.NativeUtil;
 
 import org.junit.Before;
@@ -120,6 +122,8 @@ public class WifiVendorHalTest {
     private static final String TEST_IFACE_NAME_1 = "wlan1";
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
     private static final int SAR_SENSOR_INVALID_STATE = -6;
+    private static final int[] TEST_FREQUENCIES =
+            {2412, 2417, 2422, 2427, 2432, 2437};
 
     WifiVendorHal mWifiVendorHal;
     private WifiStatus mWifiStatusSuccess;
@@ -960,6 +964,17 @@ public class WifiVendorHalTest {
         assertEquals(radio.onTimeInMsForRoamScan, wifiLinkLayerStats.on_time_roam_scan);
         assertEquals(radio.onTimeInMsForPnoScan, wifiLinkLayerStats.on_time_pno_scan);
         assertEquals(radio.onTimeInMsForHs20Scan, wifiLinkLayerStats.on_time_hs20_scan);
+        assertEquals(radio.channelStats.size(),
+                wifiLinkLayerStats.channelStatsMap.size());
+        for (int j = 0; j < radio.channelStats.size(); j++) {
+            WifiChannelStats channelStats = radio.channelStats.get(j);
+            ChannelStats retrievedChannelStats =
+                    wifiLinkLayerStats.channelStatsMap.get(channelStats.channel.centerFreq);
+            assertNotNull(retrievedChannelStats);
+            assertEquals(channelStats.channel.centerFreq, retrievedChannelStats.frequency);
+            assertEquals(channelStats.onTimeInMs, retrievedChannelStats.radioOnTimeMs);
+            assertEquals(channelStats.ccaBusyTimeInMs, retrievedChannelStats.ccaBusyTimeMs);
+        }
     }
 
 
@@ -1009,6 +1024,13 @@ public class WifiVendorHalTest {
         rstat.onTimeInMsForRoamScan = r.nextInt() & 0xFFFFFF;
         rstat.onTimeInMsForPnoScan = r.nextInt() & 0xFFFFFF;
         rstat.onTimeInMsForHs20Scan = r.nextInt() & 0xFFFFFF;
+        for (int j = 0; j < TEST_FREQUENCIES.length; j++) {
+            WifiChannelStats channelStats = new WifiChannelStats();
+            channelStats.channel.centerFreq = TEST_FREQUENCIES[j];
+            channelStats.onTimeInMs = r.nextInt() & 0xFFFFFF;
+            channelStats.ccaBusyTimeInMs = r.nextInt() & 0xFFFFFF;
+            rstat.channelStats.add(channelStats);
+        }
         rstats.add(rstat);
     }
 
