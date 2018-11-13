@@ -185,7 +185,8 @@ public class WifiServiceImpl extends AbstractWifiService {
     /**
      * Asynchronous channel to ClientModeImpl
      */
-    private AsyncChannel mClientModeImplChannel;
+    @VisibleForTesting
+    AsyncChannel mClientModeImplChannel;
 
     private final boolean mWirelessConsentRequired;
     private final FrameworkFacade mFrameworkFacade;
@@ -2643,13 +2644,25 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
 
         if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) {
-            // Delete all Wifi SSIDs
             if (mClientModeImplChannel != null) {
+                // Delete all Wifi SSIDs
                 List<WifiConfiguration> networks = mClientModeImpl.syncGetConfiguredNetworks(
                         Binder.getCallingUid(), mClientModeImplChannel);
                 if (networks != null) {
                     for (WifiConfiguration config : networks) {
                         removeNetwork(config.networkId, packageName);
+                    }
+                }
+
+                // Delete all Passpoint configurations
+                if (mContext.getPackageManager().hasSystemFeature(
+                        PackageManager.FEATURE_WIFI_PASSPOINT)) {
+                    List<PasspointConfiguration> configs = mClientModeImpl.syncGetPasspointConfigs(
+                            mClientModeImplChannel);
+                    if (configs != null) {
+                        for (PasspointConfiguration config : configs) {
+                            removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
+                        }
                     }
                 }
             }

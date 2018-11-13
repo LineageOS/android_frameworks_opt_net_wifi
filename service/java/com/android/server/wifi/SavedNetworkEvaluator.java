@@ -23,6 +23,7 @@ import android.util.LocalLog;
 import android.util.Pair;
 
 import com.android.internal.R;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.List;
@@ -45,6 +46,13 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     private final int mLastSelectionAward;
     private final int mSecurityAward;
     private final ScoringParams mScoringParams;
+
+    /**
+     * Time it takes for the mLastSelectionAward to decay by one point, in milliseconds
+     */
+    @VisibleForTesting
+    public static final int LAST_SELECTION_AWARD_DECAY_MSEC = 60 * 1000;
+
 
     SavedNetworkEvaluator(final Context context, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock,
@@ -107,8 +115,8 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
             // to connect to it.
             mWifiConfigManager.tryEnableNetwork(network.networkId);
 
-            //TODO(b/30928589): Enable "permanently" disabled networks if we are in DISCONNECTED
-            // state.
+            //TODO(b/112196799): Enable "permanently" disabled networks if we are in DISCONNECTED
+            // state. See also 30928589
 
             // Clear the cached candidate, score and seen.
             mWifiConfigManager.clearNetworkCandidateScanResult(network.networkId);
@@ -160,8 +168,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                 .append(" RSSI:").append(scanResult.level).append(" ] ");
         // Calculate the RSSI score.
         int rssiSaturationThreshold = mScoringParams.getGoodRssi(scanResult.frequency);
-        int rssi = scanResult.level < rssiSaturationThreshold ? scanResult.level
-                : rssiSaturationThreshold;
+        int rssi = Math.min(scanResult.level, rssiSaturationThreshold);
         score += (rssi + mRssiScoreOffset) * mRssiScoreSlope;
         sbuf.append(" RSSI score: ").append(score).append(",");
 
@@ -178,18 +185,16 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
             long timeDifference = mClock.getElapsedSinceBootMillis()
                     - mWifiConfigManager.getLastSelectedTimeStamp();
             if (timeDifference > 0) {
-                int bonus = mLastSelectionAward - (int) (timeDifference / 1000 / 60);
-                score += bonus > 0 ? bonus : 0;
-                sbuf.append(" User selection ").append(timeDifference / 1000 / 60)
-                        .append(" minutes ago, bonus: ").append(bonus).append(",");
+                int decay = (int) (timeDifference / LAST_SELECTION_AWARD_DECAY_MSEC);
+                int bonus = Math.max(mLastSelectionAward - decay, 0);
+                score += bonus;
+                sbuf.append(" User selection ").append(timeDifference)
+                        .append(" ms ago, bonus: ").append(bonus).append(",");
             }
         }
 
         // Same network award.
-        if (currentNetwork != null
-                && (network.networkId == currentNetwork.networkId
-                //TODO(b/36788683): re-enable linked configuration check
-                /* || network.isLinked(currentNetwork) */)) {
+        if (currentNetwork != null && network.networkId == currentNetwork.networkId) {
             score += mSameNetworkAward;
             sbuf.append(" Same network bonus: ").append(mSameNetworkAward).append(",");
 
@@ -238,8 +243,9 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
         for (ScanDetail scanDetail : scanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
 
-            // One ScanResult can be associated with more than one networks, hence we calculate all
+            // One ScanResult can be associated with more than one network, hence we calculate all
             // the scores and use the highest one as the ScanResult's score.
+            // TODO(b/112196799): this has side effects, rather not do that in an evaluator
             WifiConfiguration network =
                     mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
 
@@ -259,6 +265,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
             WifiConfiguration.NetworkSelectionStatus status =
                     network.getNetworkSelectionStatus();
+            // TODO (b/112196799): another side effect
             status.setSeenInLastQualifiedNetworkSelection(true);
 
             if (!status.isNetworkEnabled()) {
@@ -282,11 +289,10 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
             // Set candidate ScanResult for all saved networks to ensure that users can
             // override network selection. See WifiNetworkSelector#setUserConnectChoice.
-            // TODO(b/36067705): consider alternative designs to push filtering/selecting of
-            // user connect choice networks to RecommendedNetworkEvaluator.
-            if (score > status.getCandidateScore() || (score == status.getCandidateScore()
-                    && status.getCandidate() != null
-                    && scanResult.level > status.getCandidate().level)) {
+            if (score > status.getCandidateScore()
+                    || (score == status.getCandidateScore()
+                        && status.getCandidate() != null
+                        && scanResult.level > status.getCandidate().level)) {
                 mWifiConfigManager.setNetworkCandidateScanResult(
                         network.networkId, scanResult, score);
             }
