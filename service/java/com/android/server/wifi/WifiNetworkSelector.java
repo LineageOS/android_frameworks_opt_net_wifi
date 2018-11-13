@@ -129,9 +129,6 @@ public class WifiNetworkSelector {
     }
 
     private boolean isCurrentNetworkSufficient(WifiInfo wifiInfo, List<ScanDetail> scanDetails) {
-        WifiConfiguration network =
-                            mWifiConfigManager.getConfiguredNetwork(wifiInfo.getNetworkId());
-
         // Currently connected?
         if (wifiInfo.getSupplicantState() != SupplicantState.COMPLETED) {
             localLog("No current connected network.");
@@ -157,12 +154,6 @@ public class WifiNetworkSelector {
             return false;
         }
 
-        // Open network is not qualified.
-        if (WifiConfigurationUtil.isConfigForOpenNetwork(network)) {
-            localLog("Current network is a open one.");
-            return false;
-        }
-
         if (wifiInfo.is24GHz()) {
             // 2.4GHz networks is not qualified whenever 5GHz is available
             if (is5GHzNetworkAvailable(scanDetails)) {
@@ -172,6 +163,20 @@ public class WifiNetworkSelector {
         }
         if (!hasQualifiedRssi) {
             localLog("Current network RSSI[" + currentRssi + "]-acceptable but not qualified.");
+            return false;
+        }
+
+        WifiConfiguration network =
+                mWifiConfigManager.getConfiguredNetwork(wifiInfo.getNetworkId());
+
+        if (network == null) {
+            localLog("Current network was removed.");
+            return false;
+        }
+
+        // Open network is not qualified.
+        if (WifiConfigurationUtil.isConfigForOpenNetwork(network)) {
+            localLog("Current network is a open one.");
             return false;
         }
 
