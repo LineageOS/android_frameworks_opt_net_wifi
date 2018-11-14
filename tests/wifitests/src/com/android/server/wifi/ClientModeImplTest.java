@@ -2449,6 +2449,41 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Verify that score card is notified when wifi is disabled while disconnected
+     */
+    @Test
+    public void testScoreCardNoteWifiDisabledWhileDisconnected() throws Exception {
+        // connecting and disconnecting shouldn't note wifi disabled
+        disconnect();
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard, never()).noteWifiDisabled(any());
+
+        // disabling while disconnected should note wifi disabled
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard).noteWifiDisabled(any());
+    }
+
+    /**
+     * Verify that score card is notified when wifi is disabled while connected
+     */
+    @Test
+    public void testScoreCardNoteWifiDisabledWhileConnected() throws Exception {
+        // Get into connected state
+        connect();
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard, never()).noteWifiDisabled(any());
+
+        // disabling while connected should note wifi disabled
+        mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mLooper.dispatchAll();
+
+        verify(mWifiScoreCard).noteWifiDisabled(any());
+    }
+
+    /**
      * Verify that we do not crash on quick toggling wifi on/off
      */
     @Test
