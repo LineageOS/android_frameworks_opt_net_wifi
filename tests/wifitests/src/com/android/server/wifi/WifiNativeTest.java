@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
+import android.os.Handler;
 import android.os.INetworkManagementService;
 import android.support.test.filters.SmallTest;
 
@@ -157,6 +158,7 @@ public class WifiNativeTest {
     @Mock private INetworkManagementService mNwService;
     @Mock private PropertyService mPropertyService;
     @Mock private WifiMetrics mWifiMetrics;
+    @Mock private Handler mHandler;
     private WifiNative mWifiNative;
 
     @Before
@@ -167,7 +169,7 @@ public class WifiNativeTest {
         when(mWifiVendorHal.startVendorHalAp()).thenReturn(true);
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwService, mPropertyService, mWifiMetrics);
+                mWifiMonitor, mNwService, mPropertyService, mWifiMetrics, mHandler);
     }
 
     /**

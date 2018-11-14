@@ -25,6 +25,7 @@ import android.net.apf.ApfCapabilities;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.INetworkManagementService;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -75,13 +76,15 @@ public class WifiNative {
     private final INetworkManagementService mNwManagementService;
     private final PropertyService mPropertyService;
     private final WifiMetrics mWifiMetrics;
+    private final Handler mHandler;
     private boolean mVerboseLoggingEnabled = false;
 
     public WifiNative(WifiVendorHal vendorHal,
                       SupplicantStaIfaceHal staIfaceHal, HostapdHal hostapdHal,
                       WificondControl condControl, WifiMonitor wifiMonitor,
                       INetworkManagementService nwService,
-                      PropertyService propertyService, WifiMetrics wifiMetrics) {
+                      PropertyService propertyService, WifiMetrics wifiMetrics,
+                      Handler handler) {
         mWifiVendorHal = vendorHal;
         mSupplicantStaIfaceHal = staIfaceHal;
         mHostapdHal = hostapdHal;
@@ -90,6 +93,7 @@ public class WifiNative {
         mNwManagementService = nwService;
         mPropertyService = propertyService;
         mWifiMetrics = wifiMetrics;
+        mHandler = handler;
     }
 
     /**
@@ -645,7 +649,6 @@ public class WifiNative {
             mInterfaceId = id;
         }
 
-        // TODO(b/76219766): We may need to listen for link state changes in SoftAp mode.
         /**
          * Note: We should ideally listen to
          * {@link BaseNetworkObserver#interfaceStatusChanged(String, boolean)} here. But, that
@@ -657,25 +660,28 @@ public class WifiNative {
          */
         @Override
         public void interfaceLinkStateChanged(String ifaceName, boolean unusedIsLinkUp) {
-            synchronized (mLock) {
-                final Iface ifaceWithId = mIfaceMgr.getIface(mInterfaceId);
-                if (ifaceWithId == null) {
-                    if (mVerboseLoggingEnabled) {
-                        Log.v(TAG, "Received iface link up/down notification on an invalid iface="
-                                + mInterfaceId);
+            // This is invoked from the main system_server thread. Post to our handler.
+            mHandler.post(() -> {
+                synchronized (mLock) {
+                    final Iface ifaceWithId = mIfaceMgr.getIface(mInterfaceId);
+                    if (ifaceWithId == null) {
+                        if (mVerboseLoggingEnabled) {
+                            Log.v(TAG, "Received iface link up/down notification on an invalid"
+                                    + " iface=" + mInterfaceId);
+                        }
+                        return;
                     }
-                    return;
-                }
-                final Iface ifaceWithName = mIfaceMgr.getIface(ifaceName);
-                if (ifaceWithName == null || ifaceWithName != ifaceWithId) {
-                    if (mVerboseLoggingEnabled) {
-                        Log.v(TAG, "Received iface link up/down notification on an invalid iface="
-                                + ifaceName);
+                    final Iface ifaceWithName = mIfaceMgr.getIface(ifaceName);
+                    if (ifaceWithName == null || ifaceWithName != ifaceWithId) {
+                        if (mVerboseLoggingEnabled) {
+                            Log.v(TAG, "Received iface link up/down notification on an invalid"
+                                    + " iface=" + ifaceName);
+                        }
+                        return;
                     }
-                    return;
+                    onInterfaceStateChanged(ifaceWithName, isInterfaceUp(ifaceName));
                 }
-                onInterfaceStateChanged(ifaceWithName, isInterfaceUp(ifaceName));
-            }
+            });
         }
     }
 
