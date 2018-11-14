@@ -579,6 +579,38 @@ public class WifiPermissionsUtilTest {
     }
 
     /**
+     * Test case setting: Package is valid
+     *                    Location Mode Disabled
+     *                    Caller has location permisson
+     *                    Caller has NETWORK_MANAGED_PROVISIONING
+     * Validate Exception is thrown
+     * - Doesn't have Peer Mac Address read permission
+     * - Uid is not an active network scorer
+     * - Location Mode is disabled
+     * - doesn't have Coarse Location Access
+     * - which implies no scan result access
+     */
+    @Test
+    public void testEnforceCanAccessScanResults_LocationModeDisabledHasNetworkManagedProvisioning()
+            throws Exception {
+        mThrowSecurityException = false;
+        mUid = MANAGED_PROFILE_UID;
+        mPermissionsList.put(mMacAddressPermission, mUid);
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
+        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+
+        setupTestCase();
+        when(mMockPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+    }
+
+    /**
      * Test case setting: Invalid Package
      * Expect a securityException
      */
@@ -632,6 +664,28 @@ public class WifiPermissionsUtilTest {
                 android.Manifest.permission.NETWORK_SETUP_WIZARD, MANAGED_PROFILE_UID))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
         assertTrue(wifiPermissionsUtil.checkNetworkSetupWizardPermission(MANAGED_PROFILE_UID));
+    }
+
+    /**
+     * Verifies the helper method exposed for checking NETWORK_MANAGED_PROVISIONING permission.
+     */
+    @Test
+    public void testCheckNetworkManagedProvisioning() throws Exception {
+        setupMocks();
+        WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+
+        when(mMockPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        assertFalse(wifiPermissionsUtil.checkNetworkManagedProvisioningPermission(
+                MANAGED_PROFILE_UID));
+
+        when(mMockPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        assertTrue(wifiPermissionsUtil.checkNetworkManagedProvisioningPermission(
+                MANAGED_PROFILE_UID));
     }
 
     /**

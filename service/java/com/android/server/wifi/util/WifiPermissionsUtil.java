@@ -174,8 +174,10 @@ public class WifiPermissionsUtil {
     public void enforceCanAccessScanResults(String pkgName, int uid) throws SecurityException {
         mAppOps.checkPackage(uid, pkgName);
 
-        // Apps with NETWORK_SETTINGS & NETWORK_SETUP_WIZARD are granted a bypass.
-        if (checkNetworkSettingsPermission(uid) || checkNetworkSetupWizardPermission(uid)) {
+        // Apps with NETWORK_SETTINGS, NETWORK_SETUP_WIZARD & NETWORK_MANAGED_PROVISIONING
+        // are granted a bypass.
+        if (checkNetworkSettingsPermission(uid) || checkNetworkSetupWizardPermission(uid)
+                || checkNetworkManagedProvisioningPermission(uid)) {
             return;
         }
 
@@ -303,6 +305,15 @@ public class WifiPermissionsUtil {
     public boolean checkNetworkStackPermission(int uid) {
         return mWifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_STACK, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Returns true if the |uid| holds NETWORK_MANAGED_PROVISIONING permission.
+     */
+    public boolean checkNetworkManagedProvisioningPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
 }
