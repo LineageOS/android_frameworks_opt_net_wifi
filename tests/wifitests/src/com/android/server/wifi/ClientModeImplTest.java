@@ -1567,47 +1567,6 @@ public class ClientModeImplTest {
     }
 
     /**
-     * Verify that syncGetMatchingWifiConfig will redirect calls to {@link PasspointManager}
-     * with expected {@link WifiConfiguration} being returned when in client mode.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void syncGetMatchingWifiConfigInClientMode() throws Exception {
-        loadComponentsInStaMode();
-
-        when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class))).thenReturn(null);
-        mLooper.startAutoDispatch();
-        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
-        mLooper.stopAutoDispatch();
-        reset(mPasspointManager);
-
-        WifiConfiguration expectedConfig = new WifiConfiguration();
-        expectedConfig.SSID = "TestSSID";
-        when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class)))
-                .thenReturn(expectedConfig);
-        mLooper.startAutoDispatch();
-        WifiConfiguration actualConfig = mCmi.syncGetMatchingWifiConfig(new ScanResult(),
-                mCmiAsyncChannel);
-        mLooper.stopAutoDispatch();
-        assertEquals(expectedConfig.SSID, actualConfig.SSID);
-    }
-
-    /**
-     * Verify that syncGetMatchingWifiConfig will be a no-op and return {@code null} when not in
-     * client mode.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void syncGetMatchingWifiConfigInNonClientMode() throws Exception {
-        mLooper.startAutoDispatch();
-        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
-        mLooper.stopAutoDispatch();
-        verify(mPasspointManager, never()).getMatchingWifiConfig(any(ScanResult.class));
-    }
-
-    /**
      * Verify that syncStartSubscriptionProvisioning will redirect calls with right parameters
      * to {@link PasspointManager} with expected true being returned when in client mode.
      */

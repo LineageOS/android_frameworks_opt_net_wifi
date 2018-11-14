@@ -538,70 +538,38 @@ public class PasspointManager {
     }
 
     /**
-     * Match the given WiFi AP to an installed Passpoint provider.  A {@link WifiConfiguration}
-     * will be generated and returned if a match is found.  The returned {@link WifiConfiguration}
-     * will contained all the necessary credentials for connecting to the given WiFi AP.
-     *
-     * A {code null} will be returned if no matching provider is found.
-     *
-     * @param scanResult The scan result of the given AP
-     * @return {@link WifiConfiguration}
-     */
-    public WifiConfiguration getMatchingWifiConfig(ScanResult scanResult) {
-        if (scanResult == null) {
-            Log.e(TAG, "Attempt to get matching config for a null ScanResult");
-            return null;
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to get matching config for a non-Passpoint AP");
-            return null;
-        }
-        Pair<PasspointProvider, PasspointMatch> matchedProvider = matchProvider(scanResult);
-        if (matchedProvider == null) {
-            return null;
-        }
-        WifiConfiguration config = matchedProvider.first.getWifiConfig();
-        config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-        if (matchedProvider.second == PasspointMatch.HomeProvider) {
-            config.isHomeProviderNetwork = true;
-        }
-        return config;
-    }
-
-    /**
-     * Match the given WiFi AP to all installed Passpoint configurations. Return the list of all
+     * Match the given WiFi APs to all installed Passpoint configurations. Return the list of all
      * matching configurations (or an empty list if none).
      *
-     * @param scanResult The scan result of the given AP
-     * @return List of {@link WifiConfiguration}
+     * @param scanResults The list of scan results
+     * @return List of {@link WifiConfiguration} that might have duplicate entries.
      */
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult) {
-        if (scanResult == null) {
-            Log.e(TAG, "Attempt to get matching config for a null ScanResult");
-            return new ArrayList<WifiConfiguration>();
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to get matching config for a non-Passpoint AP");
-            return new ArrayList<WifiConfiguration>();
+    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+        if (scanResults == null) {
+            Log.e(TAG, "Attempt to get matching config for a null ScanResults");
+            return new ArrayList<>();
         }
 
-        List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
-                scanResult);
         List<WifiConfiguration> configs = new ArrayList<>();
-        for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
-            WifiConfiguration config = matchedProvider.first.getWifiConfig();
-            config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-            if (matchedProvider.second == PasspointMatch.HomeProvider) {
-                config.isHomeProviderNetwork = true;
+        for (ScanResult scanResult : scanResults) {
+            if (!scanResult.isPasspointNetwork()) continue;
+            List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
+                    scanResult);
+            for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
+                WifiConfiguration config = matchedProvider.first.getWifiConfig();
+                config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
+                if (matchedProvider.second == PasspointMatch.HomeProvider) {
+                    config.isHomeProviderNetwork = true;
+                }
+                configs.add(config);
             }
-            configs.add(config);
         }
 
         return configs;
     }
 
     /**
-     * Return the list of Hosspot 2.0 OSU (Online Sign-Up) providers associated with the given
+     * Return the list of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given
      * AP.
      *
      * An empty list will be returned when an invalid scan result is provided or no match is found.
