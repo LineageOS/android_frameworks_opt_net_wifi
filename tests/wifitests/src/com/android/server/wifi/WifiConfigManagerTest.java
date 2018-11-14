@@ -301,6 +301,59 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that the device owner could modify other other fields in the Wificonfiguration
+     * but not the macRandomizationSetting field.
+     */
+    @Test
+    public void testCannotUpdateMacRandomizationSettingWithoutNetworkSettingsPermission() {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(anyInt(), anyInt()))
+                .thenReturn(true);
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        verify(mWcmListener).onSavedNetworkAdded(openNetwork.networkId);
+        reset(mWcmListener);
+
+        // Change BSSID for the network and verify success
+        assertAndSetNetworkBSSID(openNetwork, TEST_BSSID);
+        NetworkUpdateResult networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
+        assertNotEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
+
+        // Now change the macRandomizationSetting and verify failure
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
+    }
+
+    /**
+     * Verifies that mac randomization settings could be modified by a caller with NETWORK_SETTINGS
+     * permission.
+     */
+    @Test
+    public void testCanUpdateMacRandomizationSettingWithNetworkSettingPermission() {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(openNetwork);
+
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        verify(mWcmListener).onSavedNetworkAdded(openNetwork.networkId);
+        reset(mWcmListener);
+
+        // Now change the macRandomizationSetting and verify success
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        NetworkUpdateResult networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
+        assertNotEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+    }
+
+    /**
      * Verifies the addition of a single ephemeral network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
      * the {@link WifiConfigManager#getSavedNetworks()} does not return this network.

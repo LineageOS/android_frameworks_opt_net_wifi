@@ -51,7 +51,6 @@ import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.LocalServices;
 import com.android.server.wifi.WifiConfigStoreLegacy.WifiConfigStoreDataLegacy;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -741,8 +740,8 @@ public class WifiConfigManager {
             return true;
         }
 
-        final DevicePolicyManagerInternal dpmi = LocalServices.getService(
-                DevicePolicyManagerInternal.class);
+        final DevicePolicyManagerInternal dpmi =
+                mWifiPermissionsWrapper.getDevicePolicyManagerInternal();
 
         final boolean isUidDeviceOwner = dpmi != null && dpmi.isActiveAdminWithPolicy(uid,
                 DeviceAdminInfo.USES_POLICY_DEVICE_OWNER);
@@ -919,6 +918,9 @@ public class WifiConfigManager {
         // Copy over any metered information.
         internalConfig.meteredHint = externalConfig.meteredHint;
         internalConfig.meteredOverride = externalConfig.meteredOverride;
+
+        // Copy over macRandomizationSetting
+        internalConfig.macRandomizationSetting = externalConfig.macRandomizationSetting;
     }
 
     /**
@@ -1073,6 +1075,13 @@ public class WifiConfigManager {
             Log.e(TAG, "UID " + uid + " does not have permission to modify proxy Settings "
                     + config.configKey() + ". Must have NETWORK_SETTINGS,"
                     + " or be device or profile owner.");
+            return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
+        }
+
+        if (WifiConfigurationUtil.hasMacRandomizationSettingsChanged(existingInternalConfig,
+                newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+            Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
+                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
