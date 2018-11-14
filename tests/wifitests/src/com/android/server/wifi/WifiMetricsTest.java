@@ -2302,6 +2302,11 @@ public class WifiMetricsTest {
         out.tx_time = current.tx_time + nextRandInt();
         out.rx_time = current.rx_time + nextRandInt();
         out.on_time_scan = current.on_time_scan + nextRandInt();
+        out.on_time_nan_scan = current.on_time_nan_scan + nextRandInt();
+        out.on_time_background_scan = current.on_time_background_scan + nextRandInt();
+        out.on_time_roam_scan = current.on_time_roam_scan + nextRandInt();
+        out.on_time_pno_scan = current.on_time_pno_scan + nextRandInt();
+        out.on_time_hs20_scan = current.on_time_hs20_scan + nextRandInt();
         return out;
     }
 
@@ -2317,6 +2322,17 @@ public class WifiMetricsTest {
                 mDecodedProto.wifiLinkLayerUsageStats.radioRxTimeMs);
         assertEquals(newStats.on_time_scan - oldStats.on_time_scan,
                 mDecodedProto.wifiLinkLayerUsageStats.radioScanTimeMs);
+        assertEquals(newStats.on_time_nan_scan - oldStats.on_time_nan_scan,
+                mDecodedProto.wifiLinkLayerUsageStats.radioNanScanTimeMs);
+        assertEquals(newStats.on_time_background_scan - oldStats.on_time_background_scan,
+                mDecodedProto.wifiLinkLayerUsageStats.radioBackgroundScanTimeMs);
+        assertEquals(newStats.on_time_roam_scan - oldStats.on_time_roam_scan,
+                mDecodedProto.wifiLinkLayerUsageStats.radioRoamScanTimeMs);
+        assertEquals(newStats.on_time_pno_scan - oldStats.on_time_pno_scan,
+                mDecodedProto.wifiLinkLayerUsageStats.radioPnoScanTimeMs);
+        assertEquals(newStats.on_time_hs20_scan - oldStats.on_time_hs20_scan,
+                mDecodedProto.wifiLinkLayerUsageStats.radioHs20ScanTimeMs);
+
     }
 
     /**
