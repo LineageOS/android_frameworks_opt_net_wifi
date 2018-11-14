@@ -255,12 +255,27 @@ public class ScanTestUtil {
                 -1, null, "", 0, freq, 0);
     }
 
-    private static ScanData createScanData(int[] freqs, int bucketsScanned) {
+    private static ScanData createScanData(int[] freqs, int bucketsScanned, int bandScanned) {
         ScanResult[] results = new ScanResult[freqs.length];
         for (int i = 0; i < freqs.length; ++i) {
             results[i] = createScanResult(freqs[i]);
         }
-        return new ScanData(0, 0, bucketsScanned, WifiScanner.WIFI_BAND_UNSPECIFIED, results);
+        return new ScanData(0, 0, bucketsScanned, bandScanned, results);
+    }
+
+    private static ScanData createScanData(int[] freqs, int bucketsScanned) {
+        return createScanData(freqs, bucketsScanned, WifiScanner.WIFI_BAND_UNSPECIFIED);
+    }
+
+    public static ScanData[] createScanDatas(
+            int[][] freqs, int[] bucketsScanned, int[] bandsScanned) {
+        assumeTrue(freqs.length == bucketsScanned.length);
+        assumeTrue(freqs.length == bandsScanned.length);
+        ScanData[] data = new ScanData[freqs.length];
+        for (int i = 0; i < freqs.length; ++i) {
+            data[i] = createScanData(freqs[i], bucketsScanned[i], bandsScanned[i]);
+        }
+        return data;
     }
 
     public static ScanData[] createScanDatas(int[][] freqs, int[] bucketsScanned) {
