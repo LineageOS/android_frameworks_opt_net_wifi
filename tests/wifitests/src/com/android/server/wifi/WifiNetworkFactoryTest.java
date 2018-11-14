@@ -880,6 +880,7 @@ public class WifiNetworkFactoryTest {
         // Simulate connection timeout.
         mConnectionTimeoutAlarmListenerArgumentCaptor.getValue().onAlarm();
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // Verify we reset the network request handling.
@@ -899,6 +900,7 @@ public class WifiNetworkFactoryTest {
         replyToMsgr.send(failureMsg);
         mLooper.dispatchAll();
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
@@ -919,6 +921,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
@@ -1068,11 +1071,17 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        // Register callback.
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(any());
+
         // Send second request.
         WifiNetworkSpecifier specifier2 = createWifiNetworkSpecifier(TEST_UID_2, false);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).startScan(any(), any(), any());
 
@@ -1081,7 +1090,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
-                mAlarmManager);
+                mAlarmManager, mNetworkRequestMatchCallback);
 
         // Remove the active request2 & ensure auto-join is re-enabled.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
@@ -1113,6 +1122,7 @@ public class WifiNetworkFactoryTest {
         networkRequestUserSelectionCallback.select(selectedNetwork);
         mLooper.dispatchAll();
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).startScan(any(), any(), any());
         verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
@@ -1122,7 +1132,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
-                mAlarmManager);
+                mAlarmManager, mNetworkRequestMatchCallback);
 
         // Remove the active request2 & ensure auto-join is re-enabled.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
@@ -1145,6 +1155,7 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        verify(mNetworkRequestMatchCallback).onAbort();
         verify(mWifiConnectivityManager, times(2)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).startScan(any(), any(), any());
         verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
@@ -1154,7 +1165,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
-                mAlarmManager);
+                mAlarmManager, mNetworkRequestMatchCallback);
 
         // Remove the active request2 & ensure auto-join is re-enabled.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);

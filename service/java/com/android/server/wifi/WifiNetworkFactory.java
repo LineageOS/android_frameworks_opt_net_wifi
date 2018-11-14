@@ -549,6 +549,14 @@ public class WifiNetworkFactory extends NetworkFactory {
             Log.i(TAG, "Disconnecting from network on reset");
             mWifiInjector.getClientModeImpl().disconnectCommand();
         }
+        // Send the abort to the UI.
+        for (INetworkRequestMatchCallback callback : mRegisteredCallbacks.getCallbacks()) {
+            try {
+                callback.onAbort();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke network request abort callback " + callback, e);
+            }
+        }
         // Reset the active network request.
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
@@ -560,7 +568,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         mRegisteredCallbacks.clear();
         // TODO(b/113878056): Force-release the network request to let the app know early that the
         // attempt failed.
-        // TODO(b/113878056): End UI flow here.
     }
 
     // Invoked at the termination of previous active request processing.
