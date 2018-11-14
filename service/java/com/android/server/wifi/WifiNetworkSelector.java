@@ -118,20 +118,20 @@ public class WifiNetworkSelector {
                         WifiConfiguration currentNetwork, String currentBssid,
                         boolean connected, boolean untrustedNetworkAllowed,
                         OnConnectableListener onConnectableListener);
-    }
 
-    /**
-     * Callback for recording connectable candidates
-     */
-    public interface OnConnectableListener {
         /**
-         * Notes that an access point is an eligible connection candidate
-         *
-         * @param scanDetail describes the specific access point
-         * @param config is the WifiConfiguration for the network
-         * @param score is the score assigned by the evaluator
+         * Callback for recording connectable candidates
          */
-        void onConnectable(ScanDetail scanDetail, WifiConfiguration config, int score);
+        public interface OnConnectableListener {
+            /**
+             * Notes that an access point is an eligible connection candidate
+             *
+             * @param scanDetail describes the specific access point
+             * @param config is the WifiConfiguration for the network
+             * @param score is the score assigned by the evaluator
+             */
+            void onConnectable(ScanDetail scanDetail, WifiConfiguration config, int score);
+        }
     }
 
     private final List<NetworkEvaluator> mEvaluators = new ArrayList<>(3);

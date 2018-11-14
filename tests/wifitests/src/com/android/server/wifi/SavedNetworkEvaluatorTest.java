@@ -31,6 +31,7 @@ import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 
 import com.android.internal.R;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 
 import org.junit.After;
@@ -89,7 +90,7 @@ public class SavedNetworkEvaluatorTest {
     @Mock private Context mContext;
     @Mock private Resources mResource;
     @Mock private Clock mClock;
-    @Mock private WifiNetworkSelector.OnConnectableListener mOnConnectableListener;
+    @Mock private OnConnectableListener mOnConnectableListener;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;

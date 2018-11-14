@@ -35,6 +35,7 @@ import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 
 import com.android.internal.R;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 
 import org.junit.After;
@@ -117,7 +118,7 @@ public class WifiNetworkSelectorTest {
         public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
-                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
+                    @NonNull OnConnectableListener onConnectableListener) {
             if (!mEvaluatorShouldSelectCandidate) {
                 return null;
             }

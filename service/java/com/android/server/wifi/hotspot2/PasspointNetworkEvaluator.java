@@ -27,6 +27,7 @@ import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiNetworkSelector;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
@@ -77,7 +78,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid,
                     boolean connected, boolean untrustedNetworkAllowed,
-                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
+                    @NonNull OnConnectableListener onConnectableListener) {
         // Sweep the ANQP cache to remove any expired ANQP entries.
         mPasspointManager.sweepCache();
 

@@ -38,6 +38,7 @@ import android.provider.Settings;
 import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -71,7 +72,7 @@ public class ScoredNetworkEvaluatorTest {
     @Mock private NetworkScoreManager mNetworkScoreManager;
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
-    @Mock private WifiNetworkSelector.OnConnectableListener mOnConnectableListener;
+    @Mock private OnConnectableListener mOnConnectableListener;
     @Captor private ArgumentCaptor<NetworkKey[]> mNetworkKeyArrayCaptor;
 
     private WifiNetworkScoreCache mScoreCache;

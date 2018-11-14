@@ -24,6 +24,7 @@ import android.util.LocalLog;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.List;
@@ -234,7 +235,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
-                    @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
+                    @NonNull OnConnectableListener onConnectableListener) {
         int highestScore = Integer.MIN_VALUE;
         ScanResult scanResultCandidate = null;
         WifiConfiguration candidate = null;

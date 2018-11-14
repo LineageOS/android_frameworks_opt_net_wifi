@@ -34,6 +34,7 @@ import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
 
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -126,7 +127,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
-            @NonNull WifiNetworkSelector.OnConnectableListener onConnectableListener) {
+            @NonNull OnConnectableListener onConnectableListener) {
         if (!mNetworkRecommendationsEnabled) {
             mLocalLog.log("Skipping evaluateNetworks; Network recommendations disabled.");
             return null;

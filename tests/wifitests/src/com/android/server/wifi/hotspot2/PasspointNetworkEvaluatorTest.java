@@ -40,7 +40,7 @@ import android.util.Pair;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
-import com.android.server.wifi.WifiNetworkSelector;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import org.junit.Before;
@@ -70,7 +70,7 @@ public class PasspointNetworkEvaluatorTest {
 
     @Mock PasspointManager mPasspointManager;
     @Mock WifiConfigManager mWifiConfigManager;
-    @Mock WifiNetworkSelector.OnConnectableListener mOnConnectableListener;
+    @Mock OnConnectableListener mOnConnectableListener;
     LocalLog mLocalLog;
     PasspointNetworkEvaluator mEvaluator;
 
