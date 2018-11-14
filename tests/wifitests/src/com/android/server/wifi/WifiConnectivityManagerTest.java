@@ -186,7 +186,7 @@ public class WifiConnectivityManagerTest {
     ScanData mockScanData() {
         ScanData scanData = mock(ScanData.class);
 
-        when(scanData.isAllChannelsScanned()).thenReturn(true);
+        when(scanData.getBandScanned()).thenReturn(WifiScanner.WIFI_BAND_BOTH_WITH_DFS);
 
         return scanData;
     }
@@ -1390,7 +1390,7 @@ public class WifiConnectivityManagerTest {
                 WifiConnectivityManager.WIFI_STATE_CONNECTED);
 
         // Set up as partial scan results.
-        when(mScanData.isAllChannelsScanned()).thenReturn(false);
+        when(mScanData.getBandScanned()).thenReturn(WifiScanner.WIFI_BAND_5_GHZ);
 
         // Force a connectivity scan which enables WifiConnectivityManager
         // to wait for full band scan results.
@@ -1401,7 +1401,7 @@ public class WifiConnectivityManagerTest {
                 CANDIDATE_NETWORK_ID, Process.WIFI_UID, CANDIDATE_BSSID);
 
         // Set up as full band scan results.
-        when(mScanData.isAllChannelsScanned()).thenReturn(true);
+        when(mScanData.getBandScanned()).thenReturn(WifiScanner.WIFI_BAND_BOTH_WITH_DFS);
 
         // Force a connectivity scan which enables WifiConnectivityManager
         // to wait for full band scan results.

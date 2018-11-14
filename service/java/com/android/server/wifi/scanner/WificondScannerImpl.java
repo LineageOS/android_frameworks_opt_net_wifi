@@ -348,14 +348,23 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     }
 
     /**
-     * Check if the provided channel collection contains all the channels.
+     * Return one of the WIFI_BAND_# values that was scanned for in this scan.
      */
-    private static boolean isAllChannelsScanned(ChannelCollection channelCollection) {
-        // TODO(b/62253332): Get rid of this hack.
-        // We're treating 2g + 5g and 2g + 5g + dfs as all channels scanned to work around
-        // the lack of a proper cache.
-        return (channelCollection.containsBand(WifiScanner.WIFI_BAND_24_GHZ)
-                && channelCollection.containsBand(WifiScanner.WIFI_BAND_5_GHZ));
+    private static int getBandScanned(ChannelCollection channelCollection) {
+        if (channelCollection.containsBand(WifiScanner.WIFI_BAND_BOTH_WITH_DFS)) {
+            return WifiScanner.WIFI_BAND_BOTH_WITH_DFS;
+        } else if (channelCollection.containsBand(WifiScanner.WIFI_BAND_BOTH)) {
+            return WifiScanner.WIFI_BAND_BOTH;
+        } else if (channelCollection.containsBand(WifiScanner.WIFI_BAND_5_GHZ_WITH_DFS)) {
+            return WifiScanner.WIFI_BAND_5_GHZ_WITH_DFS;
+        } else if (channelCollection.containsBand(WifiScanner.WIFI_BAND_5_GHZ)) {
+            return WifiScanner.WIFI_BAND_5_GHZ;
+        } else if (channelCollection.containsBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY)) {
+            return WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY;
+        } else if (channelCollection.containsBand(WifiScanner.WIFI_BAND_24_GHZ)) {
+            return WifiScanner.WIFI_BAND_24_GHZ;
+        }
+        return WifiScanner.WIFI_BAND_UNSPECIFIED;
     }
 
     private void pollLatestScanData() {
@@ -394,7 +403,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                 }
                 Collections.sort(singleScanResults, SCAN_RESULT_SORT_COMPARATOR);
                 mLatestSingleScanResult = new WifiScanner.ScanData(0, 0, 0,
-                        isAllChannelsScanned(mLastScanSettings.singleScanFreqs),
+                        getBandScanned(mLastScanSettings.singleScanFreqs),
                         singleScanResults.toArray(new ScanResult[singleScanResults.size()]));
                 mLastScanSettings.singleScanEventHandler
                         .onScanStatus(WifiNative.WIFI_SCAN_RESULTS_AVAILABLE);

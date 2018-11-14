@@ -3146,7 +3146,7 @@ public class WifiVendorHalTest {
         scanResults[0] = result.second;
         WifiScanner.ScanData scanData =
                 new WifiScanner.ScanData(mWifiVendorHal.mScan.cmdId, 1,
-                        staScanData.bucketsScanned, false, scanResults);
+                        staScanData.bucketsScanned, WifiScanner.WIFI_BAND_UNSPECIFIED, scanResults);
         scanDatas.add(scanData);
         return Pair.create(staScanDatas, scanDatas);
     }

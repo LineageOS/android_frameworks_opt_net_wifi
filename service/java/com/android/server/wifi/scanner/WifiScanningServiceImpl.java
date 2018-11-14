@@ -139,7 +139,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return (msgWhat == WifiScanner.CMD_ENABLE
                 || msgWhat == WifiScanner.CMD_DISABLE
                 || msgWhat == WifiScanner.CMD_START_PNO_SCAN
-                || msgWhat == WifiScanner.CMD_STOP_PNO_SCAN);
+                || msgWhat == WifiScanner.CMD_STOP_PNO_SCAN
+                || msgWhat == WifiScanner.CMD_REGISTER_SCAN_LISTENER);
     }
 
     // Retrieves a handle to LocationManager (if not already done) and check if location is enabled.
@@ -1028,7 +1029,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 entry.reportEvent(WifiScanner.CMD_SCAN_RESULT, 0, parcelableAllResults);
             }
 
-            if (results.isAllChannelsScanned()) {
+            // Cache full band (with DFS or not) scan results.
+            if (results.getBandScanned() == WifiScanner.WIFI_BAND_BOTH_WITH_DFS
+                    || results.getBandScanned() == WifiScanner.WIFI_BAND_BOTH) {
                 mCachedScanResults.clear();
                 mCachedScanResults.addAll(Arrays.asList(results.getResults()));
             }
