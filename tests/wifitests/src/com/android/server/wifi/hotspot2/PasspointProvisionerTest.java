@@ -64,6 +64,7 @@ import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
 import com.android.server.wifi.hotspot2.soap.RedirectListener;
 import com.android.server.wifi.hotspot2.soap.SppConstants;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
+import com.android.server.wifi.hotspot2.soap.UpdateResponseMessage;
 import com.android.server.wifi.hotspot2.soap.command.BrowserUri;
 import com.android.server.wifi.hotspot2.soap.command.PpsMoData;
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
@@ -158,13 +159,15 @@ public class PasspointProvisionerTest {
     @Mock PackageManager mPackageManager;
     @Mock PasspointConfiguration mPasspointConfiguration;
     @Mock X509Certificate mX509Certificate;
+    @Mock SoapSerializationEnvelope mSoapSerializationEnvelope;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mTestUrl = new URL(TEST_REDIRECT_URL);
         mSession = ExtendedMockito.mockitoSession().mockStatic(
-                RedirectListener.class).mockStatic(PpsMoParser.class).startMocking();
+                RedirectListener.class).mockStatic(PpsMoParser.class).mockStatic(
+                UpdateResponseMessage.class).startMocking();
 
         when(RedirectListener.createInstance(mLooper.getLooper())).thenReturn(
                 mRedirectListener);
@@ -244,6 +247,10 @@ public class PasspointProvisionerTest {
         when(mPasspointConfiguration.getSubscriptionUpdate()).thenReturn(updateParameter);
         when(mOsuServerConnection.retrieveTrustRootCerts(anyMap())).thenReturn(true);
         lenient().when(PpsMoParser.parseMoText(isNull())).thenReturn(mPasspointConfiguration);
+
+        when(mPasspointConfiguration.validateForR2()).thenReturn(true);
+        lenient().when(UpdateResponseMessage.serializeToSoapEnvelope(any(String.class),
+                any(Boolean.class))).thenReturn(mSoapSerializationEnvelope);
     }
 
     @After
@@ -340,6 +347,9 @@ public class PasspointProvisionerTest {
                         mSppResponseMessage);
                 mLooper.dispatchAll();
             } else if (step == STEP_WAIT_FOR_THIRD_SOAP_RESPONSE) {
+                ExtendedMockito.verify(
+                        () -> UpdateResponseMessage.serializeToSoapEnvelope(eq(TEST_SESSION_ID),
+                                eq(false)));
                 verify(mCallback).onProvisioningStatus(
                         ProvisioningCallback.OSU_STATUS_THIRD_SOAP_EXCHANGE);
 
@@ -709,6 +719,20 @@ public class PasspointProvisionerTest {
 
         verify(mCallback).onProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+    }
+
+    /**
+     * Verifies that the {@link UpdateResponseMessage#serializeToSoapEnvelope(String, boolean)} is
+     * invoked with right arguments when a PPS-MO xml received from server is not valid in terms of
+     * schema of PPS MO.
+     */
+    @Test
+    public void verifyHandlingInvalidPpsMoForSoapResponse() throws RemoteException {
+        when(mPasspointConfiguration.validateForR2()).thenReturn(false);
+        stopAfterStep(STEP_WAIT_FOR_SECOND_SOAP_RESPONSE);
+
+        ExtendedMockito.verify(
+                () -> UpdateResponseMessage.serializeToSoapEnvelope(eq(TEST_SESSION_ID), eq(true)));
     }
 
     /**
