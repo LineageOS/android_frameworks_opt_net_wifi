@@ -567,6 +567,16 @@ public class WifiMetrics {
         mWifiLinkLayerUsageStats.radioRxTimeMs += (newStats.rx_time - mLastLinkLayerStats.rx_time);
         mWifiLinkLayerUsageStats.radioScanTimeMs +=
                 (newStats.on_time_scan - mLastLinkLayerStats.on_time_scan);
+        mWifiLinkLayerUsageStats.radioNanScanTimeMs +=
+                (newStats.on_time_nan_scan - mLastLinkLayerStats.on_time_nan_scan);
+        mWifiLinkLayerUsageStats.radioBackgroundScanTimeMs +=
+                (newStats.on_time_background_scan - mLastLinkLayerStats.on_time_background_scan);
+        mWifiLinkLayerUsageStats.radioRoamScanTimeMs +=
+                (newStats.on_time_roam_scan - mLastLinkLayerStats.on_time_roam_scan);
+        mWifiLinkLayerUsageStats.radioPnoScanTimeMs +=
+                (newStats.on_time_pno_scan - mLastLinkLayerStats.on_time_pno_scan);
+        mWifiLinkLayerUsageStats.radioHs20ScanTimeMs +=
+                (newStats.on_time_hs20_scan - mLastLinkLayerStats.on_time_hs20_scan);
         mLastLinkLayerStats = newStats;
     }
 
@@ -2277,6 +2287,16 @@ public class WifiMetrics {
                         + mWifiLinkLayerUsageStats.radioRxTimeMs);
                 pw.println("mWifiLinkLayerUsageStats.radioScanTimeMs="
                         + mWifiLinkLayerUsageStats.radioScanTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioNanScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioNanScanTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioBackgroundScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioBackgroundScanTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioRoamScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioRoamScanTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioPnoScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioPnoScanTimeMs);
+                pw.println("mWifiLinkLayerUsageStats.radioHs20ScanTimeMs="
+                        + mWifiLinkLayerUsageStats.radioHs20ScanTimeMs);
 
                 pw.println("mWifiLogProto.connectToNetworkNotificationCount="
                         + mConnectToNetworkNotificationCount.toString());
