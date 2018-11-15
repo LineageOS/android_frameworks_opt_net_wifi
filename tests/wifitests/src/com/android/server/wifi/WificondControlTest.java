@@ -16,29 +16,50 @@
 
 package com.android.server.wifi;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
+import android.app.AlarmManager;
 import android.net.MacAddress;
 import android.net.wifi.IApInterface;
 import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.IClientInterface;
 import android.net.wifi.IPnoScanEvent;
 import android.net.wifi.IScanEvent;
+import android.net.wifi.ISendMgmtFrameEvent;
 import android.net.wifi.IWifiScannerImpl;
 import android.net.wifi.IWificond;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
@@ -49,6 +70,7 @@ import com.android.server.wifi.wificond.SingleScanSettings;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.AdditionalMatchers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
@@ -78,9 +100,14 @@ public class WificondControlTest {
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private IApInterface mApInterface;
     @Mock private WifiNative.SoftApListener mSoftApListener;
+    @Mock private AlarmManager mAlarmManager;
+    @Mock private Clock mClock;
+    @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
+    private TestLooper mLooper;
     private WificondControl mWificondControl;
     private static final String TEST_INTERFACE_NAME = "test_wlan_if";
     private static final String TEST_INTERFACE_NAME1 = "test_wlan_if1";
+    private static final String TEST_INVALID_INTERFACE_NAME = "asdf";
     private static final byte[] TEST_SSID =
             new byte[] {'G', 'o', 'o', 'g', 'l', 'e', 'G', 'u', 'e', 's', 't'};
     private static final byte[] TEST_PSK =
@@ -170,6 +197,15 @@ public class WificondControlTest {
             }};
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
 
+    private static final int TEST_MCS_RATE = 5;
+    private static final int TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS = 100;
+    private static final byte[] TEST_PROBE_FRAME = {
+            0x40, 0x00, 0x3c, 0x00, (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b,
+            0x33, 0x72, (byte) 0xf4, (byte) 0xf5, (byte) 0xe8, 0x51, (byte) 0x9e, 0x09,
+            (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b, 0x33, 0x72, (byte) 0xb0, 0x66,
+            0x00, 0x00
+    };
+
     @Before
     public void setUp() throws Exception {
         // Setup mocks for successful WificondControl operation. Failure case mocks should be
@@ -185,7 +221,9 @@ public class WificondControlTest {
         when(mClientInterface.getWifiScannerImpl()).thenReturn(mWifiScannerImpl);
         when(mClientInterface.getInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
-        mWificondControl = new WificondControl(mWifiInjector, mWifiMonitor, mCarrierNetworkConfig);
+        mLooper = new TestLooper();
+        mWificondControl = new WificondControl(mWifiInjector, mWifiMonitor, mCarrierNetworkConfig,
+                mAlarmManager, mLooper.getLooper(), mClock);
         assertEquals(mClientInterface, mWificondControl.setupInterfaceForClientMode(
                 TEST_INTERFACE_NAME));
         verify(mWifiInjector).makeWificond();
@@ -931,6 +969,282 @@ public class WificondControlTest {
         doThrow(new RemoteException()).when(mClientInterface).setMacAddress(macByteArray);
         assertFalse(mWificondControl.setMacAddress(TEST_INTERFACE_NAME, TEST_MAC_ADDRESS));
         verify(mClientInterface).setMacAddress(macByteArray);
+    }
+
+    /**
+     * sendMgmtFrame() should fail if a null callback is passed in.
+     */
+    @Test
+    public void testSendMgmtFrameNullCallback() throws Exception {
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, null, TEST_MCS_RATE);
+
+        verify(mClientInterface, never()).SendMgmtFrame(any(), any(), anyInt());
+    }
+
+    /**
+     * sendMgmtFrame() should fail if a null frame is passed in.
+     */
+    @Test
+    public void testSendMgmtFrameNullFrame() throws Exception {
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, null,
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mClientInterface, never()).SendMgmtFrame(any(), any(), anyInt());
+        verify(mSendMgmtFrameCallback).onFailure(anyInt());
+    }
+
+    /**
+     * sendMgmtFrame() should fail if an interface name that does not exist is passed in.
+     */
+    @Test
+    public void testSendMgmtFrameInvalidInterfaceName() throws Exception {
+        mWificondControl.sendMgmtFrame(TEST_INVALID_INTERFACE_NAME, TEST_PROBE_FRAME,
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mClientInterface, never()).SendMgmtFrame(any(), any(), anyInt());
+        verify(mSendMgmtFrameCallback).onFailure(anyInt());
+    }
+
+    /**
+     * sendMgmtFrame() should fail if it is called a second time before the first call completed.
+     */
+    @Test
+    public void testSendMgmtFrameCalledTwiceBeforeFinished() throws Exception {
+        SendMgmtFrameCallback cb1 = mock(SendMgmtFrameCallback.class);
+        SendMgmtFrameCallback cb2 = mock(SendMgmtFrameCallback.class);
+
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb1, TEST_MCS_RATE);
+        verify(cb1, never()).onFailure(anyInt());
+        verify(mClientInterface, times(1))
+                .SendMgmtFrame(AdditionalMatchers.aryEq(TEST_PROBE_FRAME),
+                        any(), eq(TEST_MCS_RATE));
+
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb2, TEST_MCS_RATE);
+        verify(cb2).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
+        // verify SendMgmtFrame() still was only called once i.e. not called again
+        verify(mClientInterface, times(1))
+                .SendMgmtFrame(any(), any(), anyInt());
+    }
+
+    /**
+     * Tests that when a RemoteException is triggered on AIDL call, onFailure() is called only once.
+     */
+    @Test
+    public void testSendMgmtFrameThrowsException() throws Exception {
+        SendMgmtFrameCallback cb = mock(SendMgmtFrameCallback.class);
+
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+
+        doThrow(new RemoteException()).when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME,
+                cb, TEST_MCS_RATE);
+        mLooper.dispatchAll();
+
+        verify(cb).onFailure(anyInt());
+        verify(mAlarmManager).cancel(eq(alarmListenerCaptor.getValue()));
+
+        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        mLooper.dispatchAll();
+
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        mLooper.dispatchAll();
+
+        verifyNoMoreInteractions(cb);
+    }
+
+    /**
+     * Tests that the onAck() callback is triggered correctly.
+     */
+    @Test
+    public void testSendMgmtFrameSuccess() throws Exception {
+        SendMgmtFrameCallback cb = mock(SendMgmtFrameCallback.class);
+
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+        doNothing().when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb, TEST_MCS_RATE);
+
+        sendMgmtFrameEventCaptor.getValue().OnAck(TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS);
+        mLooper.dispatchAll();
+        verify(cb).onAck(eq(TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS));
+        verify(cb, never()).onFailure(anyInt());
+        verify(mAlarmManager).cancel(eq(alarmListenerCaptor.getValue()));
+
+        // verify that even if timeout is triggered afterwards, SendMgmtFrameCallback is not
+        // triggered again
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        mLooper.dispatchAll();
+        verify(cb, times(1)).onAck(anyInt());
+        verify(cb, never()).onFailure(anyInt());
+    }
+
+    /**
+     * Tests that the onFailure() callback is triggered correctly.
+     */
+    @Test
+    public void testSendMgmtFrameFailure() throws Exception {
+        SendMgmtFrameCallback cb = mock(SendMgmtFrameCallback.class);
+
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+        doNothing().when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb, TEST_MCS_RATE);
+
+        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        mLooper.dispatchAll();
+        verify(cb, never()).onAck(anyInt());
+        verify(cb).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN));
+        verify(mAlarmManager).cancel(eq(alarmListenerCaptor.getValue()));
+
+        // verify that even if timeout is triggered afterwards, SendMgmtFrameCallback is not
+        // triggered again
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        mLooper.dispatchAll();
+        verify(cb, never()).onAck(anyInt());
+        verify(cb, times(1)).onFailure(anyInt());
+    }
+
+    /**
+     * Tests that the onTimeout() callback is triggered correctly.
+     */
+    @Test
+    public void testSendMgmtFrameTimeout() throws Exception {
+        SendMgmtFrameCallback cb = mock(SendMgmtFrameCallback.class);
+
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+        doNothing().when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb, TEST_MCS_RATE);
+
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        mLooper.dispatchAll();
+        verify(cb, never()).onAck(anyInt());
+        verify(cb).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
+
+        // verify that even if onAck() callback is triggered after timeout,
+        // SendMgmtFrameCallback is not triggered again
+        sendMgmtFrameEventCaptor.getValue().OnAck(TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS);
+        mLooper.dispatchAll();
+        verify(cb, never()).onAck(anyInt());
+        verify(cb, times(1)).onFailure(anyInt());
+    }
+
+    /**
+     * Tests every possible test outcome followed by every other test outcome to ensure that the
+     * internal state is reset correctly between calls.
+     * i.e. (success, success), (success, failure), (success, timeout),
+     * (failure, failure), (failure, success), (failure, timeout),
+     * (timeout, timeout), (timeout, success), (timeout, failure)
+     *
+     * Also tests that internal state is reset correctly after a transient AIDL RemoteException.
+     */
+    @Test
+    public void testSendMgmtFrameMixed() throws Exception {
+        testSendMgmtFrameThrowsException();
+        testSendMgmtFrameSuccess();
+        testSendMgmtFrameSuccess();
+        testSendMgmtFrameFailure();
+        testSendMgmtFrameFailure();
+        testSendMgmtFrameTimeout();
+        testSendMgmtFrameTimeout();
+        testSendMgmtFrameSuccess();
+        testSendMgmtFrameTimeout();
+        testSendMgmtFrameFailure();
+        testSendMgmtFrameSuccess();
+    }
+
+    /**
+     * Tests that OnAck() does not perform any non-thread-safe operations on the binder thread.
+     *
+     * The sequence of instructions are:
+     * 1. post onAlarm() onto main thread
+     * 2. OnAck()
+     * 3. mLooper.dispatchAll()
+     *
+     * The actual order of execution is:
+     * 1. binder thread portion of OnAck()
+     * 2. onAlarm() (which purely executes on the main thread)
+     * 3. main thread portion of OnAck()
+     *
+     * If the binder thread portion of OnAck() is not thread-safe, it can possibly mess up
+     * onAlarm(). Tests that this does not occur.
+     */
+    @Test
+    public void testSendMgmtFrameTimeoutAckThreadSafe() throws Exception {
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+        doNothing().when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME,
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        // AlarmManager should post the onAlarm() callback onto the handler, but since we are
+        // triggering onAlarm() ourselves during the test, manually post onto handler
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        // OnAck posts to the handler
+        sendMgmtFrameEventCaptor.getValue().OnAck(TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS);
+        mLooper.dispatchAll();
+        verify(mSendMgmtFrameCallback, never()).onAck(anyInt());
+        verify(mSendMgmtFrameCallback).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
+    }
+
+    /**
+     * See {@link #testSendMgmtFrameTimeoutAckThreadSafe()}. This test replaces OnAck() with
+     * OnFailure().
+     */
+    @Test
+    public void testSendMgmtFrameTimeoutFailureThreadSafe() throws Exception {
+        final ArgumentCaptor<ISendMgmtFrameEvent> sendMgmtFrameEventCaptor =
+                ArgumentCaptor.forClass(ISendMgmtFrameEvent.class);
+        doNothing().when(mClientInterface)
+                .SendMgmtFrame(any(), sendMgmtFrameEventCaptor.capture(), anyInt());
+        final ArgumentCaptor<AlarmManager.OnAlarmListener> alarmListenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        final ArgumentCaptor<Handler> handlerCaptor = ArgumentCaptor.forClass(Handler.class);
+        doNothing().when(mAlarmManager).set(anyInt(), anyLong(), any(),
+                alarmListenerCaptor.capture(), handlerCaptor.capture());
+        mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME,
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        // AlarmManager should post the onAlarm() callback onto the handler, but since we are
+        // triggering onAlarm() ourselves during the test, manually post onto handler
+        handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
+        // OnFailure posts to the handler
+        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        mLooper.dispatchAll();
+        verify(mSendMgmtFrameCallback).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
     }
 
     private void assertRadioChainInfosEqual(
