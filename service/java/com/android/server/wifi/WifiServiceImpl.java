@@ -258,7 +258,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.CONNECT_NETWORK: {
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.CONNECT_NETWORK_FAILED)) {
                         WifiConfiguration config = (WifiConfiguration) msg.obj;
                         int networkId = msg.arg1;
@@ -283,7 +283,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.SAVE_NETWORK: {
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.SAVE_NETWORK_FAILED)) {
                         WifiConfiguration config = (WifiConfiguration) msg.obj;
                         int networkId = msg.arg1;
@@ -305,26 +305,13 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.FORGET_NETWORK:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.FORGET_NETWORK_FAILED)) {
                         mClientModeImpl.sendMessage(Message.obtain(msg));
                     }
                     break;
-                case WifiManager.START_WPS:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(msg, WifiManager.WPS_FAILED)) {
-                        // WPS support is deprecated, return an error
-                        replyFailed(msg, WifiManager.WPS_FAILED, WifiManager.ERROR);
-                    }
-                    break;
-                case WifiManager.CANCEL_WPS:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
-                            msg, WifiManager.CANCEL_WPS_FAILED)) {
-                        // WPS support is deprecated, return an error
-                        replyFailed(msg, WifiManager.CANCEL_WPS_FAILED, WifiManager.ERROR);
-                    }
-                    break;
                 case WifiManager.DISABLE_NETWORK:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.DISABLE_NETWORK_FAILED)) {
                         mClientModeImpl.sendMessage(Message.obtain(msg));
                     }
@@ -355,6 +342,28 @@ public class WifiServiceImpl extends AbstractWifiService {
          */
         private boolean checkChangePermissionAndReplyIfNotAuthorized(Message msg, int replyWhat) {
             if (!mWifiPermissionsUtil.checkChangePermission(msg.sendingUid)) {
+                Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
+                replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Helper method to check if the sender of the message holds one of
+         * {@link Manifest.permission#NETWORK_SETTINGS},
+         * {@link Manifest.permission#NETWORK_SETUP_WIZARD} or
+         * {@link Manifest.permission#NETWORK_STACK} permission, and reply with a failure if it
+         * doesn't
+         *
+         * @param msg Incoming message.
+         * @param replyWhat Param to be filled in the {@link Message#what} field of the failure
+         *                  reply.
+         * @return true if the sender holds the permission, false otherwise.
+         */
+        private boolean checkPrivilegedPermissionsAndReplyIfNotAuthorized(
+                Message msg, int replyWhat) {
+            if (!isPrivileged(-1, msg.sendingUid)) {
                 Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
                 replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
                 return false;
@@ -2364,8 +2373,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @Override
     public void disableEphemeralNetwork(String SSID, String packageName) {
-        enforceAccessPermission();
-        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
+                "WifiService");
+        if (!isPrivileged(Binder.getCallingUid(), Binder.getCallingPid())) {
+            mLog.info("disableEphemeralNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
             return;
         }
         mLog.info("disableEphemeralNetwork uid=%").c(Binder.getCallingUid()).flush();

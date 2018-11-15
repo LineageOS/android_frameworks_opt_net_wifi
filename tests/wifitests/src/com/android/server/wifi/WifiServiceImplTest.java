@@ -2128,57 +2128,61 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Helper to test handling of async messages by wifi service when the message comes from an
+     * app without one of the privileged permissions.
+     */
+    private void verifyAsyncChannelMessageHandlingWithoutPrivilegedPermissons(
+            int requestMsgWhat, int expectedReplyMsgwhat) throws RemoteException {
+        WifiAsyncChannelTester tester = verifyAsyncChannelHalfConnected();
+
+        int uidWithoutPermission = 5;
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_STACK),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+
+        Message request = Message.obtain();
+        request.what = requestMsgWhat;
+        request.sendingUid = uidWithoutPermission;
+
+        mLooper.startAutoDispatch();
+        Message reply = tester.sendMessageSynchronously(request);
+        mLooper.stopAutoDispatch();
+
+        verify(mClientModeImpl, never()).sendMessage(any(Message.class));
+        assertEquals(expectedReplyMsgwhat, reply.what);
+        assertEquals(WifiManager.NOT_AUTHORIZED, reply.arg1);
+    }
+
+    /**
      * Verify that the CONNECT_NETWORK message received from an app without
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is rejected with the correct
-     * error code.
+     * one of the privileged permission is rejected with the correct error code.
      */
     @Test
-    public void testConnectNetworkWithoutChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithoutChangePermisson(
+    public void testConnectNetworkWithoutPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithoutPrivilegedPermissons(
                 WifiManager.CONNECT_NETWORK, WifiManager.CONNECT_NETWORK_FAILED);
     }
 
     /**
      * Verify that the FORGET_NETWORK message received from an app without
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is rejected with the correct
-     * error code.
+     * one of the privileged permission is rejected with the correct error code.
      */
     @Test
-    public void testForgetNetworkWithoutChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithoutChangePermisson(
+    public void testForgetNetworkWithoutPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithoutPrivilegedPermissons(
                 WifiManager.SAVE_NETWORK, WifiManager.SAVE_NETWORK_FAILED);
     }
 
     /**
-     * Verify that the START_WPS message received from an app without
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is rejected with the correct
-     * error code.
-     */
-    @Test
-    public void testStartWpsWithoutChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithoutChangePermisson(
-                WifiManager.START_WPS, WifiManager.WPS_FAILED);
-    }
-
-    /**
-     * Verify that the CANCEL_WPS message received from an app without
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is rejected with the correct
-     * error code.
-     */
-    @Test
-    public void testCancelWpsWithoutChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithoutChangePermisson(
-                WifiManager.CANCEL_WPS, WifiManager.CANCEL_WPS_FAILED);
-    }
-
-    /**
      * Verify that the DISABLE_NETWORK message received from an app without
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is rejected with the correct
-     * error code.
+     * one of the privileged permission is rejected with the correct error code.
      */
     @Test
-    public void testDisableNetworkWithoutChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithoutChangePermisson(
+    public void testDisableNetworkWithoutPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithoutPrivilegedPermissons(
                 WifiManager.DISABLE_NETWORK, WifiManager.DISABLE_NETWORK_FAILED);
     }
 
@@ -2215,16 +2219,16 @@ public class WifiServiceImplTest {
         assertEquals(requestMsgWhat, messageArgumentCaptor.getValue().what);
     }
 
-     /**
+    /**
      * Helper to test handling of async messages by wifi service when the message comes from an
-     * app with {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission where we
-     * immediately return an error for deprecated functionality.
+     * app with one of the  privileged permissions.
      */
-    private void verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
-            int requestMsgWhat, Object requestMsgObj) throws Exception {
+    private void verifyAsyncChannelMessageHandlingWithPrivilegedPermissions(
+            int requestMsgWhat, Object requestMsgObj) throws RemoteException {
         WifiAsyncChannelTester tester = verifyAsyncChannelHalfConnected();
 
-        when(mWifiPermissionsUtil.checkChangePermission(anyInt())).thenReturn(true);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
 
         Message request = Message.obtain();
         request.what = requestMsgWhat;
@@ -2233,68 +2237,44 @@ public class WifiServiceImplTest {
         tester.sendMessage(request);
         mLooper.dispatchAll();
 
-        verify(mClientModeImpl, never()).sendMessage(any());
+        ArgumentCaptor<Message> messageArgumentCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientModeImpl).sendMessage(messageArgumentCaptor.capture());
+        assertEquals(requestMsgWhat, messageArgumentCaptor.getValue().what);
     }
 
     /**
      * Verify that the CONNECT_NETWORK message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
+     * one of the privileged permission is forwarded to ClientModeImpl.
      */
     @Test
-    public void testConnectNetworkWithChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithChangePermisson(
+    public void testConnectNetworkWithPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithPrivilegedPermissions(
                 WifiManager.CONNECT_NETWORK, new WifiConfiguration());
     }
 
     /**
      * Verify that the SAVE_NETWORK message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
+     * one of the privileged permission is forwarded to ClientModeImpl.
      */
     @Test
-    public void testSaveNetworkWithChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithChangePermisson(
+    public void testSaveNetworkWithPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithPrivilegedPermissions(
                 WifiManager.SAVE_NETWORK, new WifiConfiguration());
     }
 
     /**
-     * Verify that the START_WPS message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
-     */
-    @Test
-    public void testStartWpsWithChangePermission() throws Exception {
-        verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
-                WifiManager.START_WPS, new Object());
-    }
-
-    /**
-     * Verify that the CANCEL_WPS message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
-     */
-    @Test
-    public void testCancelWpsWithChangePermission() throws Exception {
-        verifyAsyncChannelDeprecatedMessageHandlingNotSentToCMIWithChangePermisson(
-                WifiManager.CANCEL_WPS, new Object());
-    }
-
-    /**
      * Verify that the DISABLE_NETWORK message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
+     * one of the privileged permission is forwarded to ClientModeImpl.
      */
     @Test
-    public void testDisableNetworkWithChangePermission() throws Exception {
-        verifyAsyncChannelMessageHandlingWithChangePermisson(
+    public void testDisableNetworkWithPrivilegedPermission() throws Exception {
+        verifyAsyncChannelMessageHandlingWithPrivilegedPermissions(
                 WifiManager.DISABLE_NETWORK, new Object());
     }
 
     /**
      * Verify that the RSSI_PKTCNT_FETCH message received from an app with
-     * {@link android.Manifest.permission#CHANGE_WIFI_STATE} permission is forwarded to
-     * ClientModeImpl.
+     * one of the privileged permission is forwarded to ClientModeImpl.
      */
     @Test
     public void testRssiPktcntFetchWithChangePermission() throws Exception {
@@ -2944,5 +2924,29 @@ public class WifiServiceImplTest {
         assertFalse(mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
 
         verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), eq(TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Verify that if the caller has NETWORK_SETTINGS permission, then it can invoke
+     * {@link WifiManager#disableEphemeralNetwork(String)}.
+     */
+    @Test
+    public void testDisableEphemeralNetworkWithNetworkSettingsPerm() throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        mWifiServiceImpl.disableEphemeralNetwork(new String(), TEST_PACKAGE_NAME);
+        verify(mClientModeImpl).disableEphemeralNetwork(anyString());
+    }
+
+    /**
+     * Verify that if the caller does not have NETWORK_SETTINGS permission, then it cannot invoke
+     * {@link WifiManager#disableEphemeralNetwork(String)}.
+     */
+    @Test
+    public void testDisableEphemeralNetworkWithoutNetworkSettingsPerm() throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        mWifiServiceImpl.disableEphemeralNetwork(new String(), TEST_PACKAGE_NAME);
+        verify(mClientModeImpl, never()).disableEphemeralNetwork(anyString());
     }
 }
