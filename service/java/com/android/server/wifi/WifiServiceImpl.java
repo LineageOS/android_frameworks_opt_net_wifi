@@ -1748,36 +1748,17 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     /**
-     * Returns a WifiConfiguration for a Passpoint network matching this ScanResult.
-     *
-     * @param scanResult scanResult that represents the BSSID
-     * @return {@link WifiConfiguration} that matches this BSSID or null
-     */
-    @Override
-    public WifiConfiguration getMatchingWifiConfig(ScanResult scanResult) {
-        enforceAccessPermission();
-        if (mVerboseLoggingEnabled) {
-            mLog.info("getMatchingWifiConfig uid=%").c(Binder.getCallingUid()).flush();
-        }
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            throw new UnsupportedOperationException("Passpoint not enabled");
-        }
-        return mClientModeImpl.syncGetMatchingWifiConfig(scanResult, mClientModeImplChannel);
-    }
-
-    /**
-     * Return the list of all matching Wifi configurations for this ScanResult.
+     * Return the list of all matching Wifi configurations for a given list of ScanResult.
      *
      * An empty list will be returned when no configurations are installed or if no configurations
-     * match the ScanResult.
+     * match the list of ScanResult.
      *
-     * @param scanResult scanResult that represents the BSSID
-     * @return A list of {@link WifiConfiguration}
+     * @param scanResults a list of ScanResult that represents the BSSID
+     * @return A list of {@link WifiConfiguration} that can have duplicate entries.
      */
     @Override
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult) {
-        enforceAccessPermission();
+    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+        enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1785,7 +1766,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
-        return mClientModeImpl.getAllMatchingWifiConfigs(scanResult, mClientModeImplChannel);
+        return mClientModeImpl.getAllMatchingWifiConfigs(scanResults, mClientModeImplChannel);
     }
 
     /**
@@ -1796,7 +1777,7 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @Override
     public List<OsuProvider> getMatchingOsuProviders(ScanResult scanResult) {
-        enforceAccessPermission();
+        enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
         }

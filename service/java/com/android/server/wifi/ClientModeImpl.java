@@ -474,9 +474,6 @@ public class ClientModeImpl extends StateMachine {
     /* Disable an ephemeral network */
     static final int CMD_DISABLE_EPHEMERAL_NETWORK                      = BASE + 98;
 
-    /* Get matching network */
-    static final int CMD_GET_MATCHING_CONFIG                            = BASE + 99;
-
     /* SIM is removed; reset any cached data for it */
     static final int CMD_RESET_SIM_NETWORKS                             = BASE + 101;
 
@@ -1603,24 +1600,10 @@ public class ClientModeImpl extends StateMachine {
         return result;
     }
 
-    /**
-     * Blocking call to retrieve a config matching the provided scan result.
-     * @param scanResult ScanResult to match
-     * @param channel AsyncChannel to use for return data
-     * @return WifiConfiguration matching the scan result
-     */
-    public WifiConfiguration syncGetMatchingWifiConfig(ScanResult scanResult,
-                                                       AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_MATCHING_CONFIG, scanResult);
-        WifiConfiguration config = (WifiConfiguration) resultMsg.obj;
-        resultMsg.recycle();
-        return config;
-    }
-
-    List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult,
+    List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_ALL_MATCHING_CONFIGS,
-                scanResult);
+                scanResults);
         List<WifiConfiguration> configs = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return configs;
@@ -3352,9 +3335,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_UPDATE_LINKPROPERTIES:
                     updateLinkProperties((LinkProperties) message.obj);
                     break;
-                case CMD_GET_MATCHING_CONFIG:
-                    replyToMessage(message, message.what);
-                    break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what, new ArrayList<OsuProvider>());
                     break;
@@ -3973,10 +3953,6 @@ public class ClientModeImpl extends StateMachine {
                         loge("Invalid sim auth request");
                     }
                     break;
-                case CMD_GET_MATCHING_CONFIG:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingWifiConfig((ScanResult) message.obj));
-                    break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what,
                             mPasspointManager.getMatchingOsuProviders((ScanResult) message.obj));
@@ -4267,7 +4243,8 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what,
-                            mPasspointManager.getAllMatchingWifiConfigs((ScanResult) message.obj));
+                            mPasspointManager.getAllMatchingWifiConfigs(
+                                    (List<ScanResult>) message.obj));
                     break;
                 case CMD_TARGET_BSSID:
                     // Trying to associate to this BSSID
