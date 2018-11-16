@@ -16,7 +16,21 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS;
+
+import android.annotation.NonNull;
+import android.net.MacAddress;
+import android.util.ArrayMap;
+import android.util.Log;
+
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
+import com.android.server.wifi.WifiScoreCardProto.AccessPointOrBuilder;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+
+import com.google.protobuf.ByteString;
+
+import java.util.Map;
 
 /**
  * Retains statistical information about the performance of various
@@ -26,6 +40,8 @@ import com.android.server.wifi.WifiScoreCardProto.Event;
  * by this device.
  */
 public class WifiScoreCard {
+
+    private static final String TAG = "WifiScoreCard";
 
     private final Clock mClock;
 
@@ -46,6 +62,7 @@ public class WifiScoreCard {
     private void update(WifiScoreCardProto.Event event, ExtendedWifiInfo wifiInfo) {
         long now = mClock.getWallClockMillis();
         // TODO(b/112196799) update the score card
+        AccessPointOrBuilder ap = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID()).ap;
     }
 
     /**
@@ -114,6 +131,53 @@ public class WifiScoreCard {
      */
     public void noteWifiDisabled(ExtendedWifiInfo wifiInfo) {
         update(Event.WIFI_DISABLED, wifiInfo);
+    }
+
+    private int mNextId = 0;
+    final class PerBssid {
+        public final String ssid;
+        public final MacAddress bssid;
+        public final AccessPointOrBuilder ap;
+        PerBssid(String ssid, MacAddress bssid) {
+            this.ssid = ssid;
+            this.bssid = bssid;
+            this.ap = AccessPoint.newBuilder()
+                    .setId(mNextId++)
+                    .setBssid(ByteString.copyFrom(bssid.toByteArray()));
+        }
+    }
+
+    // Create mDummyPerBssid here so it gets an id of 0. This is returned when the
+    // BSSID is not available, for instance when we are not associated.
+    private final PerBssid mDummyPerBssid = new PerBssid("",
+            MacAddress.fromString(DEFAULT_MAC_ADDRESS));
+
+    private final Map<MacAddress, PerBssid> mApForBssid = new ArrayMap<>();
+
+    private @NonNull PerBssid lookupBssid(String ssid, String bssid) {
+        MacAddress mac;
+        if (ssid == null || bssid == null) {
+            return mDummyPerBssid;
+        }
+        try {
+            mac = MacAddress.fromString(bssid);
+        } catch (IllegalArgumentException e) {
+            return mDummyPerBssid;
+        }
+        PerBssid ans = mApForBssid.get(mac);
+        if (ans == null || !ans.ssid.equals(ssid)) {
+            ans = new PerBssid(ssid, mac);
+            PerBssid old = mApForBssid.put(mac, ans);
+            if (old != null) {
+                Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.ap.getId());
+            }
+        }
+        return ans;
+    }
+
+    @VisibleForTesting
+    PerBssid fetchByBssid(MacAddress mac) {
+        return mApForBssid.get(mac);
     }
 
 }
