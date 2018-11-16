@@ -1770,13 +1770,13 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     /**
-     * Returns list of OSU (Online Sign-Up) providers associated with the given Passpoint network.
+     * Returns list of OSU (Online Sign-Up) providers associated with the given list of ScanResult.
      *
-     * @param scanResult scanResult of the Passpoint AP
+     * @param scanResults a list of ScanResult that has Passpoint APs.
      * @return List of {@link OsuProvider}
      */
     @Override
-    public List<OsuProvider> getMatchingOsuProviders(ScanResult scanResult) {
+    public List<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
@@ -1785,7 +1785,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
-        return mClientModeImpl.syncGetMatchingOsuProviders(scanResult, mClientModeImplChannel);
+        return mClientModeImpl.syncGetMatchingOsuProviders(scanResults, mClientModeImplChannel);
     }
 
     /**

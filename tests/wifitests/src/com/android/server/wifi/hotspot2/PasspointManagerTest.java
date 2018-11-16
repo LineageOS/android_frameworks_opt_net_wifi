@@ -27,9 +27,11 @@ import static android.net.wifi.WifiManager.EXTRA_ICON;
 import static android.net.wifi.WifiManager.EXTRA_SUBSCRIPTION_REMEDIATION_METHOD;
 import static android.net.wifi.WifiManager.EXTRA_URL;
 
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.any;
@@ -100,9 +102,11 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Unit tests for {@link PasspointManager}.
@@ -316,6 +320,7 @@ public class PasspointManagerTest {
         scanResult.SSID = TEST_SSID;
         scanResult.BSSID = TEST_BSSID_STRING;
         scanResult.hessid = TEST_HESSID;
+        scanResult.anqpDomainId = TEST_ANQP_DOMAIN_ID;
         scanResult.flags = ScanResult.FLAG_PASSPOINT_NETWORK;
         return scanResult;
     }
@@ -962,7 +967,7 @@ public class PasspointManagerTest {
     public void getMatchingOsuProvidersForInvalidBSSID() throws Exception {
         ScanResult scanResult = createTestScanResult();
         scanResult.BSSID = "asdfdasfas";
-        assertTrue(mManager.getMatchingOsuProviders(scanResult).isEmpty());
+        assertTrue(mManager.getMatchingOsuProviders(Arrays.asList(scanResult)).isEmpty());
     }
 
     /**
@@ -975,7 +980,7 @@ public class PasspointManagerTest {
     public void getMatchingOsuProvidersForNonPasspointAP() throws Exception {
         ScanResult scanResult = createTestScanResult();
         scanResult.flags = 0;
-        assertTrue(mManager.getMatchingOsuProviders(scanResult).isEmpty());
+        assertTrue(mManager.getMatchingOsuProviders(Arrays.asList(scanResult)).isEmpty());
     }
 
     /**
@@ -986,46 +991,90 @@ public class PasspointManagerTest {
     @Test
     public void getMatchingOsuProviderWithNoMatch() throws Exception {
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(null);
-        assertTrue(mManager.getMatchingOsuProviders(createTestScanResult()).isEmpty());
+        assertTrue(
+                mManager.getMatchingOsuProviders(Arrays.asList(createTestScanResult())).isEmpty());
     }
 
     /**
      * Verify that an expected provider list will be returned when a match is found from
-     * the ANQP cache.
+     * the ANQP cache with a given list of scanResult.
      *
      * @throws Exception
      */
     @Test
     public void getMatchingOsuProvidersWithMatch() throws Exception {
-        // Test data.
-        WifiSsid osuSsid = WifiSsid.createFromAsciiEncoded("Test SSID");
-        String friendlyName = "Test Provider";
-        String serviceDescription = "Dummy Service";
-        Uri serverUri = Uri.parse("https://test.com");
-        String nai = "access.test.com";
-        List<Integer> methodList = Arrays.asList(1);
-        List<I18Name> friendlyNames = Arrays.asList(
-                new I18Name(Locale.ENGLISH.getLanguage(), Locale.ENGLISH, friendlyName));
-        List<I18Name> serviceDescriptions = Arrays.asList(
-                new I18Name(Locale.ENGLISH.getLanguage(), Locale.ENGLISH, serviceDescription));
+        // Setup OSU providers ANQP element for AP1.
+        List<OsuProviderInfo> providerInfoListOfAp1 = new ArrayList<>();
+        Map<ANQPElementType, ANQPElement> anqpElementMapOfAp1 = new HashMap<>();
+        Set<OsuProvider> expectedOsuProvidersForDomainId = new HashSet<>();
 
-        // Setup OSU providers ANQP element.
-        List<OsuProviderInfo> providerInfoList = new ArrayList<>();
-        providerInfoList.add(new OsuProviderInfo(
-                friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
-        Map<ANQPElementType, ANQPElement> anqpElementMap = new HashMap<>();
-        anqpElementMap.put(ANQPElementType.HSOSUProviders,
-                new HSOsuProvidersElement(osuSsid, providerInfoList));
-        ANQPData entry = new ANQPData(mClock, anqpElementMap);
+        // Setup OSU providers ANQP element for AP2.
+        List<OsuProviderInfo> providerInfoListOfAp2 = new ArrayList<>();
+        Map<ANQPElementType, ANQPElement> anqpElementMapOfAp2 = new HashMap<>();
+        Set<OsuProvider> expectedOsuProvidersForDomainId2 = new HashSet<>();
+        int osuProviderCount = 4;
 
-        // Setup expectation.
-        OsuProvider provider = new OsuProvider(
-                osuSsid, friendlyName, serviceDescription, serverUri, nai, methodList, null);
-        List<OsuProvider> expectedList = new ArrayList<>();
-        expectedList.add(provider);
+        // static mocking
+        MockitoSession session =
+                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
+                        InformationElementUtil.class).startMocking();
+        try {
+            for (int i = 0; i < osuProviderCount; i++) {
+                // Test data.
+                String friendlyName = "Test Provider" + i;
+                String serviceDescription = "Dummy Service" + i;
+                Uri serverUri = Uri.parse("https://" + "test" + i + ".com");
+                String nai = "access.test.com";
+                List<Integer> methodList = Arrays.asList(1);
+                List<I18Name> friendlyNames = Arrays.asList(
+                        new I18Name(Locale.ENGLISH.getLanguage(), Locale.ENGLISH, friendlyName));
+                List<I18Name> serviceDescriptions = Arrays.asList(
+                        new I18Name(Locale.ENGLISH.getLanguage(), Locale.ENGLISH,
+                                serviceDescription));
+                expectedOsuProvidersForDomainId.add(new OsuProvider(
+                        null, friendlyName, serviceDescription, serverUri, nai, methodList, null));
 
-        when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
-        assertEquals(expectedList, mManager.getMatchingOsuProviders(createTestScanResult()));
+                // add All OSU Providers for AP1.
+                providerInfoListOfAp1.add(new OsuProviderInfo(
+                        friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
+
+                // add only half of All OSU Providers for AP2.
+                if (i >= osuProviderCount / 2) {
+                    providerInfoListOfAp2.add(new OsuProviderInfo(
+                            friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
+                    expectedOsuProvidersForDomainId2.add(new OsuProvider(
+                            null, friendlyName, serviceDescription, serverUri, nai, methodList,
+                            null));
+                }
+            }
+            anqpElementMapOfAp1.put(ANQPElementType.HSOSUProviders,
+                    new HSOsuProvidersElement(WifiSsid.createFromAsciiEncoded("Test SSID"),
+                            providerInfoListOfAp1));
+            ANQPData anqpData = new ANQPData(mClock, anqpElementMapOfAp1);
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(anqpData);
+
+            anqpElementMapOfAp2.put(ANQPElementType.HSOSUProviders,
+                    new HSOsuProvidersElement(WifiSsid.createFromAsciiEncoded("Test SSID2"),
+                            providerInfoListOfAp2));
+            ANQPData anqpData2 = new ANQPData(mClock, anqpElementMapOfAp2);
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY2)).thenReturn(anqpData2);
+
+            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+
+            // ANQP_DOMAIN_ID(TEST_ANQP_KEY)
+            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID;
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            assertThat(mManager.getMatchingOsuProviders(Arrays.asList(createTestScanResult())),
+                    containsInAnyOrder(expectedOsuProvidersForDomainId.toArray()));
+
+            // ANQP_DOMAIN_ID2(TEST_ANQP_KEY2)
+            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID2;
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            assertThat(mManager.getMatchingOsuProviders(createTestScanResults()),
+                    containsInAnyOrder(expectedOsuProvidersForDomainId2.toArray()));
+        } finally {
+            session.finishMocking();
+        }
     }
 
     /**

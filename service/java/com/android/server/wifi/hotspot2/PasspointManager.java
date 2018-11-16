@@ -59,8 +59,10 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class provides the APIs to manage Passpoint provider configurations.
@@ -569,42 +571,43 @@ public class PasspointManager {
     }
 
     /**
-     * Return the list of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given
-     * AP.
+     * Return the set of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
+     * of ScanResult.
      *
-     * An empty list will be returned when an invalid scan result is provided or no match is found.
+     * An empty set will be returned when an invalid scanResults are provided or no match is found.
      *
-     * @param scanResult The scan result of the AP
-     * @return List of {@link OsuProvider}
+     * @param scanResults a list of ScanResult that has Passpoint APs.
+     * @return Set of {@link OsuProvider}
      */
-    public List<OsuProvider> getMatchingOsuProviders(ScanResult scanResult) {
-        if (scanResult == null) {
+    public Set<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+        if (scanResults == null) {
             Log.e(TAG, "Attempt to retrieve OSU providers for a null ScanResult");
-            return new ArrayList<OsuProvider>();
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to retrieve OSU providers for a non-Passpoint AP");
-            return new ArrayList<OsuProvider>();
+            return new HashSet<>();
         }
 
-        // Lookup OSU Providers ANQP element.
-        Map<Constants.ANQPElementType, ANQPElement> anqpElements = getANQPElements(scanResult);
-        if (!anqpElements.containsKey(Constants.ANQPElementType.HSOSUProviders)) {
-            return new ArrayList<OsuProvider>();
-        }
+        Set<OsuProvider> osuProviders = new HashSet<>();
+        for (ScanResult scanResult : scanResults) {
+            if (!scanResult.isPasspointNetwork()) continue;
 
-        HSOsuProvidersElement element =
-                (HSOsuProvidersElement) anqpElements.get(Constants.ANQPElementType.HSOSUProviders);
-        List<OsuProvider> providers = new ArrayList<>();
-        for (OsuProviderInfo info : element.getProviders()) {
-            // TODO(b/62256482): include icon data once the icon file retrieval and management
-            // support is added.
-            OsuProvider provider = new OsuProvider(element.getOsuSsid(), info.getFriendlyName(),
-                    info.getServiceDescription(), info.getServerUri(),
-                    info.getNetworkAccessIdentifier(), info.getMethodList(), null);
-            providers.add(provider);
+            // Lookup OSU Providers ANQP element.
+            Map<Constants.ANQPElementType, ANQPElement> anqpElements = getANQPElements(scanResult);
+            if (!anqpElements.containsKey(Constants.ANQPElementType.HSOSUProviders)) {
+                continue;
+            }
+            HSOsuProvidersElement element =
+                    (HSOsuProvidersElement) anqpElements.get(
+                            Constants.ANQPElementType.HSOSUProviders);
+            for (OsuProviderInfo info : element.getProviders()) {
+                // Set null for OSU-SSID in the class because OSU-SSID is a factor for hotspot
+                // operator rather than service provider, which means it can be different for
+                // each hotspot operators.
+                OsuProvider provider = new OsuProvider(null, info.getFriendlyName(),
+                        info.getServiceDescription(), info.getServerUri(),
+                        info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                osuProviders.add(provider);
+            }
         }
-        return providers;
+        return osuProviders;
     }
 
     /**
