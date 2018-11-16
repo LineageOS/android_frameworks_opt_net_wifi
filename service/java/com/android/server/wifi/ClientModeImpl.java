@@ -4353,31 +4353,31 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void updateCapabilities(WifiConfiguration config) {
-        if (mNetworkAgent == null) {
+        if (mNetworkAgent == null || config == null) {
             return;
         }
 
         final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-        if (mWifiInfo != null && !mWifiInfo.isTrusted()) {
+        if (!mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         } else {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
-        if (mWifiInfo != null && !WifiConfiguration.isMetered(config, mWifiInfo)) {
+        if (!WifiConfiguration.isMetered(config, mWifiInfo)) {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         } else {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         }
 
-        if (mWifiInfo != null && mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI) {
+        if (mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI) {
             result.setSignalStrength(mWifiInfo.getRssi());
         } else {
             result.setSignalStrength(NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
         }
 
-        if (mWifiInfo != null && !mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
+        if (!mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
             result.setSSID(mWifiInfo.getSSID());
         } else {
             result.setSSID(null);
@@ -4680,16 +4680,16 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 }
                 case CMD_IP_CONFIGURATION_SUCCESSFUL:
-                    handleSuccessfulIpConfiguration();
-                    reportConnectionAttemptEnd(
-                            WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
                     if (getCurrentWifiConfiguration() == null) {
                         // The current config may have been removed while we were connecting,
                         // trigger a disconnect to clear up state.
+                        reportConnectionAttemptEnd(
+                                WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
                         mWifiNative.disconnect(mInterfaceName);
                         transitionTo(mDisconnectingState);
                     } else {
+                        handleSuccessfulIpConfiguration();
                         sendConnectedState();
                         transitionTo(mConnectedState);
                     }
@@ -5139,6 +5139,9 @@ public class ClientModeImpl extends StateMachine {
                 log("Enter ConnectedState  mScreenOn=" + mScreenOn);
             }
 
+            reportConnectionAttemptEnd(
+                    WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                    WifiMetricsProto.ConnectionEvent.HLF_NONE);
             mWifiConnectivityManager.handleConnectionStateChanged(
                     WifiConnectivityManager.WIFI_STATE_CONNECTED);
             registerConnected();

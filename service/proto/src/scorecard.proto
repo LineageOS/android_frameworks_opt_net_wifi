@@ -51,6 +51,7 @@ message AccessPoint {
 
 // Describes the IEEE 802.11 technology used by the access point
 enum Technology {
+  MODE_UNKNOWN = 0;   // not known
   MODE_11A = 1;       // 802.11a
   MODE_11B = 2;       // 802.11b
   MODE_11G = 3;       // 802.11g
