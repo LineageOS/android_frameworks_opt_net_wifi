@@ -296,4 +296,13 @@ public class WifiPermissionsUtil {
                 android.Manifest.permission.NETWORK_SETUP_WIZARD, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
+
+    /**
+     * Returns true if the |uid| holds NETWORK_STACK permission.
+     */
+    public boolean checkNetworkStackPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_STACK, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
 }
