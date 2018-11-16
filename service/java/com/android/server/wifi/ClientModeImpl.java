@@ -1610,17 +1610,18 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Retrieve a list of {@link OsuProvider} associated with the given AP synchronously.
+     * Retrieve a list of {@link OsuProvider} associated with the given list of ScanResult
+     * synchronously.
      *
-     * @param scanResult The scan result of the AP
-     * @param channel Channel for communicating with the state machine
+     * @param scanResults a list of ScanResult that has Passpoint APs.
+     * @param channel     Channel for communicating with the state machine
      * @return List of {@link OsuProvider}
      */
-    public List<OsuProvider> syncGetMatchingOsuProviders(ScanResult scanResult,
+    public List<OsuProvider> syncGetMatchingOsuProviders(List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg =
-                channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResult);
-        List<OsuProvider> providers = (List<OsuProvider>) resultMsg.obj;
+                channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
+        List<OsuProvider> providers = new ArrayList<>((Set<OsuProvider>) resultMsg.obj);
         resultMsg.recycle();
         return providers;
     }
@@ -3955,7 +3956,8 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingOsuProviders((ScanResult) message.obj));
+                            mPasspointManager.getMatchingOsuProviders(
+                                    (List<ScanResult>) message.obj));
                     break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;
