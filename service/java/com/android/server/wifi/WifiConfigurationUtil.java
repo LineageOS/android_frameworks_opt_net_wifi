@@ -210,6 +210,22 @@ public class WifiConfigurationUtil {
     }
 
     /**
+     * Compare existing and new WifiConfiguration objects after a network update and return if
+     * MAC randomization setting has changed or not.
+     * @param existingConfig Existing WifiConfiguration object corresponding to the network.
+     * @param newConfig      New WifiConfiguration object corresponding to the network.
+     * @return true if MAC randomization setting setting changed or the existing confiuration is
+     * null and the newConfig is setting macRandomizationSetting to the default value.
+     */
+    public static boolean hasMacRandomizationSettingsChanged(WifiConfiguration existingConfig,
+            WifiConfiguration newConfig) {
+        if (existingConfig == null) {
+            return newConfig.macRandomizationSetting != WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        }
+        return newConfig.macRandomizationSetting != existingConfig.macRandomizationSetting;
+    }
+
+    /**
      * Compare existing and new WifiEnterpriseConfig objects after a network update and return if
      * credential parameters have changed or not.
      *
