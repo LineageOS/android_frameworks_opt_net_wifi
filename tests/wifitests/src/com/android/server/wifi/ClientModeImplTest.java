@@ -346,6 +346,7 @@ public class ClientModeImplTest {
     @Mock SarManager mSarManager;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiNative mWifiNative;
+    @Mock WifiScoreCard mWifiScoreCard;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock WifiStateTracker mWifiStateTracker;
     @Mock PasspointManager mPasspointManager;
@@ -494,7 +495,7 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWrongPasswordNotifier, mSarManager);
+                mWifiScoreCard, mWrongPasswordNotifier, mSarManager);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {
@@ -2161,6 +2162,7 @@ public class ClientModeImplTest {
         assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
         assertEquals(signalPollResult.txBitrate, wifiInfo.getLinkSpeed());
         assertEquals(sFreq, wifiInfo.getFrequency());
+        verify(mWifiScoreCard).noteSignalPoll(any());
     }
 
     /**
@@ -2432,6 +2434,18 @@ public class ClientModeImplTest {
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED));
         verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
+     * Verify that score card is notified of a connection attempt
+     */
+    @Test
+    public void testScoreCardNoteConnectionAttemptAfterCmdStartConnect() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        verify(mWifiScoreCard, never()).noteConnectionAttempt(any());
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard).noteConnectionAttempt(any());
     }
 
     /**
