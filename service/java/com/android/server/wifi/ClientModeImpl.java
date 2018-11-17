@@ -59,6 +59,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -2723,6 +2724,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
@@ -2869,13 +2871,7 @@ public class ClientModeImpl extends StateMachine {
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
 
-    /**
-     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
-     * the current connection attempt has concluded.
-     */
-    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
-        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
-        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+    private void handleConnectionAttemptEndForDiagnostics(int level2FailureCode) {
         switch (level2FailureCode) {
             case WifiMetrics.ConnectionEvent.FAILURE_NONE:
                 // Ideally, we'd wait until IP reachability has been confirmed. this code falls
@@ -2899,6 +2895,18 @@ public class ClientModeImpl extends StateMachine {
                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
+    }
+
+    /**
+     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
+     * the current connection attempt has concluded.
+     */
+    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+        mNetworkFactory.handleConnectionAttemptEnded(
+                level2FailureCode, getCurrentWifiConfiguration());
+        handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
     private void handleIPv4Success(DhcpResults dhcpResults) {
@@ -2927,6 +2935,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
         }
 
         // Set meteredHint if DHCP result says network is metered
@@ -4327,6 +4336,15 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    private WifiNetworkAgentSpecifier getNetworkAgentSpecifier() {
+        WifiConfiguration currentWifiConfiguration = getCurrentWifiConfiguration();
+        if (currentWifiConfiguration == null) return null;
+        currentWifiConfiguration.BSSID = getCurrentBSSID();
+        WifiNetworkAgentSpecifier wns = new WifiNetworkAgentSpecifier(currentWifiConfiguration,
+                mNetworkFactory.getActiveSpecificNetworkRequestUid(currentWifiConfiguration));
+        return wns;
+    }
+
     /**
      * Method to update network capabilities from the current WifiConfiguration.
      */
@@ -4341,10 +4359,10 @@ public class ClientModeImpl extends StateMachine {
 
         final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-        if (mWifiInfo != null && !mWifiInfo.isEphemeral()) {
-            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
-        } else {
+        if (mWifiInfo != null && !mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
+        } else {
+            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
         if (mWifiInfo != null && !WifiConfiguration.isMetered(config, mWifiInfo)) {
@@ -4364,6 +4382,8 @@ public class ClientModeImpl extends StateMachine {
         } else {
             result.setSSID(null);
         }
+        // Fill up the network specifier for this connection.
+        result.setNetworkSpecifier(getNetworkAgentSpecifier());
 
         mNetworkAgent.sendNetworkCapabilities(result);
     }
@@ -4592,6 +4612,8 @@ public class ClientModeImpl extends StateMachine {
             } else {
                 nc = mNetworkCapabilitiesFilter;
             }
+            // Fill up the network specifier for this connection.
+            nc.setNetworkSpecifier(getNetworkAgentSpecifier());
             mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
                     "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkMisc);
 

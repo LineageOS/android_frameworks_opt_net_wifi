@@ -67,6 +67,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
+import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -175,6 +176,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     private final WifiInjector mWifiInjector;
     /* Backup/Restore Module */
     private final WifiBackupRestore mWifiBackupRestore;
+    private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     private WifiLog mLog;
     /**
@@ -463,6 +465,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
         mWifiInjector.getActiveModeWarden().registerSoftApCallback(new SoftApCallbackImpl());
         mPowerProfile = mWifiInjector.getPowerProfile();
+        mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
     }
 
     /**
@@ -712,6 +715,7 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @CheckResult
     private int enforceChangePermission(String callingPackage) {
+        mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
         if (checkNetworkSettingsPermission(Binder.getCallingPid(), Binder.getCallingUid())) {
             return MODE_ALLOWED;
         }
@@ -2497,6 +2501,10 @@ public class WifiServiceImpl extends AbstractWifiService {
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
             pw.println();
+            mClientHandler.runWithScissors(() -> {
+                mWifiNetworkSuggestionsManager.dump(fd, pw, args);
+                pw.println();
+            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
             mWifiBackupRestore.dump(fd, pw, args);
             pw.println();
             pw.println("ScoringParams: settings put global " + Settings.Global.WIFI_SCORE_PARAMS
@@ -2935,5 +2943,67 @@ public class WifiServiceImpl extends AbstractWifiService {
         mClientHandler.post(() -> {
             mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier);
         });
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#addNetworkSuggestions(List)}
+     *
+     * @param networkSuggestions List of network suggestions to be added.
+     * @param callingPackageName Package Name of the app adding the suggestions.
+     * @throws SecurityException if the caller does not have permission.
+     */
+    @Override
+    public boolean addNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
+        enforceChangePermission(callingPackageName);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
+        }
+        Mutable<Boolean> success = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    success.value = mWifiNetworkSuggestionsManager.add(
+                            networkSuggestions, callingPackageName);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to add network suggestions");
+            return false;
+        }
+        if (!success.value) {
+            Log.e(TAG, "Failed to add network suggestions");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#removeNetworkSuggestions(List)}
+     *
+     * @param networkSuggestions List of network suggestions to be removed.
+     * @param callingPackageName Package Name of the app removing the suggestions.
+     * @throws SecurityException if the caller does not have permission.
+     */
+    @Override
+    public boolean removeNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
+        enforceChangePermission(callingPackageName);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
+        }
+        Mutable<Boolean> success = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    success.value = mWifiNetworkSuggestionsManager.remove(
+                            networkSuggestions, callingPackageName);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to remove network suggestions");
+            return false;
+        }
+        if (!success.value) {
+            Log.e(TAG, "Failed to remove network suggestions");
+            return false;
+        }
+        return true;
     }
 }
