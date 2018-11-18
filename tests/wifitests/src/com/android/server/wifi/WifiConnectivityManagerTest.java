@@ -672,8 +672,8 @@ public class WifiConnectivityManagerTest {
     public void wifiConnected_openNetworkNotifierHandlesConnection() {
         // Set WiFi to connected state
         mWifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(CANDIDATE_SSID));
-        mWifiConnectivityManager.handleConnectionStateChanged(
-                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE);
         verify(mOpenNetworkNotifier).handleWifiConnected(CANDIDATE_SSID);
     }
 
@@ -815,8 +815,8 @@ public class WifiConnectivityManagerTest {
     public void wifiConnected_carrierNetworkNotifierHandlesConnection() {
         // Set WiFi to connected state
         mWifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(CANDIDATE_SSID));
-        mWifiConnectivityManager.handleConnectionStateChanged(
-                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE);
         verify(mCarrierNetworkNotifier).handleWifiConnected(CANDIDATE_SSID);
     }
 
@@ -2067,5 +2067,46 @@ public class WifiConnectivityManagerTest {
         mSavedNetworkUpdateListenerCaptor.getValue()
                 .onSavedNetworkPermanentlyDisabled(0, DISABLED_NO_INTERNET_TEMPORARY);
         // Don't remove network.
+    }
+
+    /**
+     * Verify the various WifiConnectivityManager enable/disable sequences.
+     *
+     * Expected behavior: WifiConnectivityManager is turned on as a long as there is
+     *  - No specific network request being processed.
+     *    And
+     *    - Pending generic Network request for trusted wifi connection.
+     *      OR
+     *    - Pending generic Network request for untrused wifi connection.
+     */
+    @Test
+    public void verifyEnableAndDisable() {
+        mWifiConnectivityManager = createConnectivityManager();
+
+        // set wifi on & disconnected to trigger pno scans when auto-join is enabled.
+        mWifiConnectivityManager.setWifiEnabled(true);
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+
+        // Enable trusted connection. This should trigger a pno scan for auto-join.
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+        verify(mWifiScanner).startDisconnectedPnoScan(any(), any(), any());
+
+        // Start of processing a specific request. This should stop any pno scan for auto-join.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
+        verify(mWifiScanner).stopPnoScan(any());
+
+        // End of processing a specific request. This should now trigger a new pno scan for
+        // auto-join.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(false);
+        verify(mWifiScanner, times(2)).startDisconnectedPnoScan(any(), any(), any());
+
+        // Disable trusted connection. This should stop any pno scan for auto-join.
+        mWifiConnectivityManager.setTrustedConnectionAllowed(false);
+        verify(mWifiScanner, times(2)).stopPnoScan(any());
+
+        // Enable untrusted connection. This should trigger a pno scan for auto-join.
+        mWifiConnectivityManager.setUntrustedConnectionAllowed(true);
+        verify(mWifiScanner, times(3)).startDisconnectedPnoScan(any(), any(), any());
     }
 }

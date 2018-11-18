@@ -59,8 +59,10 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class provides the APIs to manage Passpoint provider configurations.
@@ -538,105 +540,74 @@ public class PasspointManager {
     }
 
     /**
-     * Match the given WiFi AP to an installed Passpoint provider.  A {@link WifiConfiguration}
-     * will be generated and returned if a match is found.  The returned {@link WifiConfiguration}
-     * will contained all the necessary credentials for connecting to the given WiFi AP.
-     *
-     * A {code null} will be returned if no matching provider is found.
-     *
-     * @param scanResult The scan result of the given AP
-     * @return {@link WifiConfiguration}
-     */
-    public WifiConfiguration getMatchingWifiConfig(ScanResult scanResult) {
-        if (scanResult == null) {
-            Log.e(TAG, "Attempt to get matching config for a null ScanResult");
-            return null;
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to get matching config for a non-Passpoint AP");
-            return null;
-        }
-        Pair<PasspointProvider, PasspointMatch> matchedProvider = matchProvider(scanResult);
-        if (matchedProvider == null) {
-            return null;
-        }
-        WifiConfiguration config = matchedProvider.first.getWifiConfig();
-        config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-        if (matchedProvider.second == PasspointMatch.HomeProvider) {
-            config.isHomeProviderNetwork = true;
-        }
-        return config;
-    }
-
-    /**
-     * Match the given WiFi AP to all installed Passpoint configurations. Return the list of all
+     * Match the given WiFi APs to all installed Passpoint configurations. Return the list of all
      * matching configurations (or an empty list if none).
      *
-     * @param scanResult The scan result of the given AP
-     * @return List of {@link WifiConfiguration}
+     * @param scanResults The list of scan results
+     * @return List of {@link WifiConfiguration} that might have duplicate entries.
      */
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult) {
-        if (scanResult == null) {
-            Log.e(TAG, "Attempt to get matching config for a null ScanResult");
-            return new ArrayList<WifiConfiguration>();
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to get matching config for a non-Passpoint AP");
-            return new ArrayList<WifiConfiguration>();
+    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+        if (scanResults == null) {
+            Log.e(TAG, "Attempt to get matching config for a null ScanResults");
+            return new ArrayList<>();
         }
 
-        List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
-                scanResult);
         List<WifiConfiguration> configs = new ArrayList<>();
-        for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
-            WifiConfiguration config = matchedProvider.first.getWifiConfig();
-            config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-            if (matchedProvider.second == PasspointMatch.HomeProvider) {
-                config.isHomeProviderNetwork = true;
+        for (ScanResult scanResult : scanResults) {
+            if (!scanResult.isPasspointNetwork()) continue;
+            List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
+                    scanResult);
+            for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
+                WifiConfiguration config = matchedProvider.first.getWifiConfig();
+                config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
+                if (matchedProvider.second == PasspointMatch.HomeProvider) {
+                    config.isHomeProviderNetwork = true;
+                }
+                configs.add(config);
             }
-            configs.add(config);
         }
 
         return configs;
     }
 
     /**
-     * Return the list of Hosspot 2.0 OSU (Online Sign-Up) providers associated with the given
-     * AP.
+     * Return the set of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
+     * of ScanResult.
      *
-     * An empty list will be returned when an invalid scan result is provided or no match is found.
+     * An empty set will be returned when an invalid scanResults are provided or no match is found.
      *
-     * @param scanResult The scan result of the AP
-     * @return List of {@link OsuProvider}
+     * @param scanResults a list of ScanResult that has Passpoint APs.
+     * @return Set of {@link OsuProvider}
      */
-    public List<OsuProvider> getMatchingOsuProviders(ScanResult scanResult) {
-        if (scanResult == null) {
+    public Set<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+        if (scanResults == null) {
             Log.e(TAG, "Attempt to retrieve OSU providers for a null ScanResult");
-            return new ArrayList<OsuProvider>();
-        }
-        if (!scanResult.isPasspointNetwork()) {
-            Log.e(TAG, "Attempt to retrieve OSU providers for a non-Passpoint AP");
-            return new ArrayList<OsuProvider>();
+            return new HashSet<>();
         }
 
-        // Lookup OSU Providers ANQP element.
-        Map<Constants.ANQPElementType, ANQPElement> anqpElements = getANQPElements(scanResult);
-        if (!anqpElements.containsKey(Constants.ANQPElementType.HSOSUProviders)) {
-            return new ArrayList<OsuProvider>();
-        }
+        Set<OsuProvider> osuProviders = new HashSet<>();
+        for (ScanResult scanResult : scanResults) {
+            if (!scanResult.isPasspointNetwork()) continue;
 
-        HSOsuProvidersElement element =
-                (HSOsuProvidersElement) anqpElements.get(Constants.ANQPElementType.HSOSUProviders);
-        List<OsuProvider> providers = new ArrayList<>();
-        for (OsuProviderInfo info : element.getProviders()) {
-            // TODO(b/62256482): include icon data once the icon file retrieval and management
-            // support is added.
-            OsuProvider provider = new OsuProvider(element.getOsuSsid(), info.getFriendlyName(),
-                    info.getServiceDescription(), info.getServerUri(),
-                    info.getNetworkAccessIdentifier(), info.getMethodList(), null);
-            providers.add(provider);
+            // Lookup OSU Providers ANQP element.
+            Map<Constants.ANQPElementType, ANQPElement> anqpElements = getANQPElements(scanResult);
+            if (!anqpElements.containsKey(Constants.ANQPElementType.HSOSUProviders)) {
+                continue;
+            }
+            HSOsuProvidersElement element =
+                    (HSOsuProvidersElement) anqpElements.get(
+                            Constants.ANQPElementType.HSOSUProviders);
+            for (OsuProviderInfo info : element.getProviders()) {
+                // Set null for OSU-SSID in the class because OSU-SSID is a factor for hotspot
+                // operator rather than service provider, which means it can be different for
+                // each hotspot operators.
+                OsuProvider provider = new OsuProvider(null, info.getFriendlyName(),
+                        info.getServiceDescription(), info.getServerUri(),
+                        info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                osuProviders.add(provider);
+            }
         }
-        return providers;
+        return osuProviders;
     }
 
     /**

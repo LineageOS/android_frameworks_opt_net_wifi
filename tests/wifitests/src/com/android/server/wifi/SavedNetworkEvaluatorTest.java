@@ -31,6 +31,7 @@ import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 
 import com.android.internal.R;
+import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 
 import org.junit.After;
@@ -89,6 +90,7 @@ public class SavedNetworkEvaluatorTest {
     @Mock private Context mContext;
     @Mock private Resources mResource;
     @Mock private Clock mClock;
+    @Mock private OnConnectableListener mOnConnectableListener;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;
@@ -167,7 +169,7 @@ public class SavedNetworkEvaluatorTest {
         }
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         assertNull(candidate);
     }
@@ -194,7 +196,7 @@ public class SavedNetworkEvaluatorTest {
         }
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         assertNull(candidate);
     }
@@ -222,7 +224,8 @@ public class SavedNetworkEvaluatorTest {
         WifiConfiguration openNetworkConfig = scanDetailsAndConfigs.getWifiConfigs()[1];
         WifiConfiguration secureNetworkConfig = scanDetailsAndConfigs.getWifiConfigs()[2];
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails, null, null, true, false, null);
+        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, true, false, mOnConnectableListener);
 
         verify(mWifiConfigManager, atLeastOnce()).setNetworkCandidateScanResult(
                 eq(useExternalScoresConfig.networkId),
@@ -258,7 +261,7 @@ public class SavedNetworkEvaluatorTest {
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -286,7 +289,7 @@ public class SavedNetworkEvaluatorTest {
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -313,7 +316,7 @@ public class SavedNetworkEvaluatorTest {
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -340,7 +343,7 @@ public class SavedNetworkEvaluatorTest {
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, true, false, null);
+                null, null, true, false, mOnConnectableListener);
 
         ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -370,7 +373,7 @@ public class SavedNetworkEvaluatorTest {
 
         // Simuluate we are connected to SSID test1 already.
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                savedConfigs[0], null, true, false, null);
+                savedConfigs[0], null, true, false, mOnConnectableListener);
 
         // Even though test2 has higher RSSI value, test1 is chosen because of the
         // currently connected network bonus.
@@ -403,7 +406,7 @@ public class SavedNetworkEvaluatorTest {
 
         // Simuluate we are connected to BSSID "6c:f3:7f:ae:8c:f3" already
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, bssids[0], true, false, null);
+                null, bssids[0], true, false, mOnConnectableListener);
 
         // Even though test2 has higher RSSI value, test1 is chosen because of the
         // currently connected BSSID bonus.
@@ -445,7 +448,7 @@ public class SavedNetworkEvaluatorTest {
         when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(false);
         // Simuluate we are connected to BSSID_0 already.
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                savedConfigs[0], bssids[0], true, false, null);
+                savedConfigs[0], bssids[0], true, false, mOnConnectableListener);
         // Verify that BSSID_2 is chosen.
         ScanResult chosenScanResult = scanDetails.get(2).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[2], candidate);
@@ -456,7 +459,7 @@ public class SavedNetworkEvaluatorTest {
         when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
         // Simuluate we are connected to BSSID_0 already.
         candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                savedConfigs[0], bssids[0], true, false, null);
+                savedConfigs[0], bssids[0], true, false, mOnConnectableListener);
         // Verify that BSSID_1 is chosen.
         chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -496,7 +499,7 @@ public class SavedNetworkEvaluatorTest {
         List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
-                null, null, false, false, null);
+                null, null, false, false, mOnConnectableListener);
         // Verify that 5GHz network is chosen because of 5G band award
         ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -510,7 +513,7 @@ public class SavedNetworkEvaluatorTest {
         scanDetails = scanDetailsAndConfigs.getScanDetails();
         savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
         candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails, null, null, false,
-                false, null);
+                false, mOnConnectableListener);
         // Verify that 2.4GHz network is chosen because of much higher RSSI value
         chosenScanResult = scanDetails.get(0).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[0], candidate);
@@ -524,7 +527,7 @@ public class SavedNetworkEvaluatorTest {
         scanDetails = scanDetailsAndConfigs.getScanDetails();
         savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
         candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails, null, null, false,
-                false, null);
+                false, mOnConnectableListener);
         // Verify that 5GHz network is chosen because of 5G band award
         chosenScanResult = scanDetails.get(1).getScanResult();
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
@@ -538,7 +541,7 @@ public class SavedNetworkEvaluatorTest {
         scanDetails = scanDetailsAndConfigs.getScanDetails();
         savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
         candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails, null, null, false,
-                false, null);
+                false, mOnConnectableListener);
         // Verify that the increased RSSI doesn't help 2.4GHz network and 5GHz network
         // is still chosen
         chosenScanResult = scanDetails.get(1).getScanResult();

@@ -813,11 +813,18 @@ public class PasspointProvisioner {
             PasspointConfiguration passpointConfiguration = PpsMoParser.parseMoText(moTree);
             if (passpointConfiguration == null) {
                 Log.e(TAG, "fails to parse the MoTree");
-            } else {
-                if (mVerboseLoggingEnabled) {
-                    Log.d(TAG, "The parsed PasspointConfiguration: " + passpointConfiguration);
-                }
+                return null;
             }
+
+            if (!passpointConfiguration.validateForR2()) {
+                Log.e(TAG, "PPS MO received is invalid: " + passpointConfiguration);
+                return null;
+            }
+
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "The parsed PasspointConfiguration: " + passpointConfiguration);
+            }
+
             return passpointConfiguration;
         }
 

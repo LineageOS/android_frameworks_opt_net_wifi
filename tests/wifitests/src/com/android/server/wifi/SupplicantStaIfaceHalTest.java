@@ -15,6 +15,10 @@
  */
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -109,10 +113,13 @@ public class SupplicantStaIfaceHalTest {
     private @Mock IServiceManager mServiceManagerMock;
     private @Mock ISupplicant mISupplicantMock;
     private android.hardware.wifi.supplicant.V1_1.ISupplicant mISupplicantMockV1_1;
+    private android.hardware.wifi.supplicant.V1_2.ISupplicant mISupplicantMockV1_2;
     private @Mock ISupplicantIface mISupplicantIfaceMock;
     private @Mock ISupplicantStaIface mISupplicantStaIfaceMock;
     private @Mock android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface
             mISupplicantStaIfaceMockV1_1;
+    private @Mock android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+            mISupplicantStaIfaceMockV1_2;
     private @Mock Context mContext;
     private @Mock WifiMonitor mWifiMonitor;
     private @Mock PropertyService mPropertyService;
@@ -169,6 +176,12 @@ public class SupplicantStaIfaceHalTest {
         protected android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface
                 getStaIfaceMockableV1_1(ISupplicantIface iface) {
             return mISupplicantStaIfaceMockV1_1;
+        }
+
+        @Override
+        protected android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                getStaIfaceMockableV1_2(ISupplicantIface iface) {
+            return mISupplicantStaIfaceMockV1_2;
         }
 
         @Override
@@ -255,10 +268,28 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_successV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, false);
+    }
+
+    /**
+     * Sunny day scenario for SupplicantStaIfaceHal initialization
+     * Asserts successful initialization
+     */
+    @Test
+    public void testInitialize_successV1_2() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+        executeAndValidateInitializationSequenceV1_2();
     }
 
     /**
@@ -267,7 +298,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_remoteExceptionFailureV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(true, false);
@@ -279,7 +311,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testInitialize_nullInterfaceFailureV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, true);
@@ -308,7 +341,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testDuplicateSetupIfaceV1_1_Fails() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
         executeAndValidateInitializationSequenceV1_1(false, false);
@@ -1608,7 +1642,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testStartDaemonV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
 
@@ -1633,7 +1668,8 @@ public class SupplicantStaIfaceHalTest {
      */
     @Test
     public void testTerminateV1_1() throws Exception {
-        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
 
@@ -1641,6 +1677,133 @@ public class SupplicantStaIfaceHalTest {
         mDut.terminate();
         verify(mPropertyService, never()).set(any(), any());
         verify(mISupplicantMockV1_1).terminate();
+    }
+
+    private class GetKeyMgmtCapabilitiesAnswer extends MockAnswerUtil.AnswerWithArguments {
+        private int mKeyMgmtCapabilities;
+
+        GetKeyMgmtCapabilitiesAnswer(int keyMgmtCapabilities) {
+            mKeyMgmtCapabilities = keyMgmtCapabilities;
+        }
+
+        public void answer(android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                .getKeyMgmtCapabilitiesCallback cb) {
+            cb.onValues(mStatusSuccess, mKeyMgmtCapabilities);
+        }
+    }
+
+    /**
+     * Test get key management capabilities API on old HAL, should return 0 (not supported)
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesOldHal() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_1(false, false);
+
+        assertTrue(mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME) == 0);
+    }
+
+    /**
+     * Test WPA3-Personal SAE key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesWpa3Sae() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_2();
+
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.SAE))
+                .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                        .getKeyMgmtCapabilitiesCallback.class));
+
+        assertEquals(WIFI_FEATURE_WPA3_SAE, mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test WPA3-Enterprise Suite-B-192 key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesWpa3SuiteB() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_2();
+
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192))
+                .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                        .getKeyMgmtCapabilitiesCallback.class));
+
+        assertEquals(WIFI_FEATURE_WPA3_SUITE_B,
+                mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test Enhanced Open (OWE) key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesOwe() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_2();
+
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.OWE))
+                .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                        .getKeyMgmtCapabilitiesCallback.class));
+
+        assertEquals(WIFI_FEATURE_OWE, mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test Enhanced Open (OWE) and SAE key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesOweAndSae() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_2();
+
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.OWE
+                | ISupplicantStaNetwork.KeyMgmtMask.SAE))
+                .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                        .getKeyMgmtCapabilitiesCallback.class));
+
+        assertEquals(WIFI_FEATURE_OWE | WIFI_FEATURE_WPA3_SAE,
+                mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
     }
 
     private WifiConfiguration createTestWifiConfiguration() {
@@ -1776,7 +1939,7 @@ public class SupplicantStaIfaceHalTest {
                     any(android.hardware.wifi.supplicant.V1_1.ISupplicant
                             .addInterfaceCallback.class));
         }
-        /** Callback registeration */
+        /** Callback registration */
         doAnswer(new MockAnswerUtil.AnswerWithArguments() {
             public SupplicantStatus answer(
                     android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback cb)
@@ -1820,6 +1983,66 @@ public class SupplicantStaIfaceHalTest {
                 any(ISupplicant.listInterfacesCallback.class));
         verify(mISupplicantMock, never()).getInterface(any(ISupplicant.IfaceInfo.class),
                         any(ISupplicant.getInterfaceCallback.class));
+    }
+
+    /**
+     * Calls.initialize(), mocking various call back answers and verifying flow, asserting for the
+     * expected result. Verifies if ISupplicantStaIface manager is initialized or reset.
+     * Each of the arguments will cause a different failure mode when set true.
+     */
+    private void executeAndValidateInitializationSequenceV1_2()
+            throws Exception {
+        // Setup callback mock answers
+        doAnswer(new GetAddInterfaceAnswerV1_2(false))
+                .when(mISupplicantMockV1_1).addInterface(any(ISupplicant.IfaceInfo.class),
+                any(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                        .addInterfaceCallback.class));
+
+        /** Callback registration */
+        doAnswer(new MockAnswerUtil.AnswerWithArguments() {
+            public SupplicantStatus answer(
+                    android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback cb)
+                    throws RemoteException {
+                mISupplicantStaIfaceCallbackV1_1 = cb;
+                return mStatusSuccess;
+            }
+        }).when(mISupplicantStaIfaceMockV1_2)
+                .registerCallback_1_1(
+                        any(android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback
+                                .class));
+
+        mInOrder = inOrder(mServiceManagerMock, mISupplicantMock, mISupplicantMockV1_1,
+                mISupplicantStaIfaceMockV1_2, mWifiMonitor);
+        // Initialize SupplicantStaIfaceHal, should call serviceManager.registerForNotifications
+        assertTrue(mDut.initialize());
+        // verify: service manager initialization sequence
+        mInOrder.verify(mServiceManagerMock).linkToDeath(mServiceManagerDeathCaptor.capture(),
+                anyLong());
+        mInOrder.verify(mServiceManagerMock).registerForNotifications(
+                eq(ISupplicant.kInterfaceName), eq(""), mServiceNotificationCaptor.capture());
+        // act: cause the onRegistration(...) callback to execute
+        mServiceNotificationCaptor.getValue().onRegistration(ISupplicant.kInterfaceName, "", true);
+
+        assertTrue(mDut.isInitializationComplete());
+        assertTrue(mDut.setupIface(WLAN0_IFACE_NAME));
+        mInOrder.verify(mISupplicantMock).linkToDeath(mSupplicantDeathCaptor.capture(),
+                anyLong());
+        // verify: addInterface is called
+        mInOrder.verify(mISupplicantMockV1_1)
+                .addInterface(any(ISupplicant.IfaceInfo.class),
+                        any(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                                .addInterfaceCallback.class));
+
+        mInOrder.verify(mISupplicantStaIfaceMockV1_2)
+                .registerCallback_1_1(
+                        any(android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback
+                                .class));
+
+        // Ensure we don't try to use the listInterfaces method from 1.0 version.
+//        verify(mISupplicantMock, never()).listInterfaces(
+//                any(ISupplicant.listInterfacesCallback.class));
+//        verify(mISupplicantMock, never()).getInterface(any(ISupplicant.IfaceInfo.class),
+//                any(ISupplicant.getInterfaceCallback.class));
     }
 
     private SupplicantStatus createSupplicantStatus(int code) {
@@ -1876,6 +2099,24 @@ public class SupplicantStaIfaceHalTest {
         public void answer(ISupplicant.IfaceInfo iface,
                            android.hardware.wifi.supplicant.V1_1.ISupplicant
                                    .addInterfaceCallback cb) {
+            if (mGetNullInterface) {
+                cb.onValues(mStatusSuccess, null);
+            } else {
+                cb.onValues(mStatusSuccess, mISupplicantIfaceMock);
+            }
+        }
+    }
+
+    private class GetAddInterfaceAnswerV1_2 extends MockAnswerUtil.AnswerWithArguments {
+        boolean mGetNullInterface;
+
+        GetAddInterfaceAnswerV1_2(boolean getNullInterface) {
+            mGetNullInterface = getNullInterface;
+        }
+
+        public void answer(ISupplicant.IfaceInfo iface,
+                android.hardware.wifi.supplicant.V1_2.ISupplicant
+                        .addInterfaceCallback cb) {
             if (mGetNullInterface) {
                 cb.onValues(mStatusSuccess, null);
             } else {

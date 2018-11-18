@@ -367,6 +367,7 @@ public class WifiNetworkSelectorTestUtil {
         final WifiConfiguration config =
                 ScanResultUtil.createNetworkFromScanResult(scanDetail.getScanResult());
         config.ephemeral = true;
+        config.trusted = false;
         config.networkId = networkId;
         config.meteredHint = meteredHint;
 

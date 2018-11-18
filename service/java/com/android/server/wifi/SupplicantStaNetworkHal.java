@@ -27,7 +27,6 @@ import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.MutableBoolean;
-import android.util.MutableInt;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -3073,41 +3072,5 @@ public class SupplicantStaNetworkHal {
                         mIfaceName, mFramewokNetworkId, mSsid);
             }
         }
-    }
-
-    /** See ISupplicantStaNetwork.hal for documentation */
-    public int getKeyMgmtCapabilities() {
-        synchronized (mLock) {
-            final String methodStr = "getKeyMgmtCapabilities";
-            if (!checkISupplicantStaNetworkAndLogFailure(methodStr)) return 0;
-            try {
-                MutableBoolean status = new MutableBoolean(false);
-                MutableInt keyMgmtMask = new MutableInt(0);
-                android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
-                        iSupplicantStaNetworkV12;
-
-                iSupplicantStaNetworkV12 = getV1_2StaNetwork();
-                if (iSupplicantStaNetworkV12 != null) {
-                    /* Support for new key management types; SAE, OWE
-                     * Requires HAL v1.2 or higher */
-                    iSupplicantStaNetworkV12.getKeyMgmtCapabilities(
-                            (SupplicantStatus statusInternal, int keyMgmtMaskIntenral) -> {
-                                status.value = statusInternal.code == SupplicantStatusCode.SUCCESS;
-                                if (status.value) {
-                                    keyMgmtMask.value = keyMgmtMaskIntenral;
-                                }
-                                checkStatusAndLogFailure(statusInternal, methodStr);
-                            });
-
-                    return keyMgmtMask.value;
-                } else {
-                    Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
-                }
-            } catch (RemoteException e) {
-                handleRemoteException(e, methodStr);
-            }
-        }
-
-        return 0;
     }
 }

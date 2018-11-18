@@ -141,6 +141,8 @@ public class WifiInjector {
     private final SarManager mSarManager;
     private final BaseWifiDiagnostics mWifiDiagnostics;
     private final WifiDataStall mWifiDataStall;
+    private final WifiScoreCard mWifiScoreCard;
+    private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -230,6 +232,7 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
                 mWifiCoreHandlerThread.getLooper());
+        mWifiScoreCard = new WifiScoreCard(mClock);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
@@ -268,7 +271,7 @@ public class WifiInjector {
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 clientModeImplLooper, UserManager.get(mContext),
-                this, mBackupManagerProxy, mCountryCode, mWifiNative,
+                this, mBackupManagerProxy, mCountryCode, mWifiNative, mWifiScoreCard,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager);
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,
@@ -294,6 +297,8 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
+        mWifiNetworkSuggestionsManager =
+                new WifiNetworkSuggestionsManager(mContext, mWifiPermissionsUtil);
     }
 
     /**
@@ -321,6 +326,7 @@ public class WifiInjector {
         mScanRequestProxy.enableVerboseLogging(verbose);
         mWakeupController.enableVerboseLogging(verbose);
         mCarrierNetworkConfig.enableVerboseLogging(verbose);
+        mWifiNetworkSuggestionsManager.enableVerboseLogging(verbose);
         LogcatLog.enableVerboseLogging(verbose);
     }
 
@@ -645,5 +651,9 @@ public class WifiInjector {
 
     public WifiDataStall getWifiDataStall() {
         return mWifiDataStall;
+    }
+
+    public WifiNetworkSuggestionsManager getWifiNetworkSuggestionsManager() {
+        return mWifiNetworkSuggestionsManager;
     }
 }

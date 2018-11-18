@@ -59,6 +59,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -186,7 +187,7 @@ public class ClientModeImpl extends StateMachine {
     private final PropertyService mPropertyService;
     private final BuildProperties mBuildProperties;
     private final WifiCountryCode mCountryCode;
-    // Object holding most recent wifi score report and bad Linkspeed count
+    private final WifiScoreCard mWifiScoreCard;
     private final WifiScoreReport mWifiScoreReport;
     private final SarManager mSarManager;
     public WifiScoreReport getWifiScoreReport() {
@@ -474,9 +475,6 @@ public class ClientModeImpl extends StateMachine {
     /* Disable an ephemeral network */
     static final int CMD_DISABLE_EPHEMERAL_NETWORK                      = BASE + 98;
 
-    /* Get matching network */
-    static final int CMD_GET_MATCHING_CONFIG                            = BASE + 99;
-
     /* SIM is removed; reset any cached data for it */
     static final int CMD_RESET_SIM_NETWORKS                             = BASE + 101;
 
@@ -731,7 +729,7 @@ public class ClientModeImpl extends StateMachine {
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
-                            WifiNative wifiNative,
+                            WifiNative wifiNative, WifiScoreCard wifiScoreCard,
                             WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager) {
         super(TAG, looper);
@@ -743,11 +741,11 @@ public class ClientModeImpl extends StateMachine {
         mContext = context;
         mFacade = facade;
         mWifiNative = wifiNative;
+        mWifiScoreCard = wifiScoreCard;
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
 
-        // TODO refactor WifiNative use of context out into it's own class
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStats = IBatteryStats.Stub.asInterface(mFacade.getService(
                 BatteryStats.SERVICE_NAME));
@@ -1603,41 +1601,28 @@ public class ClientModeImpl extends StateMachine {
         return result;
     }
 
-    /**
-     * Blocking call to retrieve a config matching the provided scan result.
-     * @param scanResult ScanResult to match
-     * @param channel AsyncChannel to use for return data
-     * @return WifiConfiguration matching the scan result
-     */
-    public WifiConfiguration syncGetMatchingWifiConfig(ScanResult scanResult,
-                                                       AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_MATCHING_CONFIG, scanResult);
-        WifiConfiguration config = (WifiConfiguration) resultMsg.obj;
-        resultMsg.recycle();
-        return config;
-    }
-
-    List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult,
+    List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_ALL_MATCHING_CONFIGS,
-                scanResult);
+                scanResults);
         List<WifiConfiguration> configs = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return configs;
     }
 
     /**
-     * Retrieve a list of {@link OsuProvider} associated with the given AP synchronously.
+     * Retrieve a list of {@link OsuProvider} associated with the given list of ScanResult
+     * synchronously.
      *
-     * @param scanResult The scan result of the AP
-     * @param channel Channel for communicating with the state machine
+     * @param scanResults a list of ScanResult that has Passpoint APs.
+     * @param channel     Channel for communicating with the state machine
      * @return List of {@link OsuProvider}
      */
-    public List<OsuProvider> syncGetMatchingOsuProviders(ScanResult scanResult,
+    public List<OsuProvider> syncGetMatchingOsuProviders(List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg =
-                channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResult);
-        List<OsuProvider> providers = (List<OsuProvider>) resultMsg.obj;
+                channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
+        List<OsuProvider> providers = new ArrayList<>((Set<OsuProvider>) resultMsg.obj);
         resultMsg.recycle();
         return providers;
     }
@@ -2739,6 +2724,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
@@ -2876,6 +2862,7 @@ public class ClientModeImpl extends StateMachine {
     private void reportConnectionAttemptStart(
             WifiConfiguration config, String targetBSSID, int roamType) {
         mWifiMetrics.startConnectionEvent(config, targetBSSID, roamType);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
         // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl
@@ -2884,13 +2871,7 @@ public class ClientModeImpl extends StateMachine {
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
 
-    /**
-     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
-     * the current connection attempt has concluded.
-     */
-    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
-        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
-        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+    private void handleConnectionAttemptEndForDiagnostics(int level2FailureCode) {
         switch (level2FailureCode) {
             case WifiMetrics.ConnectionEvent.FAILURE_NONE:
                 // Ideally, we'd wait until IP reachability has been confirmed. this code falls
@@ -2914,6 +2895,18 @@ public class ClientModeImpl extends StateMachine {
                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                 mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_FAILED);
         }
+    }
+
+    /**
+     * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
+     * the current connection attempt has concluded.
+     */
+    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
+        mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
+        mNetworkFactory.handleConnectionAttemptEnded(
+                level2FailureCode, getCurrentWifiConfiguration());
+        handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
     private void handleIPv4Success(DhcpResults dhcpResults) {
@@ -2942,6 +2935,7 @@ public class ClientModeImpl extends StateMachine {
         final WifiConfiguration config = getCurrentWifiConfiguration();
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
+            mWifiInfo.setTrusted(config.trusted);
         }
 
         // Set meteredHint if DHCP result says network is metered
@@ -3350,9 +3344,6 @@ public class ClientModeImpl extends StateMachine {
                 /* Link configuration (IP address, DNS, ...) changes notified via netlink */
                 case CMD_UPDATE_LINKPROPERTIES:
                     updateLinkProperties((LinkProperties) message.obj);
-                    break;
-                case CMD_GET_MATCHING_CONFIG:
-                    replyToMessage(message, message.what);
                     break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what, new ArrayList<OsuProvider>());
@@ -3972,13 +3963,10 @@ public class ClientModeImpl extends StateMachine {
                         loge("Invalid sim auth request");
                     }
                     break;
-                case CMD_GET_MATCHING_CONFIG:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingWifiConfig((ScanResult) message.obj));
-                    break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingOsuProviders((ScanResult) message.obj));
+                            mPasspointManager.getMatchingOsuProviders(
+                                    (List<ScanResult>) message.obj));
                     break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;
@@ -4266,7 +4254,8 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_GET_ALL_MATCHING_CONFIGS:
                     replyToMessage(message, message.what,
-                            mPasspointManager.getAllMatchingWifiConfigs((ScanResult) message.obj));
+                            mPasspointManager.getAllMatchingWifiConfigs(
+                                    (List<ScanResult>) message.obj));
                     break;
                 case CMD_TARGET_BSSID:
                     // Trying to associate to this BSSID
@@ -4347,6 +4336,15 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    private WifiNetworkAgentSpecifier getNetworkAgentSpecifier() {
+        WifiConfiguration currentWifiConfiguration = getCurrentWifiConfiguration();
+        if (currentWifiConfiguration == null) return null;
+        currentWifiConfiguration.BSSID = getCurrentBSSID();
+        WifiNetworkAgentSpecifier wns = new WifiNetworkAgentSpecifier(currentWifiConfiguration,
+                mNetworkFactory.getActiveSpecificNetworkRequestUid(currentWifiConfiguration));
+        return wns;
+    }
+
     /**
      * Method to update network capabilities from the current WifiConfiguration.
      */
@@ -4361,10 +4359,10 @@ public class ClientModeImpl extends StateMachine {
 
         final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-        if (mWifiInfo != null && !mWifiInfo.isEphemeral()) {
-            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
-        } else {
+        if (mWifiInfo != null && !mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
+        } else {
+            result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
         if (mWifiInfo != null && !WifiConfiguration.isMetered(config, mWifiInfo)) {
@@ -4384,6 +4382,8 @@ public class ClientModeImpl extends StateMachine {
         } else {
             result.setSSID(null);
         }
+        // Fill up the network specifier for this connection.
+        result.setNetworkSpecifier(getNetworkAgentSpecifier());
 
         mNetworkAgent.sendNetworkCapabilities(result);
     }
@@ -4612,6 +4612,8 @@ public class ClientModeImpl extends StateMachine {
             } else {
                 nc = mNetworkCapabilitiesFilter;
             }
+            // Fill up the network specifier for this connection.
+            nc.setNetworkSpecifier(getNetworkAgentSpecifier());
             mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
                     "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkMisc);
 
@@ -4759,6 +4761,7 @@ public class ClientModeImpl extends StateMachine {
                             mIpClient.confirmConfiguration();
                             mWifiScoreReport.noteIpCheck();
                         }
+                        mWifiScoreCard.noteSignalPoll(mWifiInfo);
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());

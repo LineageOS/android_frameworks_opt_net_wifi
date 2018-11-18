@@ -51,7 +51,6 @@ import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.LocalServices;
 import com.android.server.wifi.WifiConfigStoreLegacy.WifiConfigStoreDataLegacy;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -69,6 +68,7 @@ import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -224,6 +224,7 @@ public class WifiConfigManager {
     public static final long MAX_PNO_SCAN_FREQUENCY_AGE_MS = (long) 1000 * 3600 * 24 * 30;
 
     private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 0; // 0 = disabled
+    private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 0; // 0 = disabled:
 
     /**
      * General sorting algorithm of all networks for scanning purposes:
@@ -352,6 +353,8 @@ public class WifiConfigManager {
     private OnSavedNetworkUpdateListener mListener = null;
 
     private boolean mPnoFrequencyCullingEnabled = false;
+    private boolean mPnoRecencySortingEnabled = false;
+
 
 
     /**
@@ -404,6 +407,15 @@ public class WifiConfigManager {
                     }
                 });
         updatePnoFrequencyCullingSetting();
+        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
+                Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED), false,
+                new ContentObserver(new Handler(looper)) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updatePnoRecencySortingSetting();
+                    }
+                });
+        updatePnoRecencySortingSetting();
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
                     PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
@@ -446,6 +458,13 @@ public class WifiConfigManager {
                 mContext, Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED,
                 WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT);
         mPnoFrequencyCullingEnabled = (flag == 1);
+    }
+
+    private void updatePnoRecencySortingSetting() {
+        int flag = mFrameworkFacade.getIntegerSetting(
+                mContext, Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED,
+                WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT);
+        mPnoRecencySortingEnabled = (flag == 1);
     }
 
     /**
@@ -741,8 +760,8 @@ public class WifiConfigManager {
             return true;
         }
 
-        final DevicePolicyManagerInternal dpmi = LocalServices.getService(
-                DevicePolicyManagerInternal.class);
+        final DevicePolicyManagerInternal dpmi =
+                mWifiPermissionsWrapper.getDevicePolicyManagerInternal();
 
         final boolean isUidDeviceOwner = dpmi != null && dpmi.isActiveAdminWithPolicy(uid,
                 DeviceAdminInfo.USES_POLICY_DEVICE_OWNER);
@@ -919,6 +938,9 @@ public class WifiConfigManager {
         // Copy over any metered information.
         internalConfig.meteredHint = externalConfig.meteredHint;
         internalConfig.meteredOverride = externalConfig.meteredOverride;
+
+        // Copy over macRandomizationSetting
+        internalConfig.macRandomizationSetting = externalConfig.macRandomizationSetting;
     }
 
     /**
@@ -983,6 +1005,7 @@ public class WifiConfigManager {
         newInternalConfig.requirePMF = externalConfig.requirePMF;
         newInternalConfig.noInternetAccessExpected = externalConfig.noInternetAccessExpected;
         newInternalConfig.ephemeral = externalConfig.ephemeral;
+        newInternalConfig.trusted = externalConfig.trusted;
         newInternalConfig.useExternalScores = externalConfig.useExternalScores;
         newInternalConfig.shared = externalConfig.shared;
 
@@ -1073,6 +1096,13 @@ public class WifiConfigManager {
             Log.e(TAG, "UID " + uid + " does not have permission to modify proxy Settings "
                     + config.configKey() + ". Must have NETWORK_SETTINGS,"
                     + " or be device or profile owner.");
+            return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
+        }
+
+        if (WifiConfigurationUtil.hasMacRandomizationSettingsChanged(existingInternalConfig,
+                newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+            Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
+                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
@@ -2465,7 +2495,25 @@ public class WifiConfigManager {
                 iter.remove();
             }
         }
+        if (networks.isEmpty()) {
+            return pnoList;
+        }
+
+        // Sort the networks with the most frequent ones at the front of the network list.
         Collections.sort(networks, sScanListComparator);
+        if (mPnoRecencySortingEnabled) {
+            // Find the most recently connected network and add it to the front of the network list.
+            WifiConfiguration lastConnectedNetwork =
+                    networks.stream()
+                            .max(Comparator.comparing(
+                                    (WifiConfiguration config) -> config.lastConnected))
+                            .get();
+            if (lastConnectedNetwork.lastConnected != 0) {
+                int lastConnectedNetworkIdx = networks.indexOf(lastConnectedNetwork);
+                networks.remove(lastConnectedNetworkIdx);
+                networks.add(0, lastConnectedNetwork);
+            }
+        }
         for (WifiConfiguration config : networks) {
             WifiScanner.PnoSettings.PnoNetwork pnoNetwork =
                     WifiConfigurationUtil.createPnoNetwork(config);
@@ -3037,6 +3085,8 @@ public class WifiConfigManager {
         pw.println("WifiConfigManager - Last selected network ID " + mLastSelectedNetworkId);
         pw.println("WifiConfigManager - PNO scan frequency culling enabled = "
                 + mPnoFrequencyCullingEnabled);
+        pw.println("WifiConfigManager - PNO scan recency sorting enabled = "
+                + mPnoRecencySortingEnabled);
         mWifiConfigStore.dump(fd, pw, args);
     }
 

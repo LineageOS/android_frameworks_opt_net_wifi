@@ -822,6 +822,54 @@ public class WifiConfigurationUtilTest {
         assertEquals(permDisabledNetwork, networks.get(4));
     }
 
+    /**
+     * Verifies that when the existing configuration is null and macRandomizationSetting in the
+     * newConfig is the default value, then hasMacRandomizationSettingsChanged returns false.
+     */
+    @Test
+    public void testHasMacRandomizationSettingsChangedNullExistingConfigDefaultNewConfig() {
+        WifiConfiguration newConfig = new WifiConfiguration();
+        assertFalse(WifiConfigurationUtil.hasMacRandomizationSettingsChanged(null, newConfig));
+    }
+
+    /**
+     * Verifies that when the existing configuration is null and macRandomizationSetting in the
+     * newConfig is not the default value, then hasMacRandomizationSettingsChanged returns true.
+     */
+    @Test
+    public void testHasMacRandomizationSettingsChangedNullExistingConfigModifiedNewConfig() {
+        WifiConfiguration newConfig = new WifiConfiguration();
+        newConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        assertTrue(WifiConfigurationUtil.hasMacRandomizationSettingsChanged(null, newConfig));
+    }
+
+    /**
+     * Verifies that when macRandomizationSetting in the newConfig is different from existingConfig
+     * hasMacRandomizationSettingsChanged returns true.
+     */
+    @Test
+    public void testHasMacRandomizationSettingsChangedFieldsDifferent() {
+        WifiConfiguration existingConfig = new WifiConfiguration();
+        WifiConfiguration newConfig = new WifiConfiguration();
+        newConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        assertTrue(WifiConfigurationUtil.hasMacRandomizationSettingsChanged(
+                existingConfig, newConfig));
+    }
+
+    /**
+     * Verifies that when macRandomizationSetting in the newConfig is the same as existingConfig
+     * hasMacRandomizationSettingsChanged returns false.
+     */
+    @Test
+    public void testHasMacRandomizationSettingsChangedFieldsSame() {
+        WifiConfiguration existingConfig = new WifiConfiguration();
+        existingConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        WifiConfiguration newConfig = new WifiConfiguration();
+        newConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        assertFalse(WifiConfigurationUtil.hasMacRandomizationSettingsChanged(
+                existingConfig, newConfig));
+    }
+
     private static class EnterpriseConfig {
         public String eap;
         public String phase2;

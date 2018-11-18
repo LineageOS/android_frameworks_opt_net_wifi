@@ -67,6 +67,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
+import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -175,6 +176,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     private final WifiInjector mWifiInjector;
     /* Backup/Restore Module */
     private final WifiBackupRestore mWifiBackupRestore;
+    private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     private WifiLog mLog;
     /**
@@ -463,6 +465,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
         mWifiInjector.getActiveModeWarden().registerSoftApCallback(new SoftApCallbackImpl());
         mPowerProfile = mWifiInjector.getPowerProfile();
+        mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
     }
 
     /**
@@ -712,6 +715,7 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @CheckResult
     private int enforceChangePermission(String callingPackage) {
+        mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
         if (checkNetworkSettingsPermission(Binder.getCallingPid(), Binder.getCallingUid())) {
             return MODE_ALLOWED;
         }
@@ -1748,36 +1752,17 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     /**
-     * Returns a WifiConfiguration for a Passpoint network matching this ScanResult.
-     *
-     * @param scanResult scanResult that represents the BSSID
-     * @return {@link WifiConfiguration} that matches this BSSID or null
-     */
-    @Override
-    public WifiConfiguration getMatchingWifiConfig(ScanResult scanResult) {
-        enforceAccessPermission();
-        if (mVerboseLoggingEnabled) {
-            mLog.info("getMatchingWifiConfig uid=%").c(Binder.getCallingUid()).flush();
-        }
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            throw new UnsupportedOperationException("Passpoint not enabled");
-        }
-        return mClientModeImpl.syncGetMatchingWifiConfig(scanResult, mClientModeImplChannel);
-    }
-
-    /**
-     * Return the list of all matching Wifi configurations for this ScanResult.
+     * Return the list of all matching Wifi configurations for a given list of ScanResult.
      *
      * An empty list will be returned when no configurations are installed or if no configurations
-     * match the ScanResult.
+     * match the list of ScanResult.
      *
-     * @param scanResult scanResult that represents the BSSID
-     * @return A list of {@link WifiConfiguration}
+     * @param scanResults a list of ScanResult that represents the BSSID
+     * @return A list of {@link WifiConfiguration} that can have duplicate entries.
      */
     @Override
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(ScanResult scanResult) {
-        enforceAccessPermission();
+    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+        enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1785,18 +1770,18 @@ public class WifiServiceImpl extends AbstractWifiService {
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
-        return mClientModeImpl.getAllMatchingWifiConfigs(scanResult, mClientModeImplChannel);
+        return mClientModeImpl.getAllMatchingWifiConfigs(scanResults, mClientModeImplChannel);
     }
 
     /**
-     * Returns list of OSU (Online Sign-Up) providers associated with the given Passpoint network.
+     * Returns list of OSU (Online Sign-Up) providers associated with the given list of ScanResult.
      *
-     * @param scanResult scanResult of the Passpoint AP
+     * @param scanResults a list of ScanResult that has Passpoint APs.
      * @return List of {@link OsuProvider}
      */
     @Override
-    public List<OsuProvider> getMatchingOsuProviders(ScanResult scanResult) {
-        enforceAccessPermission();
+    public List<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+        enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1804,7 +1789,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
-        return mClientModeImpl.syncGetMatchingOsuProviders(scanResult, mClientModeImplChannel);
+        return mClientModeImpl.syncGetMatchingOsuProviders(scanResults, mClientModeImplChannel);
     }
 
     /**
@@ -2516,6 +2501,10 @@ public class WifiServiceImpl extends AbstractWifiService {
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
             pw.println();
+            mClientHandler.runWithScissors(() -> {
+                mWifiNetworkSuggestionsManager.dump(fd, pw, args);
+                pw.println();
+            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
             mWifiBackupRestore.dump(fd, pw, args);
             pw.println();
             pw.println("ScoringParams: settings put global " + Settings.Global.WIFI_SCORE_PARAMS
@@ -2954,5 +2943,67 @@ public class WifiServiceImpl extends AbstractWifiService {
         mClientHandler.post(() -> {
             mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier);
         });
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#addNetworkSuggestions(List)}
+     *
+     * @param networkSuggestions List of network suggestions to be added.
+     * @param callingPackageName Package Name of the app adding the suggestions.
+     * @throws SecurityException if the caller does not have permission.
+     */
+    @Override
+    public boolean addNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
+        enforceChangePermission(callingPackageName);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
+        }
+        Mutable<Boolean> success = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    success.value = mWifiNetworkSuggestionsManager.add(
+                            networkSuggestions, callingPackageName);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to add network suggestions");
+            return false;
+        }
+        if (!success.value) {
+            Log.e(TAG, "Failed to add network suggestions");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * See {@link android.net.wifi.WifiManager#removeNetworkSuggestions(List)}
+     *
+     * @param networkSuggestions List of network suggestions to be removed.
+     * @param callingPackageName Package Name of the app removing the suggestions.
+     * @throws SecurityException if the caller does not have permission.
+     */
+    @Override
+    public boolean removeNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
+        enforceChangePermission(callingPackageName);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
+        }
+        Mutable<Boolean> success = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    success.value = mWifiNetworkSuggestionsManager.remove(
+                            networkSuggestions, callingPackageName);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to remove network suggestions");
+            return false;
+        }
+        if (!success.value) {
+            Log.e(TAG, "Failed to remove network suggestions");
+            return false;
+        }
+        return true;
     }
 }

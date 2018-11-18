@@ -207,6 +207,7 @@ public class WifiServiceImplTest {
     @Mock ScanRequestProxy mScanRequestProxy;
     @Mock ITrafficStateCallback mTrafficStateCallback;
     @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
+    @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     @Spy FakeWifiLog mLog;
 
@@ -318,6 +319,8 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiSettingsStore()).thenReturn(mSettingsStore);
         when(mWifiInjector.getClock()).thenReturn(mClock);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
+        when(mWifiInjector.getWifiNetworkSuggestionsManager())
+                .thenReturn(mWifiNetworkSuggestionsManager);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
@@ -3151,5 +3154,39 @@ public class WifiServiceImplTest {
         }
         verify(mClientModeImpl, never()).syncGetConfiguredNetworks(anyInt(), any());
         verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
+    }
+
+    /**
+     * Ensure that we invoke {@link WifiNetworkSuggestionsManager} to add network
+     * suggestions.
+     */
+    @Test
+    public void testAddNetworkSuggestions() {
+        setupClientModeImplHandlerForRunWithScissors();
+
+        when(mWifiNetworkSuggestionsManager.add(any(), anyString())).thenReturn(true);
+        assertTrue(mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+
+        when(mWifiNetworkSuggestionsManager.add(any(), anyString())).thenReturn(false);
+        assertFalse(mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+
+        verify(mWifiNetworkSuggestionsManager, times(2)).add(any(), eq(TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Ensure that we invoke {@link WifiNetworkSuggestionsManager} to remove network
+     * suggestions.
+     */
+    @Test
+    public void testRemoveNetworkSuggestions() {
+        setupClientModeImplHandlerForRunWithScissors();
+
+        when(mWifiNetworkSuggestionsManager.remove(any(), anyString())).thenReturn(true);
+        assertTrue(mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+
+        when(mWifiNetworkSuggestionsManager.remove(any(), anyString())).thenReturn(false);
+        assertFalse(mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+
+        verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), eq(TEST_PACKAGE_NAME));
     }
 }

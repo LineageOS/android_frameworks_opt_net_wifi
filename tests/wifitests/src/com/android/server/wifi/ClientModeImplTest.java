@@ -346,6 +346,7 @@ public class ClientModeImplTest {
     @Mock SarManager mSarManager;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiNative mWifiNative;
+    @Mock WifiScoreCard mWifiScoreCard;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock WifiStateTracker mWifiStateTracker;
     @Mock PasspointManager mPasspointManager;
@@ -494,7 +495,7 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWrongPasswordNotifier, mSarManager);
+                mWifiScoreCard, mWrongPasswordNotifier, mSarManager);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {
@@ -1567,47 +1568,6 @@ public class ClientModeImplTest {
     }
 
     /**
-     * Verify that syncGetMatchingWifiConfig will redirect calls to {@link PasspointManager}
-     * with expected {@link WifiConfiguration} being returned when in client mode.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void syncGetMatchingWifiConfigInClientMode() throws Exception {
-        loadComponentsInStaMode();
-
-        when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class))).thenReturn(null);
-        mLooper.startAutoDispatch();
-        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
-        mLooper.stopAutoDispatch();
-        reset(mPasspointManager);
-
-        WifiConfiguration expectedConfig = new WifiConfiguration();
-        expectedConfig.SSID = "TestSSID";
-        when(mPasspointManager.getMatchingWifiConfig(any(ScanResult.class)))
-                .thenReturn(expectedConfig);
-        mLooper.startAutoDispatch();
-        WifiConfiguration actualConfig = mCmi.syncGetMatchingWifiConfig(new ScanResult(),
-                mCmiAsyncChannel);
-        mLooper.stopAutoDispatch();
-        assertEquals(expectedConfig.SSID, actualConfig.SSID);
-    }
-
-    /**
-     * Verify that syncGetMatchingWifiConfig will be a no-op and return {@code null} when not in
-     * client mode.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void syncGetMatchingWifiConfigInNonClientMode() throws Exception {
-        mLooper.startAutoDispatch();
-        assertNull(mCmi.syncGetMatchingWifiConfig(new ScanResult(), mCmiAsyncChannel));
-        mLooper.stopAutoDispatch();
-        verify(mPasspointManager, never()).getMatchingWifiConfig(any(ScanResult.class));
-    }
-
-    /**
      * Verify that syncStartSubscriptionProvisioning will redirect calls with right parameters
      * to {@link PasspointManager} with expected true being returned when in client mode.
      */
@@ -2161,6 +2121,7 @@ public class ClientModeImplTest {
         assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
         assertEquals(signalPollResult.txBitrate, wifiInfo.getLinkSpeed());
         assertEquals(sFreq, wifiInfo.getFrequency());
+        verify(mWifiScoreCard).noteSignalPoll(any());
     }
 
     /**
@@ -2370,6 +2331,7 @@ public class ClientModeImplTest {
     /**
      * Verifies that association failures make WifiDiagnostics report CONNECTION_EVENT_FAILED
      * and then cancel any pending timeouts.
+     * Also, send connection status to {@link WifiNetworkFactory} & {@link WifiConnectivityManager}.
      * @throws Exception
      */
     @Test
@@ -2384,12 +2346,17 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION);
+        verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
+                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
     /**
      * Verifies that authentication failures make WifiDiagnostics report
      * CONNECTION_EVENT_FAILED and then cancel any pending timeouts.
+     * Also, send connection status to {@link WifiNetworkFactory} & {@link WifiConnectivityManager}.
      * @throws Exception
      */
     @Test
@@ -2404,6 +2371,10 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE);
+        verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
+                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any());
         verifyConnectionEventTimeoutDoesNotOccur();
 
     }
@@ -2411,6 +2382,7 @@ public class ClientModeImplTest {
     /**
      * Verifies that dhcp failures make WifiDiagnostics report CONNECTION_EVENT_FAILED and then
      * cancel any pending timeouts.
+     * Also, send connection status to {@link WifiNetworkFactory} & {@link WifiConnectivityManager}.
      * @throws Exception
      */
     @Test
@@ -2418,12 +2390,17 @@ public class ClientModeImplTest {
         testDhcpFailure();
         verify(mWifiDiagnostics, atLeastOnce()).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
+        verify(mWifiConnectivityManager, atLeastOnce()).handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP);
+        verify(mWifiNetworkFactory, atLeastOnce()).handleConnectionAttemptEnded(
+                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
     /**
      * Verifies that a successful connection make WifiDiagnostics report CONNECTION_EVENT_SUCCEEDED
      * and then cancel any pending timeouts.
+     * Also, send connection status to {@link WifiNetworkFactory} & {@link WifiConnectivityManager}.
      * @throws Exception
      */
     @Test
@@ -2431,7 +2408,23 @@ public class ClientModeImplTest {
         connect();
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED));
+        verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE);
+        verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
+                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any());
         verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
+     * Verify that score card is notified of a connection attempt
+     */
+    @Test
+    public void testScoreCardNoteConnectionAttemptAfterCmdStartConnect() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        verify(mWifiScoreCard, never()).noteConnectionAttempt(any());
+        mLooper.dispatchAll();
+        verify(mWifiScoreCard).noteConnectionAttempt(any());
     }
 
     /**

@@ -359,6 +359,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.DELETE_PERSISTENT_GROUP:
                 case WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO:
                 case WifiP2pManager.FACTORY_RESET:
+                case WifiP2pManager.SET_ONGOING_PEER_CONFIG:
+                case WifiP2pManager.REQUEST_ONGOING_PEER_CONFIG:
                     mP2pStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 default:
@@ -633,7 +635,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             ipClient.dump(fd, pw, args);
         }
     }
-
 
     /**
      * Handles interaction with ClientModeImpl
@@ -1003,6 +1004,45 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         } else {
                             replyToMessage(message, WifiP2pManager.FACTORY_RESET_FAILED,
                                     WifiP2pManager.ERROR);
+                        }
+                        break;
+                    case WifiP2pManager.SET_ONGOING_PEER_CONFIG:
+                        if (mWifiInjector == null) {
+                            mWifiInjector = WifiInjector.getInstance();
+                        }
+                        if (mWifiInjector.getWifiPermissionsUtil()
+                                .checkNetworkStackPermission(message.sendingUid)) {
+                            WifiP2pConfig peerConfig = (WifiP2pConfig) message.obj;
+                            if (isConfigInvalid(peerConfig)) {
+                                loge("Dropping set mSavedPeerConfig requeset" + peerConfig);
+                                replyToMessage(message,
+                                        WifiP2pManager.SET_ONGOING_PEER_CONFIG_FAILED);
+                            } else {
+                                logd("setSavedPeerConfig to " + peerConfig);
+                                mSavedPeerConfig = peerConfig;
+                                replyToMessage(message,
+                                        WifiP2pManager.SET_ONGOING_PEER_CONFIG_SUCCEEDED);
+                            }
+                        } else {
+                            loge("Permission violation - no NETWORK_STACK permission,"
+                                    + " uid = " + message.sendingUid);
+                            replyToMessage(message,
+                                    WifiP2pManager.SET_ONGOING_PEER_CONFIG_FAILED);
+                        }
+                        break;
+                    case WifiP2pManager.REQUEST_ONGOING_PEER_CONFIG:
+                        if (mWifiInjector == null) {
+                            mWifiInjector = WifiInjector.getInstance();
+                        }
+                        if (mWifiInjector.getWifiPermissionsUtil()
+                                .checkNetworkStackPermission(message.sendingUid)) {
+                            replyToMessage(message,
+                                    WifiP2pManager.RESPONSE_ONGOING_PEER_CONFIG, mSavedPeerConfig);
+                        } else {
+                            loge("Permission violation - no NETWORK_STACK permission,"
+                                    + " uid = " + message.sendingUid);
+                            replyToMessage(message,
+                                    WifiP2pManager.RESPONSE_ONGOING_PEER_CONFIG, null);
                         }
                         break;
                     default:
@@ -1578,6 +1618,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             loge("Device entry is null");
                             break;
                         }
+
                         notifyP2pProvDiscShowPinRequest(provDisc.pin, device.deviceAddress);
                         mPeers.updateStatus(device.deviceAddress, WifiP2pDevice.INVITED);
                         sendPeersChangedBroadcast();
@@ -2683,7 +2724,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             Resources r = Resources.getSystem();
             final String tempDevAddress = peerAddress;
             final String tempPin = pin;
-
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
