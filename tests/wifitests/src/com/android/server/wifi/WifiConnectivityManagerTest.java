@@ -36,6 +36,7 @@ import android.net.wifi.ScanResult.InformationElement;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.PnoScanListener;
@@ -58,6 +59,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -2108,5 +2110,102 @@ public class WifiConnectivityManagerTest {
         // Enable untrusted connection. This should trigger a pno scan for auto-join.
         mWifiConnectivityManager.setUntrustedConnectionAllowed(true);
         verify(mWifiScanner, times(3)).startDisconnectedPnoScan(any(), any(), any());
+    }
+
+    /**
+     * Change device mobility state in the middle of a PNO scan. PNO scan should stop, then restart
+     * with the updated scan period.
+     */
+    @Test
+    public void changeDeviceMobilityStateDuringScan() {
+        mWifiConnectivityManager = createConnectivityManager();
+        mWifiConnectivityManager.setWifiEnabled(true);
+        // starts a PNO scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+
+        ArgumentCaptor<ScanSettings> scanSettingsCaptor = ArgumentCaptor.forClass(
+                ScanSettings.class);
+        InOrder inOrder = inOrder(mWifiScanner);
+
+        inOrder.verify(mWifiScanner).startDisconnectedPnoScan(
+                scanSettingsCaptor.capture(), any(), any());
+        assertEquals(scanSettingsCaptor.getValue().periodInMs,
+                WifiConnectivityManager.MOVING_PNO_SCAN_INTERVAL_MS);
+
+        // initial connectivity state uses moving PNO scan interval, now set it to stationary
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+
+        inOrder.verify(mWifiScanner).stopPnoScan(any());
+        inOrder.verify(mWifiScanner).startDisconnectedPnoScan(
+                scanSettingsCaptor.capture(), any(), any());
+        assertEquals(scanSettingsCaptor.getValue().periodInMs,
+                WifiConnectivityManager.STATIONARY_PNO_SCAN_INTERVAL_MS);
+    }
+
+    /**
+     * Change device mobility state in the middle of a PNO scan, but it is changed to another
+     * mobility state with the same scan period. Original PNO scan should continue.
+     */
+    @Test
+    public void changeDeviceMobilityStateDuringScanWithSameScanPeriod() {
+        mWifiConnectivityManager = createConnectivityManager();
+        mWifiConnectivityManager.setWifiEnabled(true);
+        // starts a PNO scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+
+        ArgumentCaptor<ScanSettings> scanSettingsCaptor = ArgumentCaptor.forClass(
+                ScanSettings.class);
+        InOrder inOrder = inOrder(mWifiScanner);
+        inOrder.verify(mWifiScanner, never()).stopPnoScan(any());
+        inOrder.verify(mWifiScanner).startDisconnectedPnoScan(
+                scanSettingsCaptor.capture(), any(), any());
+        assertEquals(scanSettingsCaptor.getValue().periodInMs,
+                WifiConnectivityManager.MOVING_PNO_SCAN_INTERVAL_MS);
+
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+
+        inOrder.verifyNoMoreInteractions();
+    }
+
+    /**
+     * Device is already connected, setting device mobility state should do nothing since no PNO
+     * scans are running. Then, when PNO scan is started afterwards, should use the new scan period.
+     */
+    @Test
+    public void setDeviceMobilityStateBeforePnoScan() {
+        mWifiConnectivityManager = createConnectivityManager();
+
+        // ensure no PNO scan running
+        mWifiConnectivityManager.setWifiEnabled(true);
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_CONNECTED);
+
+        // initial connectivity state uses moving PNO scan interval, now set it to stationary
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+
+        // no scans should start or stop because no PNO scan is running
+        verify(mWifiScanner, never()).startDisconnectedPnoScan(any(), any(), any());
+        verify(mWifiScanner, never()).stopPnoScan(any());
+
+        // starts a PNO scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+
+        ArgumentCaptor<ScanSettings> scanSettingsCaptor = ArgumentCaptor.forClass(
+                ScanSettings.class);
+
+        verify(mWifiScanner).startDisconnectedPnoScan(scanSettingsCaptor.capture(), any(), any());
+        // check that now the PNO scan uses the stationary interval, even though it was set before
+        // the PNO scan started
+        assertEquals(scanSettingsCaptor.getValue().periodInMs,
+                WifiConnectivityManager.STATIONARY_PNO_SCAN_INTERVAL_MS);
     }
 }

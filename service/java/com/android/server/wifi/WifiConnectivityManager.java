@@ -28,6 +28,8 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.PnoSettings;
 import android.net.wifi.WifiScanner.ScanSettings;
@@ -86,9 +88,17 @@ public class WifiConnectivityManager {
     // scan interval in this scenario.
     @VisibleForTesting
     public static final int MAX_PERIODIC_SCAN_INTERVAL_MS = 160 * 1000; // 160 seconds
-    // PNO scan interval in milli-seconds. This is the scan
-    // performed when screen is off and disconnected.
-    private static final int DISCONNECTED_PNO_SCAN_INTERVAL_MS = 20 * 1000; // 20 seconds
+    // Initial PNO scan interval in milliseconds when the device is moving. The scan interval backs
+    // off from this initial interval on subsequent scans. This scan is performed when screen is
+    // off and disconnected.
+    @VisibleForTesting
+    static final int MOVING_PNO_SCAN_INTERVAL_MS = 20 * 1000; // 20 seconds
+    // Initial PNO scan interval in milliseconds when the device is stationary. The scan interval
+    // backs off from this initial interval on subsequent scans. This scan is performed when screen
+    // is off and disconnected.
+    @VisibleForTesting
+    static final int STATIONARY_PNO_SCAN_INTERVAL_MS = 60 * 1000; // 1 minute
+
     // PNO scan interval in milli-seconds. This is the scan
     // performed when screen is off and connected.
     private static final int CONNECTED_PNO_SCAN_INTERVAL_MS = 160 * 1000; // 160 seconds
@@ -177,6 +187,8 @@ public class WifiConnectivityManager {
     private int mSameNetworkBonus;
     private int mSecureBonus;
     private int mBand5GHzBonus;
+
+    private int mPnoScanIntervalMs;
 
     // BSSID blacklist
     @VisibleForTesting
@@ -627,6 +639,8 @@ public class WifiConnectivityManager {
         mFullScanMaxRxRate = context.getResources().getInteger(
                 R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
 
+        mPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
+
         localLog("PNO settings:" + " min5GHzRssi " + mMin5GHzRssi
                 + " min24GHzRssi " + mMin24GHzRssi
                 + " currentConnectionBonus " + mCurrentConnectionBonus
@@ -939,6 +953,45 @@ public class WifiConnectivityManager {
         startPeriodicSingleScan();
     }
 
+    /**
+     * Alters the PNO scan interval based on the current device mobility state.
+     * If the device is stationary, it will likely not find many new Wifi networks. Thus, increase
+     * the interval between scans. Decrease the interval between scans if the device begins to move
+     * again.
+     * @param state the new device mobility state
+     */
+    public void setDeviceMobilityState(@DeviceMobilityState int state) {
+        int newPnoScanIntervalMs;
+        switch (state) {
+            case WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN:
+            case WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT:
+            case WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT:
+                newPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
+                break;
+            case WifiManager.DEVICE_MOBILITY_STATE_STATIONARY:
+                newPnoScanIntervalMs = STATIONARY_PNO_SCAN_INTERVAL_MS;
+                break;
+            default:
+                Log.e(TAG, "Invalid device mobility state: " + state);
+                return;
+        }
+
+        // even if state changed, if scan interval did not change, do nothing
+        if (newPnoScanIntervalMs == mPnoScanIntervalMs) return;
+        mPnoScanIntervalMs = newPnoScanIntervalMs;
+
+        Log.d(TAG, "PNO Scan Interval changed to " + mPnoScanIntervalMs + " ms.");
+
+        // do nothing if PNO scan is not currently running
+        if (!mPnoScanStarted) return;
+
+        Log.d(TAG, "Restarting PNO Scan with new scan interval");
+
+        // scan interval changed, so stop current scan and start new scan with updated interval
+        stopPnoScan();
+        startDisconnectedPnoScan();
+    }
+
     // Start a DisconnectedPNO scan when screen is off and Wifi is disconnected
     private void startDisconnectedPnoScan() {
         // TODO(b/29503772): Need to change this interface.
@@ -969,7 +1022,7 @@ public class WifiConnectivityManager {
         scanSettings.band = getScanBand();
         scanSettings.reportEvents = WifiScanner.REPORT_EVENT_NO_BATCH;
         scanSettings.numBssidsPerScan = 0;
-        scanSettings.periodInMs = DISCONNECTED_PNO_SCAN_INTERVAL_MS;
+        scanSettings.periodInMs = mPnoScanIntervalMs;
 
         mPnoScanListener.clearScanDetails();
 
