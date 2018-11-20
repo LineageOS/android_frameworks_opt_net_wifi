@@ -114,6 +114,7 @@ public class WifiNetworkFactoryTest {
             ArgumentCaptor.forClass(OnAlarmListener.class);
     ArgumentCaptor<OnAlarmListener> mConnectionTimeoutAlarmListenerArgumentCaptor =
             ArgumentCaptor.forClass(OnAlarmListener.class);
+    InOrder mInOrder;
 
     private WifiNetworkFactory mWifiNetworkFactory;
 
@@ -872,14 +873,22 @@ public class WifiNetworkFactoryTest {
 
     /**
      * Verify handling of connection timeout.
+     * The timeouts should trigger connection retries until we hit the max.
      */
     @Test
     public void testNetworkSpecifierHandleConnectionTimeout() throws Exception {
         sendNetworkRequestAndSetupForConnectionStatus();
 
-        // Simulate connection timeout.
-        mConnectionTimeoutAlarmListenerArgumentCaptor.getValue().onAlarm();
+        // Simulate connection timeout beyond the retry limit to trigger the failure handling.
+        for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            mConnectionTimeoutAlarmListenerArgumentCaptor.getValue().onAlarm();
+            mLooper.dispatchAll();
+        }
 
+        mInOrder = inOrder(mAlarmManager, mClientModeImpl);
+        validateConnectionRetryAttempts();
+
+        // Fail the request after all the retries are exhausted.
         verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
@@ -889,43 +898,61 @@ public class WifiNetworkFactoryTest {
 
     /**
      * Verify handling of connection trigger failure.
+     * The trigger failures should trigger connection retries until we hit the max.
      */
     @Test
     public void testNetworkSpecifierHandleConnectionTriggerFailure() throws Exception {
         Messenger replyToMsgr = sendNetworkRequestAndSetupForConnectionStatus();
 
-        // Send failure message.
-        Message failureMsg = Message.obtain();
-        failureMsg.what = WifiManager.CONNECT_NETWORK_FAILED;
-        replyToMsgr.send(failureMsg);
-        mLooper.dispatchAll();
+        // Send failure message beyond the retry limit to trigger the failure handling.
+        for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            Message failureMsg = Message.obtain();
+            failureMsg.what = WifiManager.CONNECT_NETWORK_FAILED;
+            replyToMsgr.send(failureMsg);
+            mLooper.dispatchAll();
+        }
 
+        mInOrder = inOrder(mAlarmManager, mClientModeImpl);
+        validateConnectionRetryAttempts();
+
+        // Fail the request after all the retries are exhausted.
         verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
-        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        mInOrder.verify(mAlarmManager).cancel(
+                mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
         // Verify we reset the network request handling.
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
 
     /**
      * Verify handling of connection failure.
+     * The connection failures should trigger connection retries until we hit the max.
      */
     @Test
     public void testNetworkSpecifierHandleConnectionFailure() throws Exception {
         sendNetworkRequestAndSetupForConnectionStatus();
 
-        // Send network connection failure indication.
         assertNotNull(mSelectedNetwork);
-        mWifiNetworkFactory.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
+
+        // Send network connection failure indication beyond the retry limit to trigger the failure
+        // handling.
+        for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            mWifiNetworkFactory.handleConnectionAttemptEnded(
+                    WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
+            mLooper.dispatchAll();
+        }
+
+        mInOrder = inOrder(mAlarmManager, mClientModeImpl);
+        validateConnectionRetryAttempts();
 
         verify(mNetworkRequestMatchCallback).onAbort();
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
-        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        mInOrder.verify(mAlarmManager).cancel(
+                mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
         // Verify we reset the network request handling.
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
@@ -944,7 +971,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP, connectedNetwork);
 
-        // Verify that we sent the connection failure callback.
+        // Verify that we did not send the connection failure callback.
         verify(mNetworkRequestMatchCallback, never())
                 .onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
@@ -954,14 +981,22 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager, never())
                 .setSpecificNetworkRequestInProgress(false);
 
-        // Send network connection success to the correct network indication.
-        mWifiNetworkFactory.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
+        // Send network connection failure indication beyond the retry limit to trigger the failure
+        // handling.
+        for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            mWifiNetworkFactory.handleConnectionAttemptEnded(
+                    WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
+            mLooper.dispatchAll();
+        }
+
+        mInOrder = inOrder(mAlarmManager, mClientModeImpl);
+        validateConnectionRetryAttempts();
 
         // Verify that we sent the connection failure callback.
         verify(mNetworkRequestMatchCallback).onUserSelectionConnectFailure(mSelectedNetwork);
         // verify we canceled the timeout alarm.
-        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        mInOrder.verify(mAlarmManager).cancel(
+                mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
         // Verify we reset the network request handling.
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
@@ -1290,8 +1325,7 @@ public class WifiNetworkFactoryTest {
                 ArgumentCaptor.forClass(ScanListener.class);
         ScanListener scanListener = null;
 
-        InOrder inOrder = inOrder(mWifiScanner, mAlarmManager);
-
+        mInOrder = inOrder(mWifiScanner, mAlarmManager);
         for (int i = 0; i < expectedIntervalsInSeconds.length - 1; i++) {
             long expectedCurrentIntervalInMs = expectedIntervalsInSeconds[i];
             long expectedNextIntervalInMs = expectedIntervalsInSeconds[i + 1];
@@ -1301,7 +1335,7 @@ public class WifiNetworkFactoryTest {
                 // Fire the alarm and ensure that we started the next scan.
                 alarmListener.onAlarm();
             }
-            inOrder.verify(mWifiScanner).startScan(
+            mInOrder.verify(mWifiScanner).startScan(
                     any(), scanListenerArgumentCaptor.capture(), any());
             scanListener = scanListenerArgumentCaptor.getValue();
             assertNotNull(scanListener);
@@ -1309,7 +1343,7 @@ public class WifiNetworkFactoryTest {
             // Now trigger the scan results callback and verify the alarm set for the next scan.
             scanListener.onResults(mTestScanDatas);
 
-            inOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+            mInOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                     eq(expectedNextIntervalInMs), any(),
                     mPeriodicScanListenerArgumentCaptor.capture(), any());
             alarmListener = mPeriodicScanListenerArgumentCaptor.getValue();
@@ -1388,6 +1422,27 @@ public class WifiNetworkFactoryTest {
                     .findFirst()
                     .orElse(null);
             ScanTestUtil.assertScanResultEquals(expectedScanResult, actualScanResult);
+        }
+    }
+
+    private void validateConnectionRetryAttempts() {
+        for (int i = 0; i < WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            // Cancel the existing connection timeout.
+            mInOrder.verify(mAlarmManager).cancel(
+                    mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+            // Trigger new connection.
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            mInOrder.verify(mClientModeImpl).sendMessage(messageCaptor.capture());
+            Message message = messageCaptor.getValue();
+            assertNotNull(message);
+            assertEquals(WifiManager.CONNECT_NETWORK, message.what);
+
+            // Start the new connection timeout alarm.
+            mInOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                    eq((long) WifiNetworkFactory.NETWORK_CONNECTION_TIMEOUT_MS), any(),
+                    mConnectionTimeoutAlarmListenerArgumentCaptor.capture(), any());
+            assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
         }
     }
 }
