@@ -226,7 +226,7 @@ public class ClientModeImpl extends StateMachine {
                 mWifiInfo.setRssi(curRssi);
                 updateCapabilities();
                 int ret = startRssiMonitoringOffload(maxRssi, minRssi, rssiHandler);
-                Log.d(TAG, "Re-program RSSI thresholds for " + smToString(reason)
+                Log.d(TAG, "Re-program RSSI thresholds for " + getWhatToString(reason)
                         + ": [" + minRssi + ", " + maxRssi + "], curRssi=" + curRssi
                         + " ret=" + ret);
                 break;
@@ -604,7 +604,7 @@ public class ClientModeImpl extends StateMachine {
     // For message logging.
     private static final Class[] sMessageClasses = {
             AsyncChannel.class, ClientModeImpl.class, DhcpClient.class };
-    private static final SparseArray<String> sSmToString =
+    private static final SparseArray<String> sGetWhatToString =
             MessageUtils.findMessageNames(sMessageClasses);
 
 
@@ -1967,13 +1967,10 @@ public class ClientModeImpl extends StateMachine {
         String report;
         String key;
         StringBuilder sb = new StringBuilder();
-        if (mScreenOn) {
-            sb.append("!");
-        }
+        sb.append("screen=").append(mScreenOn ? "on" : "off");
         if (mMessageHandlingStatus != MESSAGE_HANDLING_STATUS_UNKNOWN) {
             sb.append("(").append(mMessageHandlingStatus).append(")");
         }
-        sb.append(smToString(msg));
         if (msg.sendingUid > 0 && msg.sendingUid != Process.WIFI_UID) {
             sb.append(" uid=" + msg.sendingUid);
         }
@@ -2357,6 +2354,92 @@ public class ClientModeImpl extends StateMachine {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    protected String getWhatToString(int what) {
+        String s = sGetWhatToString.get(what);
+        if (s != null) {
+            return s;
+        }
+        switch (what) {
+            case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED:
+                s = "CMD_CHANNEL_HALF_CONNECTED";
+                break;
+            case AsyncChannel.CMD_CHANNEL_DISCONNECTED:
+                s = "CMD_CHANNEL_DISCONNECTED";
+                break;
+            case WifiManager.DISABLE_NETWORK:
+                s = "DISABLE_NETWORK";
+                break;
+            case WifiManager.CONNECT_NETWORK:
+                s = "CONNECT_NETWORK";
+                break;
+            case WifiManager.SAVE_NETWORK:
+                s = "SAVE_NETWORK";
+                break;
+            case WifiManager.FORGET_NETWORK:
+                s = "FORGET_NETWORK";
+                break;
+            case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
+                s = "SUPPLICANT_STATE_CHANGE_EVENT";
+                break;
+            case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
+                s = "AUTHENTICATION_FAILURE_EVENT";
+                break;
+            case WifiMonitor.SUP_REQUEST_IDENTITY:
+                s = "SUP_REQUEST_IDENTITY";
+                break;
+            case WifiMonitor.NETWORK_CONNECTION_EVENT:
+                s = "NETWORK_CONNECTION_EVENT";
+                break;
+            case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
+                s = "NETWORK_DISCONNECTION_EVENT";
+                break;
+            case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
+                s = "ASSOCIATION_REJECTION_EVENT";
+                break;
+            case WifiMonitor.ANQP_DONE_EVENT:
+                s = "ANQP_DONE_EVENT";
+                break;
+            case WifiMonitor.RX_HS20_ANQP_ICON_EVENT:
+                s = "RX_HS20_ANQP_ICON_EVENT";
+                break;
+            case WifiMonitor.GAS_QUERY_DONE_EVENT:
+                s = "GAS_QUERY_DONE_EVENT";
+                break;
+            case WifiMonitor.HS20_REMEDIATION_EVENT:
+                s = "HS20_REMEDIATION_EVENT";
+                break;
+            case WifiMonitor.GAS_QUERY_START_EVENT:
+                s = "GAS_QUERY_START_EVENT";
+                break;
+            case WifiP2pServiceImpl.GROUP_CREATING_TIMED_OUT:
+                s = "GROUP_CREATING_TIMED_OUT";
+                break;
+            case WifiP2pServiceImpl.P2P_CONNECTION_CHANGED:
+                s = "P2P_CONNECTION_CHANGED";
+                break;
+            case WifiP2pServiceImpl.DISCONNECT_WIFI_REQUEST:
+                s = "DISCONNECT_WIFI_REQUEST";
+                break;
+            case WifiP2pServiceImpl.DISCONNECT_WIFI_RESPONSE:
+                s = "DISCONNECT_WIFI_RESPONSE";
+                break;
+            case WifiP2pServiceImpl.SET_MIRACAST_MODE:
+                s = "SET_MIRACAST_MODE";
+                break;
+            case WifiP2pServiceImpl.BLOCK_DISCOVERY:
+                s = "BLOCK_DISCOVERY";
+                break;
+            case WifiManager.RSSI_PKTCNT_FETCH:
+                s = "RSSI_PKTCNT_FETCH";
+                break;
+            default:
+                s = "what:" + Integer.toString(what);
+                break;
+        }
+        return s;
     }
 
     private void handleScreenStateChanged(boolean screenOn) {
@@ -3453,95 +3536,6 @@ public class ClientModeImpl extends StateMachine {
             }
             return HANDLED;
         }
-    }
-
-    String smToString(Message message) {
-        return smToString(message.what);
-    }
-
-    String smToString(int what) {
-        String s = sSmToString.get(what);
-        if (s != null) {
-            return s;
-        }
-        switch (what) {
-            case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED:
-                s = "AsyncChannel.CMD_CHANNEL_HALF_CONNECTED";
-                break;
-            case AsyncChannel.CMD_CHANNEL_DISCONNECTED:
-                s = "AsyncChannel.CMD_CHANNEL_DISCONNECTED";
-                break;
-            case WifiP2pServiceImpl.DISCONNECT_WIFI_REQUEST:
-                s = "WifiP2pServiceImpl.DISCONNECT_WIFI_REQUEST";
-                break;
-            case WifiManager.DISABLE_NETWORK:
-                s = "WifiManager.DISABLE_NETWORK";
-                break;
-            case WifiManager.CONNECT_NETWORK:
-                s = "CONNECT_NETWORK";
-                break;
-            case WifiManager.SAVE_NETWORK:
-                s = "SAVE_NETWORK";
-                break;
-            case WifiManager.FORGET_NETWORK:
-                s = "FORGET_NETWORK";
-                break;
-            case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
-                s = "SUPPLICANT_STATE_CHANGE_EVENT";
-                break;
-            case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
-                s = "AUTHENTICATION_FAILURE_EVENT";
-                break;
-            case WifiMonitor.SUP_REQUEST_IDENTITY:
-                s = "SUP_REQUEST_IDENTITY";
-                break;
-            case WifiMonitor.NETWORK_CONNECTION_EVENT:
-                s = "NETWORK_CONNECTION_EVENT";
-                break;
-            case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
-                s = "NETWORK_DISCONNECTION_EVENT";
-                break;
-            case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
-                s = "ASSOCIATION_REJECTION_EVENT";
-                break;
-            case WifiMonitor.ANQP_DONE_EVENT:
-                s = "WifiMonitor.ANQP_DONE_EVENT";
-                break;
-            case WifiMonitor.RX_HS20_ANQP_ICON_EVENT:
-                s = "WifiMonitor.RX_HS20_ANQP_ICON_EVENT";
-                break;
-            case WifiMonitor.GAS_QUERY_DONE_EVENT:
-                s = "WifiMonitor.GAS_QUERY_DONE_EVENT";
-                break;
-            case WifiMonitor.HS20_REMEDIATION_EVENT:
-                s = "WifiMonitor.HS20_REMEDIATION_EVENT";
-                break;
-            case WifiMonitor.GAS_QUERY_START_EVENT:
-                s = "WifiMonitor.GAS_QUERY_START_EVENT";
-                break;
-            case WifiP2pServiceImpl.GROUP_CREATING_TIMED_OUT:
-                s = "GROUP_CREATING_TIMED_OUT";
-                break;
-            case WifiP2pServiceImpl.P2P_CONNECTION_CHANGED:
-                s = "P2P_CONNECTION_CHANGED";
-                break;
-            case WifiP2pServiceImpl.DISCONNECT_WIFI_RESPONSE:
-                s = "P2P.DISCONNECT_WIFI_RESPONSE";
-                break;
-            case WifiP2pServiceImpl.SET_MIRACAST_MODE:
-                s = "P2P.SET_MIRACAST_MODE";
-                break;
-            case WifiP2pServiceImpl.BLOCK_DISCOVERY:
-                s = "P2P.BLOCK_DISCOVERY";
-                break;
-            case WifiManager.RSSI_PKTCNT_FETCH:
-                s = "RSSI_PKTCNT_FETCH";
-                break;
-            default:
-                s = "what:" + Integer.toString(what);
-                break;
-        }
-        return s;
     }
 
     /**
