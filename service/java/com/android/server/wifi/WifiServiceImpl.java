@@ -2976,15 +2976,18 @@ public class WifiServiceImpl extends AbstractWifiService {
      * @param networkSuggestions List of network suggestions to be added.
      * @param callingPackageName Package Name of the app adding the suggestions.
      * @throws SecurityException if the caller does not have permission.
+     * @return One of status codes from {@link WifiManager.NetworkSuggestionsStatusCode}.
      */
     @Override
-    public boolean addNetworkSuggestions(
+    public int addNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
-        enforceChangePermission(callingPackageName);
+        if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
-        Mutable<Boolean> success = new Mutable<>();
+        Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.add(
@@ -2992,13 +2995,12 @@ public class WifiServiceImpl extends AbstractWifiService {
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to add network suggestions");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (!success.value) {
+        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to add network suggestions");
-            return false;
         }
-        return true;
+        return success.value;
     }
 
     /**
@@ -3007,15 +3009,18 @@ public class WifiServiceImpl extends AbstractWifiService {
      * @param networkSuggestions List of network suggestions to be removed.
      * @param callingPackageName Package Name of the app removing the suggestions.
      * @throws SecurityException if the caller does not have permission.
+     * @return One of status codes from {@link WifiManager.NetworkSuggestionsStatusCode}.
      */
     @Override
-    public boolean removeNetworkSuggestions(
+    public int removeNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
-        enforceChangePermission(callingPackageName);
+        if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
-        Mutable<Boolean> success = new Mutable<>();
+        Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.remove(
@@ -3023,12 +3028,11 @@ public class WifiServiceImpl extends AbstractWifiService {
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to remove network suggestions");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (!success.value) {
+        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to remove network suggestions");
-            return false;
         }
-        return true;
+        return success.value;
     }
 }
