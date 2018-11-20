@@ -3731,6 +3731,8 @@ public class ClientModeImpl extends StateMachine {
             // Inform metrics that Wifi is being disabled (Toggled, airplane enabled, etc)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISABLED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_DISABLED);
+            // Inform scorecard that wifi is being disabled
+            mWifiScoreCard.noteWifiDisabled(mWifiInfo);
             // Inform sar manager that wifi is being disabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
 
