@@ -32,17 +32,16 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.provider.Settings;
 import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.BinderUtil;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.WifiInjector;
-import com.android.server.wifi.WifiSettingsStore;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -71,9 +70,9 @@ public class WifiPermissionsUtilTest {
     @Mock private AppOpsManager mMockAppOps;
     @Mock private UserInfo mMockUserInfo;
     @Mock private UserManager mMockUserManager;
-    @Mock private WifiSettingsStore mMockWifiSettingsStore;
     @Mock private ContentResolver mMockContentResolver;
     @Mock private WifiInjector mWifiInjector;
+    @Mock private LocationManager mLocationManager;
     @Spy private FakeWifiLog mWifiLog;
 
     private static final String TEST_PACKAGE_NAME = "com.google.somePackage";
@@ -87,15 +86,22 @@ public class WifiPermissionsUtilTest {
             "android.permission.INTERACT_ACROSS_USERS_FULL";
     private final String mManifestStringCoarse =
             Manifest.permission.ACCESS_COARSE_LOCATION;
+    private final String mManifestStringFine =
+            Manifest.permission.ACCESS_FINE_LOCATION;
+    private final String mManifestStringHardware =
+            Manifest.permission.LOCATION_HARDWARE;
 
     // Test variables
     private int mWifiScanAllowApps;
     private int mUid;
     private int mCoarseLocationPermission;
     private int mAllowCoarseLocationApps;
+    private int mFineLocationPermission;
+    private int mAllowFineLocationApps;
+    private int mHardwareLocationPermission;
     private String mPkgNameOfTopActivity;
     private int mCurrentUser;
-    private int mLocationModeSetting;
+    private boolean mIsLocationEnabled;
     private boolean mThrowSecurityException;
     private Answer<Integer> mReturnPermission;
     private HashMap<String, Integer> mPermissionsList = new HashMap<String, Integer>();
@@ -122,7 +128,7 @@ public class WifiPermissionsUtilTest {
         mUid = MANAGED_PROFILE_UID;  // do not really care about this value
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         when(mMockPermissionsWrapper.getOverrideWifiConfigPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
         assertTrue(codeUnderTest.checkConfigOverridePermission(mUid));
@@ -136,7 +142,7 @@ public class WifiPermissionsUtilTest {
         mUid = OTHER_USER_UID;  // do not really care about this value
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         when(mMockPermissionsWrapper.getOverrideWifiConfigPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
         assertFalse(codeUnderTest.checkConfigOverridePermission(mUid));
@@ -150,7 +156,7 @@ public class WifiPermissionsUtilTest {
         mUid = OTHER_USER_UID;  // do not really care about this value
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         doThrow(new RemoteException("Failed to check permissions for " + mUid))
                 .when(mMockPermissionsWrapper).getOverrideWifiConfigPermission(mUid);
         assertFalse(codeUnderTest.checkConfigOverridePermission(mUid));
@@ -172,10 +178,10 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mCurrentUser = UserHandle.USER_CURRENT_OR_SELF;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -195,10 +201,10 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mMockUserInfo.id = mCallingUser;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -214,7 +220,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -239,10 +245,10 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -262,7 +268,7 @@ public class WifiPermissionsUtilTest {
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -287,7 +293,7 @@ public class WifiPermissionsUtilTest {
         mCurrentUser = UserHandle.USER_CURRENT_OR_SELF;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -307,7 +313,7 @@ public class WifiPermissionsUtilTest {
     public void testLegacyAppHasLocationAndAllPermissions() throws Exception {
         mThrowSecurityException = false;
         mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.GINGERBREAD;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         mCoarseLocationPermission = PackageManager.PERMISSION_GRANTED;
         mAllowCoarseLocationApps = AppOpsManager.MODE_ALLOWED;
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
@@ -315,7 +321,7 @@ public class WifiPermissionsUtilTest {
         mMockUserInfo.id = mCallingUser;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -332,10 +338,10 @@ public class WifiPermissionsUtilTest {
     @Test
     public void testCannotAccessScanResults_NoCoarseLocationPermission() throws Exception {
         mThrowSecurityException = false;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -358,14 +364,14 @@ public class WifiPermissionsUtilTest {
         mUid = MANAGED_PROFILE_UID;
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getChangeWifiConfigPermission(mUid))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -392,14 +398,14 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getChangeWifiConfigPermission(mUid))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -427,14 +433,14 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getAccessWifiStatePermission(mUid))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -462,7 +468,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
@@ -470,7 +476,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(PackageManager.PERMISSION_DENIED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -498,7 +504,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
@@ -506,7 +512,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -530,7 +536,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
@@ -538,7 +544,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(PackageManager.PERMISSION_DENIED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -566,7 +572,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
@@ -574,7 +580,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -598,7 +604,7 @@ public class WifiPermissionsUtilTest {
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
 
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
@@ -606,7 +612,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -618,7 +624,7 @@ public class WifiPermissionsUtilTest {
     public void testInvalidPackage() throws Exception {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         try {
             codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
             fail("Expected SecurityException is not thrown");
@@ -634,7 +640,7 @@ public class WifiPermissionsUtilTest {
     public void testEnforceLocationPermission() throws Exception {
         mThrowSecurityException = false;
         mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.GINGERBREAD;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+        mIsLocationEnabled = true;
         mCoarseLocationPermission = PackageManager.PERMISSION_GRANTED;
         mAllowCoarseLocationApps = AppOpsManager.MODE_ALLOWED;
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
@@ -642,7 +648,7 @@ public class WifiPermissionsUtilTest {
         mMockUserInfo.id = mCallingUser;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
     }
 
@@ -653,7 +659,7 @@ public class WifiPermissionsUtilTest {
     public void testCheckNetworkSetupWizard() throws Exception {
         setupMocks();
         WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
 
         when(mMockPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_SETUP_WIZARD, MANAGED_PROFILE_UID))
@@ -673,7 +679,7 @@ public class WifiPermissionsUtilTest {
     public void testCheckNetworkManagedProvisioning() throws Exception {
         setupMocks();
         WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
 
         when(mMockPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, MANAGED_PROFILE_UID))
@@ -696,8 +702,195 @@ public class WifiPermissionsUtilTest {
     public void testEnforceLocationPermissionExpectSecurityException() throws Exception {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockWifiSettingsStore, mMockUserManager, mWifiInjector);
+                mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Enabled
+     *                    Fine Location Access
+     *                    Location hardware Access
+     *                    This App has permission to request WIFI_SCAN
+     *  Validate no Exceptions are thrown - has all permissions
+     */
+    @Test
+    public void testCanAccessScanResultsForWifiScanner() throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Enabled
+     *                    Location hardware Access
+     *                    This App has permission to request WIFI_SCAN
+     * Validate that a SecurityException is thrown
+     * - Doesn't have fine location permission.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_NoFineLocationPermission()
+            throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_DENIED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Enabled
+     *                    Fine Location Access
+     *                    This App has permission to request WIFI_SCAN
+     * Validate that a SecurityException is thrown
+     * - Doesn't have fine location app-ops.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_NoFineLocationAppOps() throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_IGNORED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Enabled
+     *                    Location hardware Access
+     *                    This App has permission to request WIFI_SCAN
+     * Validate that a SecurityException is thrown
+     * - Doesn't have hardware location permission.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_NoHardwareLocationPermission()
+            throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_DENIED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Enabled
+     *                    Fine Location Access
+     *                    Location hardware Access
+     * Validate that a SecurityException is thrown
+     * - This App does not have permission to request WIFI_SCAN.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_NoWifiScanAppOps() throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_IGNORED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Fine Location Access
+     *                    Location hardware Access
+     *                    This App has permission to request WIFI_SCAN
+     * Validate an Exception is thrown
+     * - Location is not enabled.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_LocationModeDisabled() throws Exception {
+        mThrowSecurityException = false;
+        mIsLocationEnabled = false;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
+    }
+
+    /**
+     * Test case setting: Location Mode Enabled
+     *                    Fine Location Access
+     *                    Location hardware Access
+     *                    This App has permission to request WIFI_SCAN
+     * Validate an Exception is thrown
+     * - Invalid package name.
+     */
+    @Test
+    public void testCannotAccessScanResultsForWifiScanner_InvalidPackage() throws Exception {
+        mThrowSecurityException = true;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mHardwareLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException is not thrown");
+        } catch (SecurityException e) {
+        }
     }
 
     private Answer<Integer> createPermissionAnswer() {
@@ -726,6 +919,8 @@ public class WifiPermissionsUtilTest {
             .thenReturn(mWifiScanAllowApps);
         when(mMockAppOps.noteOp(AppOpsManager.OP_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME))
             .thenReturn(mAllowCoarseLocationApps);
+        when(mMockAppOps.noteOp(AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
+                .thenReturn(mAllowFineLocationApps);
         if (mThrowSecurityException) {
             doThrow(new SecurityException("Package " + TEST_PACKAGE_NAME + " doesn't belong"
                     + " to application bound to user " + mUid))
@@ -739,6 +934,7 @@ public class WifiPermissionsUtilTest {
         when(mMockContext.getSystemService(Context.USER_SERVICE))
             .thenReturn(mMockUserManager);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mWifiLog);
+        when(mMockContext.getSystemService(Context.LOCATION_SERVICE)).thenReturn(mLocationManager);
     }
 
     private void initTestVars() {
@@ -750,10 +946,12 @@ public class WifiPermissionsUtilTest {
         mMockUserInfo.id = UserHandle.USER_NULL;
         mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.M;
         mPkgNameOfTopActivity = INVALID_PACKAGE;
-        mLocationModeSetting = Settings.Secure.LOCATION_MODE_OFF;
+        mIsLocationEnabled = false;
         mCurrentUser = UserHandle.USER_SYSTEM;
         mCoarseLocationPermission = PackageManager.PERMISSION_DENIED;
+        mFineLocationPermission = PackageManager.PERMISSION_DENIED;
         mAllowCoarseLocationApps = AppOpsManager.MODE_ERRORED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ERRORED;
     }
 
     private void setupMockInterface() {
@@ -766,8 +964,11 @@ public class WifiPermissionsUtilTest {
         when(mMockPermissionsWrapper.getCurrentUser()).thenReturn(mCurrentUser);
         when(mMockPermissionsWrapper.getUidPermission(mManifestStringCoarse, mUid))
             .thenReturn(mCoarseLocationPermission);
-        when(mMockWifiSettingsStore.getLocationModeSetting(mMockContext))
-            .thenReturn(mLocationModeSetting);
+        when(mMockPermissionsWrapper.getUidPermission(mManifestStringFine, mUid))
+                .thenReturn(mFineLocationPermission);
+        when(mMockPermissionsWrapper.getUidPermission(mManifestStringHardware, mUid))
+                .thenReturn(mHardwareLocationPermission);
+        when(mLocationManager.isLocationEnabled()).thenReturn(mIsLocationEnabled);
         when(mMockPermissionsWrapper.getTopPkgName()).thenReturn(mPkgNameOfTopActivity);
     }
 }
