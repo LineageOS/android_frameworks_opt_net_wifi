@@ -397,6 +397,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testDumpNullArgs() {
+        setupClientModeImplHandlerForRunWithScissors();
+
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
     }
 
@@ -581,6 +583,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testGetWifiApEnabled() {
+        setupClientModeImplHandlerForRunWithScissors();
+
         // set up WifiServiceImpl with a live thread for testing
         HandlerThread serviceHandlerThread = createAndStartHandlerThreadForRunWithScissors();
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(serviceHandlerThread);
@@ -980,6 +984,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testHotspotDoesNotStartWhenAlreadyTethering() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mSettingsStore.getLocationModeSetting(mContext))
                             .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
@@ -1198,6 +1204,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void registerSoftApCallbackFailureOnLinkToDeath() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         doThrow(new RemoteException())
                 .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
         mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback, 1);
@@ -1233,6 +1241,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void replacesOldCallbackWithNewCallbackWhenRegisteringTwice() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mAppBinder, mClientSoftApCallback, callbackIdentifier);
         registerSoftApCallbackAndVerify(
@@ -1256,6 +1266,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void unregisterSoftApCallbackRemovesCallback() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
 
@@ -1274,6 +1286,8 @@ public class WifiServiceImplTest {
     @Test
     public void unregisterSoftApCallbackDoesNotRemoveCallbackIfCallbackIdentifierNotMatching()
             throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
 
@@ -1292,6 +1306,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void correctCallbackIsCalledAfterAddingTwoCallbacksAndRemovingOne() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback,
                 callbackIdentifier);
@@ -1327,6 +1343,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void registersForBinderDeathOnRegisterSoftApCallback() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
         verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
@@ -1337,6 +1355,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void unregistersSoftApCallbackOnBinderDied() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         ArgumentCaptor<IBinder.DeathRecipient> drCaptor =
                 ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
         final int callbackIdentifier = 1;
@@ -1359,6 +1379,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void callsRegisteredCallbacksOnNumClientsChangedEvent() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
 
@@ -1373,6 +1395,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void callsRegisteredCallbacksOnSoftApStateChangedEvent() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
 
@@ -1387,6 +1411,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void updatesSoftApStateAndNumClientsOnSoftApEvents() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         final int testNumClients = 4;
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
@@ -1464,6 +1490,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApDisabling() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -1497,6 +1525,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApDisabled() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -1553,6 +1583,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnlyOnceWhenSoftApDisabling() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -1651,6 +1683,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStops() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -1691,6 +1725,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStopsLOHSNotActive() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -1720,6 +1756,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testLOHSReadyWithoutRegisteredRequestsStopsSoftApMode() {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
 
@@ -1733,6 +1771,8 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisteredLocalOnlyHotspotRequestorsGetOnStartedCallbackWhenReady()
             throws Exception {
+        setupClientModeImplHandlerForPost();
+
         registerLOHSRequestFull();
 
         mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
@@ -1755,6 +1795,8 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisterLocalOnlyHotspotRequestAfterAlreadyStartedGetsOnStartedCallback()
             throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
@@ -1778,6 +1820,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testCallOnFailedLocalOnlyHotspotRequestWhenIpConfigFails() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         registerLOHSRequestFull();
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
@@ -1806,6 +1850,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStopSoftApWhenIpConfigFails() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
         mLooper.dispatchAll();
 
@@ -1818,6 +1864,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testCallOnFailedLocalOnlyHotspotRequestWhenTetheringStarts() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         registerLOHSRequestFull();
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
@@ -1856,6 +1904,8 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisterLocalOnlyHotspotRequestAfterStoppedNoOnStartedCallback()
             throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
@@ -2305,6 +2355,10 @@ public class WifiServiceImplTest {
         verify(mWifiCountryCode, never()).setCountryCode(TEST_COUNTRY_CODE);
     }
 
+    private void setupClientModeImplHandlerForPost() {
+        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
+    }
+
     /**
      * Set the wifi state machine mock to return a handler created on test thread.
      */
@@ -2686,6 +2740,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void registerTrafficStateCallbackAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.registerTrafficStateCallback(
                 mAppBinder, mTrafficStateCallback, TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
         mLooper.dispatchAll();
@@ -2698,6 +2754,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void unregisterTrafficStateCallbackAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.unregisterTrafficStateCallback(0);
         mLooper.dispatchAll();
         verify(mWifiTrafficPoller).removeCallback(0);
@@ -2759,6 +2817,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void registerNetworkRequestMatchCallbackAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.registerNetworkRequestMatchCallback(
                 mAppBinder, mNetworkRequestMatchCallback,
                 TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
@@ -2774,6 +2834,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void unregisterNetworkRequestMatchCallbackAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.unregisterNetworkRequestMatchCallback(
                 TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER);
         mLooper.dispatchAll();

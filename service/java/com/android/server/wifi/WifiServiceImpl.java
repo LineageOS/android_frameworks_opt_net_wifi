@@ -243,9 +243,9 @@ public class WifiServiceImpl extends AbstractWifiService {
     /**
      * Handles client connections
      */
-    private class ClientHandler extends WifiHandler {
+    private class AsyncChannelExternalClientHandler extends WifiHandler {
 
-        ClientHandler(String tag, Looper looper) {
+        AsyncChannelExternalClientHandler(String tag, Looper looper) {
             super(tag, looper);
         }
 
@@ -276,7 +276,8 @@ public class WifiServiceImpl extends AbstractWifiService {
                                 && networkId != WifiConfiguration.INVALID_NETWORK_ID) {
                             mClientModeImpl.sendMessage(Message.obtain(msg));
                         } else {
-                            Slog.e(TAG, "ClientHandler.handleMessage ignoring invalid msg=" + msg);
+                            Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
+                                    + "ignoring invalid msg=" + msg);
                             replyFailed(msg, WifiManager.CONNECT_NETWORK_FAILED,
                                     WifiManager.INVALID_ARGS);
                         }
@@ -298,7 +299,8 @@ public class WifiServiceImpl extends AbstractWifiService {
                             /* Command is forwarded to state machine */
                             mClientModeImpl.sendMessage(Message.obtain(msg));
                         } else {
-                            Slog.e(TAG, "ClientHandler.handleMessage ignoring invalid msg=" + msg);
+                            Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
+                                    + "ignoring invalid msg=" + msg);
                             replyFailed(msg, WifiManager.SAVE_NETWORK_FAILED,
                                     WifiManager.INVALID_ARGS);
                         }
@@ -325,7 +327,8 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 default: {
-                    Slog.d(TAG, "ClientHandler.handleMessage ignoring msg=" + msg);
+                    Slog.d(TAG, "AsyncChannelExternalClientHandler.handleMessage "
+                            + "ignoring msg=" + msg);
                     break;
                 }
             }
@@ -343,7 +346,8 @@ public class WifiServiceImpl extends AbstractWifiService {
          */
         private boolean checkChangePermissionAndReplyIfNotAuthorized(Message msg, int replyWhat) {
             if (!mWifiPermissionsUtil.checkChangePermission(msg.sendingUid)) {
-                Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
+                Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
+                        + "ignoring unauthorized msg=" + msg);
                 replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
                 return false;
             }
@@ -384,7 +388,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             }
         }
     }
-    private ClientHandler mClientHandler;
+    private AsyncChannelExternalClientHandler mAsyncChannelExternalClientHandler;
 
     /**
      * Handles interaction with ClientModeImpl
@@ -454,7 +458,8 @@ public class WifiServiceImpl extends AbstractWifiService {
         mWifiLockManager = mWifiInjector.getWifiLockManager();
         mWifiMulticastLockManager = mWifiInjector.getWifiMulticastLockManager();
         HandlerThread wifiServiceHandlerThread = mWifiInjector.getWifiServiceHandlerThread();
-        mClientHandler = new ClientHandler(TAG, wifiServiceHandlerThread.getLooper());
+        mAsyncChannelExternalClientHandler =
+                new AsyncChannelExternalClientHandler(TAG, wifiServiceHandlerThread.getLooper());
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
                 wifiServiceHandlerThread.getLooper(), asyncChannel);
         mWifiController = mWifiInjector.getWifiController();
@@ -480,7 +485,7 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @VisibleForTesting
     public void setWifiHandlerLogForTest(WifiLog log) {
-        mClientHandler.setWifiLog(log);
+        mAsyncChannelExternalClientHandler.setWifiLog(log);
     }
 
     /**
@@ -892,7 +897,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
         // hand off work to our handler thread
         MutableInt apState = new MutableInt(WifiManager.WIFI_AP_STATE_DISABLED);
-        mClientHandler.runWithScissors(() -> {
+        mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
             apState.value = mWifiApState;
         }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         return apState.value;
@@ -917,7 +922,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         mLog.info("updateInterfaceIpState uid=%").c(Binder.getCallingUid()).flush();
 
         // hand off the work to our handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             updateInterfaceIpStateInternal(ifaceName, mode);
         });
     }
@@ -1145,7 +1150,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
 
         // post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             if (!mRegisteredSoftApCallbacks.add(binder, callback, callbackIdentifier)) {
                 Log.e(TAG, "registerSoftApCallback: Failed to add callback");
                 return;
@@ -1177,7 +1182,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
 
         // post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             mRegisteredSoftApCallbacks.remove(callbackIdentifier);
         });
     }
@@ -2387,7 +2392,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             throw new SecurityException("Could not create wifi service messenger");
         }
         mLog.info("getWifiServiceMessenger uid=%").c(Binder.getCallingUid()).flush();
-        return new Messenger(mClientHandler);
+        return new Messenger(mAsyncChannelExternalClientHandler);
     }
 
     /**
@@ -2539,7 +2544,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
             pw.println();
-            mClientHandler.runWithScissors(() -> {
+            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
                 mWifiNetworkSuggestionsManager.dump(fd, pw, args);
                 pw.println();
             }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
@@ -2877,7 +2882,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             mLog.info("registerTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             mWifiTrafficPoller.addCallback(binder, callback, callbackIdentifier);
         });
     }
@@ -2897,7 +2902,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             mLog.info("unregisterTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             mWifiTrafficPoller.removeCallback(callbackIdentifier);
         });
     }
@@ -2951,7 +2956,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             mClientModeImpl.addNetworkRequestMatchCallback(binder, callback, callbackIdentifier);
         });
     }
@@ -2972,7 +2977,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mClientHandler.post(() -> {
+        mWifiInjector.getClientModeImplHandler().post(() -> {
             mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier);
         });
     }
