@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.app.test.MockAnswerUtil;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -39,6 +41,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Network;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
@@ -59,6 +62,11 @@ import android.telephony.TelephonyManager;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.hotspot2.anqp.ANQPElement;
+import com.android.server.wifi.hotspot2.anqp.Constants;
+import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
+import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
+import com.android.server.wifi.hotspot2.anqp.OsuProviderInfoTestUtil;
 import com.android.server.wifi.hotspot2.soap.ExchangeCompleteMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
 import com.android.server.wifi.hotspot2.soap.RedirectListener;
@@ -79,9 +87,11 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -115,8 +125,27 @@ public class PasspointProvisionerTest {
     private static final String TEST_SW_VERSION = "Android Test 1.0";
     private static final String TEST_FW_VERSION = "Test FW 1.0";
     private static final String TEST_REDIRECT_URL = "http://127.0.0.1:12345/index.htm";
+    private static final String TEST_SSID = "TestSSID";
+    private static final String TEST_BSSID_STRING = "11:22:33:44:55:66";
+    private static final String TEST_SSID2 = "TestSSID2";
+    private static final String TEST_BSSID_STRING2 = "11:22:33:44:55:77";
+    private static final String TEST_SSID3 = "TestSSID3";
+    private static final String TEST_BSSID_STRING3 = "11:22:33:44:55:88";
     private static final String OSU_APP_PACKAGE = "com.android.hotspot2";
     private static final String OSU_APP_NAME = "OsuLogin";
+
+    private static final byte[] TEST_OSU_SSID_BYTES = "OSU_SSID".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] TEST_OSU_SSID3_BYTES = "OSU_SSID3".getBytes(StandardCharsets.UTF_8);
+    private static final WifiSsid TEST_OSU_SSID =
+            WifiSsid.createFromByteArray(TEST_OSU_SSID_BYTES);
+    private static final WifiSsid TEST_OSU_SSID3 =
+            WifiSsid.createFromByteArray(TEST_OSU_SSID3_BYTES);
+    private static final List<OsuProviderInfo> TEST_PROVIDER_LIST =
+            Arrays.asList(OsuProviderInfoTestUtil.TEST_OSU_PROVIDER_INFO);
+    private static final HSOsuProvidersElement TEST_OSU_PROVIDERS_ELEMENT =
+            new HSOsuProvidersElement(TEST_OSU_SSID, TEST_PROVIDER_LIST);
+    private static final HSOsuProvidersElement TEST_OSU_PROVIDERS3_ELEMENT =
+            new HSOsuProvidersElement(TEST_OSU_SSID3, TEST_PROVIDER_LIST);
 
     private PasspointProvisioner mPasspointProvisioner;
     private TestLooper mLooper = new TestLooper();
@@ -138,6 +167,7 @@ public class PasspointProvisionerTest {
     private MockitoSession mSession;
 
     @Mock PasspointObjectFactory mObjectFactory;
+    @Mock PasspointManager mPasspointManager;
     @Mock Context mContext;
     @Mock WifiManager mWifiManager;
     @Mock IProvisioningCallback mCallback;
@@ -187,7 +217,8 @@ public class PasspointProvisionerTest {
                 mSystemInfo);
         doReturn(mWifiManager).when(mContext)
                 .getSystemService(eq(Context.WIFI_SERVICE));
-        mPasspointProvisioner = new PasspointProvisioner(mContext, mWifiNative, mObjectFactory);
+        mPasspointProvisioner = new PasspointProvisioner(mContext, mWifiNative, mObjectFactory,
+                mPasspointManager);
         when(mOsuNetworkConnection.connect(any(WifiSsid.class), any())).thenReturn(true);
         when(mOsuServerConnection.connect(any(URL.class), any(Network.class))).thenReturn(true);
         when(mOsuServerConnection.validateProvider(any(Locale.class),
@@ -376,7 +407,7 @@ public class PasspointProvisionerTest {
     }
 
     /**
-     * Verifies initialization and starting subscription provisioning flow
+     * Verifies initialization and starting subscription provisioning flow.
      */
     @Test
     public void verifyInitAndStartProvisioning() {
@@ -384,14 +415,89 @@ public class PasspointProvisionerTest {
     }
 
     /**
-     * Verifies initialization and starting subscription provisioning flow
+     * Verifies Provisioning flow is aborted when OSU server is not possible for the flow.
      */
     @Test
     public void verifyProvisioningUnavailable() throws RemoteException {
         when(mOsuServerConnection.canValidateServer()).thenReturn(false);
+
         initAndStartProvisioning();
+
         verify(mCallback).onProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
+    }
+
+    /**
+     * Verifies Provisioning flow is aborted when an {@link OsuProvider} is not found for the flow.
+     */
+    @Test
+    public void verifyOsuProviderNotFoundForProvisioning() throws RemoteException {
+        mOsuProvider.setOsuSsid(null);
+        when(mWifiManager.getScanResults()).thenReturn(null);
+
+        initAndStartProvisioning();
+
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_OSU_PROVIDER_NOT_FOUND);
+    }
+
+    /**
+     * Verifies Provisioning flow is started with the OSU SSID of AP that has strongest signal
+     * strength.
+     */
+    @Test
+    public void verifySelectBestOsuProviderForProvisioning() throws RemoteException {
+        List<ScanResult> scanResults = new ArrayList<>();
+
+        // Passpoint AP
+        ScanResult scanResult = new ScanResult();
+        scanResult.SSID = TEST_SSID;
+        scanResult.BSSID = TEST_BSSID_STRING;
+        scanResult.flags = ScanResult.FLAG_PASSPOINT_NETWORK;
+        scanResult.level = -70;
+        scanResults.add(scanResult);
+
+        // Non-Passpoint AP
+        ScanResult scanResult2 = new ScanResult();
+        scanResult2.SSID = TEST_SSID2;
+        scanResult2.BSSID = TEST_BSSID_STRING2;
+        scanResult2.flags = 0;
+        scanResult2.level = -50;
+        scanResults.add(scanResult2);
+
+        // Passpoint AP
+        ScanResult scanResult3 = new ScanResult();
+        scanResult3.SSID = TEST_SSID3;
+        scanResult3.BSSID = TEST_BSSID_STRING3;
+        scanResult3.flags = ScanResult.FLAG_PASSPOINT_NETWORK;
+        scanResult3.level = -60;
+        scanResults.add(scanResult3);
+
+        when(mWifiManager.getScanResults()).thenReturn(scanResults);
+        doAnswer(new MockAnswerUtil.AnswerWithArguments() {
+            public Map<Constants.ANQPElementType, ANQPElement> answer(ScanResult scanResult) {
+                Map<Constants.ANQPElementType, ANQPElement> anqpElementMap = new HashMap<>();
+                if (scanResult.SSID.equals(TEST_SSID)) {
+                    anqpElementMap.put(Constants.ANQPElementType.HSOSUProviders,
+                            TEST_OSU_PROVIDERS_ELEMENT);
+                } else if (scanResult.SSID.equals(TEST_SSID3)) {
+                    anqpElementMap.put(Constants.ANQPElementType.HSOSUProviders,
+                            TEST_OSU_PROVIDERS3_ELEMENT);
+                }
+                return anqpElementMap;
+            }
+        }).when(mPasspointManager).getANQPElements(any(ScanResult.class));
+        OsuProviderInfo info = OsuProviderInfoTestUtil.TEST_OSU_PROVIDER_INFO;
+        mOsuProvider = new OsuProvider(null, info.getFriendlyName(), info.getServiceDescription(),
+                info.getServerUri(),
+                info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+
+        stopAfterStep(STEP_INIT);
+        ArgumentCaptor<WifiSsid> wifiSsidArgumentCaptor = ArgumentCaptor.forClass(WifiSsid.class);
+
+        verify(mOsuNetworkConnection, atLeastOnce()).connect(wifiSsidArgumentCaptor.capture(),
+                any(String.class));
+        assertEquals(TEST_OSU_SSID3, wifiSsidArgumentCaptor.getValue());
     }
 
     /**
