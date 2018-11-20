@@ -94,6 +94,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -2689,5 +2690,30 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats);
         verify(mWifiMetrics).incrementWifiLinkLayerUsageStats(newLLStats);
+    }
+
+    /**
+     * Verify that we update wifi usability stats entries during rssi poll and that when we get
+     * a data stall we label and save the current list of usability stats entries.
+     * @throws Exception
+     */
+    @Test
+    public void verifyRssiPollUpdatesWifiUsabilityMetrics() throws Exception {
+        mCmi.enableRssiPolling(true);
+        connect();
+
+        WifiLinkLayerStats stats = new WifiLinkLayerStats();
+        when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(stats);
+        when(mWifiDataStall.checkForDataStall(any(), any())).thenReturn(false);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics).updateWifiUsabilityStatsEntries(any(), eq(stats));
+        verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+
+        when(mWifiDataStall.checkForDataStall(any(), any())).thenReturn(true);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
+        verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
     }
 }

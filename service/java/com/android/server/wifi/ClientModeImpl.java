@@ -100,6 +100,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.WnmData;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -4748,12 +4749,15 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
                         WifiLinkLayerStats stats = getWifiLinkLayerStats();
-                        mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        if (mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats)) {
+                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+                        }
                         mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
                         mLastLinkLayerStats = stats;
 
                         // Get Info and continue polling
                         fetchRssiLinkSpeedAndFrequencyNative();
+                        mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         // Send the update score to network agent.
                         mWifiScoreReport.calculateAndReportScore(
                                 mWifiInfo, mNetworkAgent, mWifiMetrics);
