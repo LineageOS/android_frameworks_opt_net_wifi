@@ -2452,8 +2452,8 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
             String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        (new WifiShellCommand(mClientModeImpl)).exec(this, in, out, err, args, callback,
-                resultReceiver);
+        (new WifiShellCommand(mClientModeImpl, mWifiLockManager)).exec(this, in, out, err,
+                args, callback, resultReceiver);
     }
 
     @Override
@@ -2524,12 +2524,6 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
     }
 
-    /**
-     * NOTE: WifiLocks do not serve a useful purpose in their current impl and will be removed
-     * (including the methods below).
-     *
-     * TODO: b/71548157
-     */
     @Override
     public boolean acquireWifiLock(IBinder binder, int lockMode, String tag, WorkSource ws) {
         mLog.info("acquireWifiLock uid=% lockMode=%")
