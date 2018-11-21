@@ -2958,6 +2958,7 @@ public class ClientModeImpl extends StateMachine {
             // Tell the framework whether the newly connected network is trusted or untrusted.
             updateCapabilities(c);
         }
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
     }
 
     private void handleIPv4Failure() {
@@ -3656,7 +3657,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Returns Wificonfiguration object correponding to the currently connected network, null if
+     * Returns WifiConfiguration object correponding to the currently connected network, null if
      * not connected.
      */
     public WifiConfiguration getCurrentWifiConfiguration() {
