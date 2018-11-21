@@ -382,9 +382,6 @@ public class WifiNetworkFactory extends NetworkFactory {
             // TODO(b/113878056): Start UI flow here.
             // Trigger periodic scans for finding a network in the request.
             startPeriodicScans();
-            // Disable Auto-join so that NetworkFactory can take control of the network selection.
-            // TODO(b/117979585): Defer turning off auto-join.
-            mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
         }
     }
 
@@ -474,6 +471,9 @@ public class WifiNetworkFactory extends NetworkFactory {
 
         // Cancel the ongoing scans after user selection.
         cancelPeriodicScans();
+
+        // Disable Auto-join so that NetworkFactory can take control of the network connection.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
 
         // Mark the network ephemeral so that it's automatically removed at the end of connection.
         network.ephemeral = true;
