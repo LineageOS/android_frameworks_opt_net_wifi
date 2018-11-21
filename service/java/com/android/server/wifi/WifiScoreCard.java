@@ -19,9 +19,11 @@ package com.android.server.wifi;
 import static android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.net.MacAddress;
 import android.util.ArrayMap;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
@@ -45,7 +47,14 @@ public class WifiScoreCard {
 
     private final Clock mClock;
 
-    private long mConnectionAttemptStartTimeMills = 0;
+    /**
+     * Timestamp of the start of the most recent connection attempt.
+     *
+     * Based on mClock.getElapsedSinceBootMillis().
+     *
+     * This is for calculating the time to connect and the duration of the connection.
+     */
+    private long mTsConnectionAttemptStart = 0;
 
     /**
      * @param clock is the time source
@@ -60,9 +69,11 @@ public class WifiScoreCard {
      * @param wifiInfo object holding relevant values.
      */
     private void update(WifiScoreCardProto.Event event, ExtendedWifiInfo wifiInfo) {
-        long now = mClock.getWallClockMillis();
-        // TODO(b/112196799) update the score card
-        AccessPointOrBuilder ap = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID()).ap;
+        PerBssid perBssid = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID());
+        perBssid.updateEventStats(event,
+                wifiInfo.getFrequency(),
+                wifiInfo.getRssi(),
+                wifiInfo.getLinkSpeed());
     }
 
     /**
@@ -91,7 +102,7 @@ public class WifiScoreCard {
      * @param wifiInfo may have state about an existing connection
      */
     public void noteConnectionAttempt(ExtendedWifiInfo wifiInfo) {
-        mConnectionAttemptStartTimeMills = mClock.getWallClockMillis();
+        mTsConnectionAttemptStart = mClock.getElapsedSinceBootMillis();
         // TODO(b/112196799) If currently connected, record any needed state
     }
 
@@ -138,12 +149,32 @@ public class WifiScoreCard {
         public final String ssid;
         public final MacAddress bssid;
         public final AccessPointOrBuilder ap;
+        private final Map<Pair<Event, Integer>, PerSignal> mSignalForEventAndFrequency =
+                new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
             this.ssid = ssid;
             this.bssid = bssid;
             this.ap = AccessPoint.newBuilder()
                     .setId(mNextId++)
                     .setBssid(ByteString.copyFrom(bssid.toByteArray()));
+        }
+        void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
+            PerSignal perSignal = lookupSignal(event, frequency);
+            perSignal.rssi.update(rssi);
+            perSignal.linkspeed.update(linkspeed);
+            if (perSignal.elapsedMs != null && mTsConnectionAttemptStart > 0) {
+                long millis = mClock.getElapsedSinceBootMillis() - mTsConnectionAttemptStart;
+                perSignal.elapsedMs.update(millis);
+            }
+        }
+        PerSignal lookupSignal(Event event, int frequency) {
+            Pair<Event, Integer> key = new Pair<>(event, frequency);
+            PerSignal ans = mSignalForEventAndFrequency.get(key);
+            if (ans == null) {
+                ans = new PerSignal(event, frequency);
+                mSignalForEventAndFrequency.put(key, ans);
+            }
+            return ans;
         }
     }
 
@@ -180,4 +211,50 @@ public class WifiScoreCard {
         return mApForBssid.get(mac);
     }
 
+    final class PerSignal {
+        public final Event event;
+        public final int frequency;
+        public final PerUnivariateStatistic rssi;
+        public final PerUnivariateStatistic linkspeed;
+        @Nullable public final PerUnivariateStatistic elapsedMs;
+        PerSignal(Event event, int frequency) {
+            this.event = event;
+            this.frequency = frequency;
+            this.rssi = new PerUnivariateStatistic();
+            this.linkspeed = new PerUnivariateStatistic();
+            switch (event) {
+                case FIRST_POLL_AFTER_CONNECTION:
+                case IP_CONFIGURATION_SUCCESS:
+                case CONNECTION_FAILURE:
+                case WIFI_DISABLED:
+                    this.elapsedMs = new PerUnivariateStatistic();
+                    break;
+                default:
+                    this.elapsedMs = null;
+                    break;
+            }
+        }
+        //TODO  Serialize/Deserialize
+    }
+
+    final class PerUnivariateStatistic {
+        public long count = 0;
+        public double sum = 0.0;
+        public double sumOfSquares = 0.0;
+        public double minValue = Double.POSITIVE_INFINITY;
+        public double maxValue = Double.NEGATIVE_INFINITY;
+        public double historical_mean = 0.0;
+        public double historical_variance = Double.POSITIVE_INFINITY;
+        void update(double value) {
+            count++;
+            sum += value;
+            sumOfSquares += value * value;
+            minValue = Math.min(minValue, value);
+            maxValue = Math.max(maxValue, value);
+        }
+        void age() {
+            //TODO  Fold the current stats into the historical stats
+        }
+        //TODO  Serialize/Deserialize
+    }
 }
