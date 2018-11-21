@@ -55,6 +55,8 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -74,6 +76,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -123,6 +126,14 @@ public class WifiMetrics {
     public static final int MIN_DATA_STALL_WAIT_MS = 120 * 1000; // 2 minutes
     private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 1; // 1 = true
     private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 1; // 1 = true
+    // Max number of WifiUsabilityStatsEntry elements to store in the ringbuffer.
+    public static final int MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE = 20;
+    // Max number of WifiUsabilityStats elements to store for each type.
+    public static final int MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE = 10;
+    // Max number of WifiUsabilityStats per labeled type to upload to server
+    public static final int MAX_WIFI_USABILITY_STATS_PER_TYPE_TO_UPLOAD = 2;
+    public static final int NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD = 100;
+    public static final int MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS = 1000 * 3600; // 1 hour
 
     private Clock mClock;
     private boolean mScreenOn;
@@ -231,6 +242,13 @@ public class WifiMetrics {
     private final SparseIntArray mObservedHotspotR2ApsPerEssInScanHistogram = new SparseIntArray();
 
     private final SparseIntArray mObserved80211mcApInScanHistogram = new SparseIntArray();
+
+    private final LinkedList<WifiUsabilityStatsEntry> mWifiUsabilityStatsEntriesList =
+            new LinkedList<>();
+    private final LinkedList<WifiUsabilityStats> mWifiUsabilityStatsListBad = new LinkedList<>();
+    private final LinkedList<WifiUsabilityStats> mWifiUsabilityStatsListGood = new LinkedList<>();
+    private int mWifiUsabilityStatsCounter = 0;
+    private final Random mRand = new Random();
 
     /** Wifi power metrics*/
     private WifiPowerMetrics mWifiPowerMetrics;
@@ -2383,8 +2401,45 @@ public class WifiMetrics {
                     pw.println(event);
                 }
                 pw.println("Hardware Version: " + SystemProperties.get("ro.boot.revision", ""));
+
+                pw.println("mWifiUsabilityStatsEntriesList:");
+                for (WifiUsabilityStatsEntry stats : mWifiUsabilityStatsEntriesList) {
+                    printWifiUsabilityStatsEntry(pw, stats);
+                }
+                pw.println("mWifiUsabilityStatsList:");
+                for (WifiUsabilityStats stats : mWifiUsabilityStatsListGood) {
+                    pw.println("\nlabel=" + stats.label);
+                    for (WifiUsabilityStatsEntry entry : stats.stats) {
+                        printWifiUsabilityStatsEntry(pw, entry);
+                    }
+                }
+                for (WifiUsabilityStats stats : mWifiUsabilityStatsListBad) {
+                    pw.println("\nlabel=" + stats.label);
+                    for (WifiUsabilityStatsEntry entry : stats.stats) {
+                        printWifiUsabilityStatsEntry(pw, entry);
+                    }
+                }
             }
         }
+    }
+
+    private void printWifiUsabilityStatsEntry(PrintWriter pw, WifiUsabilityStatsEntry entry) {
+        StringBuilder line = new StringBuilder();
+        line.append("timestamp_ms=" + entry.timeStampMs);
+        line.append(",rssi=" + entry.rssi);
+        line.append(",link_speed_mbps=" + entry.linkSpeedMbps);
+        line.append(",total_tx_success=" + entry.totalTxSuccess);
+        line.append(",total_tx_retries=" + entry.totalTxRetries);
+        line.append(",total_tx_bad=" + entry.totalTxBad);
+        line.append(",total_rx_success=" + entry.totalRxSuccess);
+        line.append(",total_radio_on_time_ms=" + entry.totalRadioOnTimeMs);
+        line.append(",total_scan_time_ms=" + entry.totalScanTimeMs);
+        line.append(",total_nan_scan_time_ms=" + entry.totalNanScanTimeMs);
+        line.append(",total_background_scan_time_ms=" + entry.totalBackgroundScanTimeMs);
+        line.append(",total_roam_scan_time_ms=" + entry.totalRoamScanTimeMs);
+        line.append(",total_pno_scan_time_ms=" + entry.totalPnoScanTimeMs);
+        line.append(",total_hotspot_2_scan_time_ms=" + entry.totalHotspot2ScanTimeMs);
+        pw.println(line.toString());
     }
 
     /**
@@ -2752,6 +2807,24 @@ public class WifiMetrics {
                 mWifiLogProto.wifiIsUnusableEventList[i] = mWifiIsUnusableList.get(i).event;
             }
             mWifiLogProto.hardwareRevision = SystemProperties.get("ro.boot.revision", "");
+
+            // Postprocessing on WifiUsabilityStats to upload an equal number of LABEL_GOOD and
+            // LABEL_BAD WifiUsabilityStats
+            final int numUsabilityStats = Math.min(
+                    Math.min(mWifiUsabilityStatsListBad.size(),
+                            mWifiUsabilityStatsListGood.size()),
+                    MAX_WIFI_USABILITY_STATS_PER_TYPE_TO_UPLOAD);
+            LinkedList<WifiUsabilityStats> usabilityStatsGoodCopy =
+                    new LinkedList<>(mWifiUsabilityStatsListGood);
+            LinkedList<WifiUsabilityStats> usabilityStatsBadCopy =
+                    new LinkedList<>(mWifiUsabilityStatsListBad);
+            mWifiLogProto.wifiUsabilityStatsList = new WifiUsabilityStats[numUsabilityStats * 2];
+            for (int i = 0; i < numUsabilityStats; i++) {
+                mWifiLogProto.wifiUsabilityStatsList[2 * i] = usabilityStatsGoodCopy.remove(
+                        mRand.nextInt(usabilityStatsGoodCopy.size()));
+                mWifiLogProto.wifiUsabilityStatsList[2 * i + 1] = usabilityStatsBadCopy.remove(
+                        mRand.nextInt(usabilityStatsBadCopy.size()));
+            }
         }
     }
 
@@ -2837,6 +2910,9 @@ public class WifiMetrics {
             mObserved80211mcApInScanHistogram.clear();
             mWifiIsUnusableList.clear();
             mInstalledPasspointProfileType.clear();
+            mWifiUsabilityStatsListGood.clear();
+            mWifiUsabilityStatsListBad.clear();
+            mWifiUsabilityStatsEntriesList.clear();
         }
     }
 
@@ -3488,6 +3564,117 @@ public class WifiMetrics {
     public void setWifiDataStallMinRxWithoutTx(int minTxSuccessWithoutRx) {
         synchronized (mLock) {
             mExperimentValues.wifiDataStallMinTxSuccessWithoutRx = minTxSuccessWithoutRx;
+        }
+    }
+
+    /**
+     * Extract data from |info| and |stats| to build a WifiUsabilityStatsEntry and then adds it
+     * into an internal ring buffer.
+     * @param info
+     * @param stats
+     */
+    public void updateWifiUsabilityStatsEntries(WifiInfo info, WifiLinkLayerStats stats) {
+        synchronized (mLock) {
+            if (info == null || stats == null) {
+                return;
+            }
+            WifiUsabilityStatsEntry wifiUsabilityStatsEntry =
+                    mWifiUsabilityStatsEntriesList.size()
+                    < MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE
+                    ? new WifiUsabilityStatsEntry() : mWifiUsabilityStatsEntriesList.remove();
+            wifiUsabilityStatsEntry.timeStampMs = stats.timeStampInMs;
+            wifiUsabilityStatsEntry.totalTxSuccess = stats.txmpdu_be + stats.txmpdu_bk
+                    + stats.txmpdu_vi + stats.txmpdu_vo;
+            wifiUsabilityStatsEntry.totalTxRetries = stats.retries_be + stats.retries_bk
+                    + stats.retries_vi + stats.retries_vo;
+            wifiUsabilityStatsEntry.totalTxBad = stats.lostmpdu_be + stats.lostmpdu_bk
+                    + stats.lostmpdu_vi + stats.lostmpdu_vo;
+            wifiUsabilityStatsEntry.totalRxSuccess = stats.rxmpdu_be + stats.rxmpdu_bk
+                    + stats.rxmpdu_vi + stats.rxmpdu_vo;
+            wifiUsabilityStatsEntry.totalRadioOnTimeMs = stats.on_time;
+            wifiUsabilityStatsEntry.totalRadioTxTimeMs = stats.tx_time;
+            wifiUsabilityStatsEntry.totalRadioRxTimeMs = stats.rx_time;
+            wifiUsabilityStatsEntry.totalScanTimeMs = stats.on_time_scan;
+            wifiUsabilityStatsEntry.totalNanScanTimeMs = stats.on_time_nan_scan;
+            wifiUsabilityStatsEntry.totalBackgroundScanTimeMs = stats.on_time_background_scan;
+            wifiUsabilityStatsEntry.totalRoamScanTimeMs = stats.on_time_roam_scan;
+            wifiUsabilityStatsEntry.totalPnoScanTimeMs = stats.on_time_pno_scan;
+            wifiUsabilityStatsEntry.totalHotspot2ScanTimeMs = stats.on_time_hs20_scan;
+            wifiUsabilityStatsEntry.rssi = info.getRssi();
+            wifiUsabilityStatsEntry.linkSpeedMbps = info.getLinkSpeed();
+            mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
+            mWifiUsabilityStatsCounter++;
+            if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
+                addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD);
+            }
+        }
+    }
+
+    private WifiUsabilityStatsEntry createNewWifiUsabilityStatsEntry(WifiUsabilityStatsEntry s) {
+        WifiUsabilityStatsEntry out = new WifiUsabilityStatsEntry();
+        out.timeStampMs = s.timeStampMs;
+        out.totalTxSuccess = s.totalTxSuccess;
+        out.totalTxRetries = s.totalTxRetries;
+        out.totalTxBad = s.totalTxBad;
+        out.totalRxSuccess = s.totalRxSuccess;
+        out.totalRadioOnTimeMs = s.totalRadioOnTimeMs;
+        out.totalRadioTxTimeMs = s.totalRadioTxTimeMs;
+        out.totalRadioRxTimeMs = s.totalRadioRxTimeMs;
+        out.totalScanTimeMs = s.totalScanTimeMs;
+        out.totalNanScanTimeMs = s.totalNanScanTimeMs;
+        out.totalBackgroundScanTimeMs = s.totalBackgroundScanTimeMs;
+        out.totalRoamScanTimeMs = s.totalRoamScanTimeMs;
+        out.totalPnoScanTimeMs = s.totalPnoScanTimeMs;
+        out.totalHotspot2ScanTimeMs = s.totalHotspot2ScanTimeMs;
+        out.rssi = s.rssi;
+        out.linkSpeedMbps = s.linkSpeedMbps;
+        return out;
+    }
+
+    private WifiUsabilityStats createWifiUsabilityStatsWithLabel(int label) {
+        WifiUsabilityStats wifiUsabilityStats = new WifiUsabilityStats();
+        wifiUsabilityStats.label = label;
+        wifiUsabilityStats.stats =
+                new WifiUsabilityStatsEntry[mWifiUsabilityStatsEntriesList.size()];
+        for (int i = 0; i < mWifiUsabilityStatsEntriesList.size(); i++) {
+            wifiUsabilityStats.stats[i] =
+                    createNewWifiUsabilityStatsEntry(mWifiUsabilityStatsEntriesList.get(i));
+        }
+        return wifiUsabilityStats;
+    }
+
+    /**
+     * Label the current snapshot of WifiUsabilityStatsEntrys and save the labeled data in memory.
+     * @param label WifiUsabilityStats.LABEL_GOOD or WifiUsabilityStats.LABEL_BAD
+     */
+    public void addToWifiUsabilityStatsList(int label) {
+        synchronized (mLock) {
+            if (mWifiUsabilityStatsEntriesList.isEmpty()) {
+                return;
+            }
+            if (label == WifiUsabilityStats.LABEL_GOOD) {
+                // Only add a good event if at least |MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS|
+                // has passed.
+                if (mWifiUsabilityStatsListGood.isEmpty()
+                        || mWifiUsabilityStatsListGood.getLast().stats[0].timeStampMs
+                        + MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS
+                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs) {
+                    while (mWifiUsabilityStatsListGood.size()
+                            >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
+                        mWifiUsabilityStatsListGood.remove(
+                                mRand.nextInt(mWifiUsabilityStatsListGood.size()));
+                    }
+                    mWifiUsabilityStatsListGood.add(createWifiUsabilityStatsWithLabel(label));
+                }
+            } else {
+                while (mWifiUsabilityStatsListBad.size()
+                        >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
+                    mWifiUsabilityStatsListBad.remove(
+                            mRand.nextInt(mWifiUsabilityStatsListBad.size()));
+                }
+                mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
+            }
+            mWifiUsabilityStatsCounter = 0;
         }
     }
 }

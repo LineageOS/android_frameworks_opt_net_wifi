@@ -100,6 +100,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.WnmData;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -3730,6 +3731,8 @@ public class ClientModeImpl extends StateMachine {
             // Inform metrics that Wifi is being disabled (Toggled, airplane enabled, etc)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISABLED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_DISABLED);
+            // Inform scorecard that wifi is being disabled
+            mWifiScoreCard.noteWifiDisabled(mWifiInfo);
             // Inform sar manager that wifi is being disabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
 
@@ -4353,31 +4356,31 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void updateCapabilities(WifiConfiguration config) {
-        if (mNetworkAgent == null) {
+        if (mNetworkAgent == null || config == null) {
             return;
         }
 
         final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
-        if (mWifiInfo != null && !mWifiInfo.isTrusted()) {
+        if (!mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         } else {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
-        if (mWifiInfo != null && !WifiConfiguration.isMetered(config, mWifiInfo)) {
+        if (!WifiConfiguration.isMetered(config, mWifiInfo)) {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         } else {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         }
 
-        if (mWifiInfo != null && mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI) {
+        if (mWifiInfo.getRssi() != WifiInfo.INVALID_RSSI) {
             result.setSignalStrength(mWifiInfo.getRssi());
         } else {
             result.setSignalStrength(NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
         }
 
-        if (mWifiInfo != null && !mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
+        if (!mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
             result.setSSID(mWifiInfo.getSSID());
         } else {
             result.setSSID(null);
@@ -4680,16 +4683,16 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 }
                 case CMD_IP_CONFIGURATION_SUCCESSFUL:
-                    handleSuccessfulIpConfiguration();
-                    reportConnectionAttemptEnd(
-                            WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
                     if (getCurrentWifiConfiguration() == null) {
                         // The current config may have been removed while we were connecting,
                         // trigger a disconnect to clear up state.
+                        reportConnectionAttemptEnd(
+                                WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
                         mWifiNative.disconnect(mInterfaceName);
                         transitionTo(mDisconnectingState);
                     } else {
+                        handleSuccessfulIpConfiguration();
                         sendConnectedState();
                         transitionTo(mConnectedState);
                     }
@@ -4748,12 +4751,15 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
                         WifiLinkLayerStats stats = getWifiLinkLayerStats();
-                        mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        if (mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats)) {
+                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+                        }
                         mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
                         mLastLinkLayerStats = stats;
 
                         // Get Info and continue polling
                         fetchRssiLinkSpeedAndFrequencyNative();
+                        mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         // Send the update score to network agent.
                         mWifiScoreReport.calculateAndReportScore(
                                 mWifiInfo, mNetworkAgent, mWifiMetrics);
@@ -5139,6 +5145,9 @@ public class ClientModeImpl extends StateMachine {
                 log("Enter ConnectedState  mScreenOn=" + mScreenOn);
             }
 
+            reportConnectionAttemptEnd(
+                    WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                    WifiMetricsProto.ConnectionEvent.HLF_NONE);
             mWifiConnectivityManager.handleConnectionStateChanged(
                     WifiConnectivityManager.WIFI_STATE_CONNECTED);
             registerConnected();

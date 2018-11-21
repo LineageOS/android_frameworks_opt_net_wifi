@@ -30,6 +30,7 @@ import android.net.wifi.EAPConstants;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -55,6 +56,8 @@ import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 
@@ -2292,12 +2295,33 @@ public class WifiMetricsTest {
     }
 
     private int nextRandInt() {
-        return mRandom.nextInt(10000);
+        return mRandom.nextInt(1000);
     }
 
     private WifiLinkLayerStats nextRandomStats(WifiLinkLayerStats current) {
         WifiLinkLayerStats out = new WifiLinkLayerStats();
         out.timeStampInMs = current.timeStampInMs + nextRandInt();
+
+        out.rxmpdu_be = current.rxmpdu_be + nextRandInt();
+        out.txmpdu_be = current.txmpdu_be + nextRandInt();
+        out.lostmpdu_be = current.lostmpdu_be + nextRandInt();
+        out.retries_be = current.retries_be + nextRandInt();
+
+        out.rxmpdu_bk = current.rxmpdu_bk + nextRandInt();
+        out.txmpdu_bk = current.txmpdu_bk + nextRandInt();
+        out.lostmpdu_bk = current.lostmpdu_bk + nextRandInt();
+        out.retries_bk = current.retries_bk + nextRandInt();
+
+        out.rxmpdu_vi = current.rxmpdu_vi + nextRandInt();
+        out.txmpdu_vi = current.txmpdu_vi + nextRandInt();
+        out.lostmpdu_vi = current.lostmpdu_vi + nextRandInt();
+        out.retries_vi = current.retries_vi + nextRandInt();
+
+        out.rxmpdu_vo = current.rxmpdu_vo + nextRandInt();
+        out.txmpdu_vo = current.txmpdu_vo + nextRandInt();
+        out.lostmpdu_vo = current.lostmpdu_vo + nextRandInt();
+        out.retries_vo = current.retries_vo + nextRandInt();
+
         out.on_time = current.on_time + nextRandInt();
         out.tx_time = current.tx_time + nextRandInt();
         out.rx_time = current.rx_time + nextRandInt();
@@ -2390,5 +2414,168 @@ public class WifiMetricsTest {
 
         // Should only count the difference between |stat3| and |stat4|
         assertWifiLinkLayerUsageHasDiff(stat3, stat4);
+    }
+
+    private void assertUsabilityStatsAssignment(WifiInfo info, WifiLinkLayerStats stats,
+            WifiUsabilityStatsEntry usabilityStats) {
+        assertEquals(info.getRssi(), usabilityStats.rssi);
+        assertEquals(info.getLinkSpeed(), usabilityStats.linkSpeedMbps);
+        assertEquals(stats.timeStampInMs, usabilityStats.timeStampMs);
+        assertEquals(stats.txmpdu_be + stats.txmpdu_bk + stats.txmpdu_vi + stats.txmpdu_vo,
+                usabilityStats.totalTxSuccess);
+        assertEquals(stats.retries_be + stats.retries_bk + stats.retries_vi + stats.retries_vo,
+                usabilityStats.totalTxRetries);
+        assertEquals(stats.lostmpdu_be + stats.lostmpdu_bk + stats.lostmpdu_vi + stats.lostmpdu_vo,
+                usabilityStats.totalTxBad);
+        assertEquals(stats.rxmpdu_be + stats.rxmpdu_bk + stats.rxmpdu_vi + stats.rxmpdu_vo,
+                usabilityStats.totalRxSuccess);
+        assertEquals(stats.on_time, usabilityStats.totalRadioOnTimeMs);
+        assertEquals(stats.tx_time, usabilityStats.totalRadioTxTimeMs);
+        assertEquals(stats.rx_time, usabilityStats.totalRadioRxTimeMs);
+        assertEquals(stats.on_time_scan, usabilityStats.totalScanTimeMs);
+        assertEquals(stats.on_time_nan_scan, usabilityStats.totalNanScanTimeMs);
+        assertEquals(stats.on_time_background_scan, usabilityStats.totalBackgroundScanTimeMs);
+        assertEquals(stats.on_time_roam_scan, usabilityStats.totalRoamScanTimeMs);
+        assertEquals(stats.on_time_pno_scan, usabilityStats.totalPnoScanTimeMs);
+        assertEquals(stats.on_time_hs20_scan, usabilityStats.totalHotspot2ScanTimeMs);
+    }
+
+    // Simulate adding a LABEL_GOOD WifiUsabilityStats
+    private WifiLinkLayerStats addGoodWifiUsabilityStats(WifiLinkLayerStats start) {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats = start;
+        for (int i = 0; i < WifiMetrics.NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD; i++) {
+            mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats);
+            stats = nextRandomStats(stats);
+        }
+        return stats;
+    }
+
+    // Simulate adding a LABEL_BAD WifiUsabilityStats
+    private WifiLinkLayerStats addBadWifiUsabilityStats(WifiLinkLayerStats start) {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = start;
+        WifiLinkLayerStats stats2 = nextRandomStats(stats1);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+        return nextRandomStats(stats2);
+    }
+
+    /**
+     * Verify that updateWifiUsabilityStatsEntries correctly converts the inputs into
+     * a WifiUsabilityStatsEntry Object and then stores it.
+     *
+     * Verify that the converted metrics proto contains pairs of WifiUsabilityStats with
+     * LABEL_GOOD and LABEL_BAD
+     * @throws Exception
+     */
+    @Test
+    public void testUpdateWifiUsabilityStatsEntries() throws Exception {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
+        WifiLinkLayerStats stats2 = nextRandomStats(stats1);
+
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+
+        // Add 2 LABEL_GOOD but only 1 should remain in the converted proto
+        WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats2));
+        statsGood.timeStampInMs += WifiMetrics.MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS;
+        addGoodWifiUsabilityStats(statsGood);
+
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+        assertEquals(WifiUsabilityStats.LABEL_GOOD, mDecodedProto.wifiUsabilityStatsList[0].label);
+        assertEquals(WifiUsabilityStats.LABEL_BAD, mDecodedProto.wifiUsabilityStatsList[1].label);
+        assertUsabilityStatsAssignment(info, stats1,
+                mDecodedProto.wifiUsabilityStatsList[1].stats[0]);
+        assertUsabilityStatsAssignment(info, stats2,
+                mDecodedProto.wifiUsabilityStatsList[1].stats[1]);
+    }
+
+    /**
+     * Verify that when there are no WifiUsability events the generated proto also contains no
+     * such information.
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsZeroEvents() throws Exception {
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that we discard a WifiUsabilityStats with LABEL_GOOD if there is no corresponding
+     * LABEL_BAD
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsIgnoreSingleLabelGood() throws Exception {
+        addGoodWifiUsabilityStats(new WifiLinkLayerStats());
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that we discard a WifiUsabilityStats with LABEL_BAD if there is no corresponding
+     * LABEL_GOOD
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsIgnoreSingleLabelBad() throws Exception {
+        addBadWifiUsabilityStats(new WifiLinkLayerStats());
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that the buffer for WifiUsabilityStats does not exceed the max length.
+     * Do this by trying to add more WifiUsabilityStats than the max length and then
+     * verifying that the decoded proto's length does not exceed the max length.
+     *
+     * Also verify that the length for the list of WifiUsabilityStatsEntry is capped.
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsBufferSizeIsCapped() throws Exception {
+        // simulate adding LABEL_GOOD WifiUsabilityStats 1 time over the max limit
+        WifiLinkLayerStats stats = new WifiLinkLayerStats();
+        for (int j = 0; j < WifiMetrics.MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE + 1; j++) {
+            stats = addGoodWifiUsabilityStats(stats);
+            stats = addBadWifiUsabilityStats(stats);
+            stats.timeStampInMs += WifiMetrics.MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS;
+        }
+        dumpProtoAndDeserialize();
+        assertEquals(2 * WifiMetrics.MAX_WIFI_USABILITY_STATS_PER_TYPE_TO_UPLOAD,
+                mDecodedProto.wifiUsabilityStatsList.length);
+        for (int i = 0; i < mDecodedProto.wifiUsabilityStatsList.length; i++) {
+            assertEquals(WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE,
+                    mDecodedProto.wifiUsabilityStatsList[i].stats.length);
+        }
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated more frequently than
+     * |MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS|
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsLabelGoodHasMinimumPeriod() throws Exception {
+        // simulate adding LABEL_GOOD WifiUsabilityStats 1 time over the max limit
+        WifiLinkLayerStats stats = new WifiLinkLayerStats();
+        for (int j = 0; j < 2; j++) {
+            stats = addGoodWifiUsabilityStats(stats);
+            stats = addBadWifiUsabilityStats(stats);
+        }
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
     }
 }
