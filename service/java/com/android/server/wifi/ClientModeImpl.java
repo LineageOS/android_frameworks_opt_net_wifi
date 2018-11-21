@@ -3809,10 +3809,12 @@ public class ClientModeImpl extends StateMachine {
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE);
-                    mWifiInjector.getWifiLastResortWatchdog()
-                            .noteConnectionFailureAndTriggerIfNeeded(
-                                    getTargetSsid(), mTargetRoamBSSID,
-                                    WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+                    if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD) {
+                        mWifiInjector.getWifiLastResortWatchdog()
+                                .noteConnectionFailureAndTriggerIfNeeded(
+                                        getTargetSsid(), mTargetRoamBSSID,
+                                        WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+                    }
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     SupplicantState state = handleSupplicantStateChange(message);

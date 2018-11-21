@@ -2366,7 +2366,39 @@ public class ClientModeImplTest {
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_FAILED));
         verifyConnectionEventTimeoutDoesNotOccur();
+    }
 
+    /**
+     * Verifies that WifiLastResortWatchdog is not notified of authentication failures of type
+     * ERROR_AUTH_FAILURE_WRONG_PSWD.
+     * @throws Exception
+     */
+    @Test
+    public void testFailureWrongPassIsIgnoredByWatchdog() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
+    }
+
+    /**
+     * Verifies that WifiLastResortWatchdog is notified of other types of authentication failures.
+     * @throws Exception
+     */
+    @Test
+    public void testAuthenticationFailureUpdatesWatchdog() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_TIMEOUT);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
     }
 
     /**
