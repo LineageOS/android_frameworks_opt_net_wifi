@@ -3974,8 +3974,8 @@ public class WifiConfigManagerTest {
                 mWifiConfigManager.getConfiguredNetworkWithPassword(network.networkId));
         WifiConfiguration retrievedSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(simNetwork.networkId);
-        assertEquals(expectedIdentity, retrievedSimNetwork.enterpriseConfig.getIdentity());
         assertTrue(retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
+        assertTrue(retrievedSimNetwork.enterpriseConfig.getIdentity().isEmpty());
         WifiConfiguration retrievedPeapSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(peapSimNetwork.networkId);
         assertEquals(expectedIdentity, retrievedPeapSimNetwork.enterpriseConfig.getIdentity());
@@ -4036,10 +4036,16 @@ public class WifiConfigManagerTest {
         simNetwork.enterpriseConfig.setIdentity("identity");
         simNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity");
 
+        WifiConfiguration peapSimNetwork = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.NONE);
+        peapSimNetwork.enterpriseConfig.setIdentity("identity");
+        peapSimNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity");
+
         // Set up the store data.
         List<WifiConfiguration> sharedNetworks = new ArrayList<WifiConfiguration>() {
             {
                 add(simNetwork);
+                add(peapSimNetwork);
             }
         };
         setupStoreDataForRead(sharedNetworks, new ArrayList<WifiConfiguration>(),
@@ -4056,10 +4062,16 @@ public class WifiConfigManagerTest {
 
         // Verify SIM is present just in case and SIM config is reset.
         assertTrue(mWifiConfigManager.isSimPresent());
+
         WifiConfiguration retrievedSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(simNetwork.networkId);
-        assertEquals(expectedIdentity, retrievedSimNetwork.enterpriseConfig.getIdentity());
+        assertTrue(retrievedSimNetwork.enterpriseConfig.getIdentity().isEmpty());
         assertTrue(retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
+
+        WifiConfiguration retrievedPeapNetwork =
+                mWifiConfigManager.getConfiguredNetwork(peapSimNetwork.networkId);
+        assertEquals(retrievedPeapNetwork.enterpriseConfig.getIdentity(), "identity");
+        assertFalse(retrievedPeapNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
     }
 
     private NetworkUpdateResult verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(

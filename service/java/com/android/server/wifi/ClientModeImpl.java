@@ -2824,7 +2824,7 @@ public class ClientModeImpl extends StateMachine {
         // power settings when we control suspend mode optimizations.
         // TODO: Remove this comment when the driver is fixed.
         setSuspendOptimizationsNative(SUSPEND_DUE_TO_DHCP, false);
-        mWifiNative.setPowerSave(mInterfaceName, false);
+        setPowerSave(false);
 
         // Update link layer stats
         getWifiLinkLayerStats();
@@ -2846,13 +2846,33 @@ public class ClientModeImpl extends StateMachine {
     void handlePostDhcpSetup() {
         /* Restore power save and suspend optimizations */
         setSuspendOptimizationsNative(SUSPEND_DUE_TO_DHCP, true);
-        mWifiNative.setPowerSave(mInterfaceName, true);
+        setPowerSave(true);
 
         p2pSendMessage(WifiP2pServiceImpl.BLOCK_DISCOVERY, WifiP2pServiceImpl.DISABLED);
 
         // Set the coexistence mode back to its default value
         mWifiNative.setBluetoothCoexistenceMode(
                 mInterfaceName, WifiNative.BLUETOOTH_COEXISTENCE_MODE_SENSE);
+    }
+
+    /**
+     * Set power save mode
+     *
+     * @param ps true to enable power save (default behavior)
+     *           false to disable power save.
+     * @return true for success, false for failure
+     */
+    public boolean setPowerSave(boolean ps) {
+        if (mInterfaceName != null) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Setting power save for: " + mInterfaceName + " to: " + ps);
+            }
+            mWifiNative.setPowerSave(mInterfaceName, ps);
+        } else {
+            Log.e(TAG, "Failed to setPowerSave, interfaceName is null");
+            return false;
+        }
+        return true;
     }
 
     @VisibleForTesting
@@ -2958,6 +2978,7 @@ public class ClientModeImpl extends StateMachine {
             // Tell the framework whether the newly connected network is trusted or untrusted.
             updateCapabilities(c);
         }
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
     }
 
     private void handleIPv4Failure() {
@@ -3604,7 +3625,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiNative.setSuspendOptimizations(mInterfaceName, mSuspendOptNeedsDisabled == 0
                 && mUserWantsSuspendOpt.get());
 
-        mWifiNative.setPowerSave(mInterfaceName, true);
+        setPowerSave(true);
 
         // Disable wpa_supplicant from auto reconnecting.
         mWifiNative.enableStaAutoReconnect(mInterfaceName, false);
@@ -3656,7 +3677,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Returns Wificonfiguration object correponding to the currently connected network, null if
+     * Returns WifiConfiguration object correponding to the currently connected network, null if
      * not connected.
      */
     public WifiConfiguration getCurrentWifiConfiguration() {
