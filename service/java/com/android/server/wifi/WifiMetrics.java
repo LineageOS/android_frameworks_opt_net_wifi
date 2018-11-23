@@ -63,6 +63,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
+import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -278,6 +279,9 @@ public class WifiMetrics {
 
     /** Wifi Wake metrics */
     private final WifiWakeMetrics mWifiWakeMetrics = new WifiWakeMetrics();
+
+    /** Wifi P2p metrics */
+    private final WifiP2pMetrics mWifiP2pMetrics;
 
     private boolean mIsMacRandomizationOn = false;
 
@@ -516,7 +520,7 @@ public class WifiMetrics {
 
     public WifiMetrics(Context context, FrameworkFacade facade, Clock clock, Looper looper,
             WifiAwareMetrics awareMetrics, RttMetrics rttMetrics,
-            WifiPowerMetrics wifiPowerMetrics) {
+            WifiPowerMetrics wifiPowerMetrics, WifiP2pMetrics wifiP2pMetrics) {
         mContext = context;
         mFacade = facade;
         mClock = clock;
@@ -527,6 +531,7 @@ public class WifiMetrics {
         mWifiAwareMetrics = awareMetrics;
         mRttMetrics = rttMetrics;
         mWifiPowerMetrics = wifiPowerMetrics;
+        mWifiP2pMetrics = wifiP2pMetrics;
 
         loadSettings();
         mHandler = new Handler(looper) {
@@ -2453,6 +2458,8 @@ public class WifiMetrics {
                 for (DeviceMobilityStatePnoScanStats stats : mMobilityStatePnoStatsMap.values()) {
                     printDeviceMobilityStatePnoScanStats(pw, stats);
                 }
+
+                mWifiP2pMetrics.dump(pw);
             }
         }
     }
@@ -2871,6 +2878,7 @@ public class WifiMetrics {
             }
             mWifiLogProto.mobilityStatePnoStatsList = mMobilityStatePnoStatsMap.values()
                     .toArray(new DeviceMobilityStatePnoScanStats[0]);
+            mWifiLogProto.wifiP2PStats = mWifiP2pMetrics.consolidateProto();
         }
     }
 
@@ -2960,6 +2968,7 @@ public class WifiMetrics {
             mWifiUsabilityStatsListBad.clear();
             mWifiUsabilityStatsEntriesList.clear();
             mMobilityStatePnoStatsMap.clear();
+            mWifiP2pMetrics.clear();
         }
     }
 

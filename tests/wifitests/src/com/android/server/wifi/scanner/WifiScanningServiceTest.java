@@ -82,6 +82,7 @@ import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.WifiPowerMetrics;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -127,6 +128,7 @@ public class WifiScanningServiceTest {
     WifiMetrics mWifiMetrics;
     TestLooper mLooper;
     WifiScanningServiceImpl mWifiScanningServiceImpl;
+    @Mock WifiP2pMetrics mWifiP2pMetrics;
 
 
     @Before
@@ -146,7 +148,8 @@ public class WifiScanningServiceTest {
 
         mLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, mLooper.getLooper(),
-                new WifiAwareMetrics(mClock), new RttMetrics(mClock), new WifiPowerMetrics());
+                new WifiAwareMetrics(mClock), new RttMetrics(mClock), new WifiPowerMetrics(),
+                mWifiP2pMetrics);
         when(mWifiScannerImplFactory
                 .create(any(), any(), any()))
                 .thenReturn(mWifiScannerImpl);
