@@ -2399,7 +2399,7 @@ public class ClientModeImplTest {
     }
 
     /**
-     * Verifies that a successful connection make WifiDiagnostics report CONNECTION_EVENT_SUCCEEDED
+     * Verifies that a successful validation make WifiDiagnostics report CONNECTION_EVENT_SUCCEEDED
      * and then cancel any pending timeouts.
      * Also, send connection status to {@link WifiNetworkFactory} & {@link WifiConnectivityManager}.
      * @throws Exception
@@ -2407,6 +2407,19 @@ public class ClientModeImplTest {
     @Test
     public void testReportConnectionEventIsCalledAfterSuccessfulConnection() throws Exception {
         connect();
+
+        ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
+        verify(mConnectivityManager).registerNetworkAgent(messengerCaptor.capture(),
+                any(NetworkInfo.class), any(LinkProperties.class), any(NetworkCapabilities.class),
+                anyInt(), any(NetworkMisc.class));
+
+        Message message = new Message();
+        message.what = NetworkAgent.CMD_REPORT_NETWORK_STATUS;
+        message.arg1 = NetworkAgent.VALID_NETWORK;
+        message.obj = new Bundle();
+        messengerCaptor.getValue().send(message);
+        mLooper.dispatchAll();
+
         verify(mWifiDiagnostics).reportConnectionEvent(
                 eq(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED));
         verify(mWifiConnectivityManager).handleConnectionAttemptEnded(

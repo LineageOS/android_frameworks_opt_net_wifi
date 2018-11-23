@@ -2886,8 +2886,6 @@ public class ClientModeImpl extends StateMachine {
         mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
-        // TODO(b/35329124): Remove CMD_DIAGS_CONNECT_TIMEOUT, once ClientModeImpl
-        // grows a proper CONNECTING state.
         removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
         sendMessageDelayed(CMD_DIAGS_CONNECT_TIMEOUT, DIAGS_CONNECT_TIMEOUT_MILLIS);
     }
@@ -2895,19 +2893,7 @@ public class ClientModeImpl extends StateMachine {
     private void handleConnectionAttemptEndForDiagnostics(int level2FailureCode) {
         switch (level2FailureCode) {
             case WifiMetrics.ConnectionEvent.FAILURE_NONE:
-                // Ideally, we'd wait until IP reachability has been confirmed. this code falls
-                // short in two ways:
-                // - at the time of the CMD_IP_CONFIGURATION_SUCCESSFUL event, we don't know if we
-                //   actually have ARP reachability. it might be better to wait until the wifi
-                //   network has been validated by IpClient.
-                // - in the case of a roaming event (intra-SSID), we probably trigger when L2 is
-                //   complete.
-                //
-                // TODO(b/34181219): Fix the above.
-                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
-                mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                 break;
-            case WifiMetrics.ConnectionEvent.FAILURE_REDUNDANT_CONNECTION_ATTEMPT:
             case WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED:
                 // WifiDiagnostics doesn't care about pre-empted connections, or cases
                 // where we failed to initiate a connection attempt with supplicant.
@@ -5212,6 +5198,10 @@ public class ClientModeImpl extends StateMachine {
                                         WifiConfiguration.NetworkSelectionStatus
                                         .DISABLED_NO_INTERNET_PERMANENT);
                             } else {
+                                // stop collect last-mile stats since validation fail
+                                removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
+                                mWifiDiagnostics.reportConnectionEvent(
+                                        WifiDiagnostics.CONNECTION_EVENT_FAILED);
                                 mWifiConfigManager.incrementNetworkNoInternetAccessReports(
                                         config.networkId);
                                 // If this was not the last selected network, update network
@@ -5231,6 +5221,10 @@ public class ClientModeImpl extends StateMachine {
                     return HANDLED;
                 case CMD_NETWORK_STATUS:
                     if (message.arg1 == NetworkAgent.VALID_NETWORK) {
+                        // stop collect last-mile stats since validation pass
+                        removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
+                        mWifiDiagnostics.reportConnectionEvent(
+                                WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                         config = getCurrentWifiConfiguration();
                         if (config != null) {
                             // re-enable autojoin
