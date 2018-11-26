@@ -227,7 +227,7 @@ public class PasspointManager {
                 mKeyStore, mSimAccessor, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
                 new SharedDataSourceHandler()));
-        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative);
+        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative, this);
         sPasspointManager = this;
     }
 
@@ -529,14 +529,14 @@ public class PasspointManager {
             bssid = Utils.parseMac(scanResult.BSSID);
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Invalid BSSID provided in the scan result: " + scanResult.BSSID);
-            return new HashMap<Constants.ANQPElementType, ANQPElement>();
+            return new HashMap<>();
         }
         ANQPData anqpEntry = mAnqpCache.getEntry(ANQPNetworkKey.buildKey(
                 scanResult.SSID, bssid, scanResult.hessid, vsa.anqpDomainID));
         if (anqpEntry != null) {
             return anqpEntry.getElements();
         }
-        return new HashMap<Constants.ANQPElementType, ANQPElement>();
+        return new HashMap<>();
     }
 
     /**

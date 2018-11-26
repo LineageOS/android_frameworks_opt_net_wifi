@@ -118,10 +118,12 @@ public class PasspointObjectFactory{
      *
      * @param context Instance of {@link Context}
      * @param wifiNative Instance of {@link WifiNative}
+     * @param passpointManager Instance of {@link PasspointManager}
      * @return {@link PasspointProvisioner}
      */
-    public PasspointProvisioner makePasspointProvisioner(Context context, WifiNative wifiNative) {
-        return new PasspointProvisioner(context, wifiNative, this);
+    public PasspointProvisioner makePasspointProvisioner(Context context, WifiNative wifiNative,
+            PasspointManager passpointManager) {
+        return new PasspointProvisioner(context, wifiNative, this, passpointManager);
     }
 
     /**

@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Network;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -34,6 +35,10 @@ import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.hotspot2.anqp.ANQPElement;
+import com.android.server.wifi.hotspot2.anqp.Constants;
+import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
+import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.hotspot2.soap.ExchangeCompleteMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataMessage;
 import com.android.server.wifi.hotspot2.soap.PostDevDataResponse;
@@ -52,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Provides methods to carry out provisioning flow
@@ -80,9 +86,10 @@ public class PasspointProvisioner {
     private int mCallingUid;
     private boolean mVerboseLoggingEnabled = false;
     private WifiManager mWifiManager;
+    private PasspointManager mPasspointManager;
 
     PasspointProvisioner(Context context, WifiNative wifiNative,
-            PasspointObjectFactory objectFactory) {
+            PasspointObjectFactory objectFactory, PasspointManager passpointManager) {
         mContext = context;
         mOsuNetworkConnection = objectFactory.makeOsuNetworkConnection(context);
         mProvisioningStateMachine = new ProvisioningStateMachine();
@@ -91,6 +98,7 @@ public class PasspointProvisioner {
         mWfaKeyStore = objectFactory.makeWfaKeyStore();
         mSystemInfo = objectFactory.getSystemInfo(context, wifiNative);
         mObjectFactory = objectFactory;
+        mPasspointManager = passpointManager;
     }
 
     /**
@@ -226,6 +234,16 @@ public class PasspointProvisioner {
             mServerUrl = serverUrl;
             mProvisioningCallback = callback;
             mOsuProvider = provider;
+            if (mOsuProvider.getOsuSsid() == null) {
+                // Find a best matching OsuProvider that has an OSU SSID from current scanResults
+                List<ScanResult> scanResults = mWifiManager.getScanResults();
+                mOsuProvider = getBestMatchingOsuProvider(scanResults, mOsuProvider);
+                if (mOsuProvider == null) {
+                    resetStateMachineForFailure(
+                            ProvisioningCallback.OSU_FAILURE_OSU_PROVIDER_NOT_FOUND);
+                    return;
+                }
+            }
 
             // Register for network and wifi state events during provisioning flow
             mOsuNetworkConnection.setEventCallback(mOsuNetworkCallbacks);
@@ -331,6 +349,10 @@ public class PasspointProvisioner {
             }
             if (!mOsuServerConnection.validateProvider(
                     Locale.getDefault(), mOsuProvider.getFriendlyName())) {
+                Log.e(TAG,
+                        "OSU Server certificate does not have the one matched with the selected "
+                                + "Service Name: "
+                                + mOsuProvider.getFriendlyName());
                 resetStateMachineForFailure(
                         ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION);
                 return;
@@ -916,6 +938,62 @@ public class PasspointProvisioner {
             mOsuServerConnection.cleanup();
             mPasspointConfiguration = null;
             changeState(STATE_INIT);
+        }
+
+        /**
+         * Get a best matching osuProvider from scanResults with provided osuProvider
+         *
+         * @param scanResults a list of {@link ScanResult} to find a best osuProvider
+         * @param osuProvider an instance of {@link OsuProvider} used to match with scanResults
+         * @return a best matching {@link OsuProvider}, {@code null} when an invalid scanResults are
+         * provided or no match is found.
+         */
+        private OsuProvider getBestMatchingOsuProvider(
+                List<ScanResult> scanResults,
+                OsuProvider osuProvider) {
+            if (scanResults == null) {
+                Log.e(TAG, "Attempt to retrieve OSU providers for a null ScanResult");
+                return null;
+            }
+
+            if (osuProvider == null) {
+                Log.e(TAG, "Attempt to retrieve best OSU provider for a null osuProvider");
+                return null;
+            }
+
+            // Clear the OSU SSID to compare it with other OsuProviders only about service
+            // provider information.
+            osuProvider.setOsuSsid(null);
+
+            // Filter non-Passpoint AP out and sort it by descending order of signal strength.
+            scanResults = scanResults.stream()
+                    .filter((scanResult) -> scanResult.isPasspointNetwork())
+                    .sorted((sr1, sr2) -> sr2.level - sr1.level)
+                    .collect(Collectors.toList());
+
+            for (ScanResult scanResult : scanResults) {
+                // Lookup OSU Providers ANQP element by ANQPNetworkKey.
+                // It might have same ANQP element with another one which has same ANQP domain id.
+                Map<Constants.ANQPElementType, ANQPElement> anqpElements =
+                        mPasspointManager.getANQPElements(
+                                scanResult);
+                HSOsuProvidersElement element =
+                        (HSOsuProvidersElement) anqpElements.get(
+                                Constants.ANQPElementType.HSOSUProviders);
+                if (element == null) continue;
+                for (OsuProviderInfo info : element.getProviders()) {
+                    OsuProvider candidate = new OsuProvider(null,
+                            info.getFriendlyName(),
+                            info.getServiceDescription(), info.getServerUri(),
+                            info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                    if (candidate.equals(osuProvider)) {
+                        // Found a matching candidate and then set OSU SSID for the OSU provider.
+                        candidate.setOsuSsid(element.getOsuSsid());
+                        return candidate;
+                    }
+                }
+            }
+            return null;
         }
     }
 
