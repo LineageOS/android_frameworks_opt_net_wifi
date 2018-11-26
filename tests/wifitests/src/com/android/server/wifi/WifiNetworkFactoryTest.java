@@ -114,6 +114,8 @@ public class WifiNetworkFactoryTest {
             ArgumentCaptor.forClass(OnAlarmListener.class);
     ArgumentCaptor<OnAlarmListener> mConnectionTimeoutAlarmListenerArgumentCaptor =
             ArgumentCaptor.forClass(OnAlarmListener.class);
+    ArgumentCaptor<ScanListener> mScanListenerArgumentCaptor =
+            ArgumentCaptor.forClass(ScanListener.class);
     InOrder mInOrder;
 
     private WifiNetworkFactory mWifiNetworkFactory;
@@ -1236,6 +1238,73 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
 
+    /**
+     * Verify handling of screen state changes while triggering periodic scans to find matching
+     * networks.
+     */
+    @Test
+    public void testNetworkSpecifierHandleScreenStateChangedWhileScanning() throws Exception {
+        sendNetworkRequestAndSetupForUserSelection();
+
+        // Turn off screen.
+        mWifiNetworkFactory.handleScreenStateChanged(false);
+
+        // 1. Cancel the scan timer.
+        mInOrder.verify(mAlarmManager).cancel(
+                mPeriodicScanListenerArgumentCaptor.getValue());
+        // 2. Simulate the scan results from an ongoing scan, ensure no more scans are scheduled.
+        mScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas);
+
+        // Ensure no more interactions.
+        mInOrder.verifyNoMoreInteractions();
+
+        // Now, turn the screen on.
+        mWifiNetworkFactory.handleScreenStateChanged(true);
+
+        // Verify that we resumed periodic scanning.
+        mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
+    }
+
+    /**
+     * Verify handling of screen state changes after the active network request was released.
+     */
+    @Test
+    public void testNetworkSpecifierHandleScreenStateChangedWithoutActiveRequest()
+            throws Exception {
+        sendNetworkRequestAndSetupForUserSelection();
+        // Now release the active network request.
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+        // Cancel the scan timer on release.
+        mInOrder.verify(mAlarmManager).cancel(
+                mPeriodicScanListenerArgumentCaptor.getValue());
+
+        // Turn off screen.
+        mWifiNetworkFactory.handleScreenStateChanged(false);
+
+        // Now, turn the screen on.
+        mWifiNetworkFactory.handleScreenStateChanged(true);
+
+        // Ensure that we did not pause or resume scanning.
+        mInOrder.verifyNoMoreInteractions();
+    }
+
+    /**
+     * Verify handling of screen state changes after user selected a network to connect to.
+     */
+    @Test
+    public void testNetworkSpecifierHandleScreenStateChangedAfterUserSelection() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Turn off screen.
+        mWifiNetworkFactory.handleScreenStateChanged(false);
+
+        // Now, turn the screen on.
+        mWifiNetworkFactory.handleScreenStateChanged(true);
+
+        // Ensure that we did not pause or resume scanning.
+        mInOrder.verifyNoMoreInteractions();
+    }
+
     // Helper method to setup the necessary pre-requisite steps for tracking connection status.
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
@@ -1252,7 +1321,7 @@ public class WifiNetworkFactoryTest {
         mLooper.dispatchAll();
 
         // Cancel the periodic scan timer.
-        verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
+        mInOrder.verify(mAlarmManager).cancel(mPeriodicScanListenerArgumentCaptor.getValue());
         // Disable connectivity manager
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
 
@@ -1263,7 +1332,7 @@ public class WifiNetworkFactoryTest {
         assertNotNull(message);
 
         // Start the connection timeout alarm.
-        verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+        mInOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                 eq((long) WifiNetworkFactory.NETWORK_CONNECTION_TIMEOUT_MS), any(),
                 mConnectionTimeoutAlarmListenerArgumentCaptor.capture(), any());
         assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
@@ -1309,8 +1378,6 @@ public class WifiNetworkFactoryTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
 
         OnAlarmListener alarmListener = null;
-        ArgumentCaptor<ScanListener> scanListenerArgumentCaptor =
-                ArgumentCaptor.forClass(ScanListener.class);
         ScanListener scanListener = null;
 
         mInOrder = inOrder(mWifiScanner, mAlarmManager);
@@ -1324,8 +1391,8 @@ public class WifiNetworkFactoryTest {
                 alarmListener.onAlarm();
             }
             mInOrder.verify(mWifiScanner).startScan(
-                    any(), scanListenerArgumentCaptor.capture(), any());
-            scanListener = scanListenerArgumentCaptor.getValue();
+                    any(), mScanListenerArgumentCaptor.capture(), any());
+            scanListener = mScanListenerArgumentCaptor.getValue();
             assertNotNull(scanListener);
 
             // Now trigger the scan results callback and verify the alarm set for the next scan.

@@ -2480,6 +2480,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiMetrics.setScreenState(screenOn);
 
         mWifiConnectivityManager.handleScreenStateChanged(screenOn);
+        mNetworkFactory.handleScreenStateChanged(screenOn);
 
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }

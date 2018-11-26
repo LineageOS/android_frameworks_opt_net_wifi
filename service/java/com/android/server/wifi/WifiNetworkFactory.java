@@ -98,6 +98,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean mPeriodicScanTimerSet = false;
     private boolean mConnectionTimeoutSet = false;
     private boolean mIsConnectedToUserSelectedNetwork = false;
+    private boolean mIsPeriodicScanPaused = false;
 
     // Scan listener for scan requests.
     private class NetworkFactoryScanListener implements WifiScanner.ScanListener {
@@ -564,6 +565,26 @@ public class WifiNetworkFactory extends NetworkFactory {
         resetStateForActiveRequestEnd();
     }
 
+    /**
+     * Invoked by {@link ClientModeImpl} to indicate screen state changes.
+     */
+    public void handleScreenStateChanged(boolean screenOn) {
+        // If there is no active request or if the user has already selected a network,
+        // ignore screen state changes.
+        if (mActiveSpecificNetworkRequest == null || mUserSelectedNetwork != null) return;
+
+        // Pause periodic scans when the screen is off & resume when the screen is on.
+        if (screenOn) {
+            if (mVerboseLoggingEnabled) Log.v(TAG, "Resuming scans on screen on");
+            startScan();
+            mIsPeriodicScanPaused = false;
+        } else {
+            if (mVerboseLoggingEnabled) Log.v(TAG, "Pausing scans on screen off");
+            cancelPeriodicScans();
+            mIsPeriodicScanPaused = true;
+        }
+    }
+
     private void resetState() {
         if (mIsConnectedToUserSelectedNetwork) {
             Log.i(TAG, "Disconnecting from network on reset");
@@ -583,6 +604,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mUserSelectedNetwork = null;
         mUserSelectedNetworkConnectRetryCount = 0;
         mIsConnectedToUserSelectedNetwork = false;
+        mIsPeriodicScanPaused = false;
         cancelPeriodicScans();
         cancelConnectionTimeout();
         // Remove any callbacks registered for the request.
@@ -668,6 +690,10 @@ public class WifiNetworkFactory extends NetworkFactory {
     }
 
     private void scheduleNextPeriodicScan() {
+        if (mIsPeriodicScanPaused) {
+            Log.e(TAG, "Scan triggered when periodic scanning paused. Ignoring...");
+            return;
+        }
         mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                 mClock.getElapsedSinceBootMillis() + PERIODIC_SCAN_INTERVAL_MS,
                 TAG, mPeriodicScanTimerListener, mHandler);
