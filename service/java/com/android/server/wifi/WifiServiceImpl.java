@@ -167,7 +167,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     private int scanRequestCounter = 0;
 
     /* Polls traffic stats and notifies clients */
-    private WifiTrafficPoller mTrafficPoller;
+    private WifiTrafficPoller mWifiTrafficPoller;
     /* Tracks the persisted states for wi-fi & airplane mode */
     final WifiSettingsStore mSettingsStore;
     /* Logs connection events and some general router and scan stats */
@@ -432,7 +432,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
         mFacade = mWifiInjector.getFrameworkFacade();
         mWifiMetrics = mWifiInjector.getWifiMetrics();
-        mTrafficPoller = mWifiInjector.getWifiTrafficPoller();
+        mWifiTrafficPoller = mWifiInjector.getWifiTrafficPoller();
         mUserManager = mWifiInjector.getUserManager();
         mCountryCode = mWifiInjector.getWifiCountryCode();
         mClientModeImpl = mWifiInjector.getClientModeImpl();
@@ -2487,7 +2487,7 @@ public class WifiServiceImpl extends AbstractWifiService {
             pw.println("mScanPending " + mScanPending);
             mWifiController.dump(fd, pw, args);
             mSettingsStore.dump(fd, pw, args);
-            mTrafficPoller.dump(fd, pw, args);
+            mWifiTrafficPoller.dump(fd, pw, args);
             pw.println();
             pw.println("Locks held:");
             mWifiLockManager.dump(pw);
@@ -2840,7 +2840,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
         // Post operation to handler thread
         mClientHandler.post(() -> {
-            mTrafficPoller.addCallback(binder, callback, callbackIdentifier);
+            mWifiTrafficPoller.addCallback(binder, callback, callbackIdentifier);
         });
     }
 
@@ -2860,7 +2860,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
         // Post operation to handler thread
         mClientHandler.post(() -> {
-            mTrafficPoller.removeCallback(callbackIdentifier);
+            mWifiTrafficPoller.removeCallback(callbackIdentifier);
         });
     }
 

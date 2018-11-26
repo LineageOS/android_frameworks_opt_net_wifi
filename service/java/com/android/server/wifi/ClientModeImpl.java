@@ -191,6 +191,7 @@ public class ClientModeImpl extends StateMachine {
     private final WifiScoreCard mWifiScoreCard;
     private final WifiScoreReport mWifiScoreReport;
     private final SarManager mSarManager;
+    private final WifiTrafficPoller mWifiTrafficPoller;
     public WifiScoreReport getWifiScoreReport() {
         return mWifiScoreReport;
     }
@@ -256,8 +257,9 @@ public class ClientModeImpl extends StateMachine {
     private PowerManager.WakeLock mSuspendWakeLock;
 
     /**
-     * Interval in milliseconds between polling for RSSI
-     * and linkspeed information
+     * Interval in milliseconds between polling for RSSI and linkspeed information.
+     * This is also used as the polling interval for WifiTrafficPoller, which updates
+     * its data activity on every CMD_RSSI_POLL.
      */
     private static final int DEFAULT_POLL_RSSI_INTERVAL_MSECS = 3000;
 
@@ -732,7 +734,8 @@ public class ClientModeImpl extends StateMachine {
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
                             WifiNative wifiNative, WifiScoreCard wifiScoreCard,
                             WrongPasswordNotifier wrongPasswordNotifier,
-                            SarManager sarManager) {
+                            SarManager sarManager,
+                            WifiTrafficPoller wifiTrafficPoller) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -746,6 +749,7 @@ public class ClientModeImpl extends StateMachine {
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
+        mWifiTrafficPoller = wifiTrafficPoller;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStats = IBatteryStats.Stub.asInterface(mFacade.getService(
@@ -4792,6 +4796,8 @@ public class ClientModeImpl extends StateMachine {
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());
+                        mWifiTrafficPoller.notifyOnDataActivity(mWifiInfo.txSuccess,
+                                                                mWifiInfo.rxSuccess);
                     } else {
                         // Polling has completed
                     }
