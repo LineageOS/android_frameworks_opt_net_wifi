@@ -348,6 +348,7 @@ public class ClientModeImplTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiNative mWifiNative;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock WifiTrafficPoller mWifiTrafficPoller;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock WifiStateTracker mWifiStateTracker;
     @Mock PasspointManager mPasspointManager;
@@ -403,6 +404,7 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWifiStateTracker()).thenReturn(mWifiStateTracker);
         when(mWifiInjector.getWifiMonitor()).thenReturn(mWifiMonitor);
         when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
+        when(mWifiInjector.getWifiTrafficPoller()).thenReturn(mWifiTrafficPoller);
         when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
@@ -496,7 +498,7 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWifiScoreCard, mWrongPasswordNotifier, mSarManager);
+                mWifiScoreCard, mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {
@@ -2796,5 +2798,16 @@ public class ClientModeImplTest {
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         assertFalse(mCmi.setPowerSave(powerSave));
         verify(mWifiNative, never()).setPowerSave(anyString(), anyBoolean());
+    }
+
+    /**
+     * Verify that we call into WifiTrafficPoller during rssi poll
+     */
+    @Test
+    public void verifyRssiPollCallsWifiTrafficPoller() throws Exception {
+        mCmi.enableRssiPolling(true);
+        connect();
+
+        verify(mWifiTrafficPoller).notifyOnDataActivity(anyLong(), anyLong());
     }
 }

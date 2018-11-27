@@ -32,6 +32,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,6 +53,7 @@ public class WifiNetworkSuggestionsManager {
 
     private final Context mContext;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
+    private final WifiConfigManager mWifiConfigManager;
     /**
      * Map of package name of an app to the set of active network suggestions provided by the app.
      */
@@ -72,10 +74,56 @@ public class WifiNetworkSuggestionsManager {
      * Verbose logging flag.
      */
     private boolean mVerboseLoggingEnabled = false;
+    /**
+     * Indicates that we have new data to serialize.
+     */
+    private boolean mHasNewDataToSerialize = false;
 
-    public WifiNetworkSuggestionsManager(Context context, WifiPermissionsUtil wifiPermissionsUtil) {
+    /**
+     * Module to interact with the wifi config store.
+     */
+    private class NetworkSuggestionDataSource implements NetworkSuggestionStoreData.DataSource {
+        @Override
+        public Map<String, Set<WifiNetworkSuggestion>> toSerialize() {
+            // Clear the flag after writing to disk.
+            // TODO(b/115504887): Don't reset the flag on write failure.
+            mHasNewDataToSerialize = false;
+            return mActiveNetworkSuggestionsPerApp;
+        }
+
+        @Override
+        public void fromDeserialized(
+                Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap) {
+            mActiveNetworkSuggestionsPerApp.putAll(networkSuggestionsMap);
+            // Build the scan cache.
+            for (Set<WifiNetworkSuggestion> networkSuggestions : networkSuggestionsMap.values()) {
+                addToScanResultMatchInfoMap(networkSuggestions);
+            }
+        }
+
+        @Override
+        public void reset() {
+            mActiveNetworkSuggestionsPerApp.clear();
+            mActiveScanResultMatchInfo.clear();
+        }
+
+        @Override
+        public boolean hasNewDataToSerialize() {
+            return mHasNewDataToSerialize;
+        }
+    }
+
+    public WifiNetworkSuggestionsManager(Context context, WifiInjector wifiInjector,
+                                         WifiPermissionsUtil wifiPermissionsUtil,
+                                         WifiConfigManager wifiConfigManager,
+                                         WifiConfigStore wifiConfigStore) {
         mContext = context;
         mWifiPermissionsUtil = wifiPermissionsUtil;
+        mWifiConfigManager = wifiConfigManager;
+
+        // register the data store for serializing/deserializing data.
+        wifiConfigStore.registerStoreData(
+                wifiInjector.makeNetworkSuggestionStoreData(new NetworkSuggestionDataSource()));
     }
 
     /**
@@ -85,7 +133,15 @@ public class WifiNetworkSuggestionsManager {
         mVerboseLoggingEnabled = verbose > 0;
     }
 
-    private void addToScanResultMatchInfoMap(List<WifiNetworkSuggestion> networkSuggestions) {
+    private void saveToStore() {
+        // Set the flag to let WifiConfigStore that we have new data to write.
+        mHasNewDataToSerialize = true;
+        if (!mWifiConfigManager.saveToStore(true)) {
+            Log.w(TAG, "Failed to save to store");
+        }
+    }
+
+    private void addToScanResultMatchInfoMap(Collection<WifiNetworkSuggestion> networkSuggestions) {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
@@ -140,6 +196,7 @@ public class WifiNetworkSuggestionsManager {
         }
         activeNetworkSuggestionsForApp.addAll(networkSuggestions);
         addToScanResultMatchInfoMap(networkSuggestions);
+        saveToStore();
         return true;
     }
 
@@ -174,6 +231,7 @@ public class WifiNetworkSuggestionsManager {
             mActiveNetworkSuggestionsPerApp.remove(packageName);
         }
         removeFromScanResultMatchInfoMap(networkSuggestions);
+        saveToStore();
         return true;
     }
 
