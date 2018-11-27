@@ -30,6 +30,7 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
@@ -49,6 +50,7 @@ import android.os.Messenger;
 import android.os.PatternMatcher;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -350,10 +352,20 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
-        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
-                mWorkSourceArgumentCaptor.capture());
+        // Verify UI start.
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivityAsUser(
+                intentArgumentCaptor.capture(), eq(UserHandle.getUserHandleForUid(TEST_UID_1)));
+        Intent intent = intentArgumentCaptor.getValue();
+        assertNotNull(intent);
+        assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
+        assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
 
         // Verify scan settings.
+        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+                mWorkSourceArgumentCaptor.capture());
         ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
         assertNotNull(scanSettings);
         assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
@@ -374,10 +386,20 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
-        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
-                mWorkSourceArgumentCaptor.capture());
+        // Verify UI start.
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivityAsUser(
+                intentArgumentCaptor.capture(), eq(UserHandle.getUserHandleForUid(TEST_UID_1)));
+        Intent intent = intentArgumentCaptor.getValue();
+        assertNotNull(intent);
+        assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
+        assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
 
         // Verify scan settings.
+        verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+                mWorkSourceArgumentCaptor.capture());
         ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
         assertNotNull(scanSettings);
         assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
@@ -402,7 +424,7 @@ public class WifiNetworkFactoryTest {
     public void testHandleNetworkRequestWithSpecifierAfterPreviousHiddenNetworkRequest() {
         testHandleNetworkRequestWithSpecifierForHiddenNetwork();
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
-        reset(mWifiScanner, mWifiConnectivityManager);
+        reset(mWifiScanner, mWifiConnectivityManager, mContext);
         testHandleNetworkRequestWithSpecifier();
     }
 

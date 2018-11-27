@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.content.Context;
+import android.content.Intent;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
@@ -42,6 +43,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.WorkSource;
 import android.text.TextUtils;
 import android.util.Log;
@@ -70,6 +72,10 @@ public class WifiNetworkFactory extends NetworkFactory {
     public static final int NETWORK_CONNECTION_TIMEOUT_MS = 30 * 1000; // 30 seconds
     @VisibleForTesting
     public static final int USER_SELECTED_NETWORK_CONNECT_RETRY_MAX = 3; // max of 3 retries.
+    @VisibleForTesting
+    public static final String UI_START_INTENT_ACTION = "com.android.settings.wifi.NETWORK_REQUEST";
+    @VisibleForTesting
+    public static final String UI_START_INTENT_CATEGORY = "android.intent.category.DEFAULT";
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -380,7 +386,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
                     wns.requestorUid);
 
-            // TODO(b/113878056): Start UI flow here.
+            // Start UI to let the user grant/disallow this request from the app.
+            startUi();
             // Trigger periodic scans for finding a network in the request.
             startPeriodicScans();
         }
@@ -784,6 +791,16 @@ public class WifiNetworkFactory extends NetworkFactory {
                 mClock.getElapsedSinceBootMillis() + NETWORK_CONNECTION_TIMEOUT_MS,
                 TAG, mConnectionTimeoutAlarmListener, mHandler);
         mConnectionTimeoutSet = true;
+    }
+
+    private void startUi() {
+        Intent intent = new Intent();
+        intent.setAction(UI_START_INTENT_ACTION);
+        intent.addCategory(UI_START_INTENT_CATEGORY);
+        intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        mContext.startActivityAsUser(intent,
+                UserHandle.getUserHandleForUid(
+                        mActiveSpecificNetworkRequestSpecifier.requestorUid));
     }
 }
 
