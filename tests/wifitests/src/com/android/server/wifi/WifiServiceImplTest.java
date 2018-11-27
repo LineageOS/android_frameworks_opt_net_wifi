@@ -2410,6 +2410,7 @@ public class WifiServiceImplTest {
 
     @Test
     public void testPackageRemovedBroadcastHandling() {
+        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat((IntentFilter filter) ->
@@ -2427,10 +2428,14 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
+        ArgumentCaptor<List> removeListCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mWifiNetworkSuggestionsManager).remove(removeListCaptor.capture(), eq(packageName));
+        assertTrue(removeListCaptor.getValue().isEmpty());
     }
 
     @Test
     public void testPackageRemovedBroadcastHandlingWithNoUid() {
+        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat((IntentFilter filter) ->
@@ -2446,10 +2451,12 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
+        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
     }
 
     @Test
     public void testPackageRemovedBroadcastHandlingWithNoPackageName() {
+        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat((IntentFilter filter) ->
@@ -2465,6 +2472,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
+        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
     }
 
     @Test

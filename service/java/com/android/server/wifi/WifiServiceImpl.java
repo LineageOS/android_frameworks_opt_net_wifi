@@ -2472,8 +2472,10 @@ public class WifiServiceImpl extends AbstractWifiService {
                     String pkgName = uri.getSchemeSpecificPart();
                     mClientModeImpl.removeAppConfigs(pkgName, uid);
                     // Call the method in ClientModeImpl thread.
-                    mClientModeImplHandler.post(() -> {
+                    mWifiInjector.getClientModeImplHandler().post(() -> {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
+                        // Remove all suggestions from the package.
+                        mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), pkgName);
                     });
                 }
             }
