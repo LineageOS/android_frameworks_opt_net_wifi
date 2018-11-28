@@ -28,8 +28,9 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
-import com.android.server.wifi.WifiScoreCardProto.AccessPointOrBuilder;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.Signal;
+import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
 
 import com.google.protobuf.ByteString;
 
@@ -167,17 +168,15 @@ public class WifiScoreCard {
 
     private int mNextId = 0;
     final class PerBssid {
+        public int id;
         public final String ssid;
         public final MacAddress bssid;
-        public final AccessPointOrBuilder ap;
-        private final Map<Pair<Event, Integer>, PerSignal> mSignalForEventAndFrequency =
-                new ArrayMap<>();
+        private final Map<Pair<Event, Integer>, PerSignal>
+                mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
+            this.id = mNextId++;
             this.ssid = ssid;
             this.bssid = bssid;
-            this.ap = AccessPoint.newBuilder()
-                    .setId(mNextId++)
-                    .setBssid(ByteString.copyFrom(bssid.toByteArray()));
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
             PerSignal perSignal = lookupSignal(event, frequency);
@@ -203,6 +202,14 @@ public class WifiScoreCard {
             }
             return ans;
         }
+        AccessPoint toAccessPoint() {
+            AccessPoint.Builder builder = AccessPoint.newBuilder();
+            builder.setId(id).setBssid(ByteString.copyFrom(bssid.toByteArray()));
+            for (PerSignal sig: mSignalForEventAndFrequency.values()) {
+                builder.addEventStats(sig.toSignal());
+            }
+            return builder.build();
+        }
     }
 
     // Create mDummyPerBssid here so it gets an id of 0. This is returned when the
@@ -227,7 +234,7 @@ public class WifiScoreCard {
             ans = new PerBssid(ssid, mac);
             PerBssid old = mApForBssid.put(mac, ans);
             if (old != null) {
-                Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.ap.getId());
+                Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.id);
             }
         }
         return ans;
@@ -261,6 +268,17 @@ public class WifiScoreCard {
                     break;
             }
         }
+        Signal toSignal() {
+            Signal.Builder builder = Signal.newBuilder();
+            builder.setEvent(event)
+                    .setFrequency(frequency)
+                    .setRssi(rssi.toUnivariateStatistic())
+                    .setLinkspeed(linkspeed.toUnivariateStatistic());
+            if (elapsedMs != null) {
+                // TODO add to .proto - builder.setEapsedMs(elapsedMs.toUnivariateStatistic());
+            }
+            return builder.build();
+        }
         //TODO  Serialize/Deserialize
     }
 
@@ -270,8 +288,8 @@ public class WifiScoreCard {
         public double sumOfSquares = 0.0;
         public double minValue = Double.POSITIVE_INFINITY;
         public double maxValue = Double.NEGATIVE_INFINITY;
-        public double historical_mean = 0.0;
-        public double historical_variance = Double.POSITIVE_INFINITY;
+        public double historicalMean = 0.0;
+        public double historicalVariance = Double.POSITIVE_INFINITY;
         void update(double value) {
             count++;
             sum += value;
@@ -281,6 +299,21 @@ public class WifiScoreCard {
         }
         void age() {
             //TODO  Fold the current stats into the historical stats
+        }
+        UnivariateStatistic toUnivariateStatistic() {
+            UnivariateStatistic.Builder builder = UnivariateStatistic.newBuilder();
+            if (count != 0) {
+                builder.setCount(count)
+                        .setSum(sum)
+                        .setSumOfSquares(sumOfSquares)
+                        .setMinValue(minValue)
+                        .setMaxValue(maxValue);
+            }
+            if (historicalVariance < Double.POSITIVE_INFINITY) {
+                builder.setHistoricalMean(historicalMean)
+                        .setHistoricalVariance(historicalVariance);
+            }
+            return builder.build();
         }
         //TODO  Serialize/Deserialize
     }

@@ -24,7 +24,9 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
 import android.support.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.Signal;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -42,6 +44,8 @@ public class WifiScoreCardTest {
 
     static final MacAddress TEST_BSSID_1 = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
     static final MacAddress TEST_BSSID_2 = MacAddress.fromString("1:2:3:4:5:6");
+
+    static final double TOL = 1e-6; // for assertEquals(double, double, tolerance)
 
     WifiScoreCard mWifiScoreCard;
 
@@ -84,14 +88,14 @@ public class WifiScoreCardTest {
         mWifiScoreCard.noteIpConfiguration(mWifiInfo);
 
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
-        assertTrue(perBssid.ap.getId() > 0);
+        assertTrue(perBssid.id > 0);
 
         mWifiInfo.setBSSID(TEST_BSSID_2.toString());
 
         mWifiScoreCard.noteIpConfiguration(mWifiInfo);
 
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
-        assertNotEquals(perBssid.ap.getId(), mWifiScoreCard.fetchByBssid(TEST_BSSID_2).ap.getId());
+        assertNotEquals(perBssid.id, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).id);
     }
 
     /**
@@ -117,7 +121,6 @@ public class WifiScoreCardTest {
 
         double expectSum = -77 + -55;
         double expectSumSq = 77 * 77 + 55 * 55;
-        final double tol = 1e-6;
 
         // Now verify
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
@@ -127,17 +130,17 @@ public class WifiScoreCardTest {
         // Check the rssi statistics for the first channel
         assertEquals(2, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).rssi.count);
         assertEquals(expectSum, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
-                .rssi.sum, tol);
+                .rssi.sum, TOL);
         assertEquals(expectSumSq, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
-                .rssi.sumOfSquares, tol);
+                .rssi.sumOfSquares, TOL);
         assertEquals(-77.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
-                .rssi.minValue, tol);
+                .rssi.minValue, TOL);
         assertEquals(-55.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
-                .rssi.maxValue, tol);
+                .rssi.maxValue, TOL);
         // Check the rssi statistics for the second channel
         assertEquals(1, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).rssi.count);
         // Check that the linkspeed was updated
-        assertEquals(666.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).linkspeed.sum, tol);
+        assertEquals(666.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).linkspeed.sum, TOL);
     }
 
     /**
@@ -169,18 +172,57 @@ public class WifiScoreCardTest {
         secondsPass(9900);
         mWifiScoreCard.noteWifiDisabled(mWifiInfo);
 
-        final double tol = 1e-6;
 
         // Now verify
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         assertEquals(1, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
                 .elapsedMs.count);
         assertEquals(333.0, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
-                .elapsedMs.sum, tol);
+                .elapsedMs.sum, TOL);
         assertEquals(9999999.0, perBssid.lookupSignal(Event.WIFI_DISABLED, 5805)
-                .elapsedMs.maxValue, tol);
+                .elapsedMs.maxValue, TOL);
         assertEquals(999.0,  perBssid.lookupSignal(Event.FIRST_POLL_AFTER_CONNECTION, 5805)
-                .elapsedMs.minValue, tol);
+                .elapsedMs.minValue, TOL);
         assertNull(perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).elapsedMs);
+    }
+
+    /**
+     * AccessPoint serialization
+     */
+    @Test
+    public void testAccessPoint() throws Exception {
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+        millisecondsPass(111);
+        mWifiInfo.setRssi(-55);
+        mWifiInfo.setFrequency(5805);
+        mWifiInfo.setLinkSpeed(384);
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        millisecondsPass(888);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        millisecondsPass(1000);
+        mWifiInfo.setRssi(-44);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        // Now convert to protobuf form
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        byte[] serialized = perBssid.toAccessPoint().toByteArray();
+        // Verify by parsing it and checking that we see the expected results
+        AccessPoint ap = AccessPoint.parseFrom(serialized);
+        assertEquals(3, ap.getEventStatsCount());
+        for (Signal signal: ap.getEventStatsList()) {
+            assertEquals(5805, signal.getFrequency());
+            switch (signal.getEvent()) {
+                case IP_CONFIGURATION_SUCCESS:
+                    assertEquals(384.0, signal.getLinkspeed().getMaxValue(), TOL);
+                    break;
+                case SIGNAL_POLL:
+                    assertEquals(2, signal.getRssi().getCount());
+                    break;
+                case FIRST_POLL_AFTER_CONNECTION:
+                    assertEquals(-55.0, signal.getRssi().getSum(), TOL);
+                    break;
+                default:
+                    fail(signal.getEvent().toString());
+            }
+        }
     }
 }
