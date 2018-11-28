@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.net.MacAddress;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
 import android.support.test.filters.SmallTest;
 
@@ -137,5 +138,49 @@ public class WifiScoreCardTest {
         assertEquals(1, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).rssi.count);
         // Check that the linkspeed was updated
         assertEquals(666.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).linkspeed.sum, tol);
+    }
+
+    /**
+     * Statistics on time-to-connect, connection duration
+     */
+    @Test
+    public void testDurationStatistics() throws Exception {
+        // Start out disconnected; start connecting
+        mWifiInfo.setBSSID(android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS);
+        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+        // First poll has a bad RSSI
+        millisecondsPass(111);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiInfo.setFrequency(5805);
+        mWifiInfo.setRssi(WifiInfo.INVALID_RSSI);
+        // A bit later, connection is complete (up through DHCP)
+        millisecondsPass(222);
+        mWifiInfo.setRssi(-55);
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        millisecondsPass(666);
+        // Rssi polls for 99 seconds
+        for (int i = 0; i < 99; i += 3) {
+            mWifiScoreCard.noteSignalPoll(mWifiInfo);
+            secondsPass(3);
+        }
+        // Make sure our simulated time adds up
+        assertEquals(mMilliSecondsSinceBoot, 99999);
+        // A long while later, wifi is toggled off
+        secondsPass(9900);
+        mWifiScoreCard.noteWifiDisabled(mWifiInfo);
+
+        final double tol = 1e-6;
+
+        // Now verify
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        assertEquals(1, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
+                .elapsedMs.count);
+        assertEquals(333.0, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
+                .elapsedMs.sum, tol);
+        assertEquals(9999999.0, perBssid.lookupSignal(Event.WIFI_DISABLED, 5805)
+                .elapsedMs.maxValue, tol);
+        assertEquals(999.0,  perBssid.lookupSignal(Event.FIRST_POLL_AFTER_CONNECTION, 5805)
+                .elapsedMs.minValue, tol);
+        assertNull(perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).elapsedMs);
     }
 }
