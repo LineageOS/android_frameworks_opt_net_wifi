@@ -362,6 +362,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.FACTORY_RESET:
                 case WifiP2pManager.SET_ONGOING_PEER_CONFIG:
                 case WifiP2pManager.REQUEST_ONGOING_PEER_CONFIG:
+                case WifiP2pManager.REQUEST_P2P_STATE:
+                case WifiP2pManager.REQUEST_DISCOVERY_STATE:
+                case WifiP2pManager.REQUEST_NETWORK_INFO:
                     mP2pStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 default:
@@ -939,6 +942,22 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO:
                         replyToMessage(message, WifiP2pManager.RESPONSE_PERSISTENT_GROUP_INFO,
                                 new WifiP2pGroupList(mGroups, null));
+                        break;
+                    case WifiP2pManager.REQUEST_P2P_STATE:
+                        replyToMessage(message, WifiP2pManager.RESPONSE_P2P_STATE,
+                                (mIsWifiEnabled && mIsInterfaceAvailable)
+                                ? WifiP2pManager.WIFI_P2P_STATE_ENABLED
+                                : WifiP2pManager.WIFI_P2P_STATE_DISABLED);
+                        break;
+                    case WifiP2pManager.REQUEST_DISCOVERY_STATE:
+                        replyToMessage(message, WifiP2pManager.RESPONSE_DISCOVERY_STATE,
+                                mDiscoveryStarted
+                                ? WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED
+                                : WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED);
+                        break;
+                    case WifiP2pManager.REQUEST_NETWORK_INFO:
+                        replyToMessage(message, WifiP2pManager.RESPONSE_NETWORK_INFO,
+                                mNetworkInfo);
                         break;
                     case WifiP2pManager.START_WPS:
                         replyToMessage(message, WifiP2pManager.START_WPS_FAILED,
