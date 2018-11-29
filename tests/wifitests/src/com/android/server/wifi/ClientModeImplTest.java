@@ -1281,12 +1281,12 @@ public class ClientModeImplTest {
 
 
     @Test
-    public void smToString() throws Exception {
-        assertEquals("CMD_CHANNEL_HALF_CONNECTED", mCmi.smToString(
+    public void getWhatToString() throws Exception {
+        assertEquals("CMD_CHANNEL_HALF_CONNECTED", mCmi.getWhatToString(
                 AsyncChannel.CMD_CHANNEL_HALF_CONNECTED));
-        assertEquals("CMD_PRE_DHCP_ACTION", mCmi.smToString(
+        assertEquals("CMD_PRE_DHCP_ACTION", mCmi.getWhatToString(
                 DhcpClient.CMD_PRE_DHCP_ACTION));
-        assertEquals("CMD_IP_REACHABILITY_LOST", mCmi.smToString(
+        assertEquals("CMD_IP_REACHABILITY_LOST", mCmi.getWhatToString(
                 ClientModeImpl.CMD_IP_REACHABILITY_LOST));
     }
 
