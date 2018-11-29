@@ -120,6 +120,7 @@ public class WifiInjector {
     private final LocalLog mConnectivityLocalLog;
     private final WifiNetworkSelector mWifiNetworkSelector;
     private final SavedNetworkEvaluator mSavedNetworkEvaluator;
+    private final NetworkSuggestionEvaluator mNetworkSuggestionEvaluator;
     private final PasspointNetworkEvaluator mPasspointNetworkEvaluator;
     private final ScoredNetworkEvaluator mScoredNetworkEvaluator;
     private final WifiNetworkScoreCache mWifiNetworkScoreCache;
@@ -244,6 +245,10 @@ public class WifiInjector {
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
+        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, this,
+                mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
+        mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
+                mWifiConfigManager, mConnectivityLocalLog);
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, clientModeImplLooper,
                 mFrameworkFacade, mNetworkScoreManager, mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
@@ -297,8 +302,6 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
-        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, this,
-                mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
     }
 
     /**
@@ -546,7 +549,8 @@ public class WifiInjector {
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mWifiCoreHandlerThread.getLooper(),
                 mClock, mConnectivityLocalLog,
-                mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator);
+                mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator,
+                mNetworkSuggestionEvaluator);
     }
 
     /**

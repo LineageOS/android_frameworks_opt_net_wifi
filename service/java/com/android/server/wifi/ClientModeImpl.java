@@ -728,6 +728,7 @@ public class ClientModeImpl extends StateMachine {
     private WifiStateTracker mWifiStateTracker;
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
+    private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
 
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
@@ -810,6 +811,8 @@ public class ClientModeImpl extends StateMachine {
         // different score filter for these requests.
         mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
                 factoryNetworkCapabilities, mWifiConnectivityManager);
+
+        mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -3013,6 +3016,8 @@ public class ClientModeImpl extends StateMachine {
         mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
         mNetworkFactory.handleConnectionAttemptEnded(
+                level2FailureCode, getCurrentWifiConfiguration());
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 level2FailureCode, getCurrentWifiConfiguration());
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }

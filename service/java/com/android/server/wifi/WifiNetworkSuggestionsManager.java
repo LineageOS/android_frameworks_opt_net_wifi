@@ -54,6 +54,7 @@ public class WifiNetworkSuggestionsManager {
     private final Context mContext;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiConfigManager mWifiConfigManager;
+    private final WifiInjector mWifiInjector;
     /**
      * Map of package name of an app to the set of active network suggestions provided by the app.
      */
@@ -69,6 +70,10 @@ public class WifiNetworkSuggestionsManager {
      */
     private final Map<ScanResultMatchInfo, Set<WifiNetworkSuggestion>> mActiveScanResultMatchInfo =
             new HashMap<>();
+    /**
+     * List of {@link WifiNetworkSuggestion} matching the current connected network.
+     */
+    private Set<WifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
 
     /**
      * Verbose logging flag.
@@ -118,6 +123,7 @@ public class WifiNetworkSuggestionsManager {
                                          WifiConfigManager wifiConfigManager,
                                          WifiConfigStore wifiConfigStore) {
         mContext = context;
+        mWifiInjector = wifiInjector;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiConfigManager = wifiConfigManager;
 
@@ -171,6 +177,23 @@ public class WifiNetworkSuggestionsManager {
             // Remove the set from map if empty.
             if (activeNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
                 mActiveScanResultMatchInfo.remove(scanResultMatchInfo);
+            }
+        }
+    }
+
+    // Issues a disconnect if the only serving network suggestion is removed.
+    // TODO (b/115504887): What if there is also a saved network with the same credentials?
+    private void triggerDisconnectIfServingNetworkSuggestionRemoved(
+            List<WifiNetworkSuggestion> networkSuggestionsRemoved) {
+        if (mActiveNetworkSuggestionsMatchingConnection == null
+                || mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
+            return;
+        }
+        if (mActiveNetworkSuggestionsMatchingConnection.removeAll(networkSuggestionsRemoved)) {
+            if (mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
+                Log.i(TAG, "Only network suggestion matching the connected network removed. "
+                        + "Disconnecting...");
+                mWifiInjector.getClientModeImpl().disconnectCommand();
             }
         }
     }
@@ -232,6 +255,8 @@ public class WifiNetworkSuggestionsManager {
         }
         removeFromScanResultMatchInfoMap(networkSuggestions);
         saveToStore();
+        // Disconnect from the current network, if the suggestion was removed.
+        triggerDisconnectIfServingNetworkSuggestionRemoved(networkSuggestions);
         return true;
     }
 
@@ -313,10 +338,17 @@ public class WifiNetworkSuggestionsManager {
      *
      * @param connectedNetwork {@link WifiConfiguration} representing the network connected to.
      */
-    public void handleNetworkConnection(@NonNull WifiConfiguration connectedNetwork) {
+    private void handleConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
         Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
                 getNetworkSuggestionsForWifiConfiguration(connectedNetwork);
-        if (matchingNetworkSuggestions == null || matchingNetworkSuggestions.size() == 0) return;
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Network suggestions matching the connection "
+                    + matchingNetworkSuggestions);
+        }
+        if (matchingNetworkSuggestions == null || matchingNetworkSuggestions.isEmpty()) return;
+
+        // Store the set of matching network suggestions.
+        mActiveNetworkSuggestionsMatchingConnection = new HashSet<>(matchingNetworkSuggestions);
 
         Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithReqAppInteraction =
                 matchingNetworkSuggestions.stream()
@@ -351,6 +383,24 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Invoked by {@link ClientModeImpl} on end of connection attempt to a network.
+     *
+     * @param failureCode Failure codes representing {@link WifiMetrics.ConnectionEvent} codes.
+     * @param network WifiConfiguration corresponding to the current network.
+     */
+    public void handleConnectionAttemptEnded(
+            int failureCode, @NonNull WifiConfiguration network) {
+        Log.v(TAG, "handleConnectionAttemptEnded " + failureCode + ", " + network);
+        mActiveNetworkSuggestionsMatchingConnection = null;
+        if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+            handleConnectionSuccess(network);
+        } else {
+            // TODO (b/115504887): Blacklist the corresponding network suggestion if the connection
+            // failed.
+        }
+    }
+
+    /**
      * Dump of {@link WifiNetworkSuggestionsManager}.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -364,6 +414,8 @@ public class WifiNetworkSuggestionsManager {
             }
         }
         pw.println("WifiNetworkSuggestionsManager - Networks End ----");
+        pw.println("WifiNetworkSuggestionsManager - Network Suggestions matching connection: "
+                + mActiveNetworkSuggestionsMatchingConnection);
     }
 }
 
