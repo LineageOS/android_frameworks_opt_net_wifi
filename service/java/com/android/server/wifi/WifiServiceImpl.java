@@ -48,7 +48,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.database.ContentObserver;
@@ -75,6 +74,7 @@ import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.AsyncTask;
 import android.os.BatteryStats;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -83,7 +83,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ShellCallback;
@@ -190,7 +189,6 @@ public class WifiServiceImpl extends AbstractWifiService {
     @VisibleForTesting
     AsyncChannel mClientModeImplChannel;
 
-    private final boolean mWirelessConsentRequired;
     private final FrameworkFacade mFrameworkFacade;
 
     private WifiPermissionsUtil mWifiPermissionsUtil;
@@ -260,7 +258,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.CONNECT_NETWORK: {
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.CONNECT_NETWORK_FAILED)) {
                         WifiConfiguration config = (WifiConfiguration) msg.obj;
                         int networkId = msg.arg1;
@@ -285,7 +283,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.SAVE_NETWORK: {
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.SAVE_NETWORK_FAILED)) {
                         WifiConfiguration config = (WifiConfiguration) msg.obj;
                         int networkId = msg.arg1;
@@ -307,26 +305,13 @@ public class WifiServiceImpl extends AbstractWifiService {
                     break;
                 }
                 case WifiManager.FORGET_NETWORK:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.FORGET_NETWORK_FAILED)) {
                         mClientModeImpl.sendMessage(Message.obtain(msg));
                     }
                     break;
-                case WifiManager.START_WPS:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(msg, WifiManager.WPS_FAILED)) {
-                        // WPS support is deprecated, return an error
-                        replyFailed(msg, WifiManager.WPS_FAILED, WifiManager.ERROR);
-                    }
-                    break;
-                case WifiManager.CANCEL_WPS:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
-                            msg, WifiManager.CANCEL_WPS_FAILED)) {
-                        // WPS support is deprecated, return an error
-                        replyFailed(msg, WifiManager.CANCEL_WPS_FAILED, WifiManager.ERROR);
-                    }
-                    break;
                 case WifiManager.DISABLE_NETWORK:
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
+                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
                             msg, WifiManager.DISABLE_NETWORK_FAILED)) {
                         mClientModeImpl.sendMessage(Message.obtain(msg));
                     }
@@ -357,6 +342,28 @@ public class WifiServiceImpl extends AbstractWifiService {
          */
         private boolean checkChangePermissionAndReplyIfNotAuthorized(Message msg, int replyWhat) {
             if (!mWifiPermissionsUtil.checkChangePermission(msg.sendingUid)) {
+                Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
+                replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Helper method to check if the sender of the message holds one of
+         * {@link Manifest.permission#NETWORK_SETTINGS},
+         * {@link Manifest.permission#NETWORK_SETUP_WIZARD} or
+         * {@link Manifest.permission#NETWORK_STACK} permission, and reply with a failure if it
+         * doesn't
+         *
+         * @param msg Incoming message.
+         * @param replyWhat Param to be filled in the {@link Message#what} field of the failure
+         *                  reply.
+         * @return true if the sender holds the permission, false otherwise.
+         */
+        private boolean checkPrivilegedPermissionsAndReplyIfNotAuthorized(
+                Message msg, int replyWhat) {
+            if (!isPrivileged(-1, msg.sendingUid)) {
                 Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
                 replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
                 return false;
@@ -452,8 +459,6 @@ public class WifiServiceImpl extends AbstractWifiService {
         mWifiController = mWifiInjector.getWifiController();
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
-        mWirelessConsentRequired = context.getResources().getBoolean(
-                com.android.internal.R.bool.config_wirelessConsentRequired);
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
         mLog = mWifiInjector.makeLog(TAG);
         mFrameworkFacade = wifiInjector.getFrameworkFacade();
@@ -690,6 +695,24 @@ public class WifiServiceImpl extends AbstractWifiService {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean checkNetworkSetupWizardPermission(int pid, int uid) {
+        return mContext.checkPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD, pid, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean checkNetworkStackPermission(int pid, int uid) {
+        return mContext.checkPermission(android.Manifest.permission.NETWORK_STACK, pid, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // Helper method to check if the entity initiating the binder call has any of the signature only
+    // permissions.
+    private boolean isPrivileged(int pid, int uid) {
+        return checkNetworkSettingsPermission(pid, uid)
+                || checkNetworkSetupWizardPermission(pid, uid)
+                || checkNetworkStackPermission(pid, uid);
+    }
+
     private void enforceNetworkSettingsPermission() {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS,
                 "WifiService");
@@ -758,23 +781,28 @@ public class WifiServiceImpl extends AbstractWifiService {
         mWifiPermissionsUtil.enforceLocationPermission(pkgName, uid);
     }
 
-    /**
-     * Check if the caller must still pass permission check or if the caller is exempted
-     * from the consent UI via the MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED check.
-     *
-     * Commands from some callers may be exempted from triggering the consent UI when
-     * enabling wifi. This exemption is checked via the MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED
-     * and allows calls to skip the consent UI where it may otherwise be required.
-     *
-     * @hide
-     */
-    private boolean checkWifiPermissionWhenWirelessConsentRequired() {
-        if (!mWirelessConsentRequired) {
-            return false;
+    private boolean isTargetSdkLessThan(String packageName, int versionCode) {
+        try {
+            if (mContext.getPackageManager().getApplicationInfo(packageName, 0).targetSdkVersion
+                    < versionCode) {
+                return true;
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            // In case of exception, assume known app (more strict checking)
+            // Note: This case will never happen since checkPackage is
+            // called to verify valididity before checking App's version.
         }
-        int result = mContext.checkCallingPermission(
-                android.Manifest.permission.MANAGE_WIFI_WHEN_WIRELESS_CONSENT_REQUIRED);
-        return result == PackageManager.PERMISSION_GRANTED;
+        return false;
+
+    }
+
+    /**
+     * Helper method to check if the app is allowed to access public API's deprecated in
+     * {@link Build.VERSION_CODES.Q}.
+     * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
+     */
+    private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
+        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q) ||  isPrivileged(pid, uid);
     }
 
     /**
@@ -785,66 +813,25 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @Override
     public synchronized boolean setWifiEnabled(String packageName, boolean enable) {
-        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
+                "WifiService");
+        // only privileged apps like settings, setup wizard, etc can toggle wifi.
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("setWifiEnabled not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
             return false;
         }
-
-        Slog.d(TAG, "setWifiEnabled: " + enable + " pid=" + Binder.getCallingPid()
-                    + ", uid=" + Binder.getCallingUid() + ", package=" + packageName);
         mLog.info("setWifiEnabled package=% uid=% enable=%").c(packageName)
                 .c(Binder.getCallingUid()).c(enable).flush();
-
-        boolean isFromSettings = checkNetworkSettingsPermission(
-                Binder.getCallingPid(), Binder.getCallingUid());
-
-        // If Airplane mode is enabled, only Settings is allowed to toggle Wifi
-        if (mSettingsStore.isAirplaneModeOn() && !isFromSettings) {
-            mLog.info("setWifiEnabled in Airplane mode: only Settings can enable wifi").flush();
-            return false;
-        }
-
-        // If SoftAp is enabled, only Settings is allowed to toggle wifi
-        boolean apEnabled = mWifiApState == WifiManager.WIFI_AP_STATE_ENABLED;
-
-        if (apEnabled && !isFromSettings) {
-            mLog.info("setWifiEnabled SoftAp not disabled: only Settings can enable wifi").flush();
-            return false;
-        }
-
-        /*
-        * Caller might not have WRITE_SECURE_SETTINGS,
-        * only CHANGE_WIFI_STATE is enforced
-        */
         long ident = Binder.clearCallingIdentity();
         try {
-            if (! mSettingsStore.handleWifiToggled(enable)) {
+            if (!mSettingsStore.handleWifiToggled(enable)) {
                 // Nothing to do if wifi cannot be toggled
                 return true;
             }
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
-
-
-        if (mWirelessConsentRequired) {
-            final int wiFiEnabledState = getWifiEnabledState();
-            if (enable) {
-                if (wiFiEnabledState == WifiManager.WIFI_STATE_DISABLING
-                        || wiFiEnabledState == WifiManager.WIFI_STATE_DISABLED) {
-                    if (startConsentUi(packageName, Binder.getCallingUid(),
-                            WifiManager.ACTION_REQUEST_ENABLE)) {
-                        return true;
-                    }
-                }
-            } else if (wiFiEnabledState == WifiManager.WIFI_STATE_ENABLING
-                    || wiFiEnabledState == WifiManager.WIFI_STATE_ENABLED) {
-                if (startConsentUi(packageName, Binder.getCallingUid(),
-                        WifiManager.ACTION_REQUEST_DISABLE)) {
-                    return true;
-                }
-            }
-        }
-
         mWifiController.sendMessage(CMD_WIFI_TOGGLED);
         return true;
     }
@@ -1579,36 +1566,57 @@ public class WifiServiceImpl extends AbstractWifiService {
      * see {@link android.net.wifi.WifiManager#disconnect()}
      */
     @Override
-    public void disconnect(String packageName) {
+    public boolean disconnect(String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
-            return;
+            return false;
+        }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("disconnect not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return false;
         }
         mLog.info("disconnect uid=%").c(Binder.getCallingUid()).flush();
         mClientModeImpl.disconnectCommand();
+        return true;
     }
 
     /**
      * see {@link android.net.wifi.WifiManager#reconnect()}
      */
     @Override
-    public void reconnect(String packageName) {
+    public boolean reconnect(String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
-            return;
+            return false;
+        }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("reconnect not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return false;
         }
         mLog.info("reconnect uid=%").c(Binder.getCallingUid()).flush();
         mClientModeImpl.reconnectCommand(new WorkSource(Binder.getCallingUid()));
+        return true;
     }
 
     /**
      * see {@link android.net.wifi.WifiManager#reassociate()}
      */
     @Override
-    public void reassociate(String packageName) {
+    public boolean reassociate(String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
-            return;
+            return false;
+        }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("reassociate not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return false;
         }
         mLog.info("reassociate uid=%").c(Binder.getCallingUid()).flush();
         mClientModeImpl.reassociateCommand();
+        return true;
     }
 
     /**
@@ -1711,8 +1719,15 @@ public class WifiServiceImpl extends AbstractWifiService {
      * @return the list of configured networks
      */
     @Override
-    public ParceledListSlice<WifiConfiguration> getConfiguredNetworks() {
+    public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName) {
         enforceAccessPermission();
+        mAppOps.checkPackage(Binder.getCallingUid(), packageName);
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("getConfiguredNetworks not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return new ParceledListSlice<>(new ArrayList<>());
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getConfiguredNetworks uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1802,6 +1817,12 @@ public class WifiServiceImpl extends AbstractWifiService {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return -1;
         }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("addOrUpdateNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return -1;
+        }
         mLog.info("addOrUpdateNetwork uid=%").c(Binder.getCallingUid()).flush();
 
         // Previously, this API is overloaded for installing Passpoint profiles.  Now
@@ -1875,6 +1896,12 @@ public class WifiServiceImpl extends AbstractWifiService {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return false;
         }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("removeNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
+            return false;
+        }
         mLog.info("removeNetwork uid=%").c(Binder.getCallingUid()).flush();
         // TODO Add private logging for netId b/33807876
         if (mClientModeImplChannel != null) {
@@ -1895,6 +1922,12 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     public boolean enableNetwork(int netId, boolean disableOthers, String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+            return false;
+        }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("enableNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
             return false;
         }
         // TODO b/33807876 Log netId
@@ -1920,6 +1953,12 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     public boolean disableNetwork(int netId, String packageName) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+            return false;
+        }
+        if (!isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+            mLog.info("disableNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
             return false;
         }
         // TODO b/33807876 Log netId
@@ -2334,8 +2373,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      */
     @Override
     public void disableEphemeralNetwork(String SSID, String packageName) {
-        enforceAccessPermission();
-        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
+                "WifiService");
+        if (!isPrivileged(Binder.getCallingUid(), Binder.getCallingPid())) {
+            mLog.info("disableEphemeralNetwork not allowed for uid=%")
+                    .c(Binder.getCallingUid()).flush();
             return;
         }
         mLog.info("disableEphemeralNetwork uid=%").c(Binder.getCallingUid()).flush();
@@ -2364,34 +2406,6 @@ public class WifiServiceImpl extends AbstractWifiService {
             }
         }
     };
-
-    private boolean startConsentUi(String packageName, int callingUid, String intentAction) {
-        if (UserHandle.getAppId(callingUid) == Process.SYSTEM_UID
-                || checkWifiPermissionWhenWirelessConsentRequired()) {
-            return false;
-        }
-        try {
-            // Validate the package only if we are going to use it
-            ApplicationInfo applicationInfo = mContext.getPackageManager()
-                    .getApplicationInfoAsUser(packageName,
-                            PackageManager.MATCH_DEBUG_TRIAGED_MISSING,
-                            UserHandle.getUserId(callingUid));
-            if (applicationInfo.uid != callingUid) {
-                throw new SecurityException("Package " + packageName
-                        + " not in uid " + callingUid);
-            }
-
-            // Permission review mode, trigger a user prompt
-            Intent intent = new Intent(intentAction);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-            intent.putExtra(Intent.EXTRA_PACKAGE_NAME, packageName);
-            mContext.startActivity(intent);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RemoteException(e.getMessage()).rethrowFromSystemServer();
-        }
-    }
 
     /**
      * Observes settings changes to scan always mode.
