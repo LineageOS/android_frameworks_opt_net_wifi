@@ -20,12 +20,15 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.Intent;
+import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.os.UserHandle;
+import android.text.TextUtils;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -61,15 +64,27 @@ public class WifiNetworkSuggestionsManager {
     private final Map<String, Set<WifiNetworkSuggestion>> mActiveNetworkSuggestionsPerApp =
             new HashMap<>();
     /**
-     * Map maintained to help lookup all the network suggestions that match a provided scan result.
+     * Map maintained to help lookup all the network suggestions (with no bssid) that match a
+     * provided scan result.
      * Note:
      * <li>There could be multiple suggestions (provided by different apps) that match a single
      * scan result.</li>
      * <li>Adding/Removing to this set for scan result lookup is expensive. But, we expect scan
      * result lookup to happen much more often than apps modifying network suggestions.</li>
      */
-    private final Map<ScanResultMatchInfo, Set<WifiNetworkSuggestion>> mActiveScanResultMatchInfo =
-            new HashMap<>();
+    private final Map<ScanResultMatchInfo, Set<WifiNetworkSuggestion>>
+            mActiveScanResultMatchInfoWithNoBssid = new HashMap<>();
+    /**
+     * Map maintained to help lookup all the network suggestions (with bssid) that match a provided
+     * scan result.
+     * Note:
+     * <li>There could be multiple suggestions (provided by different apps) that match a single
+     * scan result.</li>
+     * <li>Adding/Removing to this set for scan result lookup is expensive. But, we expect scan
+     * result lookup to happen much more often than apps modifying network suggestions.</li>
+     */
+    private final Map<Pair<ScanResultMatchInfo, MacAddress>, Set<WifiNetworkSuggestion>>
+            mActiveScanResultMatchInfoWithBssid = new HashMap<>();
     /**
      * List of {@link WifiNetworkSuggestion} matching the current connected network.
      */
@@ -109,7 +124,8 @@ public class WifiNetworkSuggestionsManager {
         @Override
         public void reset() {
             mActiveNetworkSuggestionsPerApp.clear();
-            mActiveScanResultMatchInfo.clear();
+            mActiveScanResultMatchInfoWithBssid.clear();
+            mActiveScanResultMatchInfoWithNoBssid.clear();
         }
 
         @Override
@@ -151,14 +167,28 @@ public class WifiNetworkSuggestionsManager {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
-            Set<WifiNetworkSuggestion> activeNetworkSuggestionsForScanResultMatchInfo =
-                    mActiveScanResultMatchInfo.get(scanResultMatchInfo);
-            if (activeNetworkSuggestionsForScanResultMatchInfo == null) {
-                activeNetworkSuggestionsForScanResultMatchInfo = new HashSet<>();
-                mActiveScanResultMatchInfo.put(
-                        scanResultMatchInfo, activeNetworkSuggestionsForScanResultMatchInfo);
+            Set<WifiNetworkSuggestion> networkSuggestionsForScanResultMatchInfo;
+            if (!TextUtils.isEmpty(networkSuggestion.wifiConfiguration.BSSID)) {
+                Pair<ScanResultMatchInfo, MacAddress> lookupPair =
+                        Pair.create(scanResultMatchInfo,
+                                MacAddress.fromString(networkSuggestion.wifiConfiguration.BSSID));
+                networkSuggestionsForScanResultMatchInfo =
+                        mActiveScanResultMatchInfoWithBssid.get(lookupPair);
+                if (networkSuggestionsForScanResultMatchInfo == null) {
+                    networkSuggestionsForScanResultMatchInfo = new HashSet<>();
+                    mActiveScanResultMatchInfoWithBssid.put(
+                            lookupPair, networkSuggestionsForScanResultMatchInfo);
+                }
+            } else {
+                networkSuggestionsForScanResultMatchInfo =
+                        mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
+                if (networkSuggestionsForScanResultMatchInfo == null) {
+                    networkSuggestionsForScanResultMatchInfo = new HashSet<>();
+                    mActiveScanResultMatchInfoWithNoBssid.put(
+                            scanResultMatchInfo, networkSuggestionsForScanResultMatchInfo);
+                }
             }
-            activeNetworkSuggestionsForScanResultMatchInfo.add(networkSuggestion);
+            networkSuggestionsForScanResultMatchInfo.add(networkSuggestion);
         }
     }
 
@@ -166,17 +196,36 @@ public class WifiNetworkSuggestionsManager {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
-            Set<WifiNetworkSuggestion> activeNetworkSuggestionsForScanResultMatchInfo =
-                    mActiveScanResultMatchInfo.get(scanResultMatchInfo);
-            // This should never happen because we should have done necessary error checks in
-            // the parent method.
-            if (activeNetworkSuggestionsForScanResultMatchInfo == null) {
-                Log.wtf(TAG, "No scan result match info found.");
-            }
-            activeNetworkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
-            // Remove the set from map if empty.
-            if (activeNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
-                mActiveScanResultMatchInfo.remove(scanResultMatchInfo);
+            Set<WifiNetworkSuggestion> networkSuggestionsForScanResultMatchInfo;
+            if (!TextUtils.isEmpty(networkSuggestion.wifiConfiguration.BSSID)) {
+                Pair<ScanResultMatchInfo, MacAddress> lookupPair =
+                        Pair.create(scanResultMatchInfo,
+                                MacAddress.fromString(networkSuggestion.wifiConfiguration.BSSID));
+                networkSuggestionsForScanResultMatchInfo =
+                        mActiveScanResultMatchInfoWithBssid.get(lookupPair);
+                // This should never happen because we should have done necessary error checks in
+                // the parent method.
+                if (networkSuggestionsForScanResultMatchInfo == null) {
+                    Log.wtf(TAG, "No scan result match info found.");
+                }
+                networkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
+                // Remove the set from map if empty.
+                if (networkSuggestionsForScanResultMatchInfo.isEmpty()) {
+                    mActiveScanResultMatchInfoWithBssid.remove(lookupPair);
+                }
+            } else {
+                networkSuggestionsForScanResultMatchInfo =
+                        mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
+                // This should never happen because we should have done necessary error checks in
+                // the parent method.
+                if (networkSuggestionsForScanResultMatchInfo == null) {
+                    Log.wtf(TAG, "No scan result match info found.");
+                }
+                networkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
+                // Remove the set from map if empty.
+                if (networkSuggestionsForScanResultMatchInfo.isEmpty()) {
+                    mActiveScanResultMatchInfoWithNoBssid.remove(scanResultMatchInfo);
+                }
             }
         }
     }
@@ -282,6 +331,25 @@ public class WifiNetworkSuggestionsManager {
                 .collect(Collectors.toSet());
     }
 
+    private @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForScanResultMatchInfo(
+            @NonNull ScanResultMatchInfo scanResultMatchInfo, @NonNull MacAddress bssid) {
+        Set<WifiNetworkSuggestion> networkSuggestions = new HashSet<>();
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithBssid =
+                mActiveScanResultMatchInfoWithBssid.get(Pair.create(scanResultMatchInfo, bssid));
+        if (matchingNetworkSuggestionsWithBssid != null) {
+            networkSuggestions.addAll(matchingNetworkSuggestionsWithBssid);
+        }
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithNoBssid =
+                mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
+        if (matchingNetworkSuggestionsWithNoBssid != null) {
+            networkSuggestions.addAll(matchingNetworkSuggestionsWithNoBssid);
+        }
+        if (networkSuggestions.isEmpty()) {
+            return null;
+        }
+        return networkSuggestions;
+    }
+
     /**
      * Returns a set of all network suggestions matching the provided scan detail.
      */
@@ -294,8 +362,10 @@ public class WifiNetworkSuggestionsManager {
         }
         Set<WifiNetworkSuggestion> networkSuggestions = null;
         try {
-            networkSuggestions = mActiveScanResultMatchInfo.get(
-                    ScanResultMatchInfo.fromScanResult(scanResult));
+            ScanResultMatchInfo scanResultMatchInfo =
+                    ScanResultMatchInfo.fromScanResult(scanResult);
+            networkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
+                    scanResultMatchInfo,  MacAddress.fromString(scanResult.BSSID));
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to lookup network from scan result match info map", e);
         }
@@ -312,11 +382,13 @@ public class WifiNetworkSuggestionsManager {
      * Returns a set of all network suggestions matching the provided the WifiConfiguration.
      */
     private @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForWifiConfiguration(
-            @NonNull WifiConfiguration wifiConfiguration) {
+            @NonNull WifiConfiguration wifiConfiguration, @NonNull String bssid) {
         Set<WifiNetworkSuggestion> networkSuggestions = null;
         try {
-            networkSuggestions = mActiveScanResultMatchInfo.get(
-                    ScanResultMatchInfo.fromWifiConfiguration(wifiConfiguration));
+            ScanResultMatchInfo scanResultMatchInfo =
+                    ScanResultMatchInfo.fromWifiConfiguration(wifiConfiguration);
+            networkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
+                    scanResultMatchInfo,  MacAddress.fromString(bssid));
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to lookup network from scan result match info map", e);
         }
@@ -348,10 +420,12 @@ public class WifiNetworkSuggestionsManager {
      * network suggestion credentials that match the current connection network.
      *
      * @param connectedNetwork {@link WifiConfiguration} representing the network connected to.
+     * @param connectedBssid BSSID of the network connected to.
      */
-    private void handleConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
+    private void handleConnectionSuccess(
+            @NonNull WifiConfiguration connectedNetwork, @NonNull String connectedBssid) {
         Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
-                getNetworkSuggestionsForWifiConfiguration(connectedNetwork);
+                getNetworkSuggestionsForWifiConfiguration(connectedNetwork, connectedBssid);
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Network suggestions matching the connection "
                     + matchingNetworkSuggestions);
@@ -398,16 +472,17 @@ public class WifiNetworkSuggestionsManager {
      *
      * @param failureCode Failure codes representing {@link WifiMetrics.ConnectionEvent} codes.
      * @param network WifiConfiguration corresponding to the current network.
+     * @param bssid BSSID of the current network.
      */
     public void handleConnectionAttemptEnded(
-            int failureCode, @NonNull WifiConfiguration network) {
+            int failureCode, @NonNull WifiConfiguration network, @Nullable String bssid) {
         Log.v(TAG, "handleConnectionAttemptEnded " + failureCode + ", " + network);
         mActiveNetworkSuggestionsMatchingConnection = null;
         if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
-            handleConnectionSuccess(network);
+            handleConnectionSuccess(network, bssid);
         } else {
-            // TODO (b/115504887): Blacklist the corresponding network suggestion if the connection
-            // failed.
+            // TODO (b/115504887, b/112196799): Blacklist the corresponding network suggestion if
+            // the connection failed.
         }
     }
 

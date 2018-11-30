@@ -2357,7 +2357,7 @@ public class ClientModeImplTest {
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
                 eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any());
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any(), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2384,7 +2384,7 @@ public class ClientModeImplTest {
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
                 eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any());
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any(), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2437,7 +2437,7 @@ public class ClientModeImplTest {
         verify(mWifiNetworkFactory, atLeastOnce()).handleConnectionAttemptEnded(
                 eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any());
         verify(mWifiNetworkSuggestionsManager, atLeastOnce()).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any(), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2470,7 +2470,7 @@ public class ClientModeImplTest {
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
                 eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any());
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any(), any());
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 

@@ -55,6 +55,7 @@ import java.util.Set;
 public class WifiNetworkSuggestionsManagerTest {
     private static final String TEST_PACKAGE_1 = "com.test12345";
     private static final String TEST_PACKAGE_2 = "com.test54321";
+    private static final String TEST_BSSID = "00:11:22:33:44:55";
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
 
@@ -384,6 +385,161 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify a successful lookup of a single network suggestion matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithBssidOneMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void
+            testGetNetworkSuggestionsForScanDetailSuccessWithBssidMultipleMatchFromSamePackage() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void
+            testGetNetworkSuggestionsForScanDetailSuccessWithBssidAndWithoutBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration1 = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration1);
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration(wifiConfiguration1);
+        wifiConfiguration2.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration1, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration2, false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+
+        // Now change the bssid of the scan result to a different value, now only the general
+        // (without bssid) suggestion.
+        scanDetail.getScanResult().BSSID = MacAddress.createRandomUnicastAddress().toString();
+        matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
      * Verify failure to lookup any network suggestion matching the provided scan detail.
      */
     @Test
@@ -424,7 +580,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Verify that the correct broadcast was sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -465,7 +622,98 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
+
+        // Verify that the correct broadcasts were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to all the apps.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        wifiConfiguration.BSSID = TEST_BSSID;
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
+
+        // Verify that the correct broadcasts were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to all the apps.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithBssidAndWithoutBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration1 = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration(wifiConfiguration1);
+        wifiConfiguration2.BSSID = TEST_BSSID;
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration1, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration2, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration1, TEST_BSSID);
 
         // Verify that the correct broadcasts were sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -499,7 +747,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Verify no broadcast was sent out.
         verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
@@ -528,7 +777,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         mInorder.verify(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
@@ -707,7 +957,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Now remove the network suggestion and ensure we trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -742,7 +993,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
         // Now remove one of the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -773,7 +1024,7 @@ public class WifiNetworkSuggestionsManagerTest {
         // Simulate connecting to some other network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiConfigurationTestUtil.createEapNetwork());
+                WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
         // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -798,12 +1049,13 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate failing connection to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Simulate connecting to some other network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiConfigurationTestUtil.createEapNetwork());
+                WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
         // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,

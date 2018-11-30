@@ -3023,7 +3023,7 @@ public class ClientModeImpl extends StateMachine {
         mNetworkFactory.handleConnectionAttemptEnded(
                 level2FailureCode, getCurrentWifiConfiguration());
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                level2FailureCode, getCurrentWifiConfiguration());
+                level2FailureCode, getCurrentWifiConfiguration(), getCurrentBSSID());
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
