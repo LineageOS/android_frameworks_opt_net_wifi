@@ -275,7 +275,7 @@ public class WifiScoreCard {
                     .setRssi(rssi.toUnivariateStatistic())
                     .setLinkspeed(linkspeed.toUnivariateStatistic());
             if (elapsedMs != null) {
-                // TODO add to .proto - builder.setEapsedMs(elapsedMs.toUnivariateStatistic());
+                builder.setElapsedMs(elapsedMs.toUnivariateStatistic());
             }
             return builder.build();
         }

@@ -213,6 +213,7 @@ public class WifiScoreCardTest {
             switch (signal.getEvent()) {
                 case IP_CONFIGURATION_SUCCESS:
                     assertEquals(384.0, signal.getLinkspeed().getMaxValue(), TOL);
+                    assertEquals(111.0, signal.getElapsedMs().getMinValue(), TOL);
                     break;
                 case SIGNAL_POLL:
                     assertEquals(2, signal.getRssi().getCount());
