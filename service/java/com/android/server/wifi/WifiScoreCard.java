@@ -178,6 +178,23 @@ public class WifiScoreCard {
             this.ssid = ssid;
             this.bssid = bssid;
         }
+        PerBssid(String ssid, MacAddress bssid, AccessPoint ap) {
+            if (ap.hasId()) {
+                this.id = ap.getId();
+                if (this.id >= mNextId) {
+                    // Caller must be prepared to deal with duplicate ids,
+                    // but try here to minimize the possibility
+                    mNextId = this.id + 1;
+                }
+            }
+            this.ssid = ssid;
+            this.bssid = bssid;
+            for (Signal signal: ap.getEventStatsList()) {
+                PerSignal perSignal = new PerSignal(signal);
+                Pair<Event, Integer> key = new Pair<>(perSignal.event, perSignal.frequency);
+                mSignalForEventAndFrequency.put(key, perSignal);
+            }
+        }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
             PerSignal perSignal = lookupSignal(event, frequency);
             if (rssi != INVALID_RSSI) {
@@ -245,6 +262,12 @@ public class WifiScoreCard {
         return mApForBssid.get(mac);
     }
 
+    @VisibleForTesting
+    PerBssid perBssidFromAccessPoint(String ssid, AccessPoint ap) {
+        MacAddress bssid = MacAddress.fromBytes(ap.getBssid().toByteArray());
+        return new PerBssid(ssid, bssid, ap);
+    }
+
     final class PerSignal {
         public final Event event;
         public final int frequency;
@@ -268,6 +291,17 @@ public class WifiScoreCard {
                     break;
             }
         }
+        PerSignal(Signal signal) {
+            this.event = signal.getEvent();
+            this.frequency = signal.getFrequency();
+            this.rssi = new PerUnivariateStatistic(signal.getRssi());
+            this.linkspeed = new PerUnivariateStatistic(signal.getLinkspeed());
+            if (signal.hasElapsedMs()) {
+                this.elapsedMs = new PerUnivariateStatistic(signal.getElapsedMs());
+            } else {
+                this.elapsedMs = null;
+            }
+        }
         Signal toSignal() {
             Signal.Builder builder = Signal.newBuilder();
             builder.setEvent(event)
@@ -279,7 +313,6 @@ public class WifiScoreCard {
             }
             return builder.build();
         }
-        //TODO  Serialize/Deserialize
     }
 
     final class PerUnivariateStatistic {
@@ -290,6 +323,26 @@ public class WifiScoreCard {
         public double maxValue = Double.NEGATIVE_INFINITY;
         public double historicalMean = 0.0;
         public double historicalVariance = Double.POSITIVE_INFINITY;
+        PerUnivariateStatistic() {}
+        PerUnivariateStatistic(UnivariateStatistic stats) {
+            if (stats.hasCount()) {
+                this.count = stats.getCount();
+                this.sum = stats.getSum();
+                this.sumOfSquares = stats.getSumOfSquares();
+            }
+            if (stats.hasMinValue()) {
+                this.minValue = stats.getMinValue();
+            }
+            if (stats.hasMaxValue()) {
+                this.maxValue = stats.getMaxValue();
+            }
+            if (stats.hasHistoricalMean()) {
+                this.historicalMean = stats.getHistoricalMean();
+            }
+            if (stats.hasHistoricalVariance()) {
+                this.historicalVariance = stats.getHistoricalVariance();
+            }
+        }
         void update(double value) {
             count++;
             sum += value;
@@ -315,6 +368,5 @@ public class WifiScoreCard {
             }
             return builder.build();
         }
-        //TODO  Serialize/Deserialize
     }
 }
