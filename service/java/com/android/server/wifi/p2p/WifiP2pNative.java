@@ -523,6 +523,30 @@ public class WifiP2pNative {
     }
 
     /**
+     * Set up a P2P group as Group Owner or join a group with a configuration.
+     *
+     * @param config Used to specify config for setting up a P2P group
+     *
+     * @return true, if operation was successful.
+     */
+    public boolean p2pGroupAdd(WifiP2pConfig config, boolean join) {
+        int freq = 0;
+        switch (config.groupOwnerBand) {
+            case WifiP2pConfig.GROUP_OWNER_BAND_2GHZ:
+                freq = 2;
+                break;
+            case WifiP2pConfig.GROUP_OWNER_BAND_5GHZ:
+                freq = 5;
+                break;
+        }
+        return mSupplicantP2pIfaceHal.groupAdd(
+                config.networkName,
+                config.passphrase,
+                (config.netId == WifiP2pGroup.PERSISTENT_NET_ID),
+                freq, config.deviceAddress, join);
+    }
+
+    /**
      * Terminate a P2P group. If a new virtual network interface was used for
      * the group, it must also be removed. The network interface name of the
      * group interface is used as a parameter for this command.

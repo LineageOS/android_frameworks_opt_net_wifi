@@ -78,6 +78,9 @@ public class SupplicantP2pIfaceHalTest {
     private android.hardware.wifi.supplicant.V1_1.ISupplicant mISupplicantMockV1_1;
     private @Mock ISupplicantIface mISupplicantIfaceMock;
     private @Mock ISupplicantP2pIface mISupplicantP2pIfaceMock;
+    private @Mock android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface
+            mISupplicantP2pIfaceMockV12;
+    private boolean mISupplicantV12Enabled;
     private @Mock ISupplicantP2pNetwork mISupplicantP2pNetworkMock;
     private @Mock WifiP2pMonitor mWifiMonitor;
 
@@ -134,6 +137,11 @@ public class SupplicantP2pIfaceHalTest {
         add((byte)'4'); add((byte)'5'); add((byte)'6'); add((byte)'7');
     }};
 
+    // variables for groupAdd with config
+    final String mNetworkName = "DIRECT-xy-Hello";
+    final String mPassphrase = "12345678";
+    final int mGroupOwnerBand = WifiP2pConfig.GROUP_OWNER_BAND_5GHZ;
+    final boolean mIsPersistent = false;
 
     private ArgumentCaptor<IHwBinder.DeathRecipient> mDeathRecipientCaptor =
             ArgumentCaptor.forClass(IHwBinder.DeathRecipient.class);
@@ -168,6 +176,12 @@ public class SupplicantP2pIfaceHalTest {
         }
 
         @Override
+        protected android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface
+                getP2pIfaceMockableV1_2() {
+            return mISupplicantV12Enabled ? mISupplicantP2pIfaceMockV12 : null;
+        }
+
+        @Override
         protected ISupplicantP2pNetwork getP2pNetworkMockable(ISupplicantNetwork network) {
             return mISupplicantP2pNetworkMock;
         }
@@ -185,6 +199,8 @@ public class SupplicantP2pIfaceHalTest {
         mIfaceInfoList = new ArrayList<ISupplicant.IfaceInfo>();
         mIfaceInfoList.add(mStaIface);
         mIfaceInfoList.add(mP2pIface);
+
+        mISupplicantV12Enabled = false;
 
         when(mServiceManagerMock.linkToDeath(any(IHwBinder.DeathRecipient.class),
                 anyLong())).thenReturn(true);
@@ -1276,6 +1292,112 @@ public class SupplicantP2pIfaceHalTest {
         assertFalse(mDut.isInitializationComplete());
     }
 
+
+    /**
+     * Sunny day scenario for groupAdd() with config
+     */
+    @Test
+    public void testGroupAddWithConfigSuccess() throws Exception {
+        when(mISupplicantP2pIfaceMockV12.addGroup_1_2(
+                eq(NativeUtil.decodeSsid("\"" + mNetworkName + "\"")),
+                eq(mPassphrase),
+                eq(mIsPersistent),
+                eq(mGroupOwnerBand),
+                eq(mPeerMacAddressBytes),
+                anyBoolean()))
+                .thenReturn(mStatusSuccess);
+        // Default value when service is not initialized.
+        assertFalse(mDut.groupAdd(mNetworkName, mPassphrase, mIsPersistent,
+                mGroupOwnerBand, mPeerMacAddress, true));
+        verify(mISupplicantP2pIfaceMockV12, never()).addGroup_1_2(
+                any(ArrayList.class), anyString(),
+                anyBoolean(), anyInt(),
+                any(byte[].class), anyBoolean());
+
+        executeAndValidateInitializationSequence(false, false, false);
+        assertTrue(mDut.groupAdd(mNetworkName, mPassphrase, mIsPersistent,
+                mGroupOwnerBand, mPeerMacAddress, true));
+        verify(mISupplicantP2pIfaceMockV12).addGroup_1_2(
+                eq(NativeUtil.decodeSsid("\"" + mNetworkName + "\"")),
+                eq(mPassphrase),
+                eq(mIsPersistent),
+                eq(mGroupOwnerBand),
+                eq(mPeerMacAddressBytes),
+                eq(true));
+    }
+
+    /**
+     * Verify that groupAdd with config returns false, if status is not SUCCESS.
+     */
+    @Test
+    public void testGroupAddWithConfigFailure() throws Exception {
+        executeAndValidateInitializationSequence(false, false, false);
+        when(mISupplicantP2pIfaceMockV12.addGroup_1_2(
+                any(ArrayList.class), anyString(),
+                anyBoolean(), anyInt(),
+                any(byte[].class), anyBoolean()))
+                .thenReturn(mStatusFailure);
+        assertFalse(mDut.groupAdd(mNetworkName, mPassphrase, mIsPersistent,
+                mGroupOwnerBand, mPeerMacAddress, true));
+        verify(mISupplicantP2pIfaceMockV12).addGroup_1_2(
+                eq(NativeUtil.decodeSsid("\"" + mNetworkName + "\"")),
+                eq(mPassphrase),
+                eq(mIsPersistent),
+                eq(mGroupOwnerBand),
+                eq(mPeerMacAddressBytes),
+                eq(true));
+        // Check that service is still alive.
+        assertTrue(mDut.isInitializationComplete());
+    }
+
+    /**
+     * Verify that groupAdd with config returns false, if HIDL revision older than v1.2.
+     */
+    @Test
+    public void testGroupAddWithConfigFailureV1_0() throws Exception {
+        when(mISupplicantP2pIfaceMockV12.addGroup_1_2(
+                any(ArrayList.class), anyString(),
+                anyBoolean(), anyInt(),
+                any(byte[].class), anyBoolean()))
+                .thenReturn(mStatusSuccess);
+        executeAndValidateInitializationSequence(false, false, false);
+        // disable 1.2 interface to simulator since older revision cannot be casted to v1.2
+        mISupplicantV12Enabled = false;
+
+        assertFalse(mDut.groupAdd(mNetworkName, mPassphrase, mIsPersistent,
+                mGroupOwnerBand, mPeerMacAddress, true));
+        verify(mISupplicantP2pIfaceMockV12, never()).addGroup_1_2(
+                any(ArrayList.class), anyString(),
+                anyBoolean(), anyInt(),
+                any(byte[].class), anyBoolean());
+        // Check that service is still alive.
+        assertTrue(mDut.isInitializationComplete());
+    }
+
+
+    /**
+     * Verify that groupAdd with config disconnects and returns false, if HAL throws exception.
+     */
+    @Test
+    public void testGroupAddWithConfigException() throws Exception {
+        executeAndValidateInitializationSequence(false, false, false);
+        when(mISupplicantP2pIfaceMockV12.addGroup_1_2(
+                any(ArrayList.class), anyString(),
+                anyBoolean(), anyInt(),
+                any(byte[].class), anyBoolean()))
+                .thenThrow(mRemoteException);
+        assertFalse(mDut.groupAdd(mNetworkName, mPassphrase, mIsPersistent,
+                mGroupOwnerBand, mPeerMacAddress, true));
+        verify(mISupplicantP2pIfaceMockV12).addGroup_1_2(
+                eq(NativeUtil.decodeSsid("\"" + mNetworkName + "\"")),
+                eq(mPassphrase),
+                eq(mIsPersistent),
+                eq(mGroupOwnerBand),
+                eq(mPeerMacAddressBytes),
+                eq(true));
+        // Check service is dead.
+        assertFalse(mDut.isInitializationComplete());
+    }
 
     /**
      * Sunny day scenario for groupRemove()
@@ -2633,6 +2755,9 @@ public class SupplicantP2pIfaceHalTest {
             mInOrder.verify(mISupplicantP2pIfaceMock).registerCallback(
                     any(ISupplicantP2pIfaceCallback.class));
         }
+
+        // if no errors, V1_2 interface is on as well
+        mISupplicantV12Enabled = true;
     }
 
     /**

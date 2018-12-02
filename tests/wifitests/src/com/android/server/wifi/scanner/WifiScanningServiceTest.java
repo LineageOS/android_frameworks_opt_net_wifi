@@ -39,7 +39,6 @@ import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
@@ -56,7 +55,6 @@ import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.app.test.TestAlarmManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.location.LocationManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
@@ -85,6 +83,7 @@ import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiAsyncChannel;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -122,7 +121,7 @@ public class WifiScanningServiceTest {
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock Clock mClock;
     @Spy FakeWifiLog mLog;
-    @Mock LocationManager mLocationManager;
+    @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     WifiMetrics mWifiMetrics;
     TestLooper mLooper;
     WifiScanningServiceImpl mWifiScanningServiceImpl;
@@ -135,8 +134,8 @@ public class WifiScanningServiceTest {
         mAlarmManager = new TestAlarmManager();
         when(mContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
-        when(mContext.getSystemService(Context.LOCATION_SERVICE))
-                .thenReturn(mLocationManager);
+        when(mWifiInjector.getWifiPermissionsUtil())
+                .thenReturn(mWifiPermissionsUtil);
 
         ChannelHelper channelHelper = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
@@ -2507,15 +2506,16 @@ public class WifiScanningServiceTest {
     }
 
     /**
-     * Verifies that clients without NETWORK_STACK permission cannot issue any messages when
-     * location is turned off.
+     * Verifies that clients without NETWORK_STACK permission cannot issue any messages when they
+     * don't have the necessary location permissions & location is enabled.
      */
     @Test
-    public void rejectAllMessagesFromNonPrivilegedAppsWhenLocationIsTurnedOff() throws Exception {
+    public void rejectAllMessagesFromNonPrivilegedAppsWithoutLocationPermission() throws Exception {
         // Start service & initialize it.
         startServiceAndLoadDriver();
-        // Location turned off.
-        when(mLocationManager.isLocationEnabled()).thenReturn(false);
+        // Location permission or mode check fail.
+        doThrow(new SecurityException()).when(mWifiPermissionsUtil)
+                .enforceCanAccessScanResultsForWifiScanner(any(), eq(Binder.getCallingUid()));
 
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
@@ -2550,21 +2550,5 @@ public class WifiScanningServiceTest {
 
         // Ensure we didn't start any scans after.
         verifyNoMoreInteractions(mWifiScannerImpl);
-    }
-
-    /**
-     * Verifies that clients with NETWORK_STACK permission can issue any messages even when
-     * location is turned off.
-     */
-    @Test
-    public void allowMessagesFromPrivilegedAppsWhenLocationIsTurnedOff() throws Exception {
-        // Location turned off.
-        when(mLocationManager.isLocationEnabled()).thenReturn(false);
-        // Client does have NETWORK_STACK permission.
-        doNothing().when(mContext).enforcePermission(
-                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
-
-        sendSingleScanAllChannelsRequest();
-        sendBackgroundScanBandRequest();
     }
 }

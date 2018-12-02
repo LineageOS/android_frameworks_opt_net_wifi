@@ -22,7 +22,6 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import android.Manifest;
 import android.app.AlarmManager;
 import android.content.Context;
-import android.location.LocationManager;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
@@ -60,6 +59,7 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiHandler;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -120,13 +120,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return b;
     }
 
-    private void enforceLocationHardwarePermission(int uid) {
-        mContext.enforcePermission(
-                Manifest.permission.LOCATION_HARDWARE,
-                UNKNOWN_PID, uid,
-                "LocationHardware");
-    }
-
     private void enforceNetworkStack(int uid) {
         mContext.enforcePermission(
                 Manifest.permission.NETWORK_STACK,
@@ -142,14 +135,14 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 || msgWhat == WifiScanner.CMD_STOP_PNO_SCAN);
     }
 
-    // Retrieves a handle to LocationManager (if not already done) and check if location is enabled.
-    private boolean isLocationEnabled() {
-        if (mLocationManager == null) {
-            mLocationManager =
-                    (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+    // For non-privileged requests, retrieve the bundled package name for app-op & permission
+    // checks.
+    private String getPackageName(Message msg) {
+        if (!(msg.obj instanceof Bundle)) {
+            return null;
         }
-        if (mLocationManager == null) return false;
-        return mLocationManager.isLocationEnabled();
+        Bundle bundle = (Bundle) msg.obj;
+        return bundle.getString(WifiScanner.REQUEST_PACKAGE_NAME_KEY);
     }
 
     /**
@@ -160,22 +153,21 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
      *    b) Can never make one of the privileged requests.
      *
      * @param uid Uid of the client.
-     * @param msgWhat {@link Message#what} of the incoming request.
+     * @param msg {@link Message} of the incoming request.
      * @throws {@link SecurityException} if the client does not have the necessary permissions.
      */
-    private void enforcePermission(int uid, int msgWhat) throws SecurityException {
+    private void enforcePermission(int uid, Message msg) throws SecurityException {
         try {
+            /** Wifi stack issued requests.*/
             enforceNetworkStack(uid);
         } catch (SecurityException e) {
-            if (!isLocationEnabled()) {
-                // Location not enabled, only requests from clients with NETWORK_STACK allowed!
-                throw e;
-            }
-            if (isPrivilegedMessage(msgWhat)) {
+            /** System-app issued requests. */
+            if (isPrivilegedMessage(msg.what)) {
                 // Privileged message, only requests from clients with NETWORK_STACK allowed!
                 throw e;
             }
-            enforceLocationHardwarePermission(uid);
+            mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(
+                    getPackageName(msg), uid);
         }
     }
 
@@ -234,7 +226,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
 
             try {
-                enforcePermission(msg.sendingUid, msg.what);
+                enforcePermission(msg.sendingUid, msg);
             } catch (SecurityException e) {
                 localLog("failed to authorize app: " + e);
                 replyFailed(msg, WifiScanner.REASON_NOT_AUTHORIZED, "Not authorized");
@@ -328,12 +320,12 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private WifiPnoScanStateMachine mPnoScanStateMachine;
     private ClientHandler mClientHandler;
     // This is retrieved lazily because location service is started after wifi scanner.
-    private LocationManager mLocationManager;
     private final IBatteryStats mBatteryStats;
     private final AlarmManager mAlarmManager;
     private final WifiMetrics mWifiMetrics;
     private final Clock mClock;
     private final FrameworkFacade mFrameworkFacade;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
 
     WifiScanningServiceImpl(Context context, Looper looper,
             WifiScannerImpl.WifiScannerImplFactory scannerImplFactory, IBatteryStats batteryStats,
@@ -348,6 +340,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mClock = wifiInjector.getClock();
         mLog = wifiInjector.makeLog(TAG);
         mFrameworkFacade = wifiInjector.getFrameworkFacade();
+        mWifiPermissionsUtil = wifiInjector.getWifiPermissionsUtil();
         mPreviousSchedule = null;
     }
 

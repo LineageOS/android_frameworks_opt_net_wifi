@@ -68,6 +68,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     public static final int PERIODIC_SCAN_INTERVAL_MS = 10 * 1000; // 10 seconds
     @VisibleForTesting
     public static final int NETWORK_CONNECTION_TIMEOUT_MS = 30 * 1000; // 30 seconds
+    @VisibleForTesting
+    public static final int USER_SELECTED_NETWORK_CONNECT_RETRY_MAX = 3; // max of 3 retries.
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -89,6 +91,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private NetworkRequest mActiveSpecificNetworkRequest;
     private WifiNetworkSpecifier mActiveSpecificNetworkRequestSpecifier;
     private WifiConfiguration mUserSelectedNetwork;
+    private int mUserSelectedNetworkConnectRetryCount;
     private List<ScanResult> mActiveMatchedScanResults;
     // Verbose logging flag.
     private boolean mVerboseLoggingEnabled = false;
@@ -379,9 +382,6 @@ public class WifiNetworkFactory extends NetworkFactory {
             // TODO(b/113878056): Start UI flow here.
             // Trigger periodic scans for finding a network in the request.
             startPeriodicScans();
-            // Disable Auto-join so that NetworkFactory can take control of the network selection.
-            // TODO(b/117979585): Defer turning off auto-join.
-            mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
         }
     }
 
@@ -411,6 +411,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Network specifier does not match the active request. Ignoring");
                 return;
             }
+            Log.w(TAG, "App released request, cancelling " + mActiveSpecificNetworkRequest);
             resetStateForActiveRequestEnd();
         }
     }
@@ -447,14 +448,11 @@ public class WifiNetworkFactory extends NetworkFactory {
                 : Process.INVALID_UID;
     }
 
-    private void handleConnectToNetworkUserSelection(WifiConfiguration network) {
-        Log.d(TAG, "User initiated connect to  network: " + network.SSID);
-
-        // Cancel the ongoing scans after user selection.
-        cancelPeriodicScans();
-
-        // Mark the network ephemeral so that it's automatically removed at the end of connection.
-        network.ephemeral = true;
+    // Helper method to trigger a connection request & schedule a timeout alarm to track the
+    // connection request.
+    private void connectToNetwork(@NonNull WifiConfiguration network) {
+        // Cancel connection timeout alarm for any previous connection attempts.
+        cancelConnectionTimeout();
 
         // Send the connect request to ClientModeImpl.
         Message msg = Message.obtain();
@@ -464,15 +462,30 @@ public class WifiNetworkFactory extends NetworkFactory {
         msg.replyTo = mSrcMessenger;
         mWifiInjector.getClientModeImpl().sendMessage(msg);
 
-        // Store the user selected network.
-        mUserSelectedNetwork = network;
-
         // Post an alarm to handle connection timeout.
         scheduleConnectionTimeout();
     }
 
+    private void handleConnectToNetworkUserSelection(WifiConfiguration network) {
+        Log.d(TAG, "User initiated connect to  network: " + network.SSID);
+
+        // Cancel the ongoing scans after user selection.
+        cancelPeriodicScans();
+
+        // Disable Auto-join so that NetworkFactory can take control of the network connection.
+        mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
+
+        // Mark the network ephemeral so that it's automatically removed at the end of connection.
+        network.ephemeral = true;
+        // Store the user selected network.
+        mUserSelectedNetwork = network;
+
+        // Trigger connection to the network.
+        connectToNetwork(network);
+    }
+
     private void handleRejectUserSelection() {
-        Log.w(TAG, "User dismissed notification");
+        Log.w(TAG, "User dismissed notification, cancelling " + mActiveSpecificNetworkRequest);
         resetStateForActiveRequestEnd();
     }
 
@@ -532,7 +545,14 @@ public class WifiNetworkFactory extends NetworkFactory {
             Log.w(TAG, "Connection failed to unknown network " + failedNetwork + ". Ignoring...");
             return;
         }
-        Log.e(TAG, "Failed to Connect to network " + mUserSelectedNetwork);
+        Log.w(TAG, "Failed to connect to network " + mUserSelectedNetwork);
+        if (mUserSelectedNetworkConnectRetryCount++ < USER_SELECTED_NETWORK_CONNECT_RETRY_MAX) {
+            Log.i(TAG, "Retrying connection attempt, attempt# "
+                    + mUserSelectedNetworkConnectRetryCount);
+            connectToNetwork(mUserSelectedNetwork);
+            return;
+        }
+        Log.e(TAG, "Connection failures, cancelling " + mUserSelectedNetwork);
         for (INetworkRequestMatchCallback callback : mRegisteredCallbacks.getCallbacks()) {
             try {
                 callback.onUserSelectionConnectFailure(mUserSelectedNetwork);
@@ -561,6 +581,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
         mUserSelectedNetwork = null;
+        mUserSelectedNetworkConnectRetryCount = 0;
         mIsConnectedToUserSelectedNetwork = false;
         cancelPeriodicScans();
         cancelConnectionTimeout();

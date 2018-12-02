@@ -23,6 +23,8 @@ import android.net.MacAddress;
 import android.net.wifi.WifiSsid;
 import android.support.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiScoreCardProto.Event;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -65,6 +67,7 @@ public class WifiScoreCardTest {
         MockitoAnnotations.initMocks(this);
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
         millisecondsPass(0);
         mWifiScoreCard = new WifiScoreCard(mClock);
     }
@@ -88,5 +91,51 @@ public class WifiScoreCardTest {
 
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
         assertNotEquals(perBssid.ap.getId(), mWifiScoreCard.fetchByBssid(TEST_BSSID_2).ap.getId());
+    }
+
+    /**
+     * Test rssi poll updates
+     */
+    @Test
+    public void testRssiPollUpdates() throws Exception {
+        // Start out on one frequency
+        mWifiInfo.setFrequency(5805);
+        mWifiInfo.setRssi(-77);
+        mWifiInfo.setLinkSpeed(12);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        // Switch channels for a bit
+        mWifiInfo.setFrequency(5290);
+        mWifiInfo.setRssi(-66);
+        mWifiInfo.setLinkSpeed(666);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        // Back to the first channel
+        mWifiInfo.setFrequency(5805);
+        mWifiInfo.setRssi(-55);
+        mWifiInfo.setLinkSpeed(86);
+        mWifiScoreCard.noteSignalPoll(mWifiInfo);
+
+        double expectSum = -77 + -55;
+        double expectSumSq = 77 * 77 + 55 * 55;
+        final double tol = 1e-6;
+
+        // Now verify
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        // Looking up the same thing twice should yield the same object.
+        assertTrue(perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                == perBssid.lookupSignal(Event.SIGNAL_POLL, 5805));
+        // Check the rssi statistics for the first channel
+        assertEquals(2, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).rssi.count);
+        assertEquals(expectSum, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.sum, tol);
+        assertEquals(expectSumSq, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.sumOfSquares, tol);
+        assertEquals(-77.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.minValue, tol);
+        assertEquals(-55.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.maxValue, tol);
+        // Check the rssi statistics for the second channel
+        assertEquals(1, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).rssi.count);
+        // Check that the linkspeed was updated
+        assertEquals(666.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5290).linkspeed.sum, tol);
     }
 }
