@@ -16,8 +16,11 @@
 
 package com.android.server.wifi;
 
+import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.MacAddress;
@@ -25,6 +28,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.os.Handler;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -35,6 +39,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +60,8 @@ public class WifiNetworkSuggestionsManager {
     private static final String TAG = "WifiNetworkSuggestionsManager";
 
     private final Context mContext;
+    private final Handler mHandler;
+    private final AppOpsManager mAppOps;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiConfigManager mWifiConfigManager;
     private final WifiInjector mWifiInjector;
@@ -63,6 +70,10 @@ public class WifiNetworkSuggestionsManager {
      */
     private final Map<String, Set<WifiNetworkSuggestion>> mActiveNetworkSuggestionsPerApp =
             new HashMap<>();
+    /**
+     * Map of package name of an app to the app ops changed listener for the app.
+     */
+    private final Map<String, AppOpsChangedListener> mAppOpsChangedListenerPerApp = new HashMap<>();
     /**
      * Map maintained to help lookup all the network suggestions (with no bssid) that match a
      * provided scan result.
@@ -91,6 +102,43 @@ public class WifiNetworkSuggestionsManager {
     private Set<WifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
 
     /**
+     * Listener for app-ops changes for active suggestor apps.
+     */
+    private final class AppOpsChangedListener implements AppOpsManager.OnOpChangedListener {
+        private final String mPackageName;
+        private final int mUid;
+
+        AppOpsChangedListener(@NonNull String packageName, int uid) {
+            mPackageName = packageName;
+            mUid = uid;
+        }
+
+        @Override
+        public void onOpChanged(String op, String packageName) {
+            mHandler.post(() -> {
+                if (!mPackageName.equals(packageName)) return;
+                if (!OPSTR_CHANGE_WIFI_STATE.equals(op)) return;
+
+                // Ensure the uid to package mapping is still correct.
+                try {
+                    mAppOps.checkPackage(mUid, mPackageName);
+                } catch (SecurityException e) {
+                    Log.wtf(TAG, "Invalid uid/package" + packageName);
+                    return;
+                }
+
+                // User disabled the app, clear all suggestions from it.
+                if (mAppOps.unsafeCheckOpNoThrow(OPSTR_CHANGE_WIFI_STATE, mUid, mPackageName)
+                        == AppOpsManager.MODE_IGNORED) {
+                    Log.i(TAG, "User disallowed change wifi state for " + packageName);
+                    remove(new ArrayList<>(), mPackageName);
+                }
+            });
+        }
+    };
+
+
+    /**
      * Verbose logging flag.
      */
     private boolean mVerboseLoggingEnabled = false;
@@ -116,7 +164,12 @@ public class WifiNetworkSuggestionsManager {
                 Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap) {
             mActiveNetworkSuggestionsPerApp.putAll(networkSuggestionsMap);
             // Build the scan cache.
-            for (Set<WifiNetworkSuggestion> networkSuggestions : networkSuggestionsMap.values()) {
+            for (Map.Entry<String, Set<WifiNetworkSuggestion>> entry
+                    : networkSuggestionsMap.entrySet()) {
+                String packageName = entry.getKey();
+                Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue();
+                startTrackingAppOpsChange(packageName,
+                        networkSuggestions.iterator().next().suggestorUid);
                 addToScanResultMatchInfoMap(networkSuggestions);
             }
         }
@@ -134,11 +187,14 @@ public class WifiNetworkSuggestionsManager {
         }
     }
 
-    public WifiNetworkSuggestionsManager(Context context, WifiInjector wifiInjector,
+    public WifiNetworkSuggestionsManager(Context context, Handler handler,
+                                         WifiInjector wifiInjector,
                                          WifiPermissionsUtil wifiPermissionsUtil,
                                          WifiConfigManager wifiConfigManager,
                                          WifiConfigStore wifiConfigStore) {
         mContext = context;
+        mHandler = handler;
+        mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         mWifiInjector = wifiInjector;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiConfigManager = wifiConfigManager;
@@ -247,6 +303,13 @@ public class WifiNetworkSuggestionsManager {
         }
     }
 
+    private void startTrackingAppOpsChange(@NonNull String packageName, int uid) {
+        AppOpsChangedListener appOpsChangedListener =
+                new AppOpsChangedListener(packageName, uid);
+        mAppOps.startWatchingMode(OPSTR_CHANGE_WIFI_STATE, packageName, appOpsChangedListener);
+        mAppOpsChangedListenerPerApp.put(packageName, appOpsChangedListener);
+    }
+
     /**
      * Add the provided list of network suggestions from the corresponding app's active list.
      */
@@ -255,11 +318,17 @@ public class WifiNetworkSuggestionsManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + networkSuggestions.size() + " networks from " + packageName);
         }
+        if (networkSuggestions.isEmpty()) {
+            Log.w(TAG, "Empty list of network suggestions for " + packageName + ". Ignoring");
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
+        }
         Set<WifiNetworkSuggestion> activeNetworkSuggestionsForApp =
                 mActiveNetworkSuggestionsPerApp.get(packageName);
         if (activeNetworkSuggestionsForApp == null) {
             activeNetworkSuggestionsForApp = new HashSet<>();
             mActiveNetworkSuggestionsPerApp.put(packageName, activeNetworkSuggestionsForApp);
+            // Start tracking app-op changes from the app.
+            startTrackingAppOpsChange(packageName, networkSuggestions.get(0).suggestorUid);
         }
         // check if the app is trying to in-place modify network suggestions.
         if (!Collections.disjoint(activeNetworkSuggestionsForApp, networkSuggestions)) {
@@ -280,6 +349,16 @@ public class WifiNetworkSuggestionsManager {
         addToScanResultMatchInfoMap(networkSuggestions);
         saveToStore();
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
+    }
+
+    private void stopTrackingAppOpsChange(@NonNull String packageName) {
+        AppOpsChangedListener appOpsChangedListener =
+                mAppOpsChangedListenerPerApp.remove(packageName);
+        if (appOpsChangedListener == null) {
+            Log.wtf(TAG, "No app ops listener found for " + packageName);
+            return;
+        }
+        mAppOps.stopWatchingMode(appOpsChangedListener);
     }
 
     /**
@@ -306,12 +385,15 @@ public class WifiNetworkSuggestionsManager {
             }
             activeNetworkSuggestionsForApp.removeAll(networkSuggestions);
         } else {
+            // store the suggestions being cleared for further processing below.
+            networkSuggestions = new ArrayList<>(activeNetworkSuggestionsForApp);
             // empty list is used to clear everything for the app.
             activeNetworkSuggestionsForApp.clear();
         }
         // Remove the set from map if empty.
         if (activeNetworkSuggestionsForApp.isEmpty()) {
             mActiveNetworkSuggestionsPerApp.remove(packageName);
+            stopTrackingAppOpsChange(packageName);
         }
         removeFromScanResultMatchInfoMap(networkSuggestions);
         saveToStore();
