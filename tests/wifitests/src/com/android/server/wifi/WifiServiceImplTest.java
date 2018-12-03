@@ -2893,6 +2893,24 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that add or update networks is allowed for system apps.
+     */
+    @Test
+    public void testAddOrUpdateNetworkIsAllowedForSystemApp() throws Exception {
+        mLooper.dispatchAll();
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+
+        verifyCheckChangePermission(TEST_PACKAGE_NAME);
+        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+    }
+
+    /**
      * Ensure that we invoke {@link WifiNetworkSuggestionsManager} to add network
      * suggestions.
      */

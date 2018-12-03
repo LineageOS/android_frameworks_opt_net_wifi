@@ -48,6 +48,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.database.ContentObserver;
@@ -713,6 +714,22 @@ public class WifiServiceImpl extends AbstractWifiService {
                 || checkNetworkStackPermission(pid, uid);
     }
 
+    // Helper method to check if the entity initiating the binder call is a system app.
+    private boolean isSystem(String packageName) {
+        long ident = Binder.clearCallingIdentity();
+        try {
+            ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            return info.isSystemApp() || info.isUpdatedSystemApp();
+        } catch (PackageManager.NameNotFoundException e) {
+            // In case of exception, assume unknown app (more strict checking)
+            // Note: This case will never happen since checkPackage is
+            // called to verify validity before checking App's version.
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+        return false;
+    }
+
     private void enforceNetworkSettingsPermission() {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS,
                 "WifiService");
@@ -782,18 +799,20 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     private boolean isTargetSdkLessThan(String packageName, int versionCode) {
+        long ident = Binder.clearCallingIdentity();
         try {
             if (mContext.getPackageManager().getApplicationInfo(packageName, 0).targetSdkVersion
                     < versionCode) {
                 return true;
             }
         } catch (PackageManager.NameNotFoundException e) {
-            // In case of exception, assume known app (more strict checking)
+            // In case of exception, assume unknown app (more strict checking)
             // Note: This case will never happen since checkPackage is
-            // called to verify valididity before checking App's version.
+            // called to verify validity before checking App's version.
+        } finally {
+            Binder.restoreCallingIdentity(ident);
         }
         return false;
-
     }
 
     /**
@@ -802,7 +821,10 @@ public class WifiServiceImpl extends AbstractWifiService {
      * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
      */
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
-        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q) ||  isPrivileged(pid, uid);
+        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
+                || isPrivileged(pid, uid)
+                // TODO: Remove this system app bypass once Q is released.
+                || isSystem(packageName);
     }
 
     /**
