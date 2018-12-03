@@ -51,6 +51,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class WifiScoreCard {
 
+    public static final String DUMP_ARG = "WifiScoreCard";
+
     private static final String TAG = "WifiScoreCard";
 
     private final Clock mClock;
