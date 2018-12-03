@@ -201,7 +201,8 @@ public class WifiNetworkSuggestionsManager {
     /**
      * Add the provided list of network suggestions from the corresponding app's active list.
      */
-    public boolean add(List<WifiNetworkSuggestion> networkSuggestions, String packageName) {
+    public @WifiManager.NetworkSuggestionsStatusCode int add(
+            List<WifiNetworkSuggestion> networkSuggestions, String packageName) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + networkSuggestions.size() + " networks from " + packageName);
         }
@@ -215,18 +216,28 @@ public class WifiNetworkSuggestionsManager {
         if (!Collections.disjoint(activeNetworkSuggestionsForApp, networkSuggestions)) {
             Log.e(TAG, "Failed to add network suggestions for " + packageName
                     + ". Modification of active network suggestions disallowed");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE;
+        }
+        if (activeNetworkSuggestionsForApp.size() + networkSuggestions.size()
+                > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
+            Log.e(TAG, "Failed to add network suggestions for " + packageName
+                    + ". Exceeds max per app, current list size: "
+                    + activeNetworkSuggestionsForApp.size()
+                    + ", new list size: "
+                    + networkSuggestions.size());
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_EXCEEDS_MAX_PER_APP;
         }
         activeNetworkSuggestionsForApp.addAll(networkSuggestions);
         addToScanResultMatchInfoMap(networkSuggestions);
         saveToStore();
-        return true;
+        return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
     /**
      * Remove the provided list of network suggestions from the corresponding app's active list.
      */
-    public boolean remove(List<WifiNetworkSuggestion> networkSuggestions, String packageName) {
+    public @WifiManager.NetworkSuggestionsStatusCode int remove(
+            List<WifiNetworkSuggestion> networkSuggestions, String packageName) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Removing " + networkSuggestions.size() + " networks from " + packageName);
         }
@@ -235,14 +246,14 @@ public class WifiNetworkSuggestionsManager {
         if (activeNetworkSuggestionsForApp == null) {
             Log.e(TAG, "Failed to remove network suggestions for " + packageName
                     + ". No active network suggestions found");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
         if (!networkSuggestions.isEmpty()) {
             // check if all the request network suggestions are present in the active list.
             if (!activeNetworkSuggestionsForApp.containsAll(networkSuggestions)) {
                 Log.e(TAG, "Failed to remove network suggestions for " + packageName
                         + ". Network suggestions not found in active network suggestions");
-                return false;
+                return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
             }
             activeNetworkSuggestionsForApp.removeAll(networkSuggestions);
         } else {
@@ -257,7 +268,7 @@ public class WifiNetworkSuggestionsManager {
         saveToStore();
         // Disconnect from the current network, if the suggestion was removed.
         triggerDisconnectIfServingNetworkSuggestionRemoved(networkSuggestions);
-        return true;
+        return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
     /**

@@ -48,6 +48,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.database.ContentObserver;
@@ -713,6 +714,19 @@ public class WifiServiceImpl extends AbstractWifiService {
                 || checkNetworkStackPermission(pid, uid);
     }
 
+    // Helper method to check if the entity initiating the binder call is a system app.
+    private boolean isSystem(String packageName) {
+        try {
+            ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            return info.isSystemApp() || info.isUpdatedSystemApp();
+        } catch (PackageManager.NameNotFoundException e) {
+            // In case of exception, assume unknown app (more strict checking)
+            // Note: This case will never happen since checkPackage is
+            // called to verify validity before checking App's version.
+        }
+        return false;
+    }
+
     private void enforceNetworkSettingsPermission() {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS,
                 "WifiService");
@@ -788,9 +802,9 @@ public class WifiServiceImpl extends AbstractWifiService {
                 return true;
             }
         } catch (PackageManager.NameNotFoundException e) {
-            // In case of exception, assume known app (more strict checking)
+            // In case of exception, assume unknown app (more strict checking)
             // Note: This case will never happen since checkPackage is
-            // called to verify valididity before checking App's version.
+            // called to verify validity before checking App's version.
         }
         return false;
 
@@ -802,7 +816,10 @@ public class WifiServiceImpl extends AbstractWifiService {
      * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
      */
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
-        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q) ||  isPrivileged(pid, uid);
+        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
+                || isPrivileged(pid, uid)
+                // TODO: Remove this system app bypass once Q is released.
+                || isSystem(packageName);
     }
 
     /**
@@ -2455,8 +2472,10 @@ public class WifiServiceImpl extends AbstractWifiService {
                     String pkgName = uri.getSchemeSpecificPart();
                     mClientModeImpl.removeAppConfigs(pkgName, uid);
                     // Call the method in ClientModeImpl thread.
-                    mClientModeImplHandler.post(() -> {
+                    mWifiInjector.getClientModeImplHandler().post(() -> {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
+                        // Remove all suggestions from the package.
+                        mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), pkgName);
                     });
                 }
             }
@@ -2959,15 +2978,18 @@ public class WifiServiceImpl extends AbstractWifiService {
      * @param networkSuggestions List of network suggestions to be added.
      * @param callingPackageName Package Name of the app adding the suggestions.
      * @throws SecurityException if the caller does not have permission.
+     * @return One of status codes from {@link WifiManager.NetworkSuggestionsStatusCode}.
      */
     @Override
-    public boolean addNetworkSuggestions(
+    public int addNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
-        enforceChangePermission(callingPackageName);
+        if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
-        Mutable<Boolean> success = new Mutable<>();
+        Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.add(
@@ -2975,13 +2997,12 @@ public class WifiServiceImpl extends AbstractWifiService {
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to add network suggestions");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (!success.value) {
+        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to add network suggestions");
-            return false;
         }
-        return true;
+        return success.value;
     }
 
     /**
@@ -2990,15 +3011,18 @@ public class WifiServiceImpl extends AbstractWifiService {
      * @param networkSuggestions List of network suggestions to be removed.
      * @param callingPackageName Package Name of the app removing the suggestions.
      * @throws SecurityException if the caller does not have permission.
+     * @return One of status codes from {@link WifiManager.NetworkSuggestionsStatusCode}.
      */
     @Override
-    public boolean removeNetworkSuggestions(
+    public int removeNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
-        enforceChangePermission(callingPackageName);
+        if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
-        Mutable<Boolean> success = new Mutable<>();
+        Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.remove(
@@ -3006,12 +3030,11 @@ public class WifiServiceImpl extends AbstractWifiService {
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to remove network suggestions");
-            return false;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (!success.value) {
+        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to remove network suggestions");
-            return false;
         }
-        return true;
+        return success.value;
     }
 }
