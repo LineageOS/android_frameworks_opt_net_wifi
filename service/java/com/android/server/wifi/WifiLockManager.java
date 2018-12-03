@@ -50,10 +50,6 @@ public class WifiLockManager {
     // some wifi lock statistics
     private int mFullHighPerfLocksAcquired;
     private int mFullHighPerfLocksReleased;
-    private int mFullLocksAcquired;
-    private int mFullLocksReleased;
-    private int mScanLocksAcquired;
-    private int mScanLocksReleased;
 
     WifiLockManager(Context context, IBatteryStats batteryStats,
             ClientModeImpl clientModeImpl) {
@@ -114,19 +110,11 @@ public class WifiLockManager {
             return WifiManager.WIFI_MODE_FULL_HIGH_PERF;
         }
 
-        if (mWifiLocks.isEmpty()) {
-            return WifiManager.WIFI_MODE_NO_LOCKS_HELD;
-        }
-
         if (mFullHighPerfLocksAcquired > mFullHighPerfLocksReleased) {
             return WifiManager.WIFI_MODE_FULL_HIGH_PERF;
         }
 
-        if (mFullLocksAcquired > mFullLocksReleased) {
-            return WifiManager.WIFI_MODE_FULL;
-        }
-
-        return WifiManager.WIFI_MODE_SCAN_ONLY;
+        return WifiManager.WIFI_MODE_NO_LOCKS_HELD;
     }
 
     /**
@@ -229,14 +217,12 @@ public class WifiLockManager {
         try {
             mBatteryStats.noteFullWifiLockAcquiredFromSource(lock.mWorkSource);
             switch(lock.mMode) {
-                case WifiManager.WIFI_MODE_FULL:
-                    ++mFullLocksAcquired;
-                    break;
                 case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                     ++mFullHighPerfLocksAcquired;
                     break;
-                case WifiManager.WIFI_MODE_SCAN_ONLY:
-                    ++mScanLocksAcquired;
+
+                default:
+                    // Do nothing
                     break;
             }
             lockAdded = true;
@@ -274,14 +260,12 @@ public class WifiLockManager {
         try {
             mBatteryStats.noteFullWifiLockReleasedFromSource(wifiLock.mWorkSource);
             switch(wifiLock.mMode) {
-                case WifiManager.WIFI_MODE_FULL:
-                    ++mFullLocksReleased;
-                    break;
                 case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                     ++mFullHighPerfLocksReleased;
                     break;
-                case WifiManager.WIFI_MODE_SCAN_ONLY:
-                    ++mScanLocksReleased;
+
+                default:
+                    // Do nothing
                     break;
             }
 
@@ -316,15 +300,13 @@ public class WifiLockManager {
                 break;
 
             case WifiManager.WIFI_MODE_NO_LOCKS_HELD:
-            case WifiManager.WIFI_MODE_FULL:
-            case WifiManager.WIFI_MODE_SCAN_ONLY:
             default:
                 // No action
                 break;
         }
 
         // Set the current mode, before we attempt to set the new mode
-        mCurrentOpMode = WifiManager.WIFI_MODE_FULL;
+        mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
 
         // Now switch to the new opMode
         switch (newLockMode) {
@@ -336,8 +318,6 @@ public class WifiLockManager {
                 break;
 
             case WifiManager.WIFI_MODE_NO_LOCKS_HELD:
-            case WifiManager.WIFI_MODE_FULL:
-            case WifiManager.WIFI_MODE_SCAN_ONLY:
                 // No action
                 break;
 
@@ -362,12 +342,10 @@ public class WifiLockManager {
     }
 
     protected void dump(PrintWriter pw) {
-        pw.println("Locks acquired: " + mFullLocksAcquired + " full, "
-                + mFullHighPerfLocksAcquired + " full high perf, "
-                + mScanLocksAcquired + " scan");
-        pw.println("Locks released: " + mFullLocksReleased + " full, "
-                + mFullHighPerfLocksReleased + " full high perf, "
-                + mScanLocksReleased + " scan");
+        pw.println("Locks acquired: "
+                + mFullHighPerfLocksAcquired + " full high perf");
+        pw.println("Locks released: "
+                + mFullHighPerfLocksReleased + " full high perf");
         pw.println();
         pw.println("Locks held:");
         for (WifiLock lock : mWifiLocks) {
