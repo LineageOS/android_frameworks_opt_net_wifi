@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.WifiInfo.DEFAULT_MAC_ADDRESS;
+import static android.net.wifi.WifiInfo.INVALID_RSSI;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -27,8 +28,9 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
-import com.android.server.wifi.WifiScoreCardProto.AccessPointOrBuilder;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.Signal;
+import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
 
 import com.google.protobuf.ByteString;
 
@@ -53,14 +55,26 @@ public class WifiScoreCard {
      * Based on mClock.getElapsedSinceBootMillis().
      *
      * This is for calculating the time to connect and the duration of the connection.
+     * Any negative value means we are not currently connected.
      */
-    private long mTsConnectionAttemptStart = 0;
+    private long mTsConnectionAttemptStart = TS_NONE;
+    private static final long TS_NONE = -1;
+
+    /**
+     * Becomes true the first time we see a poll with a valid RSSI in a connection
+     */
+    private boolean mPolled = false;
 
     /**
      * @param clock is the time source
      */
     public WifiScoreCard(Clock clock) {
         mClock = clock;
+    }
+
+    private void resetConnectionState() {
+        mTsConnectionAttemptStart = TS_NONE;
+        mPolled = false;
     }
 
     /**
@@ -83,8 +97,11 @@ public class WifiScoreCard {
      */
     public void noteSignalPoll(ExtendedWifiInfo wifiInfo) {
         update(Event.SIGNAL_POLL, wifiInfo);
+        if (!mPolled && wifiInfo.getRssi() != INVALID_RSSI) {
+            update(Event.FIRST_POLL_AFTER_CONNECTION, wifiInfo);
+            mPolled = true;
+        }
         // TODO(b/112196799) capture state for LAST_POLL_BEFORE_ROAM
-        // TODO(b/112196799) check for FIRST_POLL_AFTER_CONNECTION
     }
 
     /**
@@ -102,8 +119,10 @@ public class WifiScoreCard {
      * @param wifiInfo may have state about an existing connection
      */
     public void noteConnectionAttempt(ExtendedWifiInfo wifiInfo) {
+        // We may or may not be currently connected. If not, simply record the start.
+        // But if we are connected, wrap up the old one first TODO(b/112196799)
         mTsConnectionAttemptStart = mClock.getElapsedSinceBootMillis();
-        // TODO(b/112196799) If currently connected, record any needed state
+        mPolled = false;
     }
 
     /**
@@ -113,6 +132,7 @@ public class WifiScoreCard {
      */
     public void noteConnectionFailure(ExtendedWifiInfo wifiInfo) {
         update(Event.CONNECTION_FAILURE, wifiInfo);
+        resetConnectionState();
     }
 
     /**
@@ -123,6 +143,7 @@ public class WifiScoreCard {
     public void noteIpReachabilityLost(ExtendedWifiInfo wifiInfo) {
         update(Event.IP_REACHABILITY_LOST, wifiInfo);
         // TODO(b/112196799) Check for roam failure here
+        resetConnectionState();
     }
 
     /**
@@ -142,29 +163,34 @@ public class WifiScoreCard {
      */
     public void noteWifiDisabled(ExtendedWifiInfo wifiInfo) {
         update(Event.WIFI_DISABLED, wifiInfo);
+        resetConnectionState();
     }
 
     private int mNextId = 0;
     final class PerBssid {
+        public int id;
         public final String ssid;
         public final MacAddress bssid;
-        public final AccessPointOrBuilder ap;
-        private final Map<Pair<Event, Integer>, PerSignal> mSignalForEventAndFrequency =
-                new ArrayMap<>();
+        private final Map<Pair<Event, Integer>, PerSignal>
+                mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
+            this.id = mNextId++;
             this.ssid = ssid;
             this.bssid = bssid;
-            this.ap = AccessPoint.newBuilder()
-                    .setId(mNextId++)
-                    .setBssid(ByteString.copyFrom(bssid.toByteArray()));
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
             PerSignal perSignal = lookupSignal(event, frequency);
-            perSignal.rssi.update(rssi);
-            perSignal.linkspeed.update(linkspeed);
-            if (perSignal.elapsedMs != null && mTsConnectionAttemptStart > 0) {
+            if (rssi != INVALID_RSSI) {
+                perSignal.rssi.update(rssi);
+            }
+            if (linkspeed > 0) {
+                perSignal.linkspeed.update(linkspeed);
+            }
+            if (perSignal.elapsedMs != null && mTsConnectionAttemptStart > TS_NONE) {
                 long millis = mClock.getElapsedSinceBootMillis() - mTsConnectionAttemptStart;
-                perSignal.elapsedMs.update(millis);
+                if (millis >= 0) {
+                    perSignal.elapsedMs.update(millis);
+                }
             }
         }
         PerSignal lookupSignal(Event event, int frequency) {
@@ -175,6 +201,14 @@ public class WifiScoreCard {
                 mSignalForEventAndFrequency.put(key, ans);
             }
             return ans;
+        }
+        AccessPoint toAccessPoint() {
+            AccessPoint.Builder builder = AccessPoint.newBuilder();
+            builder.setId(id).setBssid(ByteString.copyFrom(bssid.toByteArray()));
+            for (PerSignal sig: mSignalForEventAndFrequency.values()) {
+                builder.addEventStats(sig.toSignal());
+            }
+            return builder.build();
         }
     }
 
@@ -200,7 +234,7 @@ public class WifiScoreCard {
             ans = new PerBssid(ssid, mac);
             PerBssid old = mApForBssid.put(mac, ans);
             if (old != null) {
-                Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.ap.getId());
+                Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.id);
             }
         }
         return ans;
@@ -234,6 +268,17 @@ public class WifiScoreCard {
                     break;
             }
         }
+        Signal toSignal() {
+            Signal.Builder builder = Signal.newBuilder();
+            builder.setEvent(event)
+                    .setFrequency(frequency)
+                    .setRssi(rssi.toUnivariateStatistic())
+                    .setLinkspeed(linkspeed.toUnivariateStatistic());
+            if (elapsedMs != null) {
+                // TODO add to .proto - builder.setEapsedMs(elapsedMs.toUnivariateStatistic());
+            }
+            return builder.build();
+        }
         //TODO  Serialize/Deserialize
     }
 
@@ -243,8 +288,8 @@ public class WifiScoreCard {
         public double sumOfSquares = 0.0;
         public double minValue = Double.POSITIVE_INFINITY;
         public double maxValue = Double.NEGATIVE_INFINITY;
-        public double historical_mean = 0.0;
-        public double historical_variance = Double.POSITIVE_INFINITY;
+        public double historicalMean = 0.0;
+        public double historicalVariance = Double.POSITIVE_INFINITY;
         void update(double value) {
             count++;
             sum += value;
@@ -254,6 +299,21 @@ public class WifiScoreCard {
         }
         void age() {
             //TODO  Fold the current stats into the historical stats
+        }
+        UnivariateStatistic toUnivariateStatistic() {
+            UnivariateStatistic.Builder builder = UnivariateStatistic.newBuilder();
+            if (count != 0) {
+                builder.setCount(count)
+                        .setSum(sum)
+                        .setSumOfSquares(sumOfSquares)
+                        .setMinValue(minValue)
+                        .setMaxValue(maxValue);
+            }
+            if (historicalVariance < Double.POSITIVE_INFINITY) {
+                builder.setHistoricalMean(historicalMean)
+                        .setHistoricalVariance(historicalVariance);
+            }
+            return builder.build();
         }
         //TODO  Serialize/Deserialize
     }
