@@ -23,18 +23,23 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.MacAddress;
 import android.util.ArrayMap;
+import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.Network;
+import com.android.server.wifi.WifiScoreCardProto.NetworkList;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
 import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
 
 import com.google.protobuf.ByteString;
 
 import java.util.Map;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Retains statistical information about the performance of various
@@ -43,6 +48,7 @@ import java.util.Map;
  * The purpose is to better inform future network selection and switching
  * by this device.
  */
+@NotThreadSafe
 public class WifiScoreCard {
 
     private static final String TAG = "WifiScoreCard";
@@ -220,8 +226,14 @@ public class WifiScoreCard {
             return ans;
         }
         AccessPoint toAccessPoint() {
+            return toAccessPoint(false);
+        }
+        AccessPoint toAccessPoint(boolean obfuscate) {
             AccessPoint.Builder builder = AccessPoint.newBuilder();
-            builder.setId(id).setBssid(ByteString.copyFrom(bssid.toByteArray()));
+            builder.setId(id);
+            if (!obfuscate) {
+                builder.setBssid(ByteString.copyFrom(bssid.toByteArray()));
+            }
             for (PerSignal sig: mSignalForEventAndFrequency.values()) {
                 builder.addEventStats(sig.toSignal());
             }
@@ -369,4 +381,44 @@ public class WifiScoreCard {
             return builder.build();
         }
     }
+
+    /**
+     * Returns the current scorecard in the form of a protobuf com_android_server_wifi.NetworkList
+     *
+     * Synchronization is the caller's responsibility.
+     *
+     * @param obfuscate - if true, bssids are omitted (short id only)
+     */
+    public byte[] getNetworkListByteArray(boolean obfuscate) {
+        Map<Pair<String, Integer>, Network.Builder> networks = new ArrayMap<>();
+        for (PerBssid perBssid: mApForBssid.values()) {
+            int securityType = 0; //TODO(b/112196799) See ScanResultMatchInfo
+            Pair<String, Integer> key = new Pair<>(perBssid.ssid, securityType);
+            Network.Builder network = networks.get(key);
+            if (network == null) {
+                network = Network.newBuilder();
+                networks.put(key, network);
+                network.setSsid(perBssid.ssid);
+            }
+            network.addAccessPoints(perBssid.toAccessPoint(obfuscate));
+        }
+        NetworkList.Builder builder = NetworkList.newBuilder();
+        for (Network.Builder network: networks.values()) {
+            builder.addNetworks(network);
+        }
+        return builder.build().toByteArray();
+    }
+
+    /**
+     * Returns the current scorecard as a base64-encoded protobuf
+     *
+     * Synchronization is the caller's responsibility.
+     *
+     * @param obfuscate - if true, bssids are omitted (short id only)
+     */
+    public String getNetworkListBase64(boolean obfuscate) {
+        byte[] raw = getNetworkListByteArray(obfuscate);
+        return Base64.encodeToString(raw, Base64.DEFAULT);
+    }
+
 }
