@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE;
+import static android.net.NetworkFactory.CMD_REQUEST_NETWORK;
 
 import static com.android.server.wifi.WifiNetworkFactory.PERIODIC_SCAN_INTERVAL_MS;
 import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
@@ -34,6 +35,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
+import android.net.NetworkFactory;
 import android.net.NetworkRequest;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.INetworkRequestUserSelectionCallback;
@@ -151,6 +153,9 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest = new NetworkRequest.Builder()
                 .setCapabilities(mNetworkCapabilities)
                 .build();
+
+        // Setup with wifi on.
+        mWifiNetworkFactory.setWifiState(true);
     }
 
     /**
@@ -1326,6 +1331,111 @@ public class WifiNetworkFactoryTest {
         // Ensure that we did not pause or resume scanning.
         mInOrder.verifyNoMoreInteractions();
     }
+
+    /**
+     * Verify we don't accept specific network request when wifi is off.
+     */
+    @Test
+    public void testHandleAcceptNetworkRequestWithSpecifierWhenWifiOff() throws Exception {
+        when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
+                .thenReturn(IMPORTANCE_FOREGROUND);
+
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+
+        // set wifi off.
+        mWifiNetworkFactory.setWifiState(false);
+        assertFalse(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+
+        // set wifi on.
+        mWifiNetworkFactory.setWifiState(true);
+        assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+    }
+
+    /**
+     * Verify handling of new network request with network specifier when wifi is off.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierWhenWifiOff() {
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+
+        // set wifi off
+        mWifiNetworkFactory.setWifiState(false);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        verify(mWifiScanner, never()).startScan(any(), any(), any());
+
+        // set wifi on
+        mWifiNetworkFactory.setWifiState(true);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        verify(mWifiScanner).startScan(any(), any(), any());
+    }
+
+    /**
+     *  Verify wifi toggle off when scanning.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierWifiOffWhenScanning() throws Exception {
+        WifiNetworkSpecifier specifier1 = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        // Register callback.
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(any());
+
+        verify(mWifiScanner).startScan(any(), any(), any());
+
+        // toggle wifi off & verify we aborted ongoing request.
+        mWifiNetworkFactory.setWifiState(false);
+        verify(mNetworkRequestMatchCallback).onAbort();
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     *  Verify wifi toggle off after connection attempt is started.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierWifiOffAfterConnect() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // toggle wifi off & verify we aborted ongoing request.
+        mWifiNetworkFactory.setWifiState(false);
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+        verify(mNetworkRequestMatchCallback).onAbort();
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
+    }
+
+    /**
+     * Verify handling of new network request with network specifier when wifi is off & then on.
+     * Note: Unlike the other unit tests, this test invokes the top level
+     * {@link NetworkFactory#CMD_REQUEST_NETWORK} to simulate the full flow.
+     */
+    @Test
+    public void testFullHandleNetworkRequestWithSpecifierWhenWifiOff() {
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+
+        // set wifi off
+        mWifiNetworkFactory.setWifiState(false);
+        // Add the request, should do nothing.
+        Message message = Message.obtain();
+        message.what = CMD_REQUEST_NETWORK;
+        message.obj = mNetworkRequest;
+        mWifiNetworkFactory.sendMessage(message);
+        mLooper.dispatchAll();
+        verify(mWifiScanner, never()).startScan(any(), any(), any());
+
+        // set wifi on
+        mWifiNetworkFactory.setWifiState(true);
+        mLooper.dispatchAll();
+        // Should trigger a re-evaluation of existing requests and the pending request will be
+        // processed now.
+        verify(mWifiScanner).startScan(any(), any(), any());
+    }
+
+
 
     // Helper method to setup the necessary pre-requisite steps for tracking connection status.
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
