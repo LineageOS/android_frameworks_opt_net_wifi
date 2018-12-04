@@ -39,6 +39,7 @@ import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.Before;
@@ -847,12 +848,12 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiConfigManager).saveToStore(true);
         assertTrue(mDataSource.hasNewDataToSerialize());
 
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMapToWrite =
-                mDataSource.toSerialize();
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
         assertEquals(1, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
         Set<WifiNetworkSuggestion> networkSuggestionsToWrite =
-                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1);
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions;
         Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
                 new HashSet<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
@@ -884,9 +885,12 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiConfigManager, times(2)).saveToStore(true);
         assertTrue(mDataSource.hasNewDataToSerialize());
 
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMapToWrite =
-                mDataSource.toSerialize();
-        assertTrue(networkSuggestionsMapToWrite.isEmpty());
+        // Expect a single app entry with no active suggestions.
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(1, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
 
         // Ensure that the new data flag has been reset after read.
         assertFalse(mDataSource.hasNewDataToSerialize());
@@ -904,8 +908,10 @@ public class WifiNetworkSuggestionsManagerTest {
                     add(networkSuggestion);
                 }};
 
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                        put(TEST_PACKAGE_1, networkSuggestionSet);
+        PerAppInfo appInfo = new PerAppInfo();
+        appInfo.networkSuggestions = networkSuggestionSet;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                        put(TEST_PACKAGE_1, appInfo);
                 }});
 
         Set<WifiNetworkSuggestion> allNetworkSuggestions =
@@ -941,8 +947,10 @@ public class WifiNetworkSuggestionsManagerTest {
                 }};
 
         // Read the store initially.
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                    put(TEST_PACKAGE_1, networkSuggestionSet1);
+        PerAppInfo appInfo1 = new PerAppInfo();
+        appInfo1.networkSuggestions = networkSuggestionSet1;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_1, appInfo1);
                 }});
 
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
@@ -954,8 +962,10 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Now simulate user switch.
         mDataSource.reset();
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                    put(TEST_PACKAGE_2, networkSuggestionSet2);
+        PerAppInfo appInfo2 = new PerAppInfo();
+        appInfo2.networkSuggestions = networkSuggestionSet2;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_2, appInfo2);
                 }});
 
         Set<WifiNetworkSuggestion> allNetworkSuggestions =
@@ -1105,6 +1115,50 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify that we start tracking app-ops on first network suggestion add & stop tracking on the
+     * last network suggestion remove.
+     */
+    @Test
+    public void testAddRemoveNetworkSuggestionsStartStopAppOpsWatch() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        mInorder = inOrder(mAppOpsManager);
+
+        // Watch app-ops changes on first add.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        mInorder.verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE),
+                eq(TEST_PACKAGE_1), mAppOpChangedListenerCaptor.capture());
+
+        // Nothing happens on second add.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_1));
+
+        // Now remove first add, nothing happens.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        // Stop watching app-ops changes on last remove.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_1));
+        assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+        mInorder.verify(mAppOpsManager).stopWatchingMode(mAppOpChangedListenerCaptor.getValue());
+
+        mInorder.verifyNoMoreInteractions();
+    }
+
+    /**
      * Verify app-ops disable/enable after suggestions add.
      */
     @Test
@@ -1141,12 +1195,13 @@ public class WifiNetworkSuggestionsManagerTest {
         allNetworkSuggestions = mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
         assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
 
-        // disallow change wifi state & ensure we remove all the suggestions for that app.
+        // disallow change wifi state & ensure we remove the app from database.
         when(mAppOpsManager.unsafeCheckOpNoThrow(
                 OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
                 .thenReturn(MODE_IGNORED);
         listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
         mLooper.dispatchAll();
+        verify(mAppOpsManager).stopWatchingMode(mAppOpChangedListenerCaptor.getValue());
         assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
     }
 
@@ -1162,9 +1217,11 @@ public class WifiNetworkSuggestionsManagerTest {
                     add(networkSuggestion);
                 }};
 
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                put(TEST_PACKAGE_1, networkSuggestionSet);
-            }});
+        PerAppInfo appInfo = new PerAppInfo();
+        appInfo.networkSuggestions = networkSuggestionSet;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_1, appInfo);
+                }});
 
         Set<WifiNetworkSuggestion> allNetworkSuggestions =
                 mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
@@ -1235,6 +1292,62 @@ public class WifiNetworkSuggestionsManagerTest {
         mLooper.dispatchAll();
         allNetworkSuggestions = mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
         assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+    }
+
+    /**
+     * Verify that we stop tracking the package on its removal.
+     */
+    @Test
+    public void testRemoveApp() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Remove all suggestions from TEST_PACKAGE_1 & TEST_PACKAGE_2, we should continue to track.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_2));
+
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(2, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+
+        // Now remove TEST_PACKAGE_1, continue to track TEST_PACKAGE_2.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(1, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+
+        // Now remove TEST_PACKAGE_2.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertTrue(networkSuggestionsMapToWrite.isEmpty());
+
+        // Verify that we stopped watching these apps for app-ops changes.
+        verify(mAppOpsManager, times(2)).stopWatchingMode(any());
     }
 
     /**

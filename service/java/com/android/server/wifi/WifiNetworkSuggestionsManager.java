@@ -39,13 +39,13 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -65,11 +65,42 @@ public class WifiNetworkSuggestionsManager {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiConfigManager mWifiConfigManager;
     private final WifiInjector mWifiInjector;
+
+    /**
+     * Per app meta data to store network suggestions, status, etc for each app providing network
+     * suggestions on the device.
+     */
+    public static class PerAppInfo {
+        /**
+         * Whether we have shown the user a notification for this app.
+         */
+        public boolean hasUserApproved = false;
+        /**
+         * Set of active network suggestions provided by the app.
+         */
+        public Set<WifiNetworkSuggestion> networkSuggestions = new HashSet<>();
+
+        // This is only needed for comparison in unit tests.
+        @Override
+        public boolean equals(Object other) {
+            if (other == null) return false;
+            if (!(other instanceof PerAppInfo)) return false;
+            PerAppInfo otherPerAppInfo = (PerAppInfo) other;
+            return hasUserApproved == otherPerAppInfo.hasUserApproved
+                    && Objects.equals(networkSuggestions, otherPerAppInfo.networkSuggestions);
+        }
+
+        // This is only needed for comparison in unit tests.
+        @Override
+        public int hashCode() {
+            return Objects.hash(hasUserApproved, networkSuggestions);
+        }
+    }
+
     /**
      * Map of package name of an app to the set of active network suggestions provided by the app.
      */
-    private final Map<String, Set<WifiNetworkSuggestion>> mActiveNetworkSuggestionsPerApp =
-            new HashMap<>();
+    private final Map<String, PerAppInfo> mActiveNetworkSuggestionsPerApp = new HashMap<>();
     /**
      * Map of package name of an app to the app ops changed listener for the app.
      */
@@ -127,11 +158,12 @@ public class WifiNetworkSuggestionsManager {
                     return;
                 }
 
-                // User disabled the app, clear all suggestions from it.
                 if (mAppOps.unsafeCheckOpNoThrow(OPSTR_CHANGE_WIFI_STATE, mUid, mPackageName)
                         == AppOpsManager.MODE_IGNORED) {
                     Log.i(TAG, "User disallowed change wifi state for " + packageName);
-                    remove(new ArrayList<>(), mPackageName);
+                    // User disabled the app, remove app from database. We want the notification
+                    // again if the user enabled the app-op back.
+                    removeApp(mPackageName);
                 }
             });
         }
@@ -152,7 +184,7 @@ public class WifiNetworkSuggestionsManager {
      */
     private class NetworkSuggestionDataSource implements NetworkSuggestionStoreData.DataSource {
         @Override
-        public Map<String, Set<WifiNetworkSuggestion>> toSerialize() {
+        public Map<String, PerAppInfo> toSerialize() {
             // Clear the flag after writing to disk.
             // TODO(b/115504887): Don't reset the flag on write failure.
             mHasNewDataToSerialize = false;
@@ -160,16 +192,17 @@ public class WifiNetworkSuggestionsManager {
         }
 
         @Override
-        public void fromDeserialized(
-                Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap) {
+        public void fromDeserialized(Map<String, PerAppInfo> networkSuggestionsMap) {
             mActiveNetworkSuggestionsPerApp.putAll(networkSuggestionsMap);
             // Build the scan cache.
-            for (Map.Entry<String, Set<WifiNetworkSuggestion>> entry
-                    : networkSuggestionsMap.entrySet()) {
+            for (Map.Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
                 String packageName = entry.getKey();
-                Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue();
-                startTrackingAppOpsChange(packageName,
-                        networkSuggestions.iterator().next().suggestorUid);
+                Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue().networkSuggestions;
+                if (!networkSuggestions.isEmpty()) {
+                    // Start tracking app-op changes from the app if they have active suggestions.
+                    startTrackingAppOpsChange(packageName,
+                            networkSuggestions.iterator().next().suggestorUid);
+                }
                 addToScanResultMatchInfoMap(networkSuggestions);
             }
         }
@@ -219,7 +252,8 @@ public class WifiNetworkSuggestionsManager {
         }
     }
 
-    private void addToScanResultMatchInfoMap(Collection<WifiNetworkSuggestion> networkSuggestions) {
+    private void addToScanResultMatchInfoMap(
+            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions) {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
@@ -248,7 +282,8 @@ public class WifiNetworkSuggestionsManager {
         }
     }
 
-    private void removeFromScanResultMatchInfoMap(List<WifiNetworkSuggestion> networkSuggestions) {
+    private void removeFromScanResultMatchInfoMap(
+            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions) {
         for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
@@ -289,7 +324,7 @@ public class WifiNetworkSuggestionsManager {
     // Issues a disconnect if the only serving network suggestion is removed.
     // TODO (b/115504887): What if there is also a saved network with the same credentials?
     private void triggerDisconnectIfServingNetworkSuggestionRemoved(
-            List<WifiNetworkSuggestion> networkSuggestionsRemoved) {
+            Collection<WifiNetworkSuggestion> networkSuggestionsRemoved) {
         if (mActiveNetworkSuggestionsMatchingConnection == null
                 || mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
             return;
@@ -322,30 +357,31 @@ public class WifiNetworkSuggestionsManager {
             Log.w(TAG, "Empty list of network suggestions for " + packageName + ". Ignoring");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
         }
-        Set<WifiNetworkSuggestion> activeNetworkSuggestionsForApp =
-                mActiveNetworkSuggestionsPerApp.get(packageName);
-        if (activeNetworkSuggestionsForApp == null) {
-            activeNetworkSuggestionsForApp = new HashSet<>();
-            mActiveNetworkSuggestionsPerApp.put(packageName, activeNetworkSuggestionsForApp);
-            // Start tracking app-op changes from the app.
-            startTrackingAppOpsChange(packageName, networkSuggestions.get(0).suggestorUid);
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        if (perAppInfo == null) {
+            perAppInfo = new PerAppInfo();
+            mActiveNetworkSuggestionsPerApp.put(packageName, perAppInfo);
         }
         // check if the app is trying to in-place modify network suggestions.
-        if (!Collections.disjoint(activeNetworkSuggestionsForApp, networkSuggestions)) {
+        if (!Collections.disjoint(perAppInfo.networkSuggestions, networkSuggestions)) {
             Log.e(TAG, "Failed to add network suggestions for " + packageName
                     + ". Modification of active network suggestions disallowed");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE;
         }
-        if (activeNetworkSuggestionsForApp.size() + networkSuggestions.size()
+        if (perAppInfo.networkSuggestions.size() + networkSuggestions.size()
                 > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
             Log.e(TAG, "Failed to add network suggestions for " + packageName
                     + ". Exceeds max per app, current list size: "
-                    + activeNetworkSuggestionsForApp.size()
+                    + perAppInfo.networkSuggestions.size()
                     + ", new list size: "
                     + networkSuggestions.size());
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_EXCEEDS_MAX_PER_APP;
         }
-        activeNetworkSuggestionsForApp.addAll(networkSuggestions);
+        if (perAppInfo.networkSuggestions.isEmpty()) {
+            // Start tracking app-op changes from the app if they have active suggestions.
+            startTrackingAppOpsChange(packageName, networkSuggestions.get(0).suggestorUid);
+        }
+        perAppInfo.networkSuggestions.addAll(networkSuggestions);
         addToScanResultMatchInfoMap(networkSuggestions);
         saveToStore();
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
@@ -361,6 +397,32 @@ public class WifiNetworkSuggestionsManager {
         mAppOps.stopWatchingMode(appOpsChangedListener);
     }
 
+    private void removeInternal(
+            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions,
+            @NonNull String packageName,
+            @NonNull PerAppInfo perAppInfo) {
+        if (!networkSuggestions.isEmpty()) {
+            perAppInfo.networkSuggestions.removeAll(networkSuggestions);
+        } else {
+            // empty list is used to clear everything for the app. Store a copy for use below.
+            networkSuggestions = new HashSet<>(perAppInfo.networkSuggestions);
+            perAppInfo.networkSuggestions.clear();
+        }
+        if (perAppInfo.networkSuggestions.isEmpty()) {
+            // Note: We don't remove the app entry even if there is no active suggestions because
+            // we want to keep the notification state for all apps that have ever provided
+            // suggestions.
+            if (mVerboseLoggingEnabled) Log.v(TAG, "No active suggestions for " + packageName);
+            // Stop tracking app-op changes from the app if they don't have active suggestions.
+            stopTrackingAppOpsChange(packageName);
+        }
+        // Clear the scan cache.
+        removeFromScanResultMatchInfoMap(networkSuggestions);
+        saveToStore();
+        // Disconnect from the current network, if the suggestion was removed.
+        triggerDisconnectIfServingNetworkSuggestionRemoved(networkSuggestions);
+    }
+
     /**
      * Remove the provided list of network suggestions from the corresponding app's active list.
      */
@@ -369,37 +431,34 @@ public class WifiNetworkSuggestionsManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Removing " + networkSuggestions.size() + " networks from " + packageName);
         }
-        Set<WifiNetworkSuggestion> activeNetworkSuggestionsForApp =
-                mActiveNetworkSuggestionsPerApp.get(packageName);
-        if (activeNetworkSuggestionsForApp == null) {
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        if (perAppInfo == null) {
             Log.e(TAG, "Failed to remove network suggestions for " + packageName
-                    + ". No active network suggestions found");
+                    + ". No network suggestions found");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
-        if (!networkSuggestions.isEmpty()) {
-            // check if all the request network suggestions are present in the active list.
-            if (!activeNetworkSuggestionsForApp.containsAll(networkSuggestions)) {
-                Log.e(TAG, "Failed to remove network suggestions for " + packageName
-                        + ". Network suggestions not found in active network suggestions");
-                return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
-            }
-            activeNetworkSuggestionsForApp.removeAll(networkSuggestions);
-        } else {
-            // store the suggestions being cleared for further processing below.
-            networkSuggestions = new ArrayList<>(activeNetworkSuggestionsForApp);
-            // empty list is used to clear everything for the app.
-            activeNetworkSuggestionsForApp.clear();
+        // check if all the request network suggestions are present in the active list.
+        if (!networkSuggestions.isEmpty()
+                && !perAppInfo.networkSuggestions.containsAll(networkSuggestions)) {
+            Log.e(TAG, "Failed to remove network suggestions for " + packageName
+                    + ". Network suggestions not found in active network suggestions");
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
-        // Remove the set from map if empty.
-        if (activeNetworkSuggestionsForApp.isEmpty()) {
-            mActiveNetworkSuggestionsPerApp.remove(packageName);
-            stopTrackingAppOpsChange(packageName);
-        }
-        removeFromScanResultMatchInfoMap(networkSuggestions);
-        saveToStore();
-        // Disconnect from the current network, if the suggestion was removed.
-        triggerDisconnectIfServingNetworkSuggestionRemoved(networkSuggestions);
+        removeInternal(networkSuggestions, packageName, perAppInfo);
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
+    }
+
+    /**
+     * Remove all tracking of the app that has been uninstalled.
+     */
+    public void removeApp(@NonNull String packageName) {
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        if (perAppInfo == null) return;
+
+        removeInternal(Collections.EMPTY_LIST, packageName, perAppInfo);
+        // Remove the package fully from the internal database.
+        mActiveNetworkSuggestionsPerApp.remove(packageName);
+        Log.i(TAG, "Removed " + packageName);
     }
 
     /**
@@ -409,7 +468,7 @@ public class WifiNetworkSuggestionsManager {
     public Set<WifiNetworkSuggestion> getAllNetworkSuggestions() {
         return mActiveNetworkSuggestionsPerApp.values()
                 .stream()
-                .flatMap(Set::stream)
+                .flatMap(e -> e.networkSuggestions.stream())
                 .collect(Collectors.toSet());
     }
 
@@ -527,10 +586,10 @@ public class WifiNetworkSuggestionsManager {
         // a) Find package names of all apps which made a matching suggestion.
         // b) Ensure that these apps have the necessary location permissions.
         // c) Send directed broadcast to the app with their corresponding network suggestion.
-        for (Map.Entry<String, Set<WifiNetworkSuggestion>> entry :
-                mActiveNetworkSuggestionsPerApp.entrySet()) {
+        for (Map.Entry<String, PerAppInfo> entry : mActiveNetworkSuggestionsPerApp.entrySet()) {
             WifiNetworkSuggestion matchingNetworkSuggestion =
                     entry.getValue()
+                            .networkSuggestions
                             .stream()
                             .filter(matchingNetworkSuggestionsWithReqAppInteraction::contains)
                             .findFirst()
@@ -574,10 +633,12 @@ public class WifiNetworkSuggestionsManager {
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of WifiNetworkSuggestionsManager");
         pw.println("WifiNetworkSuggestionsManager - Networks Begin ----");
-        for (Map.Entry<String, Set<WifiNetworkSuggestion>> networkSuggestionsEntry
+        for (Map.Entry<String, PerAppInfo> networkSuggestionsEntry
                 : mActiveNetworkSuggestionsPerApp.entrySet()) {
             pw.println("Package Name: " + networkSuggestionsEntry.getKey());
-            for (WifiNetworkSuggestion networkSuggestions : networkSuggestionsEntry.getValue()) {
+            PerAppInfo appInfo = networkSuggestionsEntry.getValue();
+            pw.println("Has user approved: " + appInfo.hasUserApproved);
+            for (WifiNetworkSuggestion networkSuggestions : appInfo.networkSuggestions) {
                 pw.println("Network: " + networkSuggestions);
             }
         }
