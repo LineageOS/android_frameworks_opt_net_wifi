@@ -68,6 +68,7 @@ message Signal {
   optional int32 frequency = 2;               // Frequency (MHz)
   optional UnivariateStatistic rssi = 3;      // Signal strength (dBm) of beacons
   optional UnivariateStatistic linkspeed = 4; // Link speed (Mbits/sec)
+  optional UnivariateStatistic elapsed_ms = 5; // Milliseconds since connection attempt
 };
 
 // Statistics about a real value
