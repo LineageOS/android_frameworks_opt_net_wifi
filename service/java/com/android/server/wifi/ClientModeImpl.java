@@ -2966,6 +2966,24 @@ public class ClientModeImpl extends StateMachine {
         return true;
     }
 
+    /**
+     * Set low latency mode
+     *
+     * @param enabled true to enable low latency
+     *                false to disable low latency (default behavior).
+     * @return true for success, false for failure
+     */
+    public boolean setLowLatencyMode(boolean enabled) {
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "Setting low latency mode to " + enabled);
+        }
+        if (!mWifiNative.setLowLatencyMode(enabled)) {
+            Log.e(TAG, "Failed to setLowLatencyMode");
+            return false;
+        }
+        return true;
+    }
+
     @VisibleForTesting
     public static final long DIAGS_CONNECT_TIMEOUT_MILLIS = 60 * 1000;
     /**
