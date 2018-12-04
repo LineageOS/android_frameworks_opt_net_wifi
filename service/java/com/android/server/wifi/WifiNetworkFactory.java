@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.content.Context;
+import android.content.Intent;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
@@ -42,6 +43,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.WorkSource;
 import android.text.TextUtils;
 import android.util.Log;
@@ -70,6 +72,10 @@ public class WifiNetworkFactory extends NetworkFactory {
     public static final int NETWORK_CONNECTION_TIMEOUT_MS = 30 * 1000; // 30 seconds
     @VisibleForTesting
     public static final int USER_SELECTED_NETWORK_CONNECT_RETRY_MAX = 3; // max of 3 retries.
+    @VisibleForTesting
+    public static final String UI_START_INTENT_ACTION = "com.android.settings.wifi.NETWORK_REQUEST";
+    @VisibleForTesting
+    public static final String UI_START_INTENT_CATEGORY = "android.intent.category.DEFAULT";
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -98,6 +104,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean mPeriodicScanTimerSet = false;
     private boolean mConnectionTimeoutSet = false;
     private boolean mIsConnectedToUserSelectedNetwork = false;
+    private boolean mIsPeriodicScanPaused = false;
 
     // Scan listener for scan requests.
     private class NetworkFactoryScanListener implements WifiScanner.ScanListener {
@@ -379,7 +386,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
                     wns.requestorUid);
 
-            // TODO(b/113878056): Start UI flow here.
+            // Start UI to let the user grant/disallow this request from the app.
+            startUi();
             // Trigger periodic scans for finding a network in the request.
             startPeriodicScans();
         }
@@ -564,6 +572,26 @@ public class WifiNetworkFactory extends NetworkFactory {
         resetStateForActiveRequestEnd();
     }
 
+    /**
+     * Invoked by {@link ClientModeImpl} to indicate screen state changes.
+     */
+    public void handleScreenStateChanged(boolean screenOn) {
+        // If there is no active request or if the user has already selected a network,
+        // ignore screen state changes.
+        if (mActiveSpecificNetworkRequest == null || mUserSelectedNetwork != null) return;
+
+        // Pause periodic scans when the screen is off & resume when the screen is on.
+        if (screenOn) {
+            if (mVerboseLoggingEnabled) Log.v(TAG, "Resuming scans on screen on");
+            startScan();
+            mIsPeriodicScanPaused = false;
+        } else {
+            if (mVerboseLoggingEnabled) Log.v(TAG, "Pausing scans on screen off");
+            cancelPeriodicScans();
+            mIsPeriodicScanPaused = true;
+        }
+    }
+
     private void resetState() {
         if (mIsConnectedToUserSelectedNetwork) {
             Log.i(TAG, "Disconnecting from network on reset");
@@ -583,6 +611,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mUserSelectedNetwork = null;
         mUserSelectedNetworkConnectRetryCount = 0;
         mIsConnectedToUserSelectedNetwork = false;
+        mIsPeriodicScanPaused = false;
         cancelPeriodicScans();
         cancelConnectionTimeout();
         // Remove any callbacks registered for the request.
@@ -668,6 +697,10 @@ public class WifiNetworkFactory extends NetworkFactory {
     }
 
     private void scheduleNextPeriodicScan() {
+        if (mIsPeriodicScanPaused) {
+            Log.e(TAG, "Scan triggered when periodic scanning paused. Ignoring...");
+            return;
+        }
         mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                 mClock.getElapsedSinceBootMillis() + PERIODIC_SCAN_INTERVAL_MS,
                 TAG, mPeriodicScanTimerListener, mHandler);
@@ -758,6 +791,16 @@ public class WifiNetworkFactory extends NetworkFactory {
                 mClock.getElapsedSinceBootMillis() + NETWORK_CONNECTION_TIMEOUT_MS,
                 TAG, mConnectionTimeoutAlarmListener, mHandler);
         mConnectionTimeoutSet = true;
+    }
+
+    private void startUi() {
+        Intent intent = new Intent();
+        intent.setAction(UI_START_INTENT_ACTION);
+        intent.addCategory(UI_START_INTENT_CATEGORY);
+        intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        mContext.startActivityAsUser(intent,
+                UserHandle.getUserHandleForUid(
+                        mActiveSpecificNetworkRequestSpecifier.requestorUid));
     }
 }
 
