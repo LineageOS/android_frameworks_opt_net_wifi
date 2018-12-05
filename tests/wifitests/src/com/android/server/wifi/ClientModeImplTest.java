@@ -2866,4 +2866,38 @@ public class ClientModeImplTest {
 
         verify(mWifiTrafficPoller).notifyOnDataActivity(anyLong(), anyLong());
     }
+
+    /**
+     * Verify that when ordered to setLowLatencyMode(true),
+     * WifiNative is called with the right lowLatency mode.
+     */
+    @Test
+    public void verifySetLowLatencyTrueSuccess() throws Exception {
+        when(mWifiNative.setLowLatencyMode(anyBoolean())).thenReturn(true);
+        assertTrue(mCmi.setLowLatencyMode(true));
+        verify(mWifiNative).setLowLatencyMode(true);
+    }
+
+    /**
+     * Verify that when ordered to setLowLatencyMode(false),
+     * WifiNative is called with the right lowLatency mode.
+     */
+    @Test
+    public void verifySetLowLatencyFalseSuccess() throws Exception {
+        when(mWifiNative.setLowLatencyMode(anyBoolean())).thenReturn(true);
+        assertTrue(mCmi.setLowLatencyMode(false));
+        verify(mWifiNative).setLowLatencyMode(false);
+    }
+
+    /**
+     * Verify that when WifiNative fails to set low latency mode,
+     * then the call setLowLatencyMode() returns with failure,
+     */
+    @Test
+    public void verifySetLowLatencyModeFailure() throws Exception {
+        final boolean lowLatencyMode = true;
+        when(mWifiNative.setLowLatencyMode(anyBoolean())).thenReturn(false);
+        assertFalse(mCmi.setLowLatencyMode(lowLatencyMode));
+        verify(mWifiNative).setLowLatencyMode(eq(lowLatencyMode));
+    }
 }

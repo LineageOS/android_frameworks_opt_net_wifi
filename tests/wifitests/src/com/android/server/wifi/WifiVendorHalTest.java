@@ -141,6 +141,8 @@ public class WifiVendorHalTest {
     @Mock
     private android.hardware.wifi.V1_2.IWifiChip mIWifiChipV12;
     @Mock
+    private android.hardware.wifi.V1_3.IWifiChip mIWifiChipV13;
+    @Mock
     private IWifiStaIface mIWifiStaIface;
     @Mock
     private android.hardware.wifi.V1_2.IWifiStaIface mIWifiStaIfaceV12;
@@ -170,6 +172,11 @@ public class WifiVendorHalTest {
 
         @Override
         protected android.hardware.wifi.V1_2.IWifiChip getWifiChipForV1_2Mockable() {
+            return null;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
             return null;
         }
 
@@ -206,6 +213,11 @@ public class WifiVendorHalTest {
         }
 
         @Override
+        protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
+            return null;
+        }
+
+        @Override
         protected android.hardware.wifi.V1_2.IWifiStaIface getWifiStaIfaceForV1_2Mockable(
                 String ifaceName) {
             return mIWifiStaIfaceV12;
@@ -219,7 +231,7 @@ public class WifiVendorHalTest {
     }
 
     /**
-     * Spy used to return the V1_2 IWifiChip and V1_3 IWifiStaIface mock objects to simulate
+     * Spy used to return the V1_3 IWifiChip and V1_3 IWifiStaIface mock objects to simulate
      * the 1.3 HAL running on the device.
      */
     private class WifiVendorHalSpyV1_3 extends WifiVendorHal {
@@ -234,7 +246,12 @@ public class WifiVendorHalTest {
 
         @Override
         protected android.hardware.wifi.V1_2.IWifiChip getWifiChipForV1_2Mockable() {
-            return mIWifiChipV12;
+            return null;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
+            return mIWifiChipV13;
         }
 
         @Override
@@ -2702,7 +2719,7 @@ public class WifiVendorHalTest {
         mWifiVendorHal.stopVendorHal();
     }
 
-     /**
+    /**
      * Test the selectTxPowerScenario HIDL method invocation with IWifiChip 1.2 interface.
      * The following inputs:
      *   - Sensor support is enabled
@@ -2762,6 +2779,46 @@ public class WifiVendorHalTest {
         verify(mIWifiChipV12).resetTxPowerScenario();
         verify(mIWifiChipV12, never()).selectTxPowerScenario_1_2(anyInt());
         mWifiVendorHal.stopVendorHal();
+    }
+
+    /**
+     * Test the setLowLatencyMode HIDL method invocation with IWifiChip 1.2 interface.
+     * Function should return false
+     */
+    @Test
+    public void testSetLowLatencyMode_1_2() throws RemoteException {
+        // Expose the 1.2 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        assertFalse(mWifiVendorHal.setLowLatencyMode(true));
+        assertFalse(mWifiVendorHal.setLowLatencyMode(false));
+    }
+
+    /**
+     * Test the setLowLatencyMode HIDL method invocation with IWifiChip 1.3 interface
+     */
+    @Test
+    public void testSetLowLatencyMode_1_3_enabled() throws RemoteException {
+        int mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.LOW;
+
+        // Expose the 1.3 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        when(mIWifiChipV13.setLatencyMode(anyInt())).thenReturn(mWifiStatusSuccess);
+        assertTrue(mWifiVendorHal.setLowLatencyMode(true));
+        verify(mIWifiChipV13).setLatencyMode(eq(mode));
+    }
+
+    /**
+     * Test the setLowLatencyMode HIDL method invocation with IWifiChip 1.3 interface
+     */
+    @Test
+    public void testSetLowLatencyMode_1_3_disabled() throws RemoteException {
+        int mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.NORMAL;
+
+        // Expose the 1.3 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        when(mIWifiChipV13.setLatencyMode(anyInt())).thenReturn(mWifiStatusSuccess);
+        assertTrue(mWifiVendorHal.setLowLatencyMode(false));
+        verify(mIWifiChipV13).setLatencyMode(eq(mode));
     }
 
     /**

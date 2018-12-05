@@ -50,6 +50,8 @@ public class WifiLockManager {
     // some wifi lock statistics
     private int mFullHighPerfLocksAcquired;
     private int mFullHighPerfLocksReleased;
+    private int mFullLowLatencyLocksAcquired;
+    private int mFullLowLatencyLocksReleased;
 
     WifiLockManager(Context context, IBatteryStats batteryStats,
             ClientModeImpl clientModeImpl) {
@@ -108,6 +110,10 @@ public class WifiLockManager {
         // First check if mode is forced to hi-perf
         if (mForceHiPerfMode) {
             return WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+        }
+
+        if (mFullLowLatencyLocksAcquired > mFullLowLatencyLocksReleased) {
+            return WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
         }
 
         if (mFullHighPerfLocksAcquired > mFullHighPerfLocksReleased) {
@@ -192,7 +198,8 @@ public class WifiLockManager {
     private static boolean isValidLockMode(int lockMode) {
         if (lockMode != WifiManager.WIFI_MODE_FULL
                 && lockMode != WifiManager.WIFI_MODE_SCAN_ONLY
-                && lockMode != WifiManager.WIFI_MODE_FULL_HIGH_PERF) {
+                && lockMode != WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                && lockMode != WifiManager.WIFI_MODE_FULL_LOW_LATENCY) {
             return false;
         }
         return true;
@@ -220,7 +227,9 @@ public class WifiLockManager {
                 case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                     ++mFullHighPerfLocksAcquired;
                     break;
-
+                case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                    ++mFullLowLatencyLocksAcquired;
+                    break;
                 default:
                     // Do nothing
                     break;
@@ -263,7 +272,9 @@ public class WifiLockManager {
                 case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                     ++mFullHighPerfLocksReleased;
                     break;
-
+                case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                    ++mFullLowLatencyLocksReleased;
+                    break;
                 default:
                     // Do nothing
                     break;
@@ -279,7 +290,7 @@ public class WifiLockManager {
     }
 
     private synchronized boolean updateOpMode() {
-        int newLockMode = getStrongestLockMode();
+        final int newLockMode = getStrongestLockMode();
 
         if (newLockMode == mCurrentOpMode) {
             // No action is needed
@@ -299,6 +310,13 @@ public class WifiLockManager {
                 }
                 break;
 
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                if (!mClientModeImpl.setLowLatencyMode(false)) {
+                    Slog.e(TAG, "Failed to reset the OpMode from low-latency to Normal");
+                    return false;
+                }
+                break;
+
             case WifiManager.WIFI_MODE_NO_LOCKS_HELD:
             default:
                 // No action
@@ -313,6 +331,13 @@ public class WifiLockManager {
             case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                 if (!mClientModeImpl.setPowerSave(false)) {
                     Slog.e(TAG, "Failed to set the OpMode to hi-perf");
+                    return false;
+                }
+                break;
+
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                if (!mClientModeImpl.setLowLatencyMode(true)) {
+                    Slog.e(TAG, "Failed to set the OpMode to low-latency");
                     return false;
                 }
                 break;
@@ -343,9 +368,12 @@ public class WifiLockManager {
 
     protected void dump(PrintWriter pw) {
         pw.println("Locks acquired: "
-                + mFullHighPerfLocksAcquired + " full high perf");
+                + mFullHighPerfLocksAcquired + " full high perf, "
+                + mFullLowLatencyLocksAcquired + " full low latency");
         pw.println("Locks released: "
-                + mFullHighPerfLocksReleased + " full high perf");
+                + mFullHighPerfLocksReleased + " full high perf, "
+                + mFullLowLatencyLocksReleased + " full low latency");
+
         pw.println();
         pw.println("Locks held:");
         for (WifiLock lock : mWifiLocks) {

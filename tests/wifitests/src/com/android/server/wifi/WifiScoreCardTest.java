@@ -70,6 +70,7 @@ public class WifiScoreCardTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mMilliSecondsSinceBoot = 0;
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
@@ -187,10 +188,9 @@ public class WifiScoreCardTest {
     }
 
     /**
-     * AccessPoint serialization
+     * Constructs a protobuf form of an example.
      */
-    @Test
-    public void testAccessPoint() throws Exception {
+    private byte[] makeSerializedAccessPointExample() {
         mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         millisecondsPass(111);
         mWifiInfo.setRssi(-55);
@@ -202,9 +202,35 @@ public class WifiScoreCardTest {
         millisecondsPass(1000);
         mWifiInfo.setRssi(-44);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
-        // Now convert to protobuf form
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        checkSerializationExample("before serialization", perBssid);
+        // Now convert to protobuf form
         byte[] serialized = perBssid.toAccessPoint().toByteArray();
+        return serialized;
+    }
+
+    /**
+     * Checks that the fields of the serialization example are as expected
+     */
+    private void checkSerializationExample(String diag, WifiScoreCard.PerBssid perBssid) {
+        assertEquals(diag, 2, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).rssi.count);
+        assertEquals(diag, -55.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.minValue, TOL);
+        assertEquals(diag, -44.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 5805)
+                .rssi.maxValue, TOL);
+        assertEquals(diag, 384.0, perBssid.lookupSignal(Event.FIRST_POLL_AFTER_CONNECTION, 5805)
+                .linkspeed.sum, TOL);
+        assertEquals(diag, 111.0, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
+                .elapsedMs.minValue, TOL);
+    }
+
+    /**
+     * AccessPoint serialization
+     */
+    @Test
+    public void testAccessPointSerialization() throws Exception {
+        byte[] serialized = makeSerializedAccessPointExample();
+
         // Verify by parsing it and checking that we see the expected results
         AccessPoint ap = AccessPoint.parseFrom(serialized);
         assertEquals(3, ap.getEventStatsCount());
@@ -213,6 +239,7 @@ public class WifiScoreCardTest {
             switch (signal.getEvent()) {
                 case IP_CONFIGURATION_SUCCESS:
                     assertEquals(384.0, signal.getLinkspeed().getMaxValue(), TOL);
+                    assertEquals(111.0, signal.getElapsedMs().getMinValue(), TOL);
                     break;
                 case SIGNAL_POLL:
                     assertEquals(2, signal.getRssi().getCount());
@@ -225,4 +252,32 @@ public class WifiScoreCardTest {
             }
         }
     }
+
+    /**
+     * Serialization should be reproducable
+     */
+    @Test
+    public void testReproducableSerialization() throws Exception {
+        byte[] serialized = makeSerializedAccessPointExample();
+        setUp();
+        assertArrayEquals(serialized, makeSerializedAccessPointExample());
+    }
+
+    /**
+     * Deserialization
+     */
+    @Test
+    public void testDeserialization() throws Exception {
+        byte[] serialized = makeSerializedAccessPointExample();
+        setUp(); // Get back to the initial state
+
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.perBssidFromAccessPoint(
+                mWifiInfo.getSSID(),
+                AccessPoint.parseFrom(serialized));
+
+        // Now verify
+        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        checkSerializationExample(diag, perBssid);
+    }
+
 }

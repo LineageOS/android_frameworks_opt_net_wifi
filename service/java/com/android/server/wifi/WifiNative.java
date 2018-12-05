@@ -1850,6 +1850,16 @@ public class WifiNative {
     }
 
     /**
+     * Enable or disable low latency mode.
+     *
+     * @param enabled true to enable, false to disable.
+     * @return true on success, false on failure
+     */
+    public boolean setLowLatencyMode(boolean enabled) {
+        return mWifiVendorHal.setLowLatencyMode(enabled);
+    }
+
+    /**
      * Set concurrency priority between P2P & STA operations.
      *
      * @param isStaHigherPriority Set to true to prefer STA over P2P during concurrency operations,

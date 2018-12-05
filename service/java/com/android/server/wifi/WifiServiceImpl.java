@@ -716,6 +716,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
     // Helper method to check if the entity initiating the binder call is a system app.
     private boolean isSystem(String packageName) {
+        long ident = Binder.clearCallingIdentity();
         try {
             ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
             return info.isSystemApp() || info.isUpdatedSystemApp();
@@ -723,6 +724,8 @@ public class WifiServiceImpl extends AbstractWifiService {
             // In case of exception, assume unknown app (more strict checking)
             // Note: This case will never happen since checkPackage is
             // called to verify validity before checking App's version.
+        } finally {
+            Binder.restoreCallingIdentity(ident);
         }
         return false;
     }
@@ -796,6 +799,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     private boolean isTargetSdkLessThan(String packageName, int versionCode) {
+        long ident = Binder.clearCallingIdentity();
         try {
             if (mContext.getPackageManager().getApplicationInfo(packageName, 0).targetSdkVersion
                     < versionCode) {
@@ -805,9 +809,10 @@ public class WifiServiceImpl extends AbstractWifiService {
             // In case of exception, assume unknown app (more strict checking)
             // Note: This case will never happen since checkPackage is
             // called to verify validity before checking App's version.
+        } finally {
+            Binder.restoreCallingIdentity(ident);
         }
         return false;
-
     }
 
     /**

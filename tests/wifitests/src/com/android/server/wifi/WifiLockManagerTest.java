@@ -617,6 +617,72 @@ public class WifiLockManagerTest {
     }
 
     /**
+     * Test if app acquires a low-latency lock
+     * then that lock becomes the strongest lock even with presence of other locks.
+     */
+    @Test
+    public void testAppAcquireLowLatency() throws Exception {
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
+                mBinder, mWorkSource);
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
+                mBinder2, mWorkSource);
+        assertEquals(WifiManager.WIFI_MODE_FULL_LOW_LATENCY,
+                mWifiLockManager.getStrongestLockMode());
+    }
+
+    /**
+     * Test when acquiring a low-latency lock, then,
+     * WifiLockManager calls to enable low-latency mechanism.
+     */
+    @Test
+    public void testLatencyLockAcquireCauseLlEnable() throws Exception {
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
+                mBinder, mWorkSource);
+
+        verify(mClientModeImpl).setLowLatencyMode(eq(true));
+    }
+
+    /**
+     * Test when releasing an acquired low-latency lock,
+     * WifiLockManager calls to disable low-latency mechanism.
+     */
+    @Test
+    public void testLatencyLockReleaseCauseLlDisable() throws Exception {
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
+
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
+                mBinder, mWorkSource);
+        inOrder.verify(mClientModeImpl).setLowLatencyMode(eq(true));
+
+        releaseWifiLockSuccessful(mBinder);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl).setLowLatencyMode(eq(false));
+    }
+
+    /**
+     * Test when acquire of low-latency lock fails to enable low-latency mode,
+     * then release will not result in calling to disable low-latency.
+     */
+    @Test
+    public void testLatencyLockReleaseFailure() throws Exception {
+        InOrder inOrder = inOrder(mClientModeImpl);
+        when(mClientModeImpl.setLowLatencyMode(true)).thenReturn(false);
+
+        acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
+                mBinder, mWorkSource);
+        assertEquals(mWifiLockManager.getStrongestLockMode(),
+                WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
+        inOrder.verify(mClientModeImpl).setLowLatencyMode(eq(true));
+
+        releaseWifiLockSuccessful(mBinder);
+        assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
+                mWifiLockManager.getStrongestLockMode());
+        inOrder.verify(mClientModeImpl, never()).setLowLatencyMode(anyBoolean());
+    }
+
+    /**
      * Verfies that dump() does not fail when no locks are held.
      */
     @Test
@@ -627,9 +693,9 @@ public class WifiLockManagerTest {
 
         String wifiLockManagerDumpString = sw.toString();
         assertTrue(wifiLockManagerDumpString.contains(
-                "Locks acquired: 0 full high perf"));
+                "Locks acquired: 0 full high perf, 0 full low latency"));
         assertTrue(wifiLockManagerDumpString.contains(
-                "Locks released: 0 full high perf"));
+                "Locks released: 0 full high perf, 0 full low latency"));
         assertTrue(wifiLockManagerDumpString.contains("Locks held:"));
         assertFalse(wifiLockManagerDumpString.contains("WifiLock{"));
     }
@@ -652,9 +718,9 @@ public class WifiLockManagerTest {
 
         String wifiLockManagerDumpString = sw.toString();
         assertTrue(wifiLockManagerDumpString.contains(
-                "Locks acquired: 2 full high perf"));
+                "Locks acquired: 2 full high perf, 0 full low latency"));
         assertTrue(wifiLockManagerDumpString.contains(
-                "Locks released: 1 full high perf"));
+                "Locks released: 1 full high perf, 0 full low latency"));
         assertTrue(wifiLockManagerDumpString.contains("Locks held:"));
         assertTrue(wifiLockManagerDumpString.contains(
                 "WifiLock{" + TEST_WIFI_LOCK_TAG + " type=" + WifiManager.WIFI_MODE_FULL_HIGH_PERF
