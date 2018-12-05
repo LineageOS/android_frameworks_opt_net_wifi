@@ -2855,6 +2855,7 @@ public class ClientModeImpl extends StateMachine {
         if (wifiConfig != null) {
             ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromWifiConfiguration(wifiConfig);
             mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
+            mWifiNetworkSuggestionsManager.handleDisconnect(wifiConfig, getCurrentBSSID());
         }
 
         stopRssiMonitoringOffload();

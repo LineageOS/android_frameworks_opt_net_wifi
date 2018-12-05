@@ -133,6 +133,15 @@ public class WifiNetworkSuggestionsManager {
     private Set<WifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
 
     /**
+     * Verbose logging flag.
+     */
+    private boolean mVerboseLoggingEnabled = false;
+    /**
+     * Indicates that we have new data to serialize.
+     */
+    private boolean mHasNewDataToSerialize = false;
+
+    /**
      * Listener for app-ops changes for active suggestor apps.
      */
     private final class AppOpsChangedListener implements AppOpsManager.OnOpChangedListener {
@@ -168,16 +177,6 @@ public class WifiNetworkSuggestionsManager {
             });
         }
     };
-
-
-    /**
-     * Verbose logging flag.
-     */
-    private boolean mVerboseLoggingEnabled = false;
-    /**
-     * Indicates that we have new data to serialize.
-     */
-    private boolean mHasNewDataToSerialize = false;
 
     /**
      * Module to interact with the wifi config store.
@@ -557,6 +556,23 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Helper method to send the post connection broadcast to specified package.
+     */
+    private void sendPostConnectionBroadcastIfAllowed(
+            String packageName, WifiNetworkSuggestion matchingSuggestion) {
+        try {
+            mWifiPermissionsUtil.enforceCanAccessScanResults(
+                    packageName, matchingSuggestion.suggestorUid);
+        } catch (SecurityException se) {
+            return;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Sending post connection broadcast to " + packageName);
+        }
+        sendPostConnectionBroadcast(packageName, matchingSuggestion);
+    }
+
+    /**
      * Send out the {@link WifiManager#ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION} to all the
      * network suggestion credentials that match the current connection network.
      *
@@ -595,17 +611,12 @@ public class WifiNetworkSuggestionsManager {
                             .findFirst()
                             .orElse(null);
             if (matchingNetworkSuggestion == null) continue;
-            try {
-                mWifiPermissionsUtil.enforceCanAccessScanResults(
-                        entry.getKey(), matchingNetworkSuggestion.suggestorUid);
-            } catch (SecurityException se) {
-                continue;
-            }
-            if (mVerboseLoggingEnabled) {
-                Log.v(TAG, "Sending post connection broadcast to " + entry.getKey());
-            }
-            sendPostConnectionBroadcast(entry.getKey(), matchingNetworkSuggestion);
+            sendPostConnectionBroadcastIfAllowed(entry.getKey(), matchingNetworkSuggestion);
         }
+    }
+
+    private void resetConnectionState() {
+        mActiveNetworkSuggestionsMatchingConnection = null;
     }
 
     /**
@@ -617,14 +628,26 @@ public class WifiNetworkSuggestionsManager {
      */
     public void handleConnectionAttemptEnded(
             int failureCode, @NonNull WifiConfiguration network, @Nullable String bssid) {
-        Log.v(TAG, "handleConnectionAttemptEnded " + failureCode + ", " + network);
-        mActiveNetworkSuggestionsMatchingConnection = null;
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "handleConnectionAttemptEnded " + failureCode + ", " + network);
+        }
+        resetConnectionState();
         if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
             handleConnectionSuccess(network, bssid);
         } else {
             // TODO (b/115504887, b/112196799): Blacklist the corresponding network suggestion if
             // the connection failed.
         }
+    }
+
+    /**
+     * Invoked by {@link ClientModeImpl} on disconnect from network.
+     */
+    public void handleDisconnect(@NonNull WifiConfiguration network, @NonNull String bssid) {
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "handleDisconnect " + network);
+        }
+        resetConnectionState();
     }
 
     /**
