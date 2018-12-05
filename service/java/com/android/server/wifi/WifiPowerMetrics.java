@@ -68,6 +68,13 @@ public class WifiPowerMetrics {
             m.idleTimeMs = stats.getIdleTimeMs();
             m.rxTimeMs = stats.getRxTimeMs();
             m.txTimeMs = stats.getTxTimeMs();
+            m.wifiKernelActiveTimeMs = stats.getKernelActiveTimeMs();
+            m.numPacketsTx = stats.getNumPacketsTx();
+            m.numBytesTx = stats.getNumBytesTx();
+            m.numPacketsRx = stats.getNumPacketsRx();
+            m.numBytesRx = stats.getNumPacketsRx();
+            m.sleepTimeMs = stats.getSleepTimeMs();
+            m.scanTimeMs = stats.getScanTimeMs();
         }
         return m;
     }
@@ -105,6 +112,14 @@ public class WifiPowerMetrics {
             pw.println("Amount of time wifi is in idle (ms): " + s.idleTimeMs);
             pw.println("Amount of time wifi is in rx (ms): " + s.rxTimeMs);
             pw.println("Amount of time wifi is in tx (ms): " + s.txTimeMs);
+            pw.println("Amount of time kernel is active because of wifi data (ms): "
+                    + s.wifiKernelActiveTimeMs);
+            pw.println("Amount of time wifi is in sleep (ms): " + s.sleepTimeMs);
+            pw.println("Amount of time wifi is scanning (ms): " + s.scanTimeMs);
+            pw.println("Number of packets sent (tx): " + s.numPacketsTx);
+            pw.println("Number of bytes sent (tx): " + s.numBytesTx);
+            pw.println("Number of packets received (rx): " + s.numPacketsRx);
+            pw.println("Number of bytes sent (rx): " + s.numBytesRx);
         }
         WifiRadioUsage wifiRadioUsage = buildWifiRadioUsageProto();
         pw.println("Wifi radio usage metrics:");
