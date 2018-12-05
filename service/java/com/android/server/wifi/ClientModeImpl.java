@@ -5873,4 +5873,16 @@ public class ClientModeImpl extends StateMachine {
     public void removeNetworkRequestMatchCallback(int callbackIdentifier) {
         mNetworkFactory.removeCallback(callbackIdentifier);
     }
+
+    /**
+     * Gets the factory MAC address of wlan0 (station interface).
+     * @return String representation of the factory MAC address.
+     */
+    public String getFactoryMacAddress() {
+        MacAddress macAddress = mWifiNative.getFactoryMacAddress(mInterfaceName);
+        if (macAddress != null) {
+            return macAddress.toString();
+        }
+        return null;
+    }
 }

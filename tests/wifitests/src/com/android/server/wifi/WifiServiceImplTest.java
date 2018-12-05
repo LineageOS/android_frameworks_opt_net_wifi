@@ -143,6 +143,7 @@ public class WifiServiceImplTest {
     private static final int TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER = 234;
     private static final String WIFI_IFACE_NAME = "wlan0";
     private static final String TEST_COUNTRY_CODE = "US";
+    private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
 
     private AsyncChannel mAsyncChannel;
     private WifiServiceImpl mWifiServiceImpl;
@@ -2992,5 +2993,63 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         mWifiServiceImpl.disableEphemeralNetwork(new String(), TEST_PACKAGE_NAME);
         verify(mClientModeImpl, never()).disableEphemeralNetwork(anyString());
+    }
+
+    /**
+     * Verify getting the factory MAC address.
+     */
+    @Test
+    public void testGetFactoryMacAddresses() throws Exception {
+        setupClientModeImplHandlerForRunWithScissors();
+        when(mClientModeImpl.getFactoryMacAddress()).thenReturn(TEST_FACTORY_MAC);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        final String[] factoryMacs = mWifiServiceImpl.getFactoryMacAddresses();
+        assertEquals(1, factoryMacs.length);
+        assertEquals(TEST_FACTORY_MAC, factoryMacs[0]);
+        verify(mClientModeImpl).getFactoryMacAddress();
+    }
+
+    /**
+     * Verify getting the factory MAC address returns null when posting the runnable to handler
+     * fails.
+     */
+    @Test
+    public void testGetFactoryMacAddressesPostFail() throws Exception {
+        setupClientModeImplHandlerForRunWithScissors();
+        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
+                .runWithScissors(any(), anyLong());
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        verify(mClientModeImpl, never()).getFactoryMacAddress();
+    }
+
+    /**
+     * Verify getting the factory MAC address returns null when the lower layers fail.
+     */
+    @Test
+    public void testGetFactoryMacAddressesFail() throws Exception {
+        setupClientModeImplHandlerForRunWithScissors();
+        when(mClientModeImpl.getFactoryMacAddress()).thenReturn(null);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        verify(mClientModeImpl).getFactoryMacAddress();
+    }
+
+    /**
+     * Verify getting the factory MAC address throws a SecurityException if the calling app
+     * doesn't have NETWORK_SETTINGS permission.
+     */
+    @Test
+    public void testGetFactoryMacAddressesFailNoNetworkSettingsPermission() throws Exception {
+        setupClientModeImplHandlerForRunWithScissors();
+        when(mClientModeImpl.getFactoryMacAddress()).thenReturn(TEST_FACTORY_MAC);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        try {
+            mWifiServiceImpl.getFactoryMacAddresses();
+            fail();
+        } catch (SecurityException e) {
+            assertTrue("Exception message should contain 'factory MAC'",
+                    e.toString().contains("factory MAC"));
+        }
     }
 }

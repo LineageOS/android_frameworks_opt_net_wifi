@@ -3042,4 +3042,29 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
         return success.value;
     }
+
+    /**
+     * Gets the factory Wi-Fi MAC addresses.
+     * @throws SecurityException if the caller does not have permission.
+     * @return Array of String representing Wi-Fi MAC addresses, or null if failed.
+     */
+    @Override
+    public String[] getFactoryMacAddresses() {
+        final int uid = Binder.getCallingUid();
+        if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+            throw new SecurityException("App not allowed to get Wi-Fi factory MAC address "
+                    + "(uid = " + uid + ")");
+        }
+        final List<String> result = new ArrayList<>();
+        boolean success = mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
+            final String mac = mClientModeImpl.getFactoryMacAddress();
+            if (mac != null) {
+                result.add(mac);
+            }
+        }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (success) {
+            return result.isEmpty() ? null : result.stream().toArray(String[]::new);
+        }
+        return null;
+    }
 }

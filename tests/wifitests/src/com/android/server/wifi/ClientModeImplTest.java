@@ -3022,4 +3022,25 @@ public class ClientModeImplTest {
         assertFalse(mCmi.setLowLatencyMode(lowLatencyMode));
         verify(mWifiNative).setLowLatencyMode(eq(lowLatencyMode));
     }
+
+    /**
+     * Verify getting the factory MAC address success case.
+     */
+    @Test
+    public void testGetFactoryMacAddressSuccess() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getFactoryMacAddress());
+        verify(mWifiNative).getFactoryMacAddress(WIFI_IFACE_NAME);
+    }
+
+    /**
+     * Verify getting the factory MAC address failure case.
+     */
+    @Test
+    public void testGetFactoryMacAddressFail() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        when(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME)).thenReturn(null);
+        assertNull(mCmi.getFactoryMacAddress());
+        verify(mWifiNative).getFactoryMacAddress(WIFI_IFACE_NAME);
+    }
 }
