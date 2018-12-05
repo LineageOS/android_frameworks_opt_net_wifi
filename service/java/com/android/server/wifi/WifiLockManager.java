@@ -28,6 +28,7 @@ import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.util.StatsLog;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
@@ -110,6 +111,12 @@ public class WifiLockManager {
 
                     uidRec.mIsFg = newModeIsFg;
                     updateOpMode();
+
+                    // If screen is on, then UID either share the blame, or removed from sharing
+                    // the blame based on its state
+                    if (mScreenOn) {
+                        setBlameLowLatencyUid(uid, uidRec.mIsFg);
+                    }
                 });
             }
         }, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE);
@@ -222,23 +229,24 @@ public class WifiLockManager {
             Slog.d(TAG, "updateWifiLockWakeSource: " + wl + ", newWorkSource=" + newWorkSource);
         }
 
-        long ident = Binder.clearCallingIdentity();
-        try {
-            // Log the acquire before the release to avoid "holes" in the collected data due to
-            // an acquire event immediately after a release in the case where newWorkSource and
-            // wl.mWorkSource share one or more attribution UIDs. BatteryStats can correctly match
-            // "nested" acquire / release pairs.
-            mBatteryStats.noteFullWifiLockAcquiredFromSource(newWorkSource);
-            mBatteryStats.noteFullWifiLockReleasedFromSource(wl.mWorkSource);
-        } catch (RemoteException e) {
-        } finally {
-            Binder.restoreCallingIdentity(ident);
-        }
-
-        if (wl.mMode == WifiManager.WIFI_MODE_FULL_LOW_LATENCY) {
-            addWsToLlWatchList(newWorkSource);
-            removeWsFromLlWatchList(wl.mWorkSource);
-            updateOpMode();
+        // Note:
+        // Log the acquire before the release to avoid "holes" in the collected data due to
+        // an acquire event immediately after a release in the case where newWorkSource and
+        // wl.mWorkSource share one or more attribution UIDs. Both batteryStats and statsd
+        // can correctly match "nested" acquire / release pairs.
+        switch(wl.mMode) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                setBlameHiPerfWs(newWorkSource, true);
+                setBlameHiPerfWs(wl.mWorkSource, false);
+                break;
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                addWsToLlWatchList(newWorkSource);
+                removeWsFromLlWatchList(wl.mWorkSource);
+                updateOpMode();
+                break;
+            default:
+                // Do nothing
+                break;
         }
 
         wl.mWorkSource = newWorkSource;
@@ -290,6 +298,9 @@ public class WifiLockManager {
 
         // Update the running mode
         updateOpMode();
+
+        // Adjust blaming for UIDs in foreground
+        setBlameLowLatencyWatchList(screenOn);
     }
 
     private static boolean isValidLockMode(int lockMode) {
@@ -315,6 +326,11 @@ public class WifiLockManager {
             if (mFrameworkFacade.isAppForeground(uid)) {
                 uidRec.mIsFg = true;
             }
+
+            if (uidRec.mIsFg && mScreenOn) {
+                // Share the blame for this uid
+                setBlameLowLatencyUid(uid, true);
+            }
         }
     }
 
@@ -332,6 +348,11 @@ public class WifiLockManager {
         }
         if (uidRec.mLockCount == 0) {
             mLowLatencyUidWatchList.remove(uid);
+
+            // Remove blame for this UID
+            if (uidRec.mIsFg && mScreenOn) {
+                setBlameLowLatencyUid(uid, false);
+            }
         }
     }
 
@@ -383,31 +404,24 @@ public class WifiLockManager {
 
         mWifiLocks.add(lock);
 
-        boolean lockAdded = false;
-        long ident = Binder.clearCallingIdentity();
-        try {
-            mBatteryStats.noteFullWifiLockAcquiredFromSource(lock.mWorkSource);
-            switch(lock.mMode) {
-                case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
-                    ++mFullHighPerfLocksAcquired;
-                    break;
-                case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
-                    addWsToLlWatchList(lock.getWorkSource());
-                    ++mFullLowLatencyLocksAcquired;
-                    break;
-                default:
-                    // Do nothing
-                    break;
-            }
-            lockAdded = true;
-
-            // Recalculate the operating mode
-            updateOpMode();
-        } catch (RemoteException e) {
-        } finally {
-            Binder.restoreCallingIdentity(ident);
+        switch(lock.mMode) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                ++mFullHighPerfLocksAcquired;
+                setBlameHiPerfWs(lock.mWorkSource, true);
+                break;
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                addWsToLlWatchList(lock.getWorkSource());
+                ++mFullLowLatencyLocksAcquired;
+                break;
+            default:
+                // Do nothing
+                break;
         }
-        return lockAdded;
+
+        // Recalculate the operating mode
+        updateOpMode();
+
+        return true;
     }
 
     private synchronized WifiLock removeLock(IBinder binder) {
@@ -430,28 +444,23 @@ public class WifiLockManager {
             Slog.d(TAG, "releaseLock: " + wifiLock);
         }
 
-        long ident = Binder.clearCallingIdentity();
-        try {
-            mBatteryStats.noteFullWifiLockReleasedFromSource(wifiLock.mWorkSource);
-            switch(wifiLock.mMode) {
-                case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
-                    ++mFullHighPerfLocksReleased;
-                    break;
-                case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
-                    removeWsFromLlWatchList(wifiLock.getWorkSource());
-                    ++mFullLowLatencyLocksReleased;
-                    break;
-                default:
-                    // Do nothing
-                    break;
-            }
-
-            // Recalculate the operating mode
-            updateOpMode();
-        } catch (RemoteException e) {
-        } finally {
-            Binder.restoreCallingIdentity(ident);
+        switch(wifiLock.mMode) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                ++mFullHighPerfLocksReleased;
+                setBlameHiPerfWs(wifiLock.mWorkSource, false);
+                break;
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                removeWsFromLlWatchList(wifiLock.getWorkSource());
+                ++mFullLowLatencyLocksReleased;
+                break;
+            default:
+                // Do nothing
+                break;
         }
+
+        // Recalculate the operating mode
+        updateOpMode();
+
         return true;
     }
 
@@ -578,6 +587,57 @@ public class WifiLockManager {
             }
         }
         return uidCount;
+    }
+
+    private void setBlameHiPerfWs(WorkSource ws, boolean blame) {
+        long ident = Binder.clearCallingIdentity();
+        try {
+            if (blame) {
+                mBatteryStats.noteFullWifiLockAcquiredFromSource(ws);
+                StatsLog.write(StatsLog.WIFI_LOCK_STATE_CHANGED, ws,
+                        StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
+                        WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+            } else {
+                mBatteryStats.noteFullWifiLockReleasedFromSource(ws);
+                StatsLog.write(StatsLog.WIFI_LOCK_STATE_CHANGED, ws,
+                        StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
+                        WifiManager.WIFI_MODE_FULL_HIGH_PERF);
+            }
+        } catch (RemoteException e) {
+            // nop
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+    }
+
+    private void setBlameLowLatencyUid(int uid, boolean blame) {
+        long ident = Binder.clearCallingIdentity();
+        try {
+            if (blame) {
+                mBatteryStats.noteFullWifiLockAcquired(uid);
+                StatsLog.write_non_chained(StatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
+                        StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
+                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
+            } else {
+                mBatteryStats.noteFullWifiLockReleased(uid);
+                StatsLog.write_non_chained(StatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
+                        StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
+                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
+            }
+        } catch (RemoteException e) {
+            // nop
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+    }
+
+    private void setBlameLowLatencyWatchList(boolean blame) {
+        for (int idx = 0; idx < mLowLatencyUidWatchList.size(); idx++) {
+            UidRec uidRec = mLowLatencyUidWatchList.valueAt(idx);
+            if (uidRec.mIsFg) {
+                setBlameLowLatencyUid(uidRec.mUid, blame);
+            }
+        }
     }
 
     protected void dump(PrintWriter pw) {
