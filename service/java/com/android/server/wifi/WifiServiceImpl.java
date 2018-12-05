@@ -706,12 +706,18 @@ public class WifiServiceImpl extends AbstractWifiService {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean checkNetworkManagedProvisioningPermission(int pid, int uid) {
+        return mContext.checkPermission(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING,
+                pid, uid) == PackageManager.PERMISSION_GRANTED;
+    }
+
     // Helper method to check if the entity initiating the binder call has any of the signature only
     // permissions.
     private boolean isPrivileged(int pid, int uid) {
         return checkNetworkSettingsPermission(pid, uid)
                 || checkNetworkSetupWizardPermission(pid, uid)
-                || checkNetworkStackPermission(pid, uid);
+                || checkNetworkStackPermission(pid, uid)
+                || checkNetworkManagedProvisioningPermission(pid, uid);
     }
 
     // Helper method to check if the entity initiating the binder call is a system app.
