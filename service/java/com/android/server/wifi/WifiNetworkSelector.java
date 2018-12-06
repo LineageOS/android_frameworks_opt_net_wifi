@@ -559,11 +559,11 @@ public class WifiNetworkSelector {
             return null;
         }
 
-        // Go through the registered network evaluators in order until a network is selected.
+        // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
             localLog("About to run " + registeredEvaluator.getName() + " :");
-            selectedNetwork = registeredEvaluator.evaluateNetworks(
+            WifiConfiguration choice = registeredEvaluator.evaluateNetworks(
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
                     untrustedNetworkAllowed,
                     (scanDetail, config, score) -> {
@@ -572,11 +572,11 @@ public class WifiNetworkSelector {
                         }
                     }
                     );
-            if (selectedNetwork != null) {
+            if (selectedNetwork == null && choice != null) {
+                selectedNetwork = choice; // First one wins
                 localLog(registeredEvaluator.getName() + " selects "
                         + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
                         + selectedNetwork.getNetworkSelectionStatus().getCandidate().BSSID);
-                break;
             }
         }
 
