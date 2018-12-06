@@ -2482,6 +2482,11 @@ public class ClientModeImpl extends StateMachine {
         mWifiConnectivityManager.handleScreenStateChanged(screenOn);
         mNetworkFactory.handleScreenStateChanged(screenOn);
 
+        WifiLockManager wifiLockManager = mWifiInjector.getWifiLockManager();
+        if (wifiLockManager != null) {
+            wifiLockManager.handleScreenStateChanged(screenOn);
+        }
+
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
