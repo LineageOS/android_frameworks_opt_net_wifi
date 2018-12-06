@@ -41,8 +41,10 @@ import android.net.wifi.IApInterface;
 import android.net.wifi.IClientInterface;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.INetworkManagementService;
 import android.os.RemoteException;
+import android.os.test.TestLooper;
 import android.support.test.filters.SmallTest;
 
 import com.android.server.net.BaseNetworkObserver;
@@ -80,6 +82,7 @@ public class WifiNativeInterfaceManagementTest {
     @Mock private WifiNative.StatusListener mStatusListener;
     @Mock private WifiNative.InterfaceCallback mIfaceCallback0;
     @Mock private WifiNative.InterfaceCallback mIfaceCallback1;
+    private TestLooper mLooper;
     private final InterfaceConfiguration mInterfaceConfiguration = new InterfaceConfiguration();
 
     private ArgumentCaptor<VendorHalDeathEventHandler> mWifiVendorHalDeathHandlerCaptor =
@@ -108,6 +111,8 @@ public class WifiNativeInterfaceManagementTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mLooper = new TestLooper();
+
         // Setup mocks for the positive single interface cases, individual tests can modify the
         // mocks for negative or multi-interface tests.
         when(mWifiVendorHal.initialize(mWifiVendorHalDeathHandlerCaptor.capture()))
@@ -160,7 +165,8 @@ public class WifiNativeInterfaceManagementTest {
 
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics);
+                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
+                new Handler(mLooper.getLooper()));
         mWifiNative.initialize();
         mWifiNative.registerStatusListener(mStatusListener);
 
@@ -583,11 +589,13 @@ public class WifiNativeInterfaceManagementTest {
         // Trigger a link down, with the interface still up.
         // Should not trigger the external iface callback.
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, false);
+        mLooper.dispatchAll();
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
 
         // Now trigger a link up, with the interface still up.
         // Should not trigger the external iface callback.
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, true);
+        mLooper.dispatchAll();
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
     }
 
@@ -610,11 +618,13 @@ public class WifiNativeInterfaceManagementTest {
         // Trigger a link down, with the interface still up.
         // Should not trigger the external iface callback.
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, false);
+        mLooper.dispatchAll();
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
 
         // Now trigger a link up, with the interface still up.
         // Should not trigger the external iface callback.
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, true);
+        mLooper.dispatchAll();
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
     }
 
@@ -647,6 +657,7 @@ public class WifiNativeInterfaceManagementTest {
                 mNetworkObserverCaptor0);
 
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_1, true);
+        mLooper.dispatchAll();
     }
 
     /**
@@ -697,6 +708,7 @@ public class WifiNativeInterfaceManagementTest {
 
         // Step (c) - Iface up on old iface, ignored!
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, true);
+        mLooper.dispatchAll();
 
         // Step (d) - Iface up on new iface, handled!
         executeAndValidateInterfaceStateChange(
@@ -1478,6 +1490,7 @@ public class WifiNativeInterfaceManagementTest {
             mInterfaceConfiguration.setInterfaceDown();
         }
         networkObserver.interfaceLinkStateChanged(ifaceName, up);
+        mLooper.dispatchAll();
         mInOrder.verify(mNwManagementService).getInterfaceConfig(ifaceName);
     }
 }
