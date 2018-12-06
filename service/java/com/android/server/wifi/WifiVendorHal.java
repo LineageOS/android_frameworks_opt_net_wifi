@@ -2556,8 +2556,8 @@ public class WifiVendorHal {
             int flags = hidlToFrameworkScanDataFlags(scanData.flags);
             ScanResult[] frameworkScanResults = hidlToFrameworkScanResults(scanData.results);
             frameworkScanDatas[i++] =
-                    new WifiScanner.ScanData(cmdId, flags, scanData.bucketsScanned, false,
-                            frameworkScanResults);
+                    new WifiScanner.ScanData(cmdId, flags, scanData.bucketsScanned,
+                            WifiScanner.WIFI_BAND_UNSPECIFIED, frameworkScanResults);
         }
         return frameworkScanDatas;
     }
