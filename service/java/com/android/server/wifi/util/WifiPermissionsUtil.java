@@ -24,6 +24,7 @@ import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.os.RemoteException;
 import android.os.UserManager;
+import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.wifi.WifiInjector;
@@ -182,7 +183,7 @@ public class WifiPermissionsUtil {
      * @param uid The uid of the package
      */
     public void enforceCanAccessScanResults(String pkgName, int uid) throws SecurityException {
-        mAppOps.checkPackage(uid, pkgName);
+        checkPackage(uid, pkgName);
 
         // Apps with NETWORK_SETTINGS, NETWORK_SETUP_WIZARD & NETWORK_MANAGED_PROVISIONING
         // are granted a bypass.
@@ -230,7 +231,7 @@ public class WifiPermissionsUtil {
      */
     public void enforceCanAccessScanResultsForWifiScanner(String pkgName, int uid)
             throws SecurityException {
-        mAppOps.checkPackage(uid, pkgName);
+        checkPackage(uid, pkgName);
 
         // Location mode must be enabled
         if (!isLocationModeEnabled()) {
@@ -247,6 +248,59 @@ public class WifiPermissionsUtil {
         if (!isScanAllowedbyApps(pkgName, uid)) {
             throw new SecurityException("UID " + uid + " has no wifi scan permission");
         }
+    }
+
+    /**
+     *
+     * Checks that calling process has android.Manifest.permission.ACCESS_COARSE_LOCATION
+     * and a corresponding app op is allowed for this package and uid
+     *
+     * @param pkgName package name of the application requesting access
+     * @param uid The uid of the package
+     *
+     * @return true if caller has permission, false otherwise
+     */
+    public boolean checkCanAccessWifiDirect(String pkgName, int uid) {
+        try {
+            checkPackage(uid, pkgName);
+        } catch (SecurityException se) {
+            Slog.e(TAG, "Package check exception - " + se);
+            return false;
+        }
+
+        // Apps with NETWORK_SETTINGS are granted a bypass.
+        if (checkNetworkSettingsPermission(uid)) {
+            return true;
+        }
+
+        // Location mode must be enabled
+        if (!isLocationModeEnabled()) {
+            Slog.e(TAG, "Location mode is disabled for the device");
+            return false;
+        }
+
+        // LocationAccess by App: caller must have Coarse Location permission to have access to
+        // location information.
+        if (!checkCallersLocationPermission(pkgName, uid)) {
+            Slog.e(TAG, "UID " + uid + " has no location permission");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * API to check to validate if a package name belongs to a UID. Throws SecurityException
+     * if pkgName does not belongs to a UID
+     *
+     * @param pkgName package name of the application requesting access
+     * @param uid The uid of the package
+     *
+     */
+    public void checkPackage(int uid, String pkgName) throws SecurityException {
+        if (pkgName == null) {
+            throw new SecurityException("Checking UID " + uid + " but Package Name is Null");
+        }
+        mAppOps.checkPackage(uid, pkgName);
     }
 
     /**
