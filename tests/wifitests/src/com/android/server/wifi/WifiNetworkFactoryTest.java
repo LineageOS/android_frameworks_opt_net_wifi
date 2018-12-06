@@ -75,6 +75,7 @@ import java.util.List;
  */
 @SmallTest
 public class WifiNetworkFactoryTest {
+    private static final int TEST_NETWORK_ID_1 = 104;
     private static final int TEST_UID_1 = 10423;
     private static final int TEST_UID_2 = 10424;
     private static final int TEST_CALLBACK_IDENTIFIER = 123;
@@ -91,12 +92,13 @@ public class WifiNetworkFactoryTest {
     private static final String TEST_BSSID_1_2_OUI = "12:34:23:00:00:00";
     private static final String TEST_BSSID_OUI_MASK = "ff:ff:ff:00:00:00";
 
-    @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock Context mContext;
     @Mock ActivityManager mActivityManager;
     @Mock AlarmManager mAlarmManager;
     @Mock Clock mClock;
     @Mock WifiInjector mWifiInjector;
+    @Mock WifiConnectivityManager mWifiConnectivityManager;
+    @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock WifiScanner mWifiScanner;
     @Mock PackageManager mPackageManager;
@@ -145,10 +147,12 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE);
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID_1));
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
                 mNetworkCapabilities, mActivityManager, mAlarmManager, mClock, mWifiInjector,
-                mWifiConnectivityManager, mWifiPermissionsUtil);
+                mWifiConnectivityManager, mWifiConfigManager, mWifiPermissionsUtil);
 
         mNetworkRequest = new NetworkRequest.Builder()
                 .setCapabilities(mNetworkCapabilities)
@@ -853,6 +857,15 @@ public class WifiNetworkFactoryTest {
         // Disable connectivity manager
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
 
+        ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+        verify(mWifiConfigManager).addOrUpdateNetwork(
+                wifiConfigurationCaptor.capture(), eq(Process.WIFI_UID));
+        WifiConfiguration network =  wifiConfigurationCaptor.getValue();
+        assertNotNull(network);
+        WifiConfigurationTestUtil.assertConfigurationEqual(selectedNetwork, network);
+        assertTrue(network.ephemeral);
+
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(messageCaptor.capture());
 
@@ -860,9 +873,49 @@ public class WifiNetworkFactoryTest {
         assertNotNull(message);
 
         assertEquals(WifiManager.CONNECT_NETWORK, message.what);
-        WifiConfiguration network =  (WifiConfiguration) message.obj;
-        WifiConfigurationTestUtil.assertConfigurationEqual(selectedNetwork, network);
-        assertTrue(network.ephemeral);
+        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+    }
+
+    /**
+     * Verify handling of user selection to trigger connection to an existing saved network.
+     */
+    @Test
+    public void testNetworkSpecifierHandleUserSelectionConnectToExistingSavedNetwork()
+            throws Exception {
+        sendNetworkRequestAndSetupForUserSelection();
+
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+
+        WifiConfiguration selectedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+
+        // Have a saved network with the same configuration.
+        WifiConfiguration matchingSavedNetwork = new WifiConfiguration(selectedNetwork);
+        matchingSavedNetwork.networkId = TEST_NETWORK_ID_1;
+        when(mWifiConfigManager.getConfiguredNetwork(selectedNetwork.configKey()))
+                .thenReturn(matchingSavedNetwork);
+
+        // Now trigger user selection to one of the network.
+        networkRequestUserSelectionCallback.select(selectedNetwork);
+        mLooper.dispatchAll();
+
+        // Cancel periodic scans.
+        verify(mAlarmManager).cancel(any(OnAlarmListener.class));
+        // Disable connectivity manager
+        verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
+
+        // verify we don't try to add the network to WifiConfigManager.
+        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(), anyInt());
+
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
+
+        Message message = messageCaptor.getValue();
+        assertNotNull(message);
+
+        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
+        assertEquals(TEST_NETWORK_ID_1, message.arg1);
     }
 
     /**

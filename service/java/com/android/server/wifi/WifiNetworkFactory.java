@@ -84,6 +84,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final Handler mHandler;
     private final WifiInjector mWifiInjector;
     private final WifiConnectivityManager mWifiConnectivityManager;
+    private final WifiConfigManager mWifiConfigManager;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
@@ -231,6 +232,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                               ActivityManager activityManager, AlarmManager alarmManager,
                               Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager,
+                              WifiConfigManager configManager,
                               WifiPermissionsUtil wifiPermissionsUtil) {
         super(looper, context, TAG, nc);
         mContext = context;
@@ -240,6 +242,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mHandler = new Handler(looper);
         mWifiInjector = wifiInjector;
         mWifiConnectivityManager = connectivityManager;
+        mWifiConfigManager = configManager;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         // Create the scan settings.
         mScanSettings = new WifiScanner.ScanSettings();
@@ -469,17 +472,41 @@ public class WifiNetworkFactory extends NetworkFactory {
                 : Process.INVALID_UID;
     }
 
+    // Helper method to add the provided network configuration to WifiConfigManager, if it does not
+    // already exist & return the allocated network ID. This ID will be used in the CONNECT_NETWORK
+    // request to ClientModeImpl.
+    // If the network already exists, just return the network ID of the existing network.
+    private int addNetworkToWifiConfigManager(@NonNull WifiConfiguration network) {
+        WifiConfiguration existingSavedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(network.configKey());
+        if (existingSavedNetwork != null) {
+            return existingSavedNetwork.networkId;
+        }
+        NetworkUpdateResult networkUpdateResult =
+                mWifiConfigManager.addOrUpdateNetwork(network, Process.WIFI_UID);
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Added network to config manager " + networkUpdateResult.netId);
+        }
+        return networkUpdateResult.netId;
+    }
+
     // Helper method to trigger a connection request & schedule a timeout alarm to track the
     // connection request.
     private void connectToNetwork(@NonNull WifiConfiguration network) {
         // Cancel connection timeout alarm for any previous connection attempts.
         cancelConnectionTimeout();
 
+        // First add the network to WifiConfigManager and then use the obtained networkId
+        // in the CONNECT_NETWORK request.
+        // Note: We don't do any error checks on the networkId because ClientModeImpl will do the
+        // necessary checks when processing CONNECT_NETWORK.
+        int networkId = addNetworkToWifiConfigManager(network);
+
         // Send the connect request to ClientModeImpl.
+        // TODO(b/117601161): Refactor this.
         Message msg = Message.obtain();
         msg.what = WifiManager.CONNECT_NETWORK;
-        msg.arg1 = WifiConfiguration.INVALID_NETWORK_ID;
-        msg.obj = network;
+        msg.arg1 = networkId;
         msg.replyTo = mSrcMessenger;
         mWifiInjector.getClientModeImpl().sendMessage(msg);
 
