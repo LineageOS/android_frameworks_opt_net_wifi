@@ -224,18 +224,24 @@ public class WifiPermissionsUtil {
      * if the caller has no permission.
      * @param pkgName package name of the application requesting access
      * @param uid The uid of the package
+     * @param ignoreLocationSettings Whether this request can bypass location settings.
      *
      * Note: This is to be used for checking permissions in the internal WifiScanner API surface
      * for requests coming from system apps.
      */
-    public void enforceCanAccessScanResultsForWifiScanner(String pkgName, int uid)
+    public void enforceCanAccessScanResultsForWifiScanner(
+            String pkgName, int uid, boolean ignoreLocationSettings)
             throws SecurityException {
         mAppOps.checkPackage(uid, pkgName);
 
         // Location mode must be enabled
         if (!isLocationModeEnabled()) {
-            // Location mode is disabled, scan results cannot be returned
-            throw new SecurityException("Location mode is disabled for the device");
+            if (ignoreLocationSettings) {
+                mLog.w("Request from " + pkgName + " violated location settings");
+            } else {
+                // Location mode is disabled, scan results cannot be returned
+                throw new SecurityException("Location mode is disabled for the device");
+            }
         }
         // LocationAccess by App: caller must have fine & hardware Location permission to have
         // access to location information.
