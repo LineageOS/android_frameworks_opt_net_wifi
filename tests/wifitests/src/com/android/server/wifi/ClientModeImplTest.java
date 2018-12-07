@@ -2120,6 +2120,7 @@ public class ClientModeImplTest {
         signalPollResult.currentRssi = -42;
         signalPollResult.txBitrate = 65;
         signalPollResult.associationFrequency = sFreq;
+        signalPollResult.rxBitrate = 54;
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(llStats);
         when(mWifiNative.signalPoll(any())).thenReturn(signalPollResult);
         when(mClock.getWallClockMillis()).thenReturn(startMillis + 0);
@@ -2133,6 +2134,8 @@ public class ClientModeImplTest {
         assertEquals(llStats.rxmpdu_bk, wifiInfo.rxSuccess);
         assertEquals(signalPollResult.currentRssi, wifiInfo.getRssi());
         assertEquals(signalPollResult.txBitrate, wifiInfo.getLinkSpeed());
+        assertEquals(signalPollResult.txBitrate, wifiInfo.getTxLinkSpeedMbps());
+        assertEquals(signalPollResult.rxBitrate, wifiInfo.getRxLinkSpeedMbps());
         assertEquals(sFreq, wifiInfo.getFrequency());
         verify(mWifiScoreCard).noteSignalPoll(any());
     }

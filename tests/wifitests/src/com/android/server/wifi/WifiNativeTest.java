@@ -112,6 +112,7 @@ public class WifiNativeTest {
                 currentRssi = -60;
                 txBitrate = 12;
                 associationFrequency = 5240;
+                rxBitrate = 6;
             }};
     private static final WifiNative.TxPacketCounters PACKET_COUNTERS_RESULT =
             new WifiNative.TxPacketCounters() {{
@@ -503,7 +504,12 @@ public class WifiNativeTest {
         when(mWificondControl.signalPoll(WIFI_IFACE_NAME))
                 .thenReturn(SIGNAL_POLL_RESULT);
 
-        assertEquals(SIGNAL_POLL_RESULT, mWifiNative.signalPoll(WIFI_IFACE_NAME));
+        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
+        assertEquals(SIGNAL_POLL_RESULT.currentRssi, pollResult.currentRssi);
+        assertEquals(SIGNAL_POLL_RESULT.txBitrate, pollResult.txBitrate);
+        assertEquals(SIGNAL_POLL_RESULT.associationFrequency, pollResult.associationFrequency);
+        assertEquals(SIGNAL_POLL_RESULT.rxBitrate, pollResult.rxBitrate);
+
         verify(mWificondControl).signalPoll(WIFI_IFACE_NAME);
     }
 
