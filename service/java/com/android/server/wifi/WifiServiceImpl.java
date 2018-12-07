@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static android.app.AppOpsManager.MODE_ALLOWED;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.net.wifi.WifiManager.EXTRA_PREVIOUS_WIFI_AP_STATE;
 import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_FAILURE_REASON;
 import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_INTERFACE_NAME;
@@ -58,6 +59,7 @@ import android.net.Network;
 import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClient;
+import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
@@ -92,6 +94,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.MutableInt;
 import android.util.Slog;
@@ -436,6 +439,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     private WifiController mWifiController;
     private final WifiLockManager mWifiLockManager;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
+    private final DppManager mDppManager;
 
     private WifiApConfigStore mWifiApConfigStore;
 
@@ -479,6 +483,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         mWifiInjector.getActiveModeWarden().registerSoftApCallback(new SoftApCallbackImpl());
         mPowerProfile = mWifiInjector.getPowerProfile();
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
+        mDppManager = mWifiInjector.getDppManager();
     }
 
     /**
@@ -700,7 +705,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
     private boolean checkNetworkSettingsPermission(int pid, int uid) {
         return mContext.checkPermission(android.Manifest.permission.NETWORK_SETTINGS, pid, uid)
-                == PackageManager.PERMISSION_GRANTED;
+                == PERMISSION_GRANTED;
     }
 
     private boolean checkNetworkSetupWizardPermission(int pid, int uid) {
@@ -2052,7 +2057,7 @@ public class WifiServiceImpl extends AbstractWifiService {
 
             try {
                 if (mWifiInjector.getWifiPermissionsWrapper().getLocalMacAddressPermission(uid)
-                        == PackageManager.PERMISSION_GRANTED) {
+                        == PERMISSION_GRANTED) {
                     hideDefaultMacAddress = false;
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
@@ -2536,7 +2541,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         if (mContext.checkCallingOrSelfPermission(android.Manifest.permission.DUMP)
-                != PackageManager.PERMISSION_GRANTED) {
+                != PERMISSION_GRANTED) {
             pw.println("Permission Denial: can't dump WifiService from from pid="
                     + Binder.getCallingPid()
                     + ", uid=" + Binder.getCallingUid());
@@ -3139,5 +3144,109 @@ public class WifiServiceImpl extends AbstractWifiService {
         // Post operation to handler thread
         mWifiInjector.getClientModeImplHandler().post(
                 () -> mClientModeImpl.setDeviceMobilityState(state));
+    }
+
+    /**
+     * Proxy for the final native call of the parent class. Enables mocking of
+     * the function.
+     */
+    public int getMockableCallingUid() {
+        return getCallingUid();
+    }
+
+    /**
+     * Start DPP in Configurator-Initiator role. The current device will initiate DPP bootstrapping
+     * with a peer, and send the SSID and password of the selected network.
+     *
+     * @param binder Caller's binder context
+     * @param enrolleeUri URI of the Enrollee obtained externally (e.g. QR code scanning)
+     * @param selectedNetworkId Selected network ID to be sent to the peer
+     * @param netRole The network role of the enrollee
+     * @param callback Callback for status updates
+     */
+    @Override
+    public void startDppAsConfiguratorInitiator(IBinder binder, String enrolleeUri,
+            int selectedNetworkId, int netRole, IDppCallback callback) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (TextUtils.isEmpty(enrolleeUri)) {
+            throw new IllegalArgumentException("Enrollee URI must not be null or empty");
+        }
+        if (selectedNetworkId < 0) {
+            throw new IllegalArgumentException("Selected network ID invalid");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback must not be null");
+        }
+
+        final int uid = getMockableCallingUid();
+
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+
+        mDppManager.mHandler.post(() -> {
+            mDppManager.startDppAsConfiguratorInitiator(uid, binder, enrolleeUri,
+                    selectedNetworkId, netRole, callback);
+        });
+    }
+
+    /**
+     * Start DPP in Enrollee-Initiator role. The current device will initiate DPP bootstrapping
+     * with a peer, and receive the SSID and password from the peer configurator.
+     *
+     * @param binder Caller's binder context
+     * @param configuratorUri URI of the Configurator obtained externally (e.g. QR code scanning)
+     * @param callback Callback for status updates
+     */
+    @Override
+    public void startDppAsEnrolleeInitiator(IBinder binder, String configuratorUri,
+            IDppCallback callback) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (TextUtils.isEmpty(configuratorUri)) {
+            throw new IllegalArgumentException("Enrollee URI must not be null or empty");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback must not be null");
+        }
+
+        final int uid = getMockableCallingUid();
+
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+
+        mDppManager.mHandler.post(() -> {
+            mDppManager.startDppAsEnrolleeInitiator(uid, binder, configuratorUri, callback);
+        });
+    }
+
+    /**
+     * Stop or abort a current DPP session.
+     */
+    @Override
+    public void stopDppSession() throws android.os.RemoteException {
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+        final int uid = getMockableCallingUid();
+
+        mDppManager.mHandler.post(() -> {
+            mDppManager.stopDppSession(uid);
+        });
     }
 }

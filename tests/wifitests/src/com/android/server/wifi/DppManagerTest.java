@@ -1,0 +1,492 @@
+/*
+ * Copyright 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.server.wifi;
+
+import static android.hardware.wifi.supplicant.V1_2.DppAkm.PSK;
+import static android.hardware.wifi.supplicant.V1_2.DppAkm.SAE;
+import static android.hardware.wifi.supplicant.V1_2.DppFailureCode.AUTHENTICATION;
+import static android.hardware.wifi.supplicant.V1_2.DppSuccessCode.CONFIGURATION_SENT;
+import static android.net.wifi.DppStatusCallback.DPP_EVENT_FAILURE_AUTHENTICATION;
+import static android.net.wifi.DppStatusCallback.DPP_EVENT_FAILURE_INVALID_NETWORK;
+import static android.net.wifi.DppStatusCallback.DPP_EVENT_SUCCESS_CONFIGURATION_SENT;
+import static android.net.wifi.WifiManager.DPP_NETWORK_ROLE_STA;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import android.content.Context;
+import android.net.wifi.DppStatusCallback;
+import android.net.wifi.IDppCallback;
+import android.net.wifi.WifiConfiguration;
+import android.os.IBinder;
+import android.os.test.TestLooper;
+import android.test.suitebuilder.annotation.SmallTest;
+
+import com.android.internal.util.WakeupMessage;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+/**
+ * Unit tests for {@link DppManager}.
+ */
+@SmallTest
+public class DppManagerTest {
+    private static final String TAG = "DppManagerTest";
+    private static final String TEST_INTERFACE_NAME = "testif0";
+    private static final int TEST_PEER_ID = 1;
+    private static final String TEST_SSID = "\"Test_SSID\"";
+    private static final String TEST_SSID_ENCODED = "546573745f53534944";
+    private static final String TEST_PASSWORD = "\"secretPassword\"";
+    private static final String TEST_PASSWORD_ENCODED = "73656372657450617373776f7264";
+    private static final int TEST_NETWORK_ID = 1;
+
+    TestLooper mLooper;
+
+    DppManager mDppManager;
+
+    @Mock
+    Context mContext;
+    @Mock
+    WifiMetrics mWifiMetrics;
+    @Mock
+    WifiNative mWifiNative;
+    @Mock
+    WifiConfigManager mWifiConfigManager;
+    @Mock
+    IBinder mBinder;
+    @Mock
+    IDppCallback mDppCallback;
+    @Mock
+    IDppCallback mDppCallbackConcurrent;
+    @Mock
+    WakeupMessage mWakeupMessage;
+
+    String mUri =
+            "DPP:C:81/1;I:DPP_TESTER;K:MDkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDIgADebGHMJoCcE7OZP/aek5muaJo"
+                    + "zGy2FVKPRjA/I/qyC8Q=;;";
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+        mLooper = new TestLooper();
+        mDppManager = createDppManager();
+        mLooper.dispatchAll();
+
+        // Add Peer URI successful, return peer ID 1
+        when(mWifiNative.addDppPeerUri(anyString(), anyString()))
+                .thenReturn(1);
+        when(mWifiNative.removeDppUri(anyString(), anyInt()))
+                .thenReturn(true);
+
+        // Return test interface name
+        when(mWifiNative.getClientInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
+
+        // Successfully start enrollee
+        when(mWifiNative.startDppEnrolleeInitiator(anyString(), anyInt(), anyInt())).thenReturn(
+                true);
+
+        // Successfully start configurator
+        when(mWifiNative.startDppConfiguratorInitiator(anyString(), anyInt(), anyInt(), anyString(),
+                any(), any(), anyInt(), anyInt())).thenReturn(true);
+    }
+
+    private DppManager createDppManager() {
+        DppManager dppManger = new DppManager(mLooper.getLooper(), mWifiNative, mWifiConfigManager,
+                mContext);
+        dppManger.mDppTimeoutMessage = mWakeupMessage;
+        dppManger.enableVerboseLogging(1);
+        return dppManger;
+    }
+
+    /**
+     * DPP Tests
+     */
+    @Test
+    public void testStartDppAsConfiguratorInitiatorWithBadNetworkId() throws Exception {
+        // Return NULL when for the selected network (invalid network)
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(null);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorFailAddPeer() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = "\"Test_SSID\"";
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = "\"secretPassword\"";
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        // Fail to add Peer URI
+        when(mWifiNative.addDppPeerUri(anyString(), anyString())).thenReturn(-1);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE_INVALID_URI);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorFailAddPeer() throws Exception {
+        // Fail to add Peer URI
+        when(mWifiNative.addDppPeerUri(anyString(), anyString())).thenReturn(-1);
+
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mDppCallback).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE_INVALID_URI);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorFailStart() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = "\"Test_SSID\"";
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = "\"secretPassword\"";
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        // Fail to start
+        when(mWifiNative.startDppConfiguratorInitiator(anyString(), anyInt(), anyInt(), anyString(),
+                any(), any(), anyInt(), anyInt())).thenReturn(false);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorFailStart() throws Exception {
+        // Fail to start
+        when(mWifiNative.startDppEnrolleeInitiator(anyString(), anyInt(), anyInt())).thenReturn(
+                false);
+
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mDppCallback).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorStartCorrectlyWpa2Psk() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
+                eq(DPP_NETWORK_ROLE_STA), eq(PSK));
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorStartCorrectlyWpa3Sae() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
+                eq(DPP_NETWORK_ROLE_STA), eq(SAE));
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorFailOpenNetwork() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback).onFailure(DPP_EVENT_FAILURE_INVALID_NETWORK);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorFailEapNetwork() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback).onFailure(DPP_EVENT_FAILURE_INVALID_NETWORK);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorStartCorrectly() throws Exception {
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppEnrolleeInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorStartCorrectlyAndRejectConcurrentRequest()
+            throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = 1;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
+                eq(DPP_NETWORK_ROLE_STA), eq(SAE));
+
+        mDppManager.startDppAsConfiguratorInitiator(1, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallbackConcurrent);
+        verify(mDppCallbackConcurrent).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE_BUSY);
+        verify(mDppCallbackConcurrent, never()).onSuccess(anyInt());
+        verify(mDppCallbackConcurrent, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorStartCorrectlyAndRejectConcurrentRequest()
+            throws Exception {
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppEnrolleeInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt());
+
+        mDppManager.startDppAsEnrolleeInitiator(1, mBinder, mUri, mDppCallbackConcurrent);
+        verify(mDppCallbackConcurrent).onFailure(
+                DppStatusCallback.DPP_EVENT_FAILURE_BUSY);
+        verify(mDppCallbackConcurrent, never()).onSuccess(anyInt());
+        verify(mDppCallbackConcurrent, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorStartOnSuccessCallback() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = 1;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+
+        ArgumentCaptor<WifiNative.DppEventCallback> dppEventCallbackCaptor =
+                ArgumentCaptor.forClass(
+                        WifiNative.DppEventCallback.class);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mWifiNative).registerDppEventCallback(dppEventCallbackCaptor.capture());
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
+                eq(DPP_NETWORK_ROLE_STA), eq(
+                        SAE));
+
+        // Generate an onSuccess callback
+        WifiNative.DppEventCallback dppEventCallback = dppEventCallbackCaptor.getValue();
+        dppEventCallback.onSuccess(CONFIGURATION_SENT);
+        mLooper.dispatchAll();
+        verify(mDppCallback).onSuccess(DPP_EVENT_SUCCESS_CONFIGURATION_SENT);
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppCallback, never()).onFailure(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorStartCorrectlyOnSuccessCallback() throws Exception {
+        ArgumentCaptor<WifiNative.DppEventCallback> dppEventCallbackCaptor =
+                ArgumentCaptor.forClass(
+                        WifiNative.DppEventCallback.class);
+
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mWifiNative).registerDppEventCallback(dppEventCallbackCaptor.capture());
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppEnrolleeInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt());
+
+        // Generate an onSuccessConfigReceived callback
+        WifiNative.DppEventCallback dppEventCallback = dppEventCallbackCaptor.getValue();
+
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+
+        // Generate result
+        NetworkUpdateResult networkUpdateResult = new NetworkUpdateResult(TEST_NETWORK_ID);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class),
+                anyInt())).thenReturn(networkUpdateResult);
+
+        dppEventCallback.onSuccessConfigReceived(selectedNetwork);
+        mLooper.dispatchAll();
+        verify(mDppCallback).onSuccessConfigReceived(TEST_NETWORK_ID);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onFailure(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsConfiguratorInitiatorStartOnFailureCallback() throws Exception {
+        // Generate a mock WifiConfiguration object
+        WifiConfiguration selectedNetwork = new WifiConfiguration();
+        selectedNetwork.SSID = TEST_SSID;
+        selectedNetwork.networkId = TEST_NETWORK_ID;
+        selectedNetwork.preSharedKey = TEST_PASSWORD;
+        selectedNetwork.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+
+        when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(anyInt())).thenReturn(
+                selectedNetwork);
+        ArgumentCaptor<WifiNative.DppEventCallback> dppEventCallbackCaptor =
+                ArgumentCaptor.forClass(
+                        WifiNative.DppEventCallback.class);
+
+        mDppManager.startDppAsConfiguratorInitiator(0, mBinder, mUri, 1, DPP_NETWORK_ROLE_STA,
+                mDppCallback);
+        verify(mWifiNative).registerDppEventCallback(dppEventCallbackCaptor.capture());
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
+                eq(DPP_NETWORK_ROLE_STA), eq(
+                        SAE));
+
+        // Generate an onFailure callback
+        WifiNative.DppEventCallback dppEventCallback = dppEventCallbackCaptor.getValue();
+        dppEventCallback.onFailure(AUTHENTICATION);
+        mLooper.dispatchAll();
+        verify(mDppCallback).onFailure(DPP_EVENT_FAILURE_AUTHENTICATION);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+
+    @Test
+    public void testStartDppAsEnrolleeInitiatorStartCorrectlyOnFailureCallback() throws Exception {
+        // Add Peer URI successful, return peer ID 1
+        when(mWifiNative.addDppPeerUri(anyString(), anyString()))
+                .thenReturn(1);
+        when(mWifiNative.removeDppUri(anyString(), anyInt()))
+                .thenReturn(true);
+
+        // Return test interface name
+        when(mWifiNative.getClientInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
+
+        // Successful start
+        when(mWifiNative.startDppEnrolleeInitiator(anyString(), anyInt(), anyInt())).thenReturn(
+                true);
+
+        ArgumentCaptor<WifiNative.DppEventCallback> dppEventCallbackCaptor =
+                ArgumentCaptor.forClass(
+                        WifiNative.DppEventCallback.class);
+
+        mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
+        verify(mWifiNative).registerDppEventCallback(dppEventCallbackCaptor.capture());
+        verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mWifiNative).startDppEnrolleeInitiator(eq(TEST_INTERFACE_NAME),
+                eq(TEST_PEER_ID), anyInt());
+
+        // Generate an onSuccessConfigReceived callback
+        WifiNative.DppEventCallback dppEventCallback = dppEventCallbackCaptor.getValue();
+
+        dppEventCallback.onFailure(AUTHENTICATION);
+        mLooper.dispatchAll();
+        verify(mDppCallback).onFailure(DPP_EVENT_FAILURE_AUTHENTICATION);
+        verify(mDppCallback, never()).onSuccess(anyInt());
+        verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+    }
+}
