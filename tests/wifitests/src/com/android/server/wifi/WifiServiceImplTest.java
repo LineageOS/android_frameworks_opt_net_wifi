@@ -2511,9 +2511,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
-        ArgumentCaptor<List> removeListCaptor = ArgumentCaptor.forClass(List.class);
-        verify(mWifiNetworkSuggestionsManager).remove(removeListCaptor.capture(), eq(packageName));
-        assertTrue(removeListCaptor.getValue().isEmpty());
+        verify(mWifiNetworkSuggestionsManager).removeApp(packageName);
     }
 
     @Test
@@ -2534,7 +2532,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
-        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
+        verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
     }
 
     @Test
@@ -2555,7 +2553,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
-        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
+        verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
     }
 
     @Test

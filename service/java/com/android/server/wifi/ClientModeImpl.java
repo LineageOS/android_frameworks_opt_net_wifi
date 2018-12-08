@@ -2860,6 +2860,7 @@ public class ClientModeImpl extends StateMachine {
         if (wifiConfig != null) {
             ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromWifiConfiguration(wifiConfig);
             mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
+            mWifiNetworkSuggestionsManager.handleDisconnect(wifiConfig, getCurrentBSSID());
         }
 
         stopRssiMonitoringOffload();
@@ -3028,7 +3029,7 @@ public class ClientModeImpl extends StateMachine {
         mNetworkFactory.handleConnectionAttemptEnded(
                 level2FailureCode, getCurrentWifiConfiguration());
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                level2FailureCode, getCurrentWifiConfiguration());
+                level2FailureCode, getCurrentWifiConfiguration(), getCurrentBSSID());
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
@@ -3746,6 +3747,7 @@ public class ClientModeImpl extends StateMachine {
 
             // Inform WifiConnectivityManager that Wifi is enabled
             mWifiConnectivityManager.setWifiEnabled(true);
+            mNetworkFactory.setWifiState(true);
             // Inform metrics that Wifi is Enabled (but not yet connected)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
@@ -3762,6 +3764,7 @@ public class ClientModeImpl extends StateMachine {
 
             // Inform WifiConnectivityManager that Wifi is disabled
             mWifiConnectivityManager.setWifiEnabled(false);
+            mNetworkFactory.setWifiState(false);
             // Inform metrics that Wifi is being disabled (Toggled, airplane enabled, etc)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISABLED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_DISABLED);

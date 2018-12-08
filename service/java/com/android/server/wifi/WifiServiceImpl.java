@@ -2491,7 +2491,7 @@ public class WifiServiceImpl extends AbstractWifiService {
                     mWifiInjector.getClientModeImplHandler().post(() -> {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
                         // Remove all suggestions from the package.
-                        mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), pkgName);
+                        mWifiNetworkSuggestionsManager.removeApp(pkgName);
                     });
                 }
             }
@@ -3000,7 +3000,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     public int addNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
         if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
         }
         if (mVerboseLoggingEnabled) {
             mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
@@ -3033,7 +3033,7 @@ public class WifiServiceImpl extends AbstractWifiService {
     public int removeNetworkSuggestions(
             List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
         if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
         }
         if (mVerboseLoggingEnabled) {
             mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();

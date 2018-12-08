@@ -24,6 +24,7 @@ import android.support.test.filters.SmallTest;
 import android.util.Xml;
 
 import com.android.internal.util.FastXmlSerializer;
+import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -54,6 +55,7 @@ public class NetworkSuggestionStoreDataTest {
     private static final String TEST_CORRUPT_DATA_INVALID_SSID =
             "<NetworkSuggestionPerApp>\n"
             + "<string name=\"SuggestorPackageName\">com.android.test.1</string>\n"
+            + "<boolean name=\"SuggestorHasUserApproved\" value=\"false\" />\n"
             + "<NetworkSuggestion>\n"
             + "<WifiConfiguration>\n"
             + "<string name=\"ConfigKey\">&quot;WifiConfigurationTestUtilSSID7&quot;NONE</string>\n"
@@ -147,11 +149,14 @@ public class NetworkSuggestionStoreDataTest {
     public void serializeDeserializeSingleNetworkSuggestionFromSingleApp() throws Exception {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap = new HashMap<>();
         Set<WifiNetworkSuggestion> networkSuggestionsSet = new HashSet<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
             }};
-        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, networkSuggestionsSet);
+        Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
+        PerAppInfo appInfo = new PerAppInfo();
+        appInfo.hasUserApproved = false;
+        appInfo.networkSuggestions = networkSuggestionsSet;
+        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo);
 
         assertSerializeDeserialize(networkSuggestionsMap);
     }
@@ -171,9 +176,17 @@ public class NetworkSuggestionStoreDataTest {
         Set<WifiNetworkSuggestion> networkSuggestionsSet2 = new HashSet<WifiNetworkSuggestion>() {{
                     add(networkSuggestion2);
             }};
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap = new HashMap<>();
-        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, networkSuggestionsSet1);
-        networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, networkSuggestionsSet2);
+        Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
+
+        PerAppInfo appInfo1 = new PerAppInfo();
+        appInfo1.hasUserApproved = false;
+        appInfo1.networkSuggestions = networkSuggestionsSet1;
+        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
+
+        PerAppInfo appInfo2 = new PerAppInfo();
+        appInfo2.hasUserApproved = true;
+        appInfo2.networkSuggestions = networkSuggestionsSet2;
+        networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, appInfo2);
 
         assertSerializeDeserialize(networkSuggestionsMap);
     }
@@ -199,9 +212,17 @@ public class NetworkSuggestionStoreDataTest {
                     add(networkSuggestion3);
                     add(networkSuggestion4);
             }};
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap = new HashMap<>();
-        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, networkSuggestionsSet1);
-        networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, networkSuggestionsSet2);
+        Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
+
+        PerAppInfo appInfo1 = new PerAppInfo();
+        appInfo1.hasUserApproved = true;
+        appInfo1.networkSuggestions = networkSuggestionsSet1;
+        networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
+
+        PerAppInfo appInfo2 = new PerAppInfo();
+        appInfo2.hasUserApproved = true;
+        appInfo2.networkSuggestions = networkSuggestionsSet2;
+        networkSuggestionsMap.put(TEST_PACKAGE_NAME_2, appInfo2);
 
         assertSerializeDeserialize(networkSuggestionsMap);
     }
@@ -217,7 +238,7 @@ public class NetworkSuggestionStoreDataTest {
     }
 
     private void assertSerializeDeserialize(
-            Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap) throws Exception {
+            Map<String, PerAppInfo> networkSuggestionsMap) throws Exception {
         // Setup the data to serialize.
         when(mDataSource.toSerialize()).thenReturn(networkSuggestionsMap);
 

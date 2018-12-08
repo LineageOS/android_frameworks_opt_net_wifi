@@ -24,6 +24,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.util.XmlUtils;
+import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.util.XmlUtil;
 import com.android.server.wifi.util.XmlUtil.WifiConfigurationXmlUtil;
 
@@ -55,6 +56,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_IS_USER_INTERACTION_REQUIRED = "IsUserInteractionRequired";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
+    private static final String XML_TAG_SUGGESTOR_HAS_USER_APPROVED = "SuggestorHasUserApproved";
 
     /**
      * Interface define the data source for the network suggestions store data.
@@ -63,16 +65,16 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         /**
          * Retrieve the network suggestion list from the data source to serialize them to disk.
          *
-         * @return Map of package name to set of {@link WifiNetworkSuggestion}
+         * @return Map of package name to {@link PerAppInfo}
          */
-        Map<String, Set<WifiNetworkSuggestion>> toSerialize();
+        Map<String, PerAppInfo> toSerialize();
 
         /**
          * Set the network suggestions list in the data source after serializing them from disk.
          *
-         * @param networkSuggestions Map of package name to set of {@link WifiNetworkSuggestion}
+         * @param networkSuggestions Map of package name to {@link PerAppInfo}
          */
-        void fromDeserialized(Map<String, Set<WifiNetworkSuggestion>> networkSuggestions);
+        void fromDeserialized(Map<String, PerAppInfo> networkSuggestions);
 
         /**
          * Clear internal data structure in preparation for user switch or initial store read.
@@ -134,17 +136,19 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestionsMap(
-            XmlSerializer out, final Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap)
+            XmlSerializer out, final Map<String, PerAppInfo> networkSuggestionsMap)
             throws XmlPullParserException, IOException {
         if (networkSuggestionsMap == null) {
             return;
         }
-        for (Entry<String, Set<WifiNetworkSuggestion>> entry : networkSuggestionsMap.entrySet()) {
+        for (Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
             String packageName = entry.getKey();
-            Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue();
+            boolean hasUserApproved = entry.getValue().hasUserApproved;
+            Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue().networkSuggestions;
 
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME, packageName);
+            XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
             serializeNetworkSuggestions(out, networkSuggestions);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
@@ -196,10 +200,10 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private Map<String, Set<WifiNetworkSuggestion>> parseNetworkSuggestionsMap(
+    private Map<String, PerAppInfo> parseNetworkSuggestionsMap(
             XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMap = new HashMap<>();
+        Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
                 in, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP, outerTagDepth)) {
             // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are
@@ -207,9 +211,14 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             try {
                 String packageName =
                         (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_PACKAGE_NAME);
+                boolean hasUserApproved = (boolean) XmlUtil.readNextValueWithName(in,
+                        XML_TAG_SUGGESTOR_HAS_USER_APPROVED);
                 Set<WifiNetworkSuggestion> networkSuggestions =
                         parseNetworkSuggestions(in, outerTagDepth + 1);
-                networkSuggestionsMap.put(packageName, networkSuggestions);
+                PerAppInfo perAppInfo = new PerAppInfo();
+                perAppInfo.hasUserApproved = hasUserApproved;
+                perAppInfo.networkSuggestions = networkSuggestions;
+                networkSuggestionsMap.put(packageName, perAppInfo);
             } catch (RuntimeException e) {
                 // Failed to parse this network, skip it.
                 Log.e(TAG, "Failed to parse network suggestion. Skipping...", e);
