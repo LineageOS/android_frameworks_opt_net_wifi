@@ -196,7 +196,8 @@ public class WifiInjector {
                 ServiceManager.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics);
+                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
+                new Handler(mWifiCoreHandlerThread.getLooper()));
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
         mWifiP2pNative = new WifiP2pNative(mSupplicantP2pIfaceHal, mHalDeviceManager);
@@ -245,7 +246,8 @@ public class WifiInjector {
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
-        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, this,
+        mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext,
+                new Handler(mWifiCoreHandlerThread.getLooper()), this,
                 mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
         mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
@@ -294,7 +296,7 @@ public class WifiInjector {
                 mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade,
                 mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
-                mClientModeImpl);
+                mClientModeImpl, mFrameworkFacade);
         mWifiController = new WifiController(mContext, mClientModeImpl, clientModeImplLooper,
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,
                 mActiveModeWarden);

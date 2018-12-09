@@ -336,6 +336,8 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(true);
 
         ArgumentCaptor<SoftApCallback> softApCallbackCaptor =
@@ -406,8 +408,22 @@ public class WifiServiceImplTest {
      * Verify that wifi can be enabled by a caller with NETWORK_SETTINGS permission.
      */
     @Test
-    public void testSetWifiEnabledSuccess() throws Exception {
+    public void testSetWifiEnabledSuccessWithNetworkSettingsPermission() throws Exception {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi can be enabled by a caller with NETWORK_MANAGED_PROVISIONING permission.
+     */
+    @Test
+    public void testSetWifiEnabledSuccessWithNetworkManagedProvisioningPermission()
+            throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
@@ -458,8 +474,21 @@ public class WifiServiceImplTest {
      * Verify that wifi can be disabled by a caller with NETWORK_SETTINGS permission.
      */
     @Test
-    public void testSetWifiDisabledSuccess() throws Exception {
+    public void testSetWifiDisabledSuccessWithNetworkSettingsPermission() throws Exception {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi can be disabled by a caller with NETWORK_MANAGED_PROVISIONING permission.
+     */
+    @Test
+    public void testSetWifiDisabledSuccessWithNetworkManagedProvisioningPermission()
+            throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
@@ -2482,9 +2511,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
-        ArgumentCaptor<List> removeListCaptor = ArgumentCaptor.forClass(List.class);
-        verify(mWifiNetworkSuggestionsManager).remove(removeListCaptor.capture(), eq(packageName));
-        assertTrue(removeListCaptor.getValue().isEmpty());
+        verify(mWifiNetworkSuggestionsManager).removeApp(packageName);
     }
 
     @Test
@@ -2505,7 +2532,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
-        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
+        verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
     }
 
     @Test
@@ -2526,7 +2553,7 @@ public class WifiServiceImplTest {
 
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
-        verify(mWifiNetworkSuggestionsManager, never()).remove(anyList(), anyString());
+        verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
     }
 
     @Test

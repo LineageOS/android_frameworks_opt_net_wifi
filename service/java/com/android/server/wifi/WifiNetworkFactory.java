@@ -105,6 +105,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean mConnectionTimeoutSet = false;
     private boolean mIsConnectedToUserSelectedNetwork = false;
     private boolean mIsPeriodicScanPaused = false;
+    private boolean mWifiEnabled = false;
 
     // Scan listener for scan requests.
     private class NetworkFactoryScanListener implements WifiScanner.ScanListener {
@@ -315,6 +316,10 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Invalid network specifier mentioned. Rejecting");
                 return false;
             }
+            if (!mWifiEnabled) {
+                Log.e(TAG, "Wifi off. Rejecting");
+                return false;
+            }
 
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
             if (!WifiConfigurationUtil.validateNetworkSpecifier(wns)) {
@@ -375,6 +380,10 @@ public class WifiNetworkFactory extends NetworkFactory {
                 Log.e(TAG, "Invalid network specifier mentioned. Rejecting");
                 return;
             }
+            if (!mWifiEnabled) {
+                Log.e(TAG, "Wifi off. Rejecting");
+                return;
+            }
             retrieveWifiScanner();
             // Reset state from any previous request.
             resetStateForActiveRequestStart();
@@ -408,7 +417,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         } else {
             // Invalid network specifier.
             if (!(ns instanceof WifiNetworkSpecifier)) {
-                Log.e(TAG, "Invalid network specifier mentioned. Ingoring");
+                Log.e(TAG, "Invalid network specifier mentioned. Ignoring");
+                return;
+            }
+            if (!mWifiEnabled) {
+                Log.e(TAG, "Wifi off. Ignoring");
                 return;
             }
             if (mActiveSpecificNetworkRequest == null) {
@@ -592,6 +605,22 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
     }
 
+    /**
+     * Invoked by {@link ClientModeImpl} to indicate wifi state toggle.
+     */
+    public void setWifiState(boolean enabled) {
+        if (mVerboseLoggingEnabled) Log.v(TAG, "setWifiState " + enabled);
+        if (enabled) {
+            reevaluateAllRequests(); // Re-evaluate any pending requests.
+        } else {
+            if (mActiveSpecificNetworkRequest != null) {
+                Log.w(TAG, "Wifi off, cancelling " + mActiveSpecificNetworkRequest);
+                resetStateForActiveRequestEnd();
+            }
+        }
+        mWifiEnabled = enabled;
+    }
+
     private void resetState() {
         if (mIsConnectedToUserSelectedNetwork) {
             Log.i(TAG, "Disconnecting from network on reset");
@@ -757,7 +786,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
         }
         if (mVerboseLoggingEnabled) {
-            Log.e(TAG, "List of scan results matching the active request "
+            Log.v(TAG, "List of scan results matching the active request "
                     + matchedScanResults);
         }
         return matchedScanResults;

@@ -16,6 +16,10 @@
 
 package com.android.server.wifi;
 
+import static android.app.AppOpsManager.MODE_ALLOWED;
+import static android.app.AppOpsManager.MODE_IGNORED;
+import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -23,15 +27,19 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
+import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.os.Handler;
 import android.os.UserHandle;
+import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.Before;
@@ -42,6 +50,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,16 +64,21 @@ import java.util.Set;
 public class WifiNetworkSuggestionsManagerTest {
     private static final String TEST_PACKAGE_1 = "com.test12345";
     private static final String TEST_PACKAGE_2 = "com.test54321";
+    private static final String TEST_BSSID = "00:11:22:33:44:55";
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
 
     private @Mock Context mContext;
+    private @Mock AppOpsManager mAppOpsManager;
     private @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     private @Mock WifiInjector mWifiInjector;
     private @Mock WifiConfigStore mWifiConfigStore;
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
     private @Mock ClientModeImpl mClientModeImpl;
+    private TestLooper mLooper;
+    private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
+            ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
 
     private InOrder mInorder;
 
@@ -77,16 +91,19 @@ public class WifiNetworkSuggestionsManagerTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mLooper = new TestLooper();
 
         mInorder = inOrder(mContext, mWifiPermissionsUtil);
 
         when(mWifiInjector.makeNetworkSuggestionStoreData(any()))
                 .thenReturn(mNetworkSuggestionStoreData);
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
+        when(mContext.getSystemService(Context.APP_OPS_SERVICE)).thenReturn(mAppOpsManager);
 
         mWifiNetworkSuggestionsManager =
-                new WifiNetworkSuggestionsManager(mContext, mWifiInjector, mWifiPermissionsUtil,
-                        mWifiConfigManager, mWifiConfigStore);
+                new WifiNetworkSuggestionsManager(mContext, new Handler(mLooper.getLooper()),
+                        mWifiInjector, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
+        verify(mContext).getSystemService(Context.APP_OPS_SERVICE);
 
         ArgumentCaptor<NetworkSuggestionStoreData.DataSource> dataSourceArgumentCaptor =
                 ArgumentCaptor.forClass(NetworkSuggestionStoreData.DataSource.class);
@@ -384,16 +401,197 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify a successful lookup of a single network suggestion matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithBssidOneMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailSuccessWithBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void
+            testGetNetworkSuggestionsForScanDetailSuccessWithBssidMultipleMatchFromSamePackage() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
+        wifiConfiguration.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, false, false, TEST_UID_1);
+
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestions matching the provided scan detail.
+     */
+    @Test
+    public void
+            testGetNetworkSuggestionsForScanDetailSuccessWithBssidAndWithoutBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration1 = WifiConfigurationTestUtil.createOpenNetwork();
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration1);
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration(wifiConfiguration1);
+        wifiConfiguration2.BSSID = scanDetail.getBSSIDString();
+
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration1, false, false, TEST_UID_1);
+        // Reuse the same network credentials to ensure they both match.
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration2, false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                    add(networkSuggestion2);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+
+        // Now change the bssid of the scan result to a different value, now only the general
+        // (without bssid) suggestion.
+        scanDetail.getScanResult().BSSID = MacAddress.createRandomUnicastAddress().toString();
+        matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
      * Verify failure to lookup any network suggestion matching the provided scan detail.
      */
     @Test
-    public void testGetNetworkSuggestionsForScanDetailFailure() {
+    public void testGetNetworkSuggestionsForScanDetailFailureOnSuggestionRemoval() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+                wifiConfiguration, false, false, TEST_UID_1);
+        ScanDetail scanDetail = createScanDetailForNetwork(wifiConfiguration);
         List<WifiNetworkSuggestion> networkSuggestionList1 =
                 new ArrayList<WifiNetworkSuggestion>() {{
                 add(networkSuggestion);
             }};
+
+        // add the suggestion & ensure lookup works.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertNotNull(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
+                scanDetail));
+
+        // remove the suggestion & ensure lookup fails.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(Collections.EMPTY_LIST, TEST_PACKAGE_1));
+        assertNull(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail));
+    }
+
+    /**
+     * Verify failure to lookup any network suggestion matching the provided scan detail.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDetailFailureOnWrongNetwork() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
 
@@ -424,7 +622,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Verify that the correct broadcast was sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -465,7 +664,98 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
+
+        // Verify that the correct broadcasts were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to all the apps.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
+        wifiConfiguration.BSSID = TEST_BSSID;
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
+
+        // Verify that the correct broadcasts were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of multiple network suggestion matching the connected network.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a broadcast to all the apps.
+     */
+    @Test
+    public void testOnNetworkConnectionSuccessWithBssidAndWithoutBssidMultipleMatch() {
+        WifiConfiguration wifiConfiguration1 = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration(wifiConfiguration1);
+        wifiConfiguration2.BSSID = TEST_BSSID;
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                wifiConfiguration1, true, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                wifiConfiguration2, true, false, TEST_UID_2);
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration1, TEST_BSSID);
 
         // Verify that the correct broadcasts were sent out.
         mInorder.verify(mWifiPermissionsUtil)
@@ -499,7 +789,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Verify no broadcast was sent out.
         verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
@@ -528,7 +819,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         mInorder.verify(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
@@ -556,12 +848,12 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiConfigManager).saveToStore(true);
         assertTrue(mDataSource.hasNewDataToSerialize());
 
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMapToWrite =
-                mDataSource.toSerialize();
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
         assertEquals(1, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
         Set<WifiNetworkSuggestion> networkSuggestionsToWrite =
-                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1);
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions;
         Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
                 new HashSet<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
@@ -593,9 +885,12 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiConfigManager, times(2)).saveToStore(true);
         assertTrue(mDataSource.hasNewDataToSerialize());
 
-        Map<String, Set<WifiNetworkSuggestion>> networkSuggestionsMapToWrite =
-                mDataSource.toSerialize();
-        assertTrue(networkSuggestionsMapToWrite.isEmpty());
+        // Expect a single app entry with no active suggestions.
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(1, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
 
         // Ensure that the new data flag has been reset after read.
         assertFalse(mDataSource.hasNewDataToSerialize());
@@ -613,8 +908,10 @@ public class WifiNetworkSuggestionsManagerTest {
                     add(networkSuggestion);
                 }};
 
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                        put(TEST_PACKAGE_1, networkSuggestionSet);
+        PerAppInfo appInfo = new PerAppInfo();
+        appInfo.networkSuggestions = networkSuggestionSet;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                        put(TEST_PACKAGE_1, appInfo);
                 }});
 
         Set<WifiNetworkSuggestion> allNetworkSuggestions =
@@ -650,8 +947,10 @@ public class WifiNetworkSuggestionsManagerTest {
                 }};
 
         // Read the store initially.
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                    put(TEST_PACKAGE_1, networkSuggestionSet1);
+        PerAppInfo appInfo1 = new PerAppInfo();
+        appInfo1.networkSuggestions = networkSuggestionSet1;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_1, appInfo1);
                 }});
 
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
@@ -663,8 +962,10 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Now simulate user switch.
         mDataSource.reset();
-        mDataSource.fromDeserialized(new HashMap<String, Set<WifiNetworkSuggestion>>() {{
-                    put(TEST_PACKAGE_2, networkSuggestionSet2);
+        PerAppInfo appInfo2 = new PerAppInfo();
+        appInfo2.networkSuggestions = networkSuggestionSet2;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_2, appInfo2);
                 }});
 
         Set<WifiNetworkSuggestion> allNetworkSuggestions =
@@ -707,7 +1008,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Now remove the network suggestion and ensure we trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -742,7 +1044,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
         // Now remove one of the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -773,7 +1075,7 @@ public class WifiNetworkSuggestionsManagerTest {
         // Simulate connecting to some other network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiConfigurationTestUtil.createEapNetwork());
+                WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
         // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
@@ -798,17 +1100,254 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Simulate failing connection to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration);
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
 
         // Simulate connecting to some other network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiConfigurationTestUtil.createEapNetwork());
+                WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
         // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
         verify(mClientModeImpl, never()).disconnectCommand();
+    }
+
+    /**
+     * Verify that we start tracking app-ops on first network suggestion add & stop tracking on the
+     * last network suggestion remove.
+     */
+    @Test
+    public void testAddRemoveNetworkSuggestionsStartStopAppOpsWatch() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        mInorder = inOrder(mAppOpsManager);
+
+        // Watch app-ops changes on first add.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        mInorder.verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE),
+                eq(TEST_PACKAGE_1), mAppOpChangedListenerCaptor.capture());
+
+        // Nothing happens on second add.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_1));
+
+        // Now remove first add, nothing happens.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        // Stop watching app-ops changes on last remove.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_1));
+        assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+        mInorder.verify(mAppOpsManager).stopWatchingMode(mAppOpChangedListenerCaptor.getValue());
+
+        mInorder.verifyNoMoreInteractions();
+    }
+
+    /**
+     * Verify app-ops disable/enable after suggestions add.
+     */
+    @Test
+    public void testAppOpsChangeAfterSuggestionsAdd() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> allNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE), eq(TEST_PACKAGE_1),
+                mAppOpChangedListenerCaptor.capture());
+        AppOpsManager.OnOpChangedListener listener = mAppOpChangedListenerCaptor.getValue();
+        assertNotNull(listener);
+
+        // allow change wifi state.
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
+                .thenReturn(MODE_ALLOWED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        allNetworkSuggestions = mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        // disallow change wifi state & ensure we remove the app from database.
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
+                .thenReturn(MODE_IGNORED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        verify(mAppOpsManager).stopWatchingMode(mAppOpChangedListenerCaptor.getValue());
+        assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+    }
+
+    /**
+     * Verify app-ops disable/enable after config store load.
+     */
+    @Test
+    public void testAppOpsChangeAfterConfigStoreLoad() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        Set<WifiNetworkSuggestion> networkSuggestionSet =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+
+        PerAppInfo appInfo = new PerAppInfo();
+        appInfo.networkSuggestions = networkSuggestionSet;
+        mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
+                    put(TEST_PACKAGE_1, appInfo);
+                }});
+
+        Set<WifiNetworkSuggestion> allNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE), eq(TEST_PACKAGE_1),
+                mAppOpChangedListenerCaptor.capture());
+        AppOpsManager.OnOpChangedListener listener = mAppOpChangedListenerCaptor.getValue();
+        assertNotNull(listener);
+
+        // allow change wifi state.
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
+                .thenReturn(MODE_ALLOWED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        allNetworkSuggestions = mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        // disallow change wifi state & ensure we remove all the suggestions for that app.
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
+                .thenReturn(MODE_IGNORED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+    }
+
+    /**
+     * Verify app-ops disable with wrong uid to package mapping.
+     */
+    @Test
+    public void testAppOpsChangeWrongUid() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+
+        Set<WifiNetworkSuggestion> allNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE), eq(TEST_PACKAGE_1),
+                mAppOpChangedListenerCaptor.capture());
+        AppOpsManager.OnOpChangedListener listener = mAppOpChangedListenerCaptor.getValue();
+        assertNotNull(listener);
+
+        // disallow change wifi state & ensure we don't remove all the suggestions for that app.
+        doThrow(new SecurityException()).when(mAppOpsManager).checkPackage(
+                eq(TEST_UID_1), eq(TEST_PACKAGE_1));
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1))
+                .thenReturn(MODE_IGNORED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        allNetworkSuggestions = mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+    }
+
+    /**
+     * Verify that we stop tracking the package on its removal.
+     */
+    @Test
+    public void testRemoveApp() {
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_2);
+
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion2);
+                }};
+
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_PACKAGE_2));
+
+        // Remove all suggestions from TEST_PACKAGE_1 & TEST_PACKAGE_2, we should continue to track.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_2));
+
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        Map<String, PerAppInfo> networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(2, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+
+        // Now remove TEST_PACKAGE_1, continue to track TEST_PACKAGE_2.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertEquals(1, networkSuggestionsMapToWrite.size());
+        assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
+        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+
+        // Now remove TEST_PACKAGE_2.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+        networkSuggestionsMapToWrite = mDataSource.toSerialize();
+        assertTrue(networkSuggestionsMapToWrite.isEmpty());
+
+        // Verify that we stopped watching these apps for app-ops changes.
+        verify(mAppOpsManager, times(2)).stopWatchingMode(any());
     }
 
     /**

@@ -64,6 +64,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.HexDump;
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
+import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;
 import com.android.server.wifi.util.BitMask;
 import com.android.server.wifi.util.NativeUtil;
 
@@ -1026,6 +1027,16 @@ public class WifiVendorHal {
             stats.on_time_roam_scan = radioStats.onTimeInMsForRoamScan;
             stats.on_time_pno_scan = radioStats.onTimeInMsForPnoScan;
             stats.on_time_hs20_scan = radioStats.onTimeInMsForHs20Scan;
+            /* Copy list of channel stats */
+            for (int i = 0; i < radioStats.channelStats.size(); i++) {
+                android.hardware.wifi.V1_3.WifiChannelStats channelStats =
+                        radioStats.channelStats.get(i);
+                ChannelStats channelStatsEntry = new ChannelStats();
+                channelStatsEntry.frequency = channelStats.channel.centerFreq;
+                channelStatsEntry.radioOnTimeMs = channelStats.onTimeInMs;
+                channelStatsEntry.ccaBusyTimeMs = channelStats.ccaBusyTimeInMs;
+                stats.channelStatsMap.put(channelStats.channel.centerFreq, channelStatsEntry);
+            }
         }
     }
 
@@ -1058,7 +1069,7 @@ public class WifiVendorHal {
     }
 
     /**
-     * Translation table used by getSupportedFeatureSet for translating IWifiChip caps
+     * Translation table used by getSupportedFeatureSet for translating IWifiChip caps for V1.1
      */
     private static final int[][] sChipFeatureCapabilityTranslation = {
             {WifiManager.WIFI_FEATURE_TX_POWER_LIMIT,
@@ -1073,7 +1084,17 @@ public class WifiVendorHal {
     };
 
     /**
-     * Feature bit mask translation for Chip
+     * Translation table used by getSupportedFeatureSet for translating IWifiChip caps for
+     * additional capabilities introduced in V1.3
+     */
+    private static final int[][] sChipFeatureCapabilityTranslation13 = {
+            {WifiManager.WIFI_FEATURE_LOW_LATENCY,
+                    android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.SET_LATENCY_MODE
+            }
+    };
+
+    /**
+     * Feature bit mask translation for Chip V1.1
      *
      * @param capabilities bitmask defined IWifiChip.ChipCapabilityMask
      * @return bitmask defined by WifiManager.WIFI_FEATURE_*
@@ -1086,6 +1107,27 @@ public class WifiVendorHal {
                 features |= sChipFeatureCapabilityTranslation[i][0];
             }
         }
+        return features;
+    }
+
+    /**
+     * Feature bit mask translation for Chip V1.3
+     *
+     * @param capabilities bitmask defined IWifiChip.ChipCapabilityMask
+     * @return bitmask defined by WifiManager.WIFI_FEATURE_*
+     */
+    @VisibleForTesting
+    int wifiFeatureMaskFromChipCapabilities_1_3(int capabilities) {
+        // First collect features from previous versions
+        int features = wifiFeatureMaskFromChipCapabilities(capabilities);
+
+        // Next collect features for V1_3 version
+        for (int i = 0; i < sChipFeatureCapabilityTranslation13.length; i++) {
+            if ((capabilities & sChipFeatureCapabilityTranslation13[i][1]) != 0) {
+                features |= sChipFeatureCapabilityTranslation13[i][0];
+            }
+        }
+
         return features;
     }
 
@@ -1167,7 +1209,13 @@ public class WifiVendorHal {
         try {
             final MutableInt feat = new MutableInt(0);
             synchronized (sLock) {
-                if (mIWifiChip != null) {
+                android.hardware.wifi.V1_3.IWifiChip iWifiChipV13 = getWifiChipForV1_3Mockable();
+                if (iWifiChipV13 != null) {
+                    iWifiChipV13.getCapabilities_1_3((status, capabilities) -> {
+                        if (!ok(status)) return;
+                        feat.value = wifiFeatureMaskFromChipCapabilities_1_3(capabilities);
+                    });
+                } else if (mIWifiChip != null) {
                     mIWifiChip.getCapabilities((status, capabilities) -> {
                         if (!ok(status)) return;
                         feat.value = wifiFeatureMaskFromChipCapabilities(capabilities);
@@ -2556,8 +2604,8 @@ public class WifiVendorHal {
             int flags = hidlToFrameworkScanDataFlags(scanData.flags);
             ScanResult[] frameworkScanResults = hidlToFrameworkScanResults(scanData.results);
             frameworkScanDatas[i++] =
-                    new WifiScanner.ScanData(cmdId, flags, scanData.bucketsScanned, false,
-                            frameworkScanResults);
+                    new WifiScanner.ScanData(cmdId, flags, scanData.bucketsScanned,
+                            WifiScanner.WIFI_BAND_UNSPECIFIED, frameworkScanResults);
         }
         return frameworkScanDatas;
     }

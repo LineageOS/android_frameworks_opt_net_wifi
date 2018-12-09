@@ -95,8 +95,6 @@ public class ScanRequestProxy {
     private boolean mScanningEnabled = false;
     // Flag to decide if we need to scan for hidden networks or not.
     private boolean mScanningForHiddenNetworksEnabled = false;
-    // Flag to indicate that we're waiting for scan results from an existing request.
-    private boolean mIsScanProcessingComplete = true;
     // Timestamps for the last scan requested by any background app.
     private long mLastScanTimestampForBgApps = 0;
     // Timestamps for the list of last few scan requests by each foreground app.
@@ -106,7 +104,55 @@ public class ScanRequestProxy {
             new ArrayMap();
     // Scan results cached from the last full single scan request.
     private final List<ScanResult> mLastScanResults = new ArrayList<>();
-    // Common scan listener for scan requests.
+    // Global scan listener for listening to all scan requests.
+    private class GlobalScanListener implements WifiScanner.ScanListener {
+        @Override
+        public void onSuccess() {
+            // Ignore. These will be processed from the scan request listener.
+        }
+
+        @Override
+        public void onFailure(int reason, String description) {
+            // Ignore. These will be processed from the scan request listener.
+        }
+
+        @Override
+        public void onResults(WifiScanner.ScanData[] scanDatas) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Scan results received");
+            }
+            // For single scans, the array size should always be 1.
+            if (scanDatas.length != 1) {
+                Log.wtf(TAG, "Found more than 1 batch of scan results, Failing...");
+                sendScanResultBroadcast(false);
+                return;
+            }
+            WifiScanner.ScanData scanData = scanDatas[0];
+            ScanResult[] scanResults = scanData.getResults();
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "Received " + scanResults.length + " scan results");
+            }
+            // Only process full band scan results.
+            if (scanData.getBandScanned() == WifiScanner.WIFI_BAND_BOTH_WITH_DFS) {
+                // Store the last scan results & send out the scan completion broadcast.
+                mLastScanResults.clear();
+                mLastScanResults.addAll(Arrays.asList(scanResults));
+                sendScanResultBroadcast(true);
+            }
+        }
+
+        @Override
+        public void onFullResult(ScanResult fullScanResult) {
+            // Ignore for single scans.
+        }
+
+        @Override
+        public void onPeriodChanged(int periodInMs) {
+            // Ignore for single scans.
+        }
+    };
+
+    // Common scan listener for scan requests initiated by this class.
     private class ScanRequestProxyScanListener implements WifiScanner.ScanListener {
         @Override
         public void onSuccess() {
@@ -119,29 +165,12 @@ public class ScanRequestProxy {
         @Override
         public void onFailure(int reason, String description) {
             Log.e(TAG, "Scan failure received. reason: " + reason + ",description: " + description);
-            sendScanResultBroadcastIfScanProcessingNotComplete(false);
+            sendScanResultBroadcast(false);
         }
 
         @Override
         public void onResults(WifiScanner.ScanData[] scanDatas) {
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "Scan results received");
-            }
-            // For single scans, the array size should always be 1.
-            if (scanDatas.length != 1) {
-                Log.wtf(TAG, "Found more than 1 batch of scan results, Failing...");
-                sendScanResultBroadcastIfScanProcessingNotComplete(false);
-                return;
-            }
-            WifiScanner.ScanData scanData = scanDatas[0];
-            ScanResult[] scanResults = scanData.getResults();
-            if (mVerboseLoggingEnabled) {
-                Log.d(TAG, "Received " + scanResults.length + " scan results");
-            }
-            // Store the last scan results & send out the scan completion broadcast.
-            mLastScanResults.clear();
-            mLastScanResults.addAll(Arrays.asList(scanResults));
-            sendScanResultBroadcastIfScanProcessingNotComplete(true);
+            // Ignore. These will be processed from the global listener.
         }
 
         @Override
@@ -234,6 +263,10 @@ public class ScanRequestProxy {
             mWifiScanner = mWifiInjector.getWifiScanner();
             // Start listening for throttle settings change after we retrieve scanner instance.
             mThrottleEnabledSettingObserver.initialize();
+            // Register the global scan listener.
+            if (mWifiScanner != null) {
+                mWifiScanner.registerScanListener(new GlobalScanListener());
+            }
         }
         return mWifiScanner != null;
     }
@@ -286,17 +319,6 @@ public class ScanRequestProxy {
         mScanningEnabled = enable;
     }
 
-    /**
-     * Helper method to send the scan request status broadcast, if there is a scan ongoing.
-     */
-    private void sendScanResultBroadcastIfScanProcessingNotComplete(boolean scanSucceeded) {
-        if (mIsScanProcessingComplete) {
-            Log.i(TAG, "No ongoing scan request. Don't send scan broadcast.");
-            return;
-        }
-        sendScanResultBroadcast(scanSucceeded);
-        mIsScanProcessingComplete = true;
-    }
 
     /**
      * Helper method to send the scan request status broadcast.
@@ -489,7 +511,6 @@ public class ScanRequestProxy {
                     new WifiScanner.ScanSettings.HiddenNetwork[hiddenNetworkList.size()]);
         }
         mWifiScanner.startScan(settings, new ScanRequestProxyScanListener(), workSource);
-        mIsScanProcessingComplete = false;
         return true;
     }
 
