@@ -59,6 +59,7 @@ public class WifiCandidatesTest {
         mScanResult1 = new ScanResult() {{
                 SSID = removeEnclosingQuotes(mConfig1.SSID);
                 capabilities = "[ESS]";
+                BSSID = "00:00:00:00:00:01";
             }};
         mConfig2 = WifiConfigurationTestUtil.createEphemeralNetwork();
         mScanResult2 = new ScanResult() {{
@@ -78,6 +79,7 @@ public class WifiCandidatesTest {
         mWifiCandidates.add(mScanDetail1, null, 2, 16);
         doReturn(null).when(mScanDetail2).getScanResult();
         mWifiCandidates.add(mScanDetail2, mConfig2, 3, 314);
+        assertFalse(mWifiCandidates.remove(null));
 
         assertEquals(0, mWifiCandidates.size());
     }
@@ -162,6 +164,83 @@ public class WifiCandidatesTest {
         assertEquals(2, mWifiCandidates.getFaultCount());
         // After all that, only one candidate should be there.
         assertEquals(1, mWifiCandidates.size());
+    }
+
+    /**
+     * BSSID validation
+     */
+    @Test
+    public void testBssidValidation() throws Exception {
+        // Null BSSID.
+        mScanResult1.BSSID = null;
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+        assertTrue("Expecting NPE, got " + mWifiCandidates.getLastFault(),
+                mWifiCandidates.getLastFault() instanceof NullPointerException);
+        // Malformed BSSID
+        mScanResult1.BSSID = "NotaBssid!";
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+        assertTrue("Expecting IAE, got " + mWifiCandidates.getLastFault(),
+                mWifiCandidates.getLastFault() instanceof IllegalArgumentException);
+        assertEquals(0, mWifiCandidates.size());
+    }
+
+    /**
+    * Add candidate BSSIDs in the same network, then remove them
+    */
+    @Test
+    public void testTwoBssids() throws Exception {
+        // Make a duplicate of the first config
+        mConfig2 = new WifiConfiguration(mConfig1);
+        // Make a second scan result, same network, different BSSID.
+        mScanResult2.SSID = mScanResult1.SSID;
+        mScanResult2.BSSID = mScanResult1.BSSID.replace('1', '2');
+        // Add both
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+        mWifiCandidates.add(mScanDetail2, mConfig2, 2, 14);
+        // We expect them both to be there
+        assertEquals(2, mWifiCandidates.size());
+        // But just one group
+        assertEquals(1, mWifiCandidates.getGroupedCandidates().size());
+        // Now remove them one at a time
+        WifiCandidates.Candidate c1, c2;
+        c1 = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
+        assertTrue(mWifiCandidates.remove(c1));
+        assertEquals(1, mWifiCandidates.size());
+        assertEquals(1, mWifiCandidates.getGroupedCandidates().size());
+        // Should not be able to remove the one that isn't there
+        assertFalse(mWifiCandidates.remove(c1));
+        // Remove the other one, too
+        c2 = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
+        assertTrue(mWifiCandidates.remove(c2));
+        assertFalse(mWifiCandidates.remove(c2));
+        assertEquals(0, mWifiCandidates.size());
+        assertEquals(0, mWifiCandidates.getGroupedCandidates().size());
+        // Check that we have the right scan details, in either order
+        assertTrue((mScanDetail1 == c1.scanDetail && mScanDetail2 == c2.scanDetail)
+                || (mScanDetail2 == c1.scanDetail && mScanDetail1 == c2.scanDetail));
+    }
+
+    /**
+     * Test replacing a candidate with a higher scoring one
+     */
+    @Test
+    public void testReplace() throws Exception {
+        // Make a duplicate of the first config
+        mConfig2 = new WifiConfiguration(mConfig1);
+        // And the scan result
+        mScanResult2.SSID = mScanResult1.SSID;
+        mScanResult2.BSSID = mScanResult1.BSSID;
+        // Try adding them both, the higher-scoring one second
+        assertTrue(mWifiCandidates.add(mScanDetail2, mConfig2, 2, 14));
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 15));
+        // Only one should survive
+        assertEquals(1, mWifiCandidates.size());
+        // And no faults
+        assertEquals(0, mWifiCandidates.getFaultCount());
+        // Make sure we kept the one with a higher evaluatorScore
+        WifiCandidates.Candidate c;
+        c = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
+        assertEquals(15, c.evaluatorScore);
     }
 
 }

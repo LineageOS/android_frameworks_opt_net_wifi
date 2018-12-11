@@ -16,10 +16,14 @@
 
 package com.android.server.wifi;
 
+import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.util.ArrayMap;
+import android.util.Pair;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.StringJoiner;
 
@@ -33,14 +37,20 @@ public class WifiCandidates {
      * Represents a connectible candidate
      */
     public class Candidate {
+        public final ScanResultMatchInfo matchInfo;
+        public final MacAddress bssid;
         public final ScanDetail scanDetail;
         public final WifiConfiguration config;
         public final int evaluatorIndex;        // First evaluator to nominate this config
         public final int evaluatorScore;        // Score provided by first nominating evaluator
-        public Candidate(ScanDetail scanDetail,
+        public Candidate(ScanResultMatchInfo matchInfo,
+                         MacAddress bssid,
+                         ScanDetail scanDetail,
                          WifiConfiguration config,
                          int evaluatorIndex,
                          int evaluatorScore) {
+            this.matchInfo = matchInfo;
+            this.bssid = bssid;
             this.scanDetail = scanDetail;
             this.config = config;
             this.evaluatorIndex = evaluatorIndex;
@@ -48,8 +58,7 @@ public class WifiCandidates {
         }
     }
 
-    // TODO(b/112196799) - the key for this should also include the BSSID
-    private final Map<ScanResultMatchInfo, Candidate> mCandidateForScanResultMatchInfo =
+    private final Map<Pair<ScanResultMatchInfo, MacAddress>, Candidate> mCandidates =
             new ArrayMap<>();
 
     /**
@@ -65,25 +74,57 @@ public class WifiCandidates {
         if (scanDetail == null) return failure();
         ScanResult scanResult = scanDetail.getScanResult();
         if (scanResult == null) return failure();
+        MacAddress bssid;
+        try {
+            bssid = MacAddress.fromString(scanResult.BSSID);
+        } catch (RuntimeException e) {
+            return failWithException(e);
+        }
         ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(config);
         ScanResultMatchInfo key2 = ScanResultMatchInfo.fromScanResult(scanResult);
         if (!key1.equals(key2)) return failure(key1, key2);
-        Candidate candidate = mCandidateForScanResultMatchInfo.get(key1);
+        Pair key = Pair.create(key1, bssid);
+        Candidate candidate = mCandidates.get(key);
         if (candidate != null) { // check if we want to replace this old candidate
             if (evaluatorIndex < candidate.evaluatorIndex) return failure();
             if (evaluatorIndex > candidate.evaluatorIndex) return false;
             if (evaluatorScore <= candidate.evaluatorScore) return false;
+            remove(candidate);
         }
-        candidate = new Candidate(scanDetail, config, evaluatorIndex, evaluatorScore);
-        mCandidateForScanResultMatchInfo.put(key1, candidate);
+        candidate = new Candidate(key1, bssid, scanDetail, config, evaluatorIndex, evaluatorScore);
+        mCandidates.put(key, candidate);
         return true;
     }
 
     /**
-     * Returns the number of candidates
+     * Removes a candidate
+     */
+    public boolean remove(Candidate candidate) {
+        if (candidate == null) return failure();
+        return mCandidates.remove(Pair.create(candidate.matchInfo, candidate.bssid), candidate);
+    }
+
+    /**
+     * Returns the number of candidates (at the BSSID level)
      */
     public int size() {
-        return mCandidateForScanResultMatchInfo.size();
+        return mCandidates.size();
+    }
+
+    /**
+     * Returns the candidates, grouped by network.
+     */
+    public Collection<Collection<Candidate>> getGroupedCandidates() {
+        Map<Integer, Collection<Candidate>> candidatesForNetworkId = new ArrayMap<>();
+        for (Candidate candidate : mCandidates.values()) {
+            Collection<Candidate> cc = candidatesForNetworkId.get(candidate.config.networkId);
+            if (cc == null) {
+                cc = new ArrayList<>(2); // Guess 2 bssids per network
+                candidatesForNetworkId.put(candidate.config.networkId, cc);
+            }
+            cc.add(candidate);
+        }
+        return candidatesForNetworkId.values();
     }
 
     /**
@@ -130,10 +171,17 @@ public class WifiCandidates {
         for (Object c : culprits) {
             joiner.add("" + c);
         }
-        mLastFault = new IllegalArgumentException(joiner.toString());
+        return failWithException(new IllegalArgumentException(joiner.toString()));
+    }
+
+    /**
+     * As above, if we already have an exception.
+     */
+    private boolean failWithException(RuntimeException e) {
+        mLastFault = e;
         mFaultCount++;
         if (mPicky) {
-            throw mLastFault;
+            throw e;
         }
         return false;
     }
