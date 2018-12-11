@@ -561,7 +561,10 @@ public class WifiNetworkSelector {
 
         // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
+        WifiCandidates wifiCandidates = new WifiCandidates();
+        int evaluatorIndex = 0;
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
+            final int evIndex = evaluatorIndex++; // final required due to lambda below
             localLog("About to run " + registeredEvaluator.getName() + " :");
             WifiConfiguration choice = registeredEvaluator.evaluateNetworks(
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
@@ -569,6 +572,7 @@ public class WifiNetworkSelector {
                     (scanDetail, config, score) -> {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
+                            wifiCandidates.add(scanDetail, config, evIndex, score);
                         }
                     }
                     );
@@ -578,6 +582,11 @@ public class WifiNetworkSelector {
                         + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
                         + selectedNetwork.getNetworkSelectionStatus().getCandidate().BSSID);
             }
+        }
+
+        if (mConnectableNetworks.size() != wifiCandidates.size()) {
+            localLog("Connectable: " + mConnectableNetworks.size()
+                    + " Candidates: " + wifiCandidates.size());
         }
 
         if (selectedNetwork != null) {
