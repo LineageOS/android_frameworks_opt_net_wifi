@@ -447,6 +447,10 @@ public class WifiInjector {
         return mScoringParams;
     }
 
+    public WifiScoreCard getWifiScoreCard() {
+        return mWifiScoreCard;
+    }
+
     public TelephonyManager makeTelephonyManager() {
         // may not be available when WiFi starts
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
