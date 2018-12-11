@@ -72,6 +72,13 @@ public class FrameworkFacade {
     }
 
     /**
+     * Mockable facade to Settings.Secure.getString(.).
+     */
+    public String getSecureStringSetting(Context context, String name) {
+        return Settings.Secure.getString(context.getContentResolver(), name);
+    }
+
+    /**
      * Helper method for classes to register a ContentObserver
      * {@see ContentResolver#registerContentObserver(Uri,boolean,ContentObserver)}.
      *
