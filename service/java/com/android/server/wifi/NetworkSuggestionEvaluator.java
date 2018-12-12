@@ -72,7 +72,8 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
-        Map<WifiNetworkSuggestion, ScanResult> candidateNetworkSuggestions = new HashMap<>();
+        Map<WifiNetworkSuggestion, ScanResult> candidateNetworkSuggestionToScanResultMap =
+                new HashMap<>();
         for (int i = 0; i < scanDetails.size(); i++) {
             ScanDetail scanDetail = scanDetails.get(i);
             ScanResult scanResult = scanDetail.getScanResult();
@@ -89,24 +90,41 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             // All matching network credentials are considered equal. So, put any one of them.
             WifiNetworkSuggestion matchingNetworkSuggestion =
                     matchingNetworkSuggestions.stream().findAny().get();
-            candidateNetworkSuggestions.put(matchingNetworkSuggestion, scanResult);
+            candidateNetworkSuggestionToScanResultMap.put(matchingNetworkSuggestion, scanResult);
             onConnectableListener.onConnectable(
                     scanDetail, matchingNetworkSuggestion.wifiConfiguration, 0);
         }
         // Pick the matching network suggestion corresponding to the highest RSSI. This will need to
         // be replaced by a more sophisticated algorithm.
-        Map.Entry<WifiNetworkSuggestion, ScanResult> candidateNetworkSuggestion =
-                candidateNetworkSuggestions
+        Map.Entry<WifiNetworkSuggestion, ScanResult> candidateNetworkSuggestionToScanResult =
+                candidateNetworkSuggestionToScanResultMap
                         .entrySet()
                         .stream()
                         .max(Comparator.comparing(e -> e.getValue().level))
                         .orElse(null);
-        if (candidateNetworkSuggestion == null) {
+        if (candidateNetworkSuggestionToScanResult == null) {
             mLocalLog.log("did not see any matching network suggestions.");
             return null;
         }
-        return addCandidateToWifiConfigManager(
-                candidateNetworkSuggestion.getKey().wifiConfiguration);
+        WifiNetworkSuggestion candidateNetworkSuggestion =
+                candidateNetworkSuggestionToScanResult.getKey();
+        // Check if we already have a saved network with the same credentials.
+        // Note: This would not happen in the current architecture of network evaluators because
+        // saved network evaluator would run first and find the same candidate & not run any of the
+        // other evaluators. But this architecture could change in the future and we might end
+        // up running through all the evaluators to find all suitable candidates.
+        WifiConfiguration existingSavedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(
+                        candidateNetworkSuggestion.wifiConfiguration.configKey());
+        if (existingSavedNetwork != null) {
+            mLocalLog.log(String.format("network suggestion candidate %s network ID:%d",
+                    WifiNetworkSelector.toScanId(existingSavedNetwork
+                            .getNetworkSelectionStatus()
+                            .getCandidate()),
+                    existingSavedNetwork.networkId));
+            return existingSavedNetwork;
+        }
+        return addCandidateToWifiConfigManager(candidateNetworkSuggestion.wifiConfiguration);
     }
 
     // Add and enable this network to the central database (i.e WifiConfigManager).

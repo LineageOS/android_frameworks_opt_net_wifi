@@ -23,15 +23,20 @@ import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
 import android.support.test.filters.SmallTest;
+import android.util.Base64;
 
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.Network;
+import com.android.server.wifi.WifiScoreCardProto.NetworkList;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.Arrays;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiScoreCard}.
@@ -278,6 +283,33 @@ public class WifiScoreCardTest {
         // Now verify
         String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
         checkSerializationExample(diag, perBssid);
+    }
+
+    /**
+     * Serialization of all internally represented networks
+     */
+    @Test
+    public void testNetworksSerialization() throws Exception {
+        makeSerializedAccessPointExample();
+
+        byte[] serialized = mWifiScoreCard.getNetworkListByteArray(false);
+        byte[] cleaned = mWifiScoreCard.getNetworkListByteArray(true);
+        String base64Encoded = mWifiScoreCard.getNetworkListBase64(true);
+
+        setUp(); // Get back to the initial state
+        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        NetworkList networkList = NetworkList.parseFrom(serialized);
+        assertEquals(diag, 1, networkList.getNetworksCount());
+        Network network = networkList.getNetworks(0);
+        assertEquals(diag, 1, network.getAccessPointsCount());
+        AccessPoint accessPoint = network.getAccessPoints(0);
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.perBssidFromAccessPoint(network.getSsid(),
+                accessPoint);
+        checkSerializationExample(diag, perBssid);
+        // Leaving out the bssids should make the cleaned version shorter.
+        assertTrue(cleaned.length < serialized.length);
+        // Check the Base64 version
+        assertTrue(Arrays.equals(cleaned, Base64.decode(base64Encoded, Base64.DEFAULT)));
     }
 
 }

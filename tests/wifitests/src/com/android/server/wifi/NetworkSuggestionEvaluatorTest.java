@@ -297,6 +297,57 @@ public class NetworkSuggestionEvaluatorTest {
         verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt());
     }
 
+    /**
+     * Ensure that we select the only matching network suggestion, but that matches an existing
+     * saved network.
+     * Expected candidate: suggestionSsids[0]
+     * Expected connectable Networks: {suggestionSsids[0]}
+     */
+    @Test
+    public void testSelectNetworkSuggestionForOneMatchForExistingSavedNetwork() {
+        String[] scanSsids = {"test1", "test2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-67, -76};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\""};
+        int[] securities = {SECURITY_PSK};
+        boolean[] appInteractions = {true};
+        boolean[] meteredness = {true};
+        int[] priorities = {0};
+        int[] uids = {TEST_UID};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
+                appInteractions, meteredness, priorities, uids);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // Existing saved network matching the credentials.
+        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.configKey()))
+                .thenReturn(suggestions[0].wifiConfiguration);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        assertNotNull(candidate);
+        assertEquals(suggestionSsids[0] , candidate.SSID);
+
+        assertEquals(1, connectableNetworks.size());
+        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
+        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
+
+        // check for any saved networks.
+        verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
+        // Verify we did not try to add any new networks or other interactions with
+        // WifiConfigManager.
+        verifyNoMoreInteractions(mWifiConfigManager);
+    }
+
     private void setupAddToWifiConfigManager(WifiConfiguration candidate) {
         // setup & verify the WifiConfigmanager interactions for adding/enabling the network.
         when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
@@ -310,6 +361,9 @@ public class NetworkSuggestionEvaluatorTest {
 
     private void verifyAddToWifiConfigManager(WifiConfiguration candidate,
                                               ScanResult scanResultCandidate) {
+        // check for any saved networks.
+        verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
+
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
         verify(mWifiConfigManager).addOrUpdateNetwork(wifiConfigurationCaptor.capture(), anyInt());

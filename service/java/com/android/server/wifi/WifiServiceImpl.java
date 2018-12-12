@@ -2526,6 +2526,13 @@ public class WifiServiceImpl extends AbstractWifiService {
         } else if (args != null && args.length > 0 && WifiScoreReport.DUMP_ARG.equals(args[0])) {
             WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();
             if (wifiScoreReport != null) wifiScoreReport.dump(fd, pw, args);
+        } else if (args != null && args.length > 0 && WifiScoreCard.DUMP_ARG.equals(args[0])) {
+            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
+                WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
+                if (wifiScoreCard != null) {
+                    pw.println(wifiScoreCard.getNetworkListBase64(true));
+                }
+            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         } else {
             pw.println("Wi-Fi is " + mClientModeImpl.syncGetWifiStateByName());
             pw.println("Verbose logging is " + (mVerboseLoggingEnabled ? "on" : "off"));
@@ -2547,6 +2554,13 @@ public class WifiServiceImpl extends AbstractWifiService {
             pw.println();
             mClientModeImpl.dump(fd, pw, args);
             pw.println();
+            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
+                WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
+                if (wifiScoreCard != null) {
+                    pw.println("WifiScoreCard:");
+                    pw.println(wifiScoreCard.getNetworkListBase64(true));
+                }
+            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
             pw.println();

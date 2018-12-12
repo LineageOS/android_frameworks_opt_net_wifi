@@ -447,6 +447,10 @@ public class WifiInjector {
         return mScoringParams;
     }
 
+    public WifiScoreCard getWifiScoreCard() {
+        return mWifiScoreCard;
+    }
+
     public TelephonyManager makeTelephonyManager() {
         // may not be available when WiFi starts
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
@@ -565,7 +569,8 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(), mContext, nc,
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
-                mClock, this, wifiConnectivityManager, mWifiPermissionsUtil);
+                mClock, this, wifiConnectivityManager, mWifiConfigManager,
+                mWifiPermissionsUtil);
     }
 
     /**
