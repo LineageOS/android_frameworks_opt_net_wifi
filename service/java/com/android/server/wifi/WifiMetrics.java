@@ -25,6 +25,7 @@ import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
 import android.os.Looper;
@@ -47,6 +48,7 @@ import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.hotspot2.Utils;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
@@ -249,6 +251,18 @@ public class WifiMetrics {
     private final LinkedList<WifiUsabilityStats> mWifiUsabilityStatsListGood = new LinkedList<>();
     private int mWifiUsabilityStatsCounter = 0;
     private final Random mRand = new Random();
+
+    private final Map<Integer, DeviceMobilityStatePnoScanStats> mMobilityStatePnoStatsMap =
+            new HashMap<>();
+    private int mCurrentDeviceMobilityState;
+    /**
+     * The timestamp of the start of the current device mobility state.
+     */
+    private long mCurrentDeviceMobilityStateStartMs;
+    /**
+     * The timestamp of when the PNO scan started in the current device mobility state.
+     */
+    private long mCurrentDeviceMobilityStatePnoScanStartMs;
 
     /** Wifi power metrics*/
     private WifiPowerMetrics mWifiPowerMetrics;
@@ -513,6 +527,10 @@ public class WifiMetrics {
                 }
             }
         };
+
+        mCurrentDeviceMobilityState = WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
+        mCurrentDeviceMobilityStateStartMs = mClock.getElapsedSinceBootMillis();
+        mCurrentDeviceMobilityStatePnoScanStartMs = -1;
     }
 
     /**
@@ -2419,6 +2437,11 @@ public class WifiMetrics {
                         printWifiUsabilityStatsEntry(pw, entry);
                     }
                 }
+
+                pw.println("mMobilityStatePnoStatsMap:");
+                for (DeviceMobilityStatePnoScanStats stats : mMobilityStatePnoStatsMap.values()) {
+                    printDeviceMobilityStatePnoScanStats(pw, stats);
+                }
             }
         }
     }
@@ -2439,6 +2462,16 @@ public class WifiMetrics {
         line.append(",total_roam_scan_time_ms=" + entry.totalRoamScanTimeMs);
         line.append(",total_pno_scan_time_ms=" + entry.totalPnoScanTimeMs);
         line.append(",total_hotspot_2_scan_time_ms=" + entry.totalHotspot2ScanTimeMs);
+        pw.println(line.toString());
+    }
+
+    private void printDeviceMobilityStatePnoScanStats(PrintWriter pw,
+            DeviceMobilityStatePnoScanStats stats) {
+        StringBuilder line = new StringBuilder();
+        line.append("device_mobility_state=" + stats.deviceMobilityState);
+        line.append(",num_times_entered_state=" + stats.numTimesEnteredState);
+        line.append(",total_duration_ms=" + stats.totalDurationMs);
+        line.append(",pno_duration_ms=" + stats.pnoDurationMs);
         pw.println(line.toString());
     }
 
@@ -2825,6 +2858,8 @@ public class WifiMetrics {
                 mWifiLogProto.wifiUsabilityStatsList[2 * i + 1] = usabilityStatsBadCopy.remove(
                         mRand.nextInt(usabilityStatsBadCopy.size()));
             }
+            mWifiLogProto.mobilityStatePnoStatsList = mMobilityStatePnoStatsMap.values()
+                    .toArray(new DeviceMobilityStatePnoScanStats[0]);
         }
     }
 
@@ -2913,6 +2948,7 @@ public class WifiMetrics {
             mWifiUsabilityStatsListGood.clear();
             mWifiUsabilityStatsListBad.clear();
             mWifiUsabilityStatsEntriesList.clear();
+            mMobilityStatePnoStatsMap.clear();
         }
     }
 
@@ -3675,6 +3711,73 @@ public class WifiMetrics {
                 mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
             }
             mWifiUsabilityStatsCounter = 0;
+        }
+    }
+
+    private DeviceMobilityStatePnoScanStats getOrCreateDeviceMobilityStatePnoScanStats(
+            @DeviceMobilityState int deviceMobilityState) {
+        DeviceMobilityStatePnoScanStats stats =
+                mMobilityStatePnoStatsMap.get(deviceMobilityState);
+
+        if (stats == null) {
+            stats = new DeviceMobilityStatePnoScanStats();
+            stats.deviceMobilityState = deviceMobilityState;
+            stats.numTimesEnteredState = 0;
+            stats.totalDurationMs = 0;
+            stats.pnoDurationMs = 0;
+            mMobilityStatePnoStatsMap.put(deviceMobilityState, stats);
+        }
+
+        return stats;
+    }
+
+    /**
+     * Reports that the device entered a new mobility state.
+     *
+     * @param newState the new device mobility state.
+     */
+    public void enterDeviceMobilityState(@DeviceMobilityState int newState) {
+        synchronized (mLock) {
+            if (newState == mCurrentDeviceMobilityState) return;
+
+            DeviceMobilityStatePnoScanStats stats =
+                    getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
+            stats.numTimesEnteredState++;
+            long now = mClock.getElapsedSinceBootMillis();
+            stats.totalDurationMs += now - mCurrentDeviceMobilityStateStartMs;
+            mCurrentDeviceMobilityStateStartMs = now;
+            mCurrentDeviceMobilityState = newState;
+        }
+    }
+
+    /**
+     * Logs the start of a PNO scan.
+     */
+    public void logPnoScanStart() {
+        synchronized (mLock) {
+            mCurrentDeviceMobilityStatePnoScanStartMs = mClock.getElapsedSinceBootMillis();
+        }
+    }
+
+    /**
+     * Logs the end of a PNO scan. This is attributed to the current device mobility state, as
+     * logged by {@link #enterDeviceMobilityState(int)}. Thus, if the mobility state changes during
+     * a PNO scan, one should call {@link #logPnoScanStop()}, {@link #enterDeviceMobilityState(int)}
+     * , then {@link #logPnoScanStart()} so that the portion of PNO scan before the mobility state
+     * change can be correctly attributed to the previous mobility state.
+     */
+    public void logPnoScanStop() {
+        synchronized (mLock) {
+            if (mCurrentDeviceMobilityStatePnoScanStartMs < 0) {
+                Log.e(TAG, "Called WifiMetrics#logPNoScanStop() without calling "
+                        + "WifiMetrics#logPnoScanStart() first!");
+                return;
+            }
+            DeviceMobilityStatePnoScanStats stats =
+                    getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
+            long now = mClock.getElapsedSinceBootMillis();
+            stats.pnoDurationMs += now - mCurrentDeviceMobilityStatePnoScanStartMs;
+            mCurrentDeviceMobilityStatePnoScanStartMs = -1;
         }
     }
 }

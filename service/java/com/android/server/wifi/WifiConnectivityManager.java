@@ -955,49 +955,58 @@ public class WifiConnectivityManager {
         startPeriodicSingleScan();
     }
 
+    private static int deviceMobilityStateToPnoScanIntervalMs(@DeviceMobilityState int state) {
+        switch (state) {
+            case WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN:
+            case WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT:
+            case WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT:
+                return MOVING_PNO_SCAN_INTERVAL_MS;
+            case WifiManager.DEVICE_MOBILITY_STATE_STATIONARY:
+                return STATIONARY_PNO_SCAN_INTERVAL_MS;
+            default:
+                return -1;
+        }
+    }
+
     /**
      * Alters the PNO scan interval based on the current device mobility state.
      * If the device is stationary, it will likely not find many new Wifi networks. Thus, increase
      * the interval between scans. Decrease the interval between scans if the device begins to move
      * again.
-     * @param state the new device mobility state
+     * @param newState the new device mobility state
      */
-    public void setDeviceMobilityState(@DeviceMobilityState int state) {
-        int newPnoScanIntervalMs;
-        switch (state) {
-            case WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN:
-            case WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT:
-            case WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT:
-                newPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
-                break;
-            case WifiManager.DEVICE_MOBILITY_STATE_STATIONARY:
-                newPnoScanIntervalMs = STATIONARY_PNO_SCAN_INTERVAL_MS;
-                break;
-            default:
-                Log.e(TAG, "Invalid device mobility state: " + state);
-                return;
+    public void setDeviceMobilityState(@DeviceMobilityState int newState) {
+        int newPnoScanIntervalMs = deviceMobilityStateToPnoScanIntervalMs(newState);
+        if (newPnoScanIntervalMs < 0) {
+            Log.e(TAG, "Invalid device mobility state: " + newState);
+            return;
         }
 
-        // even if state changed, if scan interval did not change, do nothing
-        if (newPnoScanIntervalMs == mPnoScanIntervalMs) return;
-        mPnoScanIntervalMs = newPnoScanIntervalMs;
+        if (newPnoScanIntervalMs == mPnoScanIntervalMs) {
+            if (mPnoScanStarted) {
+                mWifiMetrics.logPnoScanStop();
+                mWifiMetrics.enterDeviceMobilityState(newState);
+                mWifiMetrics.logPnoScanStart();
+            } else {
+                mWifiMetrics.enterDeviceMobilityState(newState);
+            }
+        } else {
+            mPnoScanIntervalMs = newPnoScanIntervalMs;
+            Log.d(TAG, "PNO Scan Interval changed to " + mPnoScanIntervalMs + " ms.");
 
-        Log.d(TAG, "PNO Scan Interval changed to " + mPnoScanIntervalMs + " ms.");
-
-        // do nothing if PNO scan is not currently running
-        if (!mPnoScanStarted) return;
-
-        Log.d(TAG, "Restarting PNO Scan with new scan interval");
-
-        // scan interval changed, so stop current scan and start new scan with updated interval
-        stopPnoScan();
-        startDisconnectedPnoScan();
+            if (mPnoScanStarted) {
+                Log.d(TAG, "Restarting PNO Scan with new scan interval");
+                stopPnoScan();
+                mWifiMetrics.enterDeviceMobilityState(newState);
+                startDisconnectedPnoScan();
+            } else {
+                mWifiMetrics.enterDeviceMobilityState(newState);
+            }
+        }
     }
 
     // Start a DisconnectedPNO scan when screen is off and Wifi is disconnected
     private void startDisconnectedPnoScan() {
-        // TODO(b/29503772): Need to change this interface.
-
         // Initialize PNO settings
         PnoSettings pnoSettings = new PnoSettings();
         List<PnoSettings.PnoNetwork> pnoNetworkList = mConfigManager.retrievePnoNetworkList();
@@ -1030,15 +1039,16 @@ public class WifiConnectivityManager {
 
         mScanner.startDisconnectedPnoScan(scanSettings, pnoSettings, mPnoScanListener);
         mPnoScanStarted = true;
+        mWifiMetrics.logPnoScanStart();
     }
 
     // Stop PNO scan.
     private void stopPnoScan() {
-        if (mPnoScanStarted) {
-            mScanner.stopPnoScan(mPnoScanListener);
-        }
+        if (!mPnoScanStarted) return;
 
+        mScanner.stopPnoScan(mPnoScanListener);
         mPnoScanStarted = false;
+        mWifiMetrics.logPnoScanStop();
     }
 
     // Set up watchdog timer
