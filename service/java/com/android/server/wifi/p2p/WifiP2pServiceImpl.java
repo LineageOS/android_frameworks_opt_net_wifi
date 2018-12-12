@@ -122,6 +122,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private AsyncChannel mReplyChannel = new WifiAsyncChannel(TAG);
     private AsyncChannel mWifiChannel;
     private WifiInjector mWifiInjector;
+    private WifiPermissionsUtil mWifiPermissionsUtil;
 
     private static final Boolean JOIN_GROUP = true;
     private static final Boolean FORM_GROUP = false;
@@ -394,6 +395,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
     public WifiP2pServiceImpl(Context context) {
         mContext = context;
+        mWifiInjector = WifiInjector.getInstance();
+        mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI_P2P, 0, NETWORKTYPE, "");
 
@@ -605,9 +608,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     }
 
     private boolean getWfdPermission(int uid) {
-        if (mWifiInjector == null) {
-            mWifiInjector = WifiInjector.getInstance();
-        }
         WifiPermissionsWrapper wifiPermissionsWrapper = mWifiInjector.getWifiPermissionsWrapper();
         return wifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.CONFIGURE_WIFI_DISPLAY, uid)
@@ -668,8 +668,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private WifiP2pNative mWifiNative = WifiInjector.getInstance().getWifiP2pNative();
         private WifiP2pMonitor mWifiMonitor = WifiInjector.getInstance().getWifiP2pMonitor();
         private final WifiP2pDeviceList mPeers = new WifiP2pDeviceList();
-        // WifiInjector is lazy initialized in P2p Service
-        private WifiInjector mWifiInjector;
         private String mInterfaceName;
 
         // During a connection, supplicant can tell us that a device was lost. From a supplicant's
@@ -1027,11 +1025,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         break;
                     case WifiP2pManager.SET_ONGOING_PEER_CONFIG:
-                        if (mWifiInjector == null) {
-                            mWifiInjector = WifiInjector.getInstance();
-                        }
-                        if (mWifiInjector.getWifiPermissionsUtil()
-                                .checkNetworkStackPermission(message.sendingUid)) {
+                        if (mWifiPermissionsUtil.checkNetworkStackPermission(message.sendingUid)) {
                             WifiP2pConfig peerConfig = (WifiP2pConfig) message.obj;
                             if (isConfigInvalid(peerConfig)) {
                                 loge("Dropping set mSavedPeerConfig requeset" + peerConfig);
@@ -1051,11 +1045,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         break;
                     case WifiP2pManager.REQUEST_ONGOING_PEER_CONFIG:
-                        if (mWifiInjector == null) {
-                            mWifiInjector = WifiInjector.getInstance();
-                        }
-                        if (mWifiInjector.getWifiPermissionsUtil()
-                                .checkNetworkStackPermission(message.sendingUid)) {
+                        if (mWifiPermissionsUtil.checkNetworkStackPermission(message.sendingUid)) {
                             replyToMessage(message,
                                     WifiP2pManager.RESPONSE_ONGOING_PEER_CONFIG, mSavedPeerConfig);
                         } else {
@@ -3632,15 +3622,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
          */
         private WifiP2pDeviceList getPeers(Bundle pkg, int uid) {
             String pkgName = pkg.getString(WifiP2pManager.CALLING_PACKAGE);
-            WifiPermissionsUtil wifiPermissionsUtil;
             // getPeers() is guaranteed to be invoked after Wifi Service is up
             // This ensures getInstance() will return a non-null object now
-            if (mWifiInjector == null) {
-                mWifiInjector = WifiInjector.getInstance();
-            }
-            wifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
             try {
-                wifiPermissionsUtil.enforceCanAccessScanResults(pkgName, uid);
+                mWifiPermissionsUtil.enforceCanAccessScanResults(pkgName, uid);
                 return new WifiP2pDeviceList(mPeers);
             } catch (SecurityException e) {
                 Log.v(TAG, "Security Exception, cannot access peer list");
@@ -3649,9 +3634,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void setPendingFactoryReset(boolean pending) {
-            if (mWifiInjector == null) {
-                mWifiInjector = WifiInjector.getInstance();
-            }
             FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
             facade.setIntegerSetting(mContext,
                     Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
@@ -3659,9 +3641,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private boolean isPendingFactoryReset() {
-            if (mWifiInjector == null) {
-                mWifiInjector = WifiInjector.getInstance();
-            }
             FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
             int val = facade.getIntegerSetting(mContext,
                     Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
@@ -3676,13 +3655,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
          */
         private boolean factoryReset(Bundle pkg, int uid) {
             String pkgName = pkg.getString(WifiP2pManager.CALLING_PACKAGE);
-            if (mWifiInjector == null) {
-                mWifiInjector = WifiInjector.getInstance();
-            }
-            WifiPermissionsUtil wifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
             UserManager userManager = mWifiInjector.getUserManager();
 
-            if (!wifiPermissionsUtil.checkNetworkSettingsPermission(uid)) return false;
+            if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) return false;
 
             if (userManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)) return false;
 
