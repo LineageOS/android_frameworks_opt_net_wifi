@@ -209,6 +209,7 @@ public class PasspointProvisioner {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "startProvisioning received in state=" + mState);
             }
+
             if (mState != STATE_INIT) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "State Machine needs to be reset before starting provisioning");
@@ -581,6 +582,9 @@ public class PasspointProvisioner {
                         ProvisioningCallback.OSU_FAILURE_NO_AAA_TRUST_ROOT_CERTIFICATE);
                 return;
             }
+
+            // Save the service friendly names from OsuProvider to keep this in the profile.
+            mPasspointConfiguration.setServiceFriendlyNames(mOsuProvider.getFriendlyNameList());
 
             // TODO(117717842) : Currently PasspointConfiguration is only allowed to save a single
             // trust CA certificate for AAA server. So, add a routine in PasspointConfiguration
@@ -982,8 +986,7 @@ public class PasspointProvisioner {
                                 Constants.ANQPElementType.HSOSUProviders);
                 if (element == null) continue;
                 for (OsuProviderInfo info : element.getProviders()) {
-                    OsuProvider candidate = new OsuProvider(null,
-                            info.getFriendlyName(),
+                    OsuProvider candidate = new OsuProvider(null, info.getFriendlyNames(),
                             info.getServiceDescription(), info.getServerUri(),
                             info.getNetworkAccessIdentifier(), info.getMethodList(), null);
                     if (candidate.equals(osuProvider)) {

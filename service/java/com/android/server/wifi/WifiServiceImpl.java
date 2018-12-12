@@ -128,6 +128,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -1838,6 +1839,32 @@ public class WifiServiceImpl extends AbstractWifiService {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
         return mClientModeImpl.syncGetMatchingOsuProviders(scanResults, mClientModeImplChannel);
+    }
+
+    /**
+     * Returns the matching Passpoint configurations for given OSU(Online Sign-Up) providers.
+     *
+     * @param osuProviders a list of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
+     */
+    @Override
+    public Map<OsuProvider, PasspointConfiguration> getMatchingPasspointConfigsForOsuProviders(
+            List<OsuProvider> osuProviders) {
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getMatchingPasspointConfigsForOsuProviders uid=%").c(
+                    Binder.getCallingUid()).flush();
+        }
+        if (!mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_WIFI_PASSPOINT)) {
+            throw new UnsupportedOperationException("Passpoint not enabled");
+        }
+        if (osuProviders == null) {
+            Log.e(TAG, "Attempt to retrieve Passpoint configuration with null osuProviders");
+            return new HashMap<>();
+        }
+        return mClientModeImpl.syncGetMatchingPasspointConfigsForOsuProviders(osuProviders,
+                mClientModeImplChannel);
     }
 
     /**
