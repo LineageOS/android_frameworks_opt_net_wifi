@@ -274,6 +274,7 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
             return;
         }
 
+        group.setFrequency(frequency);
         group.setIsGroupOwner(isGo);
         group.setPassphrase(passphrase);
 
