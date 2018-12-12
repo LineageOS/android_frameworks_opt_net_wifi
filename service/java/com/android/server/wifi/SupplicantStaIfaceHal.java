@@ -21,8 +21,7 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
 
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQP3GPPNetwork;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPDomName;
-import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType
-        .ANQPIPAddrAvailability;
+import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPIPAddrAvailability;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPNAIRealm;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPRoamingConsortium;
 import static com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType.ANQPVenueName;
@@ -38,11 +37,11 @@ import android.hardware.wifi.supplicant.V1_0.ISupplicantIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantNetwork;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
+import android.hardware.wifi.supplicant.V1_0.ISupplicantStaNetwork;
 import android.hardware.wifi.supplicant.V1_0.IfaceType;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
-import android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.IpConfiguration;
@@ -2810,7 +2809,8 @@ public class SupplicantStaIfaceHal {
         int advancedCapabilities = 0;
         int keyMgmtCapabilities = getKeyMgmtCapabilities(ifaceName);
 
-        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.SAE) != 0) {
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.SAE) != 0) {
             advancedCapabilities |= WIFI_FEATURE_WPA3_SAE;
 
             if (mVerboseLoggingEnabled) {
@@ -2818,7 +2818,8 @@ public class SupplicantStaIfaceHal {
             }
         }
 
-        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192) != 0) {
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.SUITE_B_192) != 0) {
             advancedCapabilities |= WIFI_FEATURE_WPA3_SUITE_B;
 
             if (mVerboseLoggingEnabled) {
@@ -2826,7 +2827,8 @@ public class SupplicantStaIfaceHal {
             }
         }
 
-        if ((keyMgmtCapabilities & ISupplicantStaNetwork.KeyMgmtMask.OWE) != 0) {
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.OWE) != 0) {
             advancedCapabilities |= WIFI_FEATURE_OWE;
 
             if (mVerboseLoggingEnabled) {
