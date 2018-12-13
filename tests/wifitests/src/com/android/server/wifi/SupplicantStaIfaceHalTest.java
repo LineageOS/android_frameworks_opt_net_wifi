@@ -50,11 +50,11 @@ import android.hardware.wifi.supplicant.V1_0.ISupplicantIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIface;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback.BssidChangeReason;
+import android.hardware.wifi.supplicant.V1_0.ISupplicantStaNetwork;
 import android.hardware.wifi.supplicant.V1_0.IfaceType;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
-import android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.IpConfiguration;
@@ -1723,7 +1723,8 @@ public class SupplicantStaIfaceHalTest {
 
         executeAndValidateInitializationSequenceV1_2();
 
-        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.SAE))
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(android.hardware.wifi.supplicant.V1_2
+                .ISupplicantStaNetwork.KeyMgmtMask.SAE))
                 .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
                 android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
                         .getKeyMgmtCapabilitiesCallback.class));
@@ -1747,7 +1748,8 @@ public class SupplicantStaIfaceHalTest {
 
         executeAndValidateInitializationSequenceV1_2();
 
-        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192))
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(android.hardware.wifi.supplicant.V1_2
+                .ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192))
                 .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
                 android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
                         .getKeyMgmtCapabilitiesCallback.class));
@@ -1772,7 +1774,8 @@ public class SupplicantStaIfaceHalTest {
 
         executeAndValidateInitializationSequenceV1_2();
 
-        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.OWE))
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(android.hardware.wifi.supplicant.V1_2
+                .ISupplicantStaNetwork.KeyMgmtMask.OWE))
                 .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
                 android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
                         .getKeyMgmtCapabilitiesCallback.class));
@@ -1796,8 +1799,9 @@ public class SupplicantStaIfaceHalTest {
 
         executeAndValidateInitializationSequenceV1_2();
 
-        doAnswer(new GetKeyMgmtCapabilitiesAnswer(ISupplicantStaNetwork.KeyMgmtMask.OWE
-                | ISupplicantStaNetwork.KeyMgmtMask.SAE))
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(android.hardware.wifi.supplicant.V1_2
+                .ISupplicantStaNetwork.KeyMgmtMask.OWE
+                | android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask.SAE))
                 .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
                 android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
                         .getKeyMgmtCapabilitiesCallback.class));

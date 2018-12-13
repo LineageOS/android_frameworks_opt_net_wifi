@@ -16,10 +16,10 @@
 package com.android.server.wifi;
 
 import android.content.Context;
+import android.hardware.wifi.supplicant.V1_0.ISupplicantStaNetwork;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaNetworkCallback;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
-import android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.HidlSupport.Mutable;
@@ -727,13 +727,16 @@ public class SupplicantStaNetworkHal {
                     mask |= ISupplicantStaNetwork.KeyMgmtMask.FT_EAP;
                     break;
                 case WifiConfiguration.KeyMgmt.OWE:
-                    mask |= ISupplicantStaNetwork.KeyMgmtMask.OWE;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                            .OWE;
                     break;
                 case WifiConfiguration.KeyMgmt.SAE:
-                    mask |= ISupplicantStaNetwork.KeyMgmtMask.SAE;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                            .SAE;
                     break;
                 case WifiConfiguration.KeyMgmt.SUITE_B_192:
-                    mask |= ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                            .SUITE_B_192;
                     break;
                 case WifiConfiguration.KeyMgmt.WPA2_PSK: // This should never happen
                 default:
@@ -828,13 +831,16 @@ public class SupplicantStaNetworkHal {
                 groupMgmtCipherMask.nextSetBit(bit + 1)) {
             switch (bit) {
                 case WifiConfiguration.GroupMgmtCipher.BIP_CMAC_256:
-                    mask |= ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_CMAC_256;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                            .GroupMgmtCipherMask.BIP_CMAC_256;
                     break;
                 case WifiConfiguration.GroupMgmtCipher.BIP_GMAC_128:
-                    mask |= ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_GMAC_128;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                            .GroupMgmtCipherMask.BIP_GMAC_128;
                     break;
                 case WifiConfiguration.GroupMgmtCipher.BIP_GMAC_256:
-                    mask |= ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_GMAC_256;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                            .GroupMgmtCipherMask.BIP_GMAC_256;
                     break;
                 default:
                     throw new IllegalArgumentException(
@@ -859,7 +865,8 @@ public class SupplicantStaNetworkHal {
                     mask |= ISupplicantStaNetwork.PairwiseCipherMask.CCMP;
                     break;
                 case WifiConfiguration.PairwiseCipher.GCMP_256:
-                    mask |= ISupplicantStaNetwork.PairwiseCipherMask.GCMP_256;
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                            .PairwiseCipherMask.GCMP_256;
                     break;
                 default:
                     throw new IllegalArgumentException(
@@ -950,14 +957,14 @@ public class SupplicantStaNetworkHal {
                 mask, ISupplicantStaNetwork.KeyMgmtMask.FT_EAP, bitset,
                 WifiConfiguration.KeyMgmt.FT_EAP);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.KeyMgmtMask.SAE, bitset,
-                WifiConfiguration.KeyMgmt.SAE);
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask.SAE,
+                bitset, WifiConfiguration.KeyMgmt.SAE);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.KeyMgmtMask.OWE, bitset,
-                WifiConfiguration.KeyMgmt.OWE);
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask.OWE,
+                bitset, WifiConfiguration.KeyMgmt.OWE);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.KeyMgmtMask.SUITE_B_192, bitset,
-                WifiConfiguration.KeyMgmt.SUITE_B_192);
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                        .SUITE_B_192, bitset, WifiConfiguration.KeyMgmt.SUITE_B_192);
 
         if (mask != 0) {
             throw new IllegalArgumentException(
@@ -1017,8 +1024,8 @@ public class SupplicantStaNetworkHal {
                 mask, ISupplicantStaNetwork.GroupCipherMask.CCMP, bitset,
                 WifiConfiguration.GroupCipher.CCMP);
         mask = supplicantMaskValueToWifiConfigurationBitSet(mask,
-                ISupplicantStaNetwork.GroupCipherMask.GCMP_256, bitset,
-                WifiConfiguration.GroupCipher.GCMP_256);
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.GroupCipherMask
+                        .GCMP_256, bitset, WifiConfiguration.GroupCipher.GCMP_256);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
                 mask, ISupplicantStaNetwork.GroupCipherMask.GTK_NOT_USED, bitset,
                 WifiConfiguration.GroupCipher.GTK_NOT_USED);
@@ -1032,13 +1039,16 @@ public class SupplicantStaNetworkHal {
     private static BitSet supplicantToWifiConfigurationGroupMgmtCipherMask(int mask) {
         BitSet bitset = new BitSet();
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_GMAC_128, bitset,
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                        .GroupMgmtCipherMask.BIP_GMAC_128, bitset,
                 WifiConfiguration.GroupMgmtCipher.BIP_GMAC_128);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_GMAC_256, bitset,
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                        .GroupMgmtCipherMask.BIP_GMAC_256, bitset,
                 WifiConfiguration.GroupMgmtCipher.BIP_GMAC_256);
         mask = supplicantMaskValueToWifiConfigurationBitSet(
-                mask, ISupplicantStaNetwork.GroupMgmtCipherMask.BIP_CMAC_256, bitset,
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                        .GroupMgmtCipherMask.BIP_CMAC_256, bitset,
                 WifiConfiguration.GroupMgmtCipher.BIP_CMAC_256);
         if (mask != 0) {
             throw new IllegalArgumentException(
@@ -1059,7 +1069,8 @@ public class SupplicantStaNetworkHal {
                 mask, ISupplicantStaNetwork.PairwiseCipherMask.CCMP, bitset,
                 WifiConfiguration.PairwiseCipher.CCMP);
         mask = supplicantMaskValueToWifiConfigurationBitSet(mask,
-                ISupplicantStaNetwork.PairwiseCipherMask.GCMP_256, bitset,
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.PairwiseCipherMask
+                        .GCMP_256, bitset,
                 WifiConfiguration.PairwiseCipher.GCMP_256);
         if (mask != 0) {
             throw new IllegalArgumentException(
@@ -1990,7 +2001,7 @@ public class SupplicantStaNetworkHal {
                 iSupplicantStaNetworkV12 = getV1_2StaNetwork();
                 if (iSupplicantStaNetworkV12 != null) {
                     MutableBoolean statusOk = new MutableBoolean(false);
-                    mISupplicantStaNetwork.getGroupMgmtCipher((SupplicantStatus status,
+                    iSupplicantStaNetworkV12.getGroupMgmtCipher((SupplicantStatus status,
                             int groupMgmtCipherMaskValue) -> {
                         statusOk.value = status.code == SupplicantStatusCode.SUCCESS;
                         if (statusOk.value) {
