@@ -37,7 +37,8 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.Settings;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;

@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import android.support.test.filters.SmallTest;
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.hotspot2.soap.command.SppCommand;
 

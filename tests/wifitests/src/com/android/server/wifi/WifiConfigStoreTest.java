@@ -25,7 +25,8 @@ import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.WifiConfigStore.StoreData;

@@ -33,7 +33,8 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.test.TestLooper;
 import android.provider.Settings;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
 

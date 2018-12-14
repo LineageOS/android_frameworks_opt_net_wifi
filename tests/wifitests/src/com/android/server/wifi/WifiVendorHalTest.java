@@ -88,9 +88,10 @@ import android.net.wifi.WifiSsid;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.system.OsConstants;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
 import com.android.server.wifi.WifiLinkLayerStats.ChannelStats;

@@ -31,8 +31,9 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiInfo;
 import android.os.SystemClock;
-import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;

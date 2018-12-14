@@ -26,9 +26,10 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
-import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;

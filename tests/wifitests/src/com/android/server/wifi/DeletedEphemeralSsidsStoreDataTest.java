@@ -19,8 +19,9 @@ package com.android.server.wifi;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import android.support.test.filters.SmallTest;
 import android.util.Xml;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FastXmlSerializer;
 

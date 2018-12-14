@@ -21,7 +21,8 @@ import static org.mockito.Mockito.*;
 
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 

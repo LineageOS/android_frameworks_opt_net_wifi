@@ -26,10 +26,11 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.hardware.wifi.V1_0.NanStatusType;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
-import android.support.test.filters.SmallTest;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.nano.WifiMetricsProto;

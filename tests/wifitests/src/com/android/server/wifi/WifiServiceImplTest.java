@@ -94,7 +94,8 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.os.PowerProfile;
 import com.android.internal.telephony.TelephonyIntents;
