@@ -20,11 +20,11 @@ import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.util.ArrayMap;
-import android.util.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 /**
@@ -36,30 +36,61 @@ public class WifiCandidates {
     /**
      * Represents a connectible candidate
      */
-    public class Candidate {
-        public final ScanResultMatchInfo matchInfo;
-        public final MacAddress bssid;
+    public static class Candidate {
+        public final Key key;                   // SSID/sectype/BSSID/configId
         public final ScanDetail scanDetail;
         public final WifiConfiguration config;
         public final int evaluatorIndex;        // First evaluator to nominate this config
         public final int evaluatorScore;        // Score provided by first nominating evaluator
-        public Candidate(ScanResultMatchInfo matchInfo,
-                         MacAddress bssid,
+        // TODO - More scoring-related fields here
+
+        public Candidate(Key key,
                          ScanDetail scanDetail,
                          WifiConfiguration config,
                          int evaluatorIndex,
                          int evaluatorScore) {
-            this.matchInfo = matchInfo;
-            this.bssid = bssid;
+            this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
             this.evaluatorIndex = evaluatorIndex;
             this.evaluatorScore = evaluatorScore;
         }
+
     }
 
-    private final Map<Pair<ScanResultMatchInfo, MacAddress>, Candidate> mCandidates =
-            new ArrayMap<>();
+    /**
+     * The key used for tracking candidates, consisting of SSID, security type, BSSID, and network
+     * configuration id.
+     */
+    public static class Key {
+        public final ScanResultMatchInfo matchInfo; // Contains the SSID and security type
+        public final MacAddress bssid;
+        public final int networkId;                 // network configuration id
+
+        public Key(ScanResultMatchInfo matchInfo,
+                   MacAddress bssid,
+                   int networkId) {
+            this.matchInfo = matchInfo;
+            this.bssid = bssid;
+            this.networkId = networkId;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof Key)) return false;
+            Key that = (Key) other;
+            return (this.matchInfo.equals(that.matchInfo)
+                    && this.bssid.equals(that.bssid)
+                    && this.networkId == that.networkId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(matchInfo, bssid, networkId);
+        }
+    }
+
+    private final Map<Key, Candidate> mCandidates = new ArrayMap<>();
 
     /**
      * Adds a new candidate
@@ -83,25 +114,28 @@ public class WifiCandidates {
         ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(config);
         ScanResultMatchInfo key2 = ScanResultMatchInfo.fromScanResult(scanResult);
         if (!key1.equals(key2)) return failure(key1, key2);
-        Pair key = Pair.create(key1, bssid);
-        Candidate candidate = mCandidates.get(key);
-        if (candidate != null) { // check if we want to replace this old candidate
-            if (evaluatorIndex < candidate.evaluatorIndex) return failure();
-            if (evaluatorIndex > candidate.evaluatorIndex) return false;
-            if (evaluatorScore <= candidate.evaluatorScore) return false;
-            remove(candidate);
+        Key key = new Key(key1, bssid, config.networkId);
+        Candidate old = mCandidates.get(key);
+        if (old != null) {
+            // check if we want to replace this old candidate
+            if (evaluatorIndex < old.evaluatorIndex) return failure();
+            if (evaluatorIndex > old.evaluatorIndex) return false;
+            if (evaluatorScore <= old.evaluatorScore) return false;
+            remove(old);
         }
-        candidate = new Candidate(key1, bssid, scanDetail, config, evaluatorIndex, evaluatorScore);
+        Candidate candidate = new Candidate(key,
+                scanDetail, config, evaluatorIndex, evaluatorScore);
         mCandidates.put(key, candidate);
         return true;
     }
 
     /**
      * Removes a candidate
+     * @returns true if the candidate was successfully removed
      */
     public boolean remove(Candidate candidate) {
         if (candidate == null) return failure();
-        return mCandidates.remove(Pair.create(candidate.matchInfo, candidate.bssid), candidate);
+        return mCandidates.remove(candidate.key, candidate);
     }
 
     /**
@@ -117,10 +151,10 @@ public class WifiCandidates {
     public Collection<Collection<Candidate>> getGroupedCandidates() {
         Map<Integer, Collection<Candidate>> candidatesForNetworkId = new ArrayMap<>();
         for (Candidate candidate : mCandidates.values()) {
-            Collection<Candidate> cc = candidatesForNetworkId.get(candidate.config.networkId);
+            Collection<Candidate> cc = candidatesForNetworkId.get(candidate.key.networkId);
             if (cc == null) {
                 cc = new ArrayList<>(2); // Guess 2 bssids per network
-                candidatesForNetworkId.put(candidate.config.networkId, cc);
+                candidatesForNetworkId.put(candidate.key.networkId, cc);
             }
             cc.add(candidate);
         }

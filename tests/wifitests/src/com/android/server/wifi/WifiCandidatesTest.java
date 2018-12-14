@@ -21,6 +21,7 @@ import static com.android.server.wifi.util.NativeUtil.removeEnclosingQuotes;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
@@ -118,6 +119,38 @@ public class WifiCandidatesTest {
 
         assertEquals(0, mWifiCandidates.getFaultCount());
         assertNull(mWifiCandidates.getLastFault());
+    }
+
+    /**
+     * Test Key equals and hashCode methods
+     */
+    @Test
+    public void testKeyEquivalence() throws Exception {
+        ScanResultMatchInfo matchInfo1 = ScanResultMatchInfo.fromWifiConfiguration(mConfig1);
+        ScanResultMatchInfo matchInfo1Prime = ScanResultMatchInfo.fromWifiConfiguration(mConfig1);
+        ScanResultMatchInfo matchInfo2 = ScanResultMatchInfo.fromWifiConfiguration(mConfig2);
+        assertFalse(matchInfo1 == matchInfo1Prime); // Checking assumption
+        MacAddress mac1 = MacAddress.createRandomUnicastAddress();
+        MacAddress mac2 = MacAddress.createRandomUnicastAddress();
+        assertNotEquals(mac1, mac2); // really tiny probablility of failing here
+
+        WifiCandidates.Key key1 = new WifiCandidates.Key(matchInfo1, mac1, 1);
+
+        assertFalse(key1.equals(null));
+        assertFalse(key1.equals((Integer) 0));
+        // Same inputs should give equal results
+        assertEquals(key1, new WifiCandidates.Key(matchInfo1, mac1, 1));
+        // Equal inputs should give equal results
+        assertEquals(key1, new WifiCandidates.Key(matchInfo1Prime, mac1, 1));
+        // Hash codes of equal things should be equal
+        assertEquals(key1.hashCode(), key1.hashCode());
+        assertEquals(key1.hashCode(), new WifiCandidates.Key(matchInfo1, mac1, 1).hashCode());
+        assertEquals(key1.hashCode(), new WifiCandidates.Key(matchInfo1Prime, mac1, 1).hashCode());
+
+        // Unequal inputs should give unequal results
+        assertFalse(key1.equals(new WifiCandidates.Key(matchInfo2, mac1, 1)));
+        assertFalse(key1.equals(new WifiCandidates.Key(matchInfo1, mac2, 1)));
+        assertFalse(key1.equals(new WifiCandidates.Key(matchInfo1, mac1, 2)));
     }
 
     /**
