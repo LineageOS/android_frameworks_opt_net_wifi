@@ -1273,6 +1273,16 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 if (DBG) logd(getName());
             }
 
+            private void setupInterfaceFeatures(String interfaceName) {
+                long featureSets = mWifiNative.getSupportedFeatureSet(interfaceName);
+                Log.i(TAG, "P2p feature set 0x" + Long.toHexString(featureSets));
+
+                if ((featureSets & WifiManager.WIFI_FEATURE_P2P_RAND_MAC) != 0) {
+                    Log.i(TAG, "Supported feature: P2P MAC randomization");
+                    mWifiNative.setMacRandomization(true);
+                }
+            }
+
             @Override
             public boolean processMessage(Message message) {
                 if (DBG) logd(getName() + message.toString());
@@ -1291,6 +1301,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             Log.e(TAG, "Failed to setup interface for P2P");
                             break;
                         }
+                        setupInterfaceFeatures(mInterfaceName);
                         try {
                             mNwService.setInterfaceUp(mInterfaceName);
                         } catch (RemoteException re) {
