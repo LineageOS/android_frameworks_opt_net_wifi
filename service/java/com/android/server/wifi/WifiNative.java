@@ -1407,6 +1407,15 @@ public class WifiNative {
         return mWifiVendorHal.setMacAddress(interfaceName, mac);
     }
 
+    /**
+     * Get the factory MAC address of the given interface
+     * @param interfaceName Name of the interface.
+     * @return factory MAC address, or null on a failed call or if feature is unavailable.
+     */
+    public MacAddress getFactoryMacAddress(@NonNull String interfaceName) {
+        return mWifiVendorHal.getFactoryMacAddress(interfaceName);
+    }
+
     /********************************************************
      * Hostapd operations
      ********************************************************/

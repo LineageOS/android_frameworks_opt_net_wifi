@@ -1304,6 +1304,34 @@ public class WifiVendorHal {
     }
 
     /**
+     * Get factory MAC address of the given interface
+     *
+     * @param ifaceName Name of the interface
+     * @return factory MAC address of the interface or null.
+     */
+    public MacAddress getFactoryMacAddress(@NonNull String ifaceName) {
+        class AnswerBox {
+            public MacAddress mac = null;
+        }
+        synchronized (sLock) {
+            try {
+                android.hardware.wifi.V1_3.IWifiStaIface ifaceV13 =
+                        getWifiStaIfaceForV1_3Mockable(ifaceName);
+                if (ifaceV13 == null) return null;
+                AnswerBox box = new AnswerBox();
+                ifaceV13.getFactoryMacAddress((status, macBytes) -> {
+                    if (!ok(status)) return;
+                    box.mac = MacAddress.fromBytes(macBytes);
+                });
+                return box.mac;
+            } catch (RemoteException e) {
+                handleRemoteException(e);
+                return null;
+            }
+        }
+    }
+
+    /**
      * Get the APF (Android Packet Filter) capabilities of the device
      *
      * @param ifaceName Name of the interface.

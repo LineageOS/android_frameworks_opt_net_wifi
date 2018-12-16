@@ -813,6 +813,26 @@ public class WifiVendorHalTest {
     }
 
     /**
+     * Test |getFactoryMacAddress| gets called when the hal version is V1_3
+     * @throws Exception
+     */
+    @Test
+    public void testGetFactoryMacWithHalV1_3() throws Exception {
+        doAnswer(new AnswerWithArguments() {
+            public void answer(
+                    android.hardware.wifi.V1_3.IWifiStaIface.getFactoryMacAddressCallback cb)
+                    throws RemoteException {
+                cb.onValues(mWifiStatusSuccess, MacAddress.BROADCAST_ADDRESS.toByteArray());
+            }
+        }).when(mIWifiStaIfaceV13).getFactoryMacAddress(any(
+                android.hardware.wifi.V1_3.IWifiStaIface.getFactoryMacAddressCallback.class));
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        assertEquals(MacAddress.BROADCAST_ADDRESS.toString(),
+                mWifiVendorHal.getFactoryMacAddress(TEST_IFACE_NAME).toString());
+        verify(mIWifiStaIfaceV13).getFactoryMacAddress(any());
+    }
+
+    /**
      * Test enablement of link layer stats after startup
      *
      * Request link layer stats before HAL start
