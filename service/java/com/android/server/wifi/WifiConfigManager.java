@@ -1100,9 +1100,11 @@ public class WifiConfigManager {
         }
 
         if (WifiConfigurationUtil.hasMacRandomizationSettingsChanged(existingInternalConfig,
-                newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
+                newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS");
+                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS or"
+                    + "NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
