@@ -120,7 +120,9 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -472,7 +474,7 @@ public class ClientModeImpl extends StateMachine {
     /* Disconnecting state watchdog */
     static final int CMD_DISCONNECTING_WATCHDOG_TIMER                   = BASE + 96;
 
-    /* Remove a packages associated configrations */
+    /* Remove a packages associated configurations */
     static final int CMD_REMOVE_APP_CONFIGURATIONS                      = BASE + 97;
 
     /* Disable an ephemeral network */
@@ -498,6 +500,9 @@ public class ClientModeImpl extends StateMachine {
 
     // Get the list of OSU providers associated with a Passpoint network.
     static final int CMD_GET_MATCHING_OSU_PROVIDERS                     = BASE + 109;
+
+    // Get the list of installed Passpoint configurations matched with OSU providers
+    static final int CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS = BASE + 110;
 
     /* Commands from/to the SupplicantStateTracker */
     /* Reset the supplicant state tracker */
@@ -1633,6 +1638,24 @@ public class ClientModeImpl extends StateMachine {
         List<OsuProvider> providers = new ArrayList<>((Set<OsuProvider>) resultMsg.obj);
         resultMsg.recycle();
         return providers;
+    }
+
+    /**
+     * Returns the matching Passpoint configurations for given OSU(Online Sign-Up) Providers
+     *
+     * @param osuProviders a list of {@link OsuProvider}
+     * @param channel  AsyncChannel to use for the response
+     * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
+     */
+    public Map<OsuProvider, PasspointConfiguration> syncGetMatchingPasspointConfigsForOsuProviders(
+            List<OsuProvider> osuProviders, AsyncChannel channel) {
+        Message resultMsg =
+                channel.sendMessageSynchronously(
+                        CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS, osuProviders);
+        Map<OsuProvider, PasspointConfiguration> result =
+                (Map<OsuProvider, PasspointConfiguration>) resultMsg.obj;
+        resultMsg.recycle();
+        return result;
     }
 
     /**
@@ -3499,6 +3522,10 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
                     replyToMessage(message, message.what, new ArrayList<OsuProvider>());
                     break;
+                case CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS:
+                    replyToMessage(message, message.what,
+                            new HashMap<OsuProvider, PasspointConfiguration>());
+                    break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     replyToMessage(message, message.what, 0);
                     break;
@@ -4035,6 +4062,11 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what,
                             mPasspointManager.getMatchingOsuProviders(
                                     (List<ScanResult>) message.obj));
+                    break;
+                case CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS:
+                    replyToMessage(message, message.what,
+                            mPasspointManager.getMatchingPasspointConfigsForOsuProviders(
+                                    (List<OsuProvider>) message.obj));
                     break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;
