@@ -54,7 +54,6 @@ import com.android.server.wifi.hotspot2.anqp.Constants;
 import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
-import com.android.server.wifi.util.ScanResultUtil;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -540,30 +539,34 @@ public class PasspointManager {
     }
 
     /**
-     * Match the given WiFi APs to all installed Passpoint configurations. Return the list of all
-     * matching configurations (or an empty list if none).
+     * Returns a list of FQDN (Fully Qualified Domain Name) for installed Passpoint configurations.
+     *
+     * Return the map of all matching configurations with corresponding scanResults (or an empty
+     * map if none).
      *
      * @param scanResults The list of scan results
-     * @return List of {@link WifiConfiguration} that might have duplicate entries.
+     * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
+     * scanResults.
      */
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+    public Map<String, List<ScanResult>> getAllMatchingFqdnsForScanResults(
+            List<ScanResult> scanResults) {
         if (scanResults == null) {
             Log.e(TAG, "Attempt to get matching config for a null ScanResults");
-            return new ArrayList<>();
+            return new HashMap<>();
         }
-
-        List<WifiConfiguration> configs = new ArrayList<>();
+        Map<String, List<ScanResult>> configs = new HashMap<>();
         for (ScanResult scanResult : scanResults) {
             if (!scanResult.isPasspointNetwork()) continue;
             List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
                     scanResult);
             for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
                 WifiConfiguration config = matchedProvider.first.getWifiConfig();
-                config.SSID = ScanResultUtil.createQuotedSSID(scanResult.SSID);
-                if (matchedProvider.second == PasspointMatch.HomeProvider) {
-                    config.isHomeProviderNetwork = true;
+                List<ScanResult> matchingScanResults = configs.get(config.FQDN);
+                if (matchingScanResults == null) {
+                    matchingScanResults = new ArrayList<>();
+                    configs.put(config.FQDN, matchingScanResults);
                 }
-                configs.add(config);
+                matchingScanResults.add(scanResult);
             }
         }
 
@@ -571,7 +574,7 @@ public class PasspointManager {
     }
 
     /**
-     * Return the set of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
+     * Returns the set of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
      * of ScanResult.
      *
      * An empty set will be returned when an invalid scanResults are provided or no match is found.
@@ -646,6 +649,29 @@ public class PasspointManager {
             }
         }
         return matchingPasspointConfigs;
+    }
+
+    /**
+     * Returns the corresponding wifi configurations for given FQDN (Fully Qualified Domain Name)
+     * list.
+     *
+     * An empty list will be returned when no match is found.
+     *
+     * @param fqdnList a list of FQDN
+     * @return List of {@link WifiConfiguration} converted from {@link PasspointProvider}
+     */
+    public List<WifiConfiguration> getWifiConfigsForPasspointProfiles(List<String> fqdnList) {
+        Set<String> fqdnSet = new HashSet<>();
+        fqdnSet.addAll(fqdnList);
+        List<WifiConfiguration> configs = new ArrayList<>();
+
+        for (String fqdn: fqdnSet) {
+            PasspointProvider provider = mProviders.get(fqdn);
+            if (provider != null) {
+                configs.add(provider.getWifiConfig());
+            }
+        }
+        return configs;
     }
 
     /**
