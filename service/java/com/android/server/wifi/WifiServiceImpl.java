@@ -66,6 +66,7 @@ import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
@@ -3118,5 +3119,25 @@ public class WifiServiceImpl extends AbstractWifiService {
             return result.isEmpty() ? null : result.stream().toArray(String[]::new);
         }
         return null;
+    }
+
+    /**
+     * Sets the current device mobility state.
+     * @param state the new device mobility state
+     */
+    @Override
+    public void setDeviceMobilityState(@DeviceMobilityState int state) {
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_SET_DEVICE_MOBILITY_STATE, "WifiService");
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("setDeviceMobilityState uid=% state=%")
+                    .c(Binder.getCallingUid())
+                    .c(state)
+                    .flush();
+        }
+        // Post operation to handler thread
+        mWifiInjector.getClientModeImplHandler().post(
+                () -> mClientModeImpl.setDeviceMobilityState(state));
     }
 }

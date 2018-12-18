@@ -3047,4 +3047,11 @@ public class ClientModeImplTest {
         assertNull(mCmi.getFactoryMacAddress());
         verify(mWifiNative).getFactoryMacAddress(WIFI_IFACE_NAME);
     }
+
+    @Test
+    public void testSetDeviceMobilityState() {
+        mCmi.setDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        verify(mWifiConnectivityManager).setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+    }
 }

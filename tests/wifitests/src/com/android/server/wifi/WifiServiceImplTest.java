@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_STATIONARY;
 import static android.net.wifi.WifiManager.HOTSPOT_FAILED;
 import static android.net.wifi.WifiManager.HOTSPOT_STARTED;
 import static android.net.wifi.WifiManager.HOTSPOT_STOPPED;
@@ -3140,5 +3141,35 @@ public class WifiServiceImplTest {
             assertTrue("Exception message should contain 'factory MAC'",
                     e.toString().contains("factory MAC"));
         }
+    }
+
+    /**
+     * Verify that a call to setDeviceMobilityState throws a SecurityException if the
+     * caller does not have WIFI_SET_DEVICE_MOBILITY_STATE permission.
+     */
+    @Test
+    public void setDeviceMobilityStateThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                        eq(android.Manifest.permission.WIFI_SET_DEVICE_MOBILITY_STATE),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.setDeviceMobilityState(DEVICE_MOBILITY_STATE_STATIONARY);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verifies that setDeviceMobilityState runs on a separate handler thread.
+     */
+    @Test
+    public void setDeviceMobilityStateRunsOnHandler() {
+        setupClientModeImplHandlerForPost();
+
+        mWifiServiceImpl.setDeviceMobilityState(DEVICE_MOBILITY_STATE_STATIONARY);
+        verify(mClientModeImpl, never()).setDeviceMobilityState(anyInt());
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).setDeviceMobilityState(eq(DEVICE_MOBILITY_STATE_STATIONARY));
     }
 }

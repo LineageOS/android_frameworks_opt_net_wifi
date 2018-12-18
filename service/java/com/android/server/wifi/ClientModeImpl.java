@@ -59,6 +59,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
@@ -5924,5 +5925,13 @@ public class ClientModeImpl extends StateMachine {
             return macAddress.toString();
         }
         return null;
+    }
+
+    /**
+     * Sets the current device mobility state.
+     * @param state the new device mobility state
+     */
+    public void setDeviceMobilityState(@DeviceMobilityState int state) {
+        mWifiConnectivityManager.setDeviceMobilityState(state);
     }
 }
