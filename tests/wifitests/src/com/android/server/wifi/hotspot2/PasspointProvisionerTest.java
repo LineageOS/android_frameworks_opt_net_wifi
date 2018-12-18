@@ -488,7 +488,8 @@ public class PasspointProvisionerTest {
             }
         }).when(mPasspointManager).getANQPElements(any(ScanResult.class));
         OsuProviderInfo info = OsuProviderInfoTestUtil.TEST_OSU_PROVIDER_INFO;
-        mOsuProvider = new OsuProvider(null, info.getFriendlyName(), info.getServiceDescription(),
+        mOsuProvider = new OsuProvider(null, info.getFriendlyNames(),
+                info.getServiceDescription(),
                 info.getServerUri(),
                 info.getNetworkAccessIdentifier(), info.getMethodList(), null);
 

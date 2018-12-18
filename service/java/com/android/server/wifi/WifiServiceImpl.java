@@ -66,6 +66,7 @@ import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
@@ -128,6 +129,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -1841,6 +1843,32 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     /**
+     * Returns the matching Passpoint configurations for given OSU(Online Sign-Up) providers.
+     *
+     * @param osuProviders a list of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
+     */
+    @Override
+    public Map<OsuProvider, PasspointConfiguration> getMatchingPasspointConfigsForOsuProviders(
+            List<OsuProvider> osuProviders) {
+        enforceNetworkSettingsPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getMatchingPasspointConfigsForOsuProviders uid=%").c(
+                    Binder.getCallingUid()).flush();
+        }
+        if (!mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_WIFI_PASSPOINT)) {
+            throw new UnsupportedOperationException("Passpoint not enabled");
+        }
+        if (osuProviders == null) {
+            Log.e(TAG, "Attempt to retrieve Passpoint configuration with null osuProviders");
+            return new HashMap<>();
+        }
+        return mClientModeImpl.syncGetMatchingPasspointConfigsForOsuProviders(osuProviders,
+                mClientModeImplChannel);
+    }
+
+    /**
      * see {@link android.net.wifi.WifiManager#addOrUpdateNetwork(WifiConfiguration)}
      * @return the supplicant-assigned identifier for the new or updated
      * network if the operation succeeds, or {@code -1} if it fails
@@ -3091,5 +3119,25 @@ public class WifiServiceImpl extends AbstractWifiService {
             return result.isEmpty() ? null : result.stream().toArray(String[]::new);
         }
         return null;
+    }
+
+    /**
+     * Sets the current device mobility state.
+     * @param state the new device mobility state
+     */
+    @Override
+    public void setDeviceMobilityState(@DeviceMobilityState int state) {
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_SET_DEVICE_MOBILITY_STATE, "WifiService");
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("setDeviceMobilityState uid=% state=%")
+                    .c(Binder.getCallingUid())
+                    .c(state)
+                    .flush();
+        }
+        // Post operation to handler thread
+        mWifiInjector.getClientModeImplHandler().post(
+                () -> mClientModeImpl.setDeviceMobilityState(state));
     }
 }

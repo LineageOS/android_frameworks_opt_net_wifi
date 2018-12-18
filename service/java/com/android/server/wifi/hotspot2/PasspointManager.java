@@ -601,13 +601,51 @@ public class PasspointManager {
                 // Set null for OSU-SSID in the class because OSU-SSID is a factor for hotspot
                 // operator rather than service provider, which means it can be different for
                 // each hotspot operators.
-                OsuProvider provider = new OsuProvider(null, info.getFriendlyName(),
+                OsuProvider provider = new OsuProvider(null, info.getFriendlyNames(),
                         info.getServiceDescription(), info.getServerUri(),
                         info.getNetworkAccessIdentifier(), info.getMethodList(), null);
                 osuProviders.add(provider);
             }
         }
         return osuProviders;
+    }
+
+    /**
+     * Returns the matching Passpoint configurations for given OSU(Online Sign-Up) providers
+     *
+     * An empty map will be returned when an invalid {@code osuProviders} are provided or no match
+     * is found.
+     *
+     * @param osuProviders a list of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
+     */
+    public Map<OsuProvider, PasspointConfiguration> getMatchingPasspointConfigsForOsuProviders(
+            List<OsuProvider> osuProviders) {
+        Map<OsuProvider, PasspointConfiguration> matchingPasspointConfigs = new HashMap<>();
+        List<PasspointConfiguration> passpointConfigurations = getProviderConfigs();
+
+        for (OsuProvider osuProvider : osuProviders) {
+            Map<String, String> friendlyNamesForOsuProvider = osuProvider.getFriendlyNameList();
+            if (friendlyNamesForOsuProvider == null) continue;
+            for (PasspointConfiguration passpointConfiguration : passpointConfigurations) {
+                Map<String, String> serviceFriendlyNamesForPpsMo =
+                        passpointConfiguration.getServiceFriendlyNames();
+                if (serviceFriendlyNamesForPpsMo == null) continue;
+
+                for (Map.Entry<String, String> entry : serviceFriendlyNamesForPpsMo.entrySet()) {
+                    String lang = entry.getKey();
+                    String friendlyName = entry.getValue();
+                    if (friendlyName == null) continue;
+                    String osuFriendlyName = friendlyNamesForOsuProvider.get(lang);
+                    if (osuFriendlyName == null) continue;
+                    if (friendlyName.equals(osuFriendlyName)) {
+                        matchingPasspointConfigs.put(osuProvider, passpointConfiguration);
+                        break;
+                    }
+                }
+            }
+        }
+        return matchingPasspointConfigs;
     }
 
     /**

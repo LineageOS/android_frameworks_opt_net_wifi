@@ -3168,21 +3168,45 @@ public class WifiConfigManagerTest {
     }
 
     /**
-     * Verifies the loading of networks using {@link WifiConfigManager#loadFromStore()} does
-     * not attempt to read from any of the stores (new or legacy) when the store files are
-     * not present.
+     * Verifies the loading of networks using {@link WifiConfigManager#loadFromStore()}
+     * attempts to read from the stores (and does not attempt to read from any of the
+     * leagcy stores) even when the store files are not present.
      */
     @Test
-    public void testFreshInstallDoesNotLoadFromStore() throws Exception {
+    public void testFreshInstallLoadFromStore() throws Exception {
         when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
         when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
 
-        verify(mWifiConfigStore, never()).read();
+        verify(mWifiConfigStore).read();
         verify(mWifiConfigStoreLegacy, never()).read();
 
         assertTrue(mWifiConfigManager.getConfiguredNetworksWithPasswords().isEmpty());
+    }
+
+    /**
+     * Verifies the loading of networks using {@link WifiConfigManager#loadFromStore()}
+     * attempts to read from the stores even if the store files are not present and the
+     * user unlock already comes in.
+     */
+    @Test
+    public void testFreshInstallLoadFromStoreAfterUserUnlock() throws Exception {
+        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
+        when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
+
+        int user1 = TEST_DEFAULT_USER;
+
+        // Unlock the user1 (default user) for the first time and ensure that we don't read the
+        // data.
+        mWifiConfigManager.handleUserUnlock(user1);
+        verify(mWifiConfigStore, never()).read();
+
+        // Read from store now.
+        assertTrue(mWifiConfigManager.loadFromStore());
+
+        // Ensure that the read was invoked.
+        verify(mWifiConfigStore).read();
     }
 
     /**
@@ -3196,7 +3220,7 @@ public class WifiConfigManagerTest {
         when(mWifiConfigStoreLegacy.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
-        verify(mWifiConfigStore, never()).read();
+        verify(mWifiConfigStore).read();
         verify(mWifiConfigStoreLegacy, never()).read();
 
         setupStoreDataForUserRead(new ArrayList<WifiConfiguration>(), new HashSet<String>());

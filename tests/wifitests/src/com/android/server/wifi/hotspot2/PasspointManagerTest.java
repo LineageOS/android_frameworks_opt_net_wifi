@@ -115,8 +115,10 @@ import java.util.Set;
 public class PasspointManagerTest {
     private static final long BSSID = 0x112233445566L;
     private static final String ICON_FILENAME = "test";
-    private static final String  TEST_FQDN = "test1.test.com";
+    private static final String TEST_FQDN = "test1.test.com";
+    private static final String TEST_FQDN2 = "test2.test.com";
     private static final String TEST_FRIENDLY_NAME = "friendly name";
+    private static final String TEST_FRIENDLY_NAME2 = "second friendly name";
     private static final String TEST_REALM = "realm.test.com";
     private static final String TEST_IMSI = "1234*";
     private static final IMSIParameter TEST_IMSI_PARAM = IMSIParameter.build(TEST_IMSI);
@@ -253,12 +255,18 @@ public class PasspointManagerTest {
      *
      * @return {@link PasspointConfiguration}
      */
-    private PasspointConfiguration createTestConfigWithUserCredential(String fqdn) {
+    private PasspointConfiguration createTestConfigWithUserCredential(String fqdn,
+            String friendlyName) {
         PasspointConfiguration config = new PasspointConfiguration();
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
-        homeSp.setFriendlyName(TEST_FRIENDLY_NAME);
+        homeSp.setFriendlyName(friendlyName);
         config.setHomeSp(homeSp);
+        Map<String, String> friendlyNames = new HashMap<>();
+        friendlyNames.put("en", friendlyName);
+        friendlyNames.put("kr", friendlyName + 1);
+        friendlyNames.put("jp", friendlyName + 2);
+        config.setServiceFriendlyNames(friendlyNames);
         Credential credential = new Credential();
         credential.setRealm(TEST_REALM);
         credential.setCaCertificate(FakeKeys.CA_CERT0);
@@ -299,8 +307,8 @@ public class PasspointManagerTest {
      *
      * @return {@link PasspointProvider}
      */
-    private PasspointProvider addTestProvider(String fqdn) {
-        PasspointConfiguration config = createTestConfigWithUserCredential(fqdn);
+    private PasspointProvider addTestProvider(String fqdn, String friendlyName) {
+        PasspointConfiguration config = createTestConfigWithUserCredential(fqdn, friendlyName);
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
                 eq(mSimAccessor), anyLong(), eq(TEST_CREATOR_UID))).thenReturn(provider);
@@ -521,7 +529,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void addProviderWithInvalidCredential() throws Exception {
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         // EAP-TLS not allowed for user credential.
         config.getCredential().getUserCredential().setEapType(EAPConstants.EAP_TLS);
         assertFalse(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID));
@@ -536,7 +545,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void addRemoveProviderWithValidUserCredential() throws Exception {
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
                 eq(mSimAccessor), anyLong(), eq(TEST_CREATOR_UID))).thenReturn(provider);
@@ -639,7 +649,8 @@ public class PasspointManagerTest {
 
         // Add another provider with the same base domain as the existing provider.
         // This should replace the existing provider with the new configuration.
-        PasspointConfiguration newConfig = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration newConfig = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         PasspointProvider newProvider = createMockProvider(newConfig);
         when(mObjectFactory.makePasspointProvider(eq(newConfig), eq(mWifiKeyStore),
                 eq(mSimAccessor), anyLong(), eq(TEST_CREATOR_UID))).thenReturn(newProvider);
@@ -664,7 +675,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void addProviderOnKeyInstallationFailiure() throws Exception {
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         PasspointProvider provider = mock(PasspointProvider.class);
         when(provider.installCertsAndKeys()).thenReturn(false);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -681,7 +693,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void addProviderWithInvalidCaCert() throws Exception {
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         doThrow(new GeneralSecurityException())
                 .when(mCertVerifier).verifyCaCert(any(X509Certificate.class));
         assertFalse(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID));
@@ -697,7 +710,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void addProviderWithR2Config() throws Exception {
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         config.setUpdateIdentifier(1);
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -738,7 +752,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void matchProviderWithAnqpCacheMissed() throws Exception {
-        addTestProvider(TEST_FQDN);
+        addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
 
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(null);
         assertNull(mManager.matchProvider(createTestScanResult()));
@@ -754,7 +768,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void matchProviderAsHomeProvider() throws Exception {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         ANQPData entry = new ANQPData(mClock, null);
 
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
@@ -773,7 +787,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void matchProviderAsRoamingProvider() throws Exception {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         ANQPData entry = new ANQPData(mClock, null);
 
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
@@ -792,7 +806,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void matchProviderWithNoMatch() throws Exception {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         ANQPData entry = new ANQPData(mClock, null);
 
         when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
@@ -853,9 +867,9 @@ public class PasspointManagerTest {
                 com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
                         InformationElementUtil.class).startMocking();
         try {
-            PasspointProvider providerHome = addTestProvider(TEST_FQDN + 0);
-            PasspointProvider providerRoaming = addTestProvider(TEST_FQDN + 1);
-            PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2);
+            PasspointProvider providerHome = addTestProvider(TEST_FQDN + 0, TEST_FRIENDLY_NAME);
+            PasspointProvider providerRoaming = addTestProvider(TEST_FQDN + 1, TEST_FRIENDLY_NAME);
+            PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME);
             ANQPData entry = new ANQPData(mClock, null);
             InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
             vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID2;
@@ -1031,8 +1045,12 @@ public class PasspointManagerTest {
                 List<I18Name> serviceDescriptions = Arrays.asList(
                         new I18Name(Locale.ENGLISH.getLanguage(), Locale.ENGLISH,
                                 serviceDescription));
+                Map<String, String> friendlyNameMap = new HashMap<>();
+                friendlyNames.forEach(e -> friendlyNameMap.put(e.getLanguage(), e.getText()));
+
                 expectedOsuProvidersForDomainId.add(new OsuProvider(
-                        null, friendlyName, serviceDescription, serverUri, nai, methodList, null));
+                        null, friendlyNameMap, serviceDescription,
+                        serverUri, nai, methodList, null));
 
                 // add All OSU Providers for AP1.
                 providerInfoListOfAp1.add(new OsuProviderInfo(
@@ -1043,7 +1061,8 @@ public class PasspointManagerTest {
                     providerInfoListOfAp2.add(new OsuProviderInfo(
                             friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
                     expectedOsuProvidersForDomainId2.add(new OsuProvider(
-                            null, friendlyName, serviceDescription, serverUri, nai, methodList,
+                            null, friendlyNameMap, serviceDescription,
+                            serverUri, nai, methodList,
                             null));
                 }
             }
@@ -1078,6 +1097,57 @@ public class PasspointManagerTest {
     }
 
     /**
+     * Verify that matching Passpoint configurations will be returned as map with corresponding
+     * OSU providers.
+     */
+    @Test
+    public void getMatchingPasspointConfigsForOsuProvidersWithMatch() {
+        PasspointProvider provider1 = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
+        PasspointProvider provider2 = addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME2);
+
+        List<OsuProvider> osuProviders = new ArrayList<>();
+        Map<String, String> friendlyNames = new HashMap<>();
+        friendlyNames.put("en", "NO-MATCH-NAME");
+        friendlyNames.put("kr", TEST_FRIENDLY_NAME + 1);
+
+        osuProviders.add(PasspointProvisioningTestUtil.generateOsuProviderWithFriendlyName(true,
+                friendlyNames));
+        friendlyNames = new HashMap<>();
+        friendlyNames.put("en", TEST_FRIENDLY_NAME2);
+        osuProviders.add(PasspointProvisioningTestUtil.generateOsuProviderWithFriendlyName(true,
+                friendlyNames));
+
+        Map<OsuProvider, PasspointConfiguration> results =
+                mManager.getMatchingPasspointConfigsForOsuProviders(osuProviders);
+
+        assertEquals(2, results.size());
+        assertThat(Arrays.asList(provider1.getConfig(), provider2.getConfig()),
+                containsInAnyOrder(results.values().toArray()));
+    }
+
+    /**
+     * Verify that empty map will be returned when there is no matching Passpoint configuration.
+     */
+    @Test
+    public void getMatchingPasspointConfigsForOsuProvidersWitNoMatch() {
+        addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
+        addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME2);
+
+        List<OsuProvider> osuProviders = new ArrayList<>();
+
+        Map<String, String> friendlyNames = new HashMap<>();
+        friendlyNames.put("en", "NO-MATCH-NAME");
+        osuProviders.add(PasspointProvisioningTestUtil.generateOsuProviderWithFriendlyName(true,
+                friendlyNames));
+        friendlyNames = new HashMap<>();
+        friendlyNames.put("en", "NO-MATCH-NAME-2");
+        osuProviders.add(PasspointProvisioningTestUtil.generateOsuProviderWithFriendlyName(true,
+                friendlyNames));
+
+        assertEquals(0, mManager.getMatchingPasspointConfigsForOsuProviders(osuProviders).size());
+    }
+
+    /**
      * Verify that the provider list maintained by the PasspointManager after the list is updated
      * in the data source.
      *
@@ -1086,7 +1156,8 @@ public class PasspointManagerTest {
     @Test
     public void verifyProvidersAfterDataSourceUpdate() throws Exception {
         // Update the provider list in the data source.
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         PasspointProvider provider = createMockProvider(config);
         List<PasspointProvider> providers = new ArrayList<>();
         providers.add(provider);
@@ -1110,7 +1181,8 @@ public class PasspointManagerTest {
         assertEquals(providerIndex, mSharedDataSource.getProviderIndex());
 
         // Add a provider.
-        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN);
+        PasspointConfiguration config = createTestConfigWithUserCredential(TEST_FQDN,
+                TEST_FRIENDLY_NAME);
         PasspointProvider provider = createMockProvider(config);
         // Verify the provider ID used to create the new provider.
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -1357,7 +1429,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void providerNetworkConnectedFirstTime() throws Exception {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         when(provider.getHasEverConnected()).thenReturn(false);
         mManager.onPasspointNetworkConnected(TEST_FQDN);
         verify(provider).setHasEverConnected(eq(true));
@@ -1372,7 +1444,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void providerNetworkConnectedNotFirstTime() throws Exception {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         when(provider.getHasEverConnected()).thenReturn(true);
         mManager.onPasspointNetworkConnected(TEST_FQDN);
         verify(provider, never()).setHasEverConnected(anyBoolean());
@@ -1386,7 +1458,7 @@ public class PasspointManagerTest {
      */
     @Test
     public void updateMetrics() {
-        PasspointProvider provider = addTestProvider(TEST_FQDN);
+        PasspointProvider provider = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
         ArgumentCaptor<Map<String, PasspointProvider>> argCaptor = ArgumentCaptor.forClass(
                 Map.class);
         // Provider have not provided a successful network connection.
