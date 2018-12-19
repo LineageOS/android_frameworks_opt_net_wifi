@@ -30,8 +30,9 @@ import static org.mockito.Mockito.when;
 
 import android.net.Network;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;

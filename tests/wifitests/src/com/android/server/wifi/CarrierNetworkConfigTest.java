@@ -29,13 +29,14 @@ import android.net.wifi.EAPConstants;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.PersistableBundle;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.telephony.CarrierConfigManager;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;

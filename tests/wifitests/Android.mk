@@ -54,7 +54,7 @@ LOCAL_JACK_FLAGS := --multi-dex native
 # TODO figure out if this is the correct thing to do, this seems to not be right
 # since neither is declared a static java library.
 LOCAL_STATIC_JAVA_LIBRARIES := \
-	android-support-test \
+	androidx.test.rules hamcrest-library \
 	mockito-target-extended-minus-junit4 \
 	frameworks-base-testutils \
 	services \

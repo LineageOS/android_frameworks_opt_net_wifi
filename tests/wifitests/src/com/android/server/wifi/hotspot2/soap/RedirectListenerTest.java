@@ -25,7 +25,8 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.os.Looper;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -37,6 +38,7 @@ import java.net.URL;
 import fi.iki.elonen.NanoHTTPD;
 
 /**
+ *
  * Unit tests for {@link RedirectListener}.
  */
 @SmallTest

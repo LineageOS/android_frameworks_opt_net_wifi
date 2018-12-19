@@ -22,11 +22,12 @@ import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
-import android.support.test.filters.SmallTest;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;

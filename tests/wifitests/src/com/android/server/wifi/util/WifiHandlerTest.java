@@ -15,15 +15,16 @@
  */
 package com.android.server.wifi.util;
 
+import static org.mockito.Matchers.contains;
+import static org.mockito.Mockito.verify;
+
 import android.os.Looper;
 import android.os.Message;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.FakeWifiLog;
-
-import static org.mockito.Matchers.contains;
-import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
 import org.junit.Test;

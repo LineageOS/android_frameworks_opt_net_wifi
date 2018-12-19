@@ -24,8 +24,9 @@ import static org.mockito.MockitoAnnotations.*;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiSsid;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;

@@ -22,7 +22,8 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
