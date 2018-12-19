@@ -49,9 +49,8 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 

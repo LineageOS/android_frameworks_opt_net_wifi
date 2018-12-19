@@ -33,8 +33,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
 import android.os.IHwBinder;
 import android.os.RemoteException;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.util.NativeUtil;

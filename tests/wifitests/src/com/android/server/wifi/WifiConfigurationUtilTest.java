@@ -27,9 +27,8 @@ import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.PatternMatcher;
 import android.os.UserHandle;
+import android.support.test.filters.SmallTest;
 import android.util.Pair;
-
-import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
 

@@ -25,8 +25,7 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import android.os.FileUtils;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import libcore.io.IoUtils;
 

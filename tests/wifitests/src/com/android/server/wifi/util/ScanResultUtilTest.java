@@ -22,8 +22,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.ScanResult.InformationElement;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiSsid;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.ScanDetail;
 

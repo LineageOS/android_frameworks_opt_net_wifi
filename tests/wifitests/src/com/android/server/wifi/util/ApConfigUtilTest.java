@@ -22,8 +22,7 @@ import static org.mockito.Mockito.when;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.WifiNative;

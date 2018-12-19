@@ -35,10 +35,9 @@ import android.hardware.SystemSensorManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 

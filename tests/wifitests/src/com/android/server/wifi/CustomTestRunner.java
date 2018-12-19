@@ -17,9 +17,8 @@
 package com.android.server.wifi;
 
 import android.os.Bundle;
+import android.support.test.runner.AndroidJUnitRunner;
 import android.util.Log;
-
-import androidx.test.runner.AndroidJUnitRunner;
 
 public class CustomTestRunner extends AndroidJUnitRunner {
     @Override

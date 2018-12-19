@@ -28,9 +28,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.support.test.filters.SmallTest;
 import android.util.Pair;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.org.bouncycastle.asn1.ASN1EncodableVector;
 import com.android.org.bouncycastle.asn1.ASN1ObjectIdentifier;

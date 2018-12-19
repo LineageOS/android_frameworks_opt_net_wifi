@@ -36,8 +36,7 @@ import android.os.Handler;
 import android.os.UserHandle;
 import android.os.WorkSource;
 import android.provider.Settings;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
