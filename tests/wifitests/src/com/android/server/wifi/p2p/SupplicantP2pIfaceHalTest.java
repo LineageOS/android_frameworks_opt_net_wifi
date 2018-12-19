@@ -47,9 +47,8 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.NativeUtil;
 

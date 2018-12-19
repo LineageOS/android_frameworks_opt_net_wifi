@@ -22,8 +22,7 @@ import android.net.wifi.RttManager;
 import android.net.wifi.RttManager.ParcelableRttParams;
 import android.net.wifi.RttManager.RttParams;
 import android.os.Parcel;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Test;
 

@@ -19,8 +19,7 @@ package com.android.server.wifi.hotspot2;
 import static org.junit.Assert.*;
 
 import android.os.FileUtils;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Test;
 

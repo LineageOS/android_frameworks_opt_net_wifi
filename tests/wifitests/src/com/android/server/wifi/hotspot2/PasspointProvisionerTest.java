@@ -56,9 +56,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.telephony.TelephonyManager;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;

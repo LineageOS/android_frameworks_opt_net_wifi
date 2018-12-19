@@ -32,8 +32,7 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pProvDiscEvent;
 import android.net.wifi.p2p.nsd.WifiP2pServiceResponse;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.util.NativeUtil;
 
@@ -46,6 +45,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+
 
 /**
  * Unit tests for SupplicantP2pIfaceCallback

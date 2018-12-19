@@ -42,11 +42,10 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.support.test.filters.SmallTest;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Pair;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.WifiConfigStoreLegacy.WifiConfigStoreDataLegacy;

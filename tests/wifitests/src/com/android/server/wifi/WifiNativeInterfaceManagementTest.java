@@ -45,8 +45,7 @@ import android.os.Handler;
 import android.os.INetworkManagementService;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.net.BaseNetworkObserver;
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;

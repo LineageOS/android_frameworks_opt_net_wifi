@@ -19,7 +19,7 @@ package com.android.server.wifi.hotspot2.anqp;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Test;
 
@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
+
 
 /**
  * Unit tests for {@link com.android.server.wifi.hotspot2.anqp.NAIRealmElement}.

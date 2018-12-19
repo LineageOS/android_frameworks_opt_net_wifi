@@ -31,8 +31,7 @@ import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiSsid;
 import android.os.SystemClock;
 import android.os.test.TestLooper;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.MockResources;

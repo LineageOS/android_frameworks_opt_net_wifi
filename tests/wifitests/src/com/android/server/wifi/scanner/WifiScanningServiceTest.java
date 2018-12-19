@@ -27,7 +27,8 @@ import static com.android.server.wifi.ScanTestUtil.channelsToSpec;
 import static com.android.server.wifi.ScanTestUtil.computeSingleScanNativeSettings;
 import static com.android.server.wifi.ScanTestUtil.createRequest;
 import static com.android.server.wifi.ScanTestUtil.createSingleScanNativeSettingsForChannels;
-import static com.android.server.wifi.scanner.WifiScanningServiceImpl.WifiSingleScanStateMachine.CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS;
+import static com.android.server.wifi.scanner.WifiScanningServiceImpl.WifiSingleScanStateMachine
+        .CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -63,9 +64,8 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
+import android.support.test.filters.SmallTest;
 import android.util.Pair;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;

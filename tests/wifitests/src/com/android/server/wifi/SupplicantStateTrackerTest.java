@@ -29,8 +29,7 @@ import android.net.wifi.WifiSsid;
 import android.os.Handler;
 import android.os.Message;
 import android.os.test.TestLooper;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 
@@ -38,7 +37,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
 /**
  * Unit tests for {@link android.net.wifi.SupplicantStateTracker}.
  */

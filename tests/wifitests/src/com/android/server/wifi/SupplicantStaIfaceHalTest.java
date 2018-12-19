@@ -64,10 +64,9 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
 import android.util.SparseArray;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;

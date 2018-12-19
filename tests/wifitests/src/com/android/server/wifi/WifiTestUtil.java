@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;

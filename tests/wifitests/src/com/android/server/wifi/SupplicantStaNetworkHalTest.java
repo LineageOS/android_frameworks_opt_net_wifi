@@ -41,9 +41,8 @@ import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.RemoteException;
+import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.util.NativeUtil;

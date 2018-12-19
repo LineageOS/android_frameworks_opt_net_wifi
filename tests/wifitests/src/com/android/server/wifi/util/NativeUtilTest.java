@@ -18,7 +18,7 @@ package com.android.server.wifi.util;
 
 import static org.junit.Assert.*;
 
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import org.junit.Test;
 

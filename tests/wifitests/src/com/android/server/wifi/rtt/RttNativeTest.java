@@ -42,8 +42,7 @@ import android.hardware.wifi.V1_0.WifiStatus;
 import android.hardware.wifi.V1_0.WifiStatusCode;
 import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
-
-import androidx.test.filters.SmallTest;
+import android.support.test.filters.SmallTest;
 
 import com.android.server.wifi.HalDeviceManager;
 

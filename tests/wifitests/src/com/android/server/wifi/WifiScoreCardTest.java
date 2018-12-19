@@ -22,9 +22,8 @@ import static org.mockito.Mockito.*;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
+import android.support.test.filters.SmallTest;
 import android.util.Base64;
-
-import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
