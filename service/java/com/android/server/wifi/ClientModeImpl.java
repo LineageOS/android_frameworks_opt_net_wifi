@@ -4481,6 +4481,10 @@ public class ClientModeImpl extends StateMachine {
             result.setSignalStrength(NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
         }
 
+        if (config.osu) {
+            result.removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        }
+
         if (!mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
             result.setSSID(mWifiInfo.getSSID());
         } else {

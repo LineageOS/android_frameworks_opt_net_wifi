@@ -180,6 +180,9 @@ public class OsuNetworkConnection {
         // To suppress Wi-Fi has no internet access notification.
         config.noInternetAccessExpected = true;
 
+        // To suppress Wi-Fi Sign-in notification for captive portal.
+        config.osu = true;
+
         // Do not save this network
         config.ephemeral = true;
         if (TextUtils.isEmpty(nai)) {
