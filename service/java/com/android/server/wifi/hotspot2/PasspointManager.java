@@ -574,21 +574,22 @@ public class PasspointManager {
     }
 
     /**
-     * Returns the set of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
+     * Returns the list of Hotspot 2.0 OSU (Online Sign-Up) providers associated with the given list
      * of ScanResult.
      *
-     * An empty set will be returned when an invalid scanResults are provided or no match is found.
+     * An empty map will be returned when an invalid scanResults are provided or no match is found.
      *
      * @param scanResults a list of ScanResult that has Passpoint APs.
-     * @return Set of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}
      */
-    public Set<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+    public Map<OsuProvider, List<ScanResult>> getMatchingOsuProviders(
+            List<ScanResult> scanResults) {
         if (scanResults == null) {
             Log.e(TAG, "Attempt to retrieve OSU providers for a null ScanResult");
-            return new HashSet<>();
+            return new HashMap();
         }
 
-        Set<OsuProvider> osuProviders = new HashSet<>();
+        Map<OsuProvider, List<ScanResult>> osuProviders = new HashMap<>();
         for (ScanResult scanResult : scanResults) {
             if (!scanResult.isPasspointNetwork()) continue;
 
@@ -607,7 +608,12 @@ public class PasspointManager {
                 OsuProvider provider = new OsuProvider(null, info.getFriendlyNames(),
                         info.getServiceDescription(), info.getServerUri(),
                         info.getNetworkAccessIdentifier(), info.getMethodList(), null);
-                osuProviders.add(provider);
+                List<ScanResult> matchingScanResults = osuProviders.get(provider);
+                if (matchingScanResults == null) {
+                    matchingScanResults = new ArrayList<>();
+                    osuProviders.put(provider, matchingScanResults);
+                }
+                matchingScanResults.add(scanResult);
             }
         }
         return osuProviders;

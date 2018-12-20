@@ -1646,13 +1646,15 @@ public class ClientModeImpl extends StateMachine {
      *
      * @param scanResults a list of ScanResult that has Passpoint APs.
      * @param channel     Channel for communicating with the state machine
-     * @return List of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}.
      */
-    public List<OsuProvider> syncGetMatchingOsuProviders(List<ScanResult> scanResults,
+    public Map<OsuProvider, List<ScanResult>> syncGetMatchingOsuProviders(
+            List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg =
                 channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
-        List<OsuProvider> providers = new ArrayList<>((Set<OsuProvider>) resultMsg.obj);
+        Map<OsuProvider, List<ScanResult>> providers =
+                (Map<OsuProvider, List<ScanResult>>) resultMsg.obj;
         resultMsg.recycle();
         return providers;
     }
@@ -1683,7 +1685,8 @@ public class ClientModeImpl extends StateMachine {
      *
      * @param fqdnList a list of FQDN
      * @param channel  AsyncChannel to use for the response
-     * @return List of {@link WifiConfiguration} converted from {@link PasspointProvider}
+     * @return List of {@link WifiConfiguration} converted from
+     * {@link com.android.server.wifi.hotspot2.PasspointProvider}
      */
     public List<WifiConfiguration> syncGetWifiConfigsForPasspointProfiles(List<String> fqdnList,
             AsyncChannel channel) {
@@ -3560,7 +3563,7 @@ public class ClientModeImpl extends StateMachine {
                     updateLinkProperties((LinkProperties) message.obj);
                     break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
-                    replyToMessage(message, message.what, new ArrayList<OsuProvider>());
+                    replyToMessage(message, message.what, new HashMap<>());
                     break;
                 case CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS:
                     replyToMessage(message, message.what,
@@ -4115,6 +4118,7 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what,
                             mPasspointManager.getWifiConfigsForPasspointProfiles(
                                     (List<String>) message.obj));
+
                     break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;

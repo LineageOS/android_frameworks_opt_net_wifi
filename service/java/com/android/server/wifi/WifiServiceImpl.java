@@ -1838,10 +1838,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      * Returns list of OSU (Online Sign-Up) providers associated with the given list of ScanResult.
      *
      * @param scanResults a list of ScanResult that has Passpoint APs.
-     * @return List of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}.
      */
     @Override
-    public List<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+    public Map<OsuProvider, List<ScanResult>> getMatchingOsuProviders(
+            List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
