@@ -26,8 +26,9 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.content.Context;
 import android.os.Build;
-import android.support.test.filters.SmallTest;
 import android.telephony.TelephonyManager;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.hotspot2.SystemInfo;
 import com.android.server.wifi.hotspot2.omadm.DevDetailMo;

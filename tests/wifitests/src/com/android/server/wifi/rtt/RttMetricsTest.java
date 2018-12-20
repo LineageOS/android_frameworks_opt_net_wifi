@@ -25,8 +25,9 @@ import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
 import android.net.wifi.rtt.ResponderConfig;
 import android.os.WorkSource;
-import android.support.test.filters.SmallTest;
 import android.util.Log;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.nano.WifiMetricsProto;

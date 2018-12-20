@@ -23,9 +23,10 @@ import android.net.IpConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiEnterpriseConfig;
-import android.support.test.filters.SmallTest;
 import android.util.Pair;
 import android.util.Xml;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.WifiConfigurationTestUtil;

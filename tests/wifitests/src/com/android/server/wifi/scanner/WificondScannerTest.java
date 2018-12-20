@@ -25,7 +25,8 @@ import static org.mockito.Mockito.*;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.net.wifi.WifiScanner;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.ScanResults;
 import com.android.server.wifi.WifiMonitor;

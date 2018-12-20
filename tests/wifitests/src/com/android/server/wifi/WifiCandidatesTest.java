@@ -23,7 +23,8 @@ import static org.mockito.Mockito.*;
 
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;

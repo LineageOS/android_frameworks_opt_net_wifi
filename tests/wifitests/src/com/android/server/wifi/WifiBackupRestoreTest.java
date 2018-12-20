@@ -22,7 +22,8 @@ import static org.mockito.Mockito.*;
 import android.net.IpConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.os.Process;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.net.IpConfigStore;
 import com.android.server.wifi.util.WifiPermissionsUtil;

@@ -35,7 +35,8 @@ import android.content.res.Resources;
 import android.net.NetworkAgent;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 

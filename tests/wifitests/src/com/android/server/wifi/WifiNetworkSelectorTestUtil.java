@@ -31,8 +31,9 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiSsid;
-import android.support.test.filters.SmallTest;
 import android.text.TextUtils;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
 
