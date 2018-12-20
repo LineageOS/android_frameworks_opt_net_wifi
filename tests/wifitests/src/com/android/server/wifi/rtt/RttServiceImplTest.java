@@ -69,8 +69,9 @@ import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
 import android.provider.Settings;
-import android.support.test.filters.SmallTest;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;

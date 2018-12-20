@@ -64,8 +64,9 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;

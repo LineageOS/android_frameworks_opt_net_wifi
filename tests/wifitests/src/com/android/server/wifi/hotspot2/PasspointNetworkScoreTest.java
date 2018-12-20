@@ -21,7 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.net.wifi.ScanResult;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;

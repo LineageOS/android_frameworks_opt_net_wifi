@@ -16,13 +16,13 @@
 
 package com.android.server.wifi.wificond;
 
-import android.net.wifi.IWifiScannerImpl;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import android.net.wifi.IWifiScannerImpl;
 import android.os.Parcel;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
 

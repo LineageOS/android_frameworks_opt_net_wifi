@@ -18,8 +18,9 @@ package com.android.server.wifi.util;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 
-import android.support.test.filters.SmallTest;
 import android.util.SparseIntArray;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Rule;
