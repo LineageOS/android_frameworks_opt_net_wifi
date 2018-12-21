@@ -322,7 +322,7 @@ public class WifiConnectivityManagerTest {
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
                 mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog,
-                null, null, null, null);
+                null, null, null, null, null);
     }
 
     /**

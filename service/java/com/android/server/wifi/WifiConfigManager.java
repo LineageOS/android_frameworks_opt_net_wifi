@@ -1805,6 +1805,7 @@ public class WifiConfigManager {
         }
         WifiConfiguration config = getInternalConfiguredNetwork(networkId);
         if (config == null) {
+            Log.e(TAG, "Cannot find network for " + networkId);
             return false;
         }
         config.getNetworkSelectionStatus().setCandidate(scanResult);
