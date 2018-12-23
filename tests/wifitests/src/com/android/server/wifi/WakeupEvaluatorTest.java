@@ -22,8 +22,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.net.wifi.ScanResult;
-import android.support.test.filters.SmallTest;
 import android.util.ArraySet;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -34,8 +35,6 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.Set;
-
-
 
 /**
  * Unit tests for {@link WakeupEvaluator}.

@@ -45,9 +45,10 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.util.WifiPermissionsUtil;

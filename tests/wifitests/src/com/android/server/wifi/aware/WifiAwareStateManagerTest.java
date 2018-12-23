@@ -68,9 +68,10 @@ import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
 import android.util.Log;
 import android.util.SparseArray;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;

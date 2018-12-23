@@ -20,7 +20,8 @@ import static org.mockito.Mockito.*;
 
 import android.os.RemoteException;
 import android.os.connectivity.WifiBatteryStats;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;

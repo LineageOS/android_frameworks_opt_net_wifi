@@ -33,9 +33,10 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
-import android.support.test.filters.SmallTest;
 import android.util.LocalLog;
 import android.util.Pair;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;

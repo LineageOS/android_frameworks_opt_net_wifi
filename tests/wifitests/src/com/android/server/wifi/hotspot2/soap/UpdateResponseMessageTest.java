@@ -19,7 +19,7 @@ package com.android.server.wifi.hotspot2.soap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import android.support.test.filters.SmallTest;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
 import org.ksoap2.SoapEnvelope;

@@ -37,7 +37,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;
