@@ -26,6 +26,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
 import android.net.InterfaceConfiguration;
@@ -77,12 +78,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.android.internal.R;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -121,8 +124,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private P2pStateMachine mP2pStateMachine;
     private AsyncChannel mReplyChannel = new WifiAsyncChannel(TAG);
     private AsyncChannel mWifiChannel;
+    private LocationManager mLocationManager;
     private WifiInjector mWifiInjector;
     private WifiPermissionsUtil mWifiPermissionsUtil;
+    private FrameworkFacade mFrameworkFacade;
 
     private static final Boolean JOIN_GROUP = true;
     private static final Boolean FORM_GROUP = false;
@@ -376,6 +381,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     }
     private ClientHandler mClientHandler;
 
+    /**
+     * Provide a way for unit tests to set valid log object in the WifiHandler
+     * @param log WifiLog object to assign to the clientHandler
+     */
+    @VisibleForTesting
+    void setWifiHandlerLogForTest(WifiLog log) {
+        mClientHandler.setWifiLog(log);
+    }
+
     private class DeathHandlerData {
         DeathHandlerData(DeathRecipient dr, Messenger m) {
             mDeathRecipient = dr;
@@ -393,10 +407,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private Object mLock = new Object();
     private final Map<IBinder, DeathHandlerData> mDeathDataByBinder = new HashMap<>();
 
-    public WifiP2pServiceImpl(Context context) {
+    public WifiP2pServiceImpl(Context context, WifiInjector wifiInjector) {
         mContext = context;
-        mWifiInjector = WifiInjector.getInstance();
+        mWifiInjector = wifiInjector;
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
+        mFrameworkFacade = mWifiInjector.getFrameworkFacade();
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI_P2P, 0, NETWORKTYPE, "");
 
@@ -406,8 +421,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         mThisDevice.primaryDeviceType = mContext.getResources().getString(
                 com.android.internal.R.string.config_wifi_p2p_device_type);
 
-        HandlerThread wifiP2pThread = new HandlerThread("WifiP2pService");
-        wifiP2pThread.start();
+        HandlerThread wifiP2pThread = mWifiInjector.getWifiP2pServiceHandlerThread();
         mClientHandler = new ClientHandler(TAG, wifiP2pThread.getLooper());
         mP2pStateMachine = new P2pStateMachine(TAG, wifiP2pThread.getLooper(), mP2pSupported);
         mP2pStateMachine.start();
@@ -665,8 +679,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private UserAuthorizingJoinState mUserAuthorizingJoinState = new UserAuthorizingJoinState();
         private OngoingGroupRemovalState mOngoingGroupRemovalState = new OngoingGroupRemovalState();
 
-        private WifiP2pNative mWifiNative = WifiInjector.getInstance().getWifiP2pNative();
-        private WifiP2pMonitor mWifiMonitor = WifiInjector.getInstance().getWifiP2pMonitor();
+        private WifiP2pNative mWifiNative = mWifiInjector.getWifiP2pNative();
+        private WifiP2pMonitor mWifiMonitor = mWifiInjector.getWifiP2pMonitor();
         private final WifiP2pDeviceList mPeers = new WifiP2pDeviceList();
         private String mInterfaceName;
 
@@ -746,6 +760,18 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         checkAndSendP2pStateChangedBroadcast();
                     }
                 }, new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION));
+                // Register for location mode on/off broadcasts
+                mContext.registerReceiver(new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        if (isLocationModeEnabled()) {
+                            checkAndReEnableP2p();
+                        } else {
+                            sendMessage(DISABLE_P2P);
+                        }
+                        checkAndSendP2pStateChangedBroadcast();
+                    }
+                }, new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
                 // Register for interface availability from HalDeviceManager
                 mWifiNative.registerInterfaceAvailableListener((boolean isAvailable) -> {
                     mIsInterfaceAvailable = isAvailable;
@@ -943,7 +969,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case WifiP2pManager.REQUEST_P2P_STATE:
                         replyToMessage(message, WifiP2pManager.RESPONSE_P2P_STATE,
-                                (mIsWifiEnabled && mIsInterfaceAvailable)
+                                (mIsWifiEnabled && mIsInterfaceAvailable && isLocationModeEnabled())
                                 ? WifiP2pManager.WIFI_P2P_STATE_ENABLED
                                 : WifiP2pManager.WIFI_P2P_STATE_DISABLED);
                         break;
@@ -1206,8 +1232,10 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 if (DBG) logd(getName() + message.toString());
                 switch (message.what) {
                     case ENABLE_P2P:
-                        if (!mIsWifiEnabled) {
-                            Log.e(TAG, "Ignore P2P enable since wifi is disabled");
+                        boolean isLocationEnabled = isLocationModeEnabled();
+                        if (!mIsWifiEnabled || !isLocationEnabled) {
+                            Log.e(TAG, "Ignore P2P enable since wifi is " + mIsWifiEnabled
+                                    + " and location is " + isLocationEnabled);
                             break;
                         }
                         mInterfaceName = mWifiNative.setupInterface((String ifaceName) -> {
@@ -2596,18 +2624,33 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         // a) Wifi is enabled.
         // b) P2P interface is available.
         // c) There is atleast 1 client app which invoked initialize().
+        // d) Location is enabled.
         private void checkAndReEnableP2p() {
+            boolean isLocationEnabled = isLocationModeEnabled();
             Log.d(TAG, "Wifi enabled=" + mIsWifiEnabled + ", P2P Interface availability="
-                    + mIsInterfaceAvailable + ", Number of clients=" + mDeathDataByBinder.size());
-            if (mIsWifiEnabled && mIsInterfaceAvailable && !mDeathDataByBinder.isEmpty()) {
+                    + mIsInterfaceAvailable + ", Number of clients=" + mDeathDataByBinder.size()
+                    + ", Location enabled=" + isLocationEnabled);
+            if (mIsWifiEnabled && mIsInterfaceAvailable
+                    && isLocationEnabled && !mDeathDataByBinder.isEmpty()) {
                 sendMessage(ENABLE_P2P);
             }
         }
 
+        private boolean isLocationModeEnabled() {
+            if (mLocationManager == null) {
+                mLocationManager =
+                        (LocationManager) mContext.getSystemService(
+                        Context.LOCATION_SERVICE);
+            }
+            return mLocationManager.isLocationEnabled();
+        }
+
         private void checkAndSendP2pStateChangedBroadcast() {
+            boolean isLocationEnabled = isLocationModeEnabled();
             Log.d(TAG, "Wifi enabled=" + mIsWifiEnabled + ", P2P Interface availability="
-                    + mIsInterfaceAvailable);
-            sendP2pStateChangedBroadcast(mIsWifiEnabled && mIsInterfaceAvailable);
+                    + mIsInterfaceAvailable + ", Location enabled=" + isLocationEnabled);
+            sendP2pStateChangedBroadcast(mIsWifiEnabled && mIsInterfaceAvailable
+                    && isLocationEnabled);
         }
 
         private void sendP2pStateChangedBroadcast(boolean enabled) {
@@ -3138,12 +3181,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private String getPersistedDeviceName() {
-            String deviceName = Settings.Global.getString(mContext.getContentResolver(),
+            String deviceName = mFrameworkFacade.getStringSetting(mContext,
                     Settings.Global.WIFI_P2P_DEVICE_NAME);
             if (deviceName == null) {
                 // We use the 4 digits of the ANDROID_ID to have a friendly
                 // default that has low likelihood of collision with a peer
-                String id = Settings.Secure.getString(mContext.getContentResolver(),
+                String id = mFrameworkFacade.getSecureStringSetting(mContext,
                         Settings.Secure.ANDROID_ID);
                 return "Android_" + id.substring(0, 4);
             }
@@ -3161,7 +3204,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             mThisDevice.deviceName = devName;
             mWifiNative.setP2pSsidPostfix("-" + mThisDevice.deviceName);
 
-            Settings.Global.putString(mContext.getContentResolver(),
+            mFrameworkFacade.setStringSetting(mContext,
                     Settings.Global.WIFI_P2P_DEVICE_NAME, devName);
             sendThisDeviceChangedBroadcast();
             return true;
@@ -3634,15 +3677,13 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void setPendingFactoryReset(boolean pending) {
-            FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
-            facade.setIntegerSetting(mContext,
+            mFrameworkFacade.setIntegerSetting(mContext,
                     Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
                     pending ? 1 : 0);
         }
 
         private boolean isPendingFactoryReset() {
-            FrameworkFacade facade = mWifiInjector.getFrameworkFacade();
-            int val = facade.getIntegerSetting(mContext,
+            int val = mFrameworkFacade.getIntegerSetting(mContext,
                     Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET,
                     0);
             return (val != 0);
