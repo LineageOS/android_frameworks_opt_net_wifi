@@ -85,6 +85,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
+import android.util.StatsLog;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -2736,6 +2737,9 @@ public class ClientModeImpl extends StateMachine {
         } catch (RemoteException e) {
             // Won't happen.
         }
+        StatsLog.write(StatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
+                WifiManager.calculateSignalLevel(newRssi, WifiManager.RSSI_LEVELS));
+
         Intent intent = new Intent(WifiManager.RSSI_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         intent.putExtra(WifiManager.EXTRA_NEW_RSSI, newRssi);

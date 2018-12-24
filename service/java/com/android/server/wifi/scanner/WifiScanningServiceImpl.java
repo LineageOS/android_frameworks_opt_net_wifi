@@ -40,6 +40,7 @@ import android.util.ArrayMap;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
+import android.util.StatsLog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
@@ -714,6 +715,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 } catch (RemoteException e) {
                     loge(e.toString());
                 }
+                StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
+                        StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__ON);
             }
 
             @Override
@@ -724,6 +727,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 } catch (RemoteException e) {
                     loge(e.toString());
                 }
+                StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
+                        StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__OFF);
 
                 // if any scans are still active (never got results available then indicate failure)
                 mWifiMetrics.incrementScanReturnEntry(
