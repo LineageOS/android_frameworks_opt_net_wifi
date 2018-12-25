@@ -80,6 +80,7 @@ public class WifiInjector {
     private final FrameworkFacade mFrameworkFacade = new FrameworkFacade();
     private final HandlerThread mWifiServiceHandlerThread;
     private final HandlerThread mWifiCoreHandlerThread;
+    private final HandlerThread mWifiP2pServiceHandlerThread;
     private final WifiTrafficPoller mWifiTrafficPoller;
     private final WifiCountryCode mCountryCode;
     private final BackupManagerProxy mBackupManagerProxy = new BackupManagerProxy();
@@ -176,6 +177,8 @@ public class WifiInjector {
         mWifiServiceHandlerThread.start();
         mWifiCoreHandlerThread = new HandlerThread("ClientModeImpl");
         mWifiCoreHandlerThread.start();
+        mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
+        mWifiP2pServiceHandlerThread.start();
         Looper clientModeImplLooper = mWifiCoreHandlerThread.getLooper();
         mCarrierNetworkConfig = new CarrierNetworkConfig(mContext,
                 clientModeImplLooper, mFrameworkFacade);
@@ -357,6 +360,10 @@ public class WifiInjector {
 
     public HandlerThread getWifiServiceHandlerThread() {
         return mWifiServiceHandlerThread;
+    }
+
+    public HandlerThread getWifiP2pServiceHandlerThread() {
+        return mWifiP2pServiceHandlerThread;
     }
 
     public HandlerThread getWifiCoreHandlerThread() {
