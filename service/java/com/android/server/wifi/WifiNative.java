@@ -2491,6 +2491,15 @@ public class WifiNative {
     }
 
     /**
+     * Request hal to flush ring buffers to files
+     *
+     * @return true on success, false otherwise.
+     */
+    public boolean flushRingBufferData() {
+        return mWifiVendorHal.flushRingBufferData();
+    }
+
+    /**
      * Request vendor debug info from the firmware
      *
      * @return Raw data obtained from the HAL.
