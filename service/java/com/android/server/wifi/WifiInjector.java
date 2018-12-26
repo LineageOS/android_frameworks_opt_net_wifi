@@ -275,7 +275,7 @@ public class WifiInjector {
                 mWifiMetrics);
         mWifiDiagnostics = new WifiDiagnostics(
                 mContext, this, mWifiNative, mBuildProperties,
-                new LastMileLogger(this));
+                new LastMileLogger(this), mClock);
         mWifiDataStall = new WifiDataStall(mContext, mFrameworkFacade, mWifiMetrics);
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,

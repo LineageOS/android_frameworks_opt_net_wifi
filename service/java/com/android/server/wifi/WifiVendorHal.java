@@ -1676,6 +1676,26 @@ public class WifiVendorHal {
     }
 
     /**
+     * request hal to flush ring buffers to files
+     */
+    public boolean flushRingBufferData() {
+        synchronized (sLock) {
+            if (mIWifiChip == null) return boolResult(false);
+            android.hardware.wifi.V1_3.IWifiChip iWifiChipV13 = getWifiChipForV1_3Mockable();
+            if (iWifiChipV13 != null) {
+                try {
+                    WifiStatus status = iWifiChipV13.flushRingBufferToFile();
+                    return ok(status);
+                } catch (RemoteException e) {
+                    handleRemoteException(e);
+                    return false;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
      * Request vendor debug info from the firmware
      */
     public byte[] getFwMemoryDump() {

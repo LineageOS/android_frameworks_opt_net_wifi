@@ -3055,4 +3055,17 @@ public class ClientModeImplTest {
         verify(mWifiConnectivityManager).setDeviceMobilityState(
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
     }
+
+    /**
+     * Verify bugreport will be taken when get IP_REACHABILITY_LOST
+     */
+    @Test
+    public void testTakebugreportbyIpReachabilityLost() throws Exception {
+        connect();
+
+        mCmi.sendMessage(ClientModeImpl.CMD_IP_REACHABILITY_LOST);
+        mLooper.dispatchAll();
+        verify(mWifiDiagnostics).captureBugReportData(
+                eq(WifiDiagnostics.REPORT_REASON_REACHABILITY_LOST));
+    }
 }
