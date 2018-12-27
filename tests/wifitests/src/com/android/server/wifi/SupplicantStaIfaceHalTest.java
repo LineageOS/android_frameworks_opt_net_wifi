@@ -15,6 +15,7 @@
  */
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
@@ -1811,6 +1812,31 @@ public class SupplicantStaIfaceHalTest {
 
         assertEquals(WIFI_FEATURE_OWE | WIFI_FEATURE_WPA3_SAE,
                 mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test Easy Connect (DPP) key may management support
+     */
+    @Test
+    public void testGetKeyMgmtCapabilitiesDpp() throws Exception {
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_2.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_2 = mock(android.hardware.wifi.supplicant.V1_2.ISupplicant.class);
+        when(mServiceManagerMock.getTransport(eq(android.hardware.wifi.supplicant.V1_1.ISupplicant
+                .kInterfaceName), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mISupplicantMockV1_1 = mock(android.hardware.wifi.supplicant.V1_1.ISupplicant.class);
+
+        executeAndValidateInitializationSequenceV1_2();
+
+        doAnswer(new GetKeyMgmtCapabilitiesAnswer(android.hardware.wifi.supplicant.V1_2
+                .ISupplicantStaNetwork.KeyMgmtMask.DPP))
+                .when(mISupplicantStaIfaceMockV1_2).getKeyMgmtCapabilities(any(
+                android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface
+                        .getKeyMgmtCapabilitiesCallback.class));
+
+        assertEquals(WIFI_FEATURE_DPP, mDut.getAdvancedKeyMgmtCapabilities(WLAN0_IFACE_NAME));
     }
 
     private WifiConfiguration createTestWifiConfiguration() {
