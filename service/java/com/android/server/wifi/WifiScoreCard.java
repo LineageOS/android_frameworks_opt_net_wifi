@@ -34,10 +34,12 @@ import com.android.server.wifi.WifiScoreCardProto.Network;
 import com.android.server.wifi.WifiScoreCardProto.NetworkList;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
 import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
+import com.android.server.wifi.util.NativeUtil;
 
 import com.google.protobuf.ByteString;
 
 import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -56,6 +58,7 @@ public class WifiScoreCard {
     private static final String TAG = "WifiScoreCard";
 
     private final Clock mClock;
+    private final String mL2KeySeed;
 
     /**
      * Timestamp of the start of the most recent connection attempt.
@@ -75,9 +78,12 @@ public class WifiScoreCard {
 
     /**
      * @param clock is the time source
+     * @param l2KeySeed is for making our L2Keys usable only on this device
      */
-    public WifiScoreCard(Clock clock) {
+    public WifiScoreCard(Clock clock, String l2KeySeed) {
         mClock = clock;
+        mL2KeySeed = "" + l2KeySeed;
+        mDummyPerBssid = new PerBssid("", MacAddress.fromString(DEFAULT_MAC_ADDRESS));
     }
 
     private void resetConnectionState() {
@@ -174,29 +180,27 @@ public class WifiScoreCard {
         resetConnectionState();
     }
 
-    private int mNextId = 0;
     final class PerBssid {
         public int id;
+        public final UUID l2Key;
         public final String ssid;
         public final MacAddress bssid;
         private final Map<Pair<Event, Integer>, PerSignal>
                 mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
-            this.id = mNextId++;
             this.ssid = ssid;
             this.bssid = bssid;
+            this.l2Key = computeHashedL2Key(ssid, bssid);
+            this.id = (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
         }
-        PerBssid(String ssid, MacAddress bssid, AccessPoint ap) {
+        PerBssid(String ssid, MacAddress bssid, AccessPoint ap) { // TODO make a method instead
+            this.ssid = ssid;
+            this.bssid = bssid;
+            this.l2Key = computeHashedL2Key(ssid, bssid);
+            this.id = (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
             if (ap.hasId()) {
                 this.id = ap.getId();
-                if (this.id >= mNextId) {
-                    // Caller must be prepared to deal with duplicate ids,
-                    // but try here to minimize the possibility
-                    mNextId = this.id + 1;
-                }
             }
-            this.ssid = ssid;
-            this.bssid = bssid;
             for (Signal signal: ap.getEventStatsList()) {
                 PerSignal perSignal = new PerSignal(signal);
                 Pair<Event, Integer> key = new Pair<>(perSignal.event, perSignal.frequency);
@@ -241,12 +245,14 @@ public class WifiScoreCard {
             }
             return builder.build();
         }
+        String getL2Key() {
+            return l2Key.toString();
+        }
     }
 
-    // Create mDummyPerBssid here so it gets an id of 0. This is returned when the
-    // BSSID is not available, for instance when we are not associated.
-    private final PerBssid mDummyPerBssid = new PerBssid("",
-            MacAddress.fromString(DEFAULT_MAC_ADDRESS));
+    // Returned by lookupBssid when the BSSID is not available,
+    // for instance when we are not associated.
+    private final PerBssid mDummyPerBssid;
 
     private final Map<MacAddress, PerBssid> mApForBssid = new ArrayMap<>();
 
@@ -262,6 +268,8 @@ public class WifiScoreCard {
         }
         PerBssid ans = mApForBssid.get(mac);
         if (ans == null || !ans.ssid.equals(ssid)) {
+            UUID l2Key = computeHashedL2Key(ssid, mac);
+            // TODO try to read serialized blob from IpMemoryStore
             ans = new PerBssid(ssid, mac);
             PerBssid old = mApForBssid.put(mac, ans);
             if (old != null) {
@@ -269,6 +277,33 @@ public class WifiScoreCard {
             }
         }
         return ans;
+    }
+
+    private UUID computeHashedL2Key(String ssid, MacAddress mac) {
+        byte[][] parts = {
+                // Our seed keeps the L2Keys specific to this device
+                mL2KeySeed.getBytes(),
+                // ssid is either quoted utf8 or hex-encoded bytes; turn it into plain bytes.
+                NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(ssid)),
+                // And the BSSID
+                mac.toByteArray()
+        };
+        // Assemble the parts into one, with single-byte lengths before each.
+        int n = 0;
+        for (int i = 0; i < parts.length; i++) {
+            n += 1 + parts[i].length;
+        }
+        byte[] mashed = new byte[n];
+        int p = 0;
+        for (int i = 0; i < parts.length; i++) {
+            byte[] part = parts[i];
+            mashed[p++] = (byte) part.length;
+            for (int j = 0; j < part.length; j++) {
+                mashed[p++] = part[j];
+            }
+        }
+        // Finally, turn that into a UUID
+        return UUID.nameUUIDFromBytes(mashed);
     }
 
     @VisibleForTesting

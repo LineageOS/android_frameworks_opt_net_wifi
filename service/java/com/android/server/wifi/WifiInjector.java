@@ -236,7 +236,7 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
                 mWifiCoreHandlerThread.getLooper());
-        mWifiScoreCard = new WifiScoreCard(mClock);
+        mWifiScoreCard = new WifiScoreCard(mClock, "TODO(b/112196799) seed me properly");
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
