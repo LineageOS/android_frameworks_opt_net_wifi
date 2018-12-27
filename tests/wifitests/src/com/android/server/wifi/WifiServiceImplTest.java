@@ -64,6 +64,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ParceledListSlice;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -146,6 +147,19 @@ public class WifiServiceImplTest {
     private static final String WIFI_IFACE_NAME = "wlan0";
     private static final String TEST_COUNTRY_CODE = "US";
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
+    private static final List<WifiConfiguration> TEST_WIFI_CONFIGURATION_LIST = Arrays.asList(
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    0, 1000000, "\"red\"", true, true, null, null),
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    1, 1000001, "\"green\"", true, false, "example.com", "Green"),
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    2, 1200000, "\"blue\"", false, true, null, null),
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    3, 1100000, "\"cyan\"", true, true, null, null),
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    4, 1100001, "\"yellow\"", true, true, "example.org", "Yellow"),
+            WifiConfigurationTestUtil.generateWifiConfig(
+                    5, 1100002, "\"magenta\"", false, false, null, null));
 
     private AsyncChannel mAsyncChannel;
     private WifiServiceImpl mWifiServiceImpl;
@@ -876,6 +890,124 @@ public class WifiServiceImplTest {
 
         assertEquals(TEST_SSID_WITH_QUOTES, connectionInfo.getSSID());
         assertEquals(TEST_BSSID, connectionInfo.getBSSID());
+    }
+
+    /**
+     * Test that configured network list are exposed empty list to an app that does not have the
+     * appropriate permissions.
+     */
+    @Test
+    public void testConfiguredNetworkListAreEmptyFromAppWithoutPermission() throws Exception {
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                anyString(), anyInt());
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
+
+        assertEquals(0, configs.getList().size());
+    }
+
+    /**
+     * Test that configured network list are exposed empty list to an app that does not have the
+     * appropriate permissions, when enforceCanAccessScanResults raises a SecurityException.
+     */
+    @Test
+    public void testConfiguredNetworkListAreEmptyOnSecurityException() throws Exception {
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                anyString(), anyInt());
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
+
+        assertEquals(0, configs.getList().size());
+
+    }
+
+    /**
+     * Test that configured network list are exposed to an app that does have the
+     * appropriate permissions.
+     */
+    @Test
+    public void testConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
+
+        WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
+                TEST_WIFI_CONFIGURATION_LIST, configs.getList());
+    }
+
+
+    /**
+     * Test that privileged network list are exposed null to an app that does not have the
+     * appropriate permissions.
+     */
+    @Test
+    public void testPrivilegedConfiguredNetworkListAreEmptyFromAppWithoutPermission()
+            throws Exception {
+        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                anyString(), anyInt());
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+
+        assertEquals(null, configs);
+    }
+
+    /**
+     * Test that privileged network list are exposed null to an app that does not have the
+     * appropriate permissions, when enforceCanAccessScanResults raises a SecurityException.
+     */
+    @Test
+    public void testPrivilegedConfiguredNetworkListAreEmptyOnSecurityException() throws Exception {
+        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                anyString(), anyInt());
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+
+        assertEquals(null, configs);
+
+    }
+
+    /**
+     * Test that privileged network list are exposed to an app that does have the
+     * appropriate permissions.
+     */
+    @Test
+    public void testPrivilegedConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
+        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+                .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
+
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
+
+        ParceledListSlice<WifiConfiguration> configs =
+                mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+
+        WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
+                TEST_WIFI_CONFIGURATION_LIST, configs.getList());
     }
 
     /**
