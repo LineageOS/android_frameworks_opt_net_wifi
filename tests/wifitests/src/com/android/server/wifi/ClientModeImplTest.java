@@ -1951,17 +1951,6 @@ public class ClientModeImplTest {
     }
 
     /**
-     * Verifies that a network disconnection event will result in ClientModeImpl invoking
-     * {@link WifiConfigManager#removeAllEphemeralOrPasspointConfiguredNetworks()} to remove
-     * any ephemeral or passpoint networks from it's internal database.
-     */
-    @Test
-    public void testDisconnectionRemovesEphemeralAndPasspointNetworks() throws Exception {
-        disconnect();
-        verify(mWifiConfigManager).removeAllEphemeralOrPasspointConfiguredNetworks();
-    }
-
-    /**
      * Verifies that ClientModeImpl sets and unsets appropriate 'RecentFailureReason' values
      * on a WifiConfiguration when it fails association, authentication, or successfully connects
      */
@@ -2729,6 +2718,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mIpClient).shutdown();
         verify(mIpClient).awaitShutdown();
+        verify(mWifiConfigManager).removeAllEphemeralOrPasspointConfiguredNetworks();
     }
 
     private void toggleMacRandomizationSwitch(boolean isOn) {

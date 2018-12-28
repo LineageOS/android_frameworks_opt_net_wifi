@@ -3765,6 +3765,9 @@ public class ClientModeImpl extends StateMachine {
         mInterfaceName = null;
         // TODO: b/79504296 This broadcast has been deprecated and should be removed
         sendSupplicantConnectionChangedBroadcast(false);
+
+        // Let's remove any ephemeral or passpoint networks.
+        mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks();
     }
 
     void registerConnected() {
@@ -3781,8 +3784,6 @@ public class ClientModeImpl extends StateMachine {
     void registerDisconnected() {
         if (mLastNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
             mWifiConfigManager.updateNetworkAfterDisconnect(mLastNetworkId);
-            // Let's remove any ephemeral or passpoint networks on every disconnect.
-            mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks();
         }
     }
 
