@@ -56,6 +56,7 @@ public class WifiScoreCardTest {
     WifiScoreCard mWifiScoreCard;
 
     @Mock Clock mClock;
+    @Mock WifiScoreCard.MemoryStore mMemoryStore;
 
     long mMilliSecondsSinceBoot;
     ExtendedWifiInfo mWifiInfo;
@@ -311,6 +312,16 @@ public class WifiScoreCardTest {
         assertTrue(cleaned.length < serialized.length);
         // Check the Base64 version
         assertTrue(Arrays.equals(cleaned, Base64.decode(base64Encoded, Base64.DEFAULT)));
+    }
+
+    /**
+     * Installation of memory store does not crash
+     */
+    @Test
+    public void testInstallationOfMemoryStoreDoesNotCrash() throws Exception {
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
+        makeSerializedAccessPointExample();
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
     }
 
 }
