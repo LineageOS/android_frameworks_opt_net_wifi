@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "8641d125_821075a1",
+        "filename": "service/java/com/android/server/wifi/WifiConnectivityManager.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 914,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-12-31T23:07:01Z",
+      "side": 1,
+      "message": "nit: This log may have the potential to be spammy. Looks like this file also uses the localLog function instead.",
+      "range": {
+        "startLine": 914,
+        "startChar": 12,
+        "endLine": 914,
+        "endChar": 81
+      },
+      "revId": "0b93fd30d85eb31b8a6c6a5c7ceea552f2a61e9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a7a0b162_f44d0dfa",
+        "filename": "service/java/com/android/server/wifi/WifiConnectivityManager.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 1119,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-12-31T23:07:01Z",
+      "side": 1,
+      "message": "nit: This log may have the potential to be spammy. Looks like this file also uses the localLog function instead.",
+      "range": {
+        "startLine": 1119,
+        "startChar": 8,
+        "endLine": 1119,
+        "endChar": 52
+      },
+      "revId": "0b93fd30d85eb31b8a6c6a5c7ceea552f2a61e9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
