@@ -282,6 +282,7 @@ public class WifiAwareDataPathStateManager {
             Log.w(TAG, "onDataPathInitiateSuccess: network request in incorrect state: state="
                     + nnri.state);
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             mMgr.endDataPath(ndpId);
             return;
         }
@@ -309,6 +310,7 @@ public class WifiAwareDataPathStateManager {
                     + networkSpecifier);
             return;
         }
+        mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
 
         if (nnri.state
                 != AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE) {
@@ -420,6 +422,7 @@ public class WifiAwareDataPathStateManager {
                     "onDataPathRequest: request " + networkSpecifier + " no interface available");
             mMgr.respondToDataPathRequest(false, ndpId, "", null, null, null, false);
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             return null;
         }
 
@@ -472,6 +475,7 @@ public class WifiAwareDataPathStateManager {
                     + " failed responding");
             mMgr.endDataPath(ndpId);
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             mAwareMetrics.recordNdpStatus(reasonOnFailure, networkSpecifier.isOutOfBand(),
                     nnri.startTimestamp);
             return;
@@ -483,6 +487,7 @@ public class WifiAwareDataPathStateManager {
                     + " is incorrect state=" + nnri.state);
             mMgr.endDataPath(ndpId);
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             return;
         }
 
@@ -533,6 +538,7 @@ public class WifiAwareDataPathStateManager {
         if (nnri.state != AwareNetworkRequestInformation.STATE_WAIT_FOR_CONFIRM) {
             Log.w(TAG, "onDataPathConfirm: invalid state=" + nnri.state);
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             if (accept) {
                 mMgr.endDataPath(ndpId);
             }
@@ -647,6 +653,7 @@ public class WifiAwareDataPathStateManager {
                         + " rejected - reason=" + reason);
             }
             mNetworkRequestsCache.remove(networkSpecifier);
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
             mAwareMetrics.recordNdpStatus(reason, networkSpecifier.isOutOfBand(),
                     nnri.startTimestamp);
         }
@@ -745,6 +752,7 @@ public class WifiAwareDataPathStateManager {
         }
         mAwareMetrics.recordNdpStatus(NanStatusType.INTERNAL_FAILURE,
                 nnri.networkSpecifier.isOutOfBand(), nnri.startTimestamp);
+        mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
 
         mMgr.endDataPath(nnri.ndpId);
         nnri.state = AwareNetworkRequestInformation.STATE_TERMINATING;
@@ -823,6 +831,7 @@ public class WifiAwareDataPathStateManager {
             if (nnri == null) {
                 Log.e(TAG, "WifiAwareNetworkFactory.acceptRequest: request=" + request
                         + " - can't parse network specifier");
+                releaseRequestAsUnfulfillableByAnyFactory(request);
                 return false;
             }
 
@@ -886,6 +895,7 @@ public class WifiAwareDataPathStateManager {
                     Log.w(TAG, "needNetworkFor: request " + networkSpecifier
                             + " no interface available");
                     mNetworkRequestsCache.remove(networkSpecifier);
+                    letAppKnowThatRequestsAreUnavailable(nnri);
                     return;
                 }
 
@@ -950,12 +960,21 @@ public class WifiAwareDataPathStateManager {
                     nnri.state = AwareNetworkRequestInformation.STATE_TERMINATING;
                 } else {
                     mNetworkRequestsCache.remove(networkSpecifier);
+                    if (nnri.networkAgent != null) {
+                        letAppKnowThatRequestsAreUnavailable(nnri);
+                    }
                 }
             } else {
                 if (VDBG) {
                     Log.v(TAG, "releaseNetworkFor: equivalent requests exist - not terminating "
                             + "networkRequest=" + networkRequest);
                 }
+            }
+        }
+
+        void letAppKnowThatRequestsAreUnavailable(AwareNetworkRequestInformation nnri) {
+            for (NetworkRequest nr : nnri.equivalentRequests) {
+                releaseRequestAsUnfulfillableByAnyFactory(nr);
             }
         }
     }
@@ -1017,7 +1036,9 @@ public class WifiAwareDataPathStateManager {
             }
         }
 
-        if (nnri.networkAgent != null) {
+        if (nnri.networkAgent == null) {
+            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
+        } else {
             nnri.networkAgent.reconfigureAgentAsDisconnected();
         }
     }
