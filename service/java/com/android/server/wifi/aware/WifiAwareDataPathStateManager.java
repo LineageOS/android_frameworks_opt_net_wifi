@@ -75,6 +75,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Manages Aware data-path lifetime: interface creation/deletion, data-path setup and tear-down.
@@ -624,7 +625,7 @@ public class WifiAwareDataPathStateManager {
                         + networkCapabilities.getTransportInfo());
             }
 
-            if (!mNiWrapper.configureAgentProperties(nnri, nnri.equivalentSpecifiers, ndpId,
+            if (!mNiWrapper.configureAgentProperties(nnri, nnri.equivalentRequests, ndpId,
                     networkInfo, networkCapabilities, linkProperties)) {
                 return networkSpecifier;
             }
@@ -816,8 +817,9 @@ public class WifiAwareDataPathStateManager {
                 return true;
             }
 
-            nnri = AwareNetworkRequestInformation.processNetworkSpecifier(networkSpecifier, mMgr,
-                    mWifiPermissionsUtil, mPermissionsWrapper, mAllowNdpResponderFromAnyOverride);
+            nnri = AwareNetworkRequestInformation.processNetworkSpecifier(request, networkSpecifier,
+                    mMgr, mWifiPermissionsUtil, mPermissionsWrapper,
+                    mAllowNdpResponderFromAnyOverride);
             if (nnri == null) {
                 Log.e(TAG, "WifiAwareNetworkFactory.acceptRequest: request=" + request
                         + " - can't parse network specifier");
@@ -838,7 +840,7 @@ public class WifiAwareDataPathStateManager {
                         == AwareNetworkRequestInformation.STATE_TERMINATING) {
                     mWaitingForTermination = true;
                 } else {
-                    primaryRequest.getValue().updateToSupportNewRequest(networkSpecifier);
+                    primaryRequest.getValue().updateToSupportNewRequest(request);
                 }
                 return false;
             }
@@ -936,8 +938,8 @@ public class WifiAwareDataPathStateManager {
              * However, it is possible that there were other equivalent requests for this NDP. We
              * should keep going in that case.
              */
-            nnri.removeSupportForRequest(networkSpecifier);
-            if (nnri.equivalentSpecifiers.isEmpty()) {
+            nnri.removeSupportForRequest(networkRequest);
+            if (nnri.equivalentRequests.isEmpty()) {
                 if (VDBG) {
                     Log.v(TAG, "releaseNetworkFor: there are no further requests, networkRequest="
                             + networkRequest);
@@ -1120,15 +1122,15 @@ public class WifiAwareDataPathStateManager {
 
         public WifiAwareNetworkAgent networkAgent;
 
-        /* A collection of specifiers which are equivalent to the current request and are
-         * supported by it's agent. This list DOES include the original (first) network specifier
-         * (which is stored separately above).
+        /* A collection of request which are equivalent to the current request and are
+         * supported by it's agent. This list DOES include the original (first) network request
+         * (whose specifier is also stored separately above).
          */
-        public Set<WifiAwareNetworkSpecifier> equivalentSpecifiers = new HashSet<>();
+        public Set<NetworkRequest> equivalentRequests = new HashSet<>();
 
-        void updateToSupportNewRequest(WifiAwareNetworkSpecifier ns) {
+        void updateToSupportNewRequest(NetworkRequest ns) {
             if (VDBG) Log.v(TAG, "updateToSupportNewRequest: ns=" + ns);
-            if (equivalentSpecifiers.add(ns) && state == STATE_CONFIRMED) {
+            if (equivalentRequests.add(ns) && state == STATE_CONFIRMED) {
                 if (networkAgent == null) {
                     Log.wtf(TAG, "updateToSupportNewRequest: null agent in CONFIRMED state!?");
                     return;
@@ -1138,9 +1140,9 @@ public class WifiAwareDataPathStateManager {
             }
         }
 
-        void removeSupportForRequest(WifiAwareNetworkSpecifier ns) {
+        void removeSupportForRequest(NetworkRequest ns) {
             if (VDBG) Log.v(TAG, "removeSupportForRequest: ns=" + ns);
-            equivalentSpecifiers.remove(ns);
+            equivalentRequests.remove(ns);
 
             // we will not update the agent:
             // 1. this will only get called before the agent is created
@@ -1149,8 +1151,10 @@ public class WifiAwareDataPathStateManager {
 
         private NetworkCapabilities getNetworkCapabilities() {
             NetworkCapabilities nc = new NetworkCapabilities(sNetworkCapabilitiesFilter);
-            nc.setNetworkSpecifier(new WifiAwareAgentNetworkSpecifier(equivalentSpecifiers.toArray(
-                    new WifiAwareNetworkSpecifier[equivalentSpecifiers.size()])));
+            nc.setNetworkSpecifier(
+                    new WifiAwareAgentNetworkSpecifier(equivalentRequests.stream().map(
+                            nr -> nr.networkCapabilities.getNetworkSpecifier()).collect(
+                            Collectors.toList()).toArray(new WifiAwareNetworkSpecifier[0])));
             if (peerIpv6 != null) {
                 nc.setTransportInfo(
                         new WifiAwareNetworkInfo(peerIpv6, peerPort, peerTransportProtocol));
@@ -1166,9 +1170,9 @@ public class WifiAwareDataPathStateManager {
                     networkSpecifier.sessionId, networkSpecifier.passphrase);
         }
 
-        static AwareNetworkRequestInformation processNetworkSpecifier(WifiAwareNetworkSpecifier ns,
-                WifiAwareStateManager mgr, WifiPermissionsUtil wifiPermissionsUtil,
-                WifiPermissionsWrapper permissionWrapper,
+        static AwareNetworkRequestInformation processNetworkSpecifier(NetworkRequest request,
+                WifiAwareNetworkSpecifier ns, WifiAwareStateManager mgr,
+                WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionWrapper,
                 boolean allowNdpResponderFromAnyOverride) {
             int uid, pubSubId = 0;
             int peerInstanceId = 0;
@@ -1330,7 +1334,7 @@ public class WifiAwareDataPathStateManager {
             nnri.peerInstanceId = peerInstanceId;
             nnri.peerDiscoveryMac = peerMac;
             nnri.networkSpecifier = ns;
-            nnri.equivalentSpecifiers.add(ns);
+            nnri.equivalentRequests.add(request);
 
             return nnri;
         }
@@ -1352,8 +1356,8 @@ public class WifiAwareDataPathStateManager {
                     peerTransportProtocol).append(", startTimestamp=").append(
                     startTimestamp).append(", channelInfo=").append(
                     channelInfo).append(", equivalentSpecifiers=[");
-            for (WifiAwareNetworkSpecifier ns: equivalentSpecifiers) {
-                sb.append(ns.toString()).append(", ");
+            for (NetworkRequest nr : equivalentRequests) {
+                sb.append(nr.toString()).append(", ");
             }
             return sb.append("]").toString();
         }
@@ -1413,7 +1417,7 @@ public class WifiAwareDataPathStateManager {
          * name. Delegated to enable mocking.
          */
         public boolean configureAgentProperties(AwareNetworkRequestInformation nnri,
-                Set<WifiAwareNetworkSpecifier> networkSpecifiers, int ndpId,
+                Set<NetworkRequest> networkRequests, int ndpId,
                 NetworkInfo networkInfo, NetworkCapabilities networkCapabilities,
                 LinkProperties linkProperties) {
             // find link-local address
@@ -1455,8 +1459,10 @@ public class WifiAwareDataPathStateManager {
             networkInfo.setIsAvailable(true);
             networkInfo.setDetailedState(NetworkInfo.DetailedState.CONNECTED, null, null);
 
-            networkCapabilities.setNetworkSpecifier(new WifiAwareAgentNetworkSpecifier(
-                    networkSpecifiers.toArray(new WifiAwareNetworkSpecifier[0])));
+            networkCapabilities.setNetworkSpecifier(
+                    new WifiAwareAgentNetworkSpecifier(networkRequests.stream().map(
+                            nr -> nr.networkCapabilities.getNetworkSpecifier()).collect(
+                            Collectors.toList()).toArray(new WifiAwareNetworkSpecifier[0])));
 
             linkProperties.setInterfaceName(nnri.interfaceName);
             linkProperties.addLinkAddress(new LinkAddress(linkLocal, 64));
