@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -58,6 +59,9 @@ public class WifiScoreCardTest {
     @Mock Clock mClock;
     @Mock WifiScoreCard.MemoryStore mMemoryStore;
 
+    final ArrayList<String> mKeys = new ArrayList<>();
+    final ArrayList<WifiScoreCard.BlobListener> mBlobListeners = new ArrayList<>();
+
     long mMilliSecondsSinceBoot;
     ExtendedWifiInfo mWifiInfo;
 
@@ -77,6 +81,8 @@ public class WifiScoreCardTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mKeys.clear();
+        mBlobListeners.clear();
         mMilliSecondsSinceBoot = 0;
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
@@ -210,6 +216,8 @@ public class WifiScoreCardTest {
         mWifiInfo.setRssi(-44);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalMean = -42.0;
+        perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalVariance = 4.0;
         checkSerializationExample("before serialization", perBssid);
         // Now convert to protobuf form
         byte[] serialized = perBssid.toAccessPoint().toByteArray();
@@ -229,6 +237,11 @@ public class WifiScoreCardTest {
                 .linkspeed.sum, TOL);
         assertEquals(diag, 111.0, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
                 .elapsedMs.minValue, TOL);
+        assertEquals(diag, 0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.count);
+        assertEquals(diag, -42.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalMean, TOL);
+        assertEquals(diag, 4.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalVariance, TOL);
     }
 
     /**
@@ -240,8 +253,14 @@ public class WifiScoreCardTest {
 
         // Verify by parsing it and checking that we see the expected results
         AccessPoint ap = AccessPoint.parseFrom(serialized);
-        assertEquals(3, ap.getEventStatsCount());
+        assertEquals(4, ap.getEventStatsCount());
         for (Signal signal: ap.getEventStatsList()) {
+            if (signal.getFrequency() == 2412) {
+                assertFalse(signal.getRssi().hasCount());
+                assertEquals(-42.0, signal.getRssi().getHistoricalMean(), TOL);
+                assertEquals(4.0, signal.getRssi().getHistoricalVariance(), TOL);
+                continue;
+            }
             assertEquals(5805, signal.getFrequency());
             switch (signal.getEvent()) {
                 case IP_CONFIGURATION_SUCCESS:
@@ -322,6 +341,39 @@ public class WifiScoreCardTest {
         mWifiScoreCard.installMemoryStore(mMemoryStore);
         makeSerializedAccessPointExample();
         mWifiScoreCard.installMemoryStore(mMemoryStore);
+    }
+
+    /**
+     * Merge of lazy reads
+     */
+    @Test
+    public void testLazyReads() throws Exception {
+        // Install our own MemoryStore object, which records read requests
+        mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
+            @Override
+            public void read(String key, WifiScoreCard.BlobListener listener) {
+                mKeys.add(key);
+                mBlobListeners.add(listener);
+            }
+            @Override
+            public void write(String key, byte[] value) {
+                // ignore for now
+            }
+        });
+        // Now make some changes
+        byte[] serialized = makeSerializedAccessPointExample();
+        assertEquals(mKeys.size(), 1);
+
+        // Simulate the asynchronous completion of the read request
+        millisecondsPass(33);
+        mBlobListeners.get(0).onBlobRetrieved(serialized);
+
+        // Check that the historical mean and variance were updated accordingly
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        assertEquals(-42.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalMean, TOL);
+        assertEquals(2.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalVariance, TOL);
     }
 
 }

@@ -283,11 +283,12 @@ public class WifiScoreCard {
                 return this;
             }
             for (Signal signal: ap.getEventStatsList()) {
-                PerSignal perSignal = new PerSignal(signal);
-                Pair<Event, Integer> key = new Pair<>(perSignal.event, perSignal.frequency);
-                PerSignal replaced = mSignalForEventAndFrequency.put(key, perSignal);
-                if (replaced != null) {
-                    // TODO perSignal.merge(replaced);
+                Pair<Event, Integer> key = new Pair<>(signal.getEvent(), signal.getFrequency());
+                PerSignal perSignal = mSignalForEventAndFrequency.get(key);
+                if (perSignal == null) {
+                    mSignalForEventAndFrequency.put(key, new PerSignal(signal));
+                } else {
+                    perSignal.merge(signal);
                 }
             }
             return this;
@@ -434,6 +435,15 @@ public class WifiScoreCard {
                 this.elapsedMs = null;
             }
         }
+        void merge(Signal signal) {
+            if (event != signal.getEvent()) return;
+            if (frequency != signal.getFrequency()) return;
+            rssi.merge(signal.getRssi());
+            linkspeed.merge(signal.getLinkspeed());
+            if (signal.hasElapsedMs()) {
+                elapsedMs.merge(signal.getElapsedMs());
+            }
+        }
         Signal toSignal() {
             Signal.Builder builder = Signal.newBuilder();
             builder.setEvent(event)
@@ -484,6 +494,36 @@ public class WifiScoreCard {
         }
         void age() {
             //TODO  Fold the current stats into the historical stats
+        }
+        void merge(UnivariateStatistic stats) {
+            if (stats.hasCount()) {
+                count += stats.getCount();
+                sum += stats.getSum();
+                sumOfSquares += stats.getSumOfSquares();
+            }
+            if (stats.hasMinValue()) {
+                minValue = Math.min(minValue, stats.getMinValue());
+            }
+            if (stats.hasMaxValue()) {
+                maxValue = Math.max(maxValue, stats.getMaxValue());
+            }
+            if (stats.hasHistoricalVariance()) {
+                if (historicalVariance < Double.POSITIVE_INFINITY) {
+                    // Combine the estimates; c.f.
+                    // Maybeck, Stochasic Models, Estimation, and Control, Vol. 1
+                    // equations (1-3) and (1-4)
+                    double numer1 = stats.getHistoricalVariance();
+                    double numer2 = historicalVariance;
+                    double denom = numer1 + numer2;
+                    historicalMean = (numer1 * historicalMean
+                                    + numer2 * stats.getHistoricalMean())
+                                    / denom;
+                    historicalVariance = numer1 * numer2 / denom;
+                } else {
+                    historicalMean = stats.getHistoricalMean();
+                    historicalVariance = stats.getHistoricalVariance();
+                }
+            }
         }
         UnivariateStatistic toUnivariateStatistic() {
             UnivariateStatistic.Builder builder = UnivariateStatistic.newBuilder();
