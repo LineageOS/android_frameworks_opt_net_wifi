@@ -66,7 +66,15 @@ public class WifiScoreCard {
 
     /** Our view of the memory store */
     public interface MemoryStore {
-        // TODO more stuff here
+        /** Requests a read, with asynchronous reply */
+        void read(String key, BlobListener blobListener);
+        /** Requests a write, does not wait for completion */
+        void write(String key, byte[] value);
+    }
+    /** Asynchronous response to a read request */
+    public interface BlobListener {
+        /** Provides the previously stored value, or null if none */
+        void onBlobRetrieved(@Nullable byte[] value);
     }
 
     /**
@@ -77,9 +85,9 @@ public class WifiScoreCard {
      * clock when we start up, so we need to be prepared to begin recording data
      * even if the MemoryStore is not yet available.
      *
-     * When the store is installed for the first time, any newly recorded data
-     * should be merged together with data already in the store. But if for some
-     * reason the store restarts and has to be reinstalled, we don't want to do
+     * When the store is installed for the first time, we want to merge any
+     * recently recorded data together with data already in the store. But if
+     * the store restarts and has to be reinstalled, we don't want to do
      * this merge, because that would risk double-counting the old data.
      *
      */
@@ -288,6 +296,16 @@ public class WifiScoreCard {
             return l2Key.toString();
         }
         /**
+         * Called when the (asynchronous) answer to a read request comes back.
+         */
+        void lazyMerge(byte[] serialized) {
+            if (serialized == null) return;
+            byte[] old = mPendingReadFromStore.getAndSet(serialized);
+            if (old != null) {
+                Log.e(TAG, "More answers than we expected!");
+            }
+        }
+        /**
          * Handles (when convenient) the arrival of previously stored data.
          *
          * The response from IpMemoryStore arrives on a different thread, so we
@@ -333,11 +351,15 @@ public class WifiScoreCard {
             if (old != null) {
                 Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.id);
             }
-            // TODO try to read serialized blob from IpMemoryStore
-            // This will involve something like
-            // (..., blobParcel, ...) -> { ans.mPendingReadFromStore.put(blobParcel.get()); }
+            requestReadForPerBssid(ans);
         }
         return ans;
+    }
+
+    private void requestReadForPerBssid(final PerBssid perBssid) {
+        if (mMemoryStore != null) {
+            mMemoryStore.read(perBssid.getL2Key(), (value) -> perBssid.lazyMerge(value));
+        }
     }
 
     private UUID computeHashedL2Key(String ssid, MacAddress mac) {
