@@ -42,6 +42,7 @@ import android.util.Base64;
 import android.util.Pair;
 import android.util.SparseIntArray;
 
+import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.aware.WifiAwareMetrics;
@@ -1691,6 +1692,7 @@ public class WifiMetricsTest {
      * Test the generation of 'NumConnectableNetwork' histograms from two scans of different
      * ScanDetails produces the correct histogram values, and relevant bounds are observed
      */
+    @MediumTest
     @Test
     public void testNumConnectableNetworksGeneration() throws Exception {
         List<ScanDetail> scan = new ArrayList<ScanDetail>();
