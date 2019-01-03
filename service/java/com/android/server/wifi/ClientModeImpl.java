@@ -50,6 +50,8 @@ import android.net.NetworkInfo.DetailedState;
 import android.net.NetworkMisc;
 import android.net.NetworkUtils;
 import android.net.RouteInfo;
+import android.net.SocketKeepalive;
+import android.net.SocketKeepalive.InvalidPacketException;
 import android.net.StaticIpConfiguration;
 import android.net.TrafficStats;
 import android.net.ip.IIpClient;
@@ -1285,27 +1287,25 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private byte[] getDstMacForKeepalive(KeepalivePacketData packetData)
-            throws KeepalivePacketData.InvalidPacketException {
+            throws InvalidPacketException {
         try {
             InetAddress gateway = RouteInfo.selectBestRoute(
                     mLinkProperties.getRoutes(), packetData.dstAddress).getGateway();
             String dstMacStr = macAddressFromRoute(gateway.getHostAddress());
             return NativeUtil.macAddressToByteArray(dstMacStr);
         } catch (NullPointerException | IllegalArgumentException e) {
-            throw new KeepalivePacketData.InvalidPacketException(
-                    ConnectivityManager.PacketKeepalive.ERROR_INVALID_IP_ADDRESS);
+            throw new InvalidPacketException(SocketKeepalive.ERROR_INVALID_IP_ADDRESS);
         }
     }
 
     private static int getEtherProtoForKeepalive(KeepalivePacketData packetData)
-            throws KeepalivePacketData.InvalidPacketException {
+            throws InvalidPacketException {
         if (packetData.dstAddress instanceof Inet4Address) {
             return OsConstants.ETH_P_IP;
         } else if (packetData.dstAddress instanceof Inet6Address) {
             return OsConstants.ETH_P_IPV6;
         } else {
-            throw new KeepalivePacketData.InvalidPacketException(
-                    ConnectivityManager.PacketKeepalive.ERROR_INVALID_IP_ADDRESS);
+            throw new InvalidPacketException(SocketKeepalive.ERROR_INVALID_IP_ADDRESS);
         }
     }
 
@@ -1318,7 +1318,7 @@ public class ClientModeImpl extends StateMachine {
             packet = packetData.getPacket();
             dstMac = getDstMacForKeepalive(packetData);
             proto = getEtherProtoForKeepalive(packetData);
-        } catch (KeepalivePacketData.InvalidPacketException e) {
+        } catch (InvalidPacketException e) {
             return e.error;
         }
 
@@ -1327,9 +1327,9 @@ public class ClientModeImpl extends StateMachine {
         if (ret != 0) {
             loge("startWifiIPPacketOffload(" + slot + ", " + intervalSeconds
                     + "): hardware error " + ret);
-            return ConnectivityManager.PacketKeepalive.ERROR_HARDWARE_ERROR;
+            return SocketKeepalive.ERROR_HARDWARE_ERROR;
         } else {
-            return ConnectivityManager.PacketKeepalive.SUCCESS;
+            return SocketKeepalive.SUCCESS;
         }
     }
 
@@ -1337,9 +1337,9 @@ public class ClientModeImpl extends StateMachine {
         int ret = mWifiNative.stopSendingOffloadedPacket(mInterfaceName, slot);
         if (ret != 0) {
             loge("stopWifiIPPacketOffload(" + slot + "): hardware error " + ret);
-            return ConnectivityManager.PacketKeepalive.ERROR_HARDWARE_ERROR;
+            return SocketKeepalive.ERROR_HARDWARE_ERROR;
         } else {
-            return ConnectivityManager.PacketKeepalive.SUCCESS;
+            return SocketKeepalive.SUCCESS;
         }
     }
 
@@ -3599,15 +3599,11 @@ public class ClientModeImpl extends StateMachine {
                     deferMessage(message);
                     break;
                 case CMD_START_IP_PACKET_OFFLOAD:
-                    if (mNetworkAgent != null) {
-                        mNetworkAgent.onPacketKeepaliveEvent(message.arg1,
-                                ConnectivityManager.PacketKeepalive.ERROR_INVALID_NETWORK);
-                    }
-                    break;
+                    /* fall-through */
                 case CMD_STOP_IP_PACKET_OFFLOAD:
                     if (mNetworkAgent != null) {
-                        mNetworkAgent.onPacketKeepaliveEvent(message.arg1,
-                                ConnectivityManager.PacketKeepalive.ERROR_INVALID_NETWORK);
+                        mNetworkAgent.onSocketKeepaliveEvent(message.arg1,
+                                SocketKeepalive.ERROR_INVALID_NETWORK);
                     }
                     break;
                 case CMD_START_RSSI_MONITORING_OFFLOAD:
@@ -4508,7 +4504,7 @@ public class ClientModeImpl extends StateMachine {
                     int slot = message.arg1;
                     int ret = stopWifiIPPacketOffload(slot);
                     if (mNetworkAgent != null) {
-                        mNetworkAgent.onPacketKeepaliveEvent(slot, ret);
+                        mNetworkAgent.onSocketKeepaliveEvent(slot, ret);
                     }
                     break;
                 }
@@ -4692,13 +4688,13 @@ public class ClientModeImpl extends StateMachine {
         }
 
         @Override
-        protected void startPacketKeepalive(Message msg) {
+        protected void startSocketKeepalive(Message msg) {
             ClientModeImpl.this.sendMessage(
                     CMD_START_IP_PACKET_OFFLOAD, msg.arg1, msg.arg2, msg.obj);
         }
 
         @Override
-        protected void stopPacketKeepalive(Message msg) {
+        protected void stopSocketKeepalive(Message msg) {
             ClientModeImpl.this.sendMessage(
                     CMD_STOP_IP_PACKET_OFFLOAD, msg.arg1, msg.arg2, msg.obj);
         }
@@ -5595,7 +5591,7 @@ public class ClientModeImpl extends StateMachine {
                     KeepalivePacketData pkt = (KeepalivePacketData) message.obj;
                     int result = startWifiIPPacketOffload(slot, pkt, intervalSeconds);
                     if (mNetworkAgent != null) {
-                        mNetworkAgent.onPacketKeepaliveEvent(slot, result);
+                        mNetworkAgent.onSocketKeepaliveEvent(slot, result);
                     }
                     break;
                 }
