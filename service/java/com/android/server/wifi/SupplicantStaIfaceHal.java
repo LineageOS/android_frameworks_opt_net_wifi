@@ -16,6 +16,7 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.DppStatusCallback.DPP_EVENT_FAILURE_NOT_SUPPORTED;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
@@ -3040,6 +3041,15 @@ public class SupplicantStaIfaceHal {
 
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, methodStr + ": OWE supported");
+            }
+        }
+
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.DPP) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_DPP;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": DPP supported");
             }
         }
 
