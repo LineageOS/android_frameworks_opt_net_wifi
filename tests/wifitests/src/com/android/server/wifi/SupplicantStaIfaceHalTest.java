@@ -135,6 +135,8 @@ public class SupplicantStaIfaceHalTest {
     ISupplicantStaIfaceCallback mISupplicantStaIfaceCallback;
     android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback
             mISupplicantStaIfaceCallbackV1_1;
+    android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback
+            mISupplicantStaIfaceCallbackV1_2;
     private SupplicantStaIfaceHal mDut;
     private ArgumentCaptor<IHwBinder.DeathRecipient> mServiceManagerDeathCaptor =
             ArgumentCaptor.forClass(IHwBinder.DeathRecipient.class);
@@ -2016,6 +2018,18 @@ public class SupplicantStaIfaceHalTest {
                         any(android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback
                                 .class));
 
+        doAnswer(new MockAnswerUtil.AnswerWithArguments() {
+            public SupplicantStatus answer(
+                    android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback cb)
+                    throws RemoteException {
+                mISupplicantStaIfaceCallbackV1_2 = cb;
+                return mStatusSuccess;
+            }
+        }).when(mISupplicantStaIfaceMockV1_2)
+                .registerCallback_1_2(
+                        any(android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback
+                                .class));
+
         mInOrder = inOrder(mServiceManagerMock, mISupplicantMock, mISupplicantMockV1_1,
                 mISupplicantStaIfaceMockV1_2, mWifiMonitor);
         // Initialize SupplicantStaIfaceHal, should call serviceManager.registerForNotifications
@@ -2039,8 +2053,8 @@ public class SupplicantStaIfaceHalTest {
                                 .addInterfaceCallback.class));
 
         mInOrder.verify(mISupplicantStaIfaceMockV1_2)
-                .registerCallback_1_1(
-                        any(android.hardware.wifi.supplicant.V1_1.ISupplicantStaIfaceCallback
+                .registerCallback_1_2(
+                        any(android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback
                                 .class));
 
         // Ensure we don't try to use the listInterfaces method from 1.0 version.
