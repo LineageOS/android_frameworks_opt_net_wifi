@@ -431,4 +431,14 @@ public class WifiScoreCardTest {
         assertEquals(0, mWifiScoreCard.doWrites());
     }
 
+    /**
+     * Installing a MemoryStore after startup should issue reads
+     */
+    @Test
+    public void testReadAfterDelayedMemoryStoreInstallation() throws Exception {
+        makeSerializedAccessPointExample();
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
+        verify(mMemoryStore).read(any(), any());
+    }
+
 }

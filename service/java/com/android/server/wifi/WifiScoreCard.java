@@ -96,12 +96,11 @@ public class WifiScoreCard {
         if (mMemoryStore == null) {
             mMemoryStore = memoryStore;
             Log.i(TAG, "Installing MemoryStore");
-            // TODO - Request that any data that we have already gathered be merged with existing
-            // stored data
+            requestReadForAllChanged();
         } else {
             mMemoryStore = memoryStore;
             Log.e(TAG, "Reinstalling MemoryStore");
-            // TODO - process pending writes
+            // Our caller will call doWrites() eventually, so nothing more to do here.
         }
     }
 
@@ -365,6 +364,14 @@ public class WifiScoreCard {
     private void requestReadForPerBssid(final PerBssid perBssid) {
         if (mMemoryStore != null) {
             mMemoryStore.read(perBssid.getL2Key(), (value) -> perBssid.lazyMerge(value));
+        }
+    }
+
+    private void requestReadForAllChanged() {
+        for (PerBssid perBssid : mApForBssid.values()) {
+            if (perBssid.changed) {
+                requestReadForPerBssid(perBssid);
+            }
         }
     }
 
