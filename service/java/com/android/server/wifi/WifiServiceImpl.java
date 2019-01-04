@@ -87,6 +87,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ShellCallback;
@@ -1761,7 +1762,9 @@ public class WifiServiceImpl extends AbstractWifiService {
     @Override
     public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName) {
         enforceAccessPermission();
-        mAppOps.checkPackage(Binder.getCallingUid(), packageName);
+        if (Binder.getCallingUid() != Process.SHELL_UID) { // bypass shell: can get varioud pkg name
+            mAppOps.checkPackage(Binder.getCallingUid(), packageName);
+        }
         if (!isTargetSdkLessThanQOrPrivileged(
                 packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
             mLog.info("getConfiguredNetworks not allowed for uid=%")
