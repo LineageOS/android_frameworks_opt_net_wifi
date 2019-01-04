@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.util.NativeUtil.hexStringFromByteArray;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -61,6 +63,7 @@ public class WifiScoreCardTest {
 
     final ArrayList<String> mKeys = new ArrayList<>();
     final ArrayList<WifiScoreCard.BlobListener> mBlobListeners = new ArrayList<>();
+    final ArrayList<byte[]> mBlobs = new ArrayList<>();
 
     long mMilliSecondsSinceBoot;
     ExtendedWifiInfo mWifiInfo;
@@ -83,6 +86,7 @@ public class WifiScoreCardTest {
         MockitoAnnotations.initMocks(this);
         mKeys.clear();
         mBlobListeners.clear();
+        mBlobs.clear();
         mMilliSecondsSinceBoot = 0;
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
@@ -302,7 +306,7 @@ public class WifiScoreCardTest {
                 AccessPoint.parseFrom(serialized));
 
         // Now verify
-        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        String diag = hexStringFromByteArray(serialized);
         checkSerializationExample(diag, perBssid);
     }
 
@@ -318,7 +322,7 @@ public class WifiScoreCardTest {
         String base64Encoded = mWifiScoreCard.getNetworkListBase64(true);
 
         setUp(); // Get back to the initial state
-        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        String diag = hexStringFromByteArray(serialized);
         NetworkList networkList = NetworkList.parseFrom(serialized);
         assertEquals(diag, 1, networkList.getNetworksCount());
         Network network = networkList.getNetworks(0);
@@ -360,9 +364,10 @@ public class WifiScoreCardTest {
                 // ignore for now
             }
         });
+
         // Now make some changes
         byte[] serialized = makeSerializedAccessPointExample();
-        assertEquals(mKeys.size(), 1);
+        assertEquals(1, mKeys.size());
 
         // Simulate the asynchronous completion of the read request
         millisecondsPass(33);
@@ -374,6 +379,56 @@ public class WifiScoreCardTest {
                 .rssi.historicalMean, TOL);
         assertEquals(2.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
                 .rssi.historicalVariance, TOL);
+    }
+
+    /**
+     * Write test
+     */
+    @Test
+    public void testWrites() throws Exception {
+        // Install our own MemoryStore object, which records write requests
+        mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
+            @Override
+            public void read(String key, WifiScoreCard.BlobListener listener) {
+                // Just record these, never answer
+                mBlobListeners.add(listener);
+            }
+            @Override
+            public void write(String key, byte[] value) {
+                mKeys.add(key);
+                mBlobs.add(value);
+            }
+        });
+
+        // Make some changes
+        byte[] serialized = makeSerializedAccessPointExample();
+        assertEquals(1, mBlobListeners.size());
+
+        secondsPass(33);
+
+        // There should be one changed bssid now
+        assertEquals(1, mWifiScoreCard.doWrites());
+        assertEquals(1, mKeys.size());
+
+        // The written blob should not contain the BSSID, though the full serialized version does
+        String writtenHex = hexStringFromByteArray(mBlobs.get(0));
+        String fullHex = hexStringFromByteArray(serialized);
+        String bssidHex = hexStringFromByteArray(TEST_BSSID_1.toByteArray());
+        assertFalse(writtenHex, writtenHex.contains(bssidHex));
+        assertTrue(fullHex, fullHex.contains(bssidHex));
+
+        // A second write request should not find anything to write
+        assertEquals(0, mWifiScoreCard.doWrites());
+        assertEquals(1, mKeys.size());
+    }
+
+    /**
+     * Calling doWrites before installing a MemoryStore should do nothing.
+     */
+    @Test
+    public void testNoWritesUntilReady() throws Exception {
+        makeSerializedAccessPointExample();
+        assertEquals(0, mWifiScoreCard.doWrites());
     }
 
 }

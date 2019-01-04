@@ -230,6 +230,7 @@ public class WifiScoreCard {
         public final UUID l2Key;
         public final String ssid;
         public final MacAddress bssid;
+        public boolean changed;
         private final Map<Pair<Event, Integer>, PerSignal>
                 mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
@@ -237,6 +238,7 @@ public class WifiScoreCard {
             this.bssid = bssid;
             this.l2Key = computeHashedL2Key(ssid, bssid);
             this.id = (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
+            this.changed = false;
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
             PerSignal perSignal = lookupSignal(event, frequency);
@@ -252,6 +254,7 @@ public class WifiScoreCard {
                     perSignal.elapsedMs.update(millis);
                 }
             }
+            changed = true;
         }
         PerSignal lookupSignal(Event event, int frequency) {
             finishPendingRead();
@@ -287,8 +290,10 @@ public class WifiScoreCard {
                 PerSignal perSignal = mSignalForEventAndFrequency.get(key);
                 if (perSignal == null) {
                     mSignalForEventAndFrequency.put(key, new PerSignal(signal));
+                    // No need to set changed for this, since we are in sync with what's stored
                 } else {
                     perSignal.merge(signal);
+                    changed = true;
                 }
             }
             return this;
@@ -361,6 +366,30 @@ public class WifiScoreCard {
         if (mMemoryStore != null) {
             mMemoryStore.read(perBssid.getL2Key(), (value) -> perBssid.lazyMerge(value));
         }
+    }
+
+    /**
+     * Issues write requests for all changed entries
+     *
+     * This should be called from time to time to save the state to persistent
+     * storage. Since we always check internal state first, this does not need
+     * to be called very often, but it should be called before shutdown.
+     *
+     * @returns number of writes issued.
+     */
+    public int doWrites() {
+        if (mMemoryStore == null) return 0;
+        int count = 0;
+        for (PerBssid perBssid : mApForBssid.values()) {
+            if (perBssid.changed) {
+                perBssid.finishPendingRead();
+                byte[] serialized = perBssid.toAccessPoint(/* No BSSID */ true).toByteArray();
+                mMemoryStore.write(perBssid.getL2Key(), serialized);
+                perBssid.changed = false;
+                count++;
+            }
+        }
+        return count;
     }
 
     private UUID computeHashedL2Key(String ssid, MacAddress mac) {
@@ -436,8 +465,8 @@ public class WifiScoreCard {
             }
         }
         void merge(Signal signal) {
-            if (event != signal.getEvent()) return;
-            if (frequency != signal.getFrequency()) return;
+            Preconditions.checkArgument(event == signal.getEvent());
+            Preconditions.checkArgument(frequency == signal.getFrequency());
             rssi.merge(signal.getRssi());
             linkspeed.merge(signal.getLinkspeed());
             if (signal.hasElapsedMs()) {
