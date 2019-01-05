@@ -365,6 +365,18 @@ public class WifiAwareDataPathStateManager {
             break;
         }
 
+        // it is also possible that this is an initiator-side data-path request indication (which
+        // happens when the Responder responds). In such a case it will be matched by the NDP ID.
+        Map.Entry<WifiAwareNetworkSpecifier, AwareNetworkRequestInformation> nnriE =
+                getNetworkRequestByNdpId(ndpId);
+        if (nnriE != null) {
+            if (VDBG) {
+                Log.v(TAG,
+                        "onDataPathRequest: initiator-side indication for " + nnriE.getValue());
+            }
+            return null; // ignore this for NDP set up flow: it is used to obtain app_info from Resp
+        }
+
         if (nnri == null) {
             Log.w(TAG, "onDataPathRequest: can't find a request with specified pubSubId=" + pubSubId
                     + ", mac=" + String.valueOf(HexEncoding.encode(mac)));
