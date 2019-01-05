@@ -22,6 +22,7 @@ import static android.net.wifi.WifiInfo.INVALID_RSSI;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.MacAddress;
+import android.net.wifi.SupplicantState;
 import android.util.ArrayMap;
 import android.util.Base64;
 import android.util.Log;
@@ -59,6 +60,7 @@ public class WifiScoreCard {
     public static final String DUMP_ARG = "WifiScoreCard";
 
     private static final String TAG = "WifiScoreCard";
+    private static final boolean DBG = false;
 
     private final Clock mClock;
     private final String mL2KeySeed;
@@ -116,9 +118,19 @@ public class WifiScoreCard {
     private static final long TS_NONE = -1;
 
     /**
+     * Timestamp captured when we find out about a firmware roam
+     */
+    private long mTsRoam = TS_NONE;
+
+    /**
      * Becomes true the first time we see a poll with a valid RSSI in a connection
      */
     private boolean mPolled = false;
+
+    /**
+     * A note to ourself that we are attempting a network switch
+     */
+    private boolean mAttemptingSwitch = false;
 
     /**
      * @param clock is the time source
@@ -130,8 +142,28 @@ public class WifiScoreCard {
         mDummyPerBssid = new PerBssid("", MacAddress.fromString(DEFAULT_MAC_ADDRESS));
     }
 
-    private void resetConnectionState() {
-        mTsConnectionAttemptStart = TS_NONE;
+    /**
+     * Resets the connection state
+     */
+    public void resetConnectionState() {
+        if (DBG && mTsConnectionAttemptStart > TS_NONE && !mAttemptingSwitch) {
+            Log.v(TAG, "resetConnectionState", new Exception());
+        }
+        resetConnectionStateInternal(true);
+    }
+
+    /**
+     * @param calledFromResetConnectionState says the call is from outside the class,
+     *        indicating that we need to resepect the value of mAttemptingSwitch.
+     */
+    private void resetConnectionStateInternal(boolean calledFromResetConnectionState) {
+        if (!calledFromResetConnectionState) {
+            mAttemptingSwitch = false;
+        }
+        if (!mAttemptingSwitch) {
+            mTsConnectionAttemptStart = TS_NONE;
+        }
+        mTsRoam = TS_NONE;
         mPolled = false;
     }
 
@@ -146,6 +178,8 @@ public class WifiScoreCard {
                 wifiInfo.getFrequency(),
                 wifiInfo.getRssi(),
                 wifiInfo.getLinkSpeed());
+
+        if (DBG) Log.d(TAG, event.toString() + " ID: " + perBssid.id + " " + wifiInfo);
     }
 
     /**
@@ -154,13 +188,21 @@ public class WifiScoreCard {
      * @param wifiInfo object holding relevant values
      */
     public void noteSignalPoll(ExtendedWifiInfo wifiInfo) {
-        update(Event.SIGNAL_POLL, wifiInfo);
         if (!mPolled && wifiInfo.getRssi() != INVALID_RSSI) {
             update(Event.FIRST_POLL_AFTER_CONNECTION, wifiInfo);
             mPolled = true;
         }
-        // TODO(b/112196799) capture state for LAST_POLL_BEFORE_ROAM
+        update(Event.SIGNAL_POLL, wifiInfo);
+        if (mTsRoam > TS_NONE && wifiInfo.getRssi() != INVALID_RSSI) {
+            long duration = mClock.getElapsedSinceBootMillis() - mTsRoam;
+            if (duration >= SUCCESS_MILLIS_SINCE_ROAM) {
+                update(Event.ROAM_SUCCESS, wifiInfo);
+                mTsRoam = TS_NONE;
+            }
+        }
     }
+    /** Wait a few seconds before considering the roam successful */
+    private static final long SUCCESS_MILLIS_SINCE_ROAM = 4_000;
 
     /**
      * Updates the score card after IP configuration
@@ -169,6 +211,7 @@ public class WifiScoreCard {
      */
     public void noteIpConfiguration(ExtendedWifiInfo wifiInfo) {
         update(Event.IP_CONFIGURATION_SUCCESS, wifiInfo);
+        mAttemptingSwitch = false;
     }
 
     /**
@@ -178,9 +221,17 @@ public class WifiScoreCard {
      */
     public void noteConnectionAttempt(ExtendedWifiInfo wifiInfo) {
         // We may or may not be currently connected. If not, simply record the start.
-        // But if we are connected, wrap up the old one first TODO(b/112196799)
+        // But if we are connected, wrap up the old one first.
+        if (mTsConnectionAttemptStart > TS_NONE) {
+            if (mPolled) {
+                update(Event.LAST_POLL_BEFORE_SWITCH, wifiInfo);
+            }
+            mAttemptingSwitch = true;
+        }
         mTsConnectionAttemptStart = mClock.getElapsedSinceBootMillis();
         mPolled = false;
+
+        if (DBG) Log.d(TAG, "CONNECTION_ATTEMPT" + (mAttemptingSwitch ? " X " : " ") + wifiInfo);
     }
 
     /**
@@ -188,9 +239,16 @@ public class WifiScoreCard {
      *
      * @param wifiInfo object holding relevant values
      */
-    public void noteConnectionFailure(ExtendedWifiInfo wifiInfo) {
+    public void noteConnectionFailure(ExtendedWifiInfo wifiInfo,
+                int codeMetrics, int codeMetricsProto) {
+        if (DBG) {
+            Log.d(TAG, "noteConnectionFailure(..., " + codeMetrics + ", " + codeMetricsProto + ")");
+        }
+        // TODO(b/112196799) Need to sort out the reasons better. Also, we get here
+        // when we disconnect from below, so it should sometimes get counted as a
+        // disconnection rather than a connection failure.
         update(Event.CONNECTION_FAILURE, wifiInfo);
-        resetConnectionState();
+        resetConnectionStateInternal(false);
     }
 
     /**
@@ -200,18 +258,47 @@ public class WifiScoreCard {
      */
     public void noteIpReachabilityLost(ExtendedWifiInfo wifiInfo) {
         update(Event.IP_REACHABILITY_LOST, wifiInfo);
-        // TODO(b/112196799) Check for roam failure here
-        resetConnectionState();
+        if (mTsRoam > TS_NONE) {
+            mTsConnectionAttemptStart = mTsRoam; // just to update elapsed
+            update(Event.ROAM_FAILURE, wifiInfo);
+        }
+        resetConnectionStateInternal(false);
     }
 
     /**
-     * Updates the score card after a roam
+     * Updates the score card before a roam
+     *
+     * We may have already done a firmware roam, but wifiInfo has not yet
+     * been updated, so we still have the old state.
      *
      * @param wifiInfo object holding relevant values
      */
     public void noteRoam(ExtendedWifiInfo wifiInfo) {
-        // TODO(b/112196799) Defer recording success until we believe it works
-        update(Event.ROAM_SUCCESS, wifiInfo);
+        update(Event.LAST_POLL_BEFORE_ROAM, wifiInfo);
+        mTsRoam = mClock.getElapsedSinceBootMillis();
+    }
+
+    /**
+     * Called when the supplicant state is about to change, before wifiInfo is updated
+     *
+     * @param wifiInfo object holding old values
+     * @param state the new supplicant state
+     */
+    public void noteSupplicantStateChanging(ExtendedWifiInfo wifiInfo, SupplicantState state) {
+        if (DBG) {
+            Log.d(TAG, "Changing state to " + state + " " + wifiInfo);
+        }
+    }
+
+    /**
+     * Called after the supplicant state changed
+     *
+     * @param wifiInfo object holding old values
+     */
+    public void noteSupplicantStateChanged(ExtendedWifiInfo wifiInfo) {
+        if (DBG) {
+            Log.d(TAG, "STATE " + wifiInfo);
+        }
     }
 
     /**
@@ -221,7 +308,7 @@ public class WifiScoreCard {
      */
     public void noteWifiDisabled(ExtendedWifiInfo wifiInfo) {
         update(Event.WIFI_DISABLED, wifiInfo);
-        resetConnectionState();
+        resetConnectionStateInternal(false);
     }
 
     final class PerBssid {
@@ -453,6 +540,7 @@ public class WifiScoreCard {
                 case IP_CONFIGURATION_SUCCESS:
                 case CONNECTION_FAILURE:
                 case WIFI_DISABLED:
+                case ROAM_FAILURE:
                     this.elapsedMs = new PerUnivariateStatistic();
                     break;
                 default:
