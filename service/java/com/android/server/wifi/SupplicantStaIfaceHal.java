@@ -15,6 +15,8 @@
  */
 package com.android.server.wifi;
 
+import static android.net.wifi.DppStatusCallback.DPP_EVENT_FAILURE_NOT_SUPPORTED;
+import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SUITE_B;
@@ -42,6 +44,7 @@ import android.hardware.wifi.supplicant.V1_0.IfaceType;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
+import android.hardware.wifi.supplicant.V1_2.DppAkm;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.IpConfiguration;
@@ -51,6 +54,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.HidlSupport.Mutable;
 import android.os.HwRemoteBinder;
+import android.os.Process;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -60,6 +64,7 @@ import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.WifiNative.DppEventCallback;
 import com.android.server.wifi.WifiNative.SupplicantDeathEventHandler;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
@@ -123,6 +128,7 @@ public class SupplicantStaIfaceHal {
     private final Context mContext;
     private final WifiMonitor mWifiMonitor;
     private final PropertyService mPropertyService;
+    private DppEventCallback mDppCallback = null;
 
     private final IServiceNotification mServiceNotificationCallback =
             new IServiceNotification.Stub() {
@@ -312,10 +318,14 @@ public class SupplicantStaIfaceHal {
         if (isV1_2()) {
             android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface iface =
                     getStaIfaceMockableV1_2(ifaceHwBinder);
+
             SupplicantStaIfaceHalCallbackV1_1 callbackV11 =
                     new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
 
-            if (!registerCallbackV1_1(iface, callbackV11)) {
+            SupplicantStaIfaceHalCallbackV1_2 callbackV12 =
+                    new SupplicantStaIfaceHalCallbackV1_2(callbackV11);
+
+            if (!registerCallbackV1_2(iface, callbackV12)) {
                 return false;
             }
             mISupplicantStaIfaces.put(ifaceName, iface);
@@ -1251,6 +1261,23 @@ public class SupplicantStaIfaceHal {
             if (iface == null) return false;
             try {
                 SupplicantStatus status =  iface.registerCallback_1_1(callback);
+                return checkStatusAndLogFailure(status, methodStr);
+            } catch (RemoteException e) {
+                handleRemoteException(e, methodStr);
+                return false;
+            }
+        }
+    }
+
+    private boolean registerCallbackV1_2(
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface iface,
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback callback) {
+        synchronized (mLock) {
+            String methodStr = "registerCallback_1_2";
+
+            if (iface == null) return false;
+            try {
+                SupplicantStatus status =  iface.registerCallback_1_2(callback);
                 return checkStatusAndLogFailure(status, methodStr);
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
@@ -2781,6 +2808,187 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    private class SupplicantStaIfaceHalCallbackV1_2 extends
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback.Stub {
+        private SupplicantStaIfaceHalCallbackV1_1 mCallbackV1_1;
+
+        SupplicantStaIfaceHalCallbackV1_2(
+                @NonNull SupplicantStaIfaceHalCallbackV1_1 callback) {
+            mCallbackV1_1 = callback;
+        }
+
+        @Override
+        public void onNetworkAdded(int id) {
+            mCallbackV1_1.onNetworkAdded(id);
+        }
+
+        @Override
+        public void onNetworkRemoved(int id) {
+            mCallbackV1_1.onNetworkRemoved(id);
+        }
+
+        @Override
+        public void onStateChanged(int newState, byte[/* 6 */] bssid, int id,
+                ArrayList<Byte> ssid) {
+            mCallbackV1_1.onStateChanged(newState, bssid, id, ssid);
+        }
+
+        @Override
+        public void onAnqpQueryDone(byte[/* 6 */] bssid,
+                ISupplicantStaIfaceCallback.AnqpData data,
+                ISupplicantStaIfaceCallback.Hs20AnqpData hs20Data) {
+            mCallbackV1_1.onAnqpQueryDone(bssid, data, hs20Data);
+        }
+
+        @Override
+        public void onHs20IconQueryDone(byte[/* 6 */] bssid, String fileName,
+                ArrayList<Byte> data) {
+            mCallbackV1_1.onHs20IconQueryDone(bssid, fileName, data);
+        }
+
+        @Override
+        public void onHs20SubscriptionRemediation(byte[/* 6 */] bssid,
+                byte osuMethod, String url) {
+            mCallbackV1_1.onHs20SubscriptionRemediation(bssid, osuMethod, url);
+        }
+
+        @Override
+        public void onHs20DeauthImminentNotice(byte[/* 6 */] bssid, int reasonCode,
+                int reAuthDelayInSec, String url) {
+            mCallbackV1_1.onHs20DeauthImminentNotice(bssid, reasonCode, reAuthDelayInSec, url);
+        }
+
+        @Override
+        public void onDisconnected(byte[/* 6 */] bssid, boolean locallyGenerated,
+                int reasonCode) {
+            mCallbackV1_1.onDisconnected(bssid, locallyGenerated, reasonCode);
+        }
+
+        @Override
+        public void onAssociationRejected(byte[/* 6 */] bssid, int statusCode,
+                boolean timedOut) {
+            mCallbackV1_1.onAssociationRejected(bssid, statusCode, timedOut);
+        }
+
+        @Override
+        public void onAuthenticationTimeout(byte[/* 6 */] bssid) {
+            mCallbackV1_1.onAuthenticationTimeout(bssid);
+        }
+
+        @Override
+        public void onBssidChanged(byte reason, byte[/* 6 */] bssid) {
+            mCallbackV1_1.onBssidChanged(reason, bssid);
+        }
+
+        @Override
+        public void onEapFailure() {
+            mCallbackV1_1.onEapFailure();
+        }
+
+        @Override
+        public void onEapFailure_1_1(int code) {
+            mCallbackV1_1.onEapFailure_1_1(code);
+        }
+
+        @Override
+        public void onWpsEventSuccess() {
+            mCallbackV1_1.onWpsEventSuccess();
+        }
+
+        @Override
+        public void onWpsEventFail(byte[/* 6 */] bssid, short configError, short errorInd) {
+            mCallbackV1_1.onWpsEventFail(bssid, configError, errorInd);
+        }
+
+        @Override
+        public void onWpsEventPbcOverlap() {
+            mCallbackV1_1.onWpsEventPbcOverlap();
+        }
+
+        @Override
+        public void onExtRadioWorkStart(int id) {
+            mCallbackV1_1.onExtRadioWorkStart(id);
+        }
+
+        @Override
+        public void onExtRadioWorkTimeout(int id) {
+            mCallbackV1_1.onExtRadioWorkTimeout(id);
+        }
+
+        @Override
+        public void onDppSuccessConfigReceived(ArrayList<Byte> ssid, String password,
+                byte[] psk, int securityAkm) {
+            if (mDppCallback == null) {
+                loge("onDppSuccessConfigReceived callback is null");
+                return;
+            }
+
+            WifiConfiguration newWifiConfiguration = new WifiConfiguration();
+
+            // Set up SSID
+            WifiSsid wifiSsid =
+                    WifiSsid.createFromByteArray(NativeUtil.byteArrayFromArrayList(ssid));
+
+            newWifiConfiguration.SSID = "\"" + wifiSsid.toString() + "\"";
+
+            // Set up password or PSK
+            if (password != null) {
+                newWifiConfiguration.preSharedKey = "\"" + password + "\"";
+            } else if (psk != null) {
+                newWifiConfiguration.preSharedKey = psk.toString();
+            }
+
+            // Set up key management: SAE or PSK
+            if (securityAkm == DppAkm.SAE || securityAkm == DppAkm.PSK_SAE) {
+                newWifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
+                newWifiConfiguration.requirePMF = true;
+            } else if (securityAkm == DppAkm.PSK) {
+                newWifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+            } else {
+                // No other AKMs are currently supported
+                onDppFailure(DPP_EVENT_FAILURE_NOT_SUPPORTED);
+                return;
+            }
+
+            // Set up default values
+            newWifiConfiguration.creatorName = mContext.getPackageManager()
+                    .getNameForUid(Process.WIFI_UID);
+            newWifiConfiguration.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+            newWifiConfiguration.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+            newWifiConfiguration.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+            newWifiConfiguration.status = WifiConfiguration.Status.ENABLED;
+
+            mDppCallback.onSuccessConfigReceived(newWifiConfiguration);
+        }
+
+        @Override
+        public void onDppSuccess(int code) {
+            if (mDppCallback != null) {
+                mDppCallback.onSuccess(code);
+            } else {
+                loge("onDppSuccess callback is null");
+            }
+        }
+
+        @Override
+        public void onDppProgress(int code) {
+            if (mDppCallback != null) {
+                mDppCallback.onProgress(code);
+            } else {
+                loge("onDppProgress callback is null");
+            }
+        }
+
+        @Override
+        public void onDppFailure(int code) {
+            if (mDppCallback != null) {
+                mDppCallback.onFailure(code);
+            } else {
+                loge("onDppFailure callback is null");
+            }
+        }
+    }
+
     private static void logd(String s) {
         Log.d(TAG, s);
     }
@@ -2836,6 +3044,15 @@ public class SupplicantStaIfaceHal {
             }
         }
 
+        if ((keyMgmtCapabilities & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.DPP) != 0) {
+            advancedCapabilities |= WIFI_FEATURE_DPP;
+
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, methodStr + ": DPP supported");
+            }
+        }
+
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, methodStr + ": Capability flags = " + keyMgmtCapabilities);
         }
@@ -2884,5 +3101,233 @@ public class SupplicantStaIfaceHal {
 
         // 0 is returned in case of an error
         return keyMgmtMask.value;
+    }
+
+    /**
+     * Adds a DPP peer URI to the URI list.
+     *
+     *  This is a v1.2+ HAL feature.
+     *  Returns an ID to be used later to refer to this URI (>0).
+     *  On error, or if these features are not supported, -1 is returned.
+     */
+    public int addDppPeerUri(@NonNull String ifaceName, @NonNull String uri) {
+        final String methodStr = "addDppPeerUri";
+        MutableBoolean status = new MutableBoolean(false);
+        MutableInt bootstrapId = new MutableInt(-1);
+
+        if (!isV1_2()) {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
+            return -1;
+        }
+
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return -1;
+        }
+
+        // Get a v1.2 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                getStaIfaceMockableV1_2(iface);
+
+        if (staIfaceV12 == null) {
+            Log.e(TAG, methodStr + ": ISupplicantStaIface is null");
+            return -1;
+        }
+
+        try {
+            // Support for DPP (Easy connect)
+            // Requires HAL v1.2 or higher
+            staIfaceV12.addDppPeerUri(uri,
+                    (SupplicantStatus statusInternal, int bootstrapIdInternal) -> {
+                        status.value = statusInternal.code == SupplicantStatusCode.SUCCESS;
+                        if (status.value) {
+                            bootstrapId.value = bootstrapIdInternal;
+                        }
+                        checkStatusAndLogFailure(statusInternal, methodStr);
+                    });
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+            return -1;
+        }
+
+        return bootstrapId.value;
+    }
+
+    /**
+     * Removes a DPP URI to the URI list given an ID.
+     *
+     *  This is a v1.2+ HAL feature.
+     *  Returns true when operation is successful
+     *  On error, or if these features are not supported, false is returned.
+     */
+    public boolean removeDppUri(@NonNull String ifaceName, int bootstrapId)  {
+        final String methodStr = "removeDppUri";
+
+        if (!isV1_2()) {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
+            return false;
+        }
+
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return false;
+        }
+
+        // Get a v1.2 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                getStaIfaceMockableV1_2(iface);
+
+        if (staIfaceV12 == null) {
+            Log.e(TAG, methodStr + ": ISupplicantStaIface is null");
+            return false;
+        }
+
+        try {
+            // Support for DPP (Easy connect)
+            // Requires HAL v1.2 or higher
+            SupplicantStatus status = staIfaceV12.removeDppUri(bootstrapId);
+            return checkStatusAndLogFailure(status, methodStr);
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+        }
+
+        return false;
+    }
+
+    /**
+     * Stops/aborts DPP Initiator request
+     *
+     *  This is a v1.2+ HAL feature.
+     *  Returns true when operation is successful
+     *  On error, or if these features are not supported, false is returned.
+     */
+    public boolean stopDppInitiator(@NonNull String ifaceName)  {
+        final String methodStr = "stopDppInitiator";
+
+        if (!isV1_2()) {
+            return false;
+        }
+
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return false;
+        }
+
+        // Get a v1.2 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                getStaIfaceMockableV1_2(iface);
+
+        if (staIfaceV12 == null) {
+            Log.e(TAG, methodStr + ": ISupplicantStaIface is null");
+            return false;
+        }
+
+        try {
+            // Support for DPP (Easy connect)
+            // Requires HAL v1.2 or higher
+            SupplicantStatus status = staIfaceV12.stopDppInitiator();
+            return checkStatusAndLogFailure(status, methodStr);
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+        }
+
+        return false;
+    }
+
+    /**
+     * Starts DPP Configurator-Initiator request
+     *
+     *  This is a v1.2+ HAL feature.
+     *  Returns true when operation is successful
+     *  On error, or if these features are not supported, false is returned.
+     */
+    public boolean startDppConfiguratorInitiator(@NonNull String ifaceName, int peerBootstrapId,
+            int ownBootstrapId, @NonNull String ssid, String password, String psk,
+            int netRole, int securityAkm)  {
+        final String methodStr = "startDppConfiguratorInitiator";
+
+        if (!isV1_2()) {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
+            return false;
+        }
+
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return false;
+        }
+
+        // Get a v1.2 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                getStaIfaceMockableV1_2(iface);
+
+        if (staIfaceV12 == null) {
+            Log.e(TAG, methodStr + ": ISupplicantStaIface is null");
+            return false;
+        }
+
+        try {
+            // Support for DPP (Easy connect)
+            // Requires HAL v1.2 or higher
+            SupplicantStatus status = staIfaceV12.startDppConfiguratorInitiator(peerBootstrapId,
+                    ownBootstrapId, ssid, password != null ? password : "", psk != null ? psk : "",
+                    netRole, securityAkm);
+            return checkStatusAndLogFailure(status, methodStr);
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+        }
+
+        return false;
+    }
+
+    /**
+     * Starts DPP Enrollee-Initiator request
+     *
+     *  This is a v1.2+ HAL feature.
+     *  Returns true when operation is successful
+     *  On error, or if these features are not supported, false is returned.
+     */
+    public boolean startDppEnrolleeInitiator(@NonNull String ifaceName, int peerBootstrapId,
+            int ownBootstrapId)  {
+        final String methodStr = "startDppEnrolleeInitiator";
+
+        if (!isV1_2()) {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
+            return false;
+        }
+
+        ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+        if (iface == null) {
+            return false;
+        }
+
+        // Get a v1.2 supplicant STA Interface
+        android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface staIfaceV12 =
+                getStaIfaceMockableV1_2(iface);
+
+        if (staIfaceV12 == null) {
+            Log.e(TAG, methodStr + ": ISupplicantStaIface is null");
+            return false;
+        }
+
+        try {
+            // Support for DPP (Easy connect)
+            // Requires HAL v1.2 or higher
+            SupplicantStatus status = staIfaceV12.startDppEnrolleeInitiator(peerBootstrapId,
+                    ownBootstrapId);
+            return checkStatusAndLogFailure(status, methodStr);
+        } catch (RemoteException e) {
+            handleRemoteException(e, methodStr);
+        }
+
+        return false;
+    }
+
+    /**
+     * Register callbacks for DPP events.
+     *
+     * @param dppCallback DPP callback object.
+     */
+    public void registerDppCallback(DppEventCallback dppCallback) {
+        mDppCallback = dppCallback;
     }
 }

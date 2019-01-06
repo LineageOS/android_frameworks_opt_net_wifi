@@ -81,7 +81,7 @@ public class WifiScoreCardTest {
         mWifiInfo.setSSID(TEST_SSID_1);
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
         millisecondsPass(0);
-        mWifiScoreCard = new WifiScoreCard(mClock);
+        mWifiScoreCard = new WifiScoreCard(mClock, "some seed");
     }
 
     /**

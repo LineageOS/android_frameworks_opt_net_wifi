@@ -145,6 +145,7 @@ public class WifiInjector {
     private final WifiDataStall mWifiDataStall;
     private final WifiScoreCard mWifiScoreCard;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    private final DppManager mDppManager;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -236,7 +237,7 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
                 mWifiCoreHandlerThread.getLooper());
-        mWifiScoreCard = new WifiScoreCard(mClock);
+        mWifiScoreCard = new WifiScoreCard(mClock, "TODO(b/112196799) seed me properly");
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
@@ -307,6 +308,8 @@ public class WifiInjector {
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
+        mDppManager = new DppManager(mWifiCoreHandlerThread.getLooper(), mWifiNative,
+                mWifiConfigManager, mContext);
     }
 
     /**
@@ -336,6 +339,7 @@ public class WifiInjector {
         mCarrierNetworkConfig.enableVerboseLogging(verbose);
         mWifiNetworkSuggestionsManager.enableVerboseLogging(verbose);
         LogcatLog.enableVerboseLogging(verbose);
+        mDppManager.enableVerboseLogging(verbose);
     }
 
     public UserManager getUserManager() {
@@ -465,6 +469,10 @@ public class WifiInjector {
 
     public WifiStateTracker getWifiStateTracker() {
         return mWifiStateTracker;
+    }
+
+    public DppManager getDppManager() {
+        return mDppManager;
     }
 
     public IWificond makeWificond() {

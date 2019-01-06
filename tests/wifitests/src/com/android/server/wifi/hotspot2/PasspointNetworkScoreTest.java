@@ -346,4 +346,24 @@ public class PasspointNetworkScoreTest {
         }
     }
 
+    /**
+     * It should not throw {@link NullPointerException} when unsupported network type is provided.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void calculatorScoreWithUnSupportedNetworkType() throws Exception {
+        TestData data = new TestData(false /* isHomeProvider */, false /* isActiveNetwork */,
+                -60 /* rssiLevel */, true /* internetAccess */,
+                NetworkDetail.Ant.Resvd6 /* reserved */, null /* anqpElements */,
+                /* expectedScore */
+                PasspointNetworkScore.INTERNET_ACCESS_AWARD
+                        + PasspointNetworkScore.RSSI_SCORE.lookupScore(-60, false));
+
+        ScanDetail scanDetail = generateScanDetail(data.rssiLevel, data.internetAccess,
+                data.networkType);
+
+        assertEquals(data.expectedScore, PasspointNetworkScore.calculateScore(
+                    data.isHomeProvider, scanDetail, data.anqpElements, data.isActiveNetwork));
+    }
 }
