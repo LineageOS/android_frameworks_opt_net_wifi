@@ -3723,6 +3723,18 @@ public class WifiConfigManagerTest {
                 true, // assertSuccess
                 result.getNetworkId()); // Update networkID
 
+        network = WifiConfigurationTestUtil.createOpenHiddenNetwork();
+        result = addNetworkToWifiConfigManager(network, TEST_CREATOR_UID);
+        assertTrue(result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
+        verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(
+                false, // withNetworkSettings
+                true, // withNetworkSetupWizard
+                false, // withProfileOwnerPolicy
+                false, // withDeviceOwnerPolicy
+                WifiConfigurationTestUtil.createDHCPIpConfigurationWithPacProxy(),
+                true, // assertSuccess
+                result.getNetworkId()); // Update networkID
+
         // Testing updating network with proxy while holding Profile Owner policy
         network = WifiConfigurationTestUtil.createOpenHiddenNetwork();
         result = addNetworkToWifiConfigManager(network, TEST_NO_PERM_UID);
@@ -4139,6 +4151,19 @@ public class WifiConfigManagerTest {
             IpConfiguration ipConfiguration,
             boolean assertSuccess,
             int networkId) {
+        return verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(withNetworkSettings,
+                false, withProfileOwnerPolicy, withDeviceOwnerPolicy, ipConfiguration,
+                assertSuccess, networkId);
+    }
+
+    private NetworkUpdateResult verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(
+            boolean withNetworkSettings,
+            boolean withNetworkSetupWizard,
+            boolean withProfileOwnerPolicy,
+            boolean withDeviceOwnerPolicy,
+            IpConfiguration ipConfiguration,
+            boolean assertSuccess,
+            int networkId) {
         WifiConfiguration network;
         if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
             network = WifiConfigurationTestUtil.createOpenHiddenNetwork();
@@ -4154,7 +4179,11 @@ public class WifiConfigManagerTest {
                 .thenReturn(withDeviceOwnerPolicy);
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt()))
                 .thenReturn(withNetworkSettings);
-        int uid = withNetworkSettings ? TEST_CREATOR_UID : TEST_NO_PERM_UID;
+        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt()))
+                .thenReturn(withNetworkSetupWizard);
+        int uid = withNetworkSettings || withNetworkSetupWizard
+                ? TEST_CREATOR_UID
+                : TEST_NO_PERM_UID;
         NetworkUpdateResult result = addNetworkToWifiConfigManager(network, uid);
         assertEquals(assertSuccess, result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
         return result;
