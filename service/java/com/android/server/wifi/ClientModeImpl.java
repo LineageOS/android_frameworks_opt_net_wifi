@@ -3976,7 +3976,12 @@ public class ClientModeImpl extends StateMachine {
                                     targetedNetwork.SSID);
                         }
                     } else if (reasonCode == WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE) {
-                        handleEapAuthFailure(mTargetNetworkId, message.arg2);
+                        int errorCode = message.arg2;
+                        handleEapAuthFailure(mTargetNetworkId, errorCode);
+                        if (errorCode == WifiNative.EAP_SIM_NOT_SUBSCRIBED) {
+                            disableReason = WifiConfiguration.NetworkSelectionStatus
+                                .DISABLED_AUTHENTICATION_NO_SUBSCRIPTION;
+                        }
                     }
                     mWifiConfigManager.updateNetworkSelectionStatus(
                             mTargetNetworkId, disableReason);
