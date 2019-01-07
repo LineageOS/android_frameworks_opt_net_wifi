@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.util.NativeUtil.hexStringFromByteArray;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -37,6 +39,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -56,6 +59,11 @@ public class WifiScoreCardTest {
     WifiScoreCard mWifiScoreCard;
 
     @Mock Clock mClock;
+    @Mock WifiScoreCard.MemoryStore mMemoryStore;
+
+    final ArrayList<String> mKeys = new ArrayList<>();
+    final ArrayList<WifiScoreCard.BlobListener> mBlobListeners = new ArrayList<>();
+    final ArrayList<byte[]> mBlobs = new ArrayList<>();
 
     long mMilliSecondsSinceBoot;
     ExtendedWifiInfo mWifiInfo;
@@ -76,6 +84,9 @@ public class WifiScoreCardTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        mKeys.clear();
+        mBlobListeners.clear();
+        mBlobs.clear();
         mMilliSecondsSinceBoot = 0;
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
@@ -209,6 +220,8 @@ public class WifiScoreCardTest {
         mWifiInfo.setRssi(-44);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalMean = -42.0;
+        perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalVariance = 4.0;
         checkSerializationExample("before serialization", perBssid);
         // Now convert to protobuf form
         byte[] serialized = perBssid.toAccessPoint().toByteArray();
@@ -228,6 +241,11 @@ public class WifiScoreCardTest {
                 .linkspeed.sum, TOL);
         assertEquals(diag, 111.0, perBssid.lookupSignal(Event.IP_CONFIGURATION_SUCCESS, 5805)
                 .elapsedMs.minValue, TOL);
+        assertEquals(diag, 0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.count);
+        assertEquals(diag, -42.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalMean, TOL);
+        assertEquals(diag, 4.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalVariance, TOL);
     }
 
     /**
@@ -239,8 +257,14 @@ public class WifiScoreCardTest {
 
         // Verify by parsing it and checking that we see the expected results
         AccessPoint ap = AccessPoint.parseFrom(serialized);
-        assertEquals(3, ap.getEventStatsCount());
+        assertEquals(4, ap.getEventStatsCount());
         for (Signal signal: ap.getEventStatsList()) {
+            if (signal.getFrequency() == 2412) {
+                assertFalse(signal.getRssi().hasCount());
+                assertEquals(-42.0, signal.getRssi().getHistoricalMean(), TOL);
+                assertEquals(4.0, signal.getRssi().getHistoricalVariance(), TOL);
+                continue;
+            }
             assertEquals(5805, signal.getFrequency());
             switch (signal.getEvent()) {
                 case IP_CONFIGURATION_SUCCESS:
@@ -282,7 +306,7 @@ public class WifiScoreCardTest {
                 AccessPoint.parseFrom(serialized));
 
         // Now verify
-        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        String diag = hexStringFromByteArray(serialized);
         checkSerializationExample(diag, perBssid);
     }
 
@@ -298,7 +322,7 @@ public class WifiScoreCardTest {
         String base64Encoded = mWifiScoreCard.getNetworkListBase64(true);
 
         setUp(); // Get back to the initial state
-        String diag = com.android.server.wifi.util.NativeUtil.hexStringFromByteArray(serialized);
+        String diag = hexStringFromByteArray(serialized);
         NetworkList networkList = NetworkList.parseFrom(serialized);
         assertEquals(diag, 1, networkList.getNetworksCount());
         Network network = networkList.getNetworks(0);
@@ -311,6 +335,110 @@ public class WifiScoreCardTest {
         assertTrue(cleaned.length < serialized.length);
         // Check the Base64 version
         assertTrue(Arrays.equals(cleaned, Base64.decode(base64Encoded, Base64.DEFAULT)));
+    }
+
+    /**
+     * Installation of memory store does not crash
+     */
+    @Test
+    public void testInstallationOfMemoryStoreDoesNotCrash() throws Exception {
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
+        makeSerializedAccessPointExample();
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
+    }
+
+    /**
+     * Merge of lazy reads
+     */
+    @Test
+    public void testLazyReads() throws Exception {
+        // Install our own MemoryStore object, which records read requests
+        mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
+            @Override
+            public void read(String key, WifiScoreCard.BlobListener listener) {
+                mKeys.add(key);
+                mBlobListeners.add(listener);
+            }
+            @Override
+            public void write(String key, byte[] value) {
+                // ignore for now
+            }
+        });
+
+        // Now make some changes
+        byte[] serialized = makeSerializedAccessPointExample();
+        assertEquals(1, mKeys.size());
+
+        // Simulate the asynchronous completion of the read request
+        millisecondsPass(33);
+        mBlobListeners.get(0).onBlobRetrieved(serialized);
+
+        // Check that the historical mean and variance were updated accordingly
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
+        assertEquals(-42.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalMean, TOL);
+        assertEquals(2.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
+                .rssi.historicalVariance, TOL);
+    }
+
+    /**
+     * Write test
+     */
+    @Test
+    public void testWrites() throws Exception {
+        // Install our own MemoryStore object, which records write requests
+        mWifiScoreCard.installMemoryStore(new WifiScoreCard.MemoryStore() {
+            @Override
+            public void read(String key, WifiScoreCard.BlobListener listener) {
+                // Just record these, never answer
+                mBlobListeners.add(listener);
+            }
+            @Override
+            public void write(String key, byte[] value) {
+                mKeys.add(key);
+                mBlobs.add(value);
+            }
+        });
+
+        // Make some changes
+        byte[] serialized = makeSerializedAccessPointExample();
+        assertEquals(1, mBlobListeners.size());
+
+        secondsPass(33);
+
+        // There should be one changed bssid now
+        assertEquals(1, mWifiScoreCard.doWrites());
+        assertEquals(1, mKeys.size());
+
+        // The written blob should not contain the BSSID, though the full serialized version does
+        String writtenHex = hexStringFromByteArray(mBlobs.get(0));
+        String fullHex = hexStringFromByteArray(serialized);
+        String bssidHex = hexStringFromByteArray(TEST_BSSID_1.toByteArray());
+        assertFalse(writtenHex, writtenHex.contains(bssidHex));
+        assertTrue(fullHex, fullHex.contains(bssidHex));
+
+        // A second write request should not find anything to write
+        assertEquals(0, mWifiScoreCard.doWrites());
+        assertEquals(1, mKeys.size());
+    }
+
+    /**
+     * Calling doWrites before installing a MemoryStore should do nothing.
+     */
+    @Test
+    public void testNoWritesUntilReady() throws Exception {
+        makeSerializedAccessPointExample();
+        assertEquals(0, mWifiScoreCard.doWrites());
+    }
+
+    /**
+     * Installing a MemoryStore after startup should issue reads
+     */
+    @Test
+    public void testReadAfterDelayedMemoryStoreInstallation() throws Exception {
+        makeSerializedAccessPointExample();
+        mWifiScoreCard.installMemoryStore(mMemoryStore);
+        verify(mMemoryStore).read(any(), any());
     }
 
 }
