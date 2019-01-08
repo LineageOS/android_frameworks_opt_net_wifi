@@ -510,6 +510,9 @@ public class ClientModeImpl extends StateMachine {
     /* Reset the supplicant state tracker */
     static final int CMD_RESET_SUPPLICANT_STATE                         = BASE + 111;
 
+    // Get the list of wifi configurations for installed Passpoint profiles
+    static final int CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES = BASE + 112;
+
     int mDisconnectingWatchdogCount = 0;
     static final int DISCONNECTING_GUARD_TIMER_MSEC = 5000;
 
@@ -575,8 +578,8 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER               = BASE + 166;
 
 
-    /* Get all matching Passpoint configurations */
-    static final int CMD_GET_ALL_MATCHING_CONFIGS                       = BASE + 168;
+    /* Get FQDN list for Passpoint profiles matched with a given scanResults */
+    static final int CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS = BASE + 168;
 
     /**
      * Used to handle messages bounced between ClientModeImpl and IpClient.
@@ -1616,11 +1619,23 @@ public class ClientModeImpl extends StateMachine {
         return result;
     }
 
-    List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults,
+    /**
+     * Returns the list of FQDN (Fully Qualified Domain Name) to installed Passpoint configurations.
+     *
+     * Return the map of all matching configurations with corresponding scanResults (or an empty map
+     * if none).
+     *
+     * @param scanResults The list of scan results
+     * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
+     * scanResults.
+     */
+    Map<String, List<ScanResult>> syncGetAllMatchingFqdnsForScanResults(
+            List<ScanResult> scanResults,
             AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_ALL_MATCHING_CONFIGS,
+        Message resultMsg = channel.sendMessageSynchronously(
+                CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS,
                 scanResults);
-        List<WifiConfiguration> configs = (List<WifiConfiguration>) resultMsg.obj;
+        Map<String, List<ScanResult>> configs = (Map<String, List<ScanResult>>) resultMsg.obj;
         resultMsg.recycle();
         return configs;
     }
@@ -1656,6 +1671,26 @@ public class ClientModeImpl extends StateMachine {
                         CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS, osuProviders);
         Map<OsuProvider, PasspointConfiguration> result =
                 (Map<OsuProvider, PasspointConfiguration>) resultMsg.obj;
+        resultMsg.recycle();
+        return result;
+    }
+
+    /**
+     * Returns the corresponding wifi configurations for given FQDN (Fully Qualified Domain Name)
+     * list.
+     *
+     * An empty list will be returned when no match is found.
+     *
+     * @param fqdnList a list of FQDN
+     * @param channel  AsyncChannel to use for the response
+     * @return List of {@link WifiConfiguration} converted from {@link PasspointProvider}
+     */
+    public List<WifiConfiguration> syncGetWifiConfigsForPasspointProfiles(List<String> fqdnList,
+            AsyncChannel channel) {
+        Message resultMsg =
+                channel.sendMessageSynchronously(
+                        CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES, fqdnList);
+        List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
     }
@@ -2850,6 +2885,7 @@ public class ClientModeImpl extends StateMachine {
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
             mWifiInfo.setTrusted(config.trusted);
+            mWifiInfo.setOsuAp(config.osu);
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
@@ -3531,6 +3567,9 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what,
                             new HashMap<OsuProvider, PasspointConfiguration>());
                     break;
+                case CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES:
+                    replyToMessage(message, message.what, new ArrayList<>());
+                    break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     replyToMessage(message, message.what, 0);
                     break;
@@ -3622,8 +3661,8 @@ public class ClientModeImpl extends StateMachine {
                     mWifiDiagnostics.reportConnectionEvent(
                             BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
                     break;
-                case CMD_GET_ALL_MATCHING_CONFIGS:
-                    replyToMessage(message, message.what, new ArrayList<WifiConfiguration>());
+                case CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS:
+                    replyToMessage(message, message.what, new HashMap<>());
                     break;
                 case 0:
                     // We want to notice any empty messages (with what == 0) that might crop up.
@@ -4073,6 +4112,11 @@ public class ClientModeImpl extends StateMachine {
                             mPasspointManager.getMatchingPasspointConfigsForOsuProviders(
                                     (List<OsuProvider>) message.obj));
                     break;
+                case CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES:
+                    replyToMessage(message, message.what,
+                            mPasspointManager.getWifiConfigsForPasspointProfiles(
+                                    (List<String>) message.obj));
+                    break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;
                     OsuProvider provider =
@@ -4360,9 +4404,9 @@ public class ClientModeImpl extends StateMachine {
                         replyToMessage(message, message.what, FAILURE);
                     }
                     break;
-                case CMD_GET_ALL_MATCHING_CONFIGS:
+                case CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS:
                     replyToMessage(message, message.what,
-                            mPasspointManager.getAllMatchingWifiConfigs(
+                            mPasspointManager.getAllMatchingFqdnsForScanResults(
                                     (List<ScanResult>) message.obj));
                     break;
                 case CMD_TARGET_BSSID:

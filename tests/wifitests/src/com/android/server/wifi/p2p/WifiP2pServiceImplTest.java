@@ -131,6 +131,8 @@ public class WifiP2pServiceImplTest {
     /**
      * Simulate Location Mode change: Changes the location manager return values and dispatches a
      * broadcast.
+     *
+     * @param isLocationModeEnabled whether the location mode is enabled.,
      */
     private void simulateLocationModeChange(boolean isLocationModeEnabled) {
         when(mLocationManagerMock.isLocationEnabled()).thenReturn(isLocationModeEnabled);
@@ -141,6 +143,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Simulate Wi-Fi state change: broadcast state change and modify the API return value.
+     *
+     * @param isWifiOn whether the wifi mode is enabled.
      */
     private void simulateWifiStateChange(boolean isWifiOn) {
         when(mMockWifiManager.getWifiState()).thenReturn(
@@ -154,6 +158,10 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.UPDATE_CHANNEL_INFO
+     *
+     * @param pkgName package name used for p2p channel init
+     * @param binder client binder used for p2p channel init
+     * @param replyMessenger for checking replied message.
      */
     private void sendChannelInfoUpdateMsg(String pkgName, Binder binder,
             Messenger replyMessenger) throws Exception {
@@ -170,6 +178,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.ADD_LOCAL_SERVICE with mTestWifiP2pServiceInfo
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendAddLocalServiceMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -182,6 +192,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.CONNECT with ConfigValidAsGroup
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendConnectMsgWithConfigValidAsGroup(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -197,6 +209,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.CREATE_GROUP with ConfigValidAsGroup
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendCreateGroupMsgWithConfigValidAsGroup(Messenger replyMessenger)
             throws Exception {
@@ -213,6 +227,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.DISCOVER_PEERS
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendDiscoverPeersMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -224,6 +240,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.ADD_SERVICE_REQUEST with mocked mTestWifiP2pServiceRequest
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendAddServiceRequestMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -236,6 +254,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.DISCOVER_SERVICES
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendDiscoverServiceMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -247,6 +267,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.REQUEST_PEERS
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendRequestPeersMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
@@ -258,10 +280,31 @@ public class WifiP2pServiceImplTest {
 
     /**
      * Mock send WifiP2pManager.REQUEST_GROUP_INFO
+     *
+     * @param replyMessenger for checking replied message.
      */
     private void sendRequestGroupInfoMsg(Messenger replyMessenger) throws Exception {
         Message msg = Message.obtain();
         msg.what = WifiP2pManager.REQUEST_GROUP_INFO;
+        msg.replyTo = replyMessenger;
+        mP2pStateMachineMessenger.send(Message.obtain(msg));
+        mLooper.dispatchAll();
+    }
+
+    /**
+     * Mock Listen API msg
+     *
+     * @param replyMessenger for checking replied message.
+     * @param enable set true when test START_LISTEN,
+     *        set false when test STOP_LISTEN
+     */
+    private void mockListen(Messenger replyMessenger, boolean enable) throws Exception {
+        Message msg = Message.obtain();
+        if (enable) {
+            msg.what = WifiP2pManager.START_LISTEN;
+        } else {
+            msg.what = WifiP2pManager.STOP_LISTEN;
+        }
         msg.replyTo = replyMessenger;
         mP2pStateMachineMessenger.send(Message.obtain(msg));
         mLooper.dispatchAll();
@@ -291,6 +334,8 @@ public class WifiP2pServiceImplTest {
 
     /**
      * force P2p State enter InactiveState to start others unit test
+     *
+     * @param clientBinder client binder to use for p2p channel init
      */
     private void forceP2pEnabled(Binder clientBinder) throws Exception {
         simulateWifiStateChange(true);
@@ -299,11 +344,11 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Check is P2p init as expect when client connected
+     * Check is P2p init as expected when client connected
      *
-     * @param expectInit boolean, set true if p2p init should succeed as expect, set fail when
-     *        expect init should not happen
-     * @param clientBinder binder, client binder to use for p2p channel init
+     * @param expectInit set true if p2p init should succeed as expected, set false when
+     *        expected init should not happen
+     * @param clientBinder client binder to use for p2p channel init
      */
     private void checkIsP2pInitWhenClientConnected(boolean expectInit, Binder clientBinder)
             throws Exception {
@@ -321,11 +366,11 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Check is P2p teardown as expect when client disconnected
+     * Check is P2p teardown as expected when client disconnected
      *
-     * @param expectTearDown, boolean, set true if p2p teardown should succeed as expect,
-     *        set fail when expect teardown should not happen
-     * @param clientBinder binder, client binder to use for p2p channel init
+     * @param expectTearDown set true if p2p teardown should succeed as expected,
+     *        set false when expected teardown should not happen
+     * @param clientBinder client binder to use for p2p channel init
      */
     private void checkIsP2pTearDownWhenClientDisconnected(
             boolean expectTearDown, Binder clientBinder) throws Exception {
@@ -499,8 +544,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.ADD_LOCAL_SERVICE msg,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.ADD_LOCAL_SERVICE_FAILED is returned when a caller
+     * uses abnormal way to send WifiP2pManager.ADD_LOCAL_SERVICE (i.e no channel info updated).
      */
     @Test
     public void testAddLocalServiceFailureWhenNoChannelUpdated() throws Exception {
@@ -511,8 +556,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.ADD_LOCAL_SERVICE msg,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.ADD_LOCAL_SERVICE_FAILED is returned when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testAddLocalServiceFailureWhenChannelUpdateWrongPkgName() throws Exception {
@@ -526,8 +571,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.ADD_LOCAL_SERVICE msg,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.ADD_LOCAL_SERVICE_FAILED is returned when a caller
+     * without proper permission attmepts to send WifiP2pManager.ADD_LOCAL_SERVICE.
      */
     @Test
     public void testAddLocalServiceFailureWhenCallerPermissionDenied() throws Exception {
@@ -542,8 +587,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.ADD_LOCAL_SERVICE msg,
-     * and channel info updated correctly with passed permission.
+     * Verify the caller with proper permission sends WifiP2pManager.ADD_LOCAL_SERVICE.
      */
     @Test
     public void testAddLocalServiceSuccess() throws Exception {
@@ -559,8 +603,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.ADD_LOCAL_SERVICE msg,
-     * and channel info updated correctly with passed permission, but native add failed.
+     * Verify WifiP2pManager.ADD_LOCAL_SERVICE_FAILED is returned when native call failure.
      */
     @Test
     public void testAddLocalServiceFailureWhenNativeCallFailure() throws Exception {
@@ -576,8 +619,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CONNECT msg with ConfigValidAsGroup,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.CONNECT_FAILED is returned when a caller
+     * uses abnormal way to send WifiP2pManager.CONNECT (i.e no channel info updated).
      */
     @Test
     public void testConnectWithConfigValidAsGroupFailureWhenNoChannelUpdated() throws Exception {
@@ -588,8 +631,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CONNECT msg with ConfigValidAsGroup,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.CONNECT_FAILED is returned when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testConnectWithConfigValidAsGroupFailureWhenChannelUpdateWrongPkgName()
@@ -604,8 +647,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CONNECT msg with ConfigValidAsGroup,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.CONNECT_FAILED is returned when a caller
+     * without proper permission attmepts to send WifiP2pManager.CONNECT.
      */
     @Test
     public void testConnectWithConfigValidAsGroupFailureWhenPermissionDenied() throws Exception {
@@ -620,8 +663,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CONNECT msg with ConfigValidAsGroup,
-     * and channel info updated correctly with passed permission.
+     * Verify the caller with proper permission sends WifiP2pManager.CONNECT.
      */
     @Test
     public void testConnectWithConfigValidAsGroupSuccess() throws Exception {
@@ -636,8 +678,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CONNECT msg with ConfigValidAsGroup,
-     * and channel info updated correctly with passed permission but failed in native call.
+     * Verify WifiP2pManager.CONNECT_FAILED is returned when native call failure.
      */
     @Test
     public void testConnectWithConfigValidAsGroupFailureWhenNativeCallFailure() throws Exception {
@@ -652,8 +693,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CREATE_GROUP msg with ConfigValidAsGroup,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.CREATE_GROUP_FAILED is returned when a caller
+     * uses abnormal way to send WifiP2pManager.CREATE_GROUP (i.e no channel info updated).
      */
     @Test
     public void testCreateGroupWithConfigValidAsGroupFailureWhenNoChannelUpdated()
@@ -666,8 +707,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CREATE_GROUP msg with ConfigValidAsGroup,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.CREATE_GROUP_FAILED is returned with null object when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testCreateGroupWithConfigValidAsGroupFailureWhenChannelUpdateWrongPkgName()
@@ -683,8 +724,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CREATE_GROUP msg with ConfigValidAsGroup,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.CREATE_GROUP_FAILED is returned when a caller
+     * without proper permission attmepts to send WifiP2pManager.CREATE_GROUP.
      */
     @Test
     public void testCreateGroupWithConfigValidAsGroupFailureWhenPermissionDenied()
@@ -701,8 +742,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CREATE_GROUP msg with ConfigValidAsGroup,
-     * and channel info updated correctly with passed permission.
+     * Verify the caller with proper permission sends WifiP2pManager.CREATE_GROUP.
      */
     @Test
     public void testCreateGroupWithConfigValidAsGroupSuccess() throws Exception {
@@ -717,8 +757,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.CREATE_GROUP msg with ConfigValidAsGroup,
-     * and channel info updated correctly with passed permission but failed in native call.
+     * Verify WifiP2pManager.CREATE_GROUP_FAILED is returned when native call failure.
      */
     @Test
     public void testCreateGroupWithConfigValidAsGroupFailureWhenNativeCallFailure()
@@ -734,8 +773,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_PEERS msg,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.DISCOVER_PEERS_FAILED is returned when a caller
+     * uses abnormal way to send WifiP2pManager.REQUEST_PEERS (i.e no channel info updated).
      */
     @Test
     public void testDiscoverPeersFailureWhenNoChannelUpdated() throws Exception {
@@ -746,8 +785,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_PEERS msg,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.DISCOVER_PEERS_FAILED is returned when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testDiscoverPeersFailureWhenChannelUpdateWrongPkgName() throws Exception {
@@ -761,8 +800,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_PEERS msg,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.DISCOVER_PEERS_FAILED is returned with null object when a caller
+     * without proper permission attmepts to send WifiP2pManager.DISCOVER_PEERS.
      */
     @Test
     public void testDiscoverPeersFailureWhenPermissionDenied() throws Exception {
@@ -777,8 +816,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_PEERS msg,
-     * and channel info updated correctly with passed permission.
+     * Verify the caller with proper permission sends WifiP2pManager.DISCOVER_PEERS.
      */
     @Test
     public void testDiscoverPeersSuccess() throws Exception {
@@ -793,8 +831,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_PEERS msg,
-     * and channel info updated correctly with passed permission but failed in native call.
+     * Verify WifiP2pManager.DISCOVER_PEERS_FAILED is returned when native call failure.
      */
     @Test
     public void testDiscoverPeersFailureWhenNativeCallFailure() throws Exception {
@@ -809,8 +846,8 @@ public class WifiP2pServiceImplTest {
 
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.DISCOVER_SERVICES_FAILED is returned when a caller
+     * uses abnormal way to send WifiP2pManager.DISCOVER_SERVICES (i.e no channel info updated).
      */
     @Test
     public void testDiscoverServicesFailureWhenNoChannelUpdated() throws Exception {
@@ -824,8 +861,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.DISCOVER_SERVICES_FAILED is returned when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testDiscoverServicesFailureWhenChannelUpdateWrongPkgName() throws Exception {
@@ -842,8 +879,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.DISCOVER_SERVICES_FAILED is returned when a caller
+     * without proper permission attmepts to send WifiP2pManager.DISCOVER_SERVICES.
      */
     @Test
     public void testDiscoverServicesFailureWhenPermissionDenied() throws Exception {
@@ -862,8 +899,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * and channel info updated correctly with passed permission.
+     * Verify the caller with proper permission sends WifiP2pManager.DISCOVER_SERVICES.
      */
     @Test
     public void testDiscoverServicesSuccess() throws Exception {
@@ -882,9 +918,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * and channel info updated correctly with passed permission,
-     * but fail in add service request.
+     * Verify WifiP2pManager.DISCOVER_SERVICES_FAILED is returned when add service failure.
      */
     @Test
     public void testDiscoverServicesFailureWhenAddServiceRequestFailure() throws Exception {
@@ -901,8 +935,7 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.DISCOVER_SERVICES msg,
-     * and channel info updated correctly with passed permission.
+     * Verify WifiP2pManager.DISCOVER_SERVICES_FAILED is returned when native call failure.
      */
     @Test
     public void testDiscoverServicesFailureWhenNativeCallFailure() throws Exception {
@@ -921,8 +954,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_PEERS msg,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.RESPONSE_PEERS is returned with null object when a caller
+     * uses abnormal way to send WifiP2pManager.REQUEST_PEERS (i.e no channel info updated).
      */
     @Test
     public void testRequestPeersFailureWhenNoChannelUpdated() throws Exception {
@@ -938,8 +971,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_PEERS msg,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.RESPONSE_PEERS is returned with null object when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testRequestPeersFailureWhenChannelUpdateWrongPkgName() throws Exception {
@@ -957,8 +990,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_PEERS msg,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.RESPONSE_PEERS is returned with null object when a caller
+     * without proper permission attmepts to send WifiP2pManager.REQUEST_PEERS.
      */
     @Test
     public void testRequestPeersFailureWhenPermissionDenied() throws Exception {
@@ -978,8 +1011,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_PEERS msg,
-     * and channel info updated correctly with passed permission.
+     * Verify WifiP2pManager.RESPONSE_PEERS is returned with expect object when a caller
+     * with proper permission to send WifiP2pManager.REQUEST_PEERS.
      */
     @Test
     public void testRequestPeersSuccess() throws Exception {
@@ -996,8 +1029,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_GROUP_INFO msg,
-     * but no channel infomation update before.
+     * Verify WifiP2pManager.RESPONSE_GROUP_INFO is returned with null object when a caller
+     * uses abnormal way to send WifiP2pManager.REQUEST_GROUP_INFO (i.e no channel info updated).
      */
     @Test
     public void testRequestGroupInfoFailureWhenNoChannelUpdated() throws Exception {
@@ -1011,8 +1044,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_GROUP_INFO msg,
-     * but channel info update is not correct.
+     * Verify WifiP2pManager.RESPONSE_GROUP_INFO is returned with null object when a caller
+     * uses wrong package name to initialize a channel.
      */
     @Test
     public void testRequestGroupInfoFailureWhenChannelUpdateWrongPkgName() throws Exception {
@@ -1029,8 +1062,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_GROUP_INFO msg,
-     * and channel info updated correctly, but caller permission deny.
+     * Verify WifiP2pManager.RESPONSE_GROUP_INFO is returned with null object when a caller
+     * without proper permission attempts to send WifiP2pManager.REQUEST_GROUP_INFO.
      */
     @Test
     public void testRequestGroupInfoFailureWhenPermissionDenied() throws Exception {
@@ -1048,8 +1081,8 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
-     * Verify receive WifiP2pManager.REQUEST_GROUP_INFO msg,
-     * and channel info updated correctly with passed permission.
+     * Verify WifiP2pManager.RESPONSE_GROUP_INFO is returned with expect object when a caller
+     * with proper permission.
      */
     @Test
     public void testRequestGroupInfoSuccess() throws Exception {
@@ -1063,5 +1096,89 @@ public class WifiP2pServiceImplTest {
         assertEquals(WifiP2pManager.RESPONSE_GROUP_INFO, messageCaptor.getValue().what);
         WifiP2pGroup wifiP2pGroup = (WifiP2pGroup) messageCaptor.getValue().obj;
         assertEquals(mTestWifiP2pGroup.getNetworkName(), wifiP2pGroup.getNetworkName());
+    }
+
+    /**
+     * Verify WifiP2pManager.START_LISTEN_FAILED is returned when a caller
+     * without proper permission attempts to send WifiP2pManager.START_LISTEN.
+     */
+    @Test
+    public void testStartListenFailureWhenPermissionDenied() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, true);
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.START_LISTEN_FAILED));
+        // p2pFlush should be invoked once in forceP2pEnabled.
+        verify(mWifiNative).p2pFlush();
+        verify(mWifiNative, never()).p2pExtListen(anyBoolean(), anyInt(), anyInt());
+    }
+
+    /**
+     * Verify WifiP2pManager.START_LISTEN_FAILED is returned when native call failure.
+     */
+    @Test
+    public void testStartListenFailureWhenNativeCallFailure() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        when(mWifiNative.p2pExtListen(eq(true), anyInt(), anyInt())).thenReturn(false);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, true);
+        // p2pFlush would be invoked in forceP2pEnabled and startListen both.
+        verify(mWifiNative, times(2)).p2pFlush();
+        verify(mWifiNative).p2pExtListen(eq(true), anyInt(), anyInt());
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.START_LISTEN_FAILED));
+    }
+
+    /**
+     * Verify the caller with proper permission sends WifiP2pManager.START_LISTEN.
+     */
+    @Test
+    public void testStartListenSuccess() throws Exception {
+        when(mWifiNative.p2pExtListen(eq(true), anyInt(), anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, true);
+        // p2pFlush would be invoked in forceP2pEnabled and startListen both.
+        verify(mWifiNative, times(2)).p2pFlush();
+        verify(mWifiNative).p2pExtListen(eq(true), anyInt(), anyInt());
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.START_LISTEN_SUCCEEDED));
+    }
+
+    /**
+     * Verify WifiP2pManager.STOP_LISTEN_FAILED is returned when a caller
+     * without proper permission attempts to sends WifiP2pManager.STOP_LISTEN.
+     */
+    @Test
+    public void testStopListenFailureWhenPermissionDenied() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, false);
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.STOP_LISTEN_FAILED));
+        verify(mWifiNative, never()).p2pExtListen(anyBoolean(), anyInt(), anyInt());
+    }
+
+    /**
+     * Verify WifiP2pManager.STOP_LISTEN_FAILED is returned when native call failure.
+     */
+    @Test
+    public void testStopListenFailureWhenNativeCallFailure() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        when(mWifiNative.p2pExtListen(eq(false), anyInt(), anyInt())).thenReturn(false);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, false);
+        verify(mWifiNative).p2pExtListen(eq(false), anyInt(), anyInt());
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.STOP_LISTEN_FAILED));
+    }
+
+    /**
+     * Verify the caller with proper permission sends WifiP2pManager.STOP_LISTEN.
+     */
+    @Test
+    public void testStopListenSuccess() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        when(mWifiNative.p2pExtListen(eq(false), anyInt(), anyInt())).thenReturn(true);
+        forceP2pEnabled(mClient1);
+        mockListen(mClientMessenger, false);
+        verify(mWifiNative).p2pExtListen(eq(false), anyInt(), anyInt());
+        assertTrue(mClientHandler.hasMessages(WifiP2pManager.STOP_LISTEN_SUCCEEDED));
     }
 }

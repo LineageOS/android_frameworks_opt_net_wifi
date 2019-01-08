@@ -856,20 +856,22 @@ public class PasspointManagerTest {
     }
 
     /**
-     * Verify that an expected set of {@link WifiConfiguration} will be returned when a
-     * {@link ScanResult} is matched to a provider.
-     *
-     * @throws Exception
+     * Verify that an expected map of FQDN and a list of ScanResult will be returned when provided
+     * scanResults are matched to installed Passpoint profiles.
      */
     @Test
-    public void getAllMatchingWifiConfigsForProviderAP() throws Exception {
+    public void getAllMatchingFqdnsForScanResults() {
         // static mocking
         MockitoSession session =
                 com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
                         InformationElementUtil.class).startMocking();
         try {
             PasspointProvider providerHome = addTestProvider(TEST_FQDN + 0, TEST_FRIENDLY_NAME);
+            WifiConfiguration homeWifiConfiguration = new WifiConfiguration();
+            homeWifiConfiguration.FQDN = TEST_FQDN + 0;
             PasspointProvider providerRoaming = addTestProvider(TEST_FQDN + 1, TEST_FRIENDLY_NAME);
+            WifiConfiguration roamingWifiConfiguration = new WifiConfiguration();
+            roamingWifiConfiguration.FQDN = TEST_FQDN + 1;
             PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME);
             ANQPData entry = new ANQPData(mClock, null);
             InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
@@ -884,81 +886,89 @@ public class PasspointManagerTest {
             when(providerNone.match(anyMap(), isNull()))
                     .thenReturn(PasspointMatch.None);
 
-            lenient().when(providerHome.getWifiConfig()).thenReturn(new WifiConfiguration());
-            lenient().when(providerRoaming.getWifiConfig()).thenReturn(new WifiConfiguration());
+            lenient().when(providerHome.getWifiConfig()).thenReturn(homeWifiConfiguration);
+            lenient().when(providerRoaming.getWifiConfig()).thenReturn(roamingWifiConfiguration);
             lenient().when(providerNone.getWifiConfig()).thenReturn(new WifiConfiguration());
 
-            List<WifiConfiguration> configs = mManager.getAllMatchingWifiConfigs(
+            Map<String, List<ScanResult>> configs = mManager.getAllMatchingFqdnsForScanResults(
                     createTestScanResults());
 
             // Expects to be matched with home Provider and roaming Provider per Passpoint APs.
-            assertEquals(4, configs.size());
-            int observedHome = 0;
-            int observedRoaming = 0;
-            for (WifiConfiguration config : configs) {
-                if (config.isHomeProviderNetwork) {
-                    observedHome++;
-                } else {
-                    observedRoaming++;
-                }
-            }
-            assertEquals(2, observedHome);
-            assertEquals(2, observedRoaming);
+            assertEquals(2, configs.get(TEST_FQDN + 0).size());
+            assertEquals(2, configs.get(TEST_FQDN + 1).size());
         } finally {
             session.finishMocking();
         }
     }
 
     /**
-     * Verify that an empty list will be returned when trying to get all matching
-     * {@link WifiConfiguration} for a {@code null} {@link ScanResult}.
-     *
-     * @throws Exception
+     * Verify that an expected list of {@link WifiConfiguration} will be returned when provided
+     * a list of FQDN is matched to installed Passpoint profiles.
      */
     @Test
-    public void getAllMatchingWifiConfigsWithNullScanResult() throws Exception {
-        assertEquals(0, mManager.getAllMatchingWifiConfigs(null).size());
+    public void getWifiConfigsForPasspointProfiles() {
+        PasspointProvider provider1 = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME);
+        WifiConfiguration wifiConfiguration1 = new WifiConfiguration();
+        wifiConfiguration1.FQDN = TEST_FQDN;
+        PasspointProvider provider2 = addTestProvider(TEST_FQDN + 1, TEST_FRIENDLY_NAME);
+        WifiConfiguration wifiConfiguration2 = new WifiConfiguration();
+        wifiConfiguration2.FQDN = TEST_FQDN + 1;
+        PasspointProvider provider3 = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME);
+        WifiConfiguration wifiConfiguration3 = new WifiConfiguration();
+        wifiConfiguration3.FQDN = TEST_FQDN + 2;
+        lenient().when(provider1.getWifiConfig()).thenReturn(wifiConfiguration1);
+        lenient().when(provider2.getWifiConfig()).thenReturn(wifiConfiguration2);
+        lenient().when(provider3.getWifiConfig()).thenReturn(wifiConfiguration3);
+
+        assertEquals(3, mManager.getWifiConfigsForPasspointProfiles(
+                Arrays.asList(TEST_FQDN, TEST_FQDN + 1, TEST_FQDN + 2)).size());
     }
 
     /**
-     * Verify that an empty list will be returned when trying to get a all matching
-     * {@link WifiConfiguration} for a {@link ScanResult} with a {@code null} BSSID.
-     *
-     * @throws Exception
+     * Verify that an empty map will be returned when trying to get all matching FQDN for a {@code
+     * null} {@link ScanResult}.
      */
     @Test
-    public void getAllMatchingWifiConfigWithNullBSSID() throws Exception {
+    public void getAllMatchingFqdnsForScanResultsWithNullScanResult() throws Exception {
+        assertEquals(0, mManager.getAllMatchingFqdnsForScanResults(null).size());
+    }
+
+    /**
+     * Verify that an empty map will be returned when trying to get a all matching FQDN for a {@link
+     * ScanResult} with a {@code null} BSSID.
+     */
+    @Test
+    public void getAllMatchingFqdnsForScanResultsWithNullBSSID() throws Exception {
         ScanResult scanResult = createTestScanResult();
         scanResult.BSSID = null;
 
-        assertEquals(0, mManager.getAllMatchingWifiConfigs(Arrays.asList(scanResult)).size());
+        assertEquals(0,
+                mManager.getAllMatchingFqdnsForScanResults(Arrays.asList(scanResult)).size());
     }
 
     /**
-     * Verify that an empty list will be returned when trying to get all matching
-     * {@link WifiConfiguration} for a {@link ScanResult} with an invalid BSSID.
-     *
-     * @throws Exception
+     * Verify that an empty map will be returned when trying to get all matching FQDN for a {@link
+     * ScanResult} with an invalid BSSID.
      */
     @Test
-    public void getAllMatchingWifiConfigWithInvalidBSSID() throws Exception {
+    public void ggetAllMatchingFqdnsForScanResultsWithInvalidBSSID() throws Exception {
         ScanResult scanResult = createTestScanResult();
         scanResult.BSSID = "asdfdasfas";
 
-        assertEquals(0, mManager.getAllMatchingWifiConfigs(Arrays.asList(scanResult)).size());
+        assertEquals(0,
+                mManager.getAllMatchingFqdnsForScanResults(Arrays.asList(scanResult)).size());
     }
 
     /**
-     * Verify that an empty list will be returned when trying to get all matching
-     * {@link WifiConfiguration} for a non-Passpoint AP.
-     *
-     * @throws Exception
+     * Verify that an empty map will be returned when trying to get all matching FQDN for a
+     * non-Passpoint AP.
      */
     @Test
-    public void getAllMatchingWifiConfigForNonPasspointAP() throws Exception {
+    public void getAllMatchingFqdnsForScanResultsForNonPasspointAP() throws Exception {
         ScanResult scanResult = createTestScanResult();
         scanResult.flags = 0;
-        assertEquals(0, mManager.getAllMatchingWifiConfigs(Arrays.asList(scanResult)).size());
+        assertEquals(0,
+                mManager.getAllMatchingFqdnsForScanResults(Arrays.asList(scanResult)).size());
     }
 
     /**

@@ -1810,16 +1810,18 @@ public class WifiServiceImpl extends AbstractWifiService {
     }
 
     /**
-     * Return the list of all matching Wifi configurations for a given list of ScanResult.
+     * Returns the list of FQDN (Fully Qualified Domain Name) to installed Passpoint configurations.
      *
-     * An empty list will be returned when no configurations are installed or if no configurations
-     * match the list of ScanResult.
+     * Return the map of all matching configurations with corresponding scanResults (or an empty map
+     * if none).
      *
-     * @param scanResults a list of ScanResult that represents the BSSID
-     * @return A list of {@link WifiConfiguration} that can have duplicate entries.
+     * @param scanResults The list of scan results
+     * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
+     * scanResults.
      */
     @Override
-    public List<WifiConfiguration> getAllMatchingWifiConfigs(List<ScanResult> scanResults) {
+    public Map<String, List<ScanResult>> getAllMatchingFqdnsForScanResults(
+            List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
@@ -1828,7 +1830,8 @@ public class WifiServiceImpl extends AbstractWifiService {
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
         }
-        return mClientModeImpl.getAllMatchingWifiConfigs(scanResults, mClientModeImplChannel);
+        return mClientModeImpl.syncGetAllMatchingFqdnsForScanResults(scanResults,
+                mClientModeImplChannel);
     }
 
     /**
@@ -1873,6 +1876,33 @@ public class WifiServiceImpl extends AbstractWifiService {
             return new HashMap<>();
         }
         return mClientModeImpl.syncGetMatchingPasspointConfigsForOsuProviders(osuProviders,
+                mClientModeImplChannel);
+    }
+
+    /**
+     * Returns the corresponding wifi configurations for given FQDN (Fully Qualified Domain Name)
+     * list.
+     *
+     * An empty list will be returned when no match is found.
+     *
+     * @param fqdnList a list of FQDN
+     * @return List of {@link WifiConfiguration} converted from {@link PasspointProvider}
+     */
+    @Override
+    public List<WifiConfiguration> getWifiConfigsForPasspointProfiles(List<String> fqdnList) {
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getWifiConfigsForPasspointProfiles uid=%").c(
+                    Binder.getCallingUid()).flush();
+        }
+        if (!mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_WIFI_PASSPOINT)) {
+            throw new UnsupportedOperationException("Passpoint not enabled");
+        }
+        if (fqdnList == null) {
+            Log.e(TAG, "Attempt to retrieve WifiConfiguration with null fqdn List");
+            return new ArrayList<>();
+        }
+        return mClientModeImpl.syncGetWifiConfigsForPasspointProfiles(fqdnList,
                 mClientModeImplChannel);
     }
 
