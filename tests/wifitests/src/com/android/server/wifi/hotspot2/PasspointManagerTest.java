@@ -1094,14 +1094,15 @@ public class PasspointManagerTest {
             // ANQP_DOMAIN_ID(TEST_ANQP_KEY)
             vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID;
             when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
-            assertThat(mManager.getMatchingOsuProviders(Arrays.asList(createTestScanResult())),
-                    containsInAnyOrder(expectedOsuProvidersForDomainId.toArray()));
+            assertEquals(mManager.getMatchingOsuProviders(
+                    Arrays.asList(createTestScanResult())).keySet(),
+                    expectedOsuProvidersForDomainId);
 
             // ANQP_DOMAIN_ID2(TEST_ANQP_KEY2)
             vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID2;
             when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
-            assertThat(mManager.getMatchingOsuProviders(createTestScanResults()),
-                    containsInAnyOrder(expectedOsuProvidersForDomainId2.toArray()));
+            assertEquals(mManager.getMatchingOsuProviders(
+                    createTestScanResults()).keySet(), expectedOsuProvidersForDomainId2);
         } finally {
             session.finishMocking();
         }
