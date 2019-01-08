@@ -72,13 +72,21 @@ public class WifiNetworkSuggestionsManager {
      */
     public static class PerAppInfo {
         /**
-         * Whether we have shown the user a notification for this app.
+         * Package Name of the app.
          */
-        public boolean hasUserApproved = false;
+        public final String packageName;
         /**
          * Set of active network suggestions provided by the app.
          */
-        public Set<WifiNetworkSuggestion> networkSuggestions = new HashSet<>();
+        public final Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
+        /**
+         * Whether we have shown the user a notification for this app.
+         */
+        public boolean hasUserApproved = false;
+
+        public PerAppInfo(@NonNull String packageName) {
+            this.packageName = packageName;
+        }
 
         // This is only needed for comparison in unit tests.
         @Override
@@ -86,14 +94,63 @@ public class WifiNetworkSuggestionsManager {
             if (other == null) return false;
             if (!(other instanceof PerAppInfo)) return false;
             PerAppInfo otherPerAppInfo = (PerAppInfo) other;
-            return hasUserApproved == otherPerAppInfo.hasUserApproved
-                    && Objects.equals(networkSuggestions, otherPerAppInfo.networkSuggestions);
+            return TextUtils.equals(packageName, otherPerAppInfo.packageName)
+                    && Objects.equals(extNetworkSuggestions, otherPerAppInfo.extNetworkSuggestions)
+                    && hasUserApproved == otherPerAppInfo.hasUserApproved;
         }
 
         // This is only needed for comparison in unit tests.
         @Override
         public int hashCode() {
-            return Objects.hash(hasUserApproved, networkSuggestions);
+            return Objects.hash(packageName, extNetworkSuggestions, hasUserApproved);
+        }
+    }
+
+    /**
+     * Internal container class which holds a network suggestion and a pointer to the
+     * {@link PerAppInfo} entry from {@link #mActiveNetworkSuggestionsPerApp} corresponding to the
+     * app that made the suggestion.
+     */
+    public static class ExtendedWifiNetworkSuggestion {
+        public final WifiNetworkSuggestion wns;
+        // Store the pointer to the corresponding app's meta data.
+        public final PerAppInfo perAppInfo;
+
+        public ExtendedWifiNetworkSuggestion(@NonNull WifiNetworkSuggestion wns,
+                                             @NonNull PerAppInfo perAppInfo) {
+            this.wns = wns;
+            this.perAppInfo = perAppInfo;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(wns); // perAppInfo not used for equals.
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof ExtendedWifiNetworkSuggestion)) {
+                return false;
+            }
+            ExtendedWifiNetworkSuggestion other = (ExtendedWifiNetworkSuggestion) obj;
+            return wns.equals(other.wns); // perAppInfo not used for equals.
+        }
+
+        @Override
+        public String toString() {
+            return "Extended" + wns.toString();
+        }
+
+        /**
+         * Convert from {@link WifiNetworkSuggestion} to a new instance of
+         * {@link ExtendedWifiNetworkSuggestion}.
+         */
+        public static ExtendedWifiNetworkSuggestion fromWns(
+                @NonNull WifiNetworkSuggestion wns, @NonNull PerAppInfo perAppInfo) {
+            return new ExtendedWifiNetworkSuggestion(wns, perAppInfo);
         }
     }
 
@@ -114,7 +171,7 @@ public class WifiNetworkSuggestionsManager {
      * <li>Adding/Removing to this set for scan result lookup is expensive. But, we expect scan
      * result lookup to happen much more often than apps modifying network suggestions.</li>
      */
-    private final Map<ScanResultMatchInfo, Set<WifiNetworkSuggestion>>
+    private final Map<ScanResultMatchInfo, Set<ExtendedWifiNetworkSuggestion>>
             mActiveScanResultMatchInfoWithNoBssid = new HashMap<>();
     /**
      * Map maintained to help lookup all the network suggestions (with bssid) that match a provided
@@ -125,12 +182,12 @@ public class WifiNetworkSuggestionsManager {
      * <li>Adding/Removing to this set for scan result lookup is expensive. But, we expect scan
      * result lookup to happen much more often than apps modifying network suggestions.</li>
      */
-    private final Map<Pair<ScanResultMatchInfo, MacAddress>, Set<WifiNetworkSuggestion>>
+    private final Map<Pair<ScanResultMatchInfo, MacAddress>, Set<ExtendedWifiNetworkSuggestion>>
             mActiveScanResultMatchInfoWithBssid = new HashMap<>();
     /**
      * List of {@link WifiNetworkSuggestion} matching the current connected network.
      */
-    private Set<WifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
+    private Set<ExtendedWifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
 
     /**
      * Verbose logging flag.
@@ -191,18 +248,20 @@ public class WifiNetworkSuggestionsManager {
         }
 
         @Override
+
         public void fromDeserialized(Map<String, PerAppInfo> networkSuggestionsMap) {
             mActiveNetworkSuggestionsPerApp.putAll(networkSuggestionsMap);
             // Build the scan cache.
             for (Map.Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
                 String packageName = entry.getKey();
-                Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue().networkSuggestions;
-                if (!networkSuggestions.isEmpty()) {
+                Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                        entry.getValue().extNetworkSuggestions;
+                if (!extNetworkSuggestions.isEmpty()) {
                     // Start tracking app-op changes from the app if they have active suggestions.
                     startTrackingAppOpsChange(packageName,
-                            networkSuggestions.iterator().next().suggestorUid);
+                            extNetworkSuggestions.iterator().next().wns.suggestorUid);
                 }
-                addToScanResultMatchInfoMap(networkSuggestions);
+                addToScanResultMatchInfoMap(extNetworkSuggestions);
             }
         }
 
@@ -252,68 +311,72 @@ public class WifiNetworkSuggestionsManager {
     }
 
     private void addToScanResultMatchInfoMap(
-            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions) {
-        for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
+            @NonNull Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestions) {
+        for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
-                    ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
-            Set<WifiNetworkSuggestion> networkSuggestionsForScanResultMatchInfo;
-            if (!TextUtils.isEmpty(networkSuggestion.wifiConfiguration.BSSID)) {
+                    ScanResultMatchInfo.fromWifiConfiguration(
+                            extNetworkSuggestion.wns.wifiConfiguration);
+            Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestionsForScanResultMatchInfo;
+            if (!TextUtils.isEmpty(extNetworkSuggestion.wns.wifiConfiguration.BSSID)) {
                 Pair<ScanResultMatchInfo, MacAddress> lookupPair =
                         Pair.create(scanResultMatchInfo,
-                                MacAddress.fromString(networkSuggestion.wifiConfiguration.BSSID));
-                networkSuggestionsForScanResultMatchInfo =
+                                MacAddress.fromString(
+                                        extNetworkSuggestion.wns.wifiConfiguration.BSSID));
+                extNetworkSuggestionsForScanResultMatchInfo =
                         mActiveScanResultMatchInfoWithBssid.get(lookupPair);
-                if (networkSuggestionsForScanResultMatchInfo == null) {
-                    networkSuggestionsForScanResultMatchInfo = new HashSet<>();
+                if (extNetworkSuggestionsForScanResultMatchInfo == null) {
+                    extNetworkSuggestionsForScanResultMatchInfo = new HashSet<>();
                     mActiveScanResultMatchInfoWithBssid.put(
-                            lookupPair, networkSuggestionsForScanResultMatchInfo);
+                            lookupPair, extNetworkSuggestionsForScanResultMatchInfo);
                 }
             } else {
-                networkSuggestionsForScanResultMatchInfo =
+                extNetworkSuggestionsForScanResultMatchInfo =
                         mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
-                if (networkSuggestionsForScanResultMatchInfo == null) {
-                    networkSuggestionsForScanResultMatchInfo = new HashSet<>();
+                if (extNetworkSuggestionsForScanResultMatchInfo == null) {
+                    extNetworkSuggestionsForScanResultMatchInfo = new HashSet<>();
                     mActiveScanResultMatchInfoWithNoBssid.put(
-                            scanResultMatchInfo, networkSuggestionsForScanResultMatchInfo);
+                            scanResultMatchInfo, extNetworkSuggestionsForScanResultMatchInfo);
                 }
             }
-            networkSuggestionsForScanResultMatchInfo.add(networkSuggestion);
+            extNetworkSuggestionsForScanResultMatchInfo.add(extNetworkSuggestion);
         }
     }
 
     private void removeFromScanResultMatchInfoMap(
-            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions) {
-        for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
+            @NonNull Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestions) {
+        for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
             ScanResultMatchInfo scanResultMatchInfo =
-                    ScanResultMatchInfo.fromWifiConfiguration(networkSuggestion.wifiConfiguration);
-            Set<WifiNetworkSuggestion> networkSuggestionsForScanResultMatchInfo;
-            if (!TextUtils.isEmpty(networkSuggestion.wifiConfiguration.BSSID)) {
+                    ScanResultMatchInfo.fromWifiConfiguration(
+                            extNetworkSuggestion.wns.wifiConfiguration);
+            Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestionsForScanResultMatchInfo;
+            if (!TextUtils.isEmpty(extNetworkSuggestion.wns.wifiConfiguration.BSSID)) {
                 Pair<ScanResultMatchInfo, MacAddress> lookupPair =
                         Pair.create(scanResultMatchInfo,
-                                MacAddress.fromString(networkSuggestion.wifiConfiguration.BSSID));
-                networkSuggestionsForScanResultMatchInfo =
+                                MacAddress.fromString(
+                                        extNetworkSuggestion.wns.wifiConfiguration.BSSID));
+                extNetworkSuggestionsForScanResultMatchInfo =
                         mActiveScanResultMatchInfoWithBssid.get(lookupPair);
                 // This should never happen because we should have done necessary error checks in
                 // the parent method.
-                if (networkSuggestionsForScanResultMatchInfo == null) {
+                if (extNetworkSuggestionsForScanResultMatchInfo == null) {
                     Log.wtf(TAG, "No scan result match info found.");
                 }
-                networkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
+                extNetworkSuggestionsForScanResultMatchInfo.remove(extNetworkSuggestion);
                 // Remove the set from map if empty.
-                if (networkSuggestionsForScanResultMatchInfo.isEmpty()) {
+                if (extNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
                     mActiveScanResultMatchInfoWithBssid.remove(lookupPair);
                 }
             } else {
-                networkSuggestionsForScanResultMatchInfo =
+                extNetworkSuggestionsForScanResultMatchInfo =
                         mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
                 // This should never happen because we should have done necessary error checks in
                 // the parent method.
-                if (networkSuggestionsForScanResultMatchInfo == null) {
+                if (extNetworkSuggestionsForScanResultMatchInfo == null) {
                     Log.wtf(TAG, "No scan result match info found.");
                 }
-                networkSuggestionsForScanResultMatchInfo.remove(networkSuggestion);
+                extNetworkSuggestionsForScanResultMatchInfo.remove(extNetworkSuggestion);
                 // Remove the set from map if empty.
-                if (networkSuggestionsForScanResultMatchInfo.isEmpty()) {
+                if (extNetworkSuggestionsForScanResultMatchInfo.isEmpty()) {
                     mActiveScanResultMatchInfoWithNoBssid.remove(scanResultMatchInfo);
                 }
             }
@@ -323,12 +386,12 @@ public class WifiNetworkSuggestionsManager {
     // Issues a disconnect if the only serving network suggestion is removed.
     // TODO (b/115504887): What if there is also a saved network with the same credentials?
     private void triggerDisconnectIfServingNetworkSuggestionRemoved(
-            Collection<WifiNetworkSuggestion> networkSuggestionsRemoved) {
+            Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestionsRemoved) {
         if (mActiveNetworkSuggestionsMatchingConnection == null
                 || mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
             return;
         }
-        if (mActiveNetworkSuggestionsMatchingConnection.removeAll(networkSuggestionsRemoved)) {
+        if (mActiveNetworkSuggestionsMatchingConnection.removeAll(extNetworkSuggestionsRemoved)) {
             if (mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
                 Log.i(TAG, "Only network suggestion matching the connected network removed. "
                         + "Disconnecting...");
@@ -345,6 +408,35 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Helper method to convert the incoming collection of public {@link WifiNetworkSuggestion}
+     * objects to a set of corresponding internal wrapper
+     * {@link ExtendedWifiNetworkSuggestion} objects.
+     */
+    private Set<ExtendedWifiNetworkSuggestion> convertToExtendedWnsSet(
+            final Collection<WifiNetworkSuggestion> networkSuggestions,
+            final PerAppInfo perAppInfo) {
+        return networkSuggestions
+                .stream()
+                .collect(Collectors.mapping(
+                        n -> ExtendedWifiNetworkSuggestion.fromWns(n, perAppInfo),
+                        Collectors.toSet()));
+    }
+
+    /**
+     * Helper method to convert the incoming collection of internal wrapper
+     * {@link ExtendedWifiNetworkSuggestion} objects to a set of corresponding public
+     * {@link WifiNetworkSuggestion} objects.
+     */
+    private Set<WifiNetworkSuggestion> convertToWnsSet(
+            final Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestions) {
+        return extNetworkSuggestions
+                .stream()
+                .collect(Collectors.mapping(
+                        n -> n.wns,
+                        Collectors.toSet()));
+    }
+
+    /**
      * Add the provided list of network suggestions from the corresponding app's active list.
      */
     public @WifiManager.NetworkSuggestionsStatusCode int add(
@@ -358,30 +450,32 @@ public class WifiNetworkSuggestionsManager {
         }
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) {
-            perAppInfo = new PerAppInfo();
+            perAppInfo = new PerAppInfo(packageName);
             mActiveNetworkSuggestionsPerApp.put(packageName, perAppInfo);
         }
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                convertToExtendedWnsSet(networkSuggestions, perAppInfo);
         // check if the app is trying to in-place modify network suggestions.
-        if (!Collections.disjoint(perAppInfo.networkSuggestions, networkSuggestions)) {
+        if (!Collections.disjoint(perAppInfo.extNetworkSuggestions, extNetworkSuggestions)) {
             Log.e(TAG, "Failed to add network suggestions for " + packageName
                     + ". Modification of active network suggestions disallowed");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE;
         }
-        if (perAppInfo.networkSuggestions.size() + networkSuggestions.size()
+        if (perAppInfo.extNetworkSuggestions.size() + extNetworkSuggestions.size()
                 > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
             Log.e(TAG, "Failed to add network suggestions for " + packageName
                     + ". Exceeds max per app, current list size: "
-                    + perAppInfo.networkSuggestions.size()
+                    + perAppInfo.extNetworkSuggestions.size()
                     + ", new list size: "
-                    + networkSuggestions.size());
+                    + extNetworkSuggestions.size());
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_EXCEEDS_MAX_PER_APP;
         }
-        if (perAppInfo.networkSuggestions.isEmpty()) {
+        if (perAppInfo.extNetworkSuggestions.isEmpty()) {
             // Start tracking app-op changes from the app if they have active suggestions.
             startTrackingAppOpsChange(packageName, networkSuggestions.get(0).suggestorUid);
         }
-        perAppInfo.networkSuggestions.addAll(networkSuggestions);
-        addToScanResultMatchInfoMap(networkSuggestions);
+        perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
+        addToScanResultMatchInfoMap(extNetworkSuggestions);
         saveToStore();
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
@@ -397,17 +491,17 @@ public class WifiNetworkSuggestionsManager {
     }
 
     private void removeInternal(
-            @NonNull Collection<WifiNetworkSuggestion> networkSuggestions,
+            @NonNull Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestions,
             @NonNull String packageName,
             @NonNull PerAppInfo perAppInfo) {
-        if (!networkSuggestions.isEmpty()) {
-            perAppInfo.networkSuggestions.removeAll(networkSuggestions);
+        if (!extNetworkSuggestions.isEmpty()) {
+            perAppInfo.extNetworkSuggestions.removeAll(extNetworkSuggestions);
         } else {
             // empty list is used to clear everything for the app. Store a copy for use below.
-            networkSuggestions = new HashSet<>(perAppInfo.networkSuggestions);
-            perAppInfo.networkSuggestions.clear();
+            extNetworkSuggestions = new HashSet<>(perAppInfo.extNetworkSuggestions);
+            perAppInfo.extNetworkSuggestions.clear();
         }
-        if (perAppInfo.networkSuggestions.isEmpty()) {
+        if (perAppInfo.extNetworkSuggestions.isEmpty()) {
             // Note: We don't remove the app entry even if there is no active suggestions because
             // we want to keep the notification state for all apps that have ever provided
             // suggestions.
@@ -416,10 +510,10 @@ public class WifiNetworkSuggestionsManager {
             stopTrackingAppOpsChange(packageName);
         }
         // Clear the scan cache.
-        removeFromScanResultMatchInfoMap(networkSuggestions);
+        removeFromScanResultMatchInfoMap(extNetworkSuggestions);
         saveToStore();
         // Disconnect from the current network, if the suggestion was removed.
-        triggerDisconnectIfServingNetworkSuggestionRemoved(networkSuggestions);
+        triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
     }
 
     /**
@@ -436,14 +530,16 @@ public class WifiNetworkSuggestionsManager {
                     + ". No network suggestions found");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                convertToExtendedWnsSet(networkSuggestions, perAppInfo);
         // check if all the request network suggestions are present in the active list.
-        if (!networkSuggestions.isEmpty()
-                && !perAppInfo.networkSuggestions.containsAll(networkSuggestions)) {
+        if (!extNetworkSuggestions.isEmpty()
+                && !perAppInfo.extNetworkSuggestions.containsAll(extNetworkSuggestions)) {
             Log.e(TAG, "Failed to remove network suggestions for " + packageName
                     + ". Network suggestions not found in active network suggestions");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
-        removeInternal(networkSuggestions, packageName, perAppInfo);
+        removeInternal(extNetworkSuggestions, packageName, perAppInfo);
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
@@ -467,27 +563,29 @@ public class WifiNetworkSuggestionsManager {
     public Set<WifiNetworkSuggestion> getAllNetworkSuggestions() {
         return mActiveNetworkSuggestionsPerApp.values()
                 .stream()
-                .flatMap(e -> e.networkSuggestions.stream())
+                .flatMap(e -> convertToWnsSet(e.extNetworkSuggestions)
+                        .stream())
                 .collect(Collectors.toSet());
     }
 
-    private @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForScanResultMatchInfo(
+    private @Nullable Set<ExtendedWifiNetworkSuggestion>
+            getNetworkSuggestionsForScanResultMatchInfo(
             @NonNull ScanResultMatchInfo scanResultMatchInfo, @NonNull MacAddress bssid) {
-        Set<WifiNetworkSuggestion> networkSuggestions = new HashSet<>();
-        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithBssid =
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsWithBssid =
                 mActiveScanResultMatchInfoWithBssid.get(Pair.create(scanResultMatchInfo, bssid));
-        if (matchingNetworkSuggestionsWithBssid != null) {
-            networkSuggestions.addAll(matchingNetworkSuggestionsWithBssid);
+        if (matchingExtNetworkSuggestionsWithBssid != null) {
+            extNetworkSuggestions.addAll(matchingExtNetworkSuggestionsWithBssid);
         }
-        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithNoBssid =
+        Set<ExtendedWifiNetworkSuggestion> matchingNetworkSuggestionsWithNoBssid =
                 mActiveScanResultMatchInfoWithNoBssid.get(scanResultMatchInfo);
         if (matchingNetworkSuggestionsWithNoBssid != null) {
-            networkSuggestions.addAll(matchingNetworkSuggestionsWithNoBssid);
+            extNetworkSuggestions.addAll(matchingNetworkSuggestionsWithNoBssid);
         }
-        if (networkSuggestions.isEmpty()) {
+        if (extNetworkSuggestions.isEmpty()) {
             return null;
         }
-        return networkSuggestions;
+        return extNetworkSuggestions;
     }
 
     /**
@@ -500,46 +598,48 @@ public class WifiNetworkSuggestionsManager {
             Log.e(TAG, "No scan result found in scan detail");
             return null;
         }
-        Set<WifiNetworkSuggestion> networkSuggestions = null;
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = null;
         try {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromScanResult(scanResult);
-            networkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
+            extNetworkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
                     scanResultMatchInfo,  MacAddress.fromString(scanResult.BSSID));
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to lookup network from scan result match info map", e);
         }
-        if (networkSuggestions != null) {
-            if (mVerboseLoggingEnabled) {
-                Log.v(TAG, "getNetworkSuggestionsForScanDetail Found " + networkSuggestions
-                        + " for " + scanResult.SSID + "[" + scanResult.capabilities + "]");
-            }
+        if (extNetworkSuggestions == null) {
+            return null;
         }
-        return networkSuggestions;
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "getNetworkSuggestionsForScanDetail Found " + extNetworkSuggestions
+                    + " for " + scanResult.SSID + "[" + scanResult.capabilities + "]");
+        }
+        return convertToWnsSet(extNetworkSuggestions);
     }
 
     /**
      * Returns a set of all network suggestions matching the provided the WifiConfiguration.
      */
-    private @Nullable Set<WifiNetworkSuggestion> getNetworkSuggestionsForWifiConfiguration(
+    private @Nullable Set<ExtendedWifiNetworkSuggestion> getNetworkSuggestionsForWifiConfiguration(
             @NonNull WifiConfiguration wifiConfiguration, @NonNull String bssid) {
-        Set<WifiNetworkSuggestion> networkSuggestions = null;
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = null;
         try {
             ScanResultMatchInfo scanResultMatchInfo =
                     ScanResultMatchInfo.fromWifiConfiguration(wifiConfiguration);
-            networkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
+            extNetworkSuggestions = getNetworkSuggestionsForScanResultMatchInfo(
                     scanResultMatchInfo,  MacAddress.fromString(bssid));
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to lookup network from scan result match info map", e);
         }
-        if (networkSuggestions != null) {
-            if (mVerboseLoggingEnabled) {
-                Log.v(TAG, "getNetworkSuggestionsFoWifiConfiguration Found "
-                        + networkSuggestions + " for " + wifiConfiguration.SSID
-                        + "[" + wifiConfiguration.allowedKeyManagement + "]");
-            }
+        if (extNetworkSuggestions == null) {
+            return null;
         }
-        return networkSuggestions;
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "getNetworkSuggestionsFoWifiConfiguration Found "
+                    + extNetworkSuggestions + " for " + wifiConfiguration.SSID
+                    + "[" + wifiConfiguration.allowedKeyManagement + "]");
+        }
+        return extNetworkSuggestions;
     }
 
     /**
@@ -581,37 +681,32 @@ public class WifiNetworkSuggestionsManager {
      */
     private void handleConnectionSuccess(
             @NonNull WifiConfiguration connectedNetwork, @NonNull String connectedBssid) {
-        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                 getNetworkSuggestionsForWifiConfiguration(connectedNetwork, connectedBssid);
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Network suggestions matching the connection "
-                    + matchingNetworkSuggestions);
+                    + matchingExtNetworkSuggestions);
         }
-        if (matchingNetworkSuggestions == null || matchingNetworkSuggestions.isEmpty()) return;
+        if (matchingExtNetworkSuggestions == null
+                || matchingExtNetworkSuggestions.isEmpty()) return;
 
         // Store the set of matching network suggestions.
-        mActiveNetworkSuggestionsMatchingConnection = new HashSet<>(matchingNetworkSuggestions);
+        mActiveNetworkSuggestionsMatchingConnection = new HashSet<>(matchingExtNetworkSuggestions);
 
-        Set<WifiNetworkSuggestion> matchingNetworkSuggestionsWithReqAppInteraction =
-                matchingNetworkSuggestions.stream()
-                        .filter(x -> x.isAppInteractionRequired)
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsWithReqAppInteraction =
+                matchingExtNetworkSuggestions.stream()
+                        .filter(x -> x.wns.isAppInteractionRequired)
                         .collect(Collectors.toSet());
-        if (matchingNetworkSuggestions.size() == 0) return;
+        if (matchingExtNetworkSuggestionsWithReqAppInteraction.size() == 0) return;
 
-        // Iterate over the active network suggestions list:
-        // a) Find package names of all apps which made a matching suggestion.
-        // b) Ensure that these apps have the necessary location permissions.
-        // c) Send directed broadcast to the app with their corresponding network suggestion.
-        for (Map.Entry<String, PerAppInfo> entry : mActiveNetworkSuggestionsPerApp.entrySet()) {
-            WifiNetworkSuggestion matchingNetworkSuggestion =
-                    entry.getValue()
-                            .networkSuggestions
-                            .stream()
-                            .filter(matchingNetworkSuggestionsWithReqAppInteraction::contains)
-                            .findFirst()
-                            .orElse(null);
-            if (matchingNetworkSuggestion == null) continue;
-            sendPostConnectionBroadcastIfAllowed(entry.getKey(), matchingNetworkSuggestion);
+        // Iterate over the matching network suggestions list:
+        // a) Ensure that these apps have the necessary location permissions.
+        // b) Send directed broadcast to the app with their corresponding network suggestion.
+        for (ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion
+                : matchingExtNetworkSuggestionsWithReqAppInteraction) {
+            sendPostConnectionBroadcastIfAllowed(
+                    matchingExtNetworkSuggestion.perAppInfo.packageName,
+                    matchingExtNetworkSuggestion.wns);
         }
     }
 
@@ -661,8 +756,9 @@ public class WifiNetworkSuggestionsManager {
             pw.println("Package Name: " + networkSuggestionsEntry.getKey());
             PerAppInfo appInfo = networkSuggestionsEntry.getValue();
             pw.println("Has user approved: " + appInfo.hasUserApproved);
-            for (WifiNetworkSuggestion networkSuggestions : appInfo.networkSuggestions) {
-                pw.println("Network: " + networkSuggestions);
+            for (ExtendedWifiNetworkSuggestion extNetworkSuggestion
+                    : appInfo.extNetworkSuggestions) {
+                pw.println("Network: " + extNetworkSuggestion);
             }
         }
         pw.println("WifiNetworkSuggestionsManager - Networks End ----");

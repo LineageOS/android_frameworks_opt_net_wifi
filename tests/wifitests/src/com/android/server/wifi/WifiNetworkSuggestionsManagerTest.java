@@ -25,6 +25,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 import android.app.AppOpsManager;
@@ -39,6 +40,7 @@ import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -56,6 +58,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiNetworkSuggestionsManager}.
@@ -667,12 +670,21 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
         // Verify that the correct broadcasts were sent out.
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+        for (int i = 0; i < 2; i++) {
+            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+            mInorder.verify(mWifiPermissionsUtil)
+                    .enforceCanAccessScanResults(packageNameCaptor.capture(), uidCaptor.capture());
+            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
+                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
+                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+            } else {
+                fail();
+            }
+        }
 
         // Verify no more broadcast were sent out.
         verifyNoMoreInteractions(mContext);
@@ -712,12 +724,21 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
         // Verify that the correct broadcasts were sent out.
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+        for (int i = 0; i < 2; i++) {
+            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+            mInorder.verify(mWifiPermissionsUtil)
+                    .enforceCanAccessScanResults(packageNameCaptor.capture(), uidCaptor.capture());
+            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
+                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
+                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+            } else {
+                fail();
+            }
+        }
 
         // Verify no more broadcast were sent out.
         verifyNoMoreInteractions(mContext);
@@ -758,12 +779,21 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration1, TEST_BSSID);
 
         // Verify that the correct broadcasts were sent out.
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-        mInorder.verify(mWifiPermissionsUtil)
-                .enforceCanAccessScanResults(TEST_PACKAGE_2, TEST_UID_2);
-        validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+        for (int i = 0; i < 2; i++) {
+            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+            mInorder.verify(mWifiPermissionsUtil)
+                    .enforceCanAccessScanResults(packageNameCaptor.capture(), uidCaptor.capture());
+            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
+                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
+            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
+                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
+                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
+            } else {
+                fail();
+            }
+        }
 
         // Verify no more broadcast were sent out.
         verifyNoMoreInteractions(mContext);
@@ -852,13 +882,18 @@ public class WifiNetworkSuggestionsManagerTest {
         assertEquals(1, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
         assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
-        Set<WifiNetworkSuggestion> networkSuggestionsToWrite =
-                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions;
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestionsToWrite =
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).extNetworkSuggestions;
         Set<WifiNetworkSuggestion> expectedAllNetworkSuggestions =
                 new HashSet<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
                 }};
-        assertEquals(expectedAllNetworkSuggestions, networkSuggestionsToWrite);
+        assertEquals(expectedAllNetworkSuggestions,
+                extNetworkSuggestionsToWrite
+                        .stream()
+                        .collect(Collectors.mapping(
+                                n -> n.wns,
+                                Collectors.toSet())));
 
         // Ensure that the new data flag has been reset after read.
         assertFalse(mDataSource.hasNewDataToSerialize());
@@ -890,7 +925,8 @@ public class WifiNetworkSuggestionsManagerTest {
         assertEquals(1, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
         assertFalse(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).hasUserApproved);
-        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
+        assertTrue(
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).extNetworkSuggestions.isEmpty());
 
         // Ensure that the new data flag has been reset after read.
         assertFalse(mDataSource.hasNewDataToSerialize());
@@ -901,15 +937,11 @@ public class WifiNetworkSuggestionsManagerTest {
      */
     @Test
     public void testNetworkSuggestionsConfigStoreLoad() {
+        PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_1);
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
-        Set<WifiNetworkSuggestion> networkSuggestionSet =
-                new HashSet<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion);
-                }};
-
-        PerAppInfo appInfo = new PerAppInfo();
-        appInfo.networkSuggestions = networkSuggestionSet;
+        appInfo.extNetworkSuggestions.add(
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo));
         mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
                         put(TEST_PACKAGE_1, appInfo);
                 }});
@@ -938,32 +970,24 @@ public class WifiNetworkSuggestionsManagerTest {
      */
     @Test
     public void testNetworkSuggestionsConfigStoreLoadAfterUserSwitch() {
+        // Read the store initially.
+        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_1);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
-
-        Set<WifiNetworkSuggestion> networkSuggestionSet1 =
-                new HashSet<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion1);
-                }};
-
-        // Read the store initially.
-        PerAppInfo appInfo1 = new PerAppInfo();
-        appInfo1.networkSuggestions = networkSuggestionSet1;
+        appInfo1.extNetworkSuggestions.add(
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
         mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
                     put(TEST_PACKAGE_1, appInfo1);
                 }});
 
-        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_2);
-        Set<WifiNetworkSuggestion> networkSuggestionSet2 =
-                new HashSet<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion2);
-                }};
 
         // Now simulate user switch.
         mDataSource.reset();
-        PerAppInfo appInfo2 = new PerAppInfo();
-        appInfo2.networkSuggestions = networkSuggestionSet2;
+        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_2);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
+        appInfo2.extNetworkSuggestions.add(
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo2));
         mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
                     put(TEST_PACKAGE_2, appInfo2);
                 }});
@@ -1210,15 +1234,11 @@ public class WifiNetworkSuggestionsManagerTest {
      */
     @Test
     public void testAppOpsChangeAfterConfigStoreLoad() {
+        PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_1);
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1);
-        Set<WifiNetworkSuggestion> networkSuggestionSet =
-                new HashSet<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion);
-                }};
-
-        PerAppInfo appInfo = new PerAppInfo();
-        appInfo.networkSuggestions = networkSuggestionSet;
+        appInfo.extNetworkSuggestions.add(
+                ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo));
         mDataSource.fromDeserialized(new HashMap<String, PerAppInfo>() {{
                     put(TEST_PACKAGE_1, appInfo);
                 }});
@@ -1329,8 +1349,10 @@ public class WifiNetworkSuggestionsManagerTest {
         assertEquals(2, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_1));
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
-        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).networkSuggestions.isEmpty());
-        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+        assertTrue(
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_1).extNetworkSuggestions.isEmpty());
+        assertTrue(
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).extNetworkSuggestions.isEmpty());
 
         // Now remove TEST_PACKAGE_1, continue to track TEST_PACKAGE_2.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
@@ -1338,7 +1360,8 @@ public class WifiNetworkSuggestionsManagerTest {
         networkSuggestionsMapToWrite = mDataSource.toSerialize();
         assertEquals(1, networkSuggestionsMapToWrite.size());
         assertTrue(networkSuggestionsMapToWrite.keySet().contains(TEST_PACKAGE_2));
-        assertTrue(networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).networkSuggestions.isEmpty());
+        assertTrue(
+                networkSuggestionsMapToWrite.get(TEST_PACKAGE_2).extNetworkSuggestions.isEmpty());
 
         // Now remove TEST_PACKAGE_2.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
