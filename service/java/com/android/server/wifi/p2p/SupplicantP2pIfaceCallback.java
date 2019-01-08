@@ -121,9 +121,9 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
 
         if (wfdDeviceInfo != null && wfdDeviceInfo.length >= 6) {
             device.wfdInfo = new WifiP2pWfdInfo(
-                    (wfdDeviceInfo[0] << 8) + wfdDeviceInfo[1],
-                    (wfdDeviceInfo[2] << 8) + wfdDeviceInfo[3],
-                    (wfdDeviceInfo[4] << 8) + wfdDeviceInfo[5]);
+                    ((wfdDeviceInfo[0] & 0xFF) << 8) + (wfdDeviceInfo[1] & 0xFF),
+                    ((wfdDeviceInfo[2] & 0xFF) << 8) + (wfdDeviceInfo[3] & 0xFF),
+                    ((wfdDeviceInfo[4] & 0xFF) << 8) + (wfdDeviceInfo[5] & 0xFF));
         }
 
         logd("Device discovered on " + mInterface + ": " + device);

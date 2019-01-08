@@ -129,6 +129,50 @@ public class SupplicantP2pIfaceCallbackTest {
     }
 
     /**
+     * Sunny day scenario for onDeviceFound call with sign bit set in bytes.
+     */
+    @Test
+    public void testOnDeviceFoundWithSignBitInDeviceInfoBytesSuccess() throws Exception {
+        byte[] fakePrimaryDeviceTypeBytes = { 0x00, 0x01, 0x02, -1, 0x04, 0x05, 0x06, 0x07 };
+        String fakePrimaryDeviceTypeString = "1-02FF0405-1543";
+        String fakeDeviceName = "test device name";
+        short fakeConfigMethods = 0x1234;
+        byte fakeCapabilities = 123;
+        int fakeGroupCapabilities = 456;
+        byte[] fakeDevInfoBytes = { (byte) 0x80, 0x01, (byte) 0xC0, 0x03, (byte) 0xFF, 0x05 };
+
+        mDut.onDeviceFound(
+                mDeviceAddress1Bytes, mDeviceAddress2Bytes,
+                fakePrimaryDeviceTypeBytes,
+                fakeDeviceName, fakeConfigMethods,
+                fakeCapabilities, fakeGroupCapabilities,
+                fakeDevInfoBytes);
+
+        ArgumentCaptor<WifiP2pDevice> deviceCaptor = ArgumentCaptor.forClass(WifiP2pDevice.class);
+        verify(mMonitor).broadcastP2pDeviceFound(eq(mIface), deviceCaptor.capture());
+
+        WifiP2pDevice device = deviceCaptor.getValue();
+        assertEquals(fakeDeviceName, device.deviceName);
+        assertEquals(fakePrimaryDeviceTypeString, device.primaryDeviceType);
+        assertEquals(fakeCapabilities, device.deviceCapability);
+        assertEquals(fakeGroupCapabilities, device.groupCapability);
+        assertEquals(fakeConfigMethods, device.wpsConfigMethodsSupported);
+        assertEquals(mDeviceAddress2String, device.deviceAddress);
+        assertEquals(WifiP2pDevice.AVAILABLE, device.status);
+
+        assertNotNull(device.wfdInfo);
+        // WifiP2pWfdInfo.mDeviceInfo won't be returned as the raw value, skip it.
+        assertEquals(((fakeDevInfoBytes[2] & 0xFF) << 8) + fakeDevInfoBytes[3],
+                device.wfdInfo.getControlPort());
+        assertEquals(((fakeDevInfoBytes[4] & 0xFF) << 8) + fakeDevInfoBytes[5],
+                device.wfdInfo.getMaxThroughput());
+
+        // Make sure we issued a broadcast each time.
+        verify(mMonitor).broadcastP2pDeviceFound(
+                anyString(), any(WifiP2pDevice.class));
+    }
+
+    /**
      * Failing scenarios for onDeviceFound call.
      */
     @Test
