@@ -869,6 +869,7 @@ public class PasspointManagerTest {
             PasspointProvider providerHome = addTestProvider(TEST_FQDN + 0, TEST_FRIENDLY_NAME);
             WifiConfiguration homeWifiConfiguration = new WifiConfiguration();
             homeWifiConfiguration.FQDN = TEST_FQDN + 0;
+            homeWifiConfiguration.isHomeProviderNetwork = true;
             PasspointProvider providerRoaming = addTestProvider(TEST_FQDN + 1, TEST_FRIENDLY_NAME);
             WifiConfiguration roamingWifiConfiguration = new WifiConfiguration();
             roamingWifiConfiguration.FQDN = TEST_FQDN + 1;
@@ -890,12 +891,21 @@ public class PasspointManagerTest {
             lenient().when(providerRoaming.getWifiConfig()).thenReturn(roamingWifiConfiguration);
             lenient().when(providerNone.getWifiConfig()).thenReturn(new WifiConfiguration());
 
-            Map<String, List<ScanResult>> configs = mManager.getAllMatchingFqdnsForScanResults(
-                    createTestScanResults());
+            Map<String, Map<Integer, List<ScanResult>>> configs =
+                    mManager.getAllMatchingFqdnsForScanResults(
+                            createTestScanResults());
 
-            // Expects to be matched with home Provider and roaming Provider per Passpoint APs.
-            assertEquals(2, configs.get(TEST_FQDN + 0).size());
-            assertEquals(2, configs.get(TEST_FQDN + 1).size());
+            // Expects to be matched with home Provider for each AP (two APs).
+            assertEquals(2, configs.get(TEST_FQDN + 0).get(
+                    WifiManager.PASSPOINT_HOME_NETWORK).size());
+            assertFalse(
+                    configs.get(TEST_FQDN + 0).containsKey(WifiManager.PASSPOINT_ROAMING_NETWORK));
+
+            // Expects to be matched with roaming Provider for each AP (two APs).
+            assertEquals(2, configs.get(TEST_FQDN + 1).get(
+                    WifiManager.PASSPOINT_ROAMING_NETWORK).size());
+            assertFalse(configs.get(TEST_FQDN + 1).containsKey(WifiManager.PASSPOINT_HOME_NETWORK));
+
         } finally {
             session.finishMocking();
         }

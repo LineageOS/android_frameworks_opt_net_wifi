@@ -1856,10 +1856,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      *
      * @param scanResults The list of scan results
      * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
-     * scanResults.
+     * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
+     * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
     @Override
-    public Map<String, List<ScanResult>> getAllMatchingFqdnsForScanResults(
+    public Map<String, Map<Integer, List<ScanResult>>> getAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {

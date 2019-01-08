@@ -1627,15 +1627,17 @@ public class ClientModeImpl extends StateMachine {
      *
      * @param scanResults The list of scan results
      * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
-     * scanResults.
+     * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
+     * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
-    Map<String, List<ScanResult>> syncGetAllMatchingFqdnsForScanResults(
+    Map<String, Map<Integer, List<ScanResult>>> syncGetAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(
                 CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS,
                 scanResults);
-        Map<String, List<ScanResult>> configs = (Map<String, List<ScanResult>>) resultMsg.obj;
+        Map<String, Map<Integer, List<ScanResult>>> configs =
+                (Map<String, Map<Integer, List<ScanResult>>>) resultMsg.obj;
         resultMsg.recycle();
         return configs;
     }
