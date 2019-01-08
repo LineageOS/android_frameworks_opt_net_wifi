@@ -19,6 +19,7 @@ package com.android.server.wifi.util;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -969,7 +970,7 @@ public class WifiPermissionsUtilTest {
                 .thenReturn(mFineLocationPermission);
         when(mMockPermissionsWrapper.getUidPermission(mManifestStringHardware, mUid))
                 .thenReturn(mHardwareLocationPermission);
-        when(mLocationManager.isLocationEnabled()).thenReturn(mIsLocationEnabled);
+        when(mLocationManager.isLocationEnabledForUser(any())).thenReturn(mIsLocationEnabled);
         when(mMockPermissionsWrapper.getTopPkgName()).thenReturn(mPkgNameOfTopActivity);
     }
 }

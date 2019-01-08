@@ -1360,7 +1360,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
         enforceLocationPermission(packageName, uid);
         // also need to verify that Locations services are enabled.
-        if (mSettingsStore.getLocationModeSetting(mContext) == Settings.Secure.LOCATION_MODE_OFF) {
+        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
             throw new SecurityException("Location mode is not enabled.");
         }
 

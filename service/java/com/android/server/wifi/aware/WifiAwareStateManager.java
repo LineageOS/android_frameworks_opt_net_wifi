@@ -211,6 +211,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      */
     private Context mContext;
     private WifiAwareMetrics mAwareMetrics;
+    private WifiPermissionsUtil mWifiPermissionsUtil;
     private volatile Capabilities mCapabilities;
     private volatile Characteristics mCharacteristics = null;
     private WifiAwareStateMachine mSm;
@@ -381,6 +382,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
 
         mContext = context;
         mAwareMetrics = awareMetrics;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
         mSm = new WifiAwareStateMachine(TAG, looper);
         mSm.setDbg(VVDBG);
         mSm.start();
@@ -427,7 +429,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (mDbg) Log.v(TAG, "onReceive: MODE_CHANGED_ACTION: intent=" + intent);
-                if (mLocationManager.isLocationEnabled()) {
+                if (wifiPermissionsUtil.isLocationModeEnabled()) {
                     enableUsage();
                 } else {
                     disableUsage();
@@ -691,7 +693,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             if (mDbg) Log.d(TAG, "enableUsage(): while device is in IDLE mode - ignoring");
             return;
         }
-        if (!mLocationManager.isLocationEnabled()) {
+        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
             if (mDbg) Log.d(TAG, "enableUsage(): while location is disabled - ignoring");
             return;
         }

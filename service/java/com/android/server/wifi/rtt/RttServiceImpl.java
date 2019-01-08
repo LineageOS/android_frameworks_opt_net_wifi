@@ -284,7 +284,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (mDbg) Log.v(TAG, "onReceive: MODE_CHANGED_ACTION: intent=" + intent);
-                if (mLocationManager.isLocationEnabled()) {
+                if (mWifiPermissionsUtil.isLocationModeEnabled()) {
                     enableIfPossible();
                 } else {
                     disable();
@@ -375,7 +375,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     @Override
     public boolean isAvailable() {
         return mRttNative.isReady() && !mPowerManager.isDeviceIdleMode()
-                && mLocationManager.isLocationEnabled();
+                && mWifiPermissionsUtil.isLocationModeEnabled();
     }
 
     /**
@@ -1060,7 +1060,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
 
             boolean permissionGranted = mWifiPermissionsUtil.checkCallersLocationPermission(
                     topOfQueueRequest.callingPackage, topOfQueueRequest.uid)
-                    && mLocationManager.isLocationEnabled();
+                    && mWifiPermissionsUtil.isLocationModeEnabled();
             try {
                 if (permissionGranted) {
                     List<RangingResult> finalResults = postProcessResults(topOfQueueRequest.request,
