@@ -28,6 +28,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.Handler;
@@ -185,6 +186,7 @@ public class OsuNetworkConnection {
 
         // Do not save this network
         config.ephemeral = true;
+
         if (TextUtils.isEmpty(nai)) {
             config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         } else {
@@ -203,8 +205,9 @@ public class OsuNetworkConnection {
         // as wifi stack creates network agent without the capability.
         // That could cause connectivity service not to find the matching agent.
         NetworkRequest networkRequest = new NetworkRequest.Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI).removeCapability(
-                        NET_CAPABILITY_TRUSTED).build();
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(NET_CAPABILITY_TRUSTED)
+                .build();
         mConnectivityManager.requestNetwork(networkRequest, mConnectivityCallbacks, mHandler,
                 TIMEOUT_MS);
 
@@ -214,6 +217,7 @@ public class OsuNetworkConnection {
             disconnectIfNeeded();
             return false;
         }
+
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Current network ID " + mNetworkId);
         }
@@ -231,14 +235,32 @@ public class OsuNetworkConnection {
 
     private class ConnectivityCallbacks extends ConnectivityManager.NetworkCallback {
         @Override
+        public void onAvailable(Network network) {
+            WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
+            if (wifiInfo == null) {
+                Log.w(TAG, "wifiInfo is not valid");
+                return;
+            }
+            if (mNetworkId < 0 || mNetworkId != wifiInfo.getNetworkId()) {
+                Log.w(TAG, "Irrelevant network available notification for netId: "
+                        + wifiInfo.getNetworkId());
+                return;
+            }
+            mNetwork = network;
+            mConnected = true;
+        }
+
+        @Override
         public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "onLinkPropertiesChanged for network=" + network
-                        + " isProvisioned?" + linkProperties.isProvisioned());
+                                + " isProvisioned?" + linkProperties.isProvisioned());
             }
-            if (linkProperties.isProvisioned() && mNetwork == null) {
-                mNetwork = network;
-                mConnected = true;
+            if (mNetwork == null) {
+                Log.w(TAG, "ignore onLinkPropertyChanged event for null network");
+                return;
+            }
+            if (linkProperties.isProvisioned()) {
                 if (mCallbacks != null) {
                     mCallbacks.onConnected(network);
                 }

@@ -92,6 +92,7 @@ public class OsuNetworkConnectionTest {
         when(mWifiManager.isWifiEnabled()).thenReturn(true);
         when(mWifiManager.enableNetwork(TEST_NETWORK_ID, true)).thenReturn(true);
         when(mWifiManager.addNetwork(any(WifiConfiguration.class))).thenReturn(TEST_NETWORK_ID);
+        when(mWifiManager.getConnectionInfo()).thenReturn(mWifiInfo);
         when(mWifiInfo.getNetworkId()).thenReturn(TEST_NETWORK_ID);
         mLooper = new TestLooper();
         mHandler = new Handler(mLooper.getLooper());
@@ -216,6 +217,7 @@ public class OsuNetworkConnectionTest {
         verify(mConnectivityManager).requestNetwork(any(NetworkRequest.class),
                 networkCallbackCaptor.capture(), any(Handler.class), anyInt());
         ConnectivityManager.NetworkCallback callback = networkCallbackCaptor.getValue();
+        callback.onAvailable(mCurrentNetwork);
         callback.onLinkPropertiesChanged(mCurrentNetwork, createProvisionedLinkProperties());
         verify(mNetworkCallbacks).onConnected(mCurrentNetwork);
 
@@ -227,6 +229,28 @@ public class OsuNetworkConnectionTest {
         verify(mConnectivityManager).unregisterNetworkCallback(any(ConnectivityManager
                 .NetworkCallback.class));
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
+    }
+
+    /**
+     * Verifies that onConnected callback are never invoked when onLinkPropertiesChanged is invoked
+     * without onAvailable of NetworkCallback.
+     */
+    @Test
+    public void verifyNetworkCallbackWithoutOnAvailable() {
+        mNetworkConnection.init(mHandler);
+
+        mNetworkConnection.setEventCallback(mNetworkCallbacks);
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+
+        ArgumentCaptor<ConnectivityManager.NetworkCallback> networkCallbackCaptor =
+                ArgumentCaptor.forClass(ConnectivityManager.NetworkCallback.class);
+        verify(mConnectivityManager).requestNetwork(any(NetworkRequest.class),
+                networkCallbackCaptor.capture(), any(Handler.class), anyInt());
+        ConnectivityManager.NetworkCallback callback = networkCallbackCaptor.getValue();
+
+        callback.onLinkPropertiesChanged(mCurrentNetwork, createProvisionedLinkProperties());
+
+        verify(mNetworkCallbacks, never()).onConnected(mCurrentNetwork);
     }
 
     /**
@@ -292,6 +316,7 @@ public class OsuNetworkConnectionTest {
         WifiConfiguration wifiConfiguration = wifiConfigurationCaptor.getValue();
         assertTrue(wifiConfiguration.isNoInternetAccessExpected());
         assertTrue(wifiConfiguration.isEphemeral());
+        assertTrue(wifiConfiguration.osu);
 
         ArgumentCaptor<NetworkRequest> networkRequestCaptor = ArgumentCaptor.forClass(
                 NetworkRequest.class);
