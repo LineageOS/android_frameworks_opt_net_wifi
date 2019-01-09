@@ -1770,26 +1770,38 @@ public class WifiServiceImpl extends AbstractWifiService {
 
     /**
      * see {@link android.net.wifi.WifiManager#getConfiguredNetworks()}
+     *
+     * @param packageName String name of the calling package
      * @return the list of configured networks
      */
     @Override
     public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName) {
         enforceAccessPermission();
-        if (Binder.getCallingUid() != Process.SHELL_UID) { // bypass shell: can get varioud pkg name
-            mAppOps.checkPackage(Binder.getCallingUid(), packageName);
+        int callingUid = Binder.getCallingUid();
+        if (callingUid != Process.SHELL_UID) { // bypass shell: can get varioud pkg name
+            long ident = Binder.clearCallingIdentity();
+            try {
+                mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
+            } catch (SecurityException e) {
+                Slog.e(TAG, "Permission violation - getConfiguredNetworks not allowed for uid="
+                        + callingUid + ", packageName=" + packageName + ", reason=" + e);
+                return new ParceledListSlice<>(new ArrayList<>());
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
         }
         if (!isTargetSdkLessThanQOrPrivileged(
-                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+                packageName, Binder.getCallingPid(), callingUid)) {
             mLog.info("getConfiguredNetworks not allowed for uid=%")
-                    .c(Binder.getCallingUid()).flush();
+                    .c(callingUid).flush();
             return new ParceledListSlice<>(new ArrayList<>());
         }
         if (mVerboseLoggingEnabled) {
-            mLog.info("getConfiguredNetworks uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getConfiguredNetworks uid=%").c(callingUid).flush();
         }
         if (mClientModeImplChannel != null) {
             List<WifiConfiguration> configs = mClientModeImpl.syncGetConfiguredNetworks(
-                    Binder.getCallingUid(), mClientModeImplChannel);
+                    callingUid, mClientModeImplChannel);
             if (configs != null) {
                 return new ParceledListSlice<WifiConfiguration>(configs);
             }
@@ -1801,14 +1813,28 @@ public class WifiServiceImpl extends AbstractWifiService {
 
     /**
      * see {@link android.net.wifi.WifiManager#getPrivilegedConfiguredNetworks()}
+     *
+     * @param packageName String name of the calling package
      * @return the list of configured networks with real preSharedKey
      */
     @Override
-    public ParceledListSlice<WifiConfiguration> getPrivilegedConfiguredNetworks() {
+    public ParceledListSlice<WifiConfiguration>
+            getPrivilegedConfiguredNetworks(String packageName) {
         enforceReadCredentialPermission();
         enforceAccessPermission();
+        int callingUid = Binder.getCallingUid();
+        long ident = Binder.clearCallingIdentity();
+        try {
+            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
+        } catch (SecurityException e) {
+            Slog.e(TAG, "Permission violation - getPrivilegedConfiguredNetworks not allowed for"
+                    + " uid=" + callingUid + ", packageName=" + packageName + ", reason=" + e);
+            return null;
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
         if (mVerboseLoggingEnabled) {
-            mLog.info("getPrivilegedConfiguredNetworks uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getPrivilegedConfiguredNetworks uid=%").c(callingUid).flush();
         }
         if (mClientModeImplChannel != null) {
             List<WifiConfiguration> configs =
