@@ -586,11 +586,8 @@ public class PasspointProvisioner {
             // Save the service friendly names from OsuProvider to keep this in the profile.
             mPasspointConfiguration.setServiceFriendlyNames(mOsuProvider.getFriendlyNameList());
 
-            // TODO(117717842) : Currently PasspointConfiguration is only allowed to save a single
-            // trust CA certificate for AAA server. So, add a routine in PasspointConfiguration
-            // to store multiple trust CA certificates for AAA server.
-            mPasspointConfiguration.getCredential().setCaCertificate(
-                    certificates.get(0));
+            mPasspointConfiguration.getCredential().setCaCertificates(
+                    certificates.toArray(new X509Certificate[0]));
 
             // TODO(b/116346527): Implement a routine to store trust CA certificates for
             // remediation and policy server.

@@ -1974,9 +1974,14 @@ public class WifiServiceImpl extends BaseWifiService {
                 Slog.e(TAG, "Missing credential for Passpoint profile");
                 return -1;
             }
+
             // Copy over certificates and keys.
-            passpointConfig.getCredential().setCaCertificate(
-                    config.enterpriseConfig.getCaCertificate());
+            X509Certificate[] x509Certificates = null;
+            if (config.enterpriseConfig.getCaCertificate() != null) {
+                x509Certificates =
+                        new X509Certificate[]{config.enterpriseConfig.getCaCertificate()};
+            }
+            passpointConfig.getCredential().setCaCertificates(x509Certificates);
             passpointConfig.getCredential().setClientCertificateChain(
                     config.enterpriseConfig.getClientCertificateChain());
             passpointConfig.getCredential().setClientPrivateKey(
