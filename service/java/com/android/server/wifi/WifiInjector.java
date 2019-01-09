@@ -151,6 +151,7 @@ public class WifiInjector {
     private final WifiScoreCard mWifiScoreCard;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final DppManager mDppManager;
+    private final LinkProbeManager mLinkProbeManager;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -291,11 +292,12 @@ public class WifiInjector {
                 new LastMileLogger(this), mClock);
         mWifiDataStall = new WifiDataStall(mContext, mFrameworkFacade, mWifiMetrics);
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
+        mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 clientModeImplLooper, UserManager.get(mContext),
                 this, mBackupManagerProxy, mCountryCode, mWifiNative, mWifiScoreCard,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
-                mSarManager, mWifiTrafficPoller);
+                mSarManager, mWifiTrafficPoller, mLinkProbeManager);
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,
                 mWifiNative, new DefaultModeManager(mContext, clientModeImplLooper),
                 mBatteryStats);

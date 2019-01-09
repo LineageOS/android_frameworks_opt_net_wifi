@@ -3979,4 +3979,39 @@ public class WifiMetrics {
             }
         }
     }
+
+    /**
+     * Reports stats for a successful link probe.
+     *
+     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
+     * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
+     *                                 the last Tx success (according to
+     *                                 {@link WifiInfo#txSuccess}).
+     * @param rssi The Rx RSSI at {@code startTimestampMs}.
+     * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
+     * @param elapsedTimeMs The number of milliseconds between when the command to transmit the
+     *                      probe was sent to the driver and when the driver responded that the
+     *                      probe was ACKed. Note: this number should be correlated with the number
+     *                      of retries that the driver attempted before the probe was ACKed.
+     */
+    public void logLinkProbeSuccess(long startTimestampMs, long timeSinceLastTxSuccessMs,
+            int rssi, int linkSpeed, int elapsedTimeMs) {
+        // TODO(b/112029045): aggregate metrics
+    }
+
+    /**
+     * Reports stats for an unsuccessful link probe.
+     *
+     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
+     * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
+     *                                 the last Tx success (according to
+     *                                 {@link WifiInfo#txSuccess}).
+     * @param rssi The Rx RSSI at {@code startTimestampMs}.
+     * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
+     * @param reason The error code for the failure. See {@link WifiNative.SendMgmtFrameError}.
+     */
+    public void logLinkProbeFailure(long startTimestampMs, long timeSinceLastTxSuccessMs,
+            int rssi, int linkSpeed, @WifiNative.SendMgmtFrameError int reason) {
+        // TODO(b/112029045): aggregate metrics
+    }
 }

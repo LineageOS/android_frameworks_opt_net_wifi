@@ -376,6 +376,7 @@ public class ClientModeImplTest {
     @Mock WifiNetworkFactory mWifiNetworkFactory;
     @Mock UntrustedWifiNetworkFactory mUntrustedWifiNetworkFactory;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    @Mock LinkProbeManager mLinkProbeManager;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -528,7 +529,8 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWifiScoreCard, mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller);
+                mWifiScoreCard, mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
+                mLinkProbeManager);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {
@@ -3105,6 +3107,27 @@ public class ClientModeImplTest {
         connect();
 
         verify(mWifiTrafficPoller).notifyOnDataActivity(anyLong(), anyLong());
+    }
+
+    /**
+     * Verify that LinkProbeManager is updated during RSSI poll
+     */
+    @Test
+    public void verifyRssiPollCallsLinkProbeManager() throws Exception {
+        mCmi.enableRssiPolling(true);
+
+        connect();
+        // reset() should be called when RSSI polling is enabled and entering L2ConnectedState
+        verify(mLinkProbeManager).reset();
+        verify(mLinkProbeManager).updateConnectionStats(any(), any());
+
+        mCmi.enableRssiPolling(false);
+        mLooper.dispatchAll();
+        // reset() should be called when in L2ConnectedState (or child states) and RSSI polling
+        // becomes enabled
+        mCmi.enableRssiPolling(true);
+        mLooper.dispatchAll();
+        verify(mLinkProbeManager, times(2)).reset();
     }
 
     /**
