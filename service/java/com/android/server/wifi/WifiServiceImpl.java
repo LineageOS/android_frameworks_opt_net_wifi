@@ -144,7 +144,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @hide
  */
-public class WifiServiceImpl extends AbstractWifiService {
+public class WifiServiceImpl extends BaseWifiService {
     private static final String TAG = "WifiService";
     private static final boolean VDBG = false;
 
