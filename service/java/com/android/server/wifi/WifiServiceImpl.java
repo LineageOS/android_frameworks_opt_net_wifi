@@ -44,6 +44,8 @@ import android.annotation.CheckResult;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.AppOpsManager;
+import android.app.admin.DeviceAdminInfo;
+import android.app.admin.DevicePolicyManagerInternal;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -749,6 +751,15 @@ public class WifiServiceImpl extends AbstractWifiService {
         return false;
     }
 
+    // Helper method to check if the entity initiating the binder call is a DO/PO app.
+    private boolean isDeviceOrProfileOwner(int uid) {
+        final DevicePolicyManagerInternal dpmi =
+                mWifiInjector.getWifiPermissionsWrapper().getDevicePolicyManagerInternal();
+        if (dpmi == null) return false;
+        return dpmi.isActiveAdminWithPolicy(uid, DeviceAdminInfo.USES_POLICY_DEVICE_OWNER)
+                || dpmi.isActiveAdminWithPolicy(uid, DeviceAdminInfo.USES_POLICY_PROFILE_OWNER);
+    }
+
     private void enforceNetworkSettingsPermission() {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS,
                 "WifiService");
@@ -842,6 +853,8 @@ public class WifiServiceImpl extends AbstractWifiService {
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
         return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
                 || isPrivileged(pid, uid)
+                // DO/PO apps should be able to add/modify saved networks.
+                || isDeviceOrProfileOwner(uid)
                 // TODO: Remove this system app bypass once Q is released.
                 || isSystem(packageName);
     }
@@ -1838,10 +1851,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      * Returns list of OSU (Online Sign-Up) providers associated with the given list of ScanResult.
      *
      * @param scanResults a list of ScanResult that has Passpoint APs.
-     * @return List of {@link OsuProvider}
+     * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}.
      */
     @Override
-    public List<OsuProvider> getMatchingOsuProviders(List<ScanResult> scanResults) {
+    public Map<OsuProvider, List<ScanResult>> getMatchingOsuProviders(
+            List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();

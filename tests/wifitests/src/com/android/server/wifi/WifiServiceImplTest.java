@@ -57,6 +57,8 @@ import static org.mockito.Mockito.atLeastOnce;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
+import android.app.admin.DeviceAdminInfo;
+import android.app.admin.DevicePolicyManagerInternal;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -209,6 +211,7 @@ public class WifiServiceImplTest {
     @Mock ITrafficStateCallback mTrafficStateCallback;
     @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
 
     @Spy FakeWifiLog mLog;
 
@@ -312,6 +315,8 @@ public class WifiServiceImplTest {
         WifiAsyncChannel wifiAsyncChannel = new WifiAsyncChannel("WifiServiceImplTest");
         wifiAsyncChannel.setWifiLog(mLog);
         when(mFrameworkFacade.makeWifiAsyncChannel(anyString())).thenReturn(wifiAsyncChannel);
+        when(mWifiPermissionsWrapper.getDevicePolicyManagerInternal())
+                .thenReturn(mDevicePolicyManagerInternal);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mLockManager);
         when(mWifiInjector.getWifiMulticastLockManager()).thenReturn(mWifiMulticastLockManager);
@@ -3001,6 +3006,46 @@ public class WifiServiceImplTest {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+
+        verifyCheckChangePermission(TEST_PACKAGE_NAME);
+        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+    }
+
+    /**
+     * Verify that add or update networks is allowed for DeviceOwner app.
+     */
+    @Test
+    public void testAddOrUpdateNetworkIsAllowedForDOApp() throws Exception {
+        mLooper.dispatchAll();
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
+                Process.myUid(), DeviceAdminInfo.USES_POLICY_DEVICE_OWNER))
+                .thenReturn(true);
+        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+
+        verifyCheckChangePermission(TEST_PACKAGE_NAME);
+        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+    }
+
+    /**
+     * Verify that add or update networks is allowed for ProfileOwner app.
+     */
+    @Test
+    public void testAddOrUpdateNetworkIsAllowedForPOApp() throws Exception {
+        mLooper.dispatchAll();
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
+                Process.myUid(), DeviceAdminInfo.USES_POLICY_PROFILE_OWNER))
+                .thenReturn(true);
         when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
