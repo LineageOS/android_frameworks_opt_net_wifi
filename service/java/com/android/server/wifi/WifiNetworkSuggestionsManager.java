@@ -16,13 +16,22 @@
 
 package com.android.server.wifi;
 
+import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -34,7 +43,10 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
+import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
+import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
@@ -59,12 +71,35 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class WifiNetworkSuggestionsManager {
     private static final String TAG = "WifiNetworkSuggestionsManager";
 
+    /** Intent when user tapped action button to allow the app. */
+    @VisibleForTesting
+    public static final String NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION =
+            "com.android.server.wifi.action.NetworkSuggestion.USER_ALLOWED_APP";
+    /** Intent when user tapped action button to disallow the app. */
+    @VisibleForTesting
+    public static final String NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION =
+            "com.android.server.wifi.action.NetworkSuggestion.USER_DISALLOWED_APP";
+    /** Intent when user dismissed the notification. */
+    @VisibleForTesting
+    public static final String NOTIFICATION_USER_DISMISSED_INTENT_ACTION =
+            "com.android.server.wifi.action.NetworkSuggestion.USER_DISMISSED";
+    @VisibleForTesting
+    public static final String EXTRA_PACKAGE_NAME =
+            "com.android.server.wifi.extra.NetworkSuggestion.PACKAGE_NAME";
+    @VisibleForTesting
+    public static final String EXTRA_UID =
+            "com.android.server.wifi.extra.NetworkSuggestion.UID";
+
     private final Context mContext;
+    private final Resources mResources;
     private final Handler mHandler;
     private final AppOpsManager mAppOps;
+    private final NotificationManager mNotificationManager;
+    private final PackageManager mPackageManager;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiConfigManager mWifiConfigManager;
     private final WifiInjector mWifiInjector;
+    private final FrameworkFacade mFrameworkFacade;
 
     /**
      * Per app meta data to store network suggestions, status, etc for each app providing network
@@ -190,6 +225,11 @@ public class WifiNetworkSuggestionsManager {
     private Set<ExtendedWifiNetworkSuggestion> mActiveNetworkSuggestionsMatchingConnection;
 
     /**
+     * Intent filter for processing notification actions.
+     */
+    private final IntentFilter mIntentFilter;
+
+    /**
      * Verbose logging flag.
      */
     private boolean mVerboseLoggingEnabled = false;
@@ -197,6 +237,14 @@ public class WifiNetworkSuggestionsManager {
      * Indicates that we have new data to serialize.
      */
     private boolean mHasNewDataToSerialize = false;
+    /**
+     * Indicates if the user approval notification is active.
+     */
+    private boolean mUserApprovalNotificationActive = false;
+    /**
+     * Stores the name of the user approval notification that is active.
+     */
+    private String mUserApprovalNotificationPackageName;
 
     /**
      * Listener for app-ops changes for active suggestor apps.
@@ -278,21 +326,75 @@ public class WifiNetworkSuggestionsManager {
         }
     }
 
+    private final BroadcastReceiver mBroadcastReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME);
+                    if (packageName == null) {
+                        Log.e(TAG, "No package name found in intent");
+                        return;
+                    }
+                    int uid = intent.getIntExtra(EXTRA_UID, -1);
+                    if (uid == -1) {
+                        Log.e(TAG, "No uid found in intent");
+                        return;
+                    }
+                    switch (intent.getAction()) {
+                        case NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION:
+                            Log.i(TAG, "User clicked to allow app");
+                            // Set the user approved flag.
+                            setHasUserApprovedForApp(true, packageName);
+                            break;
+                        case NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION:
+                            Log.i(TAG, "User clicked to disallow app");
+                            // Set the user approved flag.
+                            setHasUserApprovedForApp(false, packageName);
+                            // Take away CHANGE_WIFI_STATE app-ops from the app.
+                            mAppOps.setMode(AppOpsManager.OP_CHANGE_WIFI_STATE, uid, packageName,
+                                    MODE_IGNORED);
+                            break;
+                        case NOTIFICATION_USER_DISMISSED_INTENT_ACTION:
+                            Log.i(TAG, "User dismissed the notification");
+                            mUserApprovalNotificationActive = false;
+                            return; // no need to cancel a dismissed notification, return.
+                        default:
+                            Log.e(TAG, "Unknown action " + intent.getAction());
+                            return;
+                    }
+                    // Clear notification once the user interacts with it.
+                    mUserApprovalNotificationActive = false;
+                    mNotificationManager.cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+                }
+            };
+
     public WifiNetworkSuggestionsManager(Context context, Handler handler,
                                          WifiInjector wifiInjector,
                                          WifiPermissionsUtil wifiPermissionsUtil,
                                          WifiConfigManager wifiConfigManager,
                                          WifiConfigStore wifiConfigStore) {
         mContext = context;
+        mResources = context.getResources();
         mHandler = handler;
         mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+        mNotificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        mPackageManager = context.getPackageManager();
         mWifiInjector = wifiInjector;
+        mFrameworkFacade = mWifiInjector.getFrameworkFacade();
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiConfigManager = wifiConfigManager;
 
         // register the data store for serializing/deserializing data.
         wifiConfigStore.registerStoreData(
                 wifiInjector.makeNetworkSuggestionStoreData(new NetworkSuggestionDataSource()));
+
+        // Register broadcast receiver for UI interactions.
+        mIntentFilter = new IntentFilter();
+        mIntentFilter.addAction(NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION);
+        mIntentFilter.addAction(NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION);
+        mIntentFilter.addAction(NOTIFICATION_USER_DISMISSED_INTENT_ACTION);
+        mContext.registerReceiver(mBroadcastReceiver, mIntentFilter);
     }
 
     /**
@@ -591,6 +693,78 @@ public class WifiNetworkSuggestionsManager {
                 .collect(Collectors.toSet());
     }
 
+    private PendingIntent getPrivateBroadcast(@NonNull String action, @NonNull String packageName,
+                                              int uid) {
+        Intent intent = new Intent(action)
+                .setPackage("android")
+                .putExtra(EXTRA_PACKAGE_NAME, packageName)
+                .putExtra(EXTRA_UID, uid);
+        return mFrameworkFacade.getBroadcast(mContext, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    private @NonNull CharSequence getAppName(@NonNull String packageName) {
+        ApplicationInfo applicationInfo = null;
+        try {
+            applicationInfo = mPackageManager.getApplicationInfo(packageName, 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Failed to find app name for " + packageName);
+            return "";
+        }
+        CharSequence appName = mPackageManager.getApplicationLabel(applicationInfo);
+        return (appName != null) ? appName : "";
+    }
+
+    private void sendUserApprovalNotification(@NonNull String packageName, int uid) {
+        Notification.Action userAllowAppNotificationAction =
+                new Notification.Action.Builder(null,
+                        mResources.getText(R.string.wifi_suggestion_action_allow_app),
+                        getPrivateBroadcast(NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION,
+                                packageName, uid))
+                        .build();
+        Notification.Action userDisallowAppNotificationAction =
+                new Notification.Action.Builder(null,
+                        mResources.getText(R.string.wifi_suggestion_action_disallow_app),
+                        getPrivateBroadcast(NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION,
+                                packageName, uid))
+                        .build();
+
+        CharSequence appName = getAppName(packageName);
+        Notification notification = new Notification.Builder(
+                mContext, SystemNotificationChannels.NETWORK_STATUS)
+                .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
+                .setTicker(mResources.getString(R.string.wifi_suggestion_title, appName))
+                .setContentTitle(mResources.getString(R.string.wifi_suggestion_title, appName))
+                .setContentText(mResources.getString(R.string.wifi_suggestion_content, appName))
+                .setDeleteIntent(getPrivateBroadcast(NOTIFICATION_USER_DISMISSED_INTENT_ACTION,
+                        packageName, uid))
+                .setShowWhen(false)
+                .setLocalOnly(true)
+                .setColor(mResources.getColor(R.color.system_notification_accent_color,
+                        mContext.getTheme()))
+                .addAction(userAllowAppNotificationAction)
+                .addAction(userDisallowAppNotificationAction)
+                .build();
+
+        // Post the notification.
+        mNotificationManager.notify(
+                SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE, notification);
+        mUserApprovalNotificationActive = true;
+        mUserApprovalNotificationPackageName = packageName;
+    }
+
+    private boolean sendUserApprovalNotificationIfNotApproved(
+            @NonNull PerAppInfo perAppInfo,
+            @NonNull WifiNetworkSuggestion matchingSuggestion) {
+        if (perAppInfo.hasUserApproved) {
+            return false; // already approved.
+        }
+
+        Log.i(TAG, "Sending user approval notification for " + perAppInfo.packageName);
+        sendUserApprovalNotification(perAppInfo.packageName, matchingSuggestion.suggestorUid);
+        return true;
+    }
+
     private @Nullable Set<ExtendedWifiNetworkSuggestion>
             getNetworkSuggestionsForScanResultMatchInfo(
             @NonNull ScanResultMatchInfo scanResultMatchInfo, @NonNull MacAddress bssid) {
@@ -638,6 +812,18 @@ public class WifiNetworkSuggestionsManager {
                         .stream()
                         .filter(n -> n.perAppInfo.hasUserApproved)
                         .collect(Collectors.toSet());
+        // If there is no active notification, check if we need to get approval for any of the apps
+        // & send a notification for one of them. If there are multiple packages awaiting approval,
+        // we end up picking the first one. The others will be reconsidered in the next iteration.
+        if (!mUserApprovalNotificationActive
+                && approvedExtNetworkSuggestions.size() != extNetworkSuggestions.size()) {
+            for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
+                if (sendUserApprovalNotificationIfNotApproved(
+                        extNetworkSuggestion.perAppInfo, extNetworkSuggestion.wns)) {
+                    break;
+                }
+            }
+        }
         if (approvedExtNetworkSuggestions.isEmpty()) {
             return null;
         }
@@ -733,6 +919,7 @@ public class WifiNetworkSuggestionsManager {
         // Store the set of matching network suggestions.
         mActiveNetworkSuggestionsMatchingConnection = new HashSet<>(matchingExtNetworkSuggestions);
 
+        // Find subset of network suggestions which have set |isAppInteractionRequired|.
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsWithReqAppInteraction =
                 matchingExtNetworkSuggestions.stream()
                         .filter(x -> x.wns.isAppInteractionRequired)
