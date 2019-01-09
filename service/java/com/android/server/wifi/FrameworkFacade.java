@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import android.app.ActivityManager;
+import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -36,6 +36,7 @@ import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.server.LocalServices;
 import com.android.server.wifi.util.WifiAsyncChannel;
 
 /**
@@ -192,7 +193,7 @@ public class FrameworkFacade {
      * @throws RemoteException
      */
     public boolean isAppForeground(int uid) throws RemoteException {
-        return ActivityManager.getService().isAppForeground(uid);
+        return LocalServices.getService(ActivityManagerInternal.class).isAppForeground(uid);
     }
 
     /**
