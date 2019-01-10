@@ -163,6 +163,10 @@ public class WifiMetrics {
     private int mLastFrequency = -1;
     private boolean mIsSameBssidAndFreq = true;
     private int mSeqNumInsideFramework = -1;
+    private int mLastWifiUsabilityScore = -1;
+    private int mLastWifiUsabilityScoreNoReset = -1;
+    private int mLastPredictionHorizonSec = -1;
+    private int mSeqNumToFramework = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -3867,5 +3871,19 @@ public class WifiMetrics {
             Log.v(TAG, "Removing listener. Num listeners: "
                     + mWifiUsabilityListeners.getNumCallbacks());
         }
+    }
+
+    /**
+     * Updates the Wi-Fi usability score.
+     * @param seqNum The sequence number of the provided score.
+     * @param score  The Wi-Fi usability score corresponding to seqNum.
+     * @param predictionHorizonSec The prediction horizon (in second) corresponding of the Wi-Fi
+     *                             usability score.
+     */
+    public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
+        mSeqNumToFramework = seqNum;
+        mLastWifiUsabilityScore = score;
+        mLastPredictionHorizonSec = predictionHorizonSec;
+        mLastWifiUsabilityScoreNoReset = score;
     }
 }

@@ -6124,4 +6124,15 @@ public class ClientModeImpl extends StateMachine {
     public void setDeviceMobilityState(@DeviceMobilityState int state) {
         mWifiConnectivityManager.setDeviceMobilityState(state);
     }
+
+    /**
+     * Updates the Wi-Fi usability score.
+     * @param seqNum The sequence number of the provided score.
+     * @param score  The Wi-Fi usability score corresponding to seqNum.
+     * @param predictionHorizonSec The prediction horizon (in second) corresponding of the Wi-Fi
+     *                             usability score.
+     */
+    public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
+        mWifiMetrics.updateWifiUsabilityScore(seqNum, score, predictionHorizonSec);
+    }
 }

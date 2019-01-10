@@ -3467,4 +3467,30 @@ public class WifiServiceImpl extends BaseWifiService {
             mWifiMetrics.removeWifiUsabilityListener(listenerIdentifier);
         });
     }
+
+    /**
+     * Updates the Wi-Fi usability score.
+     * @param seqNum The sequence number of the provided score.
+     * @param score  The Wi-Fi usability score corresponding to seqNum.
+     * @param predictionHorizonSec The prediction horizon (in second) corresponding of the Wi-Fi
+     *                             usability score.
+     */
+    @Override
+    public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE, "WifiService");
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("updateWifiUsability uid=% seqNum=% score=% predictionHorizonSec=%")
+                    .c(Binder.getCallingUid())
+                    .c(seqNum)
+                    .c(score)
+                    .c(predictionHorizonSec)
+                    .flush();
+        }
+        // Post operation to handler thread
+        mWifiInjector.getClientModeImplHandler().post(
+                () -> mClientModeImpl.updateWifiUsabilityScore(seqNum, score,
+                        predictionHorizonSec));
+    }
 }
