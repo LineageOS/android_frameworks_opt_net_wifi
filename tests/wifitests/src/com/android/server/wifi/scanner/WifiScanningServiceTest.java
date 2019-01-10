@@ -112,6 +112,7 @@ public class WifiScanningServiceTest {
     public static final String TAG = "WifiScanningServiceTest";
 
     private static final int TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES = 8;
+    private static final String TEST_PACKAGE_NAME = "com.test.123";
 
     @Mock Context mContext;
     TestAlarmManager mAlarmManager;
@@ -2535,7 +2536,8 @@ public class WifiScanningServiceTest {
         startServiceAndLoadDriver();
         // Location permission or mode check fail.
         doThrow(new SecurityException()).when(mWifiPermissionsUtil)
-                .enforceCanAccessScanResultsForWifiScanner(any(), eq(Binder.getCallingUid()));
+                .enforceCanAccessScanResultsForWifiScanner(any(), eq(Binder.getCallingUid()),
+                        eq(false));
 
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
@@ -2570,5 +2572,65 @@ public class WifiScanningServiceTest {
 
         // Ensure we didn't start any scans after.
         verifyNoMoreInteractions(mWifiScannerImpl);
+    }
+
+    /**
+     * Verifies that we ignore location settings when the single scan request settings sets
+     * {@link WifiScanner.ScanSettings#ignoreLocationSettings}
+     */
+    @Test
+    public void verifyIgnoreLocationSettingsFromNonPrivilegedAppsForSingleScan() throws Exception {
+        // Start service & initialize it.
+        startServiceAndLoadDriver();
+
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+
+        // Client doesn't have NETWORK_STACK permission.
+        doThrow(new SecurityException()).when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
+
+        Bundle bundle = new Bundle();
+        bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
+        WifiScanner.ScanSettings scanSettings = new WifiScanner.ScanSettings();
+
+        // send single scan request (ignoreLocationSettings == true).
+        scanSettings.ignoreLocationSettings = true;
+        bundle.putParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY, scanSettings);
+        Message message = Message.obtain();
+        message.what = WifiScanner.CMD_START_SINGLE_SCAN;
+        message.obj = bundle;
+        controlChannel.sendMessage(message);
+        mLooper.dispatchAll();
+
+        // Verify the permission check params (ignoreLocationSettings == true).
+        verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
+                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(true));
+
+        // send single scan request (ignoreLocationSettings == false).
+        scanSettings.ignoreLocationSettings = false;
+        bundle.putParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY, scanSettings);
+        message = Message.obtain();
+        message.what = WifiScanner.CMD_START_SINGLE_SCAN;
+        message.obj = bundle;
+        controlChannel.sendMessage(message);
+        mLooper.dispatchAll();
+
+        // Verify the permission check params (ignoreLocationSettings == true).
+        verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
+                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false));
+
+        // send background scan request (ignoreLocationSettings == true).
+        scanSettings.ignoreLocationSettings = true;
+        bundle.putParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY, scanSettings);
+        message = Message.obtain();
+        message.what = WifiScanner.CMD_START_BACKGROUND_SCAN;
+        controlChannel.sendMessage(message);
+        mLooper.dispatchAll();
+
+        // Verify the permission check params (ignoreLocationSettings == false), the field
+        // is ignored for any requests other than single scan.
+        verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
+                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false));
     }
 }
