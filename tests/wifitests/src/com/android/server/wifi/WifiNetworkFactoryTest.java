@@ -27,6 +27,7 @@ import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
@@ -422,6 +423,8 @@ public class WifiNetworkFactoryTest {
         Intent intent = intentArgumentCaptor.getValue();
         assertNotNull(intent);
         assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
+        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_PACKAGE_NAME),
+                TEST_PACKAGE_NAME_1);
         assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
@@ -429,15 +432,7 @@ public class WifiNetworkFactoryTest {
         // Verify scan settings.
         verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
                 mWorkSourceArgumentCaptor.capture());
-        ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
-        assertNotNull(scanSettings);
-        assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
-        assertEquals(WifiScanner.TYPE_HIGH_ACCURACY, scanSettings.type);
-        assertEquals(WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN, scanSettings.reportEvents);
-        assertNull(scanSettings.hiddenNetworks);
-        WorkSource workSource = mWorkSourceArgumentCaptor.getValue();
-        assertNotNull(workSource);
-        assertEquals(TEST_UID_1, workSource.get(0));
+        validateScanSettings(null);
     }
 
     /**
@@ -457,24 +452,15 @@ public class WifiNetworkFactoryTest {
         assertNotNull(intent);
         assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
         assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
+        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_PACKAGE_NAME),
+                TEST_PACKAGE_NAME_1);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
 
         // Verify scan settings.
         verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
                 mWorkSourceArgumentCaptor.capture());
-        ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
-        assertNotNull(scanSettings);
-        assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
-        assertEquals(WifiScanner.TYPE_HIGH_ACCURACY, scanSettings.type);
-        assertEquals(WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN, scanSettings.reportEvents);
-        assertNotNull(scanSettings.hiddenNetworks);
-        assertNotNull(scanSettings.hiddenNetworks[0]);
-        assertEquals(scanSettings.hiddenNetworks[0].ssid,
-                addEnclosingQuotes(specifier.ssidPatternMatcher.getPath()));
-        WorkSource workSource = mWorkSourceArgumentCaptor.getValue();
-        assertNotNull(workSource);
-        assertEquals(TEST_UID_1, workSource.get(0));
+        validateScanSettings(specifier.ssidPatternMatcher.getPath());
     }
 
     /**
@@ -485,10 +471,26 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testHandleNetworkRequestWithSpecifierAfterPreviousHiddenNetworkRequest() {
-        testHandleNetworkRequestWithSpecifierForHiddenNetwork();
+        // Hidden request 1.
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, true);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        // Verify scan settings.
+        verify(mWifiScanner, times(1)).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+                mWorkSourceArgumentCaptor.capture());
+        validateScanSettings(specifier.ssidPatternMatcher.getPath());
+
+        // Release request 1.
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
-        reset(mWifiScanner, mWifiConnectivityManager, mContext);
-        testHandleNetworkRequestWithSpecifier();
+
+        // Regular request 2.
+        specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        // Verify scan settings.
+        verify(mWifiScanner, times(2)).startScan(mScanSettingsArgumentCaptor.capture(), any(),
+                mWorkSourceArgumentCaptor.capture());
+        validateScanSettings(null);
     }
 
     /**
@@ -1848,5 +1850,24 @@ public class WifiNetworkFactoryTest {
                     mConnectionTimeoutAlarmListenerArgumentCaptor.capture(), any());
             assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
         }
+    }
+
+    private void validateScanSettings(@Nullable String hiddenSsid) {
+        ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
+        assertNotNull(scanSettings);
+        assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
+        assertEquals(WifiScanner.TYPE_HIGH_ACCURACY, scanSettings.type);
+        assertEquals(WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN, scanSettings.reportEvents);
+        if (hiddenSsid == null) {
+            assertNull(scanSettings.hiddenNetworks);
+        } else {
+            assertNotNull(scanSettings.hiddenNetworks);
+            assertNotNull(scanSettings.hiddenNetworks[0]);
+            assertEquals(scanSettings.hiddenNetworks[0].ssid, addEnclosingQuotes(hiddenSsid));
+        }
+        WorkSource workSource = mWorkSourceArgumentCaptor.getValue();
+        assertNotNull(workSource);
+        assertEquals(TEST_UID_1, workSource.get(0));
+
     }
 }
