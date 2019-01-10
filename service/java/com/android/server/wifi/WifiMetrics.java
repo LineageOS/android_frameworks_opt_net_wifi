@@ -20,6 +20,7 @@ import android.content.Context;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.NetworkAgent;
 import android.net.wifi.EAPConstants;
+import android.net.wifi.IWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -28,8 +29,10 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.provider.Settings;
 import android.util.Base64;
@@ -61,6 +64,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -155,6 +159,10 @@ public class WifiMetrics {
     private FrameworkFacade mFacade;
     private WifiDataStall mWifiDataStall;
     private WifiLinkLayerStats mLastLinkLayerStats;
+    private String mLastBssid;
+    private int mLastFrequency = -1;
+    private boolean mIsSameBssidAndFreq = true;
+    private int mSeqNumInsideFramework = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -251,6 +259,7 @@ public class WifiMetrics {
     private final LinkedList<WifiUsabilityStats> mWifiUsabilityStatsListGood = new LinkedList<>();
     private int mWifiUsabilityStatsCounter = 0;
     private final Random mRand = new Random();
+    private final ExternalCallbackTracker<IWifiUsabilityStatsListener> mWifiUsabilityListeners;
 
     private final Map<Integer, DeviceMobilityStatePnoScanStats> mMobilityStatePnoStatsMap =
             new HashMap<>();
@@ -531,6 +540,8 @@ public class WifiMetrics {
         mCurrentDeviceMobilityState = WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
         mCurrentDeviceMobilityStateStartMs = mClock.getElapsedSinceBootMillis();
         mCurrentDeviceMobilityStatePnoScanStartMs = -1;
+        mWifiUsabilityListeners =
+                new ExternalCallbackTracker<IWifiUsabilityStatsListener>(mHandler);
     }
 
     /**
@@ -3638,12 +3649,60 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.totalHotspot2ScanTimeMs = stats.on_time_hs20_scan;
             wifiUsabilityStatsEntry.rssi = info.getRssi();
             wifiUsabilityStatsEntry.linkSpeedMbps = info.getLinkSpeed();
+            WifiLinkLayerStats.ChannelStats statsMap =
+                    stats.channelStatsMap.get(info.getFrequency());
+            if (statsMap != null) {
+                wifiUsabilityStatsEntry.totalRadioOnFreqTimeMs = statsMap.radioOnTimeMs;
+                wifiUsabilityStatsEntry.totalCcaBusyFreqTimeMs = statsMap.ccaBusyTimeMs;
+            }
+            wifiUsabilityStatsEntry.totalBeaconRx = stats.beacon_rx;
+
+            mIsSameBssidAndFreq = mLastBssid == null || mLastFrequency == -1
+                    || (mLastBssid.equals(info.getBSSID())
+                    && mLastFrequency == info.getFrequency());
+            mLastBssid = info.getBSSID();
+            mLastFrequency = info.getFrequency();
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
                 addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD);
             }
+
+            // Invoke Wifi usability stats listener.
+            sendWifiUsabilityStats(mSeqNumInsideFramework, mIsSameBssidAndFreq,
+                    createNewWifiUsabilityStatsEntryParcelable(wifiUsabilityStatsEntry));
+            mSeqNumInsideFramework++;
         }
+    }
+
+    /**
+     * Send Wifi usability stats.
+     * @param seqNum
+     * @param isSameBssidAndFreq
+     * @param statsEntry
+     */
+    private void sendWifiUsabilityStats(int seqNum, boolean isSameBssidAndFreq,
+            android.net.wifi.WifiUsabilityStatsEntry statsEntry) {
+        for (IWifiUsabilityStatsListener listener : mWifiUsabilityListeners.getCallbacks()) {
+            try {
+                listener.onStatsUpdated(seqNum, isSameBssidAndFreq, statsEntry);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke Wifi usability stats entry listener "
+                        + listener, e);
+            }
+        }
+    }
+
+    private android.net.wifi.WifiUsabilityStatsEntry createNewWifiUsabilityStatsEntryParcelable(
+            WifiUsabilityStatsEntry s) {
+        return new android.net.wifi.WifiUsabilityStatsEntry(s.timeStampMs, s.rssi,
+                s.linkSpeedMbps, s.totalTxSuccess, s.totalTxRetries,
+                s.totalTxBad, s.totalRxSuccess, s.totalRadioOnTimeMs,
+                s.totalRadioTxTimeMs, s.totalRadioRxTimeMs, s.totalScanTimeMs,
+                s.totalNanScanTimeMs, s.totalBackgroundScanTimeMs, s.totalRoamScanTimeMs,
+                s.totalPnoScanTimeMs, s.totalHotspot2ScanTimeMs, s.totalCcaBusyFreqTimeMs,
+                s.totalRadioOnFreqTimeMs, s.totalBeaconRx
+        );
     }
 
     private WifiUsabilityStatsEntry createNewWifiUsabilityStatsEntry(WifiUsabilityStatsEntry s) {
@@ -3664,6 +3723,9 @@ public class WifiMetrics {
         out.totalHotspot2ScanTimeMs = s.totalHotspot2ScanTimeMs;
         out.rssi = s.rssi;
         out.linkSpeedMbps = s.linkSpeedMbps;
+        out.totalCcaBusyFreqTimeMs = s.totalCcaBusyFreqTimeMs;
+        out.totalRadioOnFreqTimeMs = s.totalRadioOnFreqTimeMs;
+        out.totalBeaconRx = s.totalBeaconRx;
         return out;
     }
 
@@ -3778,6 +3840,32 @@ public class WifiMetrics {
             long now = mClock.getElapsedSinceBootMillis();
             stats.pnoDurationMs += now - mCurrentDeviceMobilityStatePnoScanStartMs;
             mCurrentDeviceMobilityStatePnoScanStartMs = -1;
+        }
+    }
+
+    /**
+     * Add a new listener for Wi-Fi usability stats handling.
+     */
+    public void addWifiUsabilityListener(IBinder binder, IWifiUsabilityStatsListener listener,
+            int listenerIdentifier) {
+        if (!mWifiUsabilityListeners.add(binder, listener, listenerIdentifier)) {
+            Log.e(TAG, "Failed to add listener");
+            return;
+        }
+        if (DBG) {
+            Log.v(TAG, "Adding listener. Num listeners: "
+                    + mWifiUsabilityListeners.getNumCallbacks());
+        }
+    }
+
+    /**
+     * Remove an existing listener for Wi-Fi usability stats handling.
+     */
+    public void removeWifiUsabilityListener(int listenerIdentifier) {
+        mWifiUsabilityListeners.remove(listenerIdentifier);
+        if (DBG) {
+            Log.v(TAG, "Removing listener. Num listeners: "
+                    + mWifiUsabilityListeners.getNumCallbacks());
         }
     }
 }

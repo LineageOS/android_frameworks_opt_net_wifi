@@ -20,14 +20,20 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.net.NetworkAgent;
 import android.net.wifi.EAPConstants;
+import android.net.wifi.IWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -37,6 +43,8 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.provider.Settings;
 import android.util.Base64;
@@ -64,9 +72,11 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -93,6 +103,7 @@ public class WifiMetricsTest {
     WifiMetricsProto.WifiLog mDecodedProto;
     TestLooper mTestLooper;
     Random mRandom = new Random();
+    private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
     @Mock Context mContext;
     @Mock FrameworkFacade mFacade;
     @Mock Clock mClock;
@@ -102,6 +113,9 @@ public class WifiMetricsTest {
     @Mock WifiNetworkSelector mWns;
     @Mock WifiPowerMetrics mWifiPowerMetrics;
     @Mock WifiDataStall mWifiDataStall;
+    @Mock IBinder mAppBinder;
+    @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
+    @Mock ExternalCallbackTracker<IWifiUsabilityStatsListener> mListenerTracker;
 
     @Before
     public void setUp() throws Exception {
@@ -2685,5 +2699,84 @@ public class WifiMetricsTest {
 
         assertNull(lowMvmtStateStats);
         assertNull(highMvmtStateStats);
+    }
+
+    /**
+     * Verify that clients should be notified of activity in case Wifi stats get updated.
+     */
+    @Test
+    public void testClientNotification() throws RemoteException {
+        // Register Client for verification.
+        ArgumentCaptor<android.net.wifi.WifiUsabilityStatsEntry> usabilityStats =
+                ArgumentCaptor.forClass(android.net.wifi.WifiUsabilityStatsEntry.class);
+        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats linkLayerStats = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
+
+        // Client should get the stats.
+        verify(mWifiUsabilityStatsListener).onStatsUpdated(anyInt(), anyBoolean(),
+                usabilityStats.capture());
+        assertEquals(usabilityStats.getValue().totalRadioOnTimeMs, linkLayerStats.on_time);
+        assertEquals(usabilityStats.getValue().totalTxBad, linkLayerStats.lostmpdu_be
+                + linkLayerStats.lostmpdu_bk + linkLayerStats.lostmpdu_vi
+                + linkLayerStats.lostmpdu_vo);
+        assertEquals(usabilityStats.getValue().timeStampMs, linkLayerStats.timeStampInMs);
+        assertEquals(usabilityStats.getValue().totalRoamScanTimeMs,
+                linkLayerStats.on_time_roam_scan);
+    }
+
+    /**
+     * Verify that remove client should be handled
+     */
+    @Test
+    public void testRemoveClient() throws RemoteException {
+        // Register Client for verification.
+        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        mWifiMetrics.removeWifiUsabilityListener(TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        verify(mAppBinder).unlinkToDeath(any(), anyInt());
+
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats linkLayerStats = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
+
+        verify(mWifiUsabilityStatsListener, never()).onStatsUpdated(anyInt(), anyBoolean(), any());
+    }
+
+    /**
+     * Verify that WifiMetrics adds for death notification on adding client.
+     */
+    @Test
+    public void testAddsForBinderDeathOnAddClient() throws Exception {
+        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+    }
+
+    /**
+     * Verify that client fails to get message when listener add failed.
+     */
+    @Test
+    public void testAddsListenerFailureOnLinkToDeath() throws Exception {
+        doThrow(new RemoteException())
+                .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
+
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats linkLayerStats = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
+
+        // Client should not get any message listener add failed.
+        verify(mWifiUsabilityStatsListener, never()).onStatsUpdated(anyInt(), anyBoolean(), any());
     }
 }

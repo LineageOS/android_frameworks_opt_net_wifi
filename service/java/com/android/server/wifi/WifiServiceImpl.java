@@ -66,6 +66,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
+import android.net.wifi.IWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiConfiguration;
@@ -3393,6 +3394,63 @@ public class WifiServiceImpl extends BaseWifiService {
 
         mDppManager.mHandler.post(() -> {
             mDppManager.stopDppSession(uid);
+        });
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#addWifiUsabilityStatsListener(Executor,
+     * WifiUsabilityStatsListener)}
+     *
+     * @param binder IBinder instance to allow cleanup if the app dies
+     * @param listener WifiUsabilityStatsEntry listener to add
+     * @param listenerIdentifier Unique ID of the adding listener. This ID will be used to
+     *        remove the listener. See {@link removeWifiUsabilityStatsListener(int)}
+     *
+     * @throws SecurityException if the caller does not have permission to add a listener
+     * @throws RemoteException if remote exception happens
+     * @throws IllegalArgumentException if the arguments are null or invalid
+     */
+    @Override
+    public void addWifiUsabilityStatsListener(IBinder binder,
+            IWifiUsabilityStatsListener listener, int listenerIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (listener == null) {
+            throw new IllegalArgumentException("Listener must not be null");
+        }
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE, "WifiService");
+        if (mVerboseLoggingEnabled) {
+            mLog.info("addWifiUsabilityStatsListener uid=%")
+                .c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        mWifiInjector.getClientModeImplHandler().post(() -> {
+            mWifiMetrics.addWifiUsabilityListener(binder, listener, listenerIdentifier);
+        });
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#removeWifiUsabilityStatsListener(
+     * WifiUsabilityStatsListener)}
+     *
+     * @param listenerIdentifier Unique ID of the listener to be removed.
+     *
+     * @throws SecurityException if the caller does not have permission to add a listener
+     */
+    @Override
+    public void removeWifiUsabilityStatsListener(int listenerIdentifier) {
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE, "WifiService");
+        if (mVerboseLoggingEnabled) {
+            mLog.info("removeWifiUsabilityStatsListener uid=%")
+                    .c(Binder.getCallingUid()).flush();
+        }
+        // Post operation to handler thread
+        mWifiInjector.getClientModeImplHandler().post(() -> {
+            mWifiMetrics.removeWifiUsabilityListener(listenerIdentifier);
         });
     }
 }
