@@ -34,6 +34,7 @@ import com.android.internal.util.Preconditions;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
@@ -71,7 +72,7 @@ public class WifiNetworkSelector {
      * has an evaluator to choose the best WiFi network to connect to. Evaluators
      * should be registered in order, by decreasing importance.
      * Wifi Network Selector iterates through the registered scorers in registration order
-     * until a network is selected.
+     * before making a final selection from among the candidates.
      */
 
     /**
@@ -448,7 +449,13 @@ public class WifiNetworkSelector {
             mWifiConfigManager.updateNetworkSelectionStatus(netId,
                     WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
         }
+        return setLegacyUserConnectChoice(selected);
+    }
 
+    /**
+     * This maintains the legacy user connect choice state in the config store
+     */
+    private boolean setLegacyUserConnectChoice(@NonNull final WifiConfiguration selected) {
         boolean change = false;
         String key = selected.configKey();
         // This is only used for setting the connect choice timestamp for debugging purposes.
@@ -583,14 +590,34 @@ public class WifiNetworkSelector {
             if (selectedNetwork == null && choice != null) {
                 selectedNetwork = choice; // First one wins
                 localLog(registeredEvaluator.getName() + " selects "
-                        + WifiNetworkSelector.toNetworkString(selectedNetwork) + " : "
-                        + selectedNetwork.getNetworkSelectionStatus().getCandidate().BSSID);
+                        + WifiNetworkSelector.toNetworkString(selectedNetwork));
             }
         }
 
         if (mConnectableNetworks.size() != wifiCandidates.size()) {
             localLog("Connectable: " + mConnectableNetworks.size()
                     + " Candidates: " + wifiCandidates.size());
+        }
+
+        // Update the NetworkSelectionStatus in the configs for the current candidates
+        // This is needed for the legacy user connect choice, at least
+        for (Collection<WifiCandidates.Candidate> group: wifiCandidates.getGroupedCandidates()) {
+            WifiCandidates.Candidate best = null;
+            for (WifiCandidates.Candidate candidate: group) {
+                // Of all the candidates with the same networkId, choose the
+                // one with the smallest evaluatorIndex, and break ties by
+                // picking the one with the highest score.
+                if (best == null
+                        || candidate.evaluatorIndex < best.evaluatorIndex
+                        || (candidate.evaluatorIndex == best.evaluatorIndex
+                            && candidate.evaluatorScore > best.evaluatorScore)) {
+                    best = candidate;
+                }
+            }
+            if (best != null) {
+                mWifiConfigManager.setNetworkCandidateScanResult(
+                        best.key.networkId, best.scanDetail.getScanResult(), best.evaluatorScore);
+            }
         }
 
         if (selectedNetwork != null) {
