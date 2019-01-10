@@ -2777,12 +2777,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private boolean isLocationModeEnabled() {
-            if (mLocationManager == null) {
-                mLocationManager =
-                        (LocationManager) mContext.getSystemService(
-                        Context.LOCATION_SERVICE);
-            }
-            return mLocationManager.isLocationEnabled();
+            return mWifiPermissionsUtil.isLocationModeEnabled();
         }
 
         private void checkAndSendP2pStateChangedBroadcast() {

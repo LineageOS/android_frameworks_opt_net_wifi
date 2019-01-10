@@ -23,6 +23,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Slog;
 
@@ -382,10 +383,13 @@ public class WifiPermissionsUtil {
         return mLocationManager != null;
     }
 
-    // Retrieves a handle to LocationManager (if not already done) and check if location is enabled.
-    private boolean isLocationModeEnabled() {
+    /**
+     * Retrieves a handle to LocationManager (if not already done) and check if location is enabled.
+     */
+    public boolean isLocationModeEnabled() {
         if (!retrieveLocationManagerIfNecessary()) return false;
-        return mLocationManager.isLocationEnabled();
+        return mLocationManager.isLocationEnabledForUser(UserHandle.of(
+                mWifiPermissionsWrapper.getCurrentUser()));
     }
 
     /**

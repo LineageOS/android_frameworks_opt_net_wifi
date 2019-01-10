@@ -107,7 +107,6 @@ public class WifiP2pServiceImplTest {
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock HandlerThread mHandlerThread;
     @Mock INetworkManagementService mNwService;
-    @Mock LocationManager mLocationManagerMock;
     @Mock PackageManager mPackageManager;
     @Mock Resources mResources;
     @Mock WifiInjector mWifiInjector;
@@ -135,7 +134,7 @@ public class WifiP2pServiceImplTest {
      * @param isLocationModeEnabled whether the location mode is enabled.,
      */
     private void simulateLocationModeChange(boolean isLocationModeEnabled) {
-        when(mLocationManagerMock.isLocationEnabled()).thenReturn(isLocationModeEnabled);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(isLocationModeEnabled);
 
         Intent intent = new Intent(LocationManager.MODE_CHANGED_ACTION);
         mLocationModeReceiver.onReceive(mContext, intent);
@@ -401,8 +400,6 @@ public class WifiP2pServiceImplTest {
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)).thenReturn(true);
         when(mContext.getSystemService(Context.WIFI_SERVICE)).thenReturn(mMockWifiManager);
         when(mMockWifiManager.getWifiState()).thenReturn(WifiManager.WIFI_STATE_ENABLED);
-        when(mContext.getSystemService(Context.LOCATION_SERVICE)).thenReturn(
-                mLocationManagerMock);
 
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
         when(mWifiInjector.getWifiP2pNative()).thenReturn(mWifiNative);
