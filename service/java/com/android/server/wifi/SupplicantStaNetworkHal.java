@@ -241,7 +241,7 @@ public class SupplicantStaNetworkHal {
             }
             /** allowedPairwiseCiphers */
             if (getGroupMgmtCipher()) {
-                config.allowedGroupMgmtCiphers =
+                config.allowedGroupManagementCiphers =
                         supplicantToWifiConfigurationGroupMgmtCipherMask(mGroupMgmtCipherMask);
             }
 
@@ -553,9 +553,9 @@ public class SupplicantStaNetworkHal {
             return false;
         }
         /** GroupMgmt Cipher */
-        if (config.allowedGroupMgmtCiphers.cardinality() != 0
+        if (config.allowedGroupManagementCiphers.cardinality() != 0
                 && !setGroupMgmtCipher(wifiConfigurationToSupplicantGroupMgmtCipherMask(
-                config.allowedGroupMgmtCiphers))) {
+                config.allowedGroupManagementCiphers))) {
             Log.e(TAG, "failed to set GroupMgmtCipher");
             return false;
         }
