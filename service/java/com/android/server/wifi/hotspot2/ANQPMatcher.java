@@ -201,6 +201,10 @@ public class ANQPMatcher {
         // Check for authentication parameter match.
         if (authParam != null) {
             Map<Integer, Set<AuthParam>> authParams = method.getAuthParams();
+            if (authParams.isEmpty()) {
+                // no auth methods to match
+                return AuthMatch.METHOD;
+            }
             Set<AuthParam> paramSet = authParams.get(authParam.getAuthTypeID());
             if (paramSet == null || !paramSet.contains(authParam)) {
                 return AuthMatch.NONE;
