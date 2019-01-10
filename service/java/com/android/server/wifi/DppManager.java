@@ -56,7 +56,7 @@ public class DppManager {
     public WakeupMessage mDppTimeoutMessage = null;
     private final Clock mClock;
     private static final String DPP_TIMEOUT_TAG = TAG + " Request Timeout";
-    private static final int DPP_TIMEOUT_MS = 30_000; // 30 seconds
+    private static final int DPP_TIMEOUT_MS = 40_000; // 40 seconds
 
     private final DppEventCallback mDppEventCallback = new DppEventCallback() {
         @Override
@@ -121,6 +121,18 @@ public class DppManager {
     }
 
     private void timeoutDppRequest() {
+        logd("DPP timeout");
+
+        if (mDppRequestInfo == null) {
+            Log.e(TAG, "DPP timeout with no request info");
+            return;
+        }
+
+        // Clean up supplicant resources
+        if (!mWifiNative.stopDppInitiator(mClientIfaceName)) {
+            Log.e(TAG, "Failed to stop DPP Initiator");
+        }
+
         // Clean up resources and let the caller know about the timeout
         onFailure(DppFailureCode.TIMEOUT);
     }
@@ -355,6 +367,7 @@ public class DppManager {
     }
 
     private void cleanupDppResources() {
+        logd("DPP clean up resources");
         if (mDppRequestInfo == null) {
             return;
         }
@@ -398,6 +411,8 @@ public class DppManager {
 
     private void onSuccessConfigReceived(WifiConfiguration newWifiConfiguration) {
         try {
+            logd("onSuccessConfigReceived");
+
             if (mDppRequestInfo != null) {
                 NetworkUpdateResult networkUpdateResult = mWifiConfigManager
                         .addOrUpdateNetwork(newWifiConfiguration, mDppRequestInfo.uid);
@@ -428,6 +443,8 @@ public class DppManager {
                 Log.e(TAG, "onSuccess event without a request information object");
                 return;
             }
+
+            logd("onSuccess: " + dppStatusCode);
 
             int dppSuccessCode;
 
@@ -462,6 +479,8 @@ public class DppManager {
                 return;
             }
 
+            logd("onProgress: " + dppStatusCode);
+
             int dppProgressCode;
 
             // Convert from HAL codes to WifiManager/user codes
@@ -494,6 +513,8 @@ public class DppManager {
                 Log.e(TAG, "onFailure event without a request information object");
                 return;
             }
+
+            logd("OnFailure: " + dppStatusCode);
 
             int dppFailureCode;
 
