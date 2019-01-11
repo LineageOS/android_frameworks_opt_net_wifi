@@ -33,6 +33,7 @@ import android.graphics.drawable.Icon;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -546,25 +547,36 @@ public class PasspointManager {
      *
      * @param scanResults The list of scan results
      * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
-     * scanResults.
+     * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
+     * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
-    public Map<String, List<ScanResult>> getAllMatchingFqdnsForScanResults(
+    public Map<String, Map<Integer, List<ScanResult>>> getAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults) {
         if (scanResults == null) {
             Log.e(TAG, "Attempt to get matching config for a null ScanResults");
             return new HashMap<>();
         }
-        Map<String, List<ScanResult>> configs = new HashMap<>();
+        Map<String, Map<Integer, List<ScanResult>>> configs = new HashMap<>();
+
         for (ScanResult scanResult : scanResults) {
             if (!scanResult.isPasspointNetwork()) continue;
             List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = getAllMatchedProviders(
                     scanResult);
             for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
                 WifiConfiguration config = matchedProvider.first.getWifiConfig();
-                List<ScanResult> matchingScanResults = configs.get(config.FQDN);
+                int type = WifiManager.PASSPOINT_HOME_NETWORK;
+                if (!config.isHomeProviderNetwork) {
+                    type = WifiManager.PASSPOINT_ROAMING_NETWORK;
+                }
+                Map<Integer, List<ScanResult>> scanResultsPerNetworkType = configs.get(config.FQDN);
+                if (scanResultsPerNetworkType == null) {
+                    scanResultsPerNetworkType = new HashMap<>();
+                    configs.put(config.FQDN, scanResultsPerNetworkType);
+                }
+                List<ScanResult> matchingScanResults = scanResultsPerNetworkType.get(type);
                 if (matchingScanResults == null) {
                     matchingScanResults = new ArrayList<>();
-                    configs.put(config.FQDN, matchingScanResults);
+                    scanResultsPerNetworkType.put(type, matchingScanResults);
                 }
                 matchingScanResults.add(scanResult);
             }
