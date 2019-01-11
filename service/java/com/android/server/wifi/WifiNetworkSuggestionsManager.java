@@ -557,6 +557,29 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
+     * Check if network suggestions are enabled or disabled for the app.
+     */
+    public boolean hasUserApprovedForApp(String packageName) {
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        if (perAppInfo == null) return false;
+
+        return perAppInfo.hasUserApproved;
+    }
+
+    /**
+     * Enable or Disable network suggestions for the app.
+     */
+    public void setHasUserApprovedForApp(boolean approved, String packageName) {
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        if (perAppInfo == null) return;
+
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Setting the app " + (approved ? "approved" : "not approved"));
+        }
+        perAppInfo.hasUserApproved = approved;
+    }
+
+    /**
      * Returns a set of all network suggestions across all apps.
      */
     @VisibleForTesting
@@ -610,11 +633,20 @@ public class WifiNetworkSuggestionsManager {
         if (extNetworkSuggestions == null) {
             return null;
         }
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, "getNetworkSuggestionsForScanDetail Found " + extNetworkSuggestions
-                    + " for " + scanResult.SSID + "[" + scanResult.capabilities + "]");
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
+                extNetworkSuggestions
+                        .stream()
+                        .filter(n -> n.perAppInfo.hasUserApproved)
+                        .collect(Collectors.toSet());
+        if (approvedExtNetworkSuggestions.isEmpty()) {
+            return null;
         }
-        return convertToWnsSet(extNetworkSuggestions);
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "getNetworkSuggestionsForScanDetail Found "
+                    + approvedExtNetworkSuggestions + " for " + scanResult.SSID
+                    + "[" + scanResult.capabilities + "]");
+        }
+        return convertToWnsSet(approvedExtNetworkSuggestions);
     }
 
     /**
@@ -634,12 +666,20 @@ public class WifiNetworkSuggestionsManager {
         if (extNetworkSuggestions == null) {
             return null;
         }
+        Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
+                extNetworkSuggestions
+                        .stream()
+                        .filter(n -> n.perAppInfo.hasUserApproved)
+                        .collect(Collectors.toSet());
+        if (approvedExtNetworkSuggestions.isEmpty()) {
+            return null;
+        }
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "getNetworkSuggestionsFoWifiConfiguration Found "
-                    + extNetworkSuggestions + " for " + wifiConfiguration.SSID
+                    + approvedExtNetworkSuggestions + " for " + wifiConfiguration.SSID
                     + "[" + wifiConfiguration.allowedKeyManagement + "]");
         }
-        return extNetworkSuggestions;
+        return approvedExtNetworkSuggestions;
     }
 
     /**
