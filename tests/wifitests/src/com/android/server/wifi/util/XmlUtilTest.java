@@ -209,6 +209,7 @@ public class XmlUtilTest {
         configuration.creatorName = configuration.lastUpdateName = TEST_PACKAGE_NAME;
         configuration.creationTime = "04-04-2016";
         configuration.getOrCreateRandomizedMacAddress();
+        configuration.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
 
         serializeDeserializeWifiConfigurationForConfigStore(configuration);
     }
