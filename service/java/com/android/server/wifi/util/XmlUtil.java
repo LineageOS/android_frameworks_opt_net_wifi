@@ -519,6 +519,7 @@ public class XmlUtil {
                 throws XmlPullParserException, IOException {
             WifiConfiguration configuration = new WifiConfiguration();
             String configKeyInData = null;
+            boolean macRandomizationSettingExists = false;
 
             // Loop through and parse out all the elements from the stream within this section.
             while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
@@ -658,11 +659,15 @@ public class XmlUtil {
                         break;
                     case XML_TAG_MAC_RANDOMIZATION_SETTING:
                         configuration.macRandomizationSetting = (int) value;
+                        macRandomizationSettingExists = true;
                         break;
                     default:
                         throw new XmlPullParserException(
                                 "Unknown value name found: " + valueName[0]);
                 }
+            }
+            if (!macRandomizationSettingExists) {
+                configuration.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
             }
             return Pair.create(configKeyInData, configuration);
         }
