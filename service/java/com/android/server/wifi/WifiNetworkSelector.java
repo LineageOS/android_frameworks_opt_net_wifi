@@ -62,10 +62,13 @@ public class WifiNetworkSelector {
     private final List<Pair<ScanDetail, WifiConfiguration>> mConnectableNetworks =
             new ArrayList<>();
     private List<ScanDetail> mFilteredNetworks = new ArrayList<>();
+    private final WifiScoreCard mWifiScoreCard;
     private final ScoringParams mScoringParams;
     private final int mStayOnNetworkMinimumTxRate;
     private final int mStayOnNetworkMinimumRxRate;
     private final boolean mEnableAutoJoinWhenAssociated;
+
+    private final WifiCandidates.CandidateScorer mCandidateScorer;
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -78,8 +81,9 @@ public class WifiNetworkSelector {
     /**
      * Interface for WiFi Network Evaluator
      *
-     * A network scorer evaluates all the networks from the scan results and
-     * recommends the best network in its category to connect to.
+     * A network evaluator examines the scan results and recommends the
+     * best network in its category to connect to; it also reports the
+     * connectable candidates in its category for further consideration.
      */
     public interface NetworkEvaluator {
         /**
@@ -572,7 +576,7 @@ public class WifiNetworkSelector {
 
         // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
-        WifiCandidates wifiCandidates = new WifiCandidates();
+        WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard);
         int evaluatorIndex = 0;
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
             final int evIndex = evaluatorIndex++; // final required due to lambda below
@@ -625,6 +629,17 @@ public class WifiNetworkSelector {
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
 
+        if (mCandidateScorer != null) {
+            WifiCandidates.ScoredCandidate choice = wifiCandidates.choose(mCandidateScorer);
+            if (choice.candidateKey != null) {
+                localLog(mCandidateScorer.getIdentifier()
+                        + " would choose " + choice.candidateKey.networkId
+                        + " score " + choice.value + "+/-" + choice.err);
+            } else {
+                localLog(mCandidateScorer.getIdentifier() + " found no candidates");
+            }
+        }
+
         return selectedNetwork;
     }
 
@@ -638,12 +653,14 @@ public class WifiNetworkSelector {
         mEvaluators.add(Preconditions.checkNotNull(evaluator));
     }
 
-    WifiNetworkSelector(Context context, ScoringParams scoringParams,
+    WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog) {
         mWifiConfigManager = configManager;
         mClock = clock;
+        mWifiScoreCard = wifiScoreCard;
         mScoringParams = scoringParams;
         mLocalLog = localLog;
+        mCandidateScorer = null;
 
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);

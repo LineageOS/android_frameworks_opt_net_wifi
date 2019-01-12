@@ -69,6 +69,7 @@ public class WifiNetworkSelectorTest {
         mLocalLog = new LocalLog(512);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
+                mWifiScoreCard,
                 new ScoringParams(mContext),
                 mWifiConfigManager, mClock,
                 mLocalLog);
@@ -138,6 +139,7 @@ public class WifiNetworkSelectorTest {
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private Context mContext;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
+    @Mock private WifiScoreCard mWifiScoreCard;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
