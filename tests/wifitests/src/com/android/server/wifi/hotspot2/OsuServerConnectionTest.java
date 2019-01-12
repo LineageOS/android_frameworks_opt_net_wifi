@@ -16,7 +16,6 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -25,6 +24,8 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +42,7 @@ import com.android.server.wifi.hotspot2.soap.HttpsTransport;
 import com.android.server.wifi.hotspot2.soap.SoapParser;
 import com.android.server.wifi.hotspot2.soap.SppResponseMessage;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.ksoap2.HeaderProperty;
@@ -431,9 +433,43 @@ public class OsuServerConnectionTest {
 
             verify(mOsuServerCallbacks).onReceivedTrustRootCertificates(anyInt(),
                     argumentCaptor.capture());
-            assertEquals(1, argumentCaptor.getValue().size());
-            assertEquals(certificate,
+            Assert.assertEquals(1, argumentCaptor.getValue().size());
+            Assert.assertEquals(certificate,
                     argumentCaptor.getValue().get(OsuServerConnection.TRUST_CERT_TYPE_AAA).get(0));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verifies that cleanup is properly called on the OsuServerHandlerThread.
+     */
+    @Test
+    public void verifyCleanup() throws Exception {
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                HttpsTransport.class).mockStatic(SoapParser.class).startMocking();
+        try {
+            establishServerConnection();
+
+            SoapSerializationEnvelope envelope = new SoapSerializationEnvelope(SoapEnvelope.VER12);
+            envelope.bodyIn = new SoapObject();
+            when(HttpsTransport.createInstance(any(Network.class), any(URL.class))).thenReturn(
+                    mHttpsTransport);
+            when(SoapParser.getResponse(any(SoapObject.class))).thenReturn(mSppResponseMessage);
+
+            assertTrue(mOsuServerConnection.exchangeSoapMessage(envelope));
+
+            mLooper.dispatchAll();
+
+            verify(mHttpsServiceConnection).disconnect();
+            reset(mHttpsServiceConnection);
+
+            mOsuServerConnection.cleanup();
+            mLooper.dispatchAll();
+
+            verify(mUrlConnection).disconnect();
+            verify(mHttpsServiceConnection, never()).disconnect();
         } finally {
             session.finishMocking();
         }

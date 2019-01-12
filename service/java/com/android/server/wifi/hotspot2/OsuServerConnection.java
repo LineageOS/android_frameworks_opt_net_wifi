@@ -422,6 +422,9 @@ public class OsuServerConnection {
                 mServiceConnection.disconnect();
             }
             mServiceConnection = getServiceConnection(serverUrl, mNetwork);
+            if (mServiceConnection == null) {
+                return null;
+            }
             mServiceConnection.setRequestMethod("GET");
             mServiceConnection.setRequestProperty("Accept-Encoding", "gzip");
 
@@ -522,19 +525,22 @@ public class OsuServerConnection {
         return serviceConnection;
     }
 
-    /**
-     * Cleans up
-     */
-    public void cleanup() {
+    private void cleanupConnection() {
         if (mUrlConnection != null) {
             mUrlConnection.disconnect();
             mUrlConnection = null;
         }
-
         if (mServiceConnection != null) {
             mServiceConnection.disconnect();
             mServiceConnection = null;
         }
+    }
+
+    /**
+     * Cleans up
+     */
+    public void cleanup() {
+        mHandler.post(() -> cleanupConnection());
     }
 
     private class WFATrustManager implements X509TrustManager {

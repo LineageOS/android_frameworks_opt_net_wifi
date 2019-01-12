@@ -141,6 +141,9 @@ public class RedirectListener extends NanoHTTPD {
      * Stop redirect listener
      */
     public void stopServer() {
+        if (mHandler.hasCallbacks(mTimeOutTask)) {
+            mHandler.removeCallbacks(mTimeOutTask);
+        }
         if (isServerAlive()) {
             mStartStopHandler.post(() -> stop());
         }
