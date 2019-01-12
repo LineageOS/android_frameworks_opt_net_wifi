@@ -45,6 +45,8 @@ import com.android.server.wifi.util.WifiAsyncChannel;
 public class FrameworkFacade {
     public static final String TAG = "FrameworkFacade";
 
+    private ActivityManagerInternal mActivityManagerInternal;
+
     public boolean setIntegerSetting(Context context, String name, int def) {
         return Settings.Global.putInt(context.getContentResolver(), name, def);
     }
@@ -134,14 +136,14 @@ public class FrameworkFacade {
     }
 
     public boolean getConfigWiFiDisableInECBM(Context context) {
-       CarrierConfigManager configManager = (CarrierConfigManager) context
-               .getSystemService(Context.CARRIER_CONFIG_SERVICE);
-       if (configManager != null) {
-           return configManager.getConfig().getBoolean(
-               CarrierConfigManager.KEY_CONFIG_WIFI_DISABLE_IN_ECBM);
-       }
-       /* Default to TRUE */
-       return true;
+        CarrierConfigManager configManager = (CarrierConfigManager) context
+                .getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        if (configManager != null) {
+            return configManager.getConfig().getBoolean(
+                    CarrierConfigManager.KEY_CONFIG_WIFI_DISABLE_IN_ECBM);
+        }
+        /* Default to TRUE */
+        return true;
     }
 
     public long getTxPackets(String iface) {
@@ -190,10 +192,12 @@ public class FrameworkFacade {
      * Check if the provided uid is the app in the foreground.
      * @param uid the uid to check
      * @return true if the app is in the foreground, false otherwise
-     * @throws RemoteException
      */
-    public boolean isAppForeground(int uid) throws RemoteException {
-        return LocalServices.getService(ActivityManagerInternal.class).isAppForeground(uid);
+    public boolean isAppForeground(int uid) {
+        if (mActivityManagerInternal == null) {
+            mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
+        }
+        return mActivityManagerInternal.isAppForeground(uid);
     }
 
     /**
