@@ -898,10 +898,10 @@ public class WifiConfigManager {
             internalConfig.allowedGroupCiphers =
                     (BitSet) externalConfig.allowedGroupCiphers.clone();
         }
-        if (externalConfig.allowedGroupMgmtCiphers != null
-                && !externalConfig.allowedGroupMgmtCiphers.isEmpty()) {
-            internalConfig.allowedGroupMgmtCiphers =
-                    (BitSet) externalConfig.allowedGroupMgmtCiphers.clone();
+        if (externalConfig.allowedGroupManagementCiphers != null
+                && !externalConfig.allowedGroupManagementCiphers.isEmpty()) {
+            internalConfig.allowedGroupManagementCiphers =
+                    (BitSet) externalConfig.allowedGroupManagementCiphers.clone();
         }
         if (externalConfig.allowedSuiteBCiphers != null
                 && !externalConfig.allowedSuiteBCiphers.isEmpty()) {

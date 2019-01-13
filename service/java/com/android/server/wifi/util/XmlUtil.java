@@ -410,7 +410,7 @@ public class XmlUtil {
                     configuration.allowedPairwiseCiphers.toByteArray());
             XmlUtil.writeNextValue(
                     out, XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS,
-                    configuration.allowedGroupMgmtCiphers.toByteArray());
+                    configuration.allowedGroupManagementCiphers.toByteArray());
             XmlUtil.writeNextValue(
                     out, XML_TAG_ALLOWED_SUITE_B_CIPHERS,
                     configuration.allowedSuiteBCiphers.toByteArray());
@@ -572,7 +572,7 @@ public class XmlUtil {
                         break;
                     case XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS:
                         byte[] allowedGroupMgmtCiphers = (byte[]) value;
-                        configuration.allowedGroupMgmtCiphers =
+                        configuration.allowedGroupManagementCiphers =
                                 BitSet.valueOf(allowedGroupMgmtCiphers);
                         break;
                     case XML_TAG_ALLOWED_SUITE_B_CIPHERS:
