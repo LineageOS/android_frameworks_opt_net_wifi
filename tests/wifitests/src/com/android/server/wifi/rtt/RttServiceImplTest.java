@@ -131,9 +131,6 @@ public class RttServiceImplTest {
     public ActivityManager mockActivityManager;
 
     @Mock
-    public LocationManager mockLocationManager;
-
-    @Mock
     public Clock mockClock;
 
     @Mock
@@ -198,7 +195,6 @@ public class RttServiceImplTest {
             eq(Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS),
             anyLong()))
             .thenReturn(BACKGROUND_PROCESS_EXEC_GAP_MS);
-        when(mockLocationManager.isLocationEnabled()).thenReturn(true);
         when(mockContext.getSystemService(Context.ALARM_SERVICE))
                 .thenReturn(mAlarmManager.getAlarmManager());
         mInOrder = inOrder(mAlarmManager.getAlarmManager(), mockContext);
@@ -210,6 +206,7 @@ public class RttServiceImplTest {
 
         when(mockPermissionUtil.checkCallersLocationPermission(eq(mPackageName),
                 anyInt())).thenReturn(true);
+        when(mockPermissionUtil.isLocationModeEnabled()).thenReturn(true);
         when(mockNative.isReady()).thenReturn(true);
         when(mockNative.rangeRequest(anyInt(), any(RangingRequest.class), anyBoolean())).thenReturn(
                 true);
@@ -220,8 +217,6 @@ public class RttServiceImplTest {
         when(mockContext.getSystemServiceName(PowerManager.class)).thenReturn(
                 Context.POWER_SERVICE);
         when(mockContext.getSystemService(PowerManager.class)).thenReturn(mMockPowerManager);
-        when(mockContext.getSystemService(Context.LOCATION_SERVICE)).thenReturn(
-                mockLocationManager);
 
         doAnswer(mBinderLinkToDeathCounter).when(mockIbinder).linkToDeath(any(), anyInt());
         doAnswer(mBinderUnlinkToDeathCounter).when(mockIbinder).unlinkToDeath(any(), anyInt());
@@ -1351,7 +1346,7 @@ public class RttServiceImplTest {
         } else if (failureMode == FAILURE_MODE_ENABLE_DOZE) {
             simulatePowerStateChangeDoze(true);
         } else if (failureMode == FAILURE_MODE_DISABLE_LOCATIONING) {
-            when(mockLocationManager.isLocationEnabled()).thenReturn(false);
+            when(mockPermissionUtil.isLocationModeEnabled()).thenReturn(false);
             simulateLocationModeChange();
         }
         mMockLooper.dispatchAll();
@@ -1379,7 +1374,7 @@ public class RttServiceImplTest {
         } else if (failureMode == FAILURE_MODE_ENABLE_DOZE) {
             simulatePowerStateChangeDoze(false);
         } else if (failureMode == FAILURE_MODE_DISABLE_LOCATIONING) {
-            when(mockLocationManager.isLocationEnabled()).thenReturn(true);
+            when(mockPermissionUtil.isLocationModeEnabled()).thenReturn(true);
             simulateLocationModeChange();
         }
         mMockLooper.dispatchAll();

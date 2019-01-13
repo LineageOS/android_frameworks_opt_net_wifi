@@ -147,6 +147,15 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return bundle.getString(WifiScanner.REQUEST_PACKAGE_NAME_KEY);
     }
 
+    // Check if we should ignore location settings if this is a single scan request.
+    private boolean shouldIgnoreLocationSettingsForSingleScan(Message msg) {
+        if (msg.what != WifiScanner.CMD_START_SINGLE_SCAN) return false;
+        if (!(msg.obj instanceof Bundle)) return false;
+        Bundle bundle = (Bundle) msg.obj;
+        ScanSettings scanSettings = bundle.getParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY);
+        return scanSettings.ignoreLocationSettings;
+    }
+
     /**
      * Enforce the necessary client permissions for WifiScanner.
      * If the client has NETWORK_STACK permission, then it can "always" send "any" request.
@@ -169,7 +178,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 throw e;
             }
             mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(
-                    getPackageName(msg), uid);
+                    getPackageName(msg), uid, shouldIgnoreLocationSettingsForSingleScan(msg));
         }
     }
 
@@ -2236,6 +2245,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         sb.append("ScanSettings { ")
           .append(" type:").append(getScanTypeString(scanSettings.type))
           .append(" band:").append(ChannelHelper.bandToString(scanSettings.band))
+          .append(" ignoreLocationSettings:").append(scanSettings.ignoreLocationSettings)
           .append(" period:").append(scanSettings.periodInMs)
           .append(" reportEvents:").append(scanSettings.reportEvents)
           .append(" numBssidsPerScan:").append(scanSettings.numBssidsPerScan)

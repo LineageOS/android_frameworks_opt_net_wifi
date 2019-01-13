@@ -144,7 +144,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @hide
  */
-public class WifiServiceImpl extends AbstractWifiService {
+public class WifiServiceImpl extends BaseWifiService {
     private static final String TAG = "WifiService";
     private static final boolean VDBG = false;
 
@@ -1373,7 +1373,7 @@ public class WifiServiceImpl extends AbstractWifiService {
         }
         enforceLocationPermission(packageName, uid);
         // also need to verify that Locations services are enabled.
-        if (mSettingsStore.getLocationModeSetting(mContext) == Settings.Secure.LOCATION_MODE_OFF) {
+        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
             throw new SecurityException("Location mode is not enabled.");
         }
 
@@ -1856,10 +1856,11 @@ public class WifiServiceImpl extends AbstractWifiService {
      *
      * @param scanResults The list of scan results
      * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
-     * scanResults.
+     * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
+     * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
     @Override
-    public Map<String, List<ScanResult>> getAllMatchingFqdnsForScanResults(
+    public Map<String, Map<Integer, List<ScanResult>>> getAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults) {
         enforceNetworkSettingsPermission();
         if (mVerboseLoggingEnabled) {

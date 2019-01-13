@@ -35,8 +35,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
-import static android.provider.Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
-import static android.provider.Settings.Secure.LOCATION_MODE_OFF;
 
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
 import static com.android.server.wifi.WifiController.CMD_SET_AP;
@@ -1062,8 +1060,7 @@ public class WifiServiceImplTest {
 
     private void registerLOHSRequestFull() {
         // allow test to proceed without a permission check failure
-        when(mSettingsStore.getLocationModeSetting(mContext))
-                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         try {
             when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         } catch (RemoteException e) { }
@@ -1114,7 +1111,7 @@ public class WifiServiceImplTest {
      */
     @Test(expected = SecurityException.class)
     public void testStartLocalOnlyHotspotThrowsSecurityExceptionWithoutLocationEnabled() {
-        when(mSettingsStore.getLocationModeSetting(mContext)).thenReturn(LOCATION_MODE_OFF);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
         mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
     }
 
@@ -1123,8 +1120,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStartLocalOnlyHotspotFailsIfRequestorNotForegroundApp() throws Exception {
-        when(mSettingsStore.getLocationModeSetting(mContext))
-                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
@@ -1139,9 +1135,7 @@ public class WifiServiceImplTest {
     @Test
     public void testStartLocalOnlyHotspotFailsIfForegroundAppCheckThrowsRemoteException()
             throws Exception {
-        when(mSettingsStore.getLocationModeSetting(mContext))
-                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
-
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenThrow(new RemoteException());
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
                 TEST_PACKAGE_NAME);
@@ -1155,8 +1149,7 @@ public class WifiServiceImplTest {
     public void testHotspotDoesNotStartWhenAlreadyTethering() throws Exception {
         setupClientModeImplHandlerForPost();
 
-        when(mSettingsStore.getLocationModeSetting(mContext))
-                            .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
@@ -1170,8 +1163,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testHotspotDoesNotStartWhenTetheringDisallowed() throws Exception {
-        when(mSettingsStore.getLocationModeSetting(mContext))
-                .thenReturn(LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(true);
