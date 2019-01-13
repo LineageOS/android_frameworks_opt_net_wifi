@@ -313,8 +313,8 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
                     config.numRetriesPerFtmr = 3;
                     config.burstDuration = 9;
                 } else { // AP + all non-NAN requests
-                    config.mustRequestLci = isCalledFromPrivilegedContext;
-                    config.mustRequestLcr = isCalledFromPrivilegedContext;
+                    config.mustRequestLci = true;
+                    config.mustRequestLcr = true;
                     config.burstPeriod = 0;
                     config.numBurst = 0;
                     config.numFramesPerBurst = 8;
