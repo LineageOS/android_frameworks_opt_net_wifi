@@ -15,7 +15,6 @@
  */
 package com.android.server.wifi;
 
-import static android.net.wifi.DppStatusCallback.DPP_EVENT_FAILURE_NOT_SUPPORTED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_DPP;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_WPA3_SAE;
@@ -45,6 +44,7 @@ import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
 import android.hardware.wifi.supplicant.V1_2.DppAkm;
+import android.hardware.wifi.supplicant.V1_2.DppFailureCode;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.IpConfiguration;
@@ -2946,7 +2946,7 @@ public class SupplicantStaIfaceHal {
                 newWifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
             } else {
                 // No other AKMs are currently supported
-                onDppFailure(DPP_EVENT_FAILURE_NOT_SUPPORTED);
+                onDppFailure(DppFailureCode.NOT_SUPPORTED);
                 return;
             }
 
