@@ -96,6 +96,7 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.os.test.TestLooper;
+import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
@@ -224,6 +225,7 @@ public class WifiServiceImplTest {
     @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
+    @Mock TelephonyManager mTelephonyManager;
 
     @Spy FakeWifiLog mLog;
 
@@ -343,6 +345,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
+        when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
