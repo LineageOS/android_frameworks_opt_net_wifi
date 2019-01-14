@@ -594,7 +594,8 @@ public class WifiConnectivityManager {
             Clock clock, LocalLog localLog, SavedNetworkEvaluator savedNetworkEvaluator,
             ScoredNetworkEvaluator scoredNetworkEvaluator,
             PasspointNetworkEvaluator passpointNetworkEvaluator,
-            NetworkSuggestionEvaluator networkSuggestionEvaluator) {
+            NetworkSuggestionEvaluator networkSuggestionEvaluator,
+            CarrierNetworkEvaluator carrierNetworkEvaluator) {
         mStateMachine = stateMachine;
         mWifiInjector = injector;
         mConfigManager = configManager;
@@ -658,6 +659,7 @@ public class WifiConnectivityManager {
         if (hs2Enabled) {
             mNetworkSelector.registerNetworkEvaluator(passpointNetworkEvaluator);
         }
+        mNetworkSelector.registerNetworkEvaluator(carrierNetworkEvaluator);
         mNetworkSelector.registerNetworkEvaluator(scoredNetworkEvaluator);
 
         // Listen to WifiConfigManager network update events
