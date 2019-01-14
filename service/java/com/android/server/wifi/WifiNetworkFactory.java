@@ -73,9 +73,13 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     public static final int USER_SELECTED_NETWORK_CONNECT_RETRY_MAX = 3; // max of 3 retries.
     @VisibleForTesting
-    public static final String UI_START_INTENT_ACTION = "com.android.settings.wifi.NETWORK_REQUEST";
+    public static final String UI_START_INTENT_ACTION =
+            "com.android.settings.wifi.action.NETWORK_REQUEST";
     @VisibleForTesting
     public static final String UI_START_INTENT_CATEGORY = "android.intent.category.DEFAULT";
+    @VisibleForTesting
+    public static final String UI_START_INTENT_EXTRA_PACKAGE_NAME =
+            "com.android.settings.wifi.extra.PACKAGE_NAME";
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -905,9 +909,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         intent.setAction(UI_START_INTENT_ACTION);
         intent.addCategory(UI_START_INTENT_CATEGORY);
         intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        int requestorUid = mActiveSpecificNetworkRequestSpecifier.requestorUid;
+        intent.putExtra(UI_START_INTENT_EXTRA_PACKAGE_NAME,
+                mContext.getPackageManager().getNameForUid(requestorUid));
         mContext.startActivityAsUser(intent,
-                UserHandle.getUserHandleForUid(
-                        mActiveSpecificNetworkRequestSpecifier.requestorUid));
+                UserHandle.getUserHandleForUid(requestorUid));
     }
 }
 
