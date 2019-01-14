@@ -3140,13 +3140,17 @@ public class WifiConfigManager {
                 DeviceAdminInfo.USES_POLICY_DEVICE_OWNER);
         final boolean hasNetworkSettingsPermission =
                 mWifiPermissionsUtil.checkNetworkSettingsPermission(uid);
+        final boolean hasNetworkSetupWizardPermission =
+                mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid);
         // If |uid| corresponds to the device owner, allow all modifications.
-        if (isUidDeviceOwner || isUidProfileOwner || hasNetworkSettingsPermission) {
+        if (isUidDeviceOwner || isUidProfileOwner || hasNetworkSettingsPermission
+                || hasNetworkSetupWizardPermission) {
             return true;
         }
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "UID: " + uid + " cannot modify WifiConfiguration proxy settings."
-                    + " ConfigOverride=" + hasNetworkSettingsPermission
+                    + " hasNetworkSettings=" + hasNetworkSettingsPermission
+                    + " hasNetworkSetupWizard=" + hasNetworkSetupWizardPermission
                     + " DeviceOwner=" + isUidDeviceOwner
                     + " ProfileOwner=" + isUidProfileOwner);
         }
