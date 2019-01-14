@@ -898,10 +898,10 @@ public class WifiConfigManager {
             internalConfig.allowedGroupCiphers =
                     (BitSet) externalConfig.allowedGroupCiphers.clone();
         }
-        if (externalConfig.allowedGroupMgmtCiphers != null
-                && !externalConfig.allowedGroupMgmtCiphers.isEmpty()) {
-            internalConfig.allowedGroupMgmtCiphers =
-                    (BitSet) externalConfig.allowedGroupMgmtCiphers.clone();
+        if (externalConfig.allowedGroupManagementCiphers != null
+                && !externalConfig.allowedGroupManagementCiphers.isEmpty()) {
+            internalConfig.allowedGroupManagementCiphers =
+                    (BitSet) externalConfig.allowedGroupManagementCiphers.clone();
         }
         if (externalConfig.allowedSuiteBCiphers != null
                 && !externalConfig.allowedSuiteBCiphers.isEmpty()) {
@@ -1359,6 +1359,25 @@ public class WifiConfigManager {
             }
         }
         return didRemove;
+    }
+
+    /**
+     * Removes the passpoint network configuration matched with {@code fqdn} provided.
+     *
+     * @param fqdn Fully Qualified Domain Name to remove.
+     * @return true if a network was removed, false otherwise.
+     */
+    public boolean removePasspointConfiguredNetwork(String fqdn) {
+        WifiConfiguration[] copiedConfigs =
+                mConfiguredNetworks.valuesForAllUsers().toArray(new WifiConfiguration[0]);
+        for (WifiConfiguration config : copiedConfigs) {
+            if (config.isPasspoint() && TextUtils.equals(fqdn, config.FQDN)) {
+                Log.d(TAG, "Removing passpoint network config " + config.configKey());
+                removeNetwork(config.networkId, mSystemUiUid);
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -160,7 +160,8 @@ public class ANQPMatcherTest {
 
     /**
      * Verify that method match will be returned when the specified EAP
-     * method only matches a eap method in the NAI Realm ANQP element.
+     * method only matches a eap method in the NAI Realm ANQP element if the element does not have
+     * auth params.
      *
      * @throws Exception
      */
@@ -169,17 +170,18 @@ public class ANQPMatcherTest {
         // Test data.
         String providerRealm = "test.com";
         String anqpRealm = "test2.com";
+        NonEAPInnerAuth authParam = new NonEAPInnerAuth(NonEAPInnerAuth.AUTH_TYPE_MSCHAP);
         int eapMethodID = EAPConstants.EAP_TLS;
 
-        // Setup NAI Realm element.
+        // Setup NAI Realm element that has EAP method and no auth params.
         EAPMethod method = new EAPMethod(eapMethodID, new HashMap<Integer, Set<AuthParam>>());
         NAIRealmData realmData = new NAIRealmData(
-            Arrays.asList(new String[] {anqpRealm}), Arrays.asList(new EAPMethod[] {method}));
+                Arrays.asList(new String[]{anqpRealm}), Arrays.asList(new EAPMethod[]{method}));
         NAIRealmElement element = new NAIRealmElement(
-            Arrays.asList(new NAIRealmData[] {realmData}));
+                Arrays.asList(new NAIRealmData[]{realmData}));
 
         assertEquals(AuthMatch.METHOD,
-            ANQPMatcher.matchNAIRealm(element, providerRealm, eapMethodID, null));
+                ANQPMatcher.matchNAIRealm(element, providerRealm, eapMethodID, authParam));
     }
 
     /**

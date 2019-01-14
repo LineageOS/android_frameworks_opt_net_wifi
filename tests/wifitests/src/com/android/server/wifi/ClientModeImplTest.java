@@ -3058,4 +3058,20 @@ public class ClientModeImplTest {
         verify(mWifiDiagnostics).captureBugReportData(
                 eq(WifiDiagnostics.REPORT_REASON_REACHABILITY_LOST));
     }
+
+    /**
+     * Verify removing Passpoint configuration will also remove the WifiConfiguration for it.
+     */
+    @Test
+    public void testRemovePasspointConfig() throws Exception {
+        String fqdn = "test.com";
+        when(mPasspointManager.removeProvider(anyString())).thenReturn(true);
+
+        // switch to connect mode and verify wifi is reported as enabled
+        startSupplicantAndDispatchMessages();
+        mCmi.sendMessage(ClientModeImpl.CMD_REMOVE_PASSPOINT_CONFIG, fqdn);
+        mLooper.dispatchAll();
+
+        verify(mWifiConfigManager).removePasspointConfiguredNetwork(eq(fqdn));
+    }
 }

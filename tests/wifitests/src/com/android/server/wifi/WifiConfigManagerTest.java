@@ -3416,6 +3416,20 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that Passpoint network corresponding with given FQDN is removed.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRemovePasspointConfiguredNetwork() throws Exception {
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+
+        assertTrue(mWifiConfigManager.removePasspointConfiguredNetwork(
+                WifiConfigurationTestUtil.TEST_FQDN));
+    }
+
+    /**
      * Verifies that the modification of a single network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and ensures that any
      * updates to the network config in
