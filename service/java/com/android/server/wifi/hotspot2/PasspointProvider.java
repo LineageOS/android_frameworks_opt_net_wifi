@@ -314,6 +314,11 @@ public class PasspointProvider {
                     mConfig.getHomeSp().getRoamingConsortiumOis(),
                     mConfig.getHomeSp().getRoamingConsortiumOis().length);
         }
+        if (mConfig.getUpdateIdentifier() != Integer.MIN_VALUE) {
+            // R2 profile, it needs to set updateIdentifier HS2.0 Indication element as PPS MO
+            // ID in Association Request.
+            wifiConfig.updateIdentifier = Integer.toString(mConfig.getUpdateIdentifier());
+        }
         wifiConfig.providerFriendlyName = mConfig.getHomeSp().getFriendlyName();
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);

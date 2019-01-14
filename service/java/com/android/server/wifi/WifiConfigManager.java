@@ -1009,6 +1009,7 @@ public class WifiConfigManager {
         newInternalConfig.trusted = externalConfig.trusted;
         newInternalConfig.useExternalScores = externalConfig.useExternalScores;
         newInternalConfig.shared = externalConfig.shared;
+        newInternalConfig.updateIdentifier = externalConfig.updateIdentifier;
 
         // Add debug information for network addition.
         newInternalConfig.creatorUid = newInternalConfig.lastUpdateUid = uid;
