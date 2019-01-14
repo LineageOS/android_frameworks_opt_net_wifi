@@ -633,7 +633,7 @@ public class WifiAwareMetricsTest {
                     .AwareNetworkRequestInformation> networkRequestCache,
             int index, int uid, String interfaceName, String passphrase) {
         WifiAwareNetworkSpecifier ns = new WifiAwareNetworkSpecifier(0, 0, 0, index, 0, null, null,
-                passphrase, 0);
+                passphrase, 0, 0, 0);
         WifiAwareDataPathStateManager.AwareNetworkRequestInformation anri =
                 new WifiAwareDataPathStateManager.AwareNetworkRequestInformation();
         anri.networkSpecifier = ns;
