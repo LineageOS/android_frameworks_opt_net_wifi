@@ -538,6 +538,9 @@ public class WifiP2pNative {
             case WifiP2pConfig.GROUP_OWNER_BAND_5GHZ:
                 freq = 5;
                 break;
+            // treat it as frequency.
+            default:
+                freq = config.groupOwnerBand;
         }
         return mSupplicantP2pIfaceHal.groupAdd(
                 config.networkName,
