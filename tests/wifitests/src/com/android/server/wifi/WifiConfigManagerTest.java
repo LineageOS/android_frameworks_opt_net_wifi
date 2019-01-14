@@ -3305,19 +3305,21 @@ public class WifiConfigManagerTest {
      */
     @Test
     public void testRemoveNetworksForApp() throws Exception {
-        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createOpenNetwork());
-        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createPskNetwork());
-        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createWepNetwork());
+        when(mPackageManager.getNameForUid(TEST_CREATOR_UID)).thenReturn(TEST_CREATOR_NAME);
 
-        assertFalse(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+        verifyRemoveNetworksForApp();
+    }
 
-        ApplicationInfo app = new ApplicationInfo();
-        app.uid = TEST_CREATOR_UID;
-        app.packageName = TEST_CREATOR_NAME;
-        assertEquals(3, mWifiConfigManager.removeNetworksForApp(app).size());
+    /**
+     * Verifies that all the networks for the provided app is removed when
+     * {@link WifiConfigManager#removeNetworksForApp(ApplicationInfo)} is invoked.
+     */
+    @Test
+    public void testRemoveNetworksForAppUsingSharedUid() throws Exception {
+        when(mPackageManager.getNameForUid(TEST_CREATOR_UID))
+                .thenReturn(TEST_CREATOR_NAME + ":" + TEST_CREATOR_UID);
 
-        // Ensure all the networks are removed now.
-        assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+        verifyRemoveNetworksForApp();
     }
 
     /**
@@ -4842,4 +4844,19 @@ public class WifiConfigManagerTest {
         when(mUserManager.isUserUnlockingOrUnlocked(userId)).thenReturn(true);
     }
 
+    private void verifyRemoveNetworksForApp() {
+        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createOpenNetwork());
+        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createPskNetwork());
+        verifyAddNetworkToWifiConfigManager(WifiConfigurationTestUtil.createWepNetwork());
+
+        assertFalse(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+
+        ApplicationInfo app = new ApplicationInfo();
+        app.uid = TEST_CREATOR_UID;
+        app.packageName = TEST_CREATOR_NAME;
+        assertEquals(3, mWifiConfigManager.removeNetworksForApp(app).size());
+
+        // Ensure all the networks are removed now.
+        assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+    }
 }

@@ -1281,6 +1281,17 @@ public class WifiConfigManager {
         return true;
     }
 
+    private String getCreatorPackageName(WifiConfiguration config) {
+        String creatorName = config.creatorName;
+        // getNameForUid (Stored in WifiConfiguration.creatorName) returns a concatenation of name
+        // and uid for shared UIDs ("name:uid").
+        if (!creatorName.contains(":")) {
+            return creatorName; // regular app not using shared UID.
+        }
+        // Separate the package name from the string for app using shared UID.
+        return creatorName.substring(0, creatorName.indexOf(":"));
+    }
+
     /**
      * Remove all networks associated with an application.
      *
@@ -1297,7 +1308,8 @@ public class WifiConfigManager {
         WifiConfiguration[] copiedConfigs =
                 mConfiguredNetworks.valuesForAllUsers().toArray(new WifiConfiguration[0]);
         for (WifiConfiguration config : copiedConfigs) {
-            if (app.uid != config.creatorUid || !app.packageName.equals(config.creatorName)) {
+            if (app.uid != config.creatorUid
+                    || !app.packageName.equals(getCreatorPackageName(config))) {
                 continue;
             }
             localLog("Removing network " + config.SSID
