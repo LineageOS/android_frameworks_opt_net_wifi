@@ -57,7 +57,9 @@ import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
 
 import java.io.PrintWriter;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -273,10 +275,12 @@ public class PasspointManager {
         // for Release 1 is not standardized nor trusted,  this is a reasonable restriction
         // to improve security.  The presence of UpdateIdentifier is used to differentiate
         // between R1 and R2 configuration.
-        if (config.getUpdateIdentifier() == Integer.MIN_VALUE
-                && config.getCredential().getCaCertificate() != null) {
+        X509Certificate[] x509Certificates = config.getCredential().getCaCertificates();
+        if (config.getUpdateIdentifier() == Integer.MIN_VALUE && x509Certificates != null) {
             try {
-                mCertVerifier.verifyCaCert(config.getCredential().getCaCertificate());
+                for (X509Certificate certificate : x509Certificates) {
+                    mCertVerifier.verifyCaCert(certificate);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Failed to verify CA certificate: " + e.getMessage());
                 return false;
@@ -322,6 +326,7 @@ public class PasspointManager {
 
         mProviders.get(fqdn).uninstallCertsAndKeys();
         mProviders.remove(fqdn);
+
         mWifiConfigManager.saveToStore(true /* forceWrite */);
         Log.d(TAG, "Removed Passpoint configuration: " + fqdn);
         mWifiMetrics.incrementNumPasspointProviderUninstallSuccess();
@@ -786,7 +791,7 @@ public class PasspointManager {
         // alias for the client certificate.
         PasspointProvider provider = new PasspointProvider(passpointConfig, mKeyStore,
                 mSimAccessor, mProviderIndex++, wifiConfig.creatorUid,
-                enterpriseConfig.getCaCertificateAlias(),
+                Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(),
                 enterpriseConfig.getClientCertificateAlias(), false, false);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);
