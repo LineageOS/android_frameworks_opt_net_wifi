@@ -296,6 +296,13 @@ public class TelephonyUtilTest {
     }
 
     /**
+     * Produce a base64 encoded data without length.
+     */
+    private static String create2gUsimChallengeRequest(byte[] challengeValue) {
+        return Base64.encodeToString(challengeValue, android.util.Base64.NO_WRAP);
+    }
+
+    /**
      * Produce a base64 encoded sres length byte + sres + kc length byte + kc.
      */
     private static String createGsmSimAuthResponse(byte[] sresValue, byte[] kcValue) {
@@ -307,6 +314,22 @@ public class TelephonyUtilTest {
             result[idx++] = sresValue[i];
         }
         result[idx++] = (byte) kcValue.length;
+        for (int i = 0; i < kcValue.length; ++i) {
+            result[idx++] = kcValue[i];
+        }
+        return Base64.encodeToString(result, Base64.NO_WRAP);
+    }
+
+    /**
+     * Produce a base64 encoded sres + kc without length.
+     */
+    private static String create2gUsimAuthResponse(byte[] sresValue, byte[] kcValue) {
+        int overallLength = sresValue.length + kcValue.length;
+        byte[] result = new byte[sresValue.length + kcValue.length];
+        int idx = 0;
+        for (int i = 0; i < sresValue.length; ++i) {
+            result[idx++] = sresValue[i];
+        }
         for (int i = 0; i < kcValue.length; ++i) {
             result[idx++] = kcValue[i];
         }
@@ -349,28 +372,73 @@ public class TelephonyUtilTest {
     }
 
     @Test
-    public void getGsmSimAuthResponseSimpleSim() {
+    public void getGsmSimpleSimAuthResponseInvalidRequest() {
         TelephonyManager tm = mock(TelephonyManager.class);
-        when(tm.getIccAuthentication(TelephonyManager.APPTYPE_USIM,
-                        TelephonyManager.AUTHTYPE_EAP_SIM,
-                        createSimChallengeRequest(new byte[] { 0x1a, 0x2b })))
-                .thenReturn(null);
+        final String[] invalidRequests = { null, "", "XXXX" };
+        assertEquals("", TelephonyUtil.getGsmSimpleSimAuthResponse(invalidRequests, tm));
+    }
+
+    @Test
+    public void getGsmSimpleSimAuthResponseFailedSimResponse() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        final String[] failedRequests = { "5E5F" };
+        when(tm.getIccAuthentication(anyInt(), anyInt(),
+                eq(createSimChallengeRequest(new byte[] { 0x5e, 0x5f })))).thenReturn(null);
+
+        assertEquals(null, TelephonyUtil.getGsmSimpleSimAuthResponse(failedRequests, tm));
+    }
+
+    @Test
+    public void getGsmSimpleSimAuthResponse() {
+        TelephonyManager tm = mock(TelephonyManager.class);
         when(tm.getIccAuthentication(TelephonyManager.APPTYPE_SIM,
                         TelephonyManager.AUTHTYPE_EAP_SIM,
                         createSimChallengeRequest(new byte[] { 0x1a, 0x2b })))
                 .thenReturn(createGsmSimAuthResponse(new byte[] { 0x1D, 0x2C },
                                 new byte[] { 0x3B, 0x4A }));
-        when(tm.getIccAuthentication(TelephonyManager.APPTYPE_USIM,
-                        TelephonyManager.AUTHTYPE_EAP_SIM,
-                        createSimChallengeRequest(new byte[] { 0x01, 0x23 })))
-                .thenReturn(null);
         when(tm.getIccAuthentication(TelephonyManager.APPTYPE_SIM,
                         TelephonyManager.AUTHTYPE_EAP_SIM,
                         createSimChallengeRequest(new byte[] { 0x01, 0x23 })))
                 .thenReturn(createGsmSimAuthResponse(new byte[] { 0x33, 0x22 },
                                 new byte[] { 0x11, 0x00 }));
 
-        assertEquals(":3b4a:1d2c:1100:3322", TelephonyUtil.getGsmSimAuthResponse(
+        assertEquals(":3b4a:1d2c:1100:3322", TelephonyUtil.getGsmSimpleSimAuthResponse(
+                        new String[] { "1A2B", "0123" }, tm));
+    }
+
+    @Test
+    public void getGsmSimpleSimNoLengthAuthResponseInvalidRequest() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        final String[] invalidRequests = { null, "", "XXXX" };
+        assertEquals("", TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(invalidRequests, tm));
+    }
+
+    @Test
+    public void getGsmSimpleSimNoLengthAuthResponseFailedSimResponse() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        final String[] failedRequests = { "5E5F" };
+        when(tm.getIccAuthentication(anyInt(), anyInt(),
+                eq(create2gUsimChallengeRequest(new byte[] { 0x5e, 0x5f })))).thenReturn(null);
+
+        assertEquals(null, TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(failedRequests, tm));
+    }
+
+    @Test
+    public void getGsmSimpleSimNoLengthAuthResponse() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        when(tm.getIccAuthentication(TelephonyManager.APPTYPE_SIM,
+                        TelephonyManager.AUTHTYPE_EAP_SIM,
+                        create2gUsimChallengeRequest(new byte[] { 0x1a, 0x2b })))
+                .thenReturn(create2gUsimAuthResponse(new byte[] { 0x1a, 0x2b, 0x3c, 0x4d },
+                                new byte[] { 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x1a }));
+        when(tm.getIccAuthentication(TelephonyManager.APPTYPE_SIM,
+                        TelephonyManager.AUTHTYPE_EAP_SIM,
+                        create2gUsimChallengeRequest(new byte[] { 0x01, 0x23 })))
+                .thenReturn(create2gUsimAuthResponse(new byte[] { 0x12, 0x34, 0x56, 0x78 },
+                                new byte[] { 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78 }));
+
+        assertEquals(":1a2b3c4d5e6f7a1a:1a2b3c4d:1234567812345678:12345678",
+                TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(
                         new String[] { "1A2B", "0123" }, tm));
     }
 

@@ -5703,9 +5703,31 @@ public class ClientModeImpl extends StateMachine {
             return;
         }
 
+        /*
+         * Try authentication in the following order.
+         *
+         *    Standard       Cellular_auth     Type Command
+         *
+         * 1. 3GPP TS 31.102 3G_authentication [Length][RAND][Length][AUTN]
+         *                            [Length][RES][Length][CK][Length][IK] and more
+         * 2. 3GPP TS 31.102 2G_authentication [Length][RAND]
+         *                            [Length][SRES][Length][Cipher Key Kc]
+         * 3. 3GPP TS 11.11  2G_authentication [RAND]
+         *                            [SRES][Cipher Key Kc]
+         */
         String response =
                 TelephonyUtil.getGsmSimAuthResponse(requestData.data, getTelephonyManager());
         if (response == null) {
+            // In case of failure, issue may be due to sim type, retry as No.2 case
+            response = TelephonyUtil.getGsmSimpleSimAuthResponse(requestData.data,
+                    getTelephonyManager());
+            if (response == null) {
+                // In case of failure, issue may be due to sim type, retry as No.3 case
+                response = TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(requestData.data,
+                        getTelephonyManager());
+            }
+        }
+        if (response == null || response.length() == 0) {
             mWifiNative.simAuthFailedResponse(mInterfaceName, requestData.networkId);
         } else {
             logv("Supplicant Response -" + response);
