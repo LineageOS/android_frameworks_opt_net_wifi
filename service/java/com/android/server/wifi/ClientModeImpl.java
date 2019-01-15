@@ -1593,8 +1593,10 @@ public class ClientModeImpl extends StateMachine {
      * @param channel
      * @return
      */
-    public List<WifiConfiguration> syncGetConfiguredNetworks(int uuid, AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid);
+    public List<WifiConfiguration> syncGetConfiguredNetworks(int uuid, AsyncChannel channel,
+            int targetUid) {
+        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid,
+                targetUid);
         if (resultMsg == null) { // an error has occurred
             return null;
         } else {
@@ -3469,7 +3471,8 @@ public class ClientModeImpl extends StateMachine {
                     deleteNetworkConfigAndSendReply(message, false);
                     break;
                 case CMD_GET_CONFIGURED_NETWORKS:
-                    replyToMessage(message, message.what, mWifiConfigManager.getSavedNetworks());
+                    replyToMessage(message, message.what,
+                            mWifiConfigManager.getSavedNetworks(message.arg2));
                     break;
                 case CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS:
                     replyToMessage(message, message.what,
@@ -5840,7 +5843,7 @@ public class ClientModeImpl extends StateMachine {
      * Update WifiMetrics before dumping
      */
     public void updateWifiMetrics() {
-        mWifiMetrics.updateSavedNetworks(mWifiConfigManager.getSavedNetworks());
+        mWifiMetrics.updateSavedNetworks(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID));
         mPasspointManager.updateMetrics();
     }
 
