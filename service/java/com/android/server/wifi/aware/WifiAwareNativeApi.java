@@ -39,6 +39,7 @@ import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
 import android.os.RemoteException;
 import android.os.ShellCommand;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseIntArray;
 
@@ -883,16 +884,22 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
      * @param interfaceName      The interface on which to create the data connection.
      * @param pmk Pairwise master key (PMK - see IEEE 802.11i) for the data-path.
      * @param passphrase  Passphrase for the data-path.
+     * @param isOutOfBand Is the data-path out-of-band (i.e. without a corresponding Aware discovery
+     *                    session).
+     * @param appInfo Arbitrary binary blob transmitted to the peer.
      * @param capabilities The capabilities of the firmware.
      */
     public boolean initiateDataPath(short transactionId, int peerId, int channelRequestType,
             int channel, byte[] peer, String interfaceName, byte[] pmk, String passphrase,
-            boolean isOutOfBand, Capabilities capabilities) {
+            boolean isOutOfBand, byte[] appInfo, Capabilities capabilities) {
         if (mDbg) {
             Log.v(TAG, "initiateDataPath: transactionId=" + transactionId + ", peerId=" + peerId
                     + ", channelRequestType=" + channelRequestType + ", channel=" + channel
                     + ", peer=" + String.valueOf(HexEncoding.encode(peer)) + ", interfaceName="
-                    + interfaceName);
+                    + interfaceName + ", pmk=" + ((pmk == null) ? "<null>" : "<*>")
+                    + ", passphrase=" + (TextUtils.isEmpty(passphrase) ? "<empty>" : "<*>")
+                    + ", isOutOfBand=" + isOutOfBand + ", appInfo.length="
+                    + ((appInfo == null) ? 0 : appInfo.length) + ", capabilities=" + capabilities);
         }
         recordTransactionId(transactionId);
 
@@ -932,6 +939,7 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
                     SERVICE_NAME_FOR_OOB_DATA_PATH.getBytes(StandardCharsets.UTF_8),
                     req.serviceNameOutOfBand);
         }
+        convertNativeByteArrayToArrayList(appInfo, req.appInfo);
 
         try {
             WifiStatus status = iface.initiateDataPathRequest(transactionId, req);
@@ -959,16 +967,18 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
      *                      request callback.
      * @param pmk Pairwise master key (PMK - see IEEE 802.11i) for the data-path.
      * @param passphrase  Passphrase for the data-path.
+     * @param appInfo Arbitrary binary blob transmitted to the peer.
      * @param isOutOfBand Is the data-path out-of-band (i.e. without a corresponding Aware discovery
      *                    session).
      * @param capabilities The capabilities of the firmware.
      */
     public boolean respondToDataPathRequest(short transactionId, boolean accept, int ndpId,
-            String interfaceName, byte[] pmk, String passphrase, boolean isOutOfBand,
-            Capabilities capabilities) {
+            String interfaceName, byte[] pmk, String passphrase, byte[] appInfo,
+            boolean isOutOfBand, Capabilities capabilities) {
         if (mDbg) {
             Log.v(TAG, "respondToDataPathRequest: transactionId=" + transactionId + ", accept="
-                    + accept + ", int ndpId=" + ndpId + ", interfaceName=" + interfaceName);
+                    + accept + ", int ndpId=" + ndpId + ", interfaceName=" + interfaceName
+                    + ", appInfo.length=" + ((appInfo == null) ? 0 : appInfo.length));
         }
         recordTransactionId(transactionId);
 
@@ -1006,6 +1016,7 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
                     SERVICE_NAME_FOR_OOB_DATA_PATH.getBytes(StandardCharsets.UTF_8),
                     req.serviceNameOutOfBand);
         }
+        convertNativeByteArrayToArrayList(appInfo, req.appInfo);
 
         try {
             WifiStatus status = iface.respondToDataPathIndicationRequest(transactionId, req);

@@ -58,9 +58,11 @@ import java.util.Map;
 @SmallTest
 public class PasspointConfigUserStoreDataTest {
     private static final String TEST_CA_CERTIFICATE_ALIAS = "CaCert";
+    private static final String TEST_CA_CERTIFICATE_ALIAS_2 = "CaCert_2";
     private static final String TEST_CLIENT_CERTIFICATE_ALIAS = "ClientCert";
     private static final String TEST_CLIENT_PRIVATE_KEY_ALIAS = "ClientPrivateKey";
     private static final long TEST_PROVIDER_ID = 1;
+    private static final long TEST_PROVIDER_ID_2 = 2;
     private static final int TEST_CREATOR_UID = 1234;
     private static final boolean TEST_HAS_EVER_CONNECTED = true;
     private static final boolean TEST_SHARED = false;
@@ -239,7 +241,12 @@ public class PasspointConfigUserStoreDataTest {
         List<PasspointProvider> providerList = new ArrayList<>();
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mSimAccessor, TEST_PROVIDER_ID, TEST_CREATOR_UID,
-                TEST_CA_CERTIFICATE_ALIAS, TEST_CLIENT_CERTIFICATE_ALIAS,
+                Arrays.asList(TEST_CA_CERTIFICATE_ALIAS), TEST_CLIENT_CERTIFICATE_ALIAS,
+                TEST_CLIENT_PRIVATE_KEY_ALIAS, TEST_HAS_EVER_CONNECTED, TEST_SHARED));
+        providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
+                mKeyStore, mSimAccessor, TEST_PROVIDER_ID_2, TEST_CREATOR_UID,
+                Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
+                TEST_CLIENT_CERTIFICATE_ALIAS,
                 TEST_CLIENT_PRIVATE_KEY_ALIAS, TEST_HAS_EVER_CONNECTED, TEST_SHARED));
 
         // Serialize data for user store.

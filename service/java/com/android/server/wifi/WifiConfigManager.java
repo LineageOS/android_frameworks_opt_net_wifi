@@ -1281,6 +1281,17 @@ public class WifiConfigManager {
         return true;
     }
 
+    private String getCreatorPackageName(WifiConfiguration config) {
+        String creatorName = config.creatorName;
+        // getNameForUid (Stored in WifiConfiguration.creatorName) returns a concatenation of name
+        // and uid for shared UIDs ("name:uid").
+        if (!creatorName.contains(":")) {
+            return creatorName; // regular app not using shared UID.
+        }
+        // Separate the package name from the string for app using shared UID.
+        return creatorName.substring(0, creatorName.indexOf(":"));
+    }
+
     /**
      * Remove all networks associated with an application.
      *
@@ -1297,7 +1308,8 @@ public class WifiConfigManager {
         WifiConfiguration[] copiedConfigs =
                 mConfiguredNetworks.valuesForAllUsers().toArray(new WifiConfiguration[0]);
         for (WifiConfiguration config : copiedConfigs) {
-            if (app.uid != config.creatorUid || !app.packageName.equals(config.creatorName)) {
+            if (app.uid != config.creatorUid
+                    || !app.packageName.equals(getCreatorPackageName(config))) {
                 continue;
             }
             localLog("Removing network " + config.SSID
@@ -1824,6 +1836,7 @@ public class WifiConfigManager {
         }
         WifiConfiguration config = getInternalConfiguredNetwork(networkId);
         if (config == null) {
+            Log.e(TAG, "Cannot find network for " + networkId);
             return false;
         }
         config.getNetworkSelectionStatus().setCandidate(scanResult);
@@ -3127,13 +3140,17 @@ public class WifiConfigManager {
                 DeviceAdminInfo.USES_POLICY_DEVICE_OWNER);
         final boolean hasNetworkSettingsPermission =
                 mWifiPermissionsUtil.checkNetworkSettingsPermission(uid);
+        final boolean hasNetworkSetupWizardPermission =
+                mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid);
         // If |uid| corresponds to the device owner, allow all modifications.
-        if (isUidDeviceOwner || isUidProfileOwner || hasNetworkSettingsPermission) {
+        if (isUidDeviceOwner || isUidProfileOwner || hasNetworkSettingsPermission
+                || hasNetworkSetupWizardPermission) {
             return true;
         }
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "UID: " + uid + " cannot modify WifiConfiguration proxy settings."
-                    + " ConfigOverride=" + hasNetworkSettingsPermission
+                    + " hasNetworkSettings=" + hasNetworkSettingsPermission
+                    + " hasNetworkSetupWizard=" + hasNetworkSetupWizardPermission
                     + " DeviceOwner=" + isUidDeviceOwner
                     + " ProfileOwner=" + isUidProfileOwner);
         }

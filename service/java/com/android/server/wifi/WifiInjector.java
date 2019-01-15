@@ -124,6 +124,7 @@ public class WifiInjector {
     private final NetworkSuggestionEvaluator mNetworkSuggestionEvaluator;
     private final PasspointNetworkEvaluator mPasspointNetworkEvaluator;
     private final ScoredNetworkEvaluator mScoredNetworkEvaluator;
+    private final CarrierNetworkEvaluator mCarrierNetworkEvaluator;
     private final WifiNetworkScoreCache mWifiNetworkScoreCache;
     private final NetworkScoreManager mNetworkScoreManager;
     private WifiScanner mWifiScanner;
@@ -204,7 +205,8 @@ public class WifiInjector {
                 new Handler(mWifiCoreHandlerThread.getLooper()));
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
-        mWifiP2pNative = new WifiP2pNative(mSupplicantP2pIfaceHal, mHalDeviceManager);
+        mWifiP2pNative = new WifiP2pNative(mSupplicantP2pIfaceHal, mHalDeviceManager,
+                mPropertyService);
 
         // Now get instances of all the objects that depend on the HandlerThreads
         mWifiTrafficPoller = new WifiTrafficPoller(clientModeImplLooper);
@@ -258,6 +260,8 @@ public class WifiInjector {
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, clientModeImplLooper,
                 mFrameworkFacade, mNetworkScoreManager, mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
+        mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
+                mCarrierNetworkConfig, mConnectivityLocalLog);
         mSimAccessor = new SIMAccessor(mContext);
         mPasspointManager = new PasspointManager(mContext, mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
@@ -571,7 +575,7 @@ public class WifiInjector {
                 mCarrierNetworkConfig, mWifiMetrics, mWifiCoreHandlerThread.getLooper(),
                 mClock, mConnectivityLocalLog,
                 mSavedNetworkEvaluator, mScoredNetworkEvaluator, mPasspointNetworkEvaluator,
-                mNetworkSuggestionEvaluator);
+                mNetworkSuggestionEvaluator, mCarrierNetworkEvaluator);
     }
 
     /**
