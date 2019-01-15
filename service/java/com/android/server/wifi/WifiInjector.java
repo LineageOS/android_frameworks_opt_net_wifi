@@ -62,6 +62,8 @@ import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
+import java.util.Random;
+
 /**
  *  WiFi dependency injector. To be used for accessing various WiFi class instances and as a
  *  handle for mock injection.
@@ -196,13 +198,15 @@ public class WifiInjector {
         mSupplicantStaIfaceHal =
                 new SupplicantStaIfaceHal(mContext, mWifiMonitor, mPropertyService);
         mHostapdHal = new HostapdHal(mContext);
-        mWificondControl = new WificondControl(this, mWifiMonitor, mCarrierNetworkConfig);
+        mWificondControl = new WificondControl(this, mWifiMonitor, mCarrierNetworkConfig,
+                (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
+                clientModeImplLooper, mClock);
         mNwManagementService = INetworkManagementService.Stub.asInterface(
                 ServiceManager.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
-                new Handler(mWifiCoreHandlerThread.getLooper()));
+                new Handler(mWifiCoreHandlerThread.getLooper()), new Random());
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
         mWifiP2pNative = new WifiP2pNative(mSupplicantP2pIfaceHal, mHalDeviceManager,
