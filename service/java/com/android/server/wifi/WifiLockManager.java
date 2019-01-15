@@ -305,12 +305,8 @@ public class WifiLockManager {
             mLowLatencyUidWatchList.put(uid, uidRec);
 
             // Now check if the uid is running in foreground
-            try {
-                if (mFrameworkFacade.isAppForeground(uid)) {
-                    uidRec.mIsFg = true;
-                }
-            } catch (RemoteException e) {
-                Slog.e(TAG, "RemoteException during isAppForeground");
+            if (mFrameworkFacade.isAppForeground(uid)) {
+                uidRec.mIsFg = true;
             }
         }
     }
