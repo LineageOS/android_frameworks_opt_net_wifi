@@ -97,6 +97,9 @@ public class RedirectListenerTest {
         mLooper.dispatchAll();
 
         assertFalse(mRedirectListener.mIsStart);
+
+        // true if there are pending messages in the message queue
+        assertFalse(mLooper.isIdle());
     }
 
     /**
