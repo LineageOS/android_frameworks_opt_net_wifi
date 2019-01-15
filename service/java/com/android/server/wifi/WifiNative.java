@@ -1211,6 +1211,8 @@ public class WifiNative {
         public int txBitrate;
         // Association frequency in MHz.
         public int associationFrequency;
+        //Last received packet bit rate in Mbps.
+        public int rxBitrate;
     }
 
     /**

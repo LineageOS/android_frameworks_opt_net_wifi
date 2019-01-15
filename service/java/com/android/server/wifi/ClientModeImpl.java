@@ -2610,29 +2610,31 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        Integer newRssi = null;
-        Integer newLinkSpeed = null;
-        Integer newFrequency = null;
         WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
 
-        newRssi = pollResult.currentRssi;
-        newLinkSpeed = pollResult.txBitrate;
-        newFrequency = pollResult.associationFrequency;
+        int newRssi = pollResult.currentRssi;
+        int newTxLinkSpeed = pollResult.txBitrate;
+        int newFrequency = pollResult.associationFrequency;
+        int newRxLinkSpeed = pollResult.rxBitrate;
 
         if (mVerboseLoggingEnabled) {
             logd("fetchRssiLinkSpeedAndFrequencyNative rssi=" + newRssi
-                    + " linkspeed=" + newLinkSpeed + " freq=" + newFrequency);
+                    + " TxLinkspeed=" + newTxLinkSpeed + " freq=" + newFrequency
+                    + " RxLinkSpeed=" + newRxLinkSpeed);
         }
 
-        if (newRssi != null && newRssi > WifiInfo.INVALID_RSSI && newRssi < WifiInfo.MAX_RSSI) {
+        if (newRssi > WifiInfo.INVALID_RSSI && newRssi < WifiInfo.MAX_RSSI) {
             // screen out invalid values
             /* some implementations avoid negative values by adding 256
              * so we need to adjust for that here.
              */
-            if (newRssi > 0) newRssi -= 256;
+            if (newRssi > 0) {
+                Log.wtf(TAG, "Error! +ve value RSSI: " + newRssi);
+                newRssi -= 256;
+            }
             mWifiInfo.setRssi(newRssi);
             /*
              * Rather then sending the raw RSSI out every time it
@@ -2654,20 +2656,27 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setRssi(WifiInfo.INVALID_RSSI);
             updateCapabilities();
         }
-
-        if (newLinkSpeed != null) {
-            mWifiInfo.setLinkSpeed(newLinkSpeed);
+        /*
+         * set Tx link speed only if it is valid
+         */
+        if (newTxLinkSpeed > 0) {
+            mWifiInfo.setLinkSpeed(newTxLinkSpeed);
+            mWifiInfo.setTxLinkSpeedMbps(newTxLinkSpeed);
         }
-        if (newFrequency != null && newFrequency > 0) {
+        /*
+         * set Rx link speed only if it is valid
+         */
+        if (newRxLinkSpeed > 0) {
+            mWifiInfo.setRxLinkSpeedMbps(newRxLinkSpeed);
+        }
+        if (newFrequency > 0) {
             mWifiInfo.setFrequency(newFrequency);
         }
         mWifiConfigManager.updateScanDetailCacheFromWifiInfo(mWifiInfo);
         /*
          * Increment various performance metrics
          */
-        if (newRssi != null && newLinkSpeed != null && newFrequency != null) {
-            mWifiMetrics.handlePollResult(mWifiInfo);
-        }
+        mWifiMetrics.handlePollResult(mWifiInfo);
     }
 
     // Polling has completed, hence we wont have a score anymore

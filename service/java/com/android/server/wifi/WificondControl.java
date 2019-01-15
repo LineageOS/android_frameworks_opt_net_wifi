@@ -501,7 +501,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         int[] resultArray;
         try {
             resultArray = iface.signalPoll();
-            if (resultArray == null || resultArray.length != 3) {
+            if (resultArray == null || resultArray.length != 4) {
                 Log.e(TAG, "Invalid signal poll result from wificond");
                 return null;
             }
@@ -513,6 +513,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         pollResult.currentRssi = resultArray[0];
         pollResult.txBitrate = resultArray[1];
         pollResult.associationFrequency = resultArray[2];
+        pollResult.rxBitrate = resultArray[3];
         return pollResult;
     }
 
