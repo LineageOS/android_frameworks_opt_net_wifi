@@ -574,6 +574,7 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.updateTime, actual.updateTime);
         assertEquals(expected.isLegacyPasspointConfig, actual.isLegacyPasspointConfig);
         assertEquals(expected.getRandomizedMacAddress(), actual.getRandomizedMacAddress());
+        assertEquals(expected.macRandomizationSetting, actual.macRandomizationSetting);
         assertNetworkSelectionStatusEqualForConfigStore(
                 expected.getNetworkSelectionStatus(), actual.getNetworkSelectionStatus());
         assertWifiEnterpriseConfigEqualForConfigStore(
