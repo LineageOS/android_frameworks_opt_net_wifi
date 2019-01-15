@@ -18,6 +18,7 @@ package com.android.server.wifi.hotspot2;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -905,8 +906,9 @@ public class PasspointProviderTest {
         BitSet allowedProtocols = new BitSet();
         allowedProtocols.set(WifiConfiguration.Protocol.RSN);
 
-        // Create provider.
+        // Create provider for R2.
         PasspointConfiguration config = new PasspointConfiguration();
+        config.setUpdateIdentifier(1234);
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
         homeSp.setFriendlyName(friendlyName);
@@ -938,6 +940,7 @@ public class PasspointProviderTest {
         assertTrue(Arrays.equals(rcOIs, wifiConfig.roamingConsortiumIds));
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
+        assertEquals(wifiConfig.updateIdentifier, Integer.toString(config.getUpdateIdentifier()));
         assertEquals(allowedProtocols, wifiConfig.allowedProtocols);
         assertFalse(wifiConfig.shared);
         assertEquals(realm, wifiEnterpriseConfig.getRealm());
@@ -1005,6 +1008,7 @@ public class PasspointProviderTest {
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
         assertEquals(allowedProtocols, wifiConfig.allowedProtocols);
+        assertNull(wifiConfig.updateIdentifier);
         assertFalse(wifiConfig.shared);
         assertEquals(realm, wifiEnterpriseConfig.getRealm());
         assertEquals(fqdn, wifiEnterpriseConfig.getDomainSuffixMatch());
@@ -1058,6 +1062,7 @@ public class PasspointProviderTest {
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
         assertEquals(allowedProtocols, wifiConfig.allowedProtocols);
+        assertNull(wifiConfig.updateIdentifier);
         assertFalse(wifiConfig.shared);
         assertEquals(realm, wifiEnterpriseConfig.getRealm());
         assertEquals(fqdn, wifiEnterpriseConfig.getDomainSuffixMatch());
