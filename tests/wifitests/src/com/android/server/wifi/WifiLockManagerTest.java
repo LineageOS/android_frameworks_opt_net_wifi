@@ -24,12 +24,18 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.os.WorkSource;
+import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.internal.util.AsyncChannel;
+import com.android.server.wifi.util.WifiAsyncChannel;
+import com.android.server.wifi.util.WifiHandler;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -64,6 +70,9 @@ public class WifiLockManagerTest {
     @Mock ClientModeImpl mClientModeImpl;
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock ActivityManager mActivityManager;
+    @Mock WifiAsyncChannel mChannel;
+    @Mock WifiHandler mCmiHandler;
+    TestLooper mLooper;
 
     /**
      * Method to setup a WifiLockManager for the tests.
@@ -78,11 +87,14 @@ public class WifiLockManagerTest {
                 .addNode(DEFAULT_TEST_UID_2, "tag2");
 
         MockitoAnnotations.initMocks(this);
-
+        mLooper = new TestLooper();
         when(mContext.getSystemService(Context.ACTIVITY_SERVICE)).thenReturn(mActivityManager);
+        when(mFrameworkFacade.makeWifiAsyncChannel(anyString())).thenReturn(mChannel);
+        when(mClientModeImpl.getHandler()).thenReturn(mCmiHandler);
 
         mWifiLockManager = new WifiLockManager(mContext, mBatteryStats,
-                mClientModeImpl, mFrameworkFacade);
+                mClientModeImpl, mFrameworkFacade, mLooper.getLooper());
+        connectAsyncChannel();
     }
 
     private void acquireWifiLockSuccessful(int lockMode, String tag, IBinder binder, WorkSource ws)
@@ -107,6 +119,17 @@ public class WifiLockManagerTest {
                 anyInt());
         mUidImportanceListener = uidImportanceListener.getValue();
         assertNotNull(mUidImportanceListener);
+    }
+
+    private void connectAsyncChannel() {
+        ArgumentCaptor<WifiHandler> handlerCaptor = ArgumentCaptor.forClass(WifiHandler.class);
+        verify(mChannel).connect(eq(mContext), handlerCaptor.capture(), any(Handler.class));
+        WifiHandler handler = handlerCaptor.getValue();
+
+        Message msg = new Message();
+        msg.what = AsyncChannel.CMD_CHANNEL_HALF_CONNECTED;
+        msg.arg1 = AsyncChannel.STATUS_SUCCESSFUL;
+        handler.handleMessage(msg);
     }
 
     private void releaseWifiLockSuccessful(IBinder binder) throws Exception {
@@ -835,6 +858,7 @@ public class WifiLockManagerTest {
         /* App going to background */
         mUidImportanceListener.onUidImportance(DEFAULT_TEST_UID_1,
                 ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND);
+        mLooper.dispatchAll();
         assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD,
                 mWifiLockManager.getStrongestLockMode());
         inOrder.verify(mClientModeImpl).setLowLatencyMode(false);
@@ -868,6 +892,7 @@ public class WifiLockManagerTest {
         /* App going to foreground */
         mUidImportanceListener.onUidImportance(DEFAULT_TEST_UID_1,
                 ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+        mLooper.dispatchAll();
 
         assertEquals(WifiManager.WIFI_MODE_FULL_LOW_LATENCY,
                 mWifiLockManager.getStrongestLockMode());
@@ -907,6 +932,7 @@ public class WifiLockManagerTest {
         /* App going to foreground */
         mUidImportanceListener.onUidImportance(DEFAULT_TEST_UID_1,
                 ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+        mLooper.dispatchAll();
 
         assertEquals(WifiManager.WIFI_MODE_FULL_LOW_LATENCY,
                 mWifiLockManager.getStrongestLockMode());
