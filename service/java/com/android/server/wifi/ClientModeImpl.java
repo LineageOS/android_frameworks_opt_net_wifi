@@ -2867,6 +2867,7 @@ public class ClientModeImpl extends StateMachine {
     private SupplicantState handleSupplicantStateChange(Message message) {
         StateChangeResult stateChangeResult = (StateChangeResult) message.obj;
         SupplicantState state = stateChangeResult.state;
+        mWifiScoreCard.noteSupplicantStateChanging(mWifiInfo, state);
         // Supplicant state change
         // [31-13] Reserved for future use
         // [8 - 0] Supplicant state (as defined in SupplicantState.java)
@@ -2909,6 +2910,7 @@ public class ClientModeImpl extends StateMachine {
         }
 
         mSupplicantStateTracker.sendMessage(Message.obtain(message));
+        mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         return state;
     }
 
@@ -2960,6 +2962,7 @@ public class ClientModeImpl extends StateMachine {
         mLastLinkLayerStats = null;
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+        mWifiScoreCard.resetConnectionState();
     }
 
     void handlePreDhcpSetup() {
@@ -3067,7 +3070,6 @@ public class ClientModeImpl extends StateMachine {
     private void reportConnectionAttemptStart(
             WifiConfiguration config, String targetBSSID, int roamType) {
         mWifiMetrics.startConnectionEvent(config, targetBSSID, roamType);
-        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
         removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
@@ -3093,6 +3095,10 @@ public class ClientModeImpl extends StateMachine {
      * the current connection attempt has concluded.
      */
     private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+        if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+            mWifiScoreCard.noteConnectionFailure(mWifiInfo,
+                    level2FailureCode, connectivityFailureCode);
+        }
         mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
         mNetworkFactory.handleConnectionAttemptEnded(
@@ -3192,12 +3198,10 @@ public class ClientModeImpl extends StateMachine {
         mWifiNative.disconnect(mInterfaceName);
     }
 
-    // TODO: De-duplicated this and handleIpConfigurationLost().
     private void handleIpReachabilityLost() {
+        mWifiScoreCard.noteIpReachabilityLost(mWifiInfo);
         mWifiInfo.setInetAddress(null);
         mWifiInfo.setMeteredHint(false);
-
-        // TODO: Determine whether to call some form of mWifiConfigManager.handleSSIDStateChange().
 
         // Disconnect via supplicant, and let autojoin retry connecting to the network.
         mWifiNative.disconnect(mInterfaceName);
@@ -3856,6 +3860,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
             // Inform sar manager that wifi is Enabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
+            mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         }
 
         @Override
@@ -3881,6 +3886,7 @@ public class ClientModeImpl extends StateMachine {
             }
             mWifiInfo.reset();
             mWifiInfo.setSupplicantState(SupplicantState.DISCONNECTED);
+            mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
             stopClientMode();
         }
 
@@ -4170,6 +4176,8 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_CONNECT and no config, bail out...");
                         break;
                     }
+                    // Update scorecard while there is still state from existing connection
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
 
@@ -5446,7 +5454,7 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_ROAM and no config, bail out...");
                         break;
                     }
-
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
                     setTargetBssid(config, bssid);
                     mTargetNetworkId = netId;
 
