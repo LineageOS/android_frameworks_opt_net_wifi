@@ -793,6 +793,54 @@ public class SupplicantStaNetworkHalTest {
     }
 
     /**
+     * Tests the addition of SHA256 flags (WPA_PSK_SHA256)
+     */
+    @Test
+    public void testAddPskSha256Flags() throws Exception {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        // Now expose the V1.2 ISupplicantStaNetwork
+        mSupplicantNetwork = new SupplicantStaNetworkHalSpyV1_2(mISupplicantStaNetworkMock,
+                IFACE_NAME, mContext, mWifiMonitor);
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        // Check the supplicant variables to ensure that we have added the SHA256 flags.
+        assertTrue((mSupplicantVariables.keyMgmtMask
+                & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                .WPA_PSK_SHA256) == android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.WPA_PSK_SHA256);
+
+        WifiConfiguration loadConfig = new WifiConfiguration();
+        Map<String, String> networkExtras = new HashMap<>();
+        assertTrue(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
+        // The SHA256 flags should be stripped out when reading it back.
+        WifiConfigurationTestUtil.assertConfigurationEqualForSupplicant(config, loadConfig);
+    }
+
+    /**
+     * Tests the addition of SHA256 flags (WPA_EAP_SHA256)
+     */
+    @Test
+    public void testAddEapSha256Flags() throws Exception {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
+        // Now expose the V1.2 ISupplicantStaNetwork
+        mSupplicantNetwork = new SupplicantStaNetworkHalSpyV1_2(mISupplicantStaNetworkMock,
+                IFACE_NAME, mContext, mWifiMonitor);
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        // Check the supplicant variables to ensure that we have added the SHA256 flags.
+        assertTrue((mSupplicantVariables.keyMgmtMask
+                & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                .WPA_EAP_SHA256) == android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.WPA_EAP_SHA256);
+
+        WifiConfiguration loadConfig = new WifiConfiguration();
+        Map<String, String> networkExtras = new HashMap<>();
+        assertTrue(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
+        // The SHA256 flags should be stripped out when reading it back.
+        WifiConfigurationTestUtil.assertConfigurationEqualForSupplicant(config, loadConfig);
+    }
+
+    /**
      * Tests the retrieval of WPS NFC token.
      */
     @Test
