@@ -347,6 +347,7 @@ public class XmlUtil {
         public static final String XML_TAG_IS_LEGACY_PASSPOINT_CONFIG = "IsLegacyPasspointConfig";
         public static final String XML_TAG_ROAMING_CONSORTIUM_OIS = "RoamingConsortiumOIs";
         public static final String XML_TAG_RANDOMIZED_MAC_ADDRESS = "RandomizedMacAddress";
+        public static final String XML_TAG_MAC_RANDOMIZATION_SETTING = "MacRandomizationSetting";
 
         /**
          * Write WepKeys to the XML stream.
@@ -415,6 +416,8 @@ public class XmlUtil {
                     out, XML_TAG_ALLOWED_SUITE_B_CIPHERS,
                     configuration.allowedSuiteBCiphers.toByteArray());
             XmlUtil.writeNextValue(out, XML_TAG_SHARED, configuration.shared);
+            XmlUtil.writeNextValue(out, XML_TAG_MAC_RANDOMIZATION_SETTING,
+                    configuration.macRandomizationSetting);
         }
 
         /**
@@ -516,6 +519,7 @@ public class XmlUtil {
                 throws XmlPullParserException, IOException {
             WifiConfiguration configuration = new WifiConfiguration();
             String configKeyInData = null;
+            boolean macRandomizationSettingExists = false;
 
             // Loop through and parse out all the elements from the stream within this section.
             while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
@@ -653,10 +657,17 @@ public class XmlUtil {
                         configuration.setRandomizedMacAddress(
                                 MacAddress.fromString((String) value));
                         break;
+                    case XML_TAG_MAC_RANDOMIZATION_SETTING:
+                        configuration.macRandomizationSetting = (int) value;
+                        macRandomizationSettingExists = true;
+                        break;
                     default:
                         throw new XmlPullParserException(
                                 "Unknown value name found: " + valueName[0]);
                 }
+            }
+            if (!macRandomizationSettingExists) {
+                configuration.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
             }
             return Pair.create(configKeyInData, configuration);
         }

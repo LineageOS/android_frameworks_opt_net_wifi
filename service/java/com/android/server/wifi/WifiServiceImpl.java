@@ -1383,12 +1383,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // the app should be in the foreground
-        try {
-            if (!mFrameworkFacade.isAppForeground(uid)) {
-                return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
-            }
-        } catch (RemoteException e) {
-            mLog.warn("RemoteException during isAppForeground when calling startLOHS").flush();
+        if (!mFrameworkFacade.isAppForeground(uid)) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 

@@ -31,12 +31,16 @@ import android.os.INetworkManagementService;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.AdditionalMatchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -112,6 +116,7 @@ public class WifiNativeTest {
                 currentRssi = -60;
                 txBitrate = 12;
                 associationFrequency = 5240;
+                rxBitrate = 6;
             }};
     private static final WifiNative.TxPacketCounters PACKET_COUNTERS_RESULT =
             new WifiNative.TxPacketCounters() {{
@@ -150,6 +155,11 @@ public class WifiNativeTest {
             }};
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
 
+    private static final String TEST_MAC_ADDRESS_STR = "f4:f5:e8:51:9e:09";
+    private static final String TEST_BSSID_STR = "a8:bd:27:5b:33:72";
+    private static final int TEST_MCS_RATE = 5;
+    private static final int TEST_SEQUENCE_NUM = 0x66b0;
+
     @Mock private WifiVendorHal mWifiVendorHal;
     @Mock private WificondControl mWificondControl;
     @Mock private SupplicantStaIfaceHal mStaIfaceHal;
@@ -159,6 +169,8 @@ public class WifiNativeTest {
     @Mock private PropertyService mPropertyService;
     @Mock private WifiMetrics mWifiMetrics;
     @Mock private Handler mHandler;
+    @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
+    @Mock private Random mRandom;
     private WifiNative mWifiNative;
 
     @Before
@@ -169,7 +181,7 @@ public class WifiNativeTest {
         when(mWifiVendorHal.startVendorHalAp()).thenReturn(true);
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwService, mPropertyService, mWifiMetrics, mHandler);
+                mWifiMonitor, mNwService, mPropertyService, mWifiMetrics, mHandler, mRandom);
     }
 
     /**
@@ -503,7 +515,12 @@ public class WifiNativeTest {
         when(mWificondControl.signalPoll(WIFI_IFACE_NAME))
                 .thenReturn(SIGNAL_POLL_RESULT);
 
-        assertEquals(SIGNAL_POLL_RESULT, mWifiNative.signalPoll(WIFI_IFACE_NAME));
+        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
+        assertEquals(SIGNAL_POLL_RESULT.currentRssi, pollResult.currentRssi);
+        assertEquals(SIGNAL_POLL_RESULT.txBitrate, pollResult.txBitrate);
+        assertEquals(SIGNAL_POLL_RESULT.associationFrequency, pollResult.associationFrequency);
+        assertEquals(SIGNAL_POLL_RESULT.rxBitrate, pollResult.rxBitrate);
+
         verify(mWificondControl).signalPoll(WIFI_IFACE_NAME);
     }
 
@@ -643,7 +660,7 @@ public class WifiNativeTest {
         verify(mWifiVendorHal).setLowLatencyMode(false);
     }
 
-   /**
+    /**
      * Test that setLowLatencyMode() returns with failure when WifiVendorHal fails.
      */
     @Test
@@ -669,5 +686,71 @@ public class WifiNativeTest {
         when(mWifiVendorHal.flushRingBufferData()).thenReturn(true);
         assertTrue(mWifiNative.flushRingBufferData());
         verify(mWifiVendorHal).flushRingBufferData();
+    }
+
+    /**
+     * Tests that WifiNative#sendMgmtFrame() calls WificondControl#sendMgmtFrame()
+     */
+    @Test
+    public void testSendMgmtFrame() {
+        mWifiNative.sendMgmtFrame(WIFI_IFACE_NAME, FATE_REPORT_FRAME_BYTES,
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mWificondControl).sendMgmtFrame(
+                eq(WIFI_IFACE_NAME), AdditionalMatchers.aryEq(FATE_REPORT_FRAME_BYTES),
+                eq(mSendMgmtFrameCallback), eq(TEST_MCS_RATE));
+    }
+
+    /**
+     * Tests that probeLink() generates the correct frame and calls WificondControl#sendMgmtFrame().
+     */
+    @Test
+    public void testProbeLinkSuccess() {
+        byte[] expectedFrame = {
+                0x40, 0x00, 0x3c, 0x00, (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b,
+                0x33, 0x72, (byte) 0xf4, (byte) 0xf5, (byte) 0xe8, 0x51, (byte) 0x9e, 0x09,
+                (byte) 0xa8, (byte) 0xbd, 0x27, 0x5b, 0x33, 0x72, (byte) 0xb0, 0x66,
+                0x00, 0x00
+        };
+
+        when(mStaIfaceHal.getMacAddress(WIFI_IFACE_NAME)).thenReturn(TEST_MAC_ADDRESS_STR);
+
+        when(mRandom.nextInt()).thenReturn(TEST_SEQUENCE_NUM);
+
+        mWifiNative.probeLink(WIFI_IFACE_NAME, MacAddress.fromString(TEST_BSSID_STR),
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mSendMgmtFrameCallback, never()).onFailure(anyInt());
+        verify(mWificondControl).sendMgmtFrame(eq(WIFI_IFACE_NAME),
+                AdditionalMatchers.aryEq(expectedFrame), eq(mSendMgmtFrameCallback),
+                eq(TEST_MCS_RATE));
+    }
+
+    /**
+     * Tests that probeLink() triggers the failure callback when it cannot get the sender MAC
+     * address.
+     */
+    @Test
+    public void testProbeLinkFailureCannotGetSenderMac() {
+        when(mStaIfaceHal.getMacAddress(WIFI_IFACE_NAME)).thenReturn(null);
+
+        mWifiNative.probeLink(WIFI_IFACE_NAME, MacAddress.fromString(TEST_BSSID_STR),
+                mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
+    }
+
+    /**
+     * Tests that probeLink() triggers the failure callback when it cannot get the BSSID.
+     */
+    @Test
+    public void testProbeLinkFailureCannotGetBssid() {
+        when(mStaIfaceHal.getMacAddress(WIFI_IFACE_NAME)).thenReturn(TEST_MAC_ADDRESS_STR);
+
+        mWifiNative.probeLink(WIFI_IFACE_NAME, null, mSendMgmtFrameCallback, TEST_MCS_RATE);
+
+        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
     }
 }

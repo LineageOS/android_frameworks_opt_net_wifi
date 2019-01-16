@@ -17,22 +17,27 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
+import android.app.AlarmManager;
 import android.net.MacAddress;
 import android.net.wifi.IApInterface;
 import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.IClientInterface;
 import android.net.wifi.IPnoScanEvent;
 import android.net.wifi.IScanEvent;
+import android.net.wifi.ISendMgmtFrameEvent;
 import android.net.wifi.IWifiScannerImpl;
 import android.net.wifi.IWificond;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
 import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -50,6 +55,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class provides methods for WifiNative to send control commands to wificond.
@@ -58,7 +64,17 @@ import java.util.Set;
 public class WificondControl implements IBinder.DeathRecipient {
     private boolean mVerboseLoggingEnabled = false;
 
+    /**
+     * The {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
+     * timeout, in milliseconds, after which
+     * {@link SendMgmtFrameCallback#onFailure(int)} will be called with reason
+     * {@link WifiNative#SEND_MGMT_FRAME_ERROR_TIMEOUT}.
+     */
+    public static final int SEND_MGMT_FRAME_TIMEOUT_MS = 100;
+
     private static final String TAG = "WificondControl";
+
+    private static final String TIMEOUT_ALARM_TAG = TAG + " Send Management Frame Timeout";
 
     /* Get scan results for a single scan */
     public static final int SCAN_TYPE_SINGLE_SCAN = 0;
@@ -69,6 +85,9 @@ public class WificondControl implements IBinder.DeathRecipient {
     private WifiInjector mWifiInjector;
     private WifiMonitor mWifiMonitor;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
+    private AlarmManager mAlarmManager;
+    private Handler mEventHandler;
+    private Clock mClock;
 
     // Cached wificond binder handlers.
     private IWificond mWificond;
@@ -79,6 +98,10 @@ public class WificondControl implements IBinder.DeathRecipient {
     private HashMap<String, IPnoScanEvent> mPnoScanEventHandlers = new HashMap<>();
     private HashMap<String, IApInterfaceEventCallback> mApInterfaceListeners = new HashMap<>();
     private WifiNative.WificondDeathEventHandler mDeathEventHandler;
+    /**
+     * Ensures that no more than one sendMgmtFrame operation runs concurrently.
+     */
+    private AtomicBoolean mSendMgmtFrameInProgress = new AtomicBoolean(false);
 
     private class ScanEventHandler extends IScanEvent.Stub {
         private String mIfaceName;
@@ -101,10 +124,14 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor,
-            CarrierNetworkConfig carrierNetworkConfig) {
+            CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Looper looper,
+            Clock clock) {
         mWifiInjector = wifiInjector;
         mWifiMonitor = wifiMonitor;
         mCarrierNetworkConfig = carrierNetworkConfig;
+        mAlarmManager = alarmManager;
+        mEventHandler = new Handler(looper);
+        mClock = clock;
     }
 
     private class PnoScanEventHandler extends IPnoScanEvent.Stub {
@@ -158,6 +185,62 @@ public class WificondControl implements IBinder.DeathRecipient {
         @Override
         public void onSoftApChannelSwitched(int frequency, int bandwidth) {
             mSoftApListener.onSoftApChannelSwitched(frequency, bandwidth);
+        }
+    }
+
+    /**
+     * Callback triggered by wificond.
+     */
+    private class SendMgmtFrameEvent extends ISendMgmtFrameEvent.Stub {
+        private SendMgmtFrameCallback mCallback;
+        private AlarmManager.OnAlarmListener mTimeoutCallback;
+        /**
+         * ensures that mCallback is only called once
+         */
+        private boolean mWasCalled;
+
+        private void runIfFirstCall(Runnable r) {
+            if (mWasCalled) return;
+            mWasCalled = true;
+
+            mSendMgmtFrameInProgress.set(false);
+            r.run();
+        }
+
+        SendMgmtFrameEvent(@NonNull SendMgmtFrameCallback callback) {
+            mCallback = callback;
+            // called in main thread
+            mTimeoutCallback = () -> runIfFirstCall(() -> {
+                if (mVerboseLoggingEnabled) {
+                    Log.e(TAG, "Timed out waiting for ACK");
+                }
+                mCallback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+            });
+            mWasCalled = false;
+
+            mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    mClock.getElapsedSinceBootMillis() + SEND_MGMT_FRAME_TIMEOUT_MS,
+                    TIMEOUT_ALARM_TAG, mTimeoutCallback, mEventHandler);
+        }
+
+        // called in binder thread
+        @Override
+        public void OnAck(int elapsedTimeMs) {
+            // post to main thread
+            mEventHandler.post(() -> runIfFirstCall(() -> {
+                mAlarmManager.cancel(mTimeoutCallback);
+                mCallback.onAck(elapsedTimeMs);
+            }));
+        }
+
+        // called in binder thread
+        @Override
+        public void OnFailure(int reason) {
+            // post to main thread
+            mEventHandler.post(() -> runIfFirstCall(() -> {
+                mAlarmManager.cancel(mTimeoutCallback);
+                mCallback.onFailure(reason);
+            }));
         }
     }
 
@@ -418,7 +501,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         int[] resultArray;
         try {
             resultArray = iface.signalPoll();
-            if (resultArray == null || resultArray.length != 3) {
+            if (resultArray == null || resultArray.length != 4) {
                 Log.e(TAG, "Invalid signal poll result from wificond");
                 return null;
             }
@@ -430,6 +513,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         pollResult.currentRssi = resultArray[0];
         pollResult.txBitrate = resultArray[1];
         pollResult.associationFrequency = resultArray[2];
+        pollResult.rxBitrate = resultArray[3];
         return pollResult;
     }
 
@@ -797,6 +881,48 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     /**
+     * See {@link WifiNative#sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int)}
+     */
+    public void sendMgmtFrame(@NonNull String ifaceName, @NonNull byte[] frame,
+            @NonNull SendMgmtFrameCallback callback, int mcs) {
+
+        if (callback == null) {
+            Log.e(TAG, "callback cannot be null!");
+            return;
+        }
+
+        if (frame == null) {
+            Log.e(TAG, "frame cannot be null!");
+            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            return;
+        }
+
+        // TODO (b/112029045) validate mcs
+        IClientInterface clientInterface = getClientInterface(ifaceName);
+        if (clientInterface == null) {
+            Log.e(TAG, "No valid wificond client interface handler");
+            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            return;
+        }
+
+        if (!mSendMgmtFrameInProgress.compareAndSet(false, true)) {
+            Log.e(TAG, "An existing management frame transmission is in progress!");
+            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
+            return;
+        }
+
+        SendMgmtFrameEvent sendMgmtFrameEvent = new SendMgmtFrameEvent(callback);
+        try {
+            clientInterface.SendMgmtFrame(frame, sendMgmtFrameEvent, mcs);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Exception while starting link probe: " + e);
+            // Call sendMgmtFrameEvent.OnFailure() instead of callback.onFailure() so that
+            // sendMgmtFrameEvent can clean up internal state, such as cancelling the timer.
+            sendMgmtFrameEvent.OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        }
+    }
+
+    /**
      * Clear all internal handles.
      */
     private void clearState() {
@@ -807,5 +933,6 @@ public class WificondControl implements IBinder.DeathRecipient {
         mScanEventHandlers.clear();
         mApInterfaces.clear();
         mApInterfaceListeners.clear();
+        mSendMgmtFrameInProgress.set(false);
     }
 }

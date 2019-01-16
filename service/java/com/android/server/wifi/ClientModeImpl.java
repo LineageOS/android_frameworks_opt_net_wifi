@@ -2610,29 +2610,31 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        Integer newRssi = null;
-        Integer newLinkSpeed = null;
-        Integer newFrequency = null;
         WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
 
-        newRssi = pollResult.currentRssi;
-        newLinkSpeed = pollResult.txBitrate;
-        newFrequency = pollResult.associationFrequency;
+        int newRssi = pollResult.currentRssi;
+        int newTxLinkSpeed = pollResult.txBitrate;
+        int newFrequency = pollResult.associationFrequency;
+        int newRxLinkSpeed = pollResult.rxBitrate;
 
         if (mVerboseLoggingEnabled) {
             logd("fetchRssiLinkSpeedAndFrequencyNative rssi=" + newRssi
-                    + " linkspeed=" + newLinkSpeed + " freq=" + newFrequency);
+                    + " TxLinkspeed=" + newTxLinkSpeed + " freq=" + newFrequency
+                    + " RxLinkSpeed=" + newRxLinkSpeed);
         }
 
-        if (newRssi != null && newRssi > WifiInfo.INVALID_RSSI && newRssi < WifiInfo.MAX_RSSI) {
+        if (newRssi > WifiInfo.INVALID_RSSI && newRssi < WifiInfo.MAX_RSSI) {
             // screen out invalid values
             /* some implementations avoid negative values by adding 256
              * so we need to adjust for that here.
              */
-            if (newRssi > 0) newRssi -= 256;
+            if (newRssi > 0) {
+                Log.wtf(TAG, "Error! +ve value RSSI: " + newRssi);
+                newRssi -= 256;
+            }
             mWifiInfo.setRssi(newRssi);
             /*
              * Rather then sending the raw RSSI out every time it
@@ -2654,20 +2656,27 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setRssi(WifiInfo.INVALID_RSSI);
             updateCapabilities();
         }
-
-        if (newLinkSpeed != null) {
-            mWifiInfo.setLinkSpeed(newLinkSpeed);
+        /*
+         * set Tx link speed only if it is valid
+         */
+        if (newTxLinkSpeed > 0) {
+            mWifiInfo.setLinkSpeed(newTxLinkSpeed);
+            mWifiInfo.setTxLinkSpeedMbps(newTxLinkSpeed);
         }
-        if (newFrequency != null && newFrequency > 0) {
+        /*
+         * set Rx link speed only if it is valid
+         */
+        if (newRxLinkSpeed > 0) {
+            mWifiInfo.setRxLinkSpeedMbps(newRxLinkSpeed);
+        }
+        if (newFrequency > 0) {
             mWifiInfo.setFrequency(newFrequency);
         }
         mWifiConfigManager.updateScanDetailCacheFromWifiInfo(mWifiInfo);
         /*
          * Increment various performance metrics
          */
-        if (newRssi != null && newLinkSpeed != null && newFrequency != null) {
-            mWifiMetrics.handlePollResult(mWifiInfo);
-        }
+        mWifiMetrics.handlePollResult(mWifiInfo);
     }
 
     // Polling has completed, hence we wont have a score anymore
@@ -2867,6 +2876,7 @@ public class ClientModeImpl extends StateMachine {
     private SupplicantState handleSupplicantStateChange(Message message) {
         StateChangeResult stateChangeResult = (StateChangeResult) message.obj;
         SupplicantState state = stateChangeResult.state;
+        mWifiScoreCard.noteSupplicantStateChanging(mWifiInfo, state);
         // Supplicant state change
         // [31-13] Reserved for future use
         // [8 - 0] Supplicant state (as defined in SupplicantState.java)
@@ -2909,6 +2919,7 @@ public class ClientModeImpl extends StateMachine {
         }
 
         mSupplicantStateTracker.sendMessage(Message.obtain(message));
+        mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         return state;
     }
 
@@ -2960,6 +2971,7 @@ public class ClientModeImpl extends StateMachine {
         mLastLinkLayerStats = null;
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+        mWifiScoreCard.resetConnectionState();
     }
 
     void handlePreDhcpSetup() {
@@ -3067,7 +3079,6 @@ public class ClientModeImpl extends StateMachine {
     private void reportConnectionAttemptStart(
             WifiConfiguration config, String targetBSSID, int roamType) {
         mWifiMetrics.startConnectionEvent(config, targetBSSID, roamType);
-        mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
         mWifiDiagnostics.reportConnectionEvent(WifiDiagnostics.CONNECTION_EVENT_STARTED);
         mWrongPasswordNotifier.onNewConnectionAttempt();
         removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
@@ -3093,6 +3104,10 @@ public class ClientModeImpl extends StateMachine {
      * the current connection attempt has concluded.
      */
     private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+        if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
+            mWifiScoreCard.noteConnectionFailure(mWifiInfo,
+                    level2FailureCode, connectivityFailureCode);
+        }
         mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
         mNetworkFactory.handleConnectionAttemptEnded(
@@ -3192,12 +3207,10 @@ public class ClientModeImpl extends StateMachine {
         mWifiNative.disconnect(mInterfaceName);
     }
 
-    // TODO: De-duplicated this and handleIpConfigurationLost().
     private void handleIpReachabilityLost() {
+        mWifiScoreCard.noteIpReachabilityLost(mWifiInfo);
         mWifiInfo.setInetAddress(null);
         mWifiInfo.setMeteredHint(false);
-
-        // TODO: Determine whether to call some form of mWifiConfigManager.handleSSIDStateChange().
 
         // Disconnect via supplicant, and let autojoin retry connecting to the network.
         mWifiNative.disconnect(mInterfaceName);
@@ -3856,6 +3869,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
             // Inform sar manager that wifi is Enabled
             mSarManager.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
+            mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         }
 
         @Override
@@ -3881,6 +3895,7 @@ public class ClientModeImpl extends StateMachine {
             }
             mWifiInfo.reset();
             mWifiInfo.setSupplicantState(SupplicantState.DISCONNECTED);
+            mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
             stopClientMode();
         }
 
@@ -4170,6 +4185,8 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_CONNECT and no config, bail out...");
                         break;
                     }
+                    // Update scorecard while there is still state from existing connection
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
 
@@ -5446,7 +5463,7 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_ROAM and no config, bail out...");
                         break;
                     }
-
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
                     setTargetBssid(config, bssid);
                     mTargetNetworkId = netId;
 
@@ -5703,9 +5720,31 @@ public class ClientModeImpl extends StateMachine {
             return;
         }
 
+        /*
+         * Try authentication in the following order.
+         *
+         *    Standard       Cellular_auth     Type Command
+         *
+         * 1. 3GPP TS 31.102 3G_authentication [Length][RAND][Length][AUTN]
+         *                            [Length][RES][Length][CK][Length][IK] and more
+         * 2. 3GPP TS 31.102 2G_authentication [Length][RAND]
+         *                            [Length][SRES][Length][Cipher Key Kc]
+         * 3. 3GPP TS 11.11  2G_authentication [RAND]
+         *                            [SRES][Cipher Key Kc]
+         */
         String response =
                 TelephonyUtil.getGsmSimAuthResponse(requestData.data, getTelephonyManager());
         if (response == null) {
+            // In case of failure, issue may be due to sim type, retry as No.2 case
+            response = TelephonyUtil.getGsmSimpleSimAuthResponse(requestData.data,
+                    getTelephonyManager());
+            if (response == null) {
+                // In case of failure, issue may be due to sim type, retry as No.3 case
+                response = TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(requestData.data,
+                        getTelephonyManager());
+            }
+        }
+        if (response == null || response.length() == 0) {
             mWifiNative.simAuthFailedResponse(mInterfaceName, requestData.networkId);
         } else {
             logv("Supplicant Response -" + response);

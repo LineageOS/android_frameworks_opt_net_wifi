@@ -167,7 +167,7 @@ public class WifiNativeInterfaceManagementTest {
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
-                new Handler(mLooper.getLooper()));
+                new Handler(mLooper.getLooper()), null);
         mWifiNative.initialize();
         mWifiNative.registerStatusListener(mStatusListener);
 

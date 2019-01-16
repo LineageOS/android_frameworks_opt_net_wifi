@@ -209,6 +209,7 @@ public class XmlUtilTest {
         configuration.creatorName = configuration.lastUpdateName = TEST_PACKAGE_NAME;
         configuration.creationTime = "04-04-2016";
         configuration.getOrCreateRandomizedMacAddress();
+        configuration.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
 
         serializeDeserializeWifiConfigurationForConfigStore(configuration);
     }
@@ -427,6 +428,31 @@ public class XmlUtilTest {
         config.enterpriseConfig.setPlmn("1234");
         config.enterpriseConfig.setRealm("test.com");
         serializeDeserializeWifiConfigurationForConfigStore(config);
+    }
+
+    /**
+     * Verify that when the macRandomizationSetting field is not found in the XML file,
+     * macRandomizationSetting is defaulted to RANDOMIZATION_NONE.
+     * @throws IOException
+     * @throws XmlPullParserException
+     */
+    @Test
+    public void testMacRandomizationSettingDefaultToRandomizationNone()
+            throws IOException, XmlPullParserException {
+        // First generate XML data that only has the header filled in
+        final XmlSerializer out = new FastXmlSerializer();
+        final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        out.setOutput(outputStream, StandardCharsets.UTF_8.name());
+        XmlUtil.writeDocumentStart(out, mXmlDocHeader);
+        XmlUtil.writeDocumentEnd(out, mXmlDocHeader);
+
+        // Deserialize the data
+        Pair<String, WifiConfiguration> retrieved =
+                deserializeWifiConfiguration(outputStream.toByteArray());
+
+        // Verify that macRandomizationSetting is set to |RANDOMIZATION_NONE|
+        assertEquals(WifiConfiguration.RANDOMIZATION_NONE,
+                retrieved.second.macRandomizationSetting);
     }
 
     private byte[] serializeWifiConfigurationForBackup(WifiConfiguration configuration)

@@ -1061,9 +1061,7 @@ public class WifiServiceImplTest {
     private void registerLOHSRequestFull() {
         // allow test to proceed without a permission check failure
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
-        try {
-            when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
-        } catch (RemoteException e) { }
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
@@ -1123,20 +1121,6 @@ public class WifiServiceImplTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
-                TEST_PACKAGE_NAME);
-        assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
-    }
-
-    /**
-     * Do not register the LocalOnlyHotspot request if the caller app cannot be verified as the
-     * foreground app at the time of the request (ie, throws an exception in the check).
-     */
-    @Test
-    public void testStartLocalOnlyHotspotFailsIfForegroundAppCheckThrowsRemoteException()
-            throws Exception {
-        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
-        when(mFrameworkFacade.isAppForeground(anyInt())).thenThrow(new RemoteException());
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
                 TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
