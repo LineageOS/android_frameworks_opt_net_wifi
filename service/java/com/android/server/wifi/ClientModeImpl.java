@@ -739,6 +739,7 @@ public class ClientModeImpl extends StateMachine {
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    private boolean mConnectedMacRandomzationSupported;
 
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
@@ -880,8 +881,10 @@ public class ClientModeImpl extends StateMachine {
         mSuspendWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WifiSuspend");
         mSuspendWakeLock.setReferenceCounted(false);
 
+        mConnectedMacRandomzationSupported = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mTcpBufferSizes = mContext.getResources().getString(
-                com.android.internal.R.string.config_wifi_tcp_buffers);
+                R.string.config_wifi_tcp_buffers);
 
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
@@ -4191,7 +4194,8 @@ public class ClientModeImpl extends StateMachine {
                     setTargetBssid(config, bssid);
 
                     if (mEnableConnectedMacRandomization && config.macRandomizationSetting
-                            == WifiConfiguration.RANDOMIZATION_PERSISTENT) {
+                            == WifiConfiguration.RANDOMIZATION_PERSISTENT
+                            && mConnectedMacRandomzationSupported) {
                         configureRandomizedMacAddress(config);
                     } else {
                         setCurrentMacToFactoryMac(config);
