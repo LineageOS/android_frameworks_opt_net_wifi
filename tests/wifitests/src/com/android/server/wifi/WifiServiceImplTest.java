@@ -2226,6 +2226,40 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that the call to getPasspointConfigurations is not redirected to specific API
+     * syncGetPasspointConfigs when the caller doesn't have NETWORK_SETTINGS permissions and
+     * NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetPasspointConfigurationsWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.getPasspointConfigurations();
+    }
+
+    /**
+     * Verify that the call to removePasspointConfiguration is not redirected to specific API
+     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS permissions and
+     * NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRemovePasspointConfigurationWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.removePasspointConfiguration(null, null);
+    }
+
+    /**
      * Verify that a call to {@link WifiServiceImpl#restoreBackupData(byte[])} is only allowed from
      * callers with the signature only NETWORK_SETTINGS permission.
      */
