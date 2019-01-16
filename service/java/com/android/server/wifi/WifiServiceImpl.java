@@ -1672,7 +1672,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * see {@link android.net.wifi.WifiManager#getSupportedFeatures}
      */
     @Override
-    public int getSupportedFeatures() {
+    public long getSupportedFeatures() {
         enforceAccessPermission();
         if (mVerboseLoggingEnabled) {
             mLog.info("getSupportedFeatures uid=%").c(Binder.getCallingUid()).flush();
@@ -3072,7 +3072,7 @@ public class WifiServiceImpl extends BaseWifiService {
         return (getSupportedFeaturesInternal() & WIFI_FEATURE_INFRA_5G) == WIFI_FEATURE_INFRA_5G;
     }
 
-    private int getSupportedFeaturesInternal() {
+    private long getSupportedFeaturesInternal() {
         final AsyncChannel channel = mClientModeImplChannel;
         if (channel != null) {
             return mClientModeImpl.syncGetSupportedFeatures(channel);

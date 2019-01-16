@@ -65,7 +65,8 @@ public class WifiConnectivityHelperTest {
 
     private void setupWifiNative() {
         // Return firmware roaming feature as supported by default.
-        when(mWifiNative.getSupportedFeatureSet(any())).thenReturn(WIFI_FEATURE_CONTROL_ROAMING);
+        when(mWifiNative.getSupportedFeatureSet(any()))
+                .thenReturn((long) WIFI_FEATURE_CONTROL_ROAMING);
 
         doAnswer(new AnswerWithArguments() {
             public boolean answer(String ifaceName, WifiNative.RoamingCapabilities roamCap)
@@ -119,7 +120,8 @@ public class WifiConnectivityHelperTest {
      */
     @Test
     public void returnFirmwareRoamingNotSupported() {
-        when(mWifiNative.getSupportedFeatureSet(any())).thenReturn(~WIFI_FEATURE_CONTROL_ROAMING);
+        when(mWifiNative.getSupportedFeatureSet(any()))
+                .thenReturn((long) ~WIFI_FEATURE_CONTROL_ROAMING);
         assertTrue(mWifiConnectivityHelper.getFirmwareRoamingInfo());
         assertFalse(mWifiConnectivityHelper.isFirmwareRoamingSupported());
     }

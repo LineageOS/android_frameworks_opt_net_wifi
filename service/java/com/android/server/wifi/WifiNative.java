@@ -2616,7 +2616,7 @@ public class WifiNative {
      * @param ifaceName Name of the interface.
      * @return bitmask defined by WifiManager.WIFI_FEATURE_*
      */
-    public int getSupportedFeatureSet(@NonNull String ifaceName) {
+    public long getSupportedFeatureSet(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.getAdvancedKeyMgmtCapabilities(ifaceName)
                 | mWifiVendorHal.getSupportedFeatureSet(ifaceName);
     }
