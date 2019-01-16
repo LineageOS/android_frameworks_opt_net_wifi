@@ -66,8 +66,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -120,6 +122,7 @@ public class WifiConfigManagerTest {
     @Mock private NetworkListSharedStoreData mNetworkListSharedStoreData;
     @Mock private NetworkListUserStoreData mNetworkListUserStoreData;
     @Mock private DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
+    @Mock private RandomizedMacStoreData mRandomizedMacStoreData;
     @Mock private WifiConfigManager.OnSavedNetworkUpdateListener mWcmListener;
     @Mock private FrameworkFacade mFrameworkFacade;
 
@@ -278,6 +281,57 @@ public class WifiConfigManagerTest {
                 networks, retrievedNetworks);
         // Ensure that the newly added network is disabled.
         assertEquals(WifiConfiguration.Status.DISABLED, retrievedNetworks.get(0).status);
+    }
+
+    /**
+     * Verifies when adding a new network with already saved MAC, the saved MAC gets set to the
+     * internal WifiConfiguration.
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
+     */
+    @Test
+    public void testAddingNetworkWithMatchingMacAddressOverridesField() {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        Map<String, String> randomizedMacAddressMapping = new HashMap<>();
+        final String randMac = "12:23:34:45:56:67";
+        randomizedMacAddressMapping.put(openNetwork.configKey(), randMac);
+        assertNotEquals(randMac, openNetwork.getRandomizedMacAddress());
+        when(mRandomizedMacStoreData.getMacMapping()).thenReturn(randomizedMacAddressMapping);
+
+        // reads XML data storage
+        //mWifiConfigManager.loadFromStore();
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        assertEquals(randMac, retrievedNetworks.get(0).getRandomizedMacAddress().toString());
+    }
+
+    /**
+     * Verifies that when a network is added, removed, and then added back again, its randomized
+     * MAC address doesn't change.
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
+     */
+    @Test
+    public void testRandomizedMacAddressIsPersistedOverForgetNetwork() {
+        // Create and add an open network
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+
+        // Gets the randomized MAC address of the network added.
+        final String randMac = retrievedNetworks.get(0).getRandomizedMacAddress().toString();
+        // This MAC should be different from the default, uninitialized randomized MAC.
+        assertNotEquals(openNetwork.getRandomizedMacAddress().toString(), randMac);
+
+        // Remove the added network
+        verifyRemoveNetworkFromWifiConfigManager(openNetwork);
+        assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+
+        // Adds the network back again and verify randomized MAC address stays the same.
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+        retrievedNetworks = mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        assertEquals(randMac, retrievedNetworks.get(0).getRandomizedMacAddress().toString());
     }
 
     /**
@@ -4237,7 +4291,7 @@ public class WifiConfigManagerTest {
                         mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy,
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mNetworkListSharedStoreData,
                         mNetworkListUserStoreData, mDeletedEphemeralSsidsStoreData,
-                        mFrameworkFacade, mLooper.getLooper());
+                        mRandomizedMacStoreData, mFrameworkFacade, mLooper.getLooper());
         mWifiConfigManager.enableVerboseLogging(1);
     }
 
