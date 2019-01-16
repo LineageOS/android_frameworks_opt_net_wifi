@@ -22,6 +22,7 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
@@ -6027,6 +6028,13 @@ public class ClientModeImpl extends StateMachine {
      */
     public void removeNetworkRequestMatchCallback(int callbackIdentifier) {
         mNetworkFactory.removeCallback(callbackIdentifier);
+    }
+
+    /**
+     * Remove all approved access points from {@link WifiNetworkFactory} for the provided package.
+     */
+    public void removeNetworkRequestUserApprovedAccessPointsForApp(@NonNull String packageName) {
+        mNetworkFactory.removeUserApprovedAccessPointsForApp(packageName);
     }
 
     /**

@@ -2734,6 +2734,7 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
         verify(mWifiNetworkSuggestionsManager).removeApp(packageName);
+        verify(mClientModeImpl).removeNetworkRequestUserApprovedAccessPointsForApp(packageName);
     }
 
     @Test
@@ -2755,6 +2756,8 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
         verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
+        verify(mClientModeImpl, never()).removeNetworkRequestUserApprovedAccessPointsForApp(
+                packageName);
     }
 
     @Test
@@ -2776,6 +2779,8 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mScanRequestProxy, never()).clearScanRequestTimestampsForApp(anyString(), anyInt());
         verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
+        verify(mClientModeImpl, never()).removeNetworkRequestUserApprovedAccessPointsForApp(
+                anyString());
     }
 
     @Test

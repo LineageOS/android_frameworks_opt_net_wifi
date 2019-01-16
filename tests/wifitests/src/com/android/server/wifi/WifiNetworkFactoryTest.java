@@ -59,6 +59,7 @@ import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.Pair;
 
+import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.After;
@@ -161,6 +162,7 @@ public class WifiNetworkFactoryTest {
 
         // Setup with wifi on.
         mWifiNetworkFactory.setWifiState(true);
+        mWifiNetworkFactory.enableVerboseLogging(1);
     }
 
     /**
@@ -1646,6 +1648,278 @@ public class WifiNetworkFactoryTest {
         verify(mWifiScanner).startScan(any(), any(), any());
     }
 
+    /**
+     * Verify the user approval bypass for a specific request for an access point that was already
+     * approved previously.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidAndBssidMatchPreviouslyApproved()
+            throws Exception {
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // 1. First request (no user approval bypass)
+        ScanResult matchingScanResult1 = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult1);
+        // Now trigger user selection to the network.
+        mSelectedNetwork = ScanResultUtil.createNetworkFromScanResult(matchingScanResult1);
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+        reset(mNetworkRequestMatchCallback, mWifiScanner, mAlarmManager, mClientModeImpl);
+
+        // 2. Second request for the same access point (user approval bypass).
+        ScanResult matchingScanResult2 = matchingScanResult1;
+        ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
+                        MacAddress.BROADCAST_ADDRESS);
+        specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        // Trigger scan results & ensure we triggered a connect.
+        verify(mWifiScanner).startScan(any(), mScanListenerArgumentCaptor.capture(), any());
+        ScanListener scanListener = mScanListenerArgumentCaptor.getValue();
+        assertNotNull(scanListener);
+        scanListener.onResults(mTestScanDatas);
+
+        // Verify we did not trigger the match callback.
+        verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
+        // Verify that we sent a connection attempt to ClientModeImpl
+        verify(mClientModeImpl).sendMessage(any());
+    }
+
+    /**
+     * Verify that we don't bypass user approval for a specific request for an access point that was
+     * not approved previously.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidAndBssidMatchNotPreviouslyApproved()
+            throws Exception {
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // 1. First request (no user approval bypass)
+        ScanResult matchingScanResult1 = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult1);
+        // Now trigger user selection to the network.
+        mSelectedNetwork = ScanResultUtil.createNetworkFromScanResult(matchingScanResult1);
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+        reset(mNetworkRequestMatchCallback, mWifiScanner, mAlarmManager, mClientModeImpl);
+
+        // 2. Second request for a different access point (but same network).
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_1, TEST_SSID_3, TEST_SSID_4);
+        ScanResult matchingScanResult2 = mTestScanDatas[0].getResults()[1];
+        ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
+                        MacAddress.BROADCAST_ADDRESS);
+        specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        // Verify we triggered the match callback.
+        matchedScanResultsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult2);
+        // Verify that we did not send a connection attempt to ClientModeImpl.
+        verify(mClientModeImpl, never()).sendMessage(any());
+    }
+
+    /**
+     * Verify that we don't bypass user approval for a specific request for a network
+     * (not access point) that was approved previously.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatchPreviouslyApproved()
+            throws Exception {
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // 1. First request (no user approval bypass)
+        ScanResult matchingScanResult1 = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult1);
+        // Now trigger user selection to the network.
+        mSelectedNetwork = ScanResultUtil.createNetworkFromScanResult(matchingScanResult1);
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+        reset(mNetworkRequestMatchCallback, mWifiScanner, mAlarmManager, mClientModeImpl);
+
+        // 2. Second request for the same network (but not specific access point)
+        ScanResult matchingScanResult2 = matchingScanResult1;
+        ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        // match-all.
+        bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        // Verify we triggered the match callback.
+        matchedScanResultsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult2);
+        // Verify that we did not send a connection attempt to ClientModeImpl.
+        verify(mClientModeImpl, never()).sendMessage(any());
+    }
+
+    /**
+     * Verify the we don't bypass user approval for a specific request for an access point that was
+     * already approved previously, but was then removed (app uninstalled, user deleted it from
+     * notification, from tests, etc).
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidAndBssidMatchAfterApprovalsRemove()
+            throws Exception {
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // 1. First request (no user approval bypass)
+        ScanResult matchingScanResult1 = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult1);
+        // Now trigger user selection to the network.
+        mSelectedNetwork = ScanResultUtil.createNetworkFromScanResult(matchingScanResult1);
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+        reset(mNetworkRequestMatchCallback, mWifiScanner, mAlarmManager, mClientModeImpl);
+
+        // 2. Remove all approvals for the app.
+        mWifiNetworkFactory.removeUserApprovedAccessPointsForApp(TEST_PACKAGE_NAME_1);
+
+        // 3. Second request for the same access point
+        ScanResult matchingScanResult2 = matchingScanResult1;
+        ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
+                        MacAddress.ALL_ZEROS_ADDRESS);
+        specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        // Verify we triggered the match callback.
+        matchedScanResultsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult2);
+        // Verify that we did not send a connection attempt to ClientModeImpl.
+        verify(mClientModeImpl, never()).sendMessage(any());
+    }
+
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
         return sendNetworkRequestAndSetupForConnectionStatus(TEST_SSID_1);
     }
@@ -1756,7 +2030,7 @@ public class WifiNetworkFactoryTest {
             assertNotNull(alarmListener);
         }
 
-        verifyNoMoreInteractions(mWifiScanner, mAlarmManager);
+        mInOrder.verifyNoMoreInteractions();
     }
 
     private WifiNetworkSpecifier createWifiNetworkSpecifier(int uid, boolean isHidden) {

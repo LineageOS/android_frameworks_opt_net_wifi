@@ -2628,6 +2628,7 @@ public class WifiServiceImpl extends BaseWifiService {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
                         // Remove all suggestions from the package.
                         mWifiNetworkSuggestionsManager.removeApp(pkgName);
+                        mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(pkgName);
                     });
                 }
             }

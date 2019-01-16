@@ -163,6 +163,11 @@ public class WifiShellCommand extends ShellCommand {
                     pw.println(hasUserApproved ? "yes" : "no");
                     return 0;
                 }
+                case "network-requests-remove-user-approved-access-points": {
+                    String packageName = getNextArgRequired();
+                    mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(packageName);
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -204,6 +209,8 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Sets whether network suggestions from the app is approved or not.");
         pw.println("  network-suggestions-has-user-approved <package name>");
         pw.println("    Queries whether network suggestions from the app is approved or not.");
+        pw.println("  network-requests-remove-user-approved-access-points <package name>");
+        pw.println("    Removes all user approved network requests for the app.");
         pw.println();
     }
 }
