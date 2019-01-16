@@ -2172,6 +2172,74 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that the call to getAllMatchingFqdnsForScanResults is not redirected to specific API
+     * syncGetAllMatchingFqdnsForScanResults when the caller doesn't have NETWORK_SETTINGS
+     * permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetAllMatchingFqdnsForScanResultsWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.getAllMatchingFqdnsForScanResults(new ArrayList<>());
+    }
+
+    /**
+     * Verify that the call to getWifiConfigsForPasspointProfiles is not redirected to specific API
+     * syncGetWifiConfigsForPasspointProfiles when the caller doesn't have NETWORK_SETTINGS
+     * permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetWifiConfigsForPasspointProfilesWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.getWifiConfigsForPasspointProfiles(new ArrayList<>());
+    }
+
+    /**
+     * Verify that the call to getMatchingOsuProviders is not redirected to specific API
+     * syncGetMatchingOsuProviders when the caller doesn't have NETWORK_SETTINGS
+     * permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetMatchingOsuProvidersWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.getMatchingOsuProviders(new ArrayList<>());
+    }
+
+    /**
+     * Verify that the call to getMatchingPasspointConfigsForOsuProviders is not redirected to
+     * specific API syncGetMatchingPasspointConfigsForOsuProviders when the caller doesn't have
+     * NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetMatchingPasspointConfigsForOsuProvidersWithOutPermissions() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
+        mWifiServiceImpl.getMatchingPasspointConfigsForOsuProviders(new ArrayList<>());
+    }
+
+    /**
      * Verify that the call to startSubscriptionProvisioning is redirected to the Passpoint
      * specific API startSubscriptionProvisioning when the caller has the right permissions.
      */
@@ -2215,13 +2283,17 @@ public class WifiServiceImplTest {
     /**
      * Verify that the call to startSubscriptionProvisioning is not redirected to the Passpoint
      * specific API startSubscriptionProvisioning when the caller doesn't have NETWORK_SETTINGS
-     * permissions.
+     * permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testStartSubscriptionProvisioningWithoutPermission() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                        eq("WifiService"));
+    public void testStartSubscriptionProvisioningWithoutPermissions() throws Exception {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mContext.checkSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+
         mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
     }
 

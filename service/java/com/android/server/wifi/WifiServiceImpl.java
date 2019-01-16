@@ -1857,7 +1857,12 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public Map<String, Map<Integer, List<ScanResult>>> getAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults) {
-        enforceNetworkSettingsPermission();
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1878,7 +1883,12 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public Map<OsuProvider, List<ScanResult>> getMatchingOsuProviders(
             List<ScanResult> scanResults) {
-        enforceNetworkSettingsPermission();
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
         }
@@ -1898,7 +1908,12 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public Map<OsuProvider, PasspointConfiguration> getMatchingPasspointConfigsForOsuProviders(
             List<OsuProvider> osuProviders) {
-        enforceNetworkSettingsPermission();
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigsForOsuProviders uid=%").c(
                     Binder.getCallingUid()).flush();
@@ -1926,6 +1941,12 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public List<WifiConfiguration> getWifiConfigsForPasspointProfiles(List<String> fqdnList) {
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (mVerboseLoggingEnabled) {
             mLog.info("getWifiConfigsForPasspointProfiles uid=%").c(
                     Binder.getCallingUid()).flush();
@@ -2953,10 +2974,10 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Starts subscription provisioning with a provider
+     * Starts subscription provisioning with a provider.
      *
      * @param provider {@link OsuProvider} the provider to provision with
-     * @param callback {@link IProvisoningCallback} the callback object to inform status
+     * @param callback {@link IProvisioningCallback} the callback object to inform status
      */
     @Override
     public void startSubscriptionProvisioning(OsuProvider provider,
@@ -2967,7 +2988,12 @@ public class WifiServiceImpl extends BaseWifiService {
         if (callback == null) {
             throw new IllegalArgumentException("Callback must not be null");
         }
-        enforceNetworkSettingsPermission();
+        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
+                != PERMISSION_GRANTED)
+                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
+                != PERMISSION_GRANTED)) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
         if (!mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT)) {
             throw new UnsupportedOperationException("Passpoint not enabled");
