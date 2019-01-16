@@ -1129,6 +1129,10 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         assertEquals("DisconnectingState", getCurrentState().getName());
+        // Verifies that WifiLastResortWatchdog be notified
+        // by DHCP failure
+        verify(mWifiLastResortWatchdog, times(2)).noteConnectionFailureAndTriggerIfNeeded(
+                sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_DHCP);
     }
 
     /**
@@ -3076,5 +3080,33 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         verify(mWifiConfigManager).removePasspointConfiguredNetwork(eq(fqdn));
+    }
+
+    /**
+     * Verifies that WifiLastResortWatchdog is notified of FOURWAY_HANDSHAKE_TIMEOUT.
+     */
+    @Test
+    public void testHandshakeTimeoutUpdatesWatchdog() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        // Verifies that WifiLastResortWatchdog won't be notified
+        // by other reason code
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 2, sBSSID);
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectedState", getCurrentState().getName());
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
+                sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+
+        // Verifies that WifiLastResortWatchdog be notified
+        // for FOURWAY_HANDSHAKE_TIMEOUT.
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 15, sBSSID);
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectedState", getCurrentState().getName());
+        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+                sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
     }
 }
