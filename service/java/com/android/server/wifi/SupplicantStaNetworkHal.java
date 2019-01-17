@@ -218,6 +218,7 @@ public class SupplicantStaNetworkHal {
             if (getKeyMgmt()) {
                 BitSet keyMgmtMask = supplicantToWifiConfigurationKeyMgmtMask(mKeyMgmtMask);
                 config.allowedKeyManagement = removeFastTransitionFlags(keyMgmtMask);
+                config.allowedKeyManagement = removeSha256KeyMgmtFlags(config.allowedKeyManagement);
             }
             /** allowedProtocols */
             if (getProto()) {
@@ -348,6 +349,8 @@ public class SupplicantStaNetworkHal {
             if (config.allowedKeyManagement.cardinality() != 0) {
                 // Add FT flags if supported.
                 BitSet keyMgmtMask = addFastTransitionFlags(config.allowedKeyManagement);
+                // Add SHA256 key management flags.
+                keyMgmtMask = addSha256KeyMgmtFlags(keyMgmtMask);
                 if (!setKeyMgmt(wifiConfigurationToSupplicantKeyMgmtMask(keyMgmtMask))) {
                     Log.e(TAG, "failed to set Key Management");
                     return false;
@@ -738,6 +741,14 @@ public class SupplicantStaNetworkHal {
                     mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
                             .SUITE_B_192;
                     break;
+                case WifiConfiguration.KeyMgmt.WPA_PSK_SHA256:
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                            .WPA_PSK_SHA256;
+                    break;
+                case WifiConfiguration.KeyMgmt.WPA_EAP_SHA256:
+                    mask |= android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                            .WPA_EAP_SHA256;
+                    break;
                 case WifiConfiguration.KeyMgmt.WPA2_PSK: // This should never happen
                 default:
                     throw new IllegalArgumentException(
@@ -965,7 +976,12 @@ public class SupplicantStaNetworkHal {
         mask = supplicantMaskValueToWifiConfigurationBitSet(
                 mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
                         .SUITE_B_192, bitset, WifiConfiguration.KeyMgmt.SUITE_B_192);
-
+        mask = supplicantMaskValueToWifiConfigurationBitSet(
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                        .WPA_PSK_SHA256, bitset, WifiConfiguration.KeyMgmt.WPA_PSK_SHA256);
+        mask = supplicantMaskValueToWifiConfigurationBitSet(
+                mask, android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                        .WPA_EAP_SHA256, bitset, WifiConfiguration.KeyMgmt.WPA_EAP_SHA256);
         if (mask != 0) {
             throw new IllegalArgumentException(
                     "invalid key mgmt mask from supplicant: " + mask);
@@ -1240,7 +1256,8 @@ public class SupplicantStaNetworkHal {
 
                 iSupplicantStaNetworkV12 = getV1_2StaNetwork();
                 if (iSupplicantStaNetworkV12 != null) {
-                    /* Support for new key management types; SAE, OWE
+                    /* Support for new key management types;
+                     * SAE, OWE, WPA_PSK_SHA256, WPA_EAP_SHA256
                      * Requires HAL v1.2 or higher */
                     status = iSupplicantStaNetworkV12.setKeyMgmt_1_2(keyMgmtMask);
                 } else {
@@ -2977,6 +2994,34 @@ public class SupplicantStaNetworkHal {
             BitSet modifiedFlags = (BitSet) keyManagementFlags.clone();
             modifiedFlags.clear(WifiConfiguration.KeyMgmt.FT_PSK);
             modifiedFlags.clear(WifiConfiguration.KeyMgmt.FT_EAP);
+            return modifiedFlags;
+        }
+    }
+
+     /**
+     * Adds SHA256 key management flags for networks.
+     */
+    private BitSet addSha256KeyMgmtFlags(BitSet keyManagementFlags) {
+        synchronized (mLock) {
+            BitSet modifiedFlags = (BitSet) keyManagementFlags.clone();
+            if (keyManagementFlags.get(WifiConfiguration.KeyMgmt.WPA_PSK)) {
+                modifiedFlags.set(WifiConfiguration.KeyMgmt.WPA_PSK_SHA256);
+            }
+            if (keyManagementFlags.get(WifiConfiguration.KeyMgmt.WPA_EAP)) {
+                modifiedFlags.set(WifiConfiguration.KeyMgmt.WPA_EAP_SHA256);
+            }
+            return modifiedFlags;
+        }
+    }
+
+    /**
+     * Removes SHA256 key management flags for networks.
+     */
+    private BitSet removeSha256KeyMgmtFlags(BitSet keyManagementFlags) {
+        synchronized (mLock) {
+            BitSet modifiedFlags = (BitSet) keyManagementFlags.clone();
+            modifiedFlags.clear(WifiConfiguration.KeyMgmt.WPA_PSK_SHA256);
+            modifiedFlags.clear(WifiConfiguration.KeyMgmt.WPA_EAP_SHA256);
             return modifiedFlags;
         }
     }

@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.MacAddress;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiSsid;
 import android.util.ArrayMap;
 import android.util.Base64;
 import android.util.Log;
@@ -428,7 +429,7 @@ public class WifiScoreCard {
 
     private @NonNull PerBssid lookupBssid(String ssid, String bssid) {
         MacAddress mac;
-        if (ssid == null || bssid == null) {
+        if (ssid == null || WifiSsid.NONE.equals(ssid) || bssid == null) {
             return mDummyPerBssid;
         }
         try {

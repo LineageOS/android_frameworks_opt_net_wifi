@@ -989,9 +989,6 @@ public class ClientModeImpl extends StateMachine {
                 sendMessage(CMD_IPV4_PROVISIONING_SUCCESS, dhcpResults);
             } else {
                 sendMessage(CMD_IPV4_PROVISIONING_FAILURE);
-                mWifiInjector.getWifiLastResortWatchdog().noteConnectionFailureAndTriggerIfNeeded(
-                        getTargetSsid(), mTargetRoamBSSID,
-                        WifiLastResortWatchdog.FAILURE_CODE_DHCP);
             }
         }
 
@@ -4858,6 +4855,10 @@ public class ClientModeImpl extends StateMachine {
                 }
                 case CMD_IPV4_PROVISIONING_FAILURE: {
                     handleIPv4Failure();
+                    mWifiInjector.getWifiLastResortWatchdog()
+                            .noteConnectionFailureAndTriggerIfNeeded(
+                                    getTargetSsid(), mTargetRoamBSSID,
+                                    WifiLastResortWatchdog.FAILURE_CODE_DHCP);
                     break;
                 }
                 case CMD_IP_CONFIGURATION_SUCCESSFUL:
@@ -4882,6 +4883,10 @@ public class ClientModeImpl extends StateMachine {
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_DHCP,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                    mWifiInjector.getWifiLastResortWatchdog()
+                            .noteConnectionFailureAndTriggerIfNeeded(
+                                    getTargetSsid(), mTargetRoamBSSID,
+                                    WifiLastResortWatchdog.FAILURE_CODE_DHCP);
                     transitionTo(mDisconnectingState);
                     break;
                 case CMD_IP_REACHABILITY_LOST:
@@ -5608,9 +5613,13 @@ public class ClientModeImpl extends StateMachine {
                             StaEvent.DISCONNECT_GENERIC);
                     mWifiNative.disconnect(mInterfaceName);
                     break;
-                /* Ignore network disconnect */
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
-                    // Interpret this as an L2 connection failure
+                    if (message.arg2 == 15 /* FOURWAY_HANDSHAKE_TIMEOUT */) {
+                        mWifiInjector.getWifiLastResortWatchdog()
+                                .noteConnectionFailureAndTriggerIfNeeded(
+                                        getTargetSsid(), mTargetRoamBSSID,
+                                        WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+                    }
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     StateChangeResult stateChangeResult = (StateChangeResult) message.obj;
