@@ -133,7 +133,7 @@ public class DppManagerTest {
                 EASY_CONNECT_NETWORK_ROLE_STA,
                 mDppCallback);
         verify(mDppCallback).onFailure(
-                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
     }
@@ -194,7 +194,7 @@ public class DppManagerTest {
                 EASY_CONNECT_NETWORK_ROLE_STA,
                 mDppCallback);
         verify(mDppCallback).onFailure(
-                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
     }
@@ -207,7 +207,7 @@ public class DppManagerTest {
 
         mDppManager.startDppAsEnrolleeInitiator(0, mBinder, mUri, mDppCallback);
         verify(mDppCallback).onFailure(
-                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
     }
