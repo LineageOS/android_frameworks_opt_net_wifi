@@ -1016,6 +1016,67 @@ public class WifiNetworkFactoryTest {
     }
 
     /**
+     * Verify handling of user selection to trigger connection to a network. Ensure we fill
+     * up the BSSID field for connection to specific access points.
+     */
+    @Test
+    public void
+            testNetworkSpecifierHandleUserSelectionConnectToNetworkUsingLiteralSsidAndBssidMatch()
+            throws Exception {
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Make a specific AP request.
+        ScanResult matchingScanResult = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult.BSSID),
+                        MacAddress.BROADCAST_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
+                mNetworkRequestUserSelectionCallback.capture());
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        // Now trigger user selection to the network.
+        mSelectedNetwork = ScanResultUtil.createNetworkFromScanResult(matchingScanResult);
+        INetworkRequestUserSelectionCallback networkRequestUserSelectionCallback =
+                mNetworkRequestUserSelectionCallback.getValue();
+        assertNotNull(networkRequestUserSelectionCallback);
+        networkRequestUserSelectionCallback.select(mSelectedNetwork);
+        mLooper.dispatchAll();
+
+        // Verify WifiConfiguration params.
+        ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+        verify(mWifiConfigManager).addOrUpdateNetwork(
+                wifiConfigurationCaptor.capture(), eq(Process.WIFI_UID));
+        WifiConfiguration network =  wifiConfigurationCaptor.getValue();
+        assertNotNull(network);
+        WifiConfiguration expectedWifiConfiguration = new WifiConfiguration(mSelectedNetwork);
+        expectedWifiConfiguration.BSSID = matchingScanResult.BSSID;
+        WifiConfigurationTestUtil.assertConfigurationEqual(expectedWifiConfiguration, network);
+        assertTrue(network.ephemeral);
+
+        // Verify connection message.
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
+
+        Message message = messageCaptor.getValue();
+        assertNotNull(message);
+
+        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
+        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+    }
+
+    /**
      * Verify handling of user selection to reject the request.
      */
     @Test

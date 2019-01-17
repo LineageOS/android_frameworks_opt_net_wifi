@@ -675,6 +675,13 @@ public class WifiNetworkFactory extends NetworkFactory {
         // Disable Auto-join so that NetworkFactory can take control of the network connection.
         mWifiConnectivityManager.setSpecificNetworkRequestInProgress(true);
 
+        // If the request is for a specific SSID and BSSID, then set WifiConfiguration.BSSID field
+        // to prevent roaming.
+        if (isActiveRequestForSingleAccessPoint()) {
+            network.BSSID =
+                    mActiveSpecificNetworkRequestSpecifier.bssidPatternMatcher.first.toString();
+        }
+
         // Mark the network ephemeral so that it's automatically removed at the end of connection.
         network.ephemeral = true;
         // Store the user selected network.
