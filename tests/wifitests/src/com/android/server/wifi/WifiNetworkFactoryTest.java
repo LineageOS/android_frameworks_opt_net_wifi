@@ -33,6 +33,7 @@ import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
@@ -88,6 +89,7 @@ public class WifiNetworkFactoryTest {
     private static final int TEST_CALLBACK_IDENTIFIER = 123;
     private static final String TEST_PACKAGE_NAME_1 = "com.test.networkrequest.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.test.networkrequest.2";
+    private static final String TEST_APP_NAME = "app";
     private static final String TEST_SSID_1 = "test1234";
     private static final String TEST_SSID_2 = "test12345678";
     private static final String TEST_SSID_3 = "abc1234";
@@ -150,6 +152,8 @@ public class WifiNetworkFactoryTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getNameForUid(TEST_UID_1)).thenReturn(TEST_PACKAGE_NAME_1);
         when(mPackageManager.getNameForUid(TEST_UID_2)).thenReturn(TEST_PACKAGE_NAME_2);
+        when(mPackageManager.getApplicationInfo(any(), anyInt())).thenReturn(new ApplicationInfo());
+        when(mPackageManager.getApplicationLabel(any())).thenReturn(TEST_APP_NAME);
         when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE);
         when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_2))
@@ -439,8 +443,8 @@ public class WifiNetworkFactoryTest {
         Intent intent = intentArgumentCaptor.getValue();
         assertNotNull(intent);
         assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
-        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_PACKAGE_NAME),
-                TEST_PACKAGE_NAME_1);
+        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_APP_NAME),
+                TEST_APP_NAME);
         assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
@@ -468,8 +472,8 @@ public class WifiNetworkFactoryTest {
         assertNotNull(intent);
         assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
         assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
-        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_PACKAGE_NAME),
-                TEST_PACKAGE_NAME_1);
+        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_APP_NAME),
+                TEST_APP_NAME);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
         assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
 

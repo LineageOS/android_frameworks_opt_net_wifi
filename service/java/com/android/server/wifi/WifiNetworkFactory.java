@@ -25,6 +25,8 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
@@ -86,8 +88,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     public static final String UI_START_INTENT_CATEGORY = "android.intent.category.DEFAULT";
     @VisibleForTesting
-    public static final String UI_START_INTENT_EXTRA_PACKAGE_NAME =
-            "com.android.settings.wifi.extra.PACKAGE_NAME";
+    public static final String UI_START_INTENT_EXTRA_APP_NAME =
+            "com.android.settings.wifi.extra.APP_NAME";
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -1033,14 +1035,26 @@ public class WifiNetworkFactory extends NetworkFactory {
         mConnectionTimeoutSet = true;
     }
 
+    private @NonNull CharSequence getAppName(@NonNull String packageName) {
+        ApplicationInfo applicationInfo = null;
+        try {
+            applicationInfo = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Failed to find app name for " + packageName);
+            return "";
+        }
+        CharSequence appName = mContext.getPackageManager().getApplicationLabel(applicationInfo);
+        return (appName != null) ? appName : "";
+    }
+
     private void startUi() {
         Intent intent = new Intent();
         intent.setAction(UI_START_INTENT_ACTION);
         intent.addCategory(UI_START_INTENT_CATEGORY);
         intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
         int requestorUid = mActiveSpecificNetworkRequestSpecifier.requestorUid;
-        intent.putExtra(UI_START_INTENT_EXTRA_PACKAGE_NAME,
-                mContext.getPackageManager().getNameForUid(requestorUid));
+        intent.putExtra(UI_START_INTENT_EXTRA_APP_NAME,
+                getAppName(mContext.getPackageManager().getNameForUid(requestorUid)));
         mContext.startActivityAsUser(intent,
                 UserHandle.getUserHandleForUid(requestorUid));
     }
