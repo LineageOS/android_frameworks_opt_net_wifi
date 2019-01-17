@@ -44,6 +44,7 @@ import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkMisc;
+import android.net.NetworkSpecifier;
 import android.net.dhcp.DhcpClient;
 import android.net.ip.IpClient;
 import android.net.wifi.ScanResult;
@@ -52,6 +53,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
@@ -2929,6 +2931,68 @@ public class ClientModeImplTest {
                 .setNetworkValidatedInternetAccess(FRAMEWORK_NETWORK_ID, true);
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
+    }
+
+    /**
+     * Verify that we set the INTERNET capability in the network agent when connected
+     * as a result of auto-join/legacy API's .
+     */
+    @Test
+    public void verifyNetworkCapabilities() throws Exception {
+        when(mWifiNetworkFactory.getSpecificNetworkRequestUid(any()))
+                .thenReturn(Process.INVALID_UID);
+        // Simulate the first connection.
+        connect();
+        ArgumentCaptor<NetworkCapabilities> networkCapabilitiesCaptor =
+                ArgumentCaptor.forClass(NetworkCapabilities.class);
+        verify(mConnectivityManager).registerNetworkAgent(any(Messenger.class),
+                any(NetworkInfo.class), any(LinkProperties.class),
+                networkCapabilitiesCaptor.capture(), anyInt(), any(NetworkMisc.class));
+
+        NetworkCapabilities networkCapabilities = networkCapabilitiesCaptor.getValue();
+        assertNotNull(networkCapabilities);
+
+        // should have internet capability.
+        assertTrue(networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET));
+
+        NetworkSpecifier networkSpecifier = networkCapabilities.getNetworkSpecifier();
+        assertTrue(networkSpecifier instanceof WifiNetworkAgentSpecifier);
+        WifiNetworkAgentSpecifier wifiNetworkAgentSpecifier =
+                (WifiNetworkAgentSpecifier) networkSpecifier;
+        WifiNetworkAgentSpecifier expectedWifiNetworkAgentSpecifier =
+                new WifiNetworkAgentSpecifier(mCmi.getCurrentWifiConfiguration(),
+                        Process.INVALID_UID);
+        assertEquals(expectedWifiNetworkAgentSpecifier, wifiNetworkAgentSpecifier);
+    }
+
+    /**
+     * Verify that we don't set the INTERNET capability in the network agent when connected
+     * as a result of the new network request API.
+     */
+    @Test
+    public void verifyNetworkCapabilitiesForSpecificRequest() throws Exception {
+        when(mWifiNetworkFactory.getSpecificNetworkRequestUid(any())).thenReturn(TEST_UID);
+        // Simulate the first connection.
+        connect();
+        ArgumentCaptor<NetworkCapabilities> networkCapabilitiesCaptor =
+                ArgumentCaptor.forClass(NetworkCapabilities.class);
+        verify(mConnectivityManager).registerNetworkAgent(any(Messenger.class),
+                any(NetworkInfo.class), any(LinkProperties.class),
+                networkCapabilitiesCaptor.capture(), anyInt(), any(NetworkMisc.class));
+
+        NetworkCapabilities networkCapabilities = networkCapabilitiesCaptor.getValue();
+        assertNotNull(networkCapabilities);
+
+        // should not have internet capability.
+        assertFalse(networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET));
+
+        NetworkSpecifier networkSpecifier = networkCapabilities.getNetworkSpecifier();
+        assertTrue(networkSpecifier instanceof WifiNetworkAgentSpecifier);
+        WifiNetworkAgentSpecifier wifiNetworkAgentSpecifier =
+                (WifiNetworkAgentSpecifier) networkSpecifier;
+        WifiNetworkAgentSpecifier expectedWifiNetworkAgentSpecifier =
+                new WifiNetworkAgentSpecifier(mCmi.getCurrentWifiConfiguration(), TEST_UID);
+        assertEquals(expectedWifiNetworkAgentSpecifier, wifiNetworkAgentSpecifier);
     }
 
     /**

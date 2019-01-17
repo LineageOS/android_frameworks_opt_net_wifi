@@ -23,6 +23,7 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
@@ -310,7 +311,6 @@ public class ClientModeImpl extends StateMachine {
     // NOTE: Do not return to clients - see syncRequestConnectionInfo()
     private final ExtendedWifiInfo mWifiInfo;
     private NetworkInfo mNetworkInfo;
-    private final NetworkCapabilities mDfltNetworkCapabilities;
     private SupplicantStateTracker mSupplicantStateTracker;
 
     // Indicates that framework is attempting to roam, set true on CMD_START_ROAM, set false when
@@ -806,23 +806,19 @@ public class ClientModeImpl extends StateMachine {
         mNetworkCapabilitiesFilter.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING);
         mNetworkCapabilitiesFilter.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_CONGESTED);
         mNetworkCapabilitiesFilter.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
+        // TODO - needs to be a bit more dynamic
         mNetworkCapabilitiesFilter.setLinkUpstreamBandwidthKbps(1024 * 1024);
         mNetworkCapabilitiesFilter.setLinkDownstreamBandwidthKbps(1024 * 1024);
-        // TODO - needs to be a bit more dynamic
-        mDfltNetworkCapabilities = new NetworkCapabilities(mNetworkCapabilitiesFilter);
-
-        NetworkCapabilities factoryNetworkCapabilities =
-                new NetworkCapabilities(mNetworkCapabilitiesFilter);
-        factoryNetworkCapabilities.setNetworkSpecifier(new MatchAllNetworkSpecifier());
+        mNetworkCapabilitiesFilter.setNetworkSpecifier(new MatchAllNetworkSpecifier());
         // Make the network factories.
         mNetworkFactory = mWifiInjector.makeWifiNetworkFactory(
-                factoryNetworkCapabilities, mWifiConnectivityManager);
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
         // We can't filter untrusted network in the capabilities filter because a trusted
         // network would still satisfy a request that accepts untrusted ones.
         // We need a second network factory for untrusted network requests because we need a
         // different score filter for these requests.
         mUntrustedNetworkFactory = mWifiInjector.makeUntrustedWifiNetworkFactory(
-                factoryNetworkCapabilities, mWifiConnectivityManager);
+                mNetworkCapabilitiesFilter, mWifiConnectivityManager);
 
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
 
@@ -4515,28 +4511,20 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    private WifiNetworkAgentSpecifier getNetworkAgentSpecifier() {
-        WifiConfiguration currentWifiConfiguration = getCurrentWifiConfiguration();
-        if (currentWifiConfiguration == null) return null;
-        currentWifiConfiguration.BSSID = getCurrentBSSID();
-        WifiNetworkAgentSpecifier wns = new WifiNetworkAgentSpecifier(currentWifiConfiguration,
-                mNetworkFactory.getActiveSpecificNetworkRequestUid(currentWifiConfiguration));
+    private WifiNetworkAgentSpecifier createNetworkAgentSpecifier(
+            @NonNull WifiConfiguration currentWifiConfiguration, @Nullable String currentBssid,
+            int specificRequestUid) {
+        currentWifiConfiguration.BSSID = currentBssid;
+        WifiNetworkAgentSpecifier wns =
+                new WifiNetworkAgentSpecifier(currentWifiConfiguration, specificRequestUid);
         return wns;
     }
 
-    /**
-     * Method to update network capabilities from the current WifiConfiguration.
-     */
-    public void updateCapabilities() {
-        updateCapabilities(getCurrentWifiConfiguration());
-    }
-
-    private void updateCapabilities(WifiConfiguration config) {
-        if (mNetworkAgent == null || config == null) {
-            return;
+    private NetworkCapabilities getCapabilities(WifiConfiguration currentWifiConfiguration) {
+        final NetworkCapabilities result = new NetworkCapabilities(mNetworkCapabilitiesFilter);
+        if (currentWifiConfiguration == null) {
+            return result;
         }
-
-        final NetworkCapabilities result = new NetworkCapabilities(mDfltNetworkCapabilities);
 
         if (!mWifiInfo.isTrusted()) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
@@ -4544,7 +4532,7 @@ public class ClientModeImpl extends StateMachine {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED);
         }
 
-        if (!WifiConfiguration.isMetered(config, mWifiInfo)) {
+        if (!WifiConfiguration.isMetered(currentWifiConfiguration, mWifiInfo)) {
             result.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         } else {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
@@ -4556,7 +4544,7 @@ public class ClientModeImpl extends StateMachine {
             result.setSignalStrength(NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED);
         }
 
-        if (config.osu) {
+        if (currentWifiConfiguration.osu) {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
         }
 
@@ -4565,10 +4553,32 @@ public class ClientModeImpl extends StateMachine {
         } else {
             result.setSSID(null);
         }
-        // Fill up the network specifier for this connection.
-        result.setNetworkSpecifier(getNetworkAgentSpecifier());
+        int specificRequestUid =
+                mNetworkFactory.getSpecificNetworkRequestUid(currentWifiConfiguration);
+        // There is an active specific request.
+        if (specificRequestUid != Process.INVALID_UID) {
+            // Remove internet capability.
+            result.removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        }
+        // Fill up the network agent specifier for this connection.
+        result.setNetworkSpecifier(
+                createNetworkAgentSpecifier(
+                        currentWifiConfiguration, getCurrentBSSID(), specificRequestUid));
+        return result;
+    }
 
-        mNetworkAgent.sendNetworkCapabilities(result);
+    /**
+     * Method to update network capabilities from the current WifiConfiguration.
+     */
+    public void updateCapabilities() {
+        updateCapabilities(getCurrentWifiConfiguration());
+    }
+
+    private void updateCapabilities(WifiConfiguration currentWifiConfiguration) {
+        if (mNetworkAgent == null) {
+            return;
+        }
+        mNetworkAgent.sendNetworkCapabilities(getCapabilities(currentWifiConfiguration));
     }
 
     /**
@@ -4788,15 +4798,7 @@ public class ClientModeImpl extends StateMachine {
             }
             setNetworkDetailedState(DetailedState.CONNECTING);
 
-            final NetworkCapabilities nc;
-            if (mWifiInfo != null && !mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
-                nc = new NetworkCapabilities(mNetworkCapabilitiesFilter);
-                nc.setSSID(mWifiInfo.getSSID());
-            } else {
-                nc = mNetworkCapabilitiesFilter;
-            }
-            // Fill up the network specifier for this connection.
-            nc.setNetworkSpecifier(getNetworkAgentSpecifier());
+            final NetworkCapabilities nc = getCapabilities(getCurrentWifiConfiguration());
             mNetworkAgent = new WifiNetworkAgent(getHandler().getLooper(), mContext,
                     "WifiNetworkAgent", mNetworkInfo, nc, mLinkProperties, 60, mNetworkMisc);
 

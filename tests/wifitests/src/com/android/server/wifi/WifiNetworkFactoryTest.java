@@ -1309,7 +1309,7 @@ public class WifiNetworkFactoryTest {
     @Test
     public void testHandleNetworkRequestWithSpecifierGetUid() throws Exception {
         assertEquals(Process.INVALID_UID,
-                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(new WifiConfiguration()));
+                mWifiNetworkFactory.getSpecificNetworkRequestUid(new WifiConfiguration()));
 
         sendNetworkRequestAndSetupForConnectionStatus();
         assertNotNull(mSelectedNetwork);
@@ -1318,12 +1318,12 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
         connectedNetwork.SSID += "test";
         assertEquals(Process.INVALID_UID,
-                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(connectedNetwork));
+                mWifiNetworkFactory.getSpecificNetworkRequestUid(connectedNetwork));
 
         // connected to the correct network.
         connectedNetwork = new WifiConfiguration(mSelectedNetwork);
         assertEquals(TEST_UID_1,
-                mWifiNetworkFactory.getActiveSpecificNetworkRequestUid(connectedNetwork));
+                mWifiNetworkFactory.getSpecificNetworkRequestUid(connectedNetwork));
     }
 
     /**

@@ -618,15 +618,19 @@ public class WifiNetworkFactory extends NetworkFactory {
      * @param connectedNetwork WifiConfiguration corresponding to the connected network.
      * @return uid of the specific request (if any), else -1.
      */
-    public int getActiveSpecificNetworkRequestUid(@NonNull WifiConfiguration connectedNetwork) {
+    public int getSpecificNetworkRequestUid(@NonNull WifiConfiguration connectedNetwork) {
         if (mUserSelectedNetwork == null || connectedNetwork == null) return Process.INVALID_UID;
         if (!isUserSelectedNetwork(connectedNetwork)) {
             Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
             return Process.INVALID_UID;
         }
-        return mActiveSpecificNetworkRequestSpecifier != null
-                ? mActiveSpecificNetworkRequestSpecifier.requestorUid
-                : Process.INVALID_UID;
+        if (mConnectedSpecificNetworkRequestSpecifier != null) {
+            return mConnectedSpecificNetworkRequestSpecifier.requestorUid;
+        }
+        if (mActiveSpecificNetworkRequestSpecifier != null) {
+            return mActiveSpecificNetworkRequestSpecifier.requestorUid;
+        }
+        return Process.INVALID_UID;
     }
 
     // Helper method to add the provided network configuration to WifiConfigManager, if it does not
