@@ -56,7 +56,7 @@ final class CandidateScorerExample implements WifiCandidates.CandidateScorer {
      *
      * Ideally, this is a pure function of the candidate, and side-effect free.
      */
-    public ScoredCandidate scoreCandidate(Candidate candidate) {
+    private ScoredCandidate scoreCandidate(Candidate candidate) {
         final boolean is5GHz = (candidate.getFrequency() >= 5000);
         final int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
         final int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);

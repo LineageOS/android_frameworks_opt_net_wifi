@@ -107,10 +107,10 @@ public class WifiCandidates {
      * always be strictly positive. For instance, it might be the standard deviation.
      */
     public static class ScoredCandidate {
-        public final float value;
-        public final float err;
+        public final double value;
+        public final double err;
         public final Key candidateKey;
-        public ScoredCandidate(float value, float err, Candidate candidate) {
+        public ScoredCandidate(double value, double err, Candidate candidate) {
             this.value = value;
             this.err = err;
             this.candidateKey = (candidate == null) ? null : candidate.key;
@@ -119,7 +119,7 @@ public class WifiCandidates {
          * Represents no score
          */
         public static final ScoredCandidate NONE =
-                new ScoredCandidate(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, null);
+                new ScoredCandidate(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, null);
     }
 
     /**
