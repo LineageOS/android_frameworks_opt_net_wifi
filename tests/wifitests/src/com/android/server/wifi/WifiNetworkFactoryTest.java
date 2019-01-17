@@ -588,9 +588,30 @@ public class WifiNetworkFactoryTest {
         verify(mNetworkRequestMatchCallback).onUserSelectionCallbackRegistration(
                 any(INetworkRequestUserSelectionCallback.class));
 
-        // TBD: Need to hook up the matching logic to invoke these callbacks to actually
-        // verify that they're in the database.
         mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+
+        verifyNoMoreInteractions(mNetworkRequestMatchCallback);
+    }
+
+    /**
+     * Verify callback registration when the active request has already been released..
+     */
+    @Test
+    public void testHandleCallbackRegistrationWithNoActiveRequest() throws Exception {
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
+
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+
+        //Ensure that we trigger the onAbort callback & nothing else.
+        verify(mNetworkRequestMatchCallback).onAbort();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+
+        verifyNoMoreInteractions(mNetworkRequestMatchCallback);
     }
 
     /**

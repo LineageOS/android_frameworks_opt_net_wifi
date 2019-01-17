@@ -402,7 +402,11 @@ public class WifiNetworkFactory extends NetworkFactory {
                             int callbackIdentifier) {
         if (mActiveSpecificNetworkRequest == null) {
             Log.wtf(TAG, "No valid network request. Ignoring callback registration");
-            // TODO(b/113878056): End UI flow here.
+            try {
+                callback.onAbort();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to invoke network request abort callback " + callback, e);
+            }
             return;
         }
         if (!mRegisteredCallbacks.add(binder, callback, callbackIdentifier)) {
