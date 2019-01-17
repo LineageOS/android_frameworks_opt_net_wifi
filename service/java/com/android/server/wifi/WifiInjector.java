@@ -593,7 +593,15 @@ public class WifiInjector {
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 mClock, this, wifiConnectivityManager, mWifiConfigManager,
-                mWifiPermissionsUtil);
+                mWifiConfigStore, mWifiPermissionsUtil);
+    }
+
+    /**
+     * Construct an instance of {@link NetworkRequestStoreData}.
+     */
+    public NetworkRequestStoreData makeNetworkRequestStoreData(
+            NetworkRequestStoreData.DataSource dataSource) {
+        return new NetworkRequestStoreData(dataSource);
     }
 
     /**

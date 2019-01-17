@@ -67,7 +67,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-
 /**
  * Network factory to handle trusted wifi network requests.
  */
@@ -98,6 +97,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final WifiInjector mWifiInjector;
     private final WifiConnectivityManager mWifiConnectivityManager;
     private final WifiConfigManager mWifiConfigManager;
+    private final WifiConfigStore mWifiConfigStore;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
@@ -128,11 +128,16 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean mConnectionTimeoutSet = false;
     private boolean mIsPeriodicScanPaused = false;
     private boolean mWifiEnabled = false;
+    /**
+     * Indicates that we have new data to serialize.
+     */
+    private boolean mHasNewDataToSerialize = false;
 
     /**
      * Helper class to store an access point that the user previously approved for a specific app.
+     * TODO(b/123014687): Move to a common util class.
      */
-    private static class AccessPoint {
+    public static class AccessPoint {
         public final String ssid;
         public final MacAddress bssid;
         public final @NetworkType int networkType;
@@ -310,12 +315,39 @@ public class WifiNetworkFactory extends NetworkFactory {
         return true;
     };
 
+    /**
+     * Module to interact with the wifi config store.
+     */
+    private class NetworkRequestDataSource implements NetworkRequestStoreData.DataSource {
+        @Override
+        public Map<String, Set<AccessPoint>> toSerialize() {
+            // Clear the flag after writing to disk.
+            mHasNewDataToSerialize = false;
+            return mUserApprovedAccessPointMap;
+        }
+
+        @Override
+        public void fromDeserialized(Map<String, Set<AccessPoint>> approvedAccessPointMap) {
+            mUserApprovedAccessPointMap.putAll(approvedAccessPointMap);
+        }
+
+        @Override
+        public void reset() {
+            mUserApprovedAccessPointMap.clear();
+        }
+
+        @Override
+        public boolean hasNewDataToSerialize() {
+            return mHasNewDataToSerialize;
+        }
+    }
 
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
                               Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager,
                               WifiConfigManager configManager,
+                              WifiConfigStore configStore,
                               WifiPermissionsUtil wifiPermissionsUtil) {
         super(looper, context, TAG, nc);
         mContext = context;
@@ -326,6 +358,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mWifiInjector = wifiInjector;
         mWifiConnectivityManager = connectivityManager;
         mWifiConfigManager = configManager;
+        mWifiConfigStore = configStore;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         // Create the scan settings.
         mScanSettings = new WifiScanner.ScanSettings();
@@ -338,7 +371,19 @@ public class WifiNetworkFactory extends NetworkFactory {
         mRegisteredCallbacks = new ExternalCallbackTracker<INetworkRequestMatchCallback>(mHandler);
         mSrcMessenger = new Messenger(new Handler(looper, mNetworkConnectionTriggerCallback));
 
+        // register the data store for serializing/deserializing data.
+        configStore.registerStoreData(
+                wifiInjector.makeNetworkRequestStoreData(new NetworkRequestDataSource()));
+
         setScoreFilter(SCORE_FILTER);
+    }
+
+    private void saveToStore() {
+        // Set the flag to let WifiConfigStore that we have new data to write.
+        mHasNewDataToSerialize = true;
+        if (!mWifiConfigManager.saveToStore(true)) {
+            Log.w(TAG, "Failed to save to store");
+        }
     }
 
     /**
@@ -549,6 +594,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         super.dump(fd, pw, args);
         pw.println(TAG + ": mGenericConnectionReqCount " + mGenericConnectionReqCount);
         pw.println(TAG + ": mActiveSpecificNetworkRequest " + mActiveSpecificNetworkRequest);
+        pw.println(TAG + ": mUserApprovedAccessPointMap " + mUserApprovedAccessPointMap);
     }
 
     /**
@@ -1061,6 +1107,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                 newUserApprovedAccessPoints.add(approvedAccessPoint);
             }
         }
+        if (newUserApprovedAccessPoints.isEmpty()) return;
+
         String requestorPackageName = mContext.getPackageManager().getNameForUid(
                 mActiveSpecificNetworkRequestSpecifier.requestorUid);
         Set<AccessPoint> approvedAccessPoints =
@@ -1069,11 +1117,12 @@ public class WifiNetworkFactory extends NetworkFactory {
             approvedAccessPoints = new HashSet<>();
             mUserApprovedAccessPointMap.put(requestorPackageName, approvedAccessPoints);
         }
-        approvedAccessPoints.addAll(newUserApprovedAccessPoints);
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + newUserApprovedAccessPoints
                     + " to user approved access point for " + requestorPackageName);
         }
+        approvedAccessPoints.addAll(newUserApprovedAccessPoints);
+        saveToStore();
     }
 
     private String getSimplePackageName(@NonNull String origPackageName) {
