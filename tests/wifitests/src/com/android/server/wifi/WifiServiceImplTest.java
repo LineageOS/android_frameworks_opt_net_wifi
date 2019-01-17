@@ -62,9 +62,11 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
+import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -173,6 +175,7 @@ public class WifiServiceImplTest {
     private OsuProvider mOsuProvider;
     private SoftApCallback mStateMachineSoftApCallback;
     private ApplicationInfo mApplicationInfo;
+    private ResolveInfo mResolveInfo;
 
     final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
             ArgumentCaptor.forClass(BroadcastReceiver.class);
@@ -296,6 +299,8 @@ public class WifiServiceImplTest {
         mAsyncChannel = spy(new AsyncChannel());
         mApplicationInfo = new ApplicationInfo();
         mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
+        mResolveInfo = new ResolveInfo();
+        mResolveInfo.activityInfo = new ActivityInfo();
 
         WifiInjector.sWifiInjector = mWifiInjector;
         when(mRequestInfo.getPid()).thenReturn(mPid);
@@ -315,6 +320,7 @@ public class WifiServiceImplTest {
         when(mContext.getContentResolver()).thenReturn(mContentResolver);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getApplicationInfo(any(), anyInt())).thenReturn(mApplicationInfo);
+        when(mPackageManager.resolveActivity(any(), anyInt())).thenReturn(mResolveInfo);
         when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
         doNothing().when(mFrameworkFacade).registerContentObserver(eq(mContext), any(),
                 anyBoolean(), any());
@@ -3224,6 +3230,30 @@ public class WifiServiceImplTest {
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+
+        verifyCheckChangePermission(TEST_PACKAGE_NAME);
+        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+    }
+
+    /**
+     * Verify that add or update networks is allowed for default car dock app.
+     */
+    @Test
+    public void testAddOrUpdateNetworkIsAllowedForDefaultCarDockApp() throws Exception {
+        mLooper.dispatchAll();
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+
+        mResolveInfo.activityInfo.packageName = TEST_PACKAGE_NAME;
+        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mPackageManager).resolveActivity(intentArgumentCaptor.capture(), anyInt());
+        assertNotNull(intentArgumentCaptor.getValue());
+        assertTrue(intentArgumentCaptor.getValue().hasCategory(Intent.CATEGORY_CAR_DOCK));
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
