@@ -66,11 +66,12 @@ public class WifiNetworkSelectorTest {
         setupResources();
         setupWifiConfigManager();
         setupWifiInfo();
+        mScoringParams = new ScoringParams(mContext);
         mLocalLog = new LocalLog(512);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
                 mWifiScoreCard,
-                new ScoringParams(mContext),
+                mScoringParams,
                 mWifiConfigManager, mClock,
                 mLocalLog);
         mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
@@ -147,6 +148,7 @@ public class WifiNetworkSelectorTest {
     @Spy private MockResources mResource = new MockResources();
     @Mock private WifiInfo mWifiInfo;
     @Mock private Clock mClock;
+    private ScoringParams mScoringParams;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;
@@ -1284,5 +1286,20 @@ public class WifiNetworkSelectorTest {
         assertTrue(mWifiNetworkSelector.getFilteredScanDetailsForCarrierUnsavedNetworks(
                 mCarrierNetworkConfig).isEmpty());
     }
+
+    /**
+     * Test registerCandidateScorer.
+     *
+     * Just make sure it does not crash, for now.
+     */
+    @Test
+    public void testRegisterCandidateScorer() {
+        WifiCandidates.CandidateScorer candidateScorer = new CandidateScorerExample(mScoringParams);
+
+        mWifiNetworkSelector.registerCandidateScorer(candidateScorer);
+
+        test2GhzHighQuality5GhzAvailable();
+    }
+
 }
 

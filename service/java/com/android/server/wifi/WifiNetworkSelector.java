@@ -25,7 +25,9 @@ import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.text.TextUtils;
+import android.util.ArrayMap;
 import android.util.LocalLog;
+import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.R;
@@ -37,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class looks at all the connectivity scan results then
@@ -68,7 +71,7 @@ public class WifiNetworkSelector {
     private final int mStayOnNetworkMinimumRxRate;
     private final boolean mEnableAutoJoinWhenAssociated;
 
-    private final WifiCandidates.CandidateScorer mCandidateScorer;
+    private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -626,18 +629,27 @@ public class WifiNetworkSelector {
 
         if (selectedNetwork != null) {
             selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
-            mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
 
-        if (mCandidateScorer != null) {
-            WifiCandidates.ScoredCandidate choice = wifiCandidates.choose(mCandidateScorer);
-            if (choice.candidateKey != null) {
-                localLog(mCandidateScorer.getIdentifier()
-                        + " would choose " + choice.candidateKey.networkId
-                        + " score " + choice.value + "+/-" + choice.err);
-            } else {
-                localLog(mCandidateScorer.getIdentifier() + " found no candidates");
+        // Run any (experimental) CandidateScorers we have
+        try {
+            for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
+                WifiCandidates.ScoredCandidate choice = wifiCandidates.choose(candidateScorer);
+                if (choice.candidateKey != null) {
+                    localLog(candidateScorer.getIdentifier()
+                            + " would choose " + choice.candidateKey.networkId
+                            + " score " + choice.value + "+/-" + choice.err);
+                } else {
+                    localLog(candidateScorer.getIdentifier() + " found no candidates");
+                }
             }
+        } catch (RuntimeException e) {
+            Log.wtf(TAG, "Exception running a CandidateScorer, disabling", e);
+            mCandidateScorers.clear();
+        }
+
+        if (selectedNetwork != null) {
+            mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
 
         return selectedNetwork;
@@ -653,6 +665,28 @@ public class WifiNetworkSelector {
         mEvaluators.add(Preconditions.checkNotNull(evaluator));
     }
 
+    /**
+     * Register a candidate scorer.
+     *
+     * Replaces any existing scorer having the same identifier.
+     */
+    public void registerCandidateScorer(@NonNull WifiCandidates.CandidateScorer candidateScorer) {
+        String name = Preconditions.checkNotNull(candidateScorer).getIdentifier();
+        if (name != null) {
+            mCandidateScorers.put(name, candidateScorer);
+        }
+    }
+
+    /**
+     * Unregister a candidate scorer.
+     */
+    public void unregisterCandidateScorer(@NonNull WifiCandidates.CandidateScorer candidateScorer) {
+        String name = Preconditions.checkNotNull(candidateScorer).getIdentifier();
+        if (name != null) {
+            mCandidateScorers.remove(name);
+        }
+    }
+
     WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog) {
         mWifiConfigManager = configManager;
@@ -660,7 +694,6 @@ public class WifiNetworkSelector {
         mWifiScoreCard = wifiScoreCard;
         mScoringParams = scoringParams;
         mLocalLog = localLog;
-        mCandidateScorer = null;
 
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);
