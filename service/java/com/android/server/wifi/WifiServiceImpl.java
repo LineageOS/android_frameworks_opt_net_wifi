@@ -97,6 +97,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.MutableInt;
@@ -1785,8 +1786,12 @@ public class WifiServiceImpl extends BaseWifiService {
                 Binder.restoreCallingIdentity(ident);
             }
         }
-        if (!isTargetSdkLessThanQOrPrivileged(
-                packageName, Binder.getCallingPid(), callingUid)) {
+        boolean isTargetSdkLessThanQOrPrivileged = isTargetSdkLessThanQOrPrivileged(
+                packageName, Binder.getCallingPid(), callingUid);
+        boolean isCarrierApp =
+                mWifiInjector.makeTelephonyManager().checkCarrierPrivilegesForPackage(packageName)
+                        == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
+        if (!isTargetSdkLessThanQOrPrivileged && !isCarrierApp) {
             mLog.info("getConfiguredNetworks not allowed for uid=%")
                     .c(callingUid).flush();
             return new ParceledListSlice<>(new ArrayList<>());
@@ -1798,7 +1803,17 @@ public class WifiServiceImpl extends BaseWifiService {
             List<WifiConfiguration> configs = mClientModeImpl.syncGetConfiguredNetworks(
                     callingUid, mClientModeImplChannel);
             if (configs != null) {
-                return new ParceledListSlice<WifiConfiguration>(configs);
+                if (isTargetSdkLessThanQOrPrivileged) {
+                    return new ParceledListSlice<WifiConfiguration>(configs);
+                } else { // Carrier app: should only get its own configs
+                    List<WifiConfiguration> creatorConfigs = new ArrayList<>();
+                    for (WifiConfiguration config : configs) {
+                        if (config.creatorUid == callingUid) {
+                            creatorConfigs.add(config);
+                        }
+                    }
+                    return new ParceledListSlice<WifiConfiguration>(creatorConfigs);
+                }
             }
         } else {
             Slog.e(TAG, "mClientModeImplChannel is not initialized");
