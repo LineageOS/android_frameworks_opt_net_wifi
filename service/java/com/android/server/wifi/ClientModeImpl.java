@@ -6127,12 +6127,11 @@ public class ClientModeImpl extends StateMachine {
 
     /**
      * Updates the Wi-Fi usability score.
-     * @param seqNum The sequence number of the provided score.
-     * @param score  The Wi-Fi usability score corresponding to seqNum.
-     * @param predictionHorizonSec The prediction horizon (in second) corresponding of the Wi-Fi
-     *                             usability score.
+     * @param seqNum Sequence number of the Wi-Fi usability score.
+     * @param score The Wi-Fi usability score.
+     * @param predictionHorizonSec Prediction horizon of the Wi-Fi usability score.
      */
     public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
-        mWifiMetrics.updateWifiUsabilityScore(seqNum, score, predictionHorizonSec);
+        mWifiMetrics.incrementWifiUsabilityScoreCount(seqNum, score, predictionHorizonSec);
     }
 }
