@@ -614,8 +614,6 @@ public class WifiNetworkSuggestionsManager {
         // Clear the scan cache.
         removeFromScanResultMatchInfoMap(extNetworkSuggestions);
         saveToStore();
-        // Disconnect from the current network, if the suggestion was removed.
-        triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
     }
 
     /**
@@ -651,7 +649,8 @@ public class WifiNetworkSuggestionsManager {
     public void removeApp(@NonNull String packageName) {
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) return;
-
+        // Disconnect from the current network, if the only suggestion for it was removed.
+        triggerDisconnectIfServingNetworkSuggestionRemoved(perAppInfo.extNetworkSuggestions);
         removeInternal(Collections.EMPTY_LIST, packageName, perAppInfo);
         // Remove the package fully from the internal database.
         mActiveNetworkSuggestionsPerApp.remove(packageName);

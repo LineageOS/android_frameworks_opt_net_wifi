@@ -170,6 +170,8 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiInjector).makeNetworkSuggestionStoreData(dataSourceArgumentCaptor.capture());
         mDataSource = dataSourceArgumentCaptor.getValue();
         assertNotNull(mDataSource);
+
+        mWifiNetworkSuggestionsManager.enableVerboseLogging(1);
     }
 
     /**
@@ -1179,7 +1181,7 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify that we disconnect from the network if the only network suggestion matching the
+     * Verify that we don't disconnect from the network if the only network suggestion matching the
      * connected network is removed.
      */
     @Test
@@ -1200,18 +1202,18 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
                 TEST_BSSID);
 
-        // Now remove the network suggestion and ensure we trigger a disconnect.
+        // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
-        verify(mClientModeImpl).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommand();
     }
 
     /**
-     * Verify that we do not disconnect from the network if there are network suggestion matching
-     * the connected network when one of them is removed.
+     * Verify that we do not disconnect from the network if there are network suggestion from
+     * multiple apps matching the connected network when one of the apps is removed.
      */
     @Test
-    public void testRemoveNetworkSuggestionsMatchingConnectionSuccessWithMultipleMatch() {
+    public void testRemoveAppMatchingConnectionSuccessWithMultipleMatch() {
         WifiConfiguration wifiConfiguration = WifiConfigurationTestUtil.createOpenNetwork();
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
                 wifiConfiguration, true, false, TEST_UID_1, TEST_PACKAGE_1);
@@ -1237,23 +1239,21 @@ public class WifiNetworkSuggestionsManagerTest {
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
-        // Now remove one of the network suggestion and ensure we did not trigger a disconnect.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.remove(networkSuggestionList1, TEST_PACKAGE_1));
+        // Now remove one of the apps and ensure we did not trigger a disconnect.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
         verify(mClientModeImpl, never()).disconnectCommand();
 
-        // Now remove the other one and ensure we trigger a disconnect.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_2));
+        // Now remove the other app and ensure we trigger a disconnect.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
         verify(mClientModeImpl).disconnectCommand();
     }
 
     /**
      * Verify that we do not disconnect from the network if there are no network suggestion matching
-     * the connected network when one of them is removed.
+     * the connected network when one of the app is removed.
      */
     @Test
-    public void testRemoveNetworkSuggestionsNotMatchingConnectionSuccess() {
+    public void testRemoveAppNotMatchingConnectionSuccess() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1270,9 +1270,8 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
                 WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
-        // Now remove the network suggestion and ensure we did not trigger a disconnect.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
+        // Now remove the app and ensure we did not trigger a disconnect.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
         verify(mClientModeImpl, never()).disconnectCommand();
     }
 
@@ -1303,9 +1302,8 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
                 WifiConfigurationTestUtil.createEapNetwork(), TEST_BSSID);
 
-        // Now remove the network suggestion and ensure we did not trigger a disconnect.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
+        // Now remove the app and ensure we did not trigger a disconnect.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
         verify(mClientModeImpl, never()).disconnectCommand();
     }
 
