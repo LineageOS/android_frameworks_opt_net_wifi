@@ -31,6 +31,7 @@ import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
+import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -104,6 +105,7 @@ public class WifiNetworkFactoryTest {
     @Mock Context mContext;
     @Mock ActivityManager mActivityManager;
     @Mock AlarmManager mAlarmManager;
+    @Mock AppOpsManager mAppOpsManager;
     @Mock Clock mClock;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
@@ -164,8 +166,8 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID_1));
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
-                mNetworkCapabilities, mActivityManager, mAlarmManager, mClock, mWifiInjector,
-                mWifiConnectivityManager, mWifiConfigManager, mWifiConfigStore,
+                mNetworkCapabilities, mActivityManager, mAlarmManager, mAppOpsManager, mClock,
+                mWifiInjector, mWifiConnectivityManager, mWifiConfigManager, mWifiConfigStore,
                 mWifiPermissionsUtil);
 
         ArgumentCaptor<NetworkRequestStoreData.DataSource> dataSourceArgumentCaptor =
@@ -232,6 +234,23 @@ public class WifiNetworkFactoryTest {
     @Test
     public void testHandleAcceptNetworkRequestWithNoSpecifier() {
         assertTrue(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+    }
+
+    /**
+     * Validates handling of acceptNetwork with a network specifier with invalid uid/package name.
+     */
+    @Test
+    public void testHandleAcceptNetworkRequestFromWithInvalidSpecifier() {
+        when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
+                .thenReturn(IMPORTANCE_GONE);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(TEST_UID_1))
+                .thenReturn(true);
+        doThrow(new SecurityException()).when(mAppOpsManager).checkPackage(anyInt(), anyString());
+
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+
+        assertFalse(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
     }
 
     /**
@@ -632,7 +651,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -669,7 +689,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -707,7 +728,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -745,7 +767,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -784,7 +807,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -825,7 +849,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -864,7 +889,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -1036,7 +1062,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1308,8 +1335,11 @@ public class WifiNetworkFactoryTest {
      */
     @Test
     public void testHandleNetworkRequestWithSpecifierGetUid() throws Exception {
-        assertEquals(Process.INVALID_UID,
-                mWifiNetworkFactory.getSpecificNetworkRequestUid(new WifiConfiguration()));
+        assertEquals(Integer.valueOf(Process.INVALID_UID),
+                mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                        new WifiConfiguration()).first);
+        assertTrue(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                        new WifiConfiguration()).second.isEmpty());
 
         sendNetworkRequestAndSetupForConnectionStatus();
         assertNotNull(mSelectedNetwork);
@@ -1317,13 +1347,20 @@ public class WifiNetworkFactoryTest {
         // connected to a different network.
         WifiConfiguration connectedNetwork = new WifiConfiguration(mSelectedNetwork);
         connectedNetwork.SSID += "test";
-        assertEquals(Process.INVALID_UID,
-                mWifiNetworkFactory.getSpecificNetworkRequestUid(connectedNetwork));
+        assertEquals(Integer.valueOf(Process.INVALID_UID),
+                mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                        new WifiConfiguration()).first);
+        assertTrue(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                new WifiConfiguration()).second.isEmpty());
 
         // connected to the correct network.
         connectedNetwork = new WifiConfiguration(mSelectedNetwork);
-        assertEquals(TEST_UID_1,
-                mWifiNetworkFactory.getSpecificNetworkRequestUid(connectedNetwork));
+        assertEquals(Integer.valueOf(TEST_UID_1),
+                mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                        connectedNetwork).first);
+        assertEquals(TEST_PACKAGE_NAME_1,
+                mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(
+                        connectedNetwork).second);
     }
 
     /**
@@ -1767,7 +1804,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1799,7 +1837,8 @@ public class WifiNetworkFactoryTest {
                 Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
                         MacAddress.BROADCAST_ADDRESS);
         specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1835,7 +1874,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1869,7 +1909,8 @@ public class WifiNetworkFactoryTest {
                 Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
                         MacAddress.BROADCAST_ADDRESS);
         specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1903,7 +1944,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1935,7 +1977,8 @@ public class WifiNetworkFactoryTest {
         bssidPatternMatch =
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
         specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -1970,7 +2013,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -2005,7 +2049,8 @@ public class WifiNetworkFactoryTest {
                 Pair.create(MacAddress.fromString(matchingScanResult2.BSSID),
                         MacAddress.ALL_ZEROS_ADDRESS);
         specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -2071,7 +2116,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
@@ -2150,7 +2196,8 @@ public class WifiNetworkFactoryTest {
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
         wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
@@ -2215,8 +2262,16 @@ public class WifiNetworkFactoryTest {
         } else {
             wifiConfiguration = WifiConfigurationTestUtil.createPskNetwork();
         }
+        String packageName = null;
+        if (uid == TEST_UID_1) {
+            packageName = TEST_PACKAGE_NAME_1;
+        } else if (uid == TEST_UID_2) {
+            packageName = TEST_PACKAGE_NAME_2;
+        } else {
+            fail();
+        }
         return new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, uid);
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, uid, packageName);
     }
 
     private static final int SCAN_RESULT_TYPE_OPEN = 0;

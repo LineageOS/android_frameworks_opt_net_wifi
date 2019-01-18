@@ -85,6 +85,7 @@ import android.telephony.TelephonyManager;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -425,6 +426,8 @@ public class ClientModeImplTest {
                 .thenReturn(mUntrustedWifiNetworkFactory);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
+        when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
+                .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
         when(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME)).thenReturn(
                 TEST_GLOBAL_MAC_ADDRESS);
@@ -2939,8 +2942,8 @@ public class ClientModeImplTest {
      */
     @Test
     public void verifyNetworkCapabilities() throws Exception {
-        when(mWifiNetworkFactory.getSpecificNetworkRequestUid(any()))
-                .thenReturn(Process.INVALID_UID);
+        when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
+                .thenReturn(Pair.create(Process.INVALID_UID, ""));
         // Simulate the first connection.
         connect();
         ArgumentCaptor<NetworkCapabilities> networkCapabilitiesCaptor =
@@ -2961,7 +2964,7 @@ public class ClientModeImplTest {
                 (WifiNetworkAgentSpecifier) networkSpecifier;
         WifiNetworkAgentSpecifier expectedWifiNetworkAgentSpecifier =
                 new WifiNetworkAgentSpecifier(mCmi.getCurrentWifiConfiguration(),
-                        Process.INVALID_UID);
+                        Process.INVALID_UID, "");
         assertEquals(expectedWifiNetworkAgentSpecifier, wifiNetworkAgentSpecifier);
     }
 
@@ -2971,7 +2974,8 @@ public class ClientModeImplTest {
      */
     @Test
     public void verifyNetworkCapabilitiesForSpecificRequest() throws Exception {
-        when(mWifiNetworkFactory.getSpecificNetworkRequestUid(any())).thenReturn(TEST_UID);
+        when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
+                .thenReturn(Pair.create(TEST_UID, OP_PACKAGE_NAME));
         // Simulate the first connection.
         connect();
         ArgumentCaptor<NetworkCapabilities> networkCapabilitiesCaptor =
@@ -2991,7 +2995,8 @@ public class ClientModeImplTest {
         WifiNetworkAgentSpecifier wifiNetworkAgentSpecifier =
                 (WifiNetworkAgentSpecifier) networkSpecifier;
         WifiNetworkAgentSpecifier expectedWifiNetworkAgentSpecifier =
-                new WifiNetworkAgentSpecifier(mCmi.getCurrentWifiConfiguration(), TEST_UID);
+                new WifiNetworkAgentSpecifier(mCmi.getCurrentWifiConfiguration(), TEST_UID,
+                        OP_PACKAGE_NAME);
         assertEquals(expectedWifiNetworkAgentSpecifier, wifiNetworkAgentSpecifier);
     }
 

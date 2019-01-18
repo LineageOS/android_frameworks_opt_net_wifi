@@ -191,6 +191,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         XmlUtil.writeNextValue(out, XML_TAG_IS_USER_INTERACTION_REQUIRED,
                 suggestion.isUserInteractionRequired);
         XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, suggestion.suggestorUid);
+        XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME,
+                suggestion.suggestorPackageName);
 
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
     }
@@ -266,6 +268,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
         int suggestorUid = Process.INVALID_UID;
+        String suggestorPackageName = null;
 
         // Loop through and parse out all the elements from the stream within this section.
         while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
@@ -282,6 +285,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_SUGGESTOR_UID:
                         suggestorUid = (int) value;
+                        break;
+                    case XML_TAG_SUGGESTOR_PACKAGE_NAME:
+                        suggestorPackageName = (String) value;
                         break;
                     default:
                         throw new XmlPullParserException(
@@ -303,9 +309,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         if (suggestorUid == -1) {
             throw new XmlPullParserException("XML parsing of suggestor uid failed");
         }
+        if (suggestorPackageName == null) {
+            throw new XmlPullParserException("XML parsing of suggestor package name failed");
+        }
         return new WifiNetworkSuggestion(
                 wifiConfiguration, isAppInteractionRequired, isUserInteractionRequired,
-                suggestorUid);
+                suggestorUid, suggestorPackageName);
     }
 }
 

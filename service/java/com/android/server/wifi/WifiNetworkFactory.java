@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
+import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -51,6 +52,7 @@ import android.os.UserHandle;
 import android.os.WorkSource;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.ScanResultMatchInfo.NetworkType;
@@ -94,6 +96,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final Context mContext;
     private final ActivityManager mActivityManager;
     private final AlarmManager mAlarmManager;
+    private final AppOpsManager mAppOpsManager;
     private final Clock mClock;
     private final Handler mHandler;
     private final WifiInjector mWifiInjector;
@@ -346,6 +349,7 @@ public class WifiNetworkFactory extends NetworkFactory {
 
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
+                              AppOpsManager appOpsManager,
                               Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager,
                               WifiConfigManager configManager,
@@ -355,6 +359,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mContext = context;
         mActivityManager = activityManager;
         mAlarmManager = alarmManager;
+        mAppOpsManager = appOpsManager;
         mClock = clock;
         mHandler = new Handler(looper);
         mWifiInjector = wifiInjector;
@@ -444,12 +449,12 @@ public class WifiNetworkFactory extends NetworkFactory {
             return true;
         }
         // Request from fg app can override any existing requests.
-        if (isRequestFromForegroundApp(newRequest.requestorUid)) return true;
+        if (isRequestFromForegroundApp(newRequest.requestorPackageName)) return true;
         // Request from fg service can override only if the existing request is not from a fg app.
-        if (!isRequestFromForegroundApp(existingRequest.requestorUid)) return true;
+        if (!isRequestFromForegroundApp(existingRequest.requestorPackageName)) return true;
         Log.e(TAG, "Already processing request from a foreground app "
-                + existingRequest.requestorUid + ". Rejecting request from "
-                + newRequest.requestorUid);
+                + existingRequest.requestorPackageName + ". Rejecting request from "
+                + newRequest.requestorPackageName);
         return false;
     }
 
@@ -478,14 +483,21 @@ public class WifiNetworkFactory extends NetworkFactory {
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
             if (!WifiConfigurationUtil.validateNetworkSpecifier(wns)) {
                 Log.e(TAG, "Invalid network specifier."
-                        + " Rejecting request from " + wns.requestorUid);
+                        + " Rejecting request from " + wns.requestorPackageName);
+                return false;
+            }
+            try {
+                mAppOpsManager.checkPackage(wns.requestorUid, wns.requestorPackageName);
+            } catch (SecurityException e) {
+                Log.e(TAG, "Invalid uid/package name " + wns.requestorPackageName + ", "
+                        + wns.requestorPackageName, e);
                 return false;
             }
             // Only allow specific wifi network request from foreground app/service.
             if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(wns.requestorUid)
-                    && !isRequestFromForegroundAppOrService(wns.requestorUid)) {
+                    && !isRequestFromForegroundAppOrService(wns.requestorPackageName)) {
                 Log.e(TAG, "Request not from foreground app or service."
-                        + " Rejecting request from " + wns.requestorUid);
+                        + " Rejecting request from " + wns.requestorPackageName);
                 return false;
             }
             // If there is an active request, only proceed if the new request is from a foreground
@@ -502,7 +514,8 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Accepted network request with specifier from fg "
-                        + (isRequestFromForegroundApp(wns.requestorUid) ? "app" : "service"));
+                        + (isRequestFromForegroundApp(wns.requestorPackageName)
+                        ? "app" : "service"));
             }
         }
         if (mVerboseLoggingEnabled) {
@@ -544,7 +557,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             WifiNetworkSpecifier wns = (WifiNetworkSpecifier) ns;
             mActiveSpecificNetworkRequestSpecifier = new WifiNetworkSpecifier(
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
-                    wns.requestorUid);
+                    wns.requestorUid, wns.requestorPackageName);
 
             // Start UI to let the user grant/disallow this request from the app.
             startUi();
@@ -616,21 +629,26 @@ public class WifiNetworkFactory extends NetworkFactory {
      * network.
      *
      * @param connectedNetwork WifiConfiguration corresponding to the connected network.
-     * @return uid of the specific request (if any), else -1.
+     * @return Pair of uid & package name of the specific request (if any), else <-1, "">.
      */
-    public int getSpecificNetworkRequestUid(@NonNull WifiConfiguration connectedNetwork) {
-        if (mUserSelectedNetwork == null || connectedNetwork == null) return Process.INVALID_UID;
+    public Pair<Integer, String> getSpecificNetworkRequestUidAndPackageName(
+            @NonNull WifiConfiguration connectedNetwork) {
+        if (mUserSelectedNetwork == null || connectedNetwork == null) {
+            return Pair.create(Process.INVALID_UID, "");
+        }
         if (!isUserSelectedNetwork(connectedNetwork)) {
             Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
-            return Process.INVALID_UID;
+            return Pair.create(Process.INVALID_UID, "");
         }
         if (mConnectedSpecificNetworkRequestSpecifier != null) {
-            return mConnectedSpecificNetworkRequestSpecifier.requestorUid;
+            return Pair.create(mConnectedSpecificNetworkRequestSpecifier.requestorUid,
+                    mConnectedSpecificNetworkRequestSpecifier.requestorPackageName);
         }
         if (mActiveSpecificNetworkRequestSpecifier != null) {
-            return mActiveSpecificNetworkRequestSpecifier.requestorUid;
+            return Pair.create(mActiveSpecificNetworkRequestSpecifier.requestorUid,
+                    mActiveSpecificNetworkRequestSpecifier.requestorPackageName);
         }
-        return Process.INVALID_UID;
+        return Pair.create(Process.INVALID_UID, "");
     }
 
     // Helper method to add the provided network configuration to WifiConfigManager, if it does not
@@ -893,9 +911,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     /**
      * Check if the request comes from foreground app/service.
      */
-    private boolean isRequestFromForegroundAppOrService(int requestorUid) {
+    private boolean isRequestFromForegroundAppOrService(@NonNull String requestorPackageName) {
         try {
-            String requestorPackageName = mContext.getPackageManager().getNameForUid(requestorUid);
             return mActivityManager.getPackageImportance(requestorPackageName)
                     <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
         } catch (SecurityException e) {
@@ -907,9 +924,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     /**
      * Check if the request comes from foreground app.
      */
-    private boolean isRequestFromForegroundApp(int requestorUid) {
+    private boolean isRequestFromForegroundApp(@NonNull String requestorPackageName) {
         try {
-            String requestorPackageName = mContext.getPackageManager().getNameForUid(requestorUid);
             return mActivityManager.getPackageImportance(requestorPackageName)
                     <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
         } catch (SecurityException e) {
@@ -1067,11 +1083,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         intent.setAction(UI_START_INTENT_ACTION);
         intent.addCategory(UI_START_INTENT_CATEGORY);
         intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
-        int requestorUid = mActiveSpecificNetworkRequestSpecifier.requestorUid;
         intent.putExtra(UI_START_INTENT_EXTRA_APP_NAME,
-                getAppName(mContext.getPackageManager().getNameForUid(requestorUid)));
-        mContext.startActivityAsUser(intent,
-                UserHandle.getUserHandleForUid(requestorUid));
+                getAppName(mActiveSpecificNetworkRequestSpecifier.requestorPackageName));
+        mContext.startActivityAsUser(intent, UserHandle.getUserHandleForUid(
+                mActiveSpecificNetworkRequestSpecifier.requestorUid));
     }
 
     // Helper method to determine if the specifier does not contain any patterns and matches
@@ -1095,8 +1110,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             findUserApprovedAccessPointForActiveRequestFromActiveMatchedScanResults() {
         if (mActiveSpecificNetworkRequestSpecifier == null
                 || mActiveMatchedScanResults == null) return null;
-        String requestorPackageName = mContext.getPackageManager().getNameForUid(
-                mActiveSpecificNetworkRequestSpecifier.requestorUid);
+        String requestorPackageName = mActiveSpecificNetworkRequestSpecifier.requestorPackageName;
         Set<AccessPoint> approvedAccessPoints =
                 mUserApprovedAccessPointMap.get(requestorPackageName);
         if (approvedAccessPoints == null) return null;
@@ -1138,8 +1152,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
         if (newUserApprovedAccessPoints.isEmpty()) return;
 
-        String requestorPackageName = mContext.getPackageManager().getNameForUid(
-                mActiveSpecificNetworkRequestSpecifier.requestorUid);
+        String requestorPackageName = mActiveSpecificNetworkRequestSpecifier.requestorPackageName;
         Set<AccessPoint> approvedAccessPoints =
                 mUserApprovedAccessPointMap.get(requestorPackageName);
         if (approvedAccessPoints == null) {
@@ -1154,18 +1167,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         saveToStore();
     }
 
-    private String getSimplePackageName(@NonNull String origPackageName) {
-        // TODO (b/122658039): We could alternatively plumb the package name in the network
-        // specifier itself. getNameForUid is kind of messy for shared UIDs.
-        // getNameForUid (Stored in packageName) returns a concatenation of name
-        // and uid for shared UIDs ("name:uid").
-        if (!origPackageName.contains(":")) {
-            return origPackageName; // regular app not using shared UID.
-        }
-        // Separate the package name from the string for app using shared UID.
-        return origPackageName.substring(0, origPackageName.indexOf(":"));
-    }
-
     /**
      * Remove all user approved access points for the specified app.
      */
@@ -1174,7 +1175,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                 mUserApprovedAccessPointMap.entrySet().iterator();
         while (iter.hasNext()) {
             Map.Entry<String, Set<AccessPoint>> entry = iter.next();
-            if (packageName.equals(getSimplePackageName(entry.getKey()))) {
+            if (packageName.equals(entry.getKey())) {
                 Log.i(TAG, "Removing all approved access points for " + packageName);
                 iter.remove();
             }

@@ -429,7 +429,7 @@ public class NetworkSuggestionEvaluatorTest {
                     ? WifiConfiguration.METERED_OVERRIDE_METERED
                     : WifiConfiguration.METERED_OVERRIDE_NONE;
             suggestions[i] = new WifiNetworkSuggestion(configs[i], appInteractions[i],
-                    false, uids[i]);
+                    false, uids[i], "");
         }
         return suggestions;
     }
