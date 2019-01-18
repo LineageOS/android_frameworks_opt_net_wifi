@@ -431,7 +431,8 @@ public class WifiNative {
         if (observer == null) return false;
         try {
             mNwManagementService.registerObserver(observer);
-        } catch (RemoteException e) {
+        } catch (RemoteException | IllegalStateException e) {
+            Log.e(TAG, "Unable to register observer", e);
             return false;
         }
         return true;
@@ -442,7 +443,8 @@ public class WifiNative {
         if (observer == null) return false;
         try {
             mNwManagementService.unregisterObserver(observer);
-        } catch (RemoteException e) {
+        } catch (RemoteException | IllegalStateException e) {
+            Log.e(TAG, "Unable to unregister observer", e);
             return false;
         }
         return true;
@@ -901,10 +903,8 @@ public class WifiNative {
             // - kernel is unaware when connected and fails to start IPv6 negotiation
             // - kernel can start autoconfiguration when 802.1x is not complete
             mNwManagementService.disableIpv6(ifaceName);
-        } catch (RemoteException re) {
-            Log.e(TAG, "Unable to change interface settings: " + re);
-        } catch (IllegalStateException ie) {
-            Log.e(TAG, "Unable to change interface settings: " + ie);
+        } catch (RemoteException | IllegalStateException e) {
+            Log.e(TAG, "Unable to change interface settings", e);
         }
     }
 
@@ -1093,7 +1093,8 @@ public class WifiNative {
             InterfaceConfiguration config = null;
             try {
                 config = mNwManagementService.getInterfaceConfig(ifaceName);
-            } catch (RemoteException e) {
+            } catch (RemoteException | IllegalStateException e) {
+                Log.e(TAG, "Unable to get interface config", e);
             }
             if (config == null) {
                 return false;
