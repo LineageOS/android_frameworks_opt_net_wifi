@@ -1406,7 +1406,10 @@ public class WifiServiceImpl extends BaseWifiService {
 
         synchronized (mLocalOnlyHotspotRequests) {
             // check if we are currently tethering
-            if (mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
+            // TODO(b/110697252): handle all configurations in the wifi stack
+            //                    (just by changing the HAL)
+            if (getMaxApInterfacesCount() < 2
+                    && mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
                 // Tethering is enabled, cannot start LocalOnlyHotspot
                 mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.").flush();
                 return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
@@ -2385,13 +2388,19 @@ public class WifiServiceImpl extends BaseWifiService {
 
     @Override
     public boolean isDualBandSupported() {
-        //TODO (b/80552904): Should move towards adding a driver API that checks at runtime
+        //TODO (b/123227116): pull it from the HAL
         if (mVerboseLoggingEnabled) {
             mLog.info("isDualBandSupported uid=%").c(Binder.getCallingUid()).flush();
         }
 
         return mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_wifi_dual_band_support);
+    }
+
+    private int getMaxApInterfacesCount() {
+        //TODO (b/123227116): pull it from the HAL
+        return mContext.getResources().getInteger(
+                com.android.internal.R.integer.config_wifi_max_ap_interfaces);
     }
 
     /**
