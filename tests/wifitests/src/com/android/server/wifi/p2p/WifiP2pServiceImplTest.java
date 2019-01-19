@@ -28,6 +28,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -291,6 +292,22 @@ public class WifiP2pServiceImplTest {
     }
 
     /**
+     * Mock send WifiP2pManager.DELETE_PERSISTENT_GROUP.
+     *
+     * @param replyMessenger for checking replied message.
+     * @param netId is the network id of the p2p group.
+     */
+    private void sendDeletePersistentGroupMsg(Messenger replyMessenger,
+            int netId) throws Exception {
+        Message msg = Message.obtain();
+        msg.what = WifiP2pManager.DELETE_PERSISTENT_GROUP;
+        msg.arg1 = netId;
+        msg.replyTo = replyMessenger;
+        mP2pStateMachineMessenger.send(Message.obtain(msg));
+        mLooper.dispatchAll();
+    }
+
+    /**
      * Mock Listen API msg
      *
      * @param replyMessenger for checking replied message.
@@ -384,53 +401,68 @@ public class WifiP2pServiceImplTest {
         }
     }
 
+    /**
+     * Set up the instance of WifiP2pServiceImpl for testing.
+     *
+     * @param supported defines the p2p is supported or not in this instance.
+     */
+    private void setUpWifiP2pServiceImpl(boolean supported) {
+        reset(mContext, mFrameworkFacade, mHandlerThread, mPackageManager, mResources,
+                mWifiInjector, mWifiNative);
 
-    @Before
-    public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-        when(mContext.getResources()).thenReturn(mResources);
-        when(mResources.getString(R.string.config_wifi_p2p_device_type))
-                .thenReturn("10-0050F204-5");
+        generatorTestData();
         mClientHanderLooper = new TestLooper();
         mClientHandler = spy(new Handler(mClientHanderLooper.getLooper()));
         mClientMessenger =  new Messenger(mClientHandler);
         mLooper = new TestLooper();
-        generatorTestData();
+
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
-        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)).thenReturn(true);
-        when(mContext.getSystemService(Context.WIFI_SERVICE)).thenReturn(mMockWifiManager);
-        when(mMockWifiManager.getWifiState()).thenReturn(WifiManager.WIFI_STATE_ENABLED);
-
-        when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
-        when(mWifiInjector.getWifiP2pNative()).thenReturn(mWifiNative);
-        when(mWifiInjector.getWifiP2pMonitor()).thenReturn(mWifiMonitor);
-        when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
-        when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
-        when(mWifiInjector.getWifiP2pServiceHandlerThread()).thenReturn(mHandlerThread);
-        when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
-
-        mWifiP2pServiceImpl = new WifiP2pServiceImpl(mContext, mWifiInjector);
-        mWifiP2pServiceImpl.mNwService = mNwService;
-
-        mP2pStateMachineMessenger = mWifiP2pServiceImpl.getP2pStateMachineMessenger();
-        mWifiP2pServiceImpl.setWifiHandlerLogForTest(mLog);
-        mWifiP2pServiceImpl.setWifiLogForReplyChannel(mLog);
-        verify(mContext, times(2)).registerReceiver(mBcastRxCaptor.capture(),
-                any(IntentFilter.class));
-        mWifiStateChangedReceiver = mBcastRxCaptor.getAllValues().get(0);
-        mLocationModeReceiver = mBcastRxCaptor.getAllValues().get(1);
-
-        verify(mWifiNative).registerInterfaceAvailableListener(
-                mAvailListenerCaptor.capture(), any(Handler.class));
-        mAvailListenerCaptor.getValue().onAvailabilityChanged(true);
-        mClient1 = new Binder();
-        mClient2 = new Binder();
-        when(mWifiNative.setupInterface(any(), any())).thenReturn(IFACE_NAME_P2P);
-        when(mWifiNative.p2pGetDeviceAddress()).thenReturn(thisDeviceMac);
+        when(mContext.getResources()).thenReturn(mResources);
         when(mFrameworkFacade.getStringSetting(any(),
                 eq(Settings.Global.WIFI_P2P_DEVICE_NAME))).thenReturn("p2p_device");
         when(mFrameworkFacade.getIntegerSetting(any(),
                 eq(Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET), eq(0))).thenReturn(0);
+        when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
+        if (supported) {
+            when(mPackageManager.hasSystemFeature(eq(PackageManager.FEATURE_WIFI_DIRECT)))
+                    .thenReturn(true);
+        } else {
+            when(mPackageManager.hasSystemFeature(eq(PackageManager.FEATURE_WIFI_DIRECT)))
+                    .thenReturn(false);
+        }
+        when(mResources.getString(R.string.config_wifi_p2p_device_type))
+                .thenReturn("10-0050F204-5");
+        when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
+        when(mWifiInjector.getWifiP2pMonitor()).thenReturn(mWifiMonitor);
+        when(mWifiInjector.getWifiP2pNative()).thenReturn(mWifiNative);
+        when(mWifiInjector.getWifiP2pServiceHandlerThread()).thenReturn(mHandlerThread);
+        when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
+        when(mWifiNative.setupInterface(any(), any())).thenReturn(IFACE_NAME_P2P);
+        when(mWifiNative.p2pGetDeviceAddress()).thenReturn(thisDeviceMac);
+
+        mWifiP2pServiceImpl = new WifiP2pServiceImpl(mContext, mWifiInjector);
+        if (supported) {
+            verify(mContext, times(2)).registerReceiver(mBcastRxCaptor.capture(),
+                    any(IntentFilter.class));
+            mWifiStateChangedReceiver = mBcastRxCaptor.getAllValues().get(0);
+            mLocationModeReceiver = mBcastRxCaptor.getAllValues().get(1);
+            verify(mWifiNative).registerInterfaceAvailableListener(
+                    mAvailListenerCaptor.capture(), any(Handler.class));
+            mAvailListenerCaptor.getValue().onAvailabilityChanged(true);
+        }
+
+        mWifiP2pServiceImpl.mNwService = mNwService;
+        mP2pStateMachineMessenger = mWifiP2pServiceImpl.getP2pStateMachineMessenger();
+        mWifiP2pServiceImpl.setWifiHandlerLogForTest(mLog);
+        mWifiP2pServiceImpl.setWifiLogForReplyChannel(mLog);
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        setUpWifiP2pServiceImpl(true);
+        mClient1 = new Binder();
+        mClient2 = new Binder();
     }
 
     /**
@@ -1195,5 +1227,47 @@ public class WifiP2pServiceImplTest {
                 .thenReturn(0x0L);
         forceP2pEnabled(mClient1);
         verify(mWifiNative, never()).setMacRandomization(anyBoolean());
+    }
+
+    /**
+     * Verify the caller sends WifiP2pManager.DELETE_PERSISTENT_GROUP.
+     */
+    @Test
+    public void testDeletePersistentGroupSuccess() throws Exception {
+        // Move to enabled state
+        forceP2pEnabled(mClient1);
+
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        Message message = messageCaptor.getValue();
+        assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_SUCCEEDED, message.what);
+    }
+
+    /**
+     * Verify WifiP2pManager.REMOVE_GROUP_FAILED is returned when p2p is disabled.
+     */
+    @Test
+    public void testDeletePersistentGroupFailureWhenP2pDisabled() throws Exception {
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        Message message = messageCaptor.getValue();
+        assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
+        assertEquals(WifiP2pManager.BUSY, message.arg1);
+    }
+
+    /**
+     * Verify WifiP2pManager.REMOVE_GROUP_FAILED is returned when p2p is unsupported.
+     */
+    @Test
+    public void testDeletePersistentGroupFailureWhenP2pUnsupported() throws Exception {
+        setUpWifiP2pServiceImpl(false);
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        Message message = messageCaptor.getValue();
+        assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
+        assertEquals(WifiP2pManager.P2P_UNSUPPORTED, message.arg1);
     }
 }
