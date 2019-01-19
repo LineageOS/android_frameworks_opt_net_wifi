@@ -1768,9 +1768,9 @@ public class ClientModeImpl extends StateMachine {
      * Get adaptors synchronously
      */
 
-    public int syncGetSupportedFeatures(AsyncChannel channel) {
+    public long syncGetSupportedFeatures(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_SUPPORTED_FEATURES);
-        int supportedFeatureSet = resultMsg.arg1;
+        long supportedFeatureSet = ((Long) resultMsg.obj).longValue();
         resultMsg.recycle();
 
         // Mask the feature set against system properties.
@@ -3559,8 +3559,8 @@ public class ClientModeImpl extends StateMachine {
                             WifiManager.BUSY);
                     break;
                 case CMD_GET_SUPPORTED_FEATURES:
-                    int featureSet = mWifiNative.getSupportedFeatureSet(mInterfaceName);
-                    replyToMessage(message, message.what, featureSet);
+                    long featureSet = (mWifiNative.getSupportedFeatureSet(mInterfaceName));
+                    replyToMessage(message, message.what, Long.valueOf(featureSet));
                     break;
                 case CMD_GET_LINK_LAYER_STATS:
                     // Not supported hence reply with error message

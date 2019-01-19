@@ -59,8 +59,9 @@ public class WifiConnectivityHelper {
         mMaxNumBlacklistBssid = INVALID_LIST_SIZE;
         mMaxNumWhitelistSsid = INVALID_LIST_SIZE;
 
-        int fwFeatureSet = mWifiNative.getSupportedFeatureSet(mWifiNative.getClientInterfaceName());
-        Log.d(TAG, "Firmware supported feature set: " + Integer.toHexString(fwFeatureSet));
+        long fwFeatureSet =
+                mWifiNative.getSupportedFeatureSet(mWifiNative.getClientInterfaceName());
+        Log.d(TAG, "Firmware supported feature set: " + Long.toHexString(fwFeatureSet));
 
         if ((fwFeatureSet & WIFI_FEATURE_CONTROL_ROAMING) == 0) {
             Log.d(TAG, "Firmware roaming is not supported");

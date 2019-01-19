@@ -1243,7 +1243,7 @@ public class WifiServiceImplTest {
                 .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
-                .thenReturn(WIFI_FEATURE_INFRA_5G);
+                .thenReturn((long) WIFI_FEATURE_INFRA_5G);
 
         verify(mAsyncChannel).connect(any(), mHandlerCaptor.capture(), any(Handler.class));
         final Handler handler = mHandlerCaptor.getValue();

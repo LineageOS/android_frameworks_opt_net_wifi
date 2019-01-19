@@ -1463,10 +1463,10 @@ public class ClientModeImplTest {
         verify(mPropertyService, never()).set(anyString(), anyString());
     }
 
-    private int testGetSupportedFeaturesCase(int supportedFeatures, boolean rttConfigured) {
+    private long testGetSupportedFeaturesCase(long supportedFeatures, boolean rttConfigured) {
         AsyncChannel channel = mock(AsyncChannel.class);
         Message reply = Message.obtain();
-        reply.arg1 = supportedFeatures;
+        reply.obj = Long.valueOf(supportedFeatures);
         reset(mPropertyService);  // Ignore calls made in setUp()
         when(channel.sendMessageSynchronously(ClientModeImpl.CMD_GET_SUPPORTED_FEATURES))
                 .thenReturn(reply);
@@ -1482,6 +1482,7 @@ public class ClientModeImplTest {
         final int featureInfra = WifiManager.WIFI_FEATURE_INFRA;
         final int featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
         final int featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
+        final long featureLongBits = 0x1100000000L;
 
         assertEquals(0, testGetSupportedFeaturesCase(0, false));
         assertEquals(0, testGetSupportedFeaturesCase(0, true));
@@ -1501,6 +1502,13 @@ public class ClientModeImplTest {
                 testGetSupportedFeaturesCase(featureInfra | featureD2dRtt | featureD2apRtt, false));
         assertEquals(featureInfra,
                 testGetSupportedFeaturesCase(featureInfra | featureD2dRtt | featureD2apRtt, true));
+
+        assertEquals(featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt,
+                testGetSupportedFeaturesCase(
+                featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, false));
+        assertEquals(featureLongBits | featureInfra,
+                testGetSupportedFeaturesCase(
+                featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, true));
     }
 
     /**

@@ -719,7 +719,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
                 mBinder, mWorkSource);
@@ -737,7 +737,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_TX_POWER_LIMIT);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_TX_POWER_LIMIT);
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "",
                 mBinder, mWorkSource);
@@ -755,7 +755,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Make sure setLowLatencyMode() is successful
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
@@ -784,7 +784,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Fail the call to ClientModeImpl
         when(mClientModeImpl.setLowLatencyMode(true)).thenReturn(false);
@@ -811,7 +811,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Make sure setLowLatencyMode() is successful
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
@@ -840,7 +840,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Make sure setLowLatencyMode() is successful
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
@@ -874,7 +874,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Make sure setLowLatencyMode() is successful
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
@@ -910,7 +910,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         // Make sure setLowLatencyMode()/setPowerSave() is successful
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
@@ -950,7 +950,7 @@ public class WifiLockManagerTest {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 
@@ -976,7 +976,7 @@ public class WifiLockManagerTest {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
         mWifiLockManager.handleScreenStateChanged(false);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 
@@ -1007,7 +1007,7 @@ public class WifiLockManagerTest {
         mWifiLockManager.handleScreenStateChanged(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 
@@ -1040,7 +1040,7 @@ public class WifiLockManagerTest {
     public void testForceLowLatencyTwice() throws Exception {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 
@@ -1063,7 +1063,7 @@ public class WifiLockManagerTest {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
         InOrder inOrder = inOrder(mClientModeImpl);
 
         assertTrue(mWifiLockManager.forceHiPerfMode(true));
@@ -1087,7 +1087,7 @@ public class WifiLockManagerTest {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.setPowerSave(anyBoolean())).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 
@@ -1110,7 +1110,7 @@ public class WifiLockManagerTest {
     public void testForceLowLatencyFailure() throws Exception {
         when(mClientModeImpl.setLowLatencyMode(anyBoolean())).thenReturn(false);
         when(mClientModeImpl.syncGetSupportedFeatures(any()))
-                .thenReturn(WifiManager.WIFI_FEATURE_LOW_LATENCY);
+                .thenReturn((long) WifiManager.WIFI_FEATURE_LOW_LATENCY);
 
         InOrder inOrder = inOrder(mClientModeImpl);
 

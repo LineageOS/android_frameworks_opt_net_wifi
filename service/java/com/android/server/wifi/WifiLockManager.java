@@ -526,7 +526,7 @@ public class WifiLockManager {
     private int getLowLatencyModeSupport() {
         if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED
                 && mClientModeImplChannel != null) {
-            int supportedFeatures =
+            long supportedFeatures =
                     mClientModeImpl.syncGetSupportedFeatures(mClientModeImplChannel);
             if (supportedFeatures != 0) {
                 if ((supportedFeatures & WifiManager.WIFI_FEATURE_LOW_LATENCY) != 0) {
