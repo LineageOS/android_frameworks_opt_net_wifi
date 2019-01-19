@@ -31,6 +31,7 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.android.internal.R;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -52,6 +53,9 @@ public class WifiController extends StateMachine {
      */
     private static final long DEFAULT_REENABLE_DELAY_MS = 500;
 
+    // Maximum limit to use for timeout delay if the value from overlay setting is too large.
+    private static final int MAX_RECOVERY_TIMEOUT_DELAY_MS = 4000;
+
     // finding that delayed messages can sometimes be delivered earlier than expected
     // probably rounding errors.  add a margin to prevent problems
     private static final long DEFER_MARGIN_MS = 5;
@@ -65,6 +69,8 @@ public class WifiController extends StateMachine {
     private final WifiSettingsStore mSettingsStore;
 
     private long mReEnableDelayMillis;
+
+    private int mRecoveryDelayMillis;
 
     private FrameworkFacade mFacade;
 
@@ -88,6 +94,7 @@ public class WifiController extends StateMachine {
     static final int CMD_RECOVERY_DISABLE_WIFI                  = BASE + 19;
     static final int CMD_STA_STOPPED                            = BASE + 20;
     static final int CMD_SCANNING_STOPPED                       = BASE + 21;
+    static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
 
     private DefaultState mDefaultState = new DefaultState();
     private StaEnabledState mStaEnabledState = new StaEnabledState();
@@ -175,6 +182,7 @@ public class WifiController extends StateMachine {
                 new IntentFilter(filter));
 
         readWifiReEnableDelay();
+        readWifiRecoveryDelay();
     }
 
     private boolean checkScanOnlyModeAvailable() {
@@ -233,6 +241,15 @@ public class WifiController extends StateMachine {
                 Settings.Global.WIFI_REENABLE_DELAY_MS, DEFAULT_REENABLE_DELAY_MS);
     }
 
+    private void readWifiRecoveryDelay() {
+        mRecoveryDelayMillis = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_recovery_timeout_delay);
+        if (mRecoveryDelayMillis > MAX_RECOVERY_TIMEOUT_DELAY_MS) {
+            mRecoveryDelayMillis = MAX_RECOVERY_TIMEOUT_DELAY_MS;
+            Log.w(TAG, "Overriding timeout delay with maximum limit value");
+        }
+    }
+
     class DefaultState extends State {
         @Override
         public boolean processMessage(Message msg) {
@@ -244,6 +261,7 @@ public class WifiController extends StateMachine {
                 case CMD_STA_STOPPED:
                 case CMD_STA_START_FAILURE:
                 case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
+                case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                     break;
                 case CMD_RECOVERY_DISABLE_WIFI:
                     log("Recovery has been throttled, disable wifi");
@@ -251,7 +269,7 @@ public class WifiController extends StateMachine {
                     transitionTo(mStaDisabledState);
                     break;
                 case CMD_RECOVERY_RESTART_WIFI:
-                    deferMessage(obtainMessage(CMD_RECOVERY_RESTART_WIFI_CONTINUE));
+                    deferMessage(obtainMessage(CMD_DEFERRED_RECOVERY_RESTART_WIFI));
                     mActiveModeWarden.shutdownWifi();
                     transitionTo(mStaDisabledState);
                     break;
@@ -358,6 +376,10 @@ public class WifiController extends StateMachine {
                     }
                     log("DEFERRED_TOGGLE handled");
                     sendMessage((Message)(msg.obj));
+                    break;
+                case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
+                    // wait mRecoveryDelayMillis for letting driver clean reset.
+                    sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE, mRecoveryDelayMillis);
                     break;
                 case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
                     if (mSettingsStore.isWifiToggleEnabled()) {
