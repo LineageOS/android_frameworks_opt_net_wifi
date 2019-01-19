@@ -1813,9 +1813,17 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getConfiguredNetworks uid=%").c(callingUid).flush();
         }
+
+        int targetConfigUid = Process.INVALID_UID; // don't expose any MAC addresses
+        if (isPrivileged(getCallingPid(), callingUid) || isDeviceOrProfileOwner(callingUid)) {
+            targetConfigUid = Process.WIFI_UID; // expose all MAC addresses
+        } else if (isCarrierApp) {
+            targetConfigUid = callingUid; // expose only those configs created by the Carrier App
+        }
+
         if (mClientModeImplChannel != null) {
             List<WifiConfiguration> configs = mClientModeImpl.syncGetConfiguredNetworks(
-                    callingUid, mClientModeImplChannel);
+                    callingUid, mClientModeImplChannel, targetConfigUid);
             if (configs != null) {
                 if (isTargetSdkLessThanQOrPrivileged) {
                     return new ParceledListSlice<WifiConfiguration>(configs);
@@ -2858,7 +2866,7 @@ public class WifiServiceImpl extends BaseWifiService {
             if (mClientModeImplChannel != null) {
                 // Delete all Wifi SSIDs
                 List<WifiConfiguration> networks = mClientModeImpl.syncGetConfiguredNetworks(
-                        Binder.getCallingUid(), mClientModeImplChannel);
+                        Binder.getCallingUid(), mClientModeImplChannel, Process.WIFI_UID);
                 if (networks != null) {
                     for (WifiConfiguration config : networks) {
                         removeNetwork(config.networkId, packageName);

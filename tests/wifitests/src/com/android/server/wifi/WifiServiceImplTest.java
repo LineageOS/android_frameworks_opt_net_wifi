@@ -50,7 +50,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.atLeastOnce;
 
 import android.Manifest;
 import android.app.ActivityManager;
@@ -910,11 +909,12 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testConfiguredNetworkListAreEmptyFromAppWithoutPermission() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
-        doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                anyString(), anyInt());
+        // no permission = target SDK=Q && not a carrier app
+        when(mTelephonyManager.checkCarrierPrivilegesForPackage(anyString())).thenReturn(
+                TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS);
 
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
@@ -928,7 +928,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testConfiguredNetworkListAreEmptyOnSecurityException() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
@@ -947,7 +947,7 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
@@ -958,6 +958,7 @@ public class WifiServiceImplTest {
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
 
+        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), eq(Process.WIFI_UID));
         WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
                 TEST_WIFI_CONFIGURATION_LIST, configs.getList());
     }
@@ -1003,15 +1004,12 @@ public class WifiServiceImplTest {
 
     /**
      * Test that privileged network list are exposed to an app that does have the
-     * appropriate permissions.
+     * appropriate permissions (simulated by not throwing an exception for READ_WIFI_CREDENTIAL).
      */
     @Test
     public void testPrivilegedConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
         when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
-
-        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
 
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
 
@@ -3116,7 +3114,7 @@ public class WifiServiceImplTest {
         config.setHomeSp(homeSp);
 
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any()))
+        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
                 .thenReturn(Arrays.asList(network));
         when(mClientModeImpl.syncGetPasspointConfigs(any())).thenReturn(Arrays.asList(config));
 
@@ -3138,7 +3136,7 @@ public class WifiServiceImplTest {
 
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
 
-        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any());
+        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
         verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
         verify(mClientModeImpl, never()).syncRemovePasspointConfig(any(), anyString());
     }
@@ -3159,7 +3157,7 @@ public class WifiServiceImplTest {
             fail();
         } catch (SecurityException e) {
         }
-        verify(mClientModeImpl, never()).syncGetConfiguredNetworks(anyInt(), any());
+        verify(mClientModeImpl, never()).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
         verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
     }
 

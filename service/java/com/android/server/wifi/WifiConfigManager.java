@@ -506,15 +506,20 @@ public class WifiConfigManager {
      *
      * @param configuration provided WifiConfiguration object.
      * @param maskPasswords Mask passwords or not.
+     * @param targetUid Target UID for MAC address reading: -1 = mask all, 0 = mask none, >0 =
+     *                  mask all but the targetUid (carrier app).
      * @return Copy of the WifiConfiguration object.
      */
     private WifiConfiguration createExternalWifiConfiguration(
-            WifiConfiguration configuration, boolean maskPasswords) {
+            WifiConfiguration configuration, boolean maskPasswords, int targetUid) {
         WifiConfiguration network = new WifiConfiguration(configuration);
         if (maskPasswords) {
             maskPasswordsInWifiConfiguration(network);
         }
-        maskRandomizedMacAddressInWifiConfiguration(network);
+        if (targetUid != Process.WIFI_UID && targetUid != Process.SYSTEM_UID
+                && targetUid != configuration.creatorUid) {
+            maskRandomizedMacAddressInWifiConfiguration(network);
+        }
         return network;
     }
 
@@ -526,16 +531,19 @@ public class WifiConfigManager {
      *
      * @param savedOnly     Retrieve only saved networks.
      * @param maskPasswords Mask passwords or not.
+     * @param targetUid Target UID for MAC address reading: -1 (Invalid UID) = mask all,
+     *                  WIFI||SYSTEM = mask none, <other> = mask all but the targetUid (carrier
+     *                  app).
      * @return List of WifiConfiguration objects representing the networks.
      */
     private List<WifiConfiguration> getConfiguredNetworks(
-            boolean savedOnly, boolean maskPasswords) {
+            boolean savedOnly, boolean maskPasswords, int targetUid) {
         List<WifiConfiguration> networks = new ArrayList<>();
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
             if (savedOnly && config.ephemeral) {
                 continue;
             }
-            networks.add(createExternalWifiConfiguration(config, maskPasswords));
+            networks.add(createExternalWifiConfiguration(config, maskPasswords, targetUid));
         }
         return networks;
     }
@@ -546,7 +554,7 @@ public class WifiConfigManager {
      * @return List of WifiConfiguration objects representing the networks.
      */
     public List<WifiConfiguration> getConfiguredNetworks() {
-        return getConfiguredNetworks(false, true);
+        return getConfiguredNetworks(false, true, Process.WIFI_UID);
     }
 
     /**
@@ -559,7 +567,7 @@ public class WifiConfigManager {
      * @return List of WifiConfiguration objects representing the networks.
      */
     public List<WifiConfiguration> getConfiguredNetworksWithPasswords() {
-        return getConfiguredNetworks(false, false);
+        return getConfiguredNetworks(false, false, Process.WIFI_UID);
     }
 
     /**
@@ -567,8 +575,8 @@ public class WifiConfigManager {
      *
      * @return List of WifiConfiguration objects representing the networks.
      */
-    public List<WifiConfiguration> getSavedNetworks() {
-        return getConfiguredNetworks(true, true);
+    public List<WifiConfiguration> getSavedNetworks(int targetUid) {
+        return getConfiguredNetworks(true, true, targetUid);
     }
 
     /**
@@ -585,7 +593,7 @@ public class WifiConfigManager {
         }
         // Create a new configuration object with the passwords masked to send out to the external
         // world.
-        return createExternalWifiConfiguration(config, true);
+        return createExternalWifiConfiguration(config, true, Process.WIFI_UID);
     }
 
     /**
@@ -602,7 +610,7 @@ public class WifiConfigManager {
         }
         // Create a new configuration object with the passwords masked to send out to the external
         // world.
-        return createExternalWifiConfiguration(config, true);
+        return createExternalWifiConfiguration(config, true, Process.WIFI_UID);
     }
 
     /**
@@ -622,7 +630,7 @@ public class WifiConfigManager {
         }
         // Create a new configuration object without the passwords masked to send out to the
         // external world.
-        return createExternalWifiConfiguration(config, false);
+        return createExternalWifiConfiguration(config, false, Process.WIFI_UID);
     }
 
     /**
@@ -2146,7 +2154,7 @@ public class WifiConfigManager {
                 && scanDetail.getNetworkDetail().getDtimInterval() > 0) {
             network.dtimInterval = scanDetail.getNetworkDetail().getDtimInterval();
         }
-        return createExternalWifiConfiguration(network, true);
+        return createExternalWifiConfiguration(network, true, Process.WIFI_UID);
     }
 
     /**

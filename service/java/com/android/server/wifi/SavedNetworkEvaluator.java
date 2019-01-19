@@ -20,11 +20,11 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.os.Process;
 import android.util.LocalLog;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.List;
@@ -95,7 +95,8 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
      * Update all the saved networks' selection status
      */
     private void updateSavedNetworkSelectionStatus() {
-        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks();
+        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks(
+                Process.WIFI_UID);
         if (savedNetworks.size() == 0) {
             localLog("No saved networks.");
             return;

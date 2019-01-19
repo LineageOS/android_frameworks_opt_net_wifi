@@ -805,7 +805,7 @@ public class ClientModeImplTest {
 
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(0));
-        when(mWifiConfigManager.getSavedNetworks()).thenReturn(Arrays.asList(config));
+        when(mWifiConfigManager.getSavedNetworks(anyInt())).thenReturn(Arrays.asList(config));
         when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
         when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(0)).thenReturn(config);
 
@@ -816,7 +816,8 @@ public class ClientModeImplTest {
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(config), anyInt());
 
         mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel);
+        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel,
+                Process.WIFI_UID);
         mLooper.stopAutoDispatch();
         assertEquals(1, configs.size());
 
@@ -841,7 +842,8 @@ public class ClientModeImplTest {
      */
     private WifiConfiguration getWifiConfigurationForNetwork(String ssid) {
         mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel);
+        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel,
+                Process.WIFI_UID);
         mLooper.stopAutoDispatch();
 
         for (WifiConfiguration checkConfig : configs) {
