@@ -25,6 +25,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -310,7 +311,8 @@ public class WakeupController {
 
     /** Returns a filtered set of saved networks from WifiConfigManager. */
     private Set<ScanResultMatchInfo> getGoodSavedNetworks() {
-        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks();
+        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks(
+                Process.WIFI_UID);
 
         Set<ScanResultMatchInfo> goodSavedNetworks = new HashSet<>(savedNetworks.size());
         for (WifiConfiguration config : savedNetworks) {

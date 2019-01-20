@@ -739,6 +739,7 @@ public class ClientModeImpl extends StateMachine {
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    private boolean mConnectedMacRandomzationSupported;
 
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
@@ -880,8 +881,10 @@ public class ClientModeImpl extends StateMachine {
         mSuspendWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WifiSuspend");
         mSuspendWakeLock.setReferenceCounted(false);
 
+        mConnectedMacRandomzationSupported = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mTcpBufferSizes = mContext.getResources().getString(
-                com.android.internal.R.string.config_wifi_tcp_buffers);
+                R.string.config_wifi_tcp_buffers);
 
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
@@ -1590,8 +1593,10 @@ public class ClientModeImpl extends StateMachine {
      * @param channel
      * @return
      */
-    public List<WifiConfiguration> syncGetConfiguredNetworks(int uuid, AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid);
+    public List<WifiConfiguration> syncGetConfiguredNetworks(int uuid, AsyncChannel channel,
+            int targetUid) {
+        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid,
+                targetUid);
         if (resultMsg == null) { // an error has occurred
             return null;
         } else {
@@ -1765,9 +1770,9 @@ public class ClientModeImpl extends StateMachine {
      * Get adaptors synchronously
      */
 
-    public int syncGetSupportedFeatures(AsyncChannel channel) {
+    public long syncGetSupportedFeatures(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_SUPPORTED_FEATURES);
-        int supportedFeatureSet = resultMsg.arg1;
+        long supportedFeatureSet = ((Long) resultMsg.obj).longValue();
         resultMsg.recycle();
 
         // Mask the feature set against system properties.
@@ -3466,7 +3471,8 @@ public class ClientModeImpl extends StateMachine {
                     deleteNetworkConfigAndSendReply(message, false);
                     break;
                 case CMD_GET_CONFIGURED_NETWORKS:
-                    replyToMessage(message, message.what, mWifiConfigManager.getSavedNetworks());
+                    replyToMessage(message, message.what,
+                            mWifiConfigManager.getSavedNetworks(message.arg2));
                     break;
                 case CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS:
                     replyToMessage(message, message.what,
@@ -3556,8 +3562,8 @@ public class ClientModeImpl extends StateMachine {
                             WifiManager.BUSY);
                     break;
                 case CMD_GET_SUPPORTED_FEATURES:
-                    int featureSet = mWifiNative.getSupportedFeatureSet(mInterfaceName);
-                    replyToMessage(message, message.what, featureSet);
+                    long featureSet = (mWifiNative.getSupportedFeatureSet(mInterfaceName));
+                    replyToMessage(message, message.what, Long.valueOf(featureSet));
                     break;
                 case CMD_GET_LINK_LAYER_STATS:
                     // Not supported hence reply with error message
@@ -4188,7 +4194,8 @@ public class ClientModeImpl extends StateMachine {
                     setTargetBssid(config, bssid);
 
                     if (mEnableConnectedMacRandomization && config.macRandomizationSetting
-                            == WifiConfiguration.RANDOMIZATION_PERSISTENT) {
+                            == WifiConfiguration.RANDOMIZATION_PERSISTENT
+                            && mConnectedMacRandomzationSupported) {
                         configureRandomizedMacAddress(config);
                     } else {
                         setCurrentMacToFactoryMac(config);
@@ -5836,7 +5843,7 @@ public class ClientModeImpl extends StateMachine {
      * Update WifiMetrics before dumping
      */
     public void updateWifiMetrics() {
-        mWifiMetrics.updateSavedNetworks(mWifiConfigManager.getSavedNetworks());
+        mWifiMetrics.updateSavedNetworks(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID));
         mPasspointManager.updateMetrics();
     }
 

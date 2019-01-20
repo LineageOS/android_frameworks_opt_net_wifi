@@ -170,7 +170,7 @@ public class DppManager {
             try {
                 Log.e(TAG, "Wi-Fi client interface does not exist");
                 // On going DPP. Call the failure callback directly
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -184,7 +184,7 @@ public class DppManager {
             try {
                 Log.e(TAG, "Selected network is null");
                 // On going DPP. Call the failure callback directly
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -228,7 +228,7 @@ public class DppManager {
 
         if (!linkToDeath(mDppRequestInfo)) {
             // Notify failure and clean up
-            onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+            onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
             return;
         }
 
@@ -462,7 +462,7 @@ public class DppManager {
                 default:
                     Log.e(TAG, "onProgress: unknown code " + dppStatusCode);
                     mDppRequestInfo.callback.onFailure(
-                            EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE);
+                            EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
                     cleanupDppResources();
                     return;
             }
@@ -560,7 +560,7 @@ public class DppManager {
 
                 case DppFailureCode.FAILURE:
                 default:
-                    dppFailureCode = EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE;
+                    dppFailureCode = EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC;
                     break;
             }
 

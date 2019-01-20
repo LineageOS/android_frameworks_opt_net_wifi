@@ -682,10 +682,7 @@ public class WifiConfigStore {
          * even when an exception is encountered.
          */
         public void writeBufferedRawData() throws IOException {
-            if (mWriteData == null) {
-                Log.w(TAG, "No data stored for writing to file: " + mFileName);
-                return;
-            }
+            if (mWriteData == null) return; // No data to write for this file.
             // Write the data to the atomic file.
             FileOutputStream out = null;
             try {

@@ -24,6 +24,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
+import android.os.Process;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Pair;
@@ -460,7 +461,8 @@ public class WifiNetworkSelector {
         String key = selected.configKey();
         // This is only used for setting the connect choice timestamp for debugging purposes.
         long currentTime = mClock.getWallClockMillis();
-        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks();
+        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks(
+                Process.WIFI_UID);
 
         for (WifiConfiguration network : savedNetworks) {
             WifiConfiguration.NetworkSelectionStatus status = network.getNetworkSelectionStatus();

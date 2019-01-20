@@ -21,6 +21,8 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
@@ -28,7 +30,9 @@ import android.util.Slog;
 import android.util.SparseArray;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.util.WifiAsyncChannel;
+import com.android.server.wifi.util.WifiHandler;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -53,7 +57,8 @@ public class WifiLockManager {
     private final FrameworkFacade mFrameworkFacade;
     private final ClientModeImpl mClientModeImpl;
     private final ActivityManager mActivityManager;
-    private final WifiAsyncChannel mChannel;
+    private final ClientModeImplInterfaceHandler mCmiIfaceHandler;
+    private WifiAsyncChannel mClientModeImplChannel;
 
     private final List<WifiLock> mWifiLocks = new ArrayList<>();
     // map UIDs to their corresponding records (for low-latency locks)
@@ -72,13 +77,13 @@ public class WifiLockManager {
     private int mFullLowLatencyLocksReleased;
 
     WifiLockManager(Context context, IBatteryStats batteryStats,
-            ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade) {
+            ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade, Looper looper) {
         mContext = context;
         mBatteryStats = batteryStats;
         mClientModeImpl = clientModeImpl;
         mFrameworkFacade = frameworkFacade;
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
-        mChannel = mFrameworkFacade.makeWifiAsyncChannel(TAG);
+        mCmiIfaceHandler = new ClientModeImplInterfaceHandler(looper);
         mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
 
         // Register for UID fg/bg transitions
@@ -90,20 +95,22 @@ public class WifiLockManager {
         mActivityManager.addOnUidImportanceListener(new ActivityManager.OnUidImportanceListener() {
             @Override
             public void onUidImportance(final int uid, final int importance) {
-                UidRec uidRec = mLowLatencyUidWatchList.get(uid);
-                if (uidRec == null) {
-                    // Not a uid in the watch list
-                    return;
-                }
+                mCmiIfaceHandler.post(() -> {
+                    UidRec uidRec = mLowLatencyUidWatchList.get(uid);
+                    if (uidRec == null) {
+                        // Not a uid in the watch list
+                        return;
+                    }
 
-                boolean newModeIsFg =
-                        importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
-                if (uidRec.mIsFg == newModeIsFg) {
-                    return; // already at correct state
-                }
+                    boolean newModeIsFg = (importance
+                            == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+                    if (uidRec.mIsFg == newModeIsFg) {
+                        return; // already at correct state
+                    }
 
-                uidRec.mIsFg = newModeIsFg;
-                updateOpMode();
+                    uidRec.mIsFg = newModeIsFg;
+                    updateOpMode();
+                });
             }
         }, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE);
     }
@@ -517,8 +524,10 @@ public class WifiLockManager {
     }
 
     private int getLowLatencyModeSupport() {
-        if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED) {
-            int supportedFeatures = mClientModeImpl.syncGetSupportedFeatures(mChannel);
+        if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED
+                && mClientModeImplChannel != null) {
+            long supportedFeatures =
+                    mClientModeImpl.syncGetSupportedFeatures(mClientModeImplChannel);
             if (supportedFeatures != 0) {
                 if ((supportedFeatures & WifiManager.WIFI_FEATURE_LOW_LATENCY) != 0) {
                     mLatencyModeSupport = LOW_LATENCY_SUPPORTED;
@@ -592,6 +601,45 @@ public class WifiLockManager {
             mVerboseLoggingEnabled = true;
         } else {
             mVerboseLoggingEnabled = false;
+        }
+    }
+
+    /**
+     * Handles interaction with ClientModeImpl
+     */
+    private class ClientModeImplInterfaceHandler extends WifiHandler {
+        private WifiAsyncChannel mCmiChannel;
+
+        ClientModeImplInterfaceHandler(Looper looper) {
+            super(TAG, looper);
+            mCmiChannel = mFrameworkFacade.makeWifiAsyncChannel(TAG);
+            mCmiChannel.connect(mContext, this, mClientModeImpl.getHandler());
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED: {
+                    if (msg.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
+                        mClientModeImplChannel = mCmiChannel;
+                    } else {
+                        Slog.e(TAG, "ClientModeImpl connection failure, error=" + msg.arg1);
+                        mClientModeImplChannel = null;
+                    }
+                    break;
+                }
+                case AsyncChannel.CMD_CHANNEL_DISCONNECTED: {
+                    Slog.e(TAG, "ClientModeImpl channel lost, msg.arg1 =" + msg.arg1);
+                    mClientModeImplChannel = null;
+                    //Re-establish connection
+                    mCmiChannel.connect(mContext, this, mClientModeImpl.getHandler());
+                    break;
+                }
+                default: {
+                    Slog.d(TAG, "ClientModeImplInterfaceHandler.handleMessage ignoring msg=" + msg);
+                    break;
+                }
+            }
         }
     }
 

@@ -33,7 +33,9 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.HostapdDeathEventHandler;
 import com.android.server.wifi.util.NativeUtil;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -52,6 +54,8 @@ public class HostapdHal {
     private boolean mVerboseLoggingEnabled = false;
     private final boolean mEnableAcs;
     private final boolean mEnableIeee80211AC;
+    private final List<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange>
+            mAcsChannelRanges;
 
     // Hostapd HAL interface objects
     private IServiceManager mIServiceManager = null;
@@ -97,6 +101,8 @@ public class HostapdHal {
         mEnableAcs = context.getResources().getBoolean(R.bool.config_wifi_softap_acs_supported);
         mEnableIeee80211AC =
                 context.getResources().getBoolean(R.bool.config_wifi_softap_ieee80211ac_supported);
+        mAcsChannelRanges = toAcsChannelRanges(context.getResources().getString(
+                R.string.config_wifi_softap_acs_supported_channel_list));
     }
 
     /**
@@ -320,7 +326,18 @@ public class HostapdHal {
             nwParams.pskPassphrase = (config.preSharedKey != null) ? config.preSharedKey : "";
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
-                HostapdStatus status = mIHostapd.addAccessPoint(ifaceParams, nwParams);
+                HostapdStatus status;
+                if (isV1_1()) {
+                    android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams ifaceParams1_1 =
+                            new android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams();
+                    ifaceParams1_1.V1_0 = ifaceParams;
+                    if (mEnableAcs) {
+                        ifaceParams1_1.channelParams.acsChannelRanges.addAll(mAcsChannelRanges);
+                    }
+                    status = getHostapdMockableV1_1().addAccessPoint_1_1(ifaceParams1_1, nwParams);
+                } else {
+                    status = mIHostapd.addAccessPoint(ifaceParams, nwParams);
+                }
                 if (!checkStatusAndLogFailure(status, methodStr)) {
                     return false;
                 }
@@ -525,6 +542,46 @@ public class HostapdHal {
                 throw new IllegalArgumentException();
         }
         return bandType;
+    }
+
+    /**
+     * Convert channel list string like '1-6,11' to list of AcsChannelRanges
+     */
+    private List<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange>
+            toAcsChannelRanges(String channelListStr) {
+        ArrayList<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange> acsChannelRanges =
+                new ArrayList<>();
+        String[] channelRanges = channelListStr.split(",");
+        for (String channelRange : channelRanges) {
+            android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange acsChannelRange =
+                    new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
+            try {
+                if (channelRange.contains("-")) {
+                    String[] channels  = channelRange.split("-");
+                    if (channels.length != 2) {
+                        Log.e(TAG, "Unrecognized channel range, length is " + channels.length);
+                        continue;
+                    }
+                    int start = Integer.parseInt(channels[0]);
+                    int end = Integer.parseInt(channels[1]);
+                    if (start > end) {
+                        Log.e(TAG, "Invalid channel range, from " + start + " to " + end);
+                        continue;
+                    }
+                    acsChannelRange.start = start;
+                    acsChannelRange.end = end;
+                } else {
+                    acsChannelRange.start = Integer.parseInt(channelRange);
+                    acsChannelRange.end = acsChannelRange.start;
+                }
+            } catch (NumberFormatException e) {
+                // Ignore malformed value
+                Log.e(TAG, "Malformed channel value detected: " + e);
+                continue;
+            }
+            acsChannelRanges.add(acsChannelRange);
+        }
+        return acsChannelRanges;
     }
 
     /**

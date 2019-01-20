@@ -58,7 +58,7 @@ import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.MutableBoolean;
-import android.util.MutableInt;
+import android.util.MutableLong;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
@@ -1087,7 +1087,7 @@ public class WifiVendorHal {
      * Translation table used by getSupportedFeatureSet for translating IWifiChip caps for
      * additional capabilities introduced in V1.3
      */
-    private static final int[][] sChipFeatureCapabilityTranslation13 = {
+    private static final long[][] sChipFeatureCapabilityTranslation13 = {
             {WifiManager.WIFI_FEATURE_LOW_LATENCY,
                     android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.SET_LATENCY_MODE
             }
@@ -1117,9 +1117,9 @@ public class WifiVendorHal {
      * @return bitmask defined by WifiManager.WIFI_FEATURE_*
      */
     @VisibleForTesting
-    int wifiFeatureMaskFromChipCapabilities_1_3(int capabilities) {
+    long wifiFeatureMaskFromChipCapabilities_1_3(int capabilities) {
         // First collect features from previous versions
-        int features = wifiFeatureMaskFromChipCapabilities(capabilities);
+        long features = wifiFeatureMaskFromChipCapabilities(capabilities);
 
         // Next collect features for V1_3 version
         for (int i = 0; i < sChipFeatureCapabilityTranslation13.length; i++) {
@@ -1201,13 +1201,13 @@ public class WifiVendorHal {
      * @param ifaceName Name of the interface.
      * @return bitmask defined by WifiManager.WIFI_FEATURE_*
      */
-    public int getSupportedFeatureSet(@NonNull String ifaceName) {
-        int featureSet = 0;
+    public long getSupportedFeatureSet(@NonNull String ifaceName) {
+        long featureSet = 0;
         if (!mHalDeviceManager.isStarted()) {
             return featureSet; // TODO: can't get capabilities with Wi-Fi down
         }
         try {
-            final MutableInt feat = new MutableInt(0);
+            final MutableLong feat = new MutableLong(0);
             synchronized (sLock) {
                 android.hardware.wifi.V1_3.IWifiChip iWifiChipV13 = getWifiChipForV1_3Mockable();
                 if (iWifiChipV13 != null) {

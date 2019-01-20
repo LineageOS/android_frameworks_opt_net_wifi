@@ -46,6 +46,8 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
+
 /**
  * Unit tests for HostapdHal
  */
@@ -74,6 +76,9 @@ public class HostapdHalTest {
             ArgumentCaptor.forClass(IServiceNotification.Stub.class);
     private ArgumentCaptor<IHostapd.IfaceParams> mIfaceParamsCaptor =
             ArgumentCaptor.forClass(IHostapd.IfaceParams.class);
+    private ArgumentCaptor<android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams>
+            mIfaceParamsCaptorV1_1 =
+            ArgumentCaptor.forClass(android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams.class);
     private ArgumentCaptor<IHostapd.NetworkParams> mNetworkParamsCaptor =
             ArgumentCaptor.forClass(IHostapd.NetworkParams.class);
     private InOrder mInOrder;
@@ -106,6 +111,7 @@ public class HostapdHalTest {
         mResources = new MockResources();
         mResources.setBoolean(R.bool.config_wifi_softap_acs_supported, false);
         mResources.setBoolean(R.bool.config_wifi_softap_ieee80211ac_supported, false);
+        mResources.setString(R.string.config_wifi_softap_acs_supported_channel_list, "");
 
         mStatusSuccess = createHostapdStatus(HostapdStatusCode.SUCCESS);
         mStatusFailure = createHostapdStatus(HostapdStatusCode.FAILURE_UNKNOWN);
@@ -441,6 +447,73 @@ public class HostapdHalTest {
     }
 
     /**
+     * Verifies the successful addition of access point.
+     * Verifies that channel info for ACS is handled.
+     */
+    @Test
+    public void testAddAccessPointSuccess_Psk_BandAny_WithACS_AcsChannels() throws Exception {
+        when(mServiceManagerMock.getTransport(anyString(), anyString()))
+                .thenReturn(IServiceManager.Transport.HWBINDER);
+        mIHostapdMockV1_1 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
+        // Enable ACS and set available channels in the config.
+        final String acsChannelStr = "1,6,11-13,40";
+        android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange1 =
+                new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
+        android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange2 =
+                new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
+        android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange3 =
+                new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
+        android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange channelRange4 =
+                new android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange();
+        channelRange1.start = channelRange1.end = 1;
+        channelRange2.start = channelRange2.end = 6;
+        channelRange3.start = 11;
+        channelRange3.end = 13;
+        channelRange4.start = channelRange4.end = 40;
+        ArrayList<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange> acsChannelRanges =
+                new ArrayList<>();
+        acsChannelRanges.add(channelRange1);
+        acsChannelRanges.add(channelRange2);
+        acsChannelRanges.add(channelRange3);
+        acsChannelRanges.add(channelRange4);
+        mResources.setBoolean(R.bool.config_wifi_softap_acs_supported, true);
+        mResources.setString(R.string.config_wifi_softap_acs_supported_channel_list, acsChannelStr);
+        mHostapdHal = new HostapdHalSpy();
+
+        when(mIHostapdMockV1_1.addAccessPoint_1_1(
+                mIfaceParamsCaptorV1_1.capture(), mNetworkParamsCaptor.capture()))
+                .thenReturn(mStatusSuccess);
+
+        executeAndValidateInitializationSequenceV1_1(false);
+
+        WifiConfiguration configuration = new WifiConfiguration();
+        configuration.SSID = NETWORK_SSID;
+        configuration.hiddenSSID = false;
+        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
+        configuration.preSharedKey = NETWORK_PSK;
+        configuration.apBand = WifiConfiguration.AP_BAND_ANY;
+
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
+
+        assertEquals(IFACE_NAME, mIfaceParamsCaptorV1_1.getValue().V1_0.ifaceName);
+        assertTrue(mIfaceParamsCaptorV1_1.getValue().V1_0.hwModeParams.enable80211N);
+        assertFalse(mIfaceParamsCaptorV1_1.getValue().V1_0.hwModeParams.enable80211AC);
+        assertEquals(IHostapd.Band.BAND_ANY,
+                mIfaceParamsCaptorV1_1.getValue().V1_0.channelParams.band);
+        assertTrue(mIfaceParamsCaptorV1_1.getValue().V1_0.channelParams.enableAcs);
+        assertTrue(mIfaceParamsCaptorV1_1.getValue().V1_0.channelParams.acsShouldExcludeDfs);
+        assertEquals(acsChannelRanges,
+                mIfaceParamsCaptorV1_1.getValue().channelParams.acsChannelRanges);
+
+        assertEquals(NativeUtil.stringToByteArrayList(NETWORK_SSID),
+                mNetworkParamsCaptor.getValue().ssid);
+        assertFalse(mNetworkParamsCaptor.getValue().isHidden);
+        assertEquals(IHostapd.EncryptionType.WPA2, mNetworkParamsCaptor.getValue().encryptionType);
+        assertEquals(NETWORK_PSK, mNetworkParamsCaptor.getValue().pskPassphrase);
+    }
+
+    /**
      * Verifies the failure handling in addition of access point with an invalid band.
      */
     @Test
@@ -537,6 +610,9 @@ public class HostapdHalTest {
         when(mServiceManagerMock.getTransport(anyString(), anyString()))
                 .thenReturn(IServiceManager.Transport.HWBINDER);
         mIHostapdMockV1_1 = mock(android.hardware.wifi.hostapd.V1_1.IHostapd.class);
+        when(mIHostapdMockV1_1.addAccessPoint_1_1(
+                mIfaceParamsCaptorV1_1.capture(), mNetworkParamsCaptor.capture()))
+                .thenReturn(mStatusSuccess);
         executeAndValidateInitializationSequenceV1_1(false);
 
         WifiConfiguration configuration = new WifiConfiguration();
@@ -544,7 +620,7 @@ public class HostapdHalTest {
         configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
-        verify(mIHostapdMock).addAccessPoint(any(), any());
+        verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
 
         // Trigger on failure.
         mIHostapdCallback.onFailure(IFACE_NAME);
