@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.admin.DeviceAdminInfo;
 import android.app.admin.DevicePolicyManagerInternal;
@@ -1008,7 +1009,7 @@ public class WifiConfigManager {
      * configuration.
      */
     private WifiConfiguration createNewInternalWifiConfigurationFromExternal(
-            WifiConfiguration externalConfig, int uid) {
+            WifiConfiguration externalConfig, int uid, @Nullable String packageName) {
         WifiConfiguration newInternalConfig = new WifiConfiguration();
 
         // First allocate a new network ID for the configuration.
@@ -1028,6 +1029,8 @@ public class WifiConfigManager {
         newInternalConfig.ephemeral = externalConfig.ephemeral;
         newInternalConfig.osu = externalConfig.osu;
         newInternalConfig.trusted = externalConfig.trusted;
+        newInternalConfig.fromWifiNetworkSuggestion = externalConfig.fromWifiNetworkSuggestion;
+        newInternalConfig.fromWifiNetworkSpecifier = externalConfig.fromWifiNetworkSpecifier;
         newInternalConfig.useExternalScores = externalConfig.useExternalScores;
         newInternalConfig.shared = externalConfig.shared;
         newInternalConfig.updateIdentifier = externalConfig.updateIdentifier;
@@ -1035,7 +1038,7 @@ public class WifiConfigManager {
         // Add debug information for network addition.
         newInternalConfig.creatorUid = newInternalConfig.lastUpdateUid = uid;
         newInternalConfig.creatorName = newInternalConfig.lastUpdateName =
-                mContext.getPackageManager().getNameForUid(uid);
+                packageName != null ? packageName : mContext.getPackageManager().getNameForUid(uid);
         newInternalConfig.creationTime = newInternalConfig.updateTime =
                 createDebugTimeStampString(mClock.getWallClockMillis());
         updateRandomizedMacAddress(newInternalConfig);
@@ -1078,7 +1081,8 @@ public class WifiConfigManager {
      * configuration.
      */
     private WifiConfiguration updateExistingInternalWifiConfigurationFromExternal(
-            WifiConfiguration internalConfig, WifiConfiguration externalConfig, int uid) {
+            WifiConfiguration internalConfig, WifiConfiguration externalConfig, int uid,
+            @Nullable String packageName) {
         WifiConfiguration newInternalConfig = new WifiConfiguration(internalConfig);
 
         // Copy over all the public elements from the provided configuration.
@@ -1086,7 +1090,8 @@ public class WifiConfigManager {
 
         // Add debug information for network update.
         newInternalConfig.lastUpdateUid = uid;
-        newInternalConfig.lastUpdateName = mContext.getPackageManager().getNameForUid(uid);
+        newInternalConfig.lastUpdateName =
+                packageName != null ? packageName : mContext.getPackageManager().getNameForUid(uid);
         newInternalConfig.updateTime = createDebugTimeStampString(mClock.getWallClockMillis());
 
         return newInternalConfig;
@@ -1098,10 +1103,12 @@ public class WifiConfigManager {
      * network configuration. Otherwise, the networkId should refer to an existing configuration.
      *
      * @param config provided WifiConfiguration object.
-     * @param uid    UID of the app requesting the network addition/deletion.
+     * @param uid UID of the app requesting the network addition/modification.
+     * @param packageName Package name of the app requesting the network addition/modification.
      * @return NetworkUpdateResult object representing status of the update.
      */
-    private NetworkUpdateResult addOrUpdateNetworkInternal(WifiConfiguration config, int uid) {
+    private NetworkUpdateResult addOrUpdateNetworkInternal(WifiConfiguration config, int uid,
+                                                           @Nullable String packageName) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding/Updating network " + config.getPrintableSsid());
         }
@@ -1115,7 +1122,8 @@ public class WifiConfigManager {
                 Log.e(TAG, "Cannot add network with invalid config");
                 return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
             }
-            newInternalConfig = createNewInternalWifiConfigurationFromExternal(config, uid);
+            newInternalConfig =
+                    createNewInternalWifiConfigurationFromExternal(config, uid, packageName);
             // Since the original config provided may have had an empty
             // {@link WifiConfiguration#allowedKeyMgmt} field, check again if we already have a
             // network with the the same configkey.
@@ -1136,7 +1144,7 @@ public class WifiConfigManager {
             }
             newInternalConfig =
                     updateExistingInternalWifiConfigurationFromExternal(
-                            existingInternalConfig, config, uid);
+                            existingInternalConfig, config, uid, packageName);
         }
 
         // Only add networks with proxy settings if the user has permission to
@@ -1220,10 +1228,12 @@ public class WifiConfigManager {
      * network configuration. Otherwise, the networkId should refer to an existing configuration.
      *
      * @param config provided WifiConfiguration object.
-     * @param uid    UID of the app requesting the network addition/modification.
+     * @param uid UID of the app requesting the network addition/modification.
+     * @param packageName Package name of the app requesting the network addition/modification.
      * @return NetworkUpdateResult object representing status of the update.
      */
-    public NetworkUpdateResult addOrUpdateNetwork(WifiConfiguration config, int uid) {
+    public NetworkUpdateResult addOrUpdateNetwork(WifiConfiguration config, int uid,
+                                                  @Nullable String packageName) {
         if (!doesUidBelongToCurrentUser(uid)) {
             Log.e(TAG, "UID " + uid + " not visible to the current user");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
@@ -1236,7 +1246,7 @@ public class WifiConfigManager {
             Log.e(TAG, "Cannot add/update network before store is read!");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
-        NetworkUpdateResult result = addOrUpdateNetworkInternal(config, uid);
+        NetworkUpdateResult result = addOrUpdateNetworkInternal(config, uid, packageName);
         if (!result.isSuccess()) {
             Log.e(TAG, "Failed to add/update network " + config.getPrintableSsid());
             return result;
@@ -1259,6 +1269,20 @@ public class WifiConfigManager {
             }
         }
         return result;
+
+    }
+
+    /**
+     * Add a network or update a network configuration to our database.
+     * If the supplied networkId is INVALID_NETWORK_ID, we create a new empty
+     * network configuration. Otherwise, the networkId should refer to an existing configuration.
+     *
+     * @param config provided WifiConfiguration object.
+     * @param uid    UID of the app requesting the network addition/modification.
+     * @return NetworkUpdateResult object representing status of the update.
+     */
+    public NetworkUpdateResult addOrUpdateNetwork(WifiConfiguration config, int uid) {
+        return addOrUpdateNetwork(config, uid, null);
     }
 
     /**
