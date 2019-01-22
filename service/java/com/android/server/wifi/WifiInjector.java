@@ -250,7 +250,7 @@ public class WifiInjector {
         mScoringParams = new ScoringParams(mContext, mFrameworkFacade,
                 new Handler(clientModeImplLooper));
         mWifiMetrics.setScoringParams(mScoringParams);
-        mWifiNetworkSelector = new WifiNetworkSelector(mContext, mScoringParams,
+        mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
                 mWifiConfigManager, mClock,
                 mConnectivityLocalLog);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
