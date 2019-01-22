@@ -92,6 +92,12 @@ public class PasspointProvider {
     private boolean mHasEverConnected;
     private boolean mIsShared;
 
+    /**
+     * This is a flag to indicate if the Provider is created temporarily.
+     * Thus, it is not saved permanently unlike normal Passpoint profile.
+     */
+    private boolean mIsEphemeral = false;
+
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             SIMAccessor simAccessor, long providerId, int creatorUid) {
         this(config, keyStore, simAccessor, providerId, creatorUid, null, null, null, false, false);
@@ -165,6 +171,18 @@ public class PasspointProvider {
 
     public void setHasEverConnected(boolean hasEverConnected) {
         mHasEverConnected = hasEverConnected;
+    }
+
+    public boolean isEphemeral() {
+        return mIsEphemeral;
+    }
+
+    public void setEphemeral(boolean isEphemeral) {
+        mIsEphemeral = isEphemeral;
+    }
+
+    public IMSIParameter getImsiParameter() {
+        return mImsiParameter;
     }
 
     /**

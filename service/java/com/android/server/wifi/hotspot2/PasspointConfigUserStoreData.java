@@ -166,6 +166,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         }
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER_LIST);
         for (PasspointProvider provider : providerList) {
+            if (provider.isEphemeral()) {
+                continue;
+            }
             serializeProvider(out, provider);
         }
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER_LIST);

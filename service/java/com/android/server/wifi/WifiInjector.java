@@ -271,7 +271,8 @@ public class WifiInjector {
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
                 mWifiMetrics);
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
-                mPasspointManager, mWifiConfigManager, mConnectivityLocalLog);
+                mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
+                mCarrierNetworkConfig, TelephonyManager.from(mContext));
         mWifiMetrics.setPasspointManager(mPasspointManager);
         mScanRequestProxy = new ScanRequestProxy(mContext,
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
