@@ -2665,6 +2665,7 @@ public class WifiServiceImpl extends BaseWifiService {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
                         // Remove all suggestions from the package.
                         mWifiNetworkSuggestionsManager.removeApp(pkgName);
+                        mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(pkgName);
                     });
                 }
             }
@@ -2674,7 +2675,7 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
             String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        (new WifiShellCommand(mClientModeImpl, mWifiLockManager)).exec(this, in, out, err,
+        (new WifiShellCommand(mWifiInjector)).exec(this, in, out, err,
                 args, callback, resultReceiver);
     }
 
