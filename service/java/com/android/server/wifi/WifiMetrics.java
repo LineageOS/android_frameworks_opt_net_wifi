@@ -296,6 +296,9 @@ public class WifiMetrics {
 
     private boolean mIsMacRandomizationOn = false;
 
+    /** DPP */
+    private final DppMetrics mDppMetrics;
+
     class RouterFingerPrint {
         private WifiMetricsProto.RouterFingerPrint mRouterFingerPrintProto;
         RouterFingerPrint() {
@@ -531,7 +534,8 @@ public class WifiMetrics {
 
     public WifiMetrics(Context context, FrameworkFacade facade, Clock clock, Looper looper,
             WifiAwareMetrics awareMetrics, RttMetrics rttMetrics,
-            WifiPowerMetrics wifiPowerMetrics, WifiP2pMetrics wifiP2pMetrics) {
+            WifiPowerMetrics wifiPowerMetrics, WifiP2pMetrics wifiP2pMetrics,
+            DppMetrics dppMetrics) {
         mContext = context;
         mFacade = facade;
         mClock = clock;
@@ -543,7 +547,7 @@ public class WifiMetrics {
         mRttMetrics = rttMetrics;
         mWifiPowerMetrics = wifiPowerMetrics;
         mWifiP2pMetrics = wifiP2pMetrics;
-
+        mDppMetrics = dppMetrics;
         loadSettings();
         mHandler = new Handler(looper) {
             public void handleMessage(Message msg) {
@@ -2479,6 +2483,8 @@ public class WifiMetrics {
                 }
 
                 mWifiP2pMetrics.dump(pw);
+                pw.println("mDppMetrics:");
+                mDppMetrics.dump(pw);
             }
         }
     }
@@ -2917,6 +2923,7 @@ public class WifiMetrics {
             mWifiLogProto.mobilityStatePnoStatsList = mMobilityStatePnoStatsMap.values()
                     .toArray(new DeviceMobilityStatePnoScanStats[0]);
             mWifiLogProto.wifiP2PStats = mWifiP2pMetrics.consolidateProto();
+            mWifiLogProto.wifiDppLog = mDppMetrics.consolidateProto();
         }
     }
 
@@ -3008,6 +3015,7 @@ public class WifiMetrics {
             mWifiUsabilityStatsEntriesList.clear();
             mMobilityStatePnoStatsMap.clear();
             mWifiP2pMetrics.clear();
+            mDppMetrics.clear();
         }
     }
 

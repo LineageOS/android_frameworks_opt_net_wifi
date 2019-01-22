@@ -30,7 +30,9 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
@@ -83,6 +85,8 @@ public class DppManagerTest {
     IDppCallback mDppCallbackConcurrent;
     @Mock
     WakeupMessage mWakeupMessage;
+    @Mock
+    DppMetrics mDppMetrics;
 
     String mUri =
             "DPP:C:81/1;I:DPP_TESTER;K:MDkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDIgADebGHMJoCcE7OZP/aek5muaJo"
@@ -115,7 +119,7 @@ public class DppManagerTest {
 
     private DppManager createDppManager() {
         DppManager dppManger = new DppManager(mLooper.getLooper(), mWifiNative, mWifiConfigManager,
-                mContext);
+                mContext, mDppMetrics);
         dppManger.mDppTimeoutMessage = mWakeupMessage;
         dppManger.enableVerboseLogging(1);
         return dppManger;
@@ -133,9 +137,13 @@ public class DppManagerTest {
                 EASY_CONNECT_NETWORK_ROLE_STA,
                 mDppCallback);
         verify(mDppCallback).onFailure(
-                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
+                EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -160,6 +168,11 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_URI);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_INVALID_URI);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -172,6 +185,11 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_URI);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppEnrolleeInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_INVALID_URI);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -197,6 +215,11 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_GENERIC);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -210,6 +233,11 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppEnrolleeInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_GENERIC);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -233,6 +261,8 @@ public class DppManagerTest {
         verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
                 eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
                 eq(EASY_CONNECT_NETWORK_ROLE_STA), eq(PSK));
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -256,6 +286,8 @@ public class DppManagerTest {
         verify(mWifiNative).startDppConfiguratorInitiator(eq(TEST_INTERFACE_NAME),
                 eq(TEST_PEER_ID), anyInt(), eq(TEST_SSID_ENCODED), eq(TEST_PASSWORD_ENCODED), any(),
                 eq(EASY_CONNECT_NETWORK_ROLE_STA), eq(SAE));
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -275,6 +307,10 @@ public class DppManagerTest {
         verify(mDppCallback).onFailure(EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -294,6 +330,10 @@ public class DppManagerTest {
         verify(mDppCallback).onFailure(EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -304,6 +344,8 @@ public class DppManagerTest {
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
         verify(mWifiNative).startDppEnrolleeInitiator(eq(TEST_INTERFACE_NAME),
                 eq(TEST_PEER_ID), anyInt());
+        verify(mDppMetrics).updateDppEnrolleeInitiatorRequests();
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -336,6 +378,10 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
         verify(mDppCallbackConcurrent, never()).onSuccess(anyInt());
         verify(mDppCallbackConcurrent, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics, times(2)).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_BUSY);
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -353,6 +399,10 @@ public class DppManagerTest {
                 EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
         verify(mDppCallbackConcurrent, never()).onSuccess(anyInt());
         verify(mDppCallbackConcurrent, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics, times(2)).updateDppEnrolleeInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_BUSY);
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -390,6 +440,11 @@ public class DppManagerTest {
         verify(mDppCallback).onSuccess(EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
         verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppConfiguratorSuccess(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -426,6 +481,10 @@ public class DppManagerTest {
         verify(mDppCallback).onSuccessConfigReceived(TEST_NETWORK_ID);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onFailure(anyInt());
+        verify(mDppMetrics).updateDppEnrolleeInitiatorRequests();
+        verify(mDppMetrics).updateDppEnrolleeSuccess();
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -462,6 +521,11 @@ public class DppManagerTest {
         verify(mDppCallback).onFailure(EASY_CONNECT_EVENT_FAILURE_AUTHENTICATION);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppConfiguratorInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_AUTHENTICATION);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 
     @Test
@@ -499,5 +563,10 @@ public class DppManagerTest {
         verify(mDppCallback).onFailure(EASY_CONNECT_EVENT_FAILURE_AUTHENTICATION);
         verify(mDppCallback, never()).onSuccess(anyInt());
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
+        verify(mDppMetrics).updateDppEnrolleeInitiatorRequests();
+        verify(mDppMetrics).updateDppFailure(EasyConnectStatusCallback
+                .EASY_CONNECT_EVENT_FAILURE_AUTHENTICATION);
+        verify(mDppMetrics).updateDppOperationTime(anyInt());
+        verifyNoMoreInteractions(mDppMetrics);
     }
 }
