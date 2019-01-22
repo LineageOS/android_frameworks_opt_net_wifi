@@ -94,6 +94,13 @@ public class WifiCandidates {
          * to the same network.
          */
         @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group);
+
+        /**
+         * Returns true if the legacy user connect choice logic should be used.
+         *
+         * @returns false to disable the legacy logic
+         */
+        boolean userConnectChoiceOverrideWanted();
     }
 
     /**

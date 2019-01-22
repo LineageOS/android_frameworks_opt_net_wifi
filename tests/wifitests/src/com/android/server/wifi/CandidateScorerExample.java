@@ -91,4 +91,8 @@ final class CandidateScorerExample implements WifiCandidates.CandidateScorer {
         return choice;
     }
 
+    @Override
+    public boolean userConnectChoiceOverrideWanted() {
+        return false;
+    }
 }
