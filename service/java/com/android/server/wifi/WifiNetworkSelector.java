@@ -728,5 +728,7 @@ public class WifiNetworkSelector {
 
         // Register one try out. This is probably not the right place, in the long run.
         registerCandidateScorer(new CompatibiltyScorer(scoringParams));
+        // TODO register in a saner place
+        registerCandidateScorer(new ScoreCardBasedScorer(scoringParams));
     }
 }

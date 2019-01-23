@@ -49,18 +49,21 @@ public class WifiCandidates {
         public final WifiConfiguration config;
         public final int evaluatorIndex;        // First evaluator to nominate this config
         public final int evaluatorScore;        // Score provided by first nominating evaluator
-        private WifiScoreCard.PerBssid mPerBssid;
+
+        private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
 
         public Candidate(Key key,
                          ScanDetail scanDetail,
                          WifiConfiguration config,
                          int evaluatorIndex,
-                         int evaluatorScore) {
+                         int evaluatorScore,
+                         WifiScoreCard.PerBssid perBssid) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
             this.evaluatorIndex = evaluatorIndex;
             this.evaluatorScore = evaluatorScore;
+            this.mPerBssid = perBssid;
         }
 
         public int getScanRssi() {
@@ -74,8 +77,10 @@ public class WifiCandidates {
         /**
          * Accesses statistical information from the score card
          */
-        public WifiScoreCardProto.Signal getEventStatistics(WifiScoreCardProto.Event event) {
-            return null;
+        public @Nullable WifiScoreCardProto.Signal
+                getEventStatistics(WifiScoreCardProto.Event event) {
+            if (mPerBssid == null) return null;
+            return mPerBssid.lookupSignal(event, getFrequency()).toSignal();
         }
 
     }
@@ -195,7 +200,8 @@ public class WifiCandidates {
             remove(old);
         }
         Candidate candidate = new Candidate(key,
-                scanDetail, config, evaluatorIndex, evaluatorScore);
+                scanDetail, config, evaluatorIndex, evaluatorScore,
+                mWifiScoreCard.lookupBssid(key.matchInfo.networkSsid, key.bssid.toString()));
         mCandidates.put(key, candidate);
         return true;
     }
