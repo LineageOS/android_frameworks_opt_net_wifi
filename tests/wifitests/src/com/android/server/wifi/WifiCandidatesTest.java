@@ -40,6 +40,7 @@ public class WifiCandidatesTest {
 
     @Mock ScanDetail mScanDetail1;
     @Mock ScanDetail mScanDetail2;
+    @Mock WifiScoreCard mWifiScoreCard;
 
     ScanResult mScanResult1;
     ScanResult mScanResult2;
@@ -54,8 +55,8 @@ public class WifiCandidatesTest {
      */
     @Before
     public void setUp() throws Exception {
-        mWifiCandidates = new WifiCandidates();
         MockitoAnnotations.initMocks(this);
+        mWifiCandidates = new WifiCandidates(mWifiScoreCard);
         mConfig1 = WifiConfigurationTestUtil.createOpenNetwork();
         mScanResult1 = new ScanResult() {{
                 SSID = removeEnclosingQuotes(mConfig1.SSID);

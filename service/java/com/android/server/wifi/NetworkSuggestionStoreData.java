@@ -24,6 +24,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.util.XmlUtils;
+import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.util.XmlUtil;
 import com.android.server.wifi.util.XmlUtil.WifiConfigurationXmlUtil;
@@ -144,12 +145,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         for (Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
             String packageName = entry.getKey();
             boolean hasUserApproved = entry.getValue().hasUserApproved;
-            Set<WifiNetworkSuggestion> networkSuggestions = entry.getValue().networkSuggestions;
-
+            Set<ExtendedWifiNetworkSuggestion> networkSuggestions =
+                    entry.getValue().extNetworkSuggestions;
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME, packageName);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
-            serializeNetworkSuggestions(out, networkSuggestions);
+            serializeExtNetworkSuggestions(out, networkSuggestions);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
     }
@@ -160,16 +161,16 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private void serializeNetworkSuggestions(
-            XmlSerializer out, final Set<WifiNetworkSuggestion> networkSuggestions)
+    private void serializeExtNetworkSuggestions(
+            XmlSerializer out, final Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions)
             throws XmlPullParserException, IOException {
-        for (WifiNetworkSuggestion networkSuggestion : networkSuggestions) {
-            serializeNetworkSuggestion(out, networkSuggestion);
+        for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
+            serializeNetworkSuggestion(out, extNetworkSuggestion.wns);
         }
     }
 
     /**
-     * Serialize a {@link WifiNetworkSuggestion} to an output stream in XML format.
+     * Serialize a {@link ExtendedWifiNetworkSuggestion} to an output stream in XML format.
      *
      * @throws XmlPullParserException
      * @throws IOException
@@ -190,6 +191,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         XmlUtil.writeNextValue(out, XML_TAG_IS_USER_INTERACTION_REQUIRED,
                 suggestion.isUserInteractionRequired);
         XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, suggestion.suggestorUid);
+        XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME,
+                suggestion.suggestorPackageName);
 
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
     }
@@ -200,8 +203,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private Map<String, PerAppInfo> parseNetworkSuggestionsMap(
-            XmlPullParser in, int outerTagDepth)
+    private Map<String, PerAppInfo> parseNetworkSuggestionsMap(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
@@ -213,11 +215,11 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_PACKAGE_NAME);
                 boolean hasUserApproved = (boolean) XmlUtil.readNextValueWithName(in,
                         XML_TAG_SUGGESTOR_HAS_USER_APPROVED);
-                Set<WifiNetworkSuggestion> networkSuggestions =
-                        parseNetworkSuggestions(in, outerTagDepth + 1);
-                PerAppInfo perAppInfo = new PerAppInfo();
+                PerAppInfo perAppInfo = new PerAppInfo(packageName);
+                Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
+                        parseExtNetworkSuggestions(in, outerTagDepth + 1, perAppInfo);
                 perAppInfo.hasUserApproved = hasUserApproved;
-                perAppInfo.networkSuggestions = networkSuggestions;
+                perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
                 networkSuggestionsMap.put(packageName, perAppInfo);
             } catch (RuntimeException e) {
                 // Failed to parse this network, skip it.
@@ -233,9 +235,10 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private Set<WifiNetworkSuggestion> parseNetworkSuggestions(XmlPullParser in, int outerTagDepth)
+    private Set<ExtendedWifiNetworkSuggestion> parseExtNetworkSuggestions(
+            XmlPullParser in, int outerTagDepth, PerAppInfo perAppInfo)
             throws XmlPullParserException, IOException {
-        Set<WifiNetworkSuggestion> networkSuggestions = new HashSet<>();
+        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
                 in, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION, outerTagDepth)) {
             // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are
@@ -243,17 +246,18 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             try {
                 WifiNetworkSuggestion networkSuggestion =
                         parseNetworkSuggestion(in, outerTagDepth + 1);
-                networkSuggestions.add(networkSuggestion);
+                extNetworkSuggestions.add(ExtendedWifiNetworkSuggestion.fromWns(
+                        networkSuggestion, perAppInfo));
             } catch (RuntimeException e) {
                 // Failed to parse this network, skip it.
                 Log.e(TAG, "Failed to parse network suggestion. Skipping...", e);
             }
         }
-        return networkSuggestions;
+        return extNetworkSuggestions;
     }
 
     /**
-     * Parse a {@link WifiNetworkSuggestion} from an input stream in XML format.
+     * Parse a {@link ExtendedWifiNetworkSuggestion} from an input stream in XML format.
      *
      * @throws XmlPullParserException
      * @throws IOException
@@ -264,6 +268,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
         int suggestorUid = Process.INVALID_UID;
+        String suggestorPackageName = null;
 
         // Loop through and parse out all the elements from the stream within this section.
         while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
@@ -280,6 +285,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_SUGGESTOR_UID:
                         suggestorUid = (int) value;
+                        break;
+                    case XML_TAG_SUGGESTOR_PACKAGE_NAME:
+                        suggestorPackageName = (String) value;
                         break;
                     default:
                         throw new XmlPullParserException(
@@ -301,8 +309,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         if (suggestorUid == -1) {
             throw new XmlPullParserException("XML parsing of suggestor uid failed");
         }
-        return new WifiNetworkSuggestion(wifiConfiguration, isAppInteractionRequired,
-                isUserInteractionRequired, suggestorUid);
+        if (suggestorPackageName == null) {
+            throw new XmlPullParserException("XML parsing of suggestor package name failed");
+        }
+        return new WifiNetworkSuggestion(
+                wifiConfiguration, isAppInteractionRequired, isUserInteractionRequired,
+                suggestorUid, suggestorPackageName);
     }
 }
 

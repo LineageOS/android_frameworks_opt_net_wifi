@@ -48,6 +48,7 @@ public class WifiConfigurationUtilTest {
     static final int CURRENT_USER_MANAGED_PROFILE_USER_ID = 10;
     static final int OTHER_USER_ID = 11;
     static final int TEST_UID = 10000;
+    static final String TEST_PACKAGE = "com.test";
     static final String TEST_SSID = "test_ssid";
     static final String TEST_SSID_1 = "test_ssid_1";
     static final String TEST_BSSID = "aa:aa:11:22:cc:dd";
@@ -505,7 +506,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertTrue(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -519,7 +520,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(".*", PatternMatcher.PATTERN_SIMPLE_GLOB),
                 Pair.create(MacAddress.fromString(TEST_BSSID), MacAddress.BROADCAST_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertTrue(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -533,7 +534,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
                 Pair.create(MacAddress.fromString(TEST_BSSID), MacAddress.BROADCAST_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertTrue(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -547,7 +548,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(".*", PatternMatcher.PATTERN_SIMPLE_GLOB),
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -561,7 +562,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher("", PatternMatcher.PATTERN_LITERAL),
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -575,7 +576,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
                 Pair.create(MacAddress.BROADCAST_ADDRESS, MacAddress.BROADCAST_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -589,7 +590,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
                 Pair.create(MacAddress.fromString(TEST_BSSID), MacAddress.ALL_ZEROS_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 
@@ -603,7 +604,7 @@ public class WifiConfigurationUtilTest {
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_PREFIX),
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
                 WifiConfigurationTestUtil.createOpenHiddenNetwork(),
-                TEST_UID);
+                TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
     }
 

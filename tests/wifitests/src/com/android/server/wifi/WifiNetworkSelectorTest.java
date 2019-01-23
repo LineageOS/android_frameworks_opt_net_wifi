@@ -66,10 +66,12 @@ public class WifiNetworkSelectorTest {
         setupResources();
         setupWifiConfigManager();
         setupWifiInfo();
+        mScoringParams = new ScoringParams(mContext);
         mLocalLog = new LocalLog(512);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
-                new ScoringParams(mContext),
+                mWifiScoreCard,
+                mScoringParams,
                 mWifiConfigManager, mClock,
                 mLocalLog);
         mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
@@ -138,6 +140,7 @@ public class WifiNetworkSelectorTest {
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private Context mContext;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
+    @Mock private WifiScoreCard mWifiScoreCard;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -145,6 +148,7 @@ public class WifiNetworkSelectorTest {
     @Spy private MockResources mResource = new MockResources();
     @Mock private WifiInfo mWifiInfo;
     @Mock private Clock mClock;
+    private ScoringParams mScoringParams;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;
@@ -1282,5 +1286,20 @@ public class WifiNetworkSelectorTest {
         assertTrue(mWifiNetworkSelector.getFilteredScanDetailsForCarrierUnsavedNetworks(
                 mCarrierNetworkConfig).isEmpty());
     }
+
+    /**
+     * Test registerCandidateScorer.
+     *
+     * Just make sure it does not crash, for now.
+     */
+    @Test
+    public void testRegisterCandidateScorer() {
+        WifiCandidates.CandidateScorer candidateScorer = new CandidateScorerExample(mScoringParams);
+
+        mWifiNetworkSelector.registerCandidateScorer(candidateScorer);
+
+        test2GhzHighQuality5GhzAvailable();
+    }
+
 }
 

@@ -241,8 +241,8 @@ public class WifiInjector {
                 mWifiKeyStore, mWifiConfigStore, mWifiConfigStoreLegacy, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
-                new DeletedEphemeralSsidsStoreData(), mFrameworkFacade,
-                mWifiCoreHandlerThread.getLooper());
+                new DeletedEphemeralSsidsStoreData(), new RandomizedMacStoreData(),
+                mFrameworkFacade, mWifiCoreHandlerThread.getLooper());
         mWifiScoreCard = new WifiScoreCard(mClock, "TODO(b/112196799) seed me properly");
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
@@ -250,7 +250,7 @@ public class WifiInjector {
         mScoringParams = new ScoringParams(mContext, mFrameworkFacade,
                 new Handler(clientModeImplLooper));
         mWifiMetrics.setScoringParams(mScoringParams);
-        mWifiNetworkSelector = new WifiNetworkSelector(mContext, mScoringParams,
+        mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
                 mWifiConfigManager, mClock,
                 mConnectivityLocalLog);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
@@ -592,8 +592,17 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(), mContext, nc,
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
+                (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
                 mClock, this, wifiConnectivityManager, mWifiConfigManager,
-                mWifiPermissionsUtil);
+                mWifiConfigStore, mWifiPermissionsUtil);
+    }
+
+    /**
+     * Construct an instance of {@link NetworkRequestStoreData}.
+     */
+    public NetworkRequestStoreData makeNetworkRequestStoreData(
+            NetworkRequestStoreData.DataSource dataSource) {
+        return new NetworkRequestStoreData(dataSource);
     }
 
     /**

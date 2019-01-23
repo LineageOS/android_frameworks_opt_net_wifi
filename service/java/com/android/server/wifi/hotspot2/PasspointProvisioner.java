@@ -469,14 +469,14 @@ public class PasspointProvisioner {
                 if (mWebUrl == null) {
                     Log.e(TAG, "No Web-Url");
                     resetStateMachineForFailure(
-                            ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                            ProvisioningCallback.OSU_FAILURE_INVALID_URL_FORMAT_FOR_OSU);
                     return;
                 }
 
                 if (!mWebUrl.toLowerCase(Locale.US).contains(mSessionId.toLowerCase(Locale.US))) {
                     Log.e(TAG, "Bad or Missing session ID in webUrl");
                     resetStateMachineForFailure(
-                            ProvisioningCallback.OSU_FAILURE_INVALID_SERVER_URL);
+                            ProvisioningCallback.OSU_FAILURE_INVALID_URL_FORMAT_FOR_OSU);
                     return;
                 }
                 launchOsuWebView();
