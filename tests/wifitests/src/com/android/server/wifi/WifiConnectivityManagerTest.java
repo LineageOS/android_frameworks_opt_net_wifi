@@ -2119,8 +2119,8 @@ public class WifiConnectivityManagerTest {
      */
     @Test
     public void changeDeviceMobilityStateDuringScan() {
-        mWifiConnectivityManager = createConnectivityManager();
         mWifiConnectivityManager.setWifiEnabled(true);
+
         // starts a PNO scan
         mWifiConnectivityManager.handleConnectionStateChanged(
                 WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
@@ -2152,8 +2152,8 @@ public class WifiConnectivityManagerTest {
      */
     @Test
     public void changeDeviceMobilityStateDuringScanWithSameScanPeriod() {
-        mWifiConnectivityManager = createConnectivityManager();
         mWifiConnectivityManager.setWifiEnabled(true);
+
         // starts a PNO scan
         mWifiConnectivityManager.handleConnectionStateChanged(
                 WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
@@ -2180,8 +2180,6 @@ public class WifiConnectivityManagerTest {
      */
     @Test
     public void setDeviceMobilityStateBeforePnoScan() {
-        mWifiConnectivityManager = createConnectivityManager();
-
         // ensure no PNO scan running
         mWifiConnectivityManager.setWifiEnabled(true);
         mWifiConnectivityManager.handleConnectionStateChanged(
@@ -2208,5 +2206,57 @@ public class WifiConnectivityManagerTest {
         // the PNO scan started
         assertEquals(scanSettingsCaptor.getValue().periodInMs,
                 WifiConnectivityManager.STATIONARY_PNO_SCAN_INTERVAL_MS);
+    }
+
+    /**
+     * Tests the metrics collection of PNO scans through changes to device mobility state and
+     * starting and stopping of PNO scans.
+     */
+    @Test
+    public void deviceMobilityStateMetricsChangeStateAndStopStart() {
+        InOrder inOrder = inOrder(mWifiMetrics);
+
+        mWifiConnectivityManager = createConnectivityManager();
+        mWifiConnectivityManager.setWifiEnabled(true);
+
+        // change mobility state while no PNO scans running
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+        inOrder.verify(mWifiMetrics).enterDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+
+        // starts a PNO scan
+        mWifiConnectivityManager.handleConnectionStateChanged(
+                WifiConnectivityManager.WIFI_STATE_DISCONNECTED);
+        mWifiConnectivityManager.setTrustedConnectionAllowed(true);
+        inOrder.verify(mWifiMetrics).logPnoScanStart();
+
+        // change to High Movement, which has the same scan interval as Low Movement
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+        inOrder.verify(mWifiMetrics).logPnoScanStop();
+        inOrder.verify(mWifiMetrics).enterDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+        inOrder.verify(mWifiMetrics).logPnoScanStart();
+
+        // change to Stationary, which has a different scan interval from High Movement
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        inOrder.verify(mWifiMetrics).logPnoScanStop();
+        inOrder.verify(mWifiMetrics).enterDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        inOrder.verify(mWifiMetrics).logPnoScanStart();
+
+        // stops PNO scan
+        mWifiConnectivityManager.setTrustedConnectionAllowed(false);
+        inOrder.verify(mWifiMetrics).logPnoScanStop();
+
+        // change mobility state while no PNO scans running
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+        inOrder.verify(mWifiMetrics).enterDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+
+        inOrder.verifyNoMoreInteractions();
     }
 }

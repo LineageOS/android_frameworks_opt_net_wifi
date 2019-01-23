@@ -17,6 +17,7 @@ package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.anyInt;
@@ -52,6 +53,7 @@ import com.android.server.wifi.hotspot2.PasspointMatch;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
@@ -2580,5 +2582,108 @@ public class WifiMetricsTest {
         }
         dumpProtoAndDeserialize();
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    private DeviceMobilityStatePnoScanStats findDeviceMobilityStatePnoScanStats(
+            @WifiManager.DeviceMobilityState int state) {
+        DeviceMobilityStatePnoScanStats result = null;
+        for (DeviceMobilityStatePnoScanStats stats : mDecodedProto.mobilityStatePnoStatsList) {
+            if (stats.deviceMobilityState == state) {
+                if (result == null) {
+                    result = stats;
+                } else {
+                    throw new RuntimeException("Duplicate device mobility state metrics found!");
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Tests device mobility state metrics as states are changed.
+     */
+    @Test
+    public void testDeviceMobilityStateMetricsChangeState() throws Exception {
+        // timeMs is initialized to 0 by the setUp() method
+        long timeMs = 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.enterDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+
+        timeMs += 2000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.enterDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+
+        dumpProtoAndDeserialize();
+
+        DeviceMobilityStatePnoScanStats unknownStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN);
+        DeviceMobilityStatePnoScanStats stationaryStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        DeviceMobilityStatePnoScanStats lowMvmtStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+        DeviceMobilityStatePnoScanStats highMvmtStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+
+        assertNotNull(unknownStateStats);
+        assertEquals(1, unknownStateStats.numTimesEnteredState);
+        assertEquals(1000, unknownStateStats.totalDurationMs);
+        assertEquals(0, unknownStateStats.pnoDurationMs);
+
+        assertNotNull(stationaryStateStats);
+        assertEquals(1, stationaryStateStats.numTimesEnteredState);
+        assertEquals(2000, stationaryStateStats.totalDurationMs);
+        assertEquals(0, stationaryStateStats.pnoDurationMs);
+
+        // although low mvmt state was entered, metrics are only recorded when a state is exited.
+        assertNull(lowMvmtStateStats);
+        assertNull(highMvmtStateStats);
+    }
+
+    /**
+     * Tests device mobility state metrics as PNO scans are started and stopped.
+     */
+    @Test
+    public void testDeviceMobilityStateMetricsStartStopPnoScans() throws Exception {
+        long timeMs = 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.logPnoScanStart();
+
+        timeMs += 2000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.logPnoScanStop();
+        mWifiMetrics.enterDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        mWifiMetrics.logPnoScanStart();
+
+        timeMs += 4000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.logPnoScanStop();
+
+        timeMs += 8000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        mWifiMetrics.enterDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+
+        dumpProtoAndDeserialize();
+
+        DeviceMobilityStatePnoScanStats unknownStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN);
+        DeviceMobilityStatePnoScanStats stationaryStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        DeviceMobilityStatePnoScanStats lowMvmtStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_LOW_MVMT);
+        DeviceMobilityStatePnoScanStats highMvmtStateStats =
+                findDeviceMobilityStatePnoScanStats(WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+
+        assertNotNull(unknownStateStats);
+        assertEquals(1, unknownStateStats.numTimesEnteredState);
+        assertEquals(1000 + 2000, unknownStateStats.totalDurationMs);
+        assertEquals(2000, unknownStateStats.pnoDurationMs);
+
+        assertNotNull(stationaryStateStats);
+        assertEquals(1, stationaryStateStats.numTimesEnteredState);
+        assertEquals(4000 + 8000, stationaryStateStats.totalDurationMs);
+        assertEquals(4000, stationaryStateStats.pnoDurationMs);
+
+        assertNull(lowMvmtStateStats);
+        assertNull(highMvmtStateStats);
     }
 }
