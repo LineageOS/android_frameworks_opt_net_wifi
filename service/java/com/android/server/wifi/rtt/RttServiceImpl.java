@@ -374,8 +374,13 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
      */
     @Override
     public boolean isAvailable() {
-        return mRttNative.isReady() && !mPowerManager.isDeviceIdleMode()
-                && mWifiPermissionsUtil.isLocationModeEnabled();
+        long ident = Binder.clearCallingIdentity();
+        try {
+            return mRttNative.isReady() && !mPowerManager.isDeviceIdleMode()
+                    && mWifiPermissionsUtil.isLocationModeEnabled();
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
     }
 
     /**
