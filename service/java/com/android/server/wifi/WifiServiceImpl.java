@@ -1387,9 +1387,14 @@ public class WifiServiceImpl extends BaseWifiService {
             return LocalOnlyHotspotCallback.ERROR_GENERIC;
         }
         enforceLocationPermission(packageName, uid);
-        // also need to verify that Locations services are enabled.
-        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
-            throw new SecurityException("Location mode is not enabled.");
+        long ident = Binder.clearCallingIdentity();
+        try {
+            // also need to verify that Locations services are enabled.
+            if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
+                throw new SecurityException("Location mode is not enabled.");
+            }
+        } finally {
+            Binder.restoreCallingIdentity(ident);
         }
 
         // verify that tethering is not disabled
