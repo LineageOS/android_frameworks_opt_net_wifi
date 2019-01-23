@@ -382,14 +382,14 @@ public class WifiApConfigStore {
             return false;
         }
 
-        if (ssid.length() < SSID_MIN_LEN || ssid.length() > SSID_MAX_LEN) {
-            Log.d(TAG, "SSID for softap configuration string size must be at least "
-                    + SSID_MIN_LEN + " and not more than " + SSID_MAX_LEN);
-            return false;
-        }
-
         try {
-            ssid.getBytes(StandardCharsets.UTF_8);
+            byte[] ssid_bytes = ssid.getBytes(StandardCharsets.UTF_8);
+
+            if (ssid_bytes.length < SSID_MIN_LEN || ssid_bytes.length > SSID_MAX_LEN) {
+                Log.d(TAG, "softap SSID is defined as UTF-8 and it must be at least "
+                        + SSID_MIN_LEN + " byte and not more than " + SSID_MAX_LEN + " bytes");
+                return false;
+            }
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "softap config SSID verification failed: malformed string " + ssid);
             return false;

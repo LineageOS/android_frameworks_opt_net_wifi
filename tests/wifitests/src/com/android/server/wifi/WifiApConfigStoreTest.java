@@ -75,6 +75,10 @@ public class WifiApConfigStoreTest {
     private static final int RAND_SSID_INT_MIN = 1000;
     private static final int RAND_SSID_INT_MAX = 9999;
     private static final String TEST_CHAR_SET_AS_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String TEST_STRING_UTF8_WITH_30_BYTES = "智者務其實愚者爭虛名";
+    private static final String TEST_STRING_UTF8_WITH_32_BYTES = "ΣωκράτηςΣωκράτης";
+    private static final String TEST_STRING_UTF8_WITH_33_BYTES = "一片汪洋大海中的一條魚";
+    private static final String TEST_STRING_UTF8_WITH_34_BYTES = "Ευπροσηγοροςγινου";
 
     @Mock private Context mContext;
     private TestLooper mLooper;
@@ -597,14 +601,28 @@ public class WifiApConfigStoreTest {
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
         config.SSID = "";
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
-        // check a string that is too large
+        // check a string if it's larger than 32 bytes with UTF-8 encode
+        // Case 1 : one byte per character (use english words and Arabic numerals)
         config.SSID = generateRandomString(WifiApConfigStore.SSID_MAX_LEN + 1);
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 2 : two bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_34_BYTES;
+        assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 3 : three bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_33_BYTES;
+        assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
 
-        // now check a valid SSID with a random length
+        // now check a valid SSID within 32 bytes
+        // Case 1 :  one byte per character with random length
         int validLength = WifiApConfigStore.SSID_MAX_LEN - WifiApConfigStore.SSID_MIN_LEN;
         config.SSID = generateRandomString(
                 mRandom.nextInt(validLength) + WifiApConfigStore.SSID_MIN_LEN);
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 2 : two bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_32_BYTES;
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 3 : three bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_30_BYTES;
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
     }
 
