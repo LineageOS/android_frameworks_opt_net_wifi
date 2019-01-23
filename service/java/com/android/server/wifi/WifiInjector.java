@@ -254,6 +254,8 @@ public class WifiInjector {
         mWifiNetworkSelector.registerCandidateScorer(compatibilityScorer);
         ScoreCardBasedScorer scoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(scoreCardBasedScorer);
+        BubbleFunScorer bubbleFunScorer = new BubbleFunScorer(mScoringParams);
+        mWifiNetworkSelector.registerCandidateScorer(bubbleFunScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);

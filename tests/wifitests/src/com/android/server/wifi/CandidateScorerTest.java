@@ -66,6 +66,13 @@ public class CandidateScorerTest {
                 new ScoreCardBasedScorer(sp),
                 sp});
 
+        sp = new ScoringParams();
+        ans.add(new Object[]{
+                "Bubble Function Scorer",
+                BubbleFunScorer.BUBBLE_FUN_SCORER_DEFAULT_EXPID,
+                new BubbleFunScorer(sp),
+                sp});
+
         return ans;
     }
 
