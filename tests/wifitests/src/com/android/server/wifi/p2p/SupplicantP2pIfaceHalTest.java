@@ -2695,6 +2695,21 @@ public class SupplicantP2pIfaceHalTest {
     }
 
     /**
+     * Sunny day scenario for setMacRandomization()
+     */
+    @Test
+    public void testEnableMacRandomization() throws Exception {
+        when(mISupplicantP2pIfaceMockV12.setMacRandomization(anyBoolean()))
+                .thenReturn(mStatusSuccess);
+
+        // Should fail before initialization.
+        assertFalse(mDut.setMacRandomization(true));
+        executeAndValidateInitializationSequence(false, false, false);
+        assertTrue(mDut.setMacRandomization(true));
+        verify(mISupplicantP2pIfaceMockV12).setMacRandomization(eq(true));
+    }
+
+    /**
      * Calls.initialize(), mocking various call back answers and verifying flow, asserting for the
      * expected result. Verifies if ISupplicantP2pIface manager is initialized or reset.
      * Each of the arguments will cause a different failure mode when set true.

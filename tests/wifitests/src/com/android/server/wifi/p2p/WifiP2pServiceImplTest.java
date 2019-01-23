@@ -1178,4 +1178,22 @@ public class WifiP2pServiceImplTest {
         verify(mWifiNative).p2pExtListen(eq(false), anyInt(), anyInt());
         assertTrue(mClientHandler.hasMessages(WifiP2pManager.STOP_LISTEN_SUCCEEDED));
     }
+
+    /** Verify the p2p randomized MAC feature is enabled if wlan driver supports it. */
+    @Test
+    public void testP2pRandomMacWithDriverSupport() throws Exception {
+        when(mWifiNative.getSupportedFeatureSet(eq(IFACE_NAME_P2P)))
+                .thenReturn(WifiManager.WIFI_FEATURE_P2P_RAND_MAC);
+        forceP2pEnabled(mClient1);
+        verify(mWifiNative).setMacRandomization(eq(true));
+    }
+
+    /** Verify the p2p randomized MAC feature is NOT enabled if wlan driver doesn't supports it. */
+    @Test
+    public void testP2pRandomMacWithoutDriverSupport() throws Exception {
+        when(mWifiNative.getSupportedFeatureSet(eq(IFACE_NAME_P2P)))
+                .thenReturn(0x0L);
+        forceP2pEnabled(mClient1);
+        verify(mWifiNative, never()).setMacRandomization(anyBoolean());
+    }
 }
