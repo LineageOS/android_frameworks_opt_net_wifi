@@ -1179,7 +1179,7 @@ public class WifiAwareDataPathStateManager {
             // permitted).
             // Note: checks are done on the manager. This is a backup for apps which bypass the
             // check.
-            if (!allowNdpResponderFromAnyOverride && !wifiPermissionsUtil.isLegacyVersion(
+            if (!allowNdpResponderFromAnyOverride && !wifiPermissionsUtil.isTargetSdkLessThan(
                     client.getCallingPackage(), Build.VERSION_CODES.P)) {
                 if (ns.type != WifiAwareNetworkSpecifier.NETWORK_SPECIFIER_TYPE_IB
                         && ns.type != WifiAwareNetworkSpecifier.NETWORK_SPECIFIER_TYPE_OOB) {

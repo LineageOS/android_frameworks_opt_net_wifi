@@ -1059,7 +1059,8 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             }
 
             boolean permissionGranted = mWifiPermissionsUtil.checkCallersLocationPermission(
-                    topOfQueueRequest.callingPackage, topOfQueueRequest.uid)
+                    topOfQueueRequest.callingPackage,
+                    topOfQueueRequest.uid, /* coarseForTargetSdkLessThanQ */ false)
                     && mWifiPermissionsUtil.isLocationModeEnabled();
             try {
                 if (permissionGranted) {

@@ -2154,7 +2154,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testAddPasspointProfileViaAddNetwork() throws Exception {
-        mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.P;
         WifiConfiguration config = WifiConfigurationTestUtil.createPasspointNetwork();
         config.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
 
@@ -2162,6 +2161,8 @@ public class WifiServiceImplTest {
         when(pm.hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(true);
         when(mContext.getPackageManager()).thenReturn(pm);
         when(pm.getApplicationInfo(any(), anyInt())).thenReturn(mApplicationInfo);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
 
         when(mClientModeImpl.syncAddOrUpdatePasspointConfig(any(),
                 any(PasspointConfiguration.class), anyInt())).thenReturn(true);
@@ -3186,8 +3187,9 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.P;
         when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
