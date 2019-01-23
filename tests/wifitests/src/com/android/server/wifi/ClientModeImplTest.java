@@ -19,6 +19,8 @@ package com.android.server.wifi;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
 
+import static com.android.server.wifi.ClientModeImpl.CMD_PRE_DHCP_ACTION;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -45,8 +47,8 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkMisc;
 import android.net.NetworkSpecifier;
-import android.net.dhcp.DhcpClient;
-import android.net.ip.IpClient;
+import android.net.ip.IIpClient;
+import android.net.ip.IpClientCallbacks;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -205,14 +207,13 @@ public class ClientModeImplTest {
         IBinder batteryStatsBinder = mockService(BatteryStats.class, IBatteryStats.class);
         when(facade.getService(BatteryStats.SERVICE_NAME)).thenReturn(batteryStatsBinder);
 
-        when(facade.makeIpClient(any(Context.class), anyString(), any(IpClient.Callback.class)))
-                .then(new AnswerWithArguments() {
-                    public IpClient answer(
-                            Context context, String ifname, IpClient.Callback callback) {
-                        mIpClientCallback = callback;
-                        return mIpClient;
-                    }
-                });
+        doAnswer(new AnswerWithArguments() {
+            public void answer(
+                    Context context, String ifname, IpClientCallbacks callback) {
+                mIpClientCallback = callback;
+                callback.onIpClientCreated(mIpClient);
+            }
+        }).when(facade).makeIpClient(any(), anyString(), any());
 
         return facade;
     }
@@ -333,7 +334,7 @@ public class ClientModeImplTest {
     Context mContext;
     MockResources mResources;
     FrameworkFacade mFrameworkFacade;
-    IpClient.Callback mIpClientCallback;
+    IpClientCallbacks mIpClientCallback;
     PhoneStateListener mPhoneStateListener;
     OsuProvider mOsuProvider;
     ContentObserver mContentObserver;
@@ -359,7 +360,7 @@ public class ClientModeImplTest {
     @Mock PasspointManager mPasspointManager;
     @Mock SelfRecovery mSelfRecovery;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
-    @Mock IpClient mIpClient;
+    @Mock IIpClient mIpClient;
     @Mock TelephonyManager mTelephonyManager;
     @Mock WrongPasswordNotifier mWrongPasswordNotifier;
     @Mock Clock mClock;
@@ -480,6 +481,10 @@ public class ClientModeImplTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
+        doAnswer(inv -> {
+            mIpClientCallback.onQuit();
+            return null;
+        }).when(mIpClient).shutdown();
         initializeCmi();
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
@@ -1314,8 +1319,7 @@ public class ClientModeImplTest {
     public void getWhatToString() throws Exception {
         assertEquals("CMD_CHANNEL_HALF_CONNECTED", mCmi.getWhatToString(
                 AsyncChannel.CMD_CHANNEL_HALF_CONNECTED));
-        assertEquals("CMD_PRE_DHCP_ACTION", mCmi.getWhatToString(
-                DhcpClient.CMD_PRE_DHCP_ACTION));
+        assertEquals("CMD_PRE_DHCP_ACTION", mCmi.getWhatToString(CMD_PRE_DHCP_ACTION));
         assertEquals("CMD_IP_REACHABILITY_LOST", mCmi.getWhatToString(
                 ClientModeImpl.CMD_IP_REACHABILITY_LOST));
     }
@@ -2770,7 +2774,6 @@ public class ClientModeImplTest {
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
         verify(mIpClient).shutdown();
-        verify(mIpClient).awaitShutdown();
         verify(mWifiConfigManager).removeAllEphemeralOrPasspointConfiguredNetworks();
     }
 
