@@ -990,7 +990,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                                 WifiP2pManager.BUSY);
                         break;
                     case WifiP2pManager.DELETE_PERSISTENT_GROUP:
-                        replyToMessage(message, WifiP2pManager.DELETE_PERSISTENT_GROUP,
+                        replyToMessage(message, WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED,
                                 WifiP2pManager.BUSY);
                         break;
                     case WifiP2pManager.SET_WFD_INFO:
@@ -1231,7 +1231,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                                 WifiP2pManager.P2P_UNSUPPORTED);
                         break;
                     case WifiP2pManager.DELETE_PERSISTENT_GROUP:
-                        replyToMessage(message, WifiP2pManager.DELETE_PERSISTENT_GROUP,
+                        replyToMessage(message, WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED,
                                 WifiP2pManager.P2P_UNSUPPORTED);
                         break;
                     case WifiP2pManager.SET_WFD_INFO:
