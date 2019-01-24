@@ -338,6 +338,7 @@ public class ClientModeImplTest {
     PhoneStateListener mPhoneStateListener;
     OsuProvider mOsuProvider;
     ContentObserver mContentObserver;
+    WifiConfiguration mConnectedNetwork;
 
     @Mock WifiScanner mWifiScanner;
     @Mock SupplicantStateTracker mSupplicantStateTracker;
@@ -496,6 +497,8 @@ public class ClientModeImplTest {
                 Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED)), eq(false),
                 observerCaptor.capture());
         mContentObserver = observerCaptor.getValue();
+
+        mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
     }
 
     private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
@@ -908,7 +911,7 @@ public class ClientModeImplTest {
     @Test
     public void triggerConnect() throws Exception {
         loadComponentsInStaMode();
-        WifiConfiguration config = spy(WifiConfigurationTestUtil.createOpenNetwork());
+        WifiConfiguration config = mConnectedNetwork;
         config.networkId = FRAMEWORK_NETWORK_ID;
         when(config.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
@@ -3221,5 +3224,39 @@ public class ClientModeImplTest {
         assertEquals("DisconnectedState", getCurrentState().getName());
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+    }
+
+    /**
+     * Verify that WifiInfo is correctly populated after connection.
+     */
+    @Test
+    public void verifyWifiInfoGetNetworkSpecifierPackageName() throws Exception {
+        mConnectedNetwork.fromWifiNetworkSpecifier = true;
+        mConnectedNetwork.ephemeral = true;
+        mConnectedNetwork.trusted = true;
+        mConnectedNetwork.creatorName = OP_PACKAGE_NAME;
+        connect();
+
+        assertTrue(mCmi.getWifiInfo().isEphemeral());
+        assertTrue(mCmi.getWifiInfo().isTrusted());
+        assertEquals(OP_PACKAGE_NAME,
+                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+    }
+
+    /**
+     * Verify that WifiInfo is correctly populated after connection.
+     */
+    @Test
+    public void verifyWifiInfoGetNetworkSuggestionPackageName() throws Exception {
+        mConnectedNetwork.fromWifiNetworkSuggestion = true;
+        mConnectedNetwork.ephemeral = true;
+        mConnectedNetwork.trusted = true;
+        mConnectedNetwork.creatorName = OP_PACKAGE_NAME;
+        connect();
+
+        assertTrue(mCmi.getWifiInfo().isEphemeral());
+        assertTrue(mCmi.getWifiInfo().isTrusted());
+        assertEquals(OP_PACKAGE_NAME,
+                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
     }
 }
