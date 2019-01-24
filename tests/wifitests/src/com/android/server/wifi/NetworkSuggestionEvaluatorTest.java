@@ -50,6 +50,8 @@ public class NetworkSuggestionEvaluatorTest {
     private static final int TEST_UID = 3555;
     private static final int TEST_UID_OTHER = 3545;
     private static final int TEST_NETWORK_ID = 55;
+    private static final String TEST_PACKAGE = "com.test";
+    private static final String TEST_PACKAGE_OTHER = "com.test.other";
 
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
@@ -83,11 +85,12 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {};
         int[] priorities = {};
         int[] uids = {};
+        String[] packageNames = {};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
 
@@ -120,11 +123,12 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {true};
         int[] priorities = {0};
         int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
@@ -167,11 +171,12 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {true, true};
         int[] priorities = {0, 1};
         int[] uids = {TEST_UID, TEST_UID};
+        String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
@@ -220,11 +225,12 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {true, true, false};
         int[] priorities = {0, 1, 0};
         int[] uids = {TEST_UID, TEST_UID, TEST_UID_OTHER};
+        String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE, TEST_PACKAGE_OTHER};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
@@ -270,15 +276,16 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {true};
         int[] priorities = {0};
         int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // Fail add to WifiConfigManager
-        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt(), anyString()))
                 .thenReturn(new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID));
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
@@ -295,7 +302,7 @@ public class NetworkSuggestionEvaluatorTest {
         assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
         assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
 
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt(), anyString());
     }
 
     /**
@@ -317,11 +324,12 @@ public class NetworkSuggestionEvaluatorTest {
         boolean[] meteredness = {true};
         int[] priorities = {0};
         int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
 
         ScanDetail[] scanDetails =
                 buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
         WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
-                appInteractions, meteredness, priorities, uids);
+                appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // Existing saved network matching the credentials.
@@ -351,7 +359,7 @@ public class NetworkSuggestionEvaluatorTest {
 
     private void setupAddToWifiConfigManager(WifiConfiguration candidate) {
         // setup & verify the WifiConfigmanager interactions for adding/enabling the network.
-        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt(), anyString()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.updateNetworkSelectionStatus(eq(TEST_NETWORK_ID), anyInt()))
                 .thenReturn(true);
@@ -367,10 +375,12 @@ public class NetworkSuggestionEvaluatorTest {
 
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
-        verify(mWifiConfigManager).addOrUpdateNetwork(wifiConfigurationCaptor.capture(), anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(wifiConfigurationCaptor.capture(), anyInt(),
+                anyString());
         WifiConfiguration addedWifiConfiguration = wifiConfigurationCaptor.getValue();
         assertNotNull(addedWifiConfiguration);
         assertTrue(addedWifiConfiguration.ephemeral);
+        assertTrue(addedWifiConfiguration.fromWifiNetworkSuggestion);
         assertEquals(candidate.SSID, addedWifiConfiguration.SSID);
 
         verify(mWifiConfigManager).updateNetworkSelectionStatus(eq(TEST_NETWORK_ID), anyInt());
@@ -420,7 +430,7 @@ public class NetworkSuggestionEvaluatorTest {
 
     private WifiNetworkSuggestion[] buildNetworkSuggestions(
             String[] ssids, int[] securities, boolean[] appInteractions, boolean[] meteredness,
-            int[] priorities, int[] uids) {
+            int[] priorities, int[] uids, String[] packageNames) {
         WifiConfiguration[] configs = buildWifiConfigurations(ssids, securities);
         WifiNetworkSuggestion[] suggestions = new WifiNetworkSuggestion[configs.length];
         for (int i = 0; i < configs.length; i++) {
@@ -429,7 +439,7 @@ public class NetworkSuggestionEvaluatorTest {
                     ? WifiConfiguration.METERED_OVERRIDE_METERED
                     : WifiConfiguration.METERED_OVERRIDE_NONE;
             suggestions[i] = new WifiNetworkSuggestion(configs[i], appInteractions[i],
-                    false, uids[i], "");
+                    false, uids[i], packageNames[i]);
         }
         return suggestions;
     }

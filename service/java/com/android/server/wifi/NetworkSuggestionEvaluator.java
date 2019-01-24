@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
-import android.os.Process;
 import android.util.LocalLog;
 
 import java.util.Comparator;
@@ -124,18 +123,22 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                     existingSavedNetwork.networkId));
             return existingSavedNetwork;
         }
-        return addCandidateToWifiConfigManager(candidateNetworkSuggestion.wifiConfiguration);
+        return addCandidateToWifiConfigManager(
+                candidateNetworkSuggestion.wifiConfiguration,
+                candidateNetworkSuggestion.suggestorUid,
+                candidateNetworkSuggestion.suggestorPackageName);
     }
 
     // Add and enable this network to the central database (i.e WifiConfigManager).
     // Returns the copy of WifiConfiguration with the allocated network ID filled in.
     private WifiConfiguration addCandidateToWifiConfigManager(
-            @NonNull WifiConfiguration wifiConfiguration) {
+            @NonNull WifiConfiguration wifiConfiguration, int uid, @NonNull String packageName) {
         // Mark the network ephemeral because we don't want these persisted by WifiConfigManager.
         wifiConfiguration.ephemeral = true;
+        wifiConfiguration.fromWifiNetworkSuggestion = true;
 
         NetworkUpdateResult result =
-                mWifiConfigManager.addOrUpdateNetwork(wifiConfiguration, Process.WIFI_UID);
+                mWifiConfigManager.addOrUpdateNetwork(wifiConfiguration, uid, packageName);
         if (!result.isSuccess()) {
             mLocalLog.log("Failed to add network suggestion");
             return null;
