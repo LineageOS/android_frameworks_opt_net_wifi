@@ -71,6 +71,7 @@ import android.net.Uri;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
+import android.net.wifi.IWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
@@ -146,6 +147,7 @@ public class WifiServiceImplTest {
     private static final int TEST_USER_HANDLE = 13;
     private static final int TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER = 17;
     private static final int TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER = 234;
+    private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
     private static final String WIFI_IFACE_NAME = "wlan0";
     private static final String TEST_COUNTRY_CODE = "US";
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
@@ -228,6 +230,7 @@ public class WifiServiceImplTest {
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock TelephonyManager mTelephonyManager;
+    @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
 
     @Spy FakeWifiLog mLog;
 
@@ -3467,5 +3470,82 @@ public class WifiServiceImplTest {
         verify(mClientModeImpl, never()).setDeviceMobilityState(anyInt());
         mLooper.dispatchAll();
         verify(mClientModeImpl).setDeviceMobilityState(eq(DEVICE_MOBILITY_STATE_STATIONARY));
+    }
+
+    /**
+     * Verify that a call to addWifiUsabilityStatsListener throws a SecurityException if
+     * the caller does not have WIFI_UPDATE_USABILITY_STATS_SCORE permission.
+     */
+    @Test
+    public void testAddStatsListenerThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                        eq(android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.addWifiUsabilityStatsListener(mAppBinder,
+                    mWifiUsabilityStatsListener, TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to addWifiUsabilityStatsListener throws an IllegalArgumentException
+     * if the parameters are not provided.
+     */
+    @Test
+    public void testAddStatsListenerThrowsIllegalArgumentExceptionOnInvalidArguments() {
+        try {
+            mWifiServiceImpl.addWifiUsabilityStatsListener(
+                    mAppBinder, null, TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+            fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+    /**
+     * Verify that a call to removeWifiUsabilityStatsListener throws a SecurityException if
+     * the caller does not have WIFI_UPDATE_USABILITY_STATS_SCORE permission.
+     */
+    @Test
+    public void testRemoveStatsListenerThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                        eq(android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.removeWifiUsabilityStatsListener(
+                    TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that addWifiUsabilityStatsListener adds listener to {@link WifiMetrics}.
+     */
+    @Test
+    public void testAddWifiUsabilityStatsListenerAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
+        mWifiServiceImpl.addWifiUsabilityStatsListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics).addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+                TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+    }
+
+    /**
+     * Verify that removeWifiUsabilityStatsListener removes listener from
+     * {@link WifiMetrics}.
+     */
+    @Test
+    public void testRemoveWifiUsabilityStatsListenerAndVerify() throws Exception {
+        setupClientModeImplHandlerForPost();
+
+        mWifiServiceImpl.removeWifiUsabilityStatsListener(0);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics).removeWifiUsabilityListener(0);
     }
 }
