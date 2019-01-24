@@ -65,7 +65,7 @@ public class WifiLastResortWatchdog {
      */
     public static final int FAILURE_THRESHOLD = 7;
     public static final String BUGREPORT_TITLE = "Wifi watchdog triggered";
-    public static final double PROB_TAKE_BUGREPORT_DEFAULT = 0.08;
+    public static final double PROB_TAKE_BUGREPORT_DEFAULT = 1;
 
     /**
      * Cached WifiConfigurations of available networks seen within MAX_BSSID_AGE scan results
