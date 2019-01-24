@@ -427,7 +427,8 @@ public class WifiScoreCard {
 
     private final Map<MacAddress, PerBssid> mApForBssid = new ArrayMap<>();
 
-    private @NonNull PerBssid lookupBssid(String ssid, String bssid) {
+    // TODO should be private, but WifiCandidates needs it
+    @NonNull PerBssid lookupBssid(String ssid, String bssid) {
         MacAddress mac;
         if (ssid == null || WifiSsid.NONE.equals(ssid) || bssid == null) {
             return mDummyPerBssid;
