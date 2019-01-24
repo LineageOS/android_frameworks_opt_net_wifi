@@ -3548,4 +3548,34 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics).removeWifiUsabilityListener(0);
     }
+
+    /**
+     * Verify that a call to updateWifiUsabilityScore throws a SecurityException if the
+     * caller does not have UPDATE_WIFI_USABILITY_SCORE permission.
+     */
+    @Test
+    public void testUpdateWifiUsabilityScoreThrowsSecurityExceptionOnMissingPermissions() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingPermission(
+                eq(android.Manifest.permission.WIFI_UPDATE_USABILITY_STATS_SCORE),
+                eq("WifiService"));
+        try {
+            mWifiServiceImpl.updateWifiUsabilityScore(anyInt(), anyInt(), 15);
+            fail("expected SecurityException");
+        } catch (SecurityException expected) {
+        }
+    }
+
+    /**
+     * Verify that mClientModeImpl in WifiServiceImpl is being updated on Wifi usability score
+     * update event.
+     */
+    @Test
+    public void testWifiUsabilityScoreUpdateAfterScoreEvent() {
+        setupClientModeImplHandlerForPost();
+
+        mWifiServiceImpl.updateWifiUsabilityScore(anyInt(), anyInt(), 15);
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).updateWifiUsabilityScore(anyInt(), anyInt(), anyInt());
+    }
 }

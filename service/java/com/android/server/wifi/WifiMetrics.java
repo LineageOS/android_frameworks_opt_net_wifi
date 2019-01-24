@@ -110,8 +110,12 @@ public class WifiMetrics {
     public static final long TIMEOUT_RSSI_DELTA_MILLIS =  3000;
     private static final int MIN_WIFI_SCORE = 0;
     private static final int MAX_WIFI_SCORE = NetworkAgent.WIFI_BASE_SCORE;
+    private static final int MIN_WIFI_USABILITY_SCORE = 0; // inclusive
+    private static final int MAX_WIFI_USABILITY_SCORE = 60; // inclusive
     @VisibleForTesting
     static final int LOW_WIFI_SCORE = 50; // Mobile data score
+    @VisibleForTesting
+    static final int LOW_WIFI_USABILITY_SCORE = 50; // Mobile data score
     private final Object mLock = new Object();
     private static final int MAX_CONNECTION_EVENTS = 256;
     // Largest bucket in the NumConnectableNetworkCount histogram,
@@ -164,6 +168,11 @@ public class WifiMetrics {
     private int mLastFrequency = -1;
     private boolean mIsSameBssidAndFreq = true;
     private int mSeqNumInsideFramework = -1;
+    private int mLastWifiUsabilityScore = -1;
+    private int mLastWifiUsabilityScoreNoReset = -1;
+    private int mLastPredictionHorizonSec = -1;
+    private int mLastPredictionHorizonSecNoReset = -1;
+    private int mSeqNumToFramework = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -214,6 +223,8 @@ public class WifiMetrics {
     private long mRecordStartTimeSec;
     /** Mapping of Wifi Scores to counts */
     private final SparseIntArray mWifiScoreCounts = new SparseIntArray();
+    /** Mapping of Wifi Usability Scores to counts */
+    private final SparseIntArray mWifiUsabilityScoreCounts = new SparseIntArray();
     /** Mapping of SoftApManager start SoftAp return codes to counts */
     private final SparseIntArray mSoftApManagerReturnCodeCounts = new SparseIntArray();
 
@@ -1456,6 +1467,8 @@ public class WifiMetrics {
     }
 
     private boolean mWifiWins = false; // Based on scores, use wifi instead of mobile data?
+    // Based on Wifi usability scores. use wifi instead of mobile data?
+    private boolean mWifiWinsUsabilityScore = false;
 
     /**
      * Increments occurence of a particular wifi score calculated
@@ -2224,6 +2237,12 @@ public class WifiMetrics {
                     pw.print(mWifiScoreCounts.get(i) + " ");
                 }
                 pw.println(); // add a line after wifi scores
+                pw.println("mWifiLogProto.WifiUsabilityScoreCount: [" + MIN_WIFI_USABILITY_SCORE
+                        + ", " + MAX_WIFI_USABILITY_SCORE + "]");
+                for (int i = MIN_WIFI_USABILITY_SCORE; i <= MAX_WIFI_USABILITY_SCORE; i++) {
+                    pw.print(mWifiUsabilityScoreCounts.get(i) + " ");
+                }
+                pw.println(); // add a line after wifi usability scores
                 pw.println("mWifiLogProto.SoftApManagerReturnCodeCounts:");
                 pw.println("  SUCCESS: " + mSoftApManagerReturnCodeCounts.get(
                         WifiMetricsProto.SoftApReturnCodeCount.SOFT_AP_STARTED_SUCCESSFULLY));
@@ -2480,6 +2499,10 @@ public class WifiMetrics {
         line.append(",total_roam_scan_time_ms=" + entry.totalRoamScanTimeMs);
         line.append(",total_pno_scan_time_ms=" + entry.totalPnoScanTimeMs);
         line.append(",total_hotspot_2_scan_time_ms=" + entry.totalHotspot2ScanTimeMs);
+        line.append(",wifi_score=" + entry.wifiScore);
+        line.append(",wifi_usability_score=" + entry.wifiUsabilityScore);
+        line.append(",seq_num_to_framework=" + entry.seqNumToFramework);
+        line.append(",prediction_horizon_sec=" + entry.predictionHorizonSec);
         pw.println(line.toString());
     }
 
@@ -2699,6 +2722,21 @@ public class WifiMetrics {
                 mWifiLogProto.wifiScoreCount[score] = new WifiMetricsProto.WifiScoreCount();
                 mWifiLogProto.wifiScoreCount[score].score = mWifiScoreCounts.keyAt(score);
                 mWifiLogProto.wifiScoreCount[score].count = mWifiScoreCounts.valueAt(score);
+            }
+
+            /**
+             * Convert the SparseIntArray of Wifi Usability Score and counts to proto's repeated
+             * IntKeyVal array.
+             */
+            mWifiLogProto.wifiUsabilityScoreCount =
+                new WifiMetricsProto.WifiUsabilityScoreCount[mWifiUsabilityScoreCounts.size()];
+            for (int scoreIdx = 0; scoreIdx < mWifiUsabilityScoreCounts.size(); scoreIdx++) {
+                mWifiLogProto.wifiUsabilityScoreCount[scoreIdx] =
+                    new WifiMetricsProto.WifiUsabilityScoreCount();
+                mWifiLogProto.wifiUsabilityScoreCount[scoreIdx].score =
+                    mWifiUsabilityScoreCounts.keyAt(scoreIdx);
+                mWifiLogProto.wifiUsabilityScoreCount[scoreIdx].count =
+                    mWifiUsabilityScoreCounts.valueAt(scoreIdx);
             }
 
             /**
@@ -2929,6 +2967,7 @@ public class WifiMetrics {
             mLinkSpeedCounts.clear();
             mWifiAlertReasonCounts.clear();
             mWifiScoreCounts.clear();
+            mWifiUsabilityScoreCounts.clear();
             mWifiLogProto.clear();
             mScanResultRssiTimestampMillis = -1;
             mSoftApManagerReturnCodeCounts.clear();
@@ -2988,6 +3027,7 @@ public class WifiMetrics {
         synchronized (mLock) {
             mWifiState = wifiState;
             mWifiWins = (wifiState == WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
+            mWifiWinsUsabilityScore = (wifiState == WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
         }
     }
 
@@ -3097,6 +3137,7 @@ public class WifiMetrics {
             case StaEvent.TYPE_MAC_CHANGE:
             case StaEvent.TYPE_WIFI_ENABLED:
             case StaEvent.TYPE_WIFI_DISABLED:
+            case StaEvent.TYPE_WIFI_USABILITY_SCORE_BREACH:
                 break;
             default:
                 Log.e(TAG, "Unknown StaEvent:" + type);
@@ -3118,11 +3159,15 @@ public class WifiMetrics {
         staEvent.lastLinkSpeed = mLastPollLinkSpeed;
         staEvent.supplicantStateChangesBitmask = mSupplicantStateChangeBitmask;
         staEvent.lastScore = mLastScore;
+        staEvent.lastWifiUsabilityScore = mLastWifiUsabilityScore;
+        staEvent.lastPredictionHorizonSec = mLastPredictionHorizonSec;
         mSupplicantStateChangeBitmask = 0;
         mLastPollRssi = -127;
         mLastPollFreq = -1;
         mLastPollLinkSpeed = -1;
         mLastScore = -1;
+        mLastWifiUsabilityScore = -1;
+        mLastPredictionHorizonSec = -1;
         mStaEventList.add(new StaEventWithTime(staEvent, mClock.getWallClockMillis()));
         // Prune StaEventList if it gets too long
         if (mStaEventList.size() > MAX_STA_EVENTS) mStaEventList.remove();
@@ -3298,6 +3343,9 @@ public class WifiMetrics {
             case StaEvent.TYPE_WIFI_DISABLED:
                 sb.append("WIFI_DISABLED");
                 break;
+            case StaEvent.TYPE_WIFI_USABILITY_SCORE_BREACH:
+                sb.append("WIFI_USABILITY_SCORE_BREACH");
+                break;
             default:
                 sb.append("UNKNOWN " + event.type + ":");
                 break;
@@ -3306,6 +3354,10 @@ public class WifiMetrics {
         if (event.lastFreq != -1) sb.append(" lastFreq=").append(event.lastFreq);
         if (event.lastLinkSpeed != -1) sb.append(" lastLinkSpeed=").append(event.lastLinkSpeed);
         if (event.lastScore != -1) sb.append(" lastScore=").append(event.lastScore);
+        if (event.lastWifiUsabilityScore != -1) {
+            sb.append(" lastWifiUsabilityScore=").append(event.lastWifiUsabilityScore);
+            sb.append(" lastPredictionHorizonSec=").append(event.lastPredictionHorizonSec);
+        }
         if (event.supplicantStateChangesBitmask != 0) {
             sb.append(", ").append(supplicantStateChangesBitmaskToString(
                     event.supplicantStateChangesBitmask));
@@ -3498,6 +3550,8 @@ public class WifiMetrics {
             if (event.firmwareAlertCode != -1) {
                 sb.append(" firmwareAlertCode=").append(event.firmwareAlertCode);
             }
+            sb.append(" lastWifiUsabilityScore=").append(event.lastWifiUsabilityScore);
+            sb.append(" lastPredictionHorizonSec=").append(event.lastPredictionHorizonSec);
             return sb.toString();
         }
     }
@@ -3571,6 +3625,8 @@ public class WifiMetrics {
         }
         event.startTimeMillis = currentBootTime;
         event.lastScore = mLastScoreNoReset;
+        event.lastWifiUsabilityScore = mLastWifiUsabilityScoreNoReset;
+        event.lastPredictionHorizonSec = mLastPredictionHorizonSecNoReset;
         event.txSuccessDelta = mTxScucessDelta;
         event.txRetriesDelta = mTxRetriesDelta;
         event.txBadDelta = mTxBadDelta;
@@ -3671,6 +3727,10 @@ public class WifiMetrics {
                     && mLastFrequency == info.getFrequency());
             mLastBssid = info.getBSSID();
             mLastFrequency = info.getFrequency();
+            wifiUsabilityStatsEntry.wifiScore = mLastScoreNoReset;
+            wifiUsabilityStatsEntry.wifiUsabilityScore = mLastWifiUsabilityScoreNoReset;
+            wifiUsabilityStatsEntry.seqNumToFramework = mSeqNumToFramework;
+            wifiUsabilityStatsEntry.predictionHorizonSec = mLastPredictionHorizonSecNoReset;
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
@@ -3735,6 +3795,10 @@ public class WifiMetrics {
         out.totalCcaBusyFreqTimeMs = s.totalCcaBusyFreqTimeMs;
         out.totalRadioOnFreqTimeMs = s.totalRadioOnFreqTimeMs;
         out.totalBeaconRx = s.totalBeaconRx;
+        out.wifiScore = s.wifiScore;
+        out.wifiUsabilityScore = s.wifiUsabilityScore;
+        out.seqNumToFramework = s.seqNumToFramework;
+        out.predictionHorizonSec = s.predictionHorizonSec;
         return out;
     }
 
@@ -3875,6 +3939,44 @@ public class WifiMetrics {
         if (DBG) {
             Log.v(TAG, "Removing listener. Num listeners: "
                     + mWifiUsabilityListeners.getNumCallbacks());
+        }
+    }
+
+    /**
+     * Updates the Wi-Fi usability score and increments occurence of a particular Wifi usability
+     * score passed in from outside framework. Scores are bounded within
+     * [MIN_WIFI_USABILITY_SCORE, MAX_WIFI_USABILITY_SCORE].
+     *
+     * Also records events when the Wifi usability score breaches significant thresholds.
+     *
+     * @param seqNum Sequence number of the Wi-Fi usability score.
+     * @param score The Wi-Fi usability score.
+     * @param predictionHorizonSec Prediction horizon of the Wi-Fi usability score.
+     */
+    public void incrementWifiUsabilityScoreCount(int seqNum, int score, int predictionHorizonSec) {
+        if (score < MIN_WIFI_USABILITY_SCORE || score > MAX_WIFI_USABILITY_SCORE) {
+            return;
+        }
+        synchronized (mLock) {
+            mLastWifiUsabilityScore = score;
+            mLastWifiUsabilityScoreNoReset = score;
+            mWifiUsabilityScoreCounts.put(score, mWifiUsabilityScoreCounts.get(score) + 1);
+            mLastPredictionHorizonSec = predictionHorizonSec;
+            mLastPredictionHorizonSecNoReset = predictionHorizonSec;
+
+            boolean wifiWins = mWifiWinsUsabilityScore;
+            if (score > LOW_WIFI_USABILITY_SCORE) {
+                wifiWins = true;
+            } else if (score < LOW_WIFI_USABILITY_SCORE) {
+                wifiWins = false;
+            }
+
+            if (wifiWins != mWifiWinsUsabilityScore) {
+                mWifiWinsUsabilityScore = wifiWins;
+                StaEvent event = new StaEvent();
+                event.type = StaEvent.TYPE_WIFI_USABILITY_SCORE_BREACH;
+                addStaEvent(event);
+            }
         }
     }
 }
