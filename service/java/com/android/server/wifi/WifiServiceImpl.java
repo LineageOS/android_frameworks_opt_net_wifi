@@ -61,7 +61,7 @@ import android.net.DhcpResults;
 import android.net.Network;
 import android.net.NetworkUtils;
 import android.net.Uri;
-import android.net.ip.IpClient;
+import android.net.ip.IpClientUtil;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.ISoftApCallback;
@@ -1387,9 +1387,14 @@ public class WifiServiceImpl extends BaseWifiService {
             return LocalOnlyHotspotCallback.ERROR_GENERIC;
         }
         enforceLocationPermission(packageName, uid);
-        // also need to verify that Locations services are enabled.
-        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
-            throw new SecurityException("Location mode is not enabled.");
+        long ident = Binder.clearCallingIdentity();
+        try {
+            // also need to verify that Locations services are enabled.
+            if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
+                throw new SecurityException("Location mode is not enabled.");
+            }
+        } finally {
+            Binder.restoreCallingIdentity(ident);
         }
 
         // verify that tethering is not disabled
@@ -1406,7 +1411,10 @@ public class WifiServiceImpl extends BaseWifiService {
 
         synchronized (mLocalOnlyHotspotRequests) {
             // check if we are currently tethering
-            if (mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
+            // TODO(b/110697252): handle all configurations in the wifi stack
+            //                    (just by changing the HAL)
+            if (getMaxApInterfacesCount() < 2
+                    && mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
                 // Tethering is enabled, cannot start LocalOnlyHotspot
                 mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.").flush();
                 return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
@@ -2385,13 +2393,19 @@ public class WifiServiceImpl extends BaseWifiService {
 
     @Override
     public boolean isDualBandSupported() {
-        //TODO (b/80552904): Should move towards adding a driver API that checks at runtime
+        //TODO (b/123227116): pull it from the HAL
         if (mVerboseLoggingEnabled) {
             mLog.info("isDualBandSupported uid=%").c(Binder.getCallingUid()).flush();
         }
 
         return mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_wifi_dual_band_support);
+    }
+
+    private int getMaxApInterfacesCount() {
+        //TODO (b/123227116): pull it from the HAL
+        return mContext.getResources().getInteger(
+                com.android.internal.R.integer.config_wifi_max_ap_interfaces);
     }
 
     /**
@@ -2692,7 +2706,7 @@ public class WifiServiceImpl extends BaseWifiService {
             // WifiMetrics proto bytes were requested. Dump only these.
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
-        } else if (args != null && args.length > 0 && IpClient.DUMP_ARG.equals(args[0])) {
+        } else if (args != null && args.length > 0 && IpClientUtil.DUMP_ARG.equals(args[0])) {
             // IpClient dump was requested. Pass it along and take no further action.
             String[] ipClientArgs = new String[args.length - 1];
             System.arraycopy(args, 1, ipClientArgs, 0, ipClientArgs.length);

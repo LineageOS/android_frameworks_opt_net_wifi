@@ -636,11 +636,20 @@ public class WifiNetworkSelector {
         // Run any (experimental) CandidateScorers we have
         try {
             for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
+                String id = candidateScorer.getIdentifier();
+                int expid = experimentIdFromIdentifier(id);
                 WifiCandidates.ScoredCandidate choice = wifiCandidates.choose(candidateScorer);
                 if (choice.candidateKey != null) {
-                    localLog(candidateScorer.getIdentifier()
-                            + " would choose " + choice.candidateKey.networkId
-                            + " score " + choice.value + "+/-" + choice.err);
+                    boolean thisOne = (expid == mScoringParams.getExperimentIdentifier());
+                    localLog(id + (thisOne ? " chooses " : " would choose ")
+                            + choice.candidateKey.networkId
+                            + " score " + choice.value + "+/-" + choice.err
+                            + " expid " + expid);
+                    if (thisOne) {
+                        int networkId = choice.candidateKey.networkId;
+                        selectedNetwork = mWifiConfigManager.getConfiguredNetwork(networkId);
+                        Log.i(TAG, id + " chooses " + networkId);
+                    }
                 } else {
                     localLog(candidateScorer.getIdentifier() + " found no candidates");
                 }
@@ -689,6 +698,18 @@ public class WifiNetworkSelector {
         }
     }
 
+    /**
+     * Derives a numeric experiment identifer from a CandidateScorer's identifier.
+     *
+     * @returns a positive number that starts with the decimal digits ID_PREFIX
+     */
+    public static int experimentIdFromIdentifier(String id) {
+        final int digits = (int) (((long) id.hashCode()) & Integer.MAX_VALUE) % ID_SUFFIX_MOD;
+        return ID_PREFIX * ID_SUFFIX_MOD + digits;
+    }
+    private static final int ID_SUFFIX_MOD = 1_000_000;
+    private static final int ID_PREFIX = 42;
+
     WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog) {
         mWifiConfigManager = configManager;
@@ -703,5 +724,8 @@ public class WifiNetworkSelector {
                 R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network);
         mStayOnNetworkMinimumRxRate = context.getResources().getInteger(
                 R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
+
+        // Register one try out. This is probably not the right place, in the long run.
+        registerCandidateScorer(new CompatibiltyScorer(scoringParams));
     }
 }

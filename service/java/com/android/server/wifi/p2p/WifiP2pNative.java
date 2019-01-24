@@ -29,6 +29,7 @@ import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.PropertyService;
+import com.android.server.wifi.WifiVendorHal;
 
 /**
  * Native calls for bring up/shut down of the supplicant daemon and for
@@ -41,6 +42,7 @@ public class WifiP2pNative {
     private final SupplicantP2pIfaceHal mSupplicantP2pIfaceHal;
     private final HalDeviceManager mHalDeviceManager;
     private final PropertyService mPropertyService;
+    private final WifiVendorHal mWifiVendorHal;
     private IWifiP2pIface mIWifiP2pIface;
     private InterfaceAvailableListenerInternal mInterfaceAvailableListener;
     private InterfaceDestroyedListenerInternal mInterfaceDestroyedListener;
@@ -102,8 +104,10 @@ public class WifiP2pNative {
         }
     }
 
-    public WifiP2pNative(SupplicantP2pIfaceHal p2pIfaceHal,
-            HalDeviceManager halDeviceManager, PropertyService propertyService) {
+    public WifiP2pNative(WifiVendorHal wifiVendorHal,
+            SupplicantP2pIfaceHal p2pIfaceHal, HalDeviceManager halDeviceManager,
+            PropertyService propertyService) {
+        mWifiVendorHal = wifiVendorHal;
         mSupplicantP2pIfaceHal = p2pIfaceHal;
         mHalDeviceManager = halDeviceManager;
         mPropertyService = propertyService;
@@ -814,5 +818,25 @@ public class WifiP2pNative {
      */
     public boolean saveConfig() {
         return mSupplicantP2pIfaceHal.saveConfig();
+    }
+
+    /**
+     * Enable/Disable MAC randomization.
+     *
+     * @param enable true to enable, false to disable.
+     * @return true, if operation was successful.
+     */
+    public boolean setMacRandomization(boolean enable) {
+        return mSupplicantP2pIfaceHal.setMacRandomization(enable);
+    }
+
+    /**
+     * Get the supported features
+     *
+     * @param ifaceName Name of the interface.
+     * @return bitmask defined by WifiManager.WIFI_FEATURE_*
+     */
+    public long getSupportedFeatureSet(@NonNull String ifaceName) {
+        return mWifiVendorHal.getSupportedFeatureSet(ifaceName);
     }
 }

@@ -2352,6 +2352,33 @@ public class SupplicantP2pIfaceHal {
         }
     }
 
+
+    /**
+     * Enable/Disable P2P MAC randomization.
+     *
+     * @param enable true to enable, false to disable.
+     * @return true, if operation was successful.
+     */
+    public boolean setMacRandomization(boolean enable) {
+        synchronized (mLock) {
+            if (!checkSupplicantP2pIfaceAndLogFailureV1_2("setMacRandomization")) return false;
+
+            android.hardware.wifi.supplicant.V1_2.ISupplicantP2pIface ifaceV12 =
+                    getP2pIfaceMockableV1_2();
+            SupplicantResult<Void> result = new SupplicantResult(
+                    "setMacRandomization(" + enable + ")");
+            try {
+                result.setResult(ifaceV12.setMacRandomization(enable));
+            } catch (RemoteException e) {
+                Log.e(TAG, "ISupplicantP2pIface exception: " + e);
+                supplicantServiceDiedHandler();
+            }
+
+            return result.isSuccess();
+        }
+    }
+
+
     /**
      * Converts the Wps config method string to the equivalent enum value.
      */

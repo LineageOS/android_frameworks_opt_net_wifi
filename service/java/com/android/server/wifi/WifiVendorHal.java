@@ -1090,7 +1090,11 @@ public class WifiVendorHal {
     private static final long[][] sChipFeatureCapabilityTranslation13 = {
             {WifiManager.WIFI_FEATURE_LOW_LATENCY,
                     android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.SET_LATENCY_MODE
+            },
+            {WifiManager.WIFI_FEATURE_P2P_RAND_MAC,
+                    android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.P2P_RAND_MAC
             }
+
     };
 
     /**
