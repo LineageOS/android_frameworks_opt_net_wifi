@@ -71,6 +71,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
+import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 
@@ -116,6 +117,7 @@ public class WifiMetricsTest {
     @Mock IBinder mAppBinder;
     @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
     @Mock ExternalCallbackTracker<IWifiUsabilityStatsListener> mListenerTracker;
+    @Mock WifiP2pMetrics mWifiP2pMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -124,7 +126,8 @@ public class WifiMetricsTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn((long) 0);
         mTestLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFacade, mClock, mTestLooper.getLooper(),
-                new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics);
+                new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
+                mWifiP2pMetrics);
         mWifiMetrics.setWifiConfigManager(mWcm);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
@@ -232,6 +235,7 @@ public class WifiMetricsTest {
     public void testDumpProtoAndDeserialize() throws Exception {
         setAndIncrementMetrics();
         dumpProtoAndDeserialize();
+        verify(mWifiP2pMetrics).consolidateProto();
         assertDeserializedMetricsCorrect();
     }
 
