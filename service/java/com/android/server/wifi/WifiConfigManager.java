@@ -2717,6 +2717,14 @@ public class WifiConfigManager {
     }
 
     /**
+     * Clear all deleted ephemeral networks.
+     */
+    @VisibleForTesting
+    public void clearDeletedEphemeralNetworks() {
+        mDeletedEphemeralSSIDs.clear();
+    }
+
+    /**
      * Resets all sim networks state.
      */
     public void resetSimNetworks(boolean simPresent) {
