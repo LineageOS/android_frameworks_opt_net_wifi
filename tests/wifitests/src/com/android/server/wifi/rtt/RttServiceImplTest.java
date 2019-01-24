@@ -205,7 +205,7 @@ public class RttServiceImplTest {
                 ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE);
 
         when(mockPermissionUtil.checkCallersLocationPermission(eq(mPackageName),
-                anyInt())).thenReturn(true);
+                anyInt(), anyBoolean())).thenReturn(true);
         when(mockPermissionUtil.isLocationModeEnabled()).thenReturn(true);
         when(mockNative.isReady()).thenReturn(true);
         when(mockNative.rangeRequest(anyInt(), any(RangingRequest.class), anyBoolean())).thenReturn(
@@ -447,7 +447,7 @@ public class RttServiceImplTest {
 
         // (3) native calls back with result - should get a FAILED callback
         when(mockPermissionUtil.checkCallersLocationPermission(eq(mPackageName),
-                anyInt())).thenReturn(false);
+                anyInt(), anyBoolean())).thenReturn(false);
 
         mDut.onRangingResults(mIntCaptor.getValue(), results.first);
         mMockLooper.dispatchAll();

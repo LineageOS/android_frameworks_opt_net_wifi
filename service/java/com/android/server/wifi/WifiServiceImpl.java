@@ -843,30 +843,13 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiPermissionsUtil.enforceLocationPermission(pkgName, uid);
     }
 
-    private boolean isTargetSdkLessThan(String packageName, int versionCode) {
-        long ident = Binder.clearCallingIdentity();
-        try {
-            if (mContext.getPackageManager().getApplicationInfo(packageName, 0).targetSdkVersion
-                    < versionCode) {
-                return true;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            // In case of exception, assume unknown app (more strict checking)
-            // Note: This case will never happen since checkPackage is
-            // called to verify validity before checking App's version.
-        } finally {
-            Binder.restoreCallingIdentity(ident);
-        }
-        return false;
-    }
-
     /**
      * Helper method to check if the app is allowed to access public API's deprecated in
      * {@link Build.VERSION_CODES.Q}.
      * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
      */
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
-        return isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
+        return mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
                 || isPrivileged(pid, uid)
                 // DO/PO apps should be able to add/modify saved networks.
                 || isDeviceOrProfileOwner(uid)
