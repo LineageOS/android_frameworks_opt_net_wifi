@@ -24,7 +24,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.database.ContentObserver;
 import android.net.wifi.WifiInfo;
+import android.os.test.TestLooper;
+import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
@@ -52,15 +56,31 @@ public class LinkProbeManagerTest {
     @Mock private Clock mClock;
     @Mock private WifiNative mWifiNative;
     @Mock private WifiMetrics mWifiMetrics;
+    @Mock private FrameworkFacade mFrameworkFacade;
+    @Mock private Context mContext;
+
+    private TestLooper mLooper = new TestLooper();
+    private ContentObserver mContentObserver;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics);
+        mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
+                mFrameworkFacade, mLooper.getLooper(), mContext);
         mWifiInfo = new WifiInfo();
         mWifiInfo.setBSSID(TEST_BSSID);
         mTimeMs = 1000;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+
+        ArgumentCaptor<ContentObserver> observerCaptor = ArgumentCaptor.forClass(
+                ContentObserver.class);
+        verify(mFrameworkFacade).registerContentObserver(eq(mContext),
+                eq(Settings.Global.getUriFor(Settings.Global.WIFI_LINK_PROBING_ENABLED)),
+                eq(false), observerCaptor.capture());
+        mContentObserver = observerCaptor.getValue();
+        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(1);
+        mContentObserver.onChange(false);
     }
 
     /**
@@ -199,5 +219,41 @@ public class LinkProbeManagerTest {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+    }
+
+    /**
+     * Tests when link probing feature flag is disabled, no probes should run.
+     */
+    @Test
+    public void testLinkProbeFeatureDisabled() throws Exception {
+        when(mFrameworkFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(0);
+        mContentObserver.onChange(false);
+
+        mLinkProbeManager.reset();
+
+        // initialize tx success counter
+        mWifiInfo.txSuccess = 50;
+        mTimeMs += 3000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        // should not probe yet
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+
+        // tx success counter did not change since last update
+        mWifiInfo.txSuccess = 50;
+        // below RSSI threshold
+        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5;
+        mWifiInfo.setRssi(rssi);
+        // above link speed threshold
+        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10;
+        mWifiInfo.setLinkSpeed(linkSpeed);
+        // more than LINK_PROBE_INTERVAL_MS passed
+        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        mTimeMs += timeDelta;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        verify(mWifiNative, never()).probeLink(any() , any(), any(), anyInt());
     }
 }

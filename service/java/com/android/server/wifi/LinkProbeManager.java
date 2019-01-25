@@ -16,8 +16,13 @@
 
 package com.android.server.wifi;
 
+import android.content.Context;
+import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -28,6 +33,8 @@ import com.android.internal.annotations.VisibleForTesting;
  */
 public class LinkProbeManager {
     private static final String TAG = "WifiLinkProbeManager";
+
+    private static final int WIFI_LINK_PROBING_ENABLED_DEFAULT = 0; // 0 = disabled
 
     // TODO(112029045): Use constants from ScoringParams instead
     @VisibleForTesting
@@ -40,6 +47,10 @@ public class LinkProbeManager {
     private final Clock mClock;
     private final WifiNative mWifiNative;
     private final WifiMetrics mWifiMetrics;
+    private final FrameworkFacade mFrameworkFacade;
+    private final Context mContext;
+
+    private boolean mLinkProbingEnabled = false;
 
     private boolean mVerboseLoggingEnabled = false;
 
@@ -54,12 +65,31 @@ public class LinkProbeManager {
     private long mLastTxSuccessIncreaseTimestampMs;
     private long mLastTxSuccessCount;
 
-    public LinkProbeManager(Clock clock, WifiNative wifiNative, WifiMetrics wifiMetrics) {
+    public LinkProbeManager(Clock clock, WifiNative wifiNative, WifiMetrics wifiMetrics,
+            FrameworkFacade frameworkFacade, Looper looper, Context context) {
         mClock = clock;
         mWifiNative = wifiNative;
         mWifiMetrics = wifiMetrics;
+        mFrameworkFacade = frameworkFacade;
+        mContext = context;
+        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
+                Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
+                new ContentObserver(new Handler(looper)) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updateLinkProbeSetting();
+                    }
+                });
+        updateLinkProbeSetting();
 
         reset();
+    }
+
+    private void updateLinkProbeSetting() {
+        int flag = mFrameworkFacade.getIntegerSetting(mContext,
+                Settings.Global.WIFI_LINK_PROBING_ENABLED,
+                WIFI_LINK_PROBING_ENABLED_DEFAULT);
+        mLinkProbingEnabled = (flag == 1);
     }
 
     /** enables/disables wifi verbose logging */
@@ -114,40 +144,44 @@ public class LinkProbeManager {
             return;
         }
 
-        if (mVerboseLoggingEnabled) {
-            Log.d(TAG, String.format(
-                    "link probing triggered with conditions: timeSinceLastLinkProbeMs=%d "
-                            + "timeSinceLastTxSuccessIncreaseMs=%d rssi=%d linkSpeed=%s",
-                    timeSinceLastLinkProbeMs, timeSinceLastTxSuccessIncreaseMs,
-                    rssi, linkSpeed));
+        if (mLinkProbingEnabled) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, String.format(
+                        "link probing triggered with conditions: timeSinceLastLinkProbeMs=%d "
+                                + "timeSinceLastTxSuccessIncreaseMs=%d rssi=%d linkSpeed=%s",
+                        timeSinceLastLinkProbeMs, timeSinceLastTxSuccessIncreaseMs,
+                        rssi, linkSpeed));
+            }
+
+            long wallClockTimestampMs = mClock.getWallClockMillis();
+
+            // TODO(b/112029045): also report MCS rate to metrics when supported by driver
+            mWifiNative.probeLink(
+                    interfaceName,
+                    MacAddress.fromString(wifiInfo.getBSSID()),
+                    new WifiNative.SendMgmtFrameCallback() {
+                        @Override
+                        public void onAck(int elapsedTimeMs) {
+                            if (mVerboseLoggingEnabled) {
+                                Log.d(TAG, "link probing success, elapsedTimeMs="
+                                        + elapsedTimeMs);
+                            }
+                            mWifiMetrics.logLinkProbeSuccess(wallClockTimestampMs,
+                                    timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed,
+                                    elapsedTimeMs);
+                        }
+
+                        @Override
+                        public void onFailure(int reason) {
+                            if (mVerboseLoggingEnabled) {
+                                Log.d(TAG, "link probing failure, reason=" + reason);
+                            }
+                            mWifiMetrics.logLinkProbeFailure(wallClockTimestampMs,
+                                    timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed, reason);
+                        }
+                    },
+                    -1); // placeholder, lets driver determine MCS rate
         }
-
-        long wallClockTimestampMs = mClock.getWallClockMillis();
-
-        // TODO(b/112029045): also report MCS rate to metrics when supported by driver
-        mWifiNative.probeLink(
-                interfaceName,
-                MacAddress.fromString(wifiInfo.getBSSID()),
-                new WifiNative.SendMgmtFrameCallback() {
-                    @Override
-                    public void onAck(int elapsedTimeMs) {
-                        if (mVerboseLoggingEnabled) {
-                            Log.d(TAG, "link probing success, elapsedTimeMs=" + elapsedTimeMs);
-                        }
-                        mWifiMetrics.logLinkProbeSuccess(wallClockTimestampMs,
-                                timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed, elapsedTimeMs);
-                    }
-
-                    @Override
-                    public void onFailure(int reason) {
-                        if (mVerboseLoggingEnabled) {
-                            Log.d(TAG, "link probing failure, reason=" + reason);
-                        }
-                        mWifiMetrics.logLinkProbeFailure(wallClockTimestampMs,
-                                timeSinceLastTxSuccessIncreaseMs, rssi, linkSpeed, reason);
-                    }
-                },
-                -1); // placeholder, lets driver determine MCS rate
 
         mLastLinkProbeTimestampMs = mClock.getElapsedSinceBootMillis();
     }
