@@ -528,6 +528,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     // This start request is obsolete
                     return;
                 }
+                mIpClient = ipClient;
 
                 final ProvisioningConfiguration config =
                         new ProvisioningConfiguration.Builder()
