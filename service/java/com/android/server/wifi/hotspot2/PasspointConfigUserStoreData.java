@@ -66,6 +66,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_CA_CERTIFICATE_ALIAS = "CaCertificateAlias";
     private static final String XML_TAG_CLIENT_CERTIFICATE_ALIAS = "ClientCertificateAlias";
     private static final String XML_TAG_CLIENT_PRIVATE_KEY_ALIAS = "ClientPrivateKeyAlias";
+    private static final String XML_TAG_REMEDIATION_CA_CERTIFICATE_ALIAS =
+            "RemediationCaCertificateAlias";
 
     private static final String XML_TAG_HAS_EVER_CONNECTED = "HasEverConnected";
 
@@ -196,6 +198,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
             PasspointXmlUtils.serializePasspointConfiguration(out, provider.getConfig());
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
         }
+        XmlUtil.writeNextValue(out, XML_TAG_REMEDIATION_CA_CERTIFICATE_ALIAS,
+                provider.getRemediationCaCertificateAlias());
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER);
     }
 
@@ -258,6 +262,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         String caCertificateAlias = null;
         String clientCertificateAlias = null;
         String clientPrivateKeyAlias = null;
+        String remediationCaCertificateAlias = null;
         boolean hasEverConnected = false;
         boolean shared = false;
         PasspointConfiguration config = null;
@@ -286,6 +291,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_CLIENT_PRIVATE_KEY_ALIAS:
                         clientPrivateKeyAlias = (String) value;
+                        break;
+                    case XML_TAG_REMEDIATION_CA_CERTIFICATE_ALIAS:
+                        remediationCaCertificateAlias = (String) value;
                         break;
                     case XML_TAG_HAS_EVER_CONNECTED:
                         hasEverConnected = (boolean) value;
@@ -320,6 +328,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         }
         return new PasspointProvider(config, mKeyStore, mSimAccessor, providerId, creatorUid,
                 caCertificateAliases, clientCertificateAlias, clientPrivateKeyAlias,
+                remediationCaCertificateAlias,
                 hasEverConnected, shared);
     }
 }

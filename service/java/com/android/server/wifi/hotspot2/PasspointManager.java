@@ -793,7 +793,7 @@ public class PasspointManager {
                 mSimAccessor, mProviderIndex++, wifiConfig.creatorUid,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(),
-                enterpriseConfig.getClientCertificateAlias(), false, false);
+                enterpriseConfig.getClientCertificateAlias(), null, false, false);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);
         return true;
     }

@@ -397,6 +397,8 @@ public class PasspointProvisionerTest {
                 List<X509Certificate> certificates = new ArrayList<>();
                 certificates.add(mX509Certificate);
                 trustRootCertificates.put(OsuServerConnection.TRUST_CERT_TYPE_AAA, certificates);
+                trustRootCertificates.put(OsuServerConnection.TRUST_CERT_TYPE_REMEDIATION,
+                        certificates);
 
                 // Received trust root CA certificates
                 mOsuServerCallbacks.onReceivedTrustRootCertificates(
@@ -873,6 +875,7 @@ public class PasspointProvisionerTest {
         List<X509Certificate> certificates = new ArrayList<>();
         certificates.add(mX509Certificate);
         trustRootCertificates.put(OsuServerConnection.TRUST_CERT_TYPE_AAA, certificates);
+        trustRootCertificates.put(OsuServerConnection.TRUST_CERT_TYPE_REMEDIATION, certificates);
 
         // Received trust root CA certificates
         mOsuServerCallbacks.onReceivedTrustRootCertificates(
@@ -889,14 +892,40 @@ public class PasspointProvisionerTest {
      */
     @Test
     public void verifyHandlingEmptyTrustRootCertificateRetrieved() throws RemoteException {
-        doThrow(IllegalArgumentException.class).when(
-                mWifiManager).addOrUpdatePasspointConfiguration(any(PasspointConfiguration.class));
         stopAfterStep(STEP_WAIT_FOR_THIRD_SOAP_RESPONSE);
         verify(mCallback).onProvisioningStatus(
                 ProvisioningCallback.OSU_STATUS_RETRIEVING_TRUST_ROOT_CERTS);
 
         // Empty trust root certificates.
         Map<Integer, List<X509Certificate>> trustRootCertificates = new HashMap<>();
+
+        // Received trust root CA certificates
+        mOsuServerCallbacks.onReceivedTrustRootCertificates(
+                mOsuServerCallbacks.getSessionId(), trustRootCertificates);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES);
+    }
+
+    /**
+     * Verifies that the right provisioning callbacks are invoked when it is failed to retrieve
+     * trust root certificate for remediation server from the URLs provided.
+     */
+    @Test
+    public void verifyHandlingEmptyRemediationTrustRootCertificateRetrieved()
+            throws RemoteException {
+        stopAfterStep(STEP_WAIT_FOR_THIRD_SOAP_RESPONSE);
+        verify(mCallback).onProvisioningStatus(
+                ProvisioningCallback.OSU_STATUS_RETRIEVING_TRUST_ROOT_CERTS);
+
+        // trust root certificates.
+        Map<Integer, List<X509Certificate>> trustRootCertificates = new HashMap<>();
+        List<X509Certificate> certificates = new ArrayList<>();
+        certificates.add(mX509Certificate);
+
+        // Add trust root certificate for AAA server
+        trustRootCertificates.put(OsuServerConnection.TRUST_CERT_TYPE_AAA, certificates);
 
         // Received trust root CA certificates
         mOsuServerCallbacks.onReceivedTrustRootCertificates(
