@@ -2914,6 +2914,9 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setEphemeral(config.ephemeral);
             mWifiInfo.setTrusted(config.trusted);
             mWifiInfo.setOsuAp(config.osu);
+            if (config.fromWifiNetworkSpecifier || config.fromWifiNetworkSuggestion) {
+                mWifiInfo.setNetworkSuggestionOrSpecifierPackageName(config.creatorName);
+            }
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
