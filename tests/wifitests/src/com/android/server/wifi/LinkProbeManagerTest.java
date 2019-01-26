@@ -32,6 +32,8 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.R;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -61,12 +63,18 @@ public class LinkProbeManagerTest {
 
     private TestLooper mLooper = new TestLooper();
     private ContentObserver mContentObserver;
+    private MockResources mResources;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
-                mFrameworkFacade, mLooper.getLooper(), mContext);
+
+        mResources = new MockResources();
+        mResources.setBoolean(R.bool.config_wifi_link_probing_supported, true);
+        when(mContext.getResources()).thenReturn(mResources);
+
+        initLinkProbeManager();
+
         mWifiInfo = new WifiInfo();
         mWifiInfo.setBSSID(TEST_BSSID);
         mTimeMs = 1000;
@@ -81,6 +89,11 @@ public class LinkProbeManagerTest {
         when(mFrameworkFacade.getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(1);
         mContentObserver.onChange(false);
+    }
+
+    private void initLinkProbeManager() {
+        mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
+                mFrameworkFacade, mLooper.getLooper(), mContext);
     }
 
     /**
@@ -229,6 +242,41 @@ public class LinkProbeManagerTest {
         when(mFrameworkFacade.getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(0);
         mContentObserver.onChange(false);
+
+        mLinkProbeManager.reset();
+
+        // initialize tx success counter
+        mWifiInfo.txSuccess = 50;
+        mTimeMs += 3000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        // should not probe yet
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+
+        // tx success counter did not change since last update
+        mWifiInfo.txSuccess = 50;
+        // below RSSI threshold
+        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5;
+        mWifiInfo.setRssi(rssi);
+        // above link speed threshold
+        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10;
+        mWifiInfo.setLinkSpeed(linkSpeed);
+        // more than LINK_PROBE_INTERVAL_MS passed
+        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        mTimeMs += timeDelta;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        verify(mWifiNative, never()).probeLink(any() , any(), any(), anyInt());
+    }
+
+    /**
+     * Tests when link probing feature is not supported by the device, no probes should run.
+     */
+    @Test
+    public void testLinkProbeFeatureUnsupported() throws Exception {
+        mResources.setBoolean(R.bool.config_wifi_link_probing_supported, false);
+        initLinkProbeManager();
 
         mLinkProbeManager.reset();
 

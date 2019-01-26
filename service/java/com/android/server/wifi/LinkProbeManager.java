@@ -25,6 +25,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 
 /**
@@ -50,6 +51,7 @@ public class LinkProbeManager {
     private final FrameworkFacade mFrameworkFacade;
     private final Context mContext;
 
+    private boolean mLinkProbingSupported;
     private boolean mLinkProbingEnabled = false;
 
     private boolean mVerboseLoggingEnabled = false;
@@ -72,6 +74,10 @@ public class LinkProbeManager {
         mWifiMetrics = wifiMetrics;
         mFrameworkFacade = frameworkFacade;
         mContext = context;
+        mLinkProbingSupported = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_link_probing_supported);
+        if (!mLinkProbingSupported) return;
+
         mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                 Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
                 new ContentObserver(new Handler(looper)) {
@@ -102,6 +108,8 @@ public class LinkProbeManager {
      * reset internal state.
      */
     public void reset() {
+        if (!mLinkProbingSupported) return;
+
         long now = mClock.getElapsedSinceBootMillis();
         mLastLinkProbeTimestampMs = now;
         mLastTxSuccessIncreaseTimestampMs = now;
@@ -116,6 +124,8 @@ public class LinkProbeManager {
      * @param interfaceName the interface that the link probe should be performed on, if applicable.
      */
     public void updateConnectionStats(WifiInfo wifiInfo, String interfaceName) {
+        if (!mLinkProbingSupported) return;
+
         long now = mClock.getElapsedSinceBootMillis();
 
         // at least 1 tx succeeded since last update
