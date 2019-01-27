@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.annotation.Nullable;
 import android.app.admin.DeviceAdminInfo;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
@@ -492,6 +493,56 @@ public class WifiConfigManagerTest {
         networkList.addAll(networkListStoreData.second);
         assertFalse(isNetworkInConfigStoreData(ephemeralNetwork, networkList));
         assertTrue(isNetworkInConfigStoreData(openNetwork, networkList));
+    }
+
+    /**
+     * Verifies the addition of a single suggestion network using
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int, String)} and verifies
+     * that the {@link WifiConfigManager#getSavedNetworks()} does not return this network.
+     */
+    @Test
+    public void testAddSingleSuggestionNetwork() throws Exception {
+        WifiConfiguration suggestionNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        suggestionNetwork.ephemeral = true;
+        suggestionNetwork.fromWifiNetworkSuggestion = true;
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(suggestionNetwork);
+
+        verifyAddSuggestionOrRequestNetworkToWifiConfigManager(suggestionNetwork);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+
+        // Ensure that this is not returned in the saved network list.
+        assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
+        verify(mWcmListener, never()).onSavedNetworkAdded(suggestionNetwork.networkId);
+    }
+
+    /**
+     * Verifies the addition of a single specifier network using
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int, String)} and verifies
+     * that the {@link WifiConfigManager#getSavedNetworks()} does not return this network.
+     */
+    @Test
+    public void testAddSingleSpecifierNetwork() throws Exception {
+        WifiConfiguration suggestionNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        suggestionNetwork.ephemeral = true;
+        suggestionNetwork.fromWifiNetworkSpecifier = true;
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(suggestionNetwork);
+
+        verifyAddSuggestionOrRequestNetworkToWifiConfigManager(suggestionNetwork);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+
+        // Ensure that this is not returned in the saved network list.
+        assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
+        verify(mWcmListener, never()).onSavedNetworkAdded(suggestionNetwork.networkId);
     }
 
     /**
@@ -4339,9 +4390,10 @@ public class WifiConfigManagerTest {
      * Modifies the provided configuration with creator uid, package name
      * and time.
      */
-    private void setCreationDebugParams(WifiConfiguration configuration) {
-        configuration.creatorUid = configuration.lastUpdateUid = TEST_CREATOR_UID;
-        configuration.creatorName = configuration.lastUpdateName = TEST_CREATOR_NAME;
+    private void setCreationDebugParams(WifiConfiguration configuration, int uid,
+                                        String packageName) {
+        configuration.creatorUid = configuration.lastUpdateUid = uid;
+        configuration.creatorName = configuration.lastUpdateName = packageName;
         configuration.creationTime = configuration.updateTime =
                 WifiConfigManager.createDebugTimeStampString(
                         TEST_WALLCLOCK_CREATION_TIME_MILLIS);
@@ -4600,7 +4652,15 @@ public class WifiConfigManagerTest {
      * Adds the provided configuration to WifiConfigManager with uid = TEST_CREATOR_UID.
      */
     private NetworkUpdateResult addNetworkToWifiConfigManager(WifiConfiguration configuration) {
-        return addNetworkToWifiConfigManager(configuration, TEST_CREATOR_UID);
+        return addNetworkToWifiConfigManager(configuration, TEST_CREATOR_UID, null);
+    }
+
+    /**
+     * Adds the provided configuration to WifiConfigManager with uid specified.
+     */
+    private NetworkUpdateResult addNetworkToWifiConfigManager(WifiConfiguration configuration,
+                                                              int uid) {
+        return addNetworkToWifiConfigManager(configuration, uid, null);
     }
 
     /**
@@ -4612,15 +4672,17 @@ public class WifiConfigManagerTest {
      * This method also triggers a store read if not already done.
      */
     private NetworkUpdateResult addNetworkToWifiConfigManager(WifiConfiguration configuration,
-                                                              int uid) {
+                                                              int uid,
+                                                              @Nullable String packageName) {
         clearInvocations(mContext, mWifiConfigStore, mNetworkListSharedStoreData,
                 mNetworkListUserStoreData);
         triggerStoreReadIfNeeded();
         when(mClock.getWallClockMillis()).thenReturn(TEST_WALLCLOCK_CREATION_TIME_MILLIS);
         NetworkUpdateResult result =
-                mWifiConfigManager.addOrUpdateNetwork(configuration, uid);
+                mWifiConfigManager.addOrUpdateNetwork(configuration, uid, packageName);
         setDefaults(configuration);
-        setCreationDebugParams(configuration);
+        setCreationDebugParams(
+                configuration, uid, packageName != null ? packageName : TEST_CREATOR_NAME);
         configuration.networkId = result.getNetworkId();
         return result;
     }
@@ -4648,6 +4710,24 @@ public class WifiConfigManagerTest {
     private NetworkUpdateResult verifyAddEphemeralNetworkToWifiConfigManager(
             WifiConfiguration configuration) throws Exception {
         NetworkUpdateResult result = addNetworkToWifiConfigManager(configuration);
+        assertTrue(result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
+        assertTrue(result.isNewNetwork());
+        assertTrue(result.hasIpChanged());
+        assertTrue(result.hasProxyChanged());
+
+        verifyNetworkAddBroadcast(configuration);
+        // Ensure that the write was not invoked for ephemeral network addition.
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        return result;
+    }
+
+    /**
+     * Add ephemeral network to WifiConfigManager and ensure that it was successful.
+     */
+    private NetworkUpdateResult verifyAddSuggestionOrRequestNetworkToWifiConfigManager(
+            WifiConfiguration configuration) throws Exception {
+        NetworkUpdateResult result =
+                addNetworkToWifiConfigManager(configuration, TEST_CREATOR_UID, TEST_CREATOR_NAME);
         assertTrue(result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
         assertTrue(result.isNewNetwork());
         assertTrue(result.hasIpChanged());

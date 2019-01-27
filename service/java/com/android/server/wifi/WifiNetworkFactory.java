@@ -662,7 +662,9 @@ public class WifiNetworkFactory extends NetworkFactory {
             return existingSavedNetwork.networkId;
         }
         NetworkUpdateResult networkUpdateResult =
-                mWifiConfigManager.addOrUpdateNetwork(network, Process.WIFI_UID);
+                mWifiConfigManager.addOrUpdateNetwork(
+                        network, mActiveSpecificNetworkRequestSpecifier.requestorUid,
+                        mActiveSpecificNetworkRequestSpecifier.requestorPackageName);
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Added network to config manager " + networkUpdateResult.netId);
         }
@@ -706,6 +708,8 @@ public class WifiNetworkFactory extends NetworkFactory {
 
         // Mark the network ephemeral so that it's automatically removed at the end of connection.
         network.ephemeral = true;
+        network.fromWifiNetworkSpecifier = true;
+
         // Store the user selected network.
         mUserSelectedNetwork = network;
 

@@ -595,7 +595,10 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.meteredOverride, actual.meteredOverride);
         assertEquals(expected.useExternalScores, actual.useExternalScores);
         assertEquals(expected.ephemeral, actual.ephemeral);
+        assertEquals(expected.osu, actual.osu);
         assertEquals(expected.trusted, actual.trusted);
+        assertEquals(expected.fromWifiNetworkSuggestion, actual.fromWifiNetworkSuggestion);
+        assertEquals(expected.fromWifiNetworkSpecifier, actual.fromWifiNetworkSpecifier);
         assertEquals(expected.creatorUid, actual.creatorUid);
         assertEquals(expected.creatorName, actual.creatorName);
         assertEquals(expected.creationTime, actual.creationTime);

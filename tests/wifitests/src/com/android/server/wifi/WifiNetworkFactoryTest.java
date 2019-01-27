@@ -162,7 +162,7 @@ public class WifiNetworkFactoryTest {
                 .thenReturn(IMPORTANCE_FOREGROUND_SERVICE);
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt(), anyString()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID_1));
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
@@ -983,11 +983,12 @@ public class WifiNetworkFactoryTest {
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
         verify(mWifiConfigManager).addOrUpdateNetwork(
-                wifiConfigurationCaptor.capture(), eq(Process.WIFI_UID));
+                wifiConfigurationCaptor.capture(), eq(TEST_UID_1), eq(TEST_PACKAGE_NAME_1));
         WifiConfiguration network =  wifiConfigurationCaptor.getValue();
         assertNotNull(network);
         WifiConfigurationTestUtil.assertConfigurationEqual(selectedNetwork, network);
         assertTrue(network.ephemeral);
+        assertTrue(network.fromWifiNetworkSpecifier);
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(messageCaptor.capture());
@@ -1029,7 +1030,7 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(true);
 
         // verify we don't try to add the network to WifiConfigManager.
-        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(), anyInt());
+        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(), anyInt(), anyString());
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(messageCaptor.capture());
@@ -1084,13 +1085,14 @@ public class WifiNetworkFactoryTest {
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
         verify(mWifiConfigManager).addOrUpdateNetwork(
-                wifiConfigurationCaptor.capture(), eq(Process.WIFI_UID));
+                wifiConfigurationCaptor.capture(), eq(TEST_UID_1), eq(TEST_PACKAGE_NAME_1));
         WifiConfiguration network =  wifiConfigurationCaptor.getValue();
         assertNotNull(network);
         WifiConfiguration expectedWifiConfiguration = new WifiConfiguration(mSelectedNetwork);
         expectedWifiConfiguration.BSSID = matchingScanResult.BSSID;
         WifiConfigurationTestUtil.assertConfigurationEqual(expectedWifiConfiguration, network);
         assertTrue(network.ephemeral);
+        assertTrue(network.fromWifiNetworkSpecifier);
 
         // Verify connection message.
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);

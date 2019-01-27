@@ -629,9 +629,7 @@ public class WifiNetworkSelector {
             }
         }
 
-        if (selectedNetwork != null) {
-            selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
-        }
+        boolean legacyOverrideWanted = true;
 
         // Run any (experimental) CandidateScorers we have
         try {
@@ -648,6 +646,7 @@ public class WifiNetworkSelector {
                     if (thisOne) {
                         int networkId = choice.candidateKey.networkId;
                         selectedNetwork = mWifiConfigManager.getConfiguredNetwork(networkId);
+                        legacyOverrideWanted = candidateScorer.userConnectChoiceOverrideWanted();
                         Log.i(TAG, id + " chooses " + networkId);
                     }
                 } else {
@@ -657,6 +656,10 @@ public class WifiNetworkSelector {
         } catch (RuntimeException e) {
             Log.wtf(TAG, "Exception running a CandidateScorer, disabling", e);
             mCandidateScorers.clear();
+        }
+
+        if (selectedNetwork != null && legacyOverrideWanted) {
+            selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
         }
 
         if (selectedNetwork != null) {
@@ -727,5 +730,7 @@ public class WifiNetworkSelector {
 
         // Register one try out. This is probably not the right place, in the long run.
         registerCandidateScorer(new CompatibiltyScorer(scoringParams));
+        // TODO register in a saner place
+        registerCandidateScorer(new ScoreCardBasedScorer(scoringParams));
     }
 }

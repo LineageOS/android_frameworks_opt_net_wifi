@@ -2193,7 +2193,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             }
             WifiAwareClientState client = new WifiAwareClientState(mContext, clientId, uid, pid,
                     callingPackage, callback, configRequest, notifyIdentityChange,
-                    SystemClock.elapsedRealtime());
+                    SystemClock.elapsedRealtime(), mWifiPermissionsUtil);
             client.mDbg = mDbg;
             client.onInterfaceAddressChange(mCurrentDiscoveryInterfaceMac);
             mClients.append(clientId, client);
@@ -2552,7 +2552,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
 
             WifiAwareClientState client = new WifiAwareClientState(mContext, clientId, uid, pid,
                     callingPackage, callback, configRequest, notifyIdentityChange,
-                    SystemClock.elapsedRealtime());
+                    SystemClock.elapsedRealtime(), mWifiPermissionsUtil);
             client.mDbg = mDbg;
             mClients.put(clientId, client);
             mAwareMetrics.recordAttachSession(uid, notifyIdentityChange, mClients);

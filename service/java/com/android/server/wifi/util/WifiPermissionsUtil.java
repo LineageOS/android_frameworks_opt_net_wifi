@@ -22,6 +22,8 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
+import android.os.Binder;
+import android.os.Build;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -106,31 +108,61 @@ public class WifiPermissionsUtil {
     }
 
     /**
-     * Check and enforce Coarse Location permission.
+     * Check and enforce Coarse or Fine Location permission (depending on target SDK).
      *
      * @param pkgName PackageName of the application requesting access
      * @param uid The uid of the package
      */
     public void enforceLocationPermission(String pkgName, int uid) {
-        if (!checkCallersLocationPermission(pkgName, uid)) {
-            throw new SecurityException("UID " + uid + " does not have Coarse Location permission");
+        if (!checkCallersLocationPermission(pkgName, uid, /* coarseForTargetSdkLessThanQ */ true)) {
+            throw new SecurityException(
+                    "UID " + uid + " does not have Coarse/Fine Location permission");
         }
     }
 
+    /**
+     * Checks whether than the target SDK of the package is less than the specified version code.
+     */
+    public boolean isTargetSdkLessThan(String packageName, int versionCode) {
+        long ident = Binder.clearCallingIdentity();
+        try {
+            if (mContext.getPackageManager().getApplicationInfo(packageName, 0).targetSdkVersion
+                    < versionCode) {
+                return true;
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            // In case of exception, assume unknown app (more strict checking)
+            // Note: This case will never happen since checkPackage is
+            // called to verify validity before checking App's version.
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+        return false;
+    }
 
     /**
-     * Checks that calling process has android.Manifest.permission.ACCESS_COARSE_LOCATION
+     * Checks that calling process has android.Manifest.permission.ACCESS_FINE_LOCATION or
+     * android.Manifest.permission.ACCESS_FINE_LOCATION (depending on config/targetSDK leve)
      * and a corresponding app op is allowed for this package and uid.
      *
      * @param pkgName PackageName of the application requesting access
      * @param uid The uid of the package
+     * @param coarseForTargetSdkLessThanQ If true and the targetSDK < Q then will check for COARSE
+     *                                    else (false or targetSDK >= Q) then will check for FINE
      */
-    public boolean checkCallersLocationPermission(String pkgName, int uid) {
-        // Having FINE permission implies having COARSE permission (but not the reverse)
-        if ((mWifiPermissionsWrapper.getUidPermission(
-                Manifest.permission.ACCESS_COARSE_LOCATION, uid)
-                == PackageManager.PERMISSION_GRANTED)
-                && checkAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid)) {
+    public boolean checkCallersLocationPermission(String pkgName, int uid,
+            boolean coarseForTargetSdkLessThanQ) {
+        String permissionType = Manifest.permission.ACCESS_FINE_LOCATION;
+        int appOps = AppOpsManager.OP_FINE_LOCATION;
+
+        if (coarseForTargetSdkLessThanQ && isTargetSdkLessThan(pkgName, Build.VERSION_CODES.Q)) {
+            // Having FINE permission implies having COARSE permission (but not the reverse)
+            permissionType = Manifest.permission.ACCESS_COARSE_LOCATION;
+            appOps = AppOpsManager.OP_COARSE_LOCATION;
+        }
+
+        if ((mWifiPermissionsWrapper.getUidPermission(permissionType, uid)
+                == PackageManager.PERMISSION_GRANTED) && checkAppOpAllowed(appOps, pkgName, uid)) {
             return true;
         }
         return false;
@@ -201,9 +233,10 @@ public class WifiPermissionsUtil {
 
         // Check if the calling Uid has CAN_READ_PEER_MAC_ADDRESS permission.
         boolean canCallingUidAccessLocation = checkCallerHasPeersMacAddressPermission(uid);
-        // LocationAccess by App: caller must have Coarse Location permission to have access to
+        // LocationAccess by App: caller must have Coarse/Fine Location permission to have access to
         // location information.
-        boolean canAppPackageUseLocation = checkCallersLocationPermission(pkgName, uid);
+        boolean canAppPackageUseLocation = checkCallersLocationPermission(pkgName,
+                uid, /* coarseForTargetSdkLessThanQ */ true);
 
         // If neither caller or app has location access, there is no need to check
         // any other permissions. Deny access to scan results.
@@ -259,7 +292,7 @@ public class WifiPermissionsUtil {
 
     /**
      *
-     * Checks that calling process has android.Manifest.permission.ACCESS_COARSE_LOCATION
+     * Checks that calling process has android.Manifest.permission.ACCESS_FINE_LOCATION
      * and a corresponding app op is allowed for this package and uid
      *
      * @param pkgName package name of the application requesting access
@@ -286,9 +319,10 @@ public class WifiPermissionsUtil {
             return false;
         }
 
-        // LocationAccess by App: caller must have Coarse Location permission to have access to
+        // LocationAccess by App: caller must have Fine Location permission to have access to
         // location information.
-        if (!checkCallersLocationPermission(pkgName, uid)) {
+        if (!checkCallersLocationPermission(pkgName, uid,
+                /* coarseForTargetSdkLessThanQ */ false)) {
             Slog.e(TAG, "UID " + uid + " has no location permission");
             return false;
         }
@@ -352,23 +386,6 @@ public class WifiPermissionsUtil {
                     return true;
                 }
             }
-        }
-        return false;
-    }
-
-    /**
-     * Returns true if the App version is older than minVersion.
-     */
-    public boolean isLegacyVersion(String pkgName, int minVersion) {
-        try {
-            if (mContext.getPackageManager().getApplicationInfo(pkgName, 0)
-                    .targetSdkVersion < minVersion) {
-                return true;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            // In case of exception, assume known app (more strict checking)
-            // Note: This case will never happen since checkPackage is
-            // called to verify valididity before checking App's version.
         }
         return false;
     }

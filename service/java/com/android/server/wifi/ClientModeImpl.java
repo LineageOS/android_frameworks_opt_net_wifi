@@ -2914,6 +2914,9 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setEphemeral(config.ephemeral);
             mWifiInfo.setTrusted(config.trusted);
             mWifiInfo.setOsuAp(config.osu);
+            if (config.fromWifiNetworkSpecifier || config.fromWifiNetworkSuggestion) {
+                mWifiInfo.setNetworkSuggestionOrSpecifierPackageName(config.creatorName);
+            }
 
             // Set meteredHint if scan result says network is expensive
             ScanDetailCache scanDetailCache = mWifiConfigManager.getScanDetailCacheForNetwork(
@@ -6123,5 +6126,15 @@ public class ClientModeImpl extends StateMachine {
      */
     public void setDeviceMobilityState(@DeviceMobilityState int state) {
         mWifiConnectivityManager.setDeviceMobilityState(state);
+    }
+
+    /**
+     * Updates the Wi-Fi usability score.
+     * @param seqNum Sequence number of the Wi-Fi usability score.
+     * @param score The Wi-Fi usability score.
+     * @param predictionHorizonSec Prediction horizon of the Wi-Fi usability score.
+     */
+    public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
+        mWifiMetrics.incrementWifiUsabilityScoreCount(seqNum, score, predictionHorizonSec);
     }
 }

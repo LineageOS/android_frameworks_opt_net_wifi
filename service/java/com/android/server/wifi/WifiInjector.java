@@ -56,6 +56,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
 import com.android.server.wifi.hotspot2.PasspointObjectFactory;
 import com.android.server.wifi.p2p.SupplicantP2pIfaceHal;
+import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.p2p.WifiP2pMonitor;
 import com.android.server.wifi.p2p.WifiP2pNative;
 import com.android.server.wifi.rtt.RttMetrics;
@@ -107,6 +108,7 @@ public class WifiInjector {
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
+    private final WifiP2pMetrics mWifiP2pMetrics;
     private WifiLastResortWatchdog mWifiLastResortWatchdog;
     private final PropertyService mPropertyService = new SystemPropertyService();
     private final BuildProperties mBuildProperties = new SystemBuildProperties();
@@ -188,8 +190,9 @@ public class WifiInjector {
                 clientModeImplLooper, mFrameworkFacade);
         WifiAwareMetrics awareMetrics = new WifiAwareMetrics(mClock);
         RttMetrics rttMetrics = new RttMetrics(mClock);
+        mWifiP2pMetrics = new WifiP2pMetrics(mClock);
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, clientModeImplLooper,
-                awareMetrics, rttMetrics, new WifiPowerMetrics());
+                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics);
         // Modules interacting with Native.
         mWifiMonitor = new WifiMonitor(this);
         mHalDeviceManager = new HalDeviceManager(mClock);
@@ -357,6 +360,10 @@ public class WifiInjector {
 
     public WifiMetrics getWifiMetrics() {
         return mWifiMetrics;
+    }
+
+    public WifiP2pMetrics getWifiP2pMetrics() {
+        return mWifiP2pMetrics;
     }
 
     public SupplicantStaIfaceHal getSupplicantStaIfaceHal() {

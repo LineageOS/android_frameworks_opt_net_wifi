@@ -17,16 +17,18 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
+import android.net.wifi.WifiInfo;
 
 import com.android.server.wifi.WifiCandidates.Candidate;
 import com.android.server.wifi.WifiCandidates.ScoredCandidate;
+import com.android.server.wifi.WifiScoreCardProto.Event;
 
 import java.util.Collection;
 
 /**
- * A candidate scorer that attempts to match the previous behavior.
+ * A candidate scorer that uses the scorecard to influence the choice.
  */
-final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
+final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
 
     private final ScoringParams mScoringParams;
 
@@ -42,48 +44,38 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_SECURITY_AWARD
     public static final int SECURITY_AWARD_IS_80 = 80;
 
-    CompatibiltyScorer(ScoringParams scoringParams) {
+    // Only use scorecard id we have data from this many polls
+    public static final int MIN_POLLS_FOR_SIGNIFICANCE = 30;
+
+    ScoreCardBasedScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
     }
 
     @Override
     public String getIdentifier() {
-        return "CompatibiltyScorer";
+        return "ScoreCardBasedScorer";
     }
 
     /**
      * Calculates an individual candidate's score.
-     *
-     * This relies mostly on the scores provided by the evaluator.
      */
     private ScoredCandidate scoreCandidate(Candidate candidate) {
         // Start with the score that the evaluator supplied
-        int score = candidate.evaluatorScore;
-        if (score == 0) {
-            // If the evaluator simply returned a score of zero, supply one based on the RSSI
-            int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
-            int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
-            score = (rssi + RSSI_SCORE_OFFSET) * RSSI_SCORE_SLOPE_IS_4;
-            if (candidate.getFrequency()
-                     >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
-                score += BAND_5GHZ_AWARD_IS_40;
-            }
-            // Note - compared to the saved network evaluator, we are skipping some
-            // awards and bonuses. As long as we are still generating a score in the
-            // saved network evaluator, this is not a problem because for saved
-            // networks this code will not be used at all.
-            // - skipping award for last user selection
-            //       config_wifi_framework_LAST_SELECTION_AWARD
-            //           = 480 - (time in minutes since choice)
-            // - skipping award for same network
-            //       config_wifi_framework_current_network_boost
-            //           = 16
-            // - skipping award for equivalent / same BSSID
-            //       config_wifi_framework_SAME_BSSID_AWARD
-            //           = 24
-            if (!WifiConfigurationUtil.isConfigForOpenNetwork(candidate.config)) {
-                score += SECURITY_AWARD_IS_80;
-            }
+        int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
+        int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
+        int cutoff = estimatedCutoff(candidate);
+        int score = (rssi - cutoff) * RSSI_SCORE_SLOPE_IS_4;
+
+        if (candidate.getFrequency() >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
+            score += BAND_5GHZ_AWARD_IS_40;
+        }
+        if (!WifiConfigurationUtil.isConfigForOpenNetwork(candidate.config)) {
+            score += SECURITY_AWARD_IS_80;
+        }
+        if (candidate.evaluatorIndex == 0 && candidate.evaluatorScore > score) {
+            // For saved networks, mix in the evaluator's score if it is bigger, to account
+            // for aspects that we are ignoring here.
+            score = (score + candidate.evaluatorScore) / 2;
         }
 
         // To simulate the old strict priority rule, subtract a penalty based on
@@ -91,6 +83,22 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
         score -= 1000 * candidate.evaluatorIndex;
 
         return new ScoredCandidate(score, 10, candidate);
+    }
+
+    private int estimatedCutoff(Candidate candidate) {
+        int cutoff = -RSSI_SCORE_OFFSET;
+        WifiScoreCardProto.Signal signal = candidate.getEventStatistics(Event.SIGNAL_POLL);
+        if (signal == null) return cutoff;
+        if (!signal.hasRssi()) return cutoff;
+        if (signal.getRssi().getCount() > MIN_POLLS_FOR_SIGNIFICANCE) {
+            double mean = signal.getRssi().getSum() / signal.getRssi().getCount();
+            double mean_square = signal.getRssi().getSumOfSquares() / signal.getRssi().getCount();
+            double variance = mean_square - mean * mean;
+            double sigma = Math.sqrt(variance);
+            double value = mean - 2.0 * sigma;
+            cutoff = (int) Math.min(Math.max(value, WifiInfo.MIN_RSSI), WifiInfo.MAX_RSSI);
+        }
+        return cutoff;
     }
 
     @Override

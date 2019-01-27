@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
@@ -39,7 +40,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import android.Manifest;
 import android.app.AppOpsManager;
 import android.app.test.MockAnswerUtil;
 import android.app.test.TestAlarmManager;
@@ -101,6 +101,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+
 /**
  * Unit test harness for WifiAwareStateManager.
  */
@@ -158,11 +159,7 @@ public class WifiAwareStateManagerTest {
         when(mMockContext.getSystemService(PowerManager.class)).thenReturn(mMockPowerManager);
         when(mMockContext.checkPermission(eq(android.Manifest.permission.ACCESS_FINE_LOCATION),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
-        when(mMockContext.checkPermission(eq(Manifest.permission.ACCESS_COARSE_LOCATION),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mMockAppOpsManager.noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(),
-                any())).thenReturn(AppOpsManager.MODE_ERRORED);
-        when(mMockAppOpsManager.noteOp(eq(AppOpsManager.OP_COARSE_LOCATION), anyInt(),
                 any())).thenReturn(AppOpsManager.MODE_ERRORED);
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mMockPowerManager.isInteractive()).thenReturn(true);
@@ -626,10 +623,8 @@ public class WifiAwareStateManagerTest {
         mMockLooper.dispatchAll();
 
         // (5) deliver new identity - with LOCATIONING permission
-        when(mMockContext.checkPermission(eq(Manifest.permission.ACCESS_COARSE_LOCATION),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
-        when(mMockAppOpsManager.noteOp(eq(AppOpsManager.OP_COARSE_LOCATION), anyInt(),
-                any())).thenReturn(AppOpsManager.MODE_ALLOWED);
+        when(mWifiPermissionsUtil.checkCallersLocationPermission(anyString(), anyInt(),
+                anyBoolean())).thenReturn(true);
         mDut.onInterfaceAddressChangeNotification(someMac);
         mMockLooper.dispatchAll();
 
