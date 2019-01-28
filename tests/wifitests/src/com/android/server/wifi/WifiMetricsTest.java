@@ -2661,6 +2661,75 @@ public class WifiMetricsTest {
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
     }
 
+    /**
+     * Verify that LABEL_BAD stats are not generated more frequently than |MIN_DATA_STALL_WAIT_MS|
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsLabelBadNotGeneratedGapLessThanMinimum() throws Exception {
+        // simulate adding two LABEL_GOOD WifiUsabilityStats
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = new WifiLinkLayerStats();
+        WifiLinkLayerStats stats2 = new WifiLinkLayerStats();
+        stats1 = addGoodWifiUsabilityStats(stats1);
+        stats2.timeStampInMs = stats1.timeStampInMs
+                + WifiMetrics.MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS;
+        addGoodWifiUsabilityStats(stats2);
+
+        WifiLinkLayerStats stats3 = new WifiLinkLayerStats();
+        WifiLinkLayerStats stats4 = new WifiLinkLayerStats();
+        stats4.timeStampInMs = stats3.timeStampInMs - 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+            mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
+            stats3 = nextRandomStats(stats3);
+        }
+        addBadWifiUsabilityStats(stats3);
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+            mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
+            stats4 = nextRandomStats(stats4);
+        }
+        addBadWifiUsabilityStats(stats4);
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_BAD stats are generated if timestamp gap is larger than
+     * |MIN_DATA_STALL_WAIT_MS|
+     * @throws Exception
+     */
+    @Test
+    public void testWifiUsabilityStatsLabelBadGeneratedGapLargerThanMinimum() throws Exception {
+        // simulate adding two LABEL_GOOD WifiUsabilityStats
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = new WifiLinkLayerStats();
+        WifiLinkLayerStats stats2 = new WifiLinkLayerStats();
+        stats1 = addGoodWifiUsabilityStats(stats1);
+        stats2.timeStampInMs = stats1.timeStampInMs
+                + WifiMetrics.MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS;
+        addGoodWifiUsabilityStats(stats2);
+
+        WifiLinkLayerStats stats3 = new WifiLinkLayerStats();
+        WifiLinkLayerStats stats4 = new WifiLinkLayerStats();
+        stats4.timeStampInMs = stats3.timeStampInMs + 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+            mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
+            stats3 = nextRandomStats(stats3);
+        }
+        addBadWifiUsabilityStats(stats3);
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+            mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
+            stats4 = nextRandomStats(stats4);
+        }
+        addBadWifiUsabilityStats(stats4);
+        dumpProtoAndDeserialize();
+        assertEquals(4, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
     private DeviceMobilityStatePnoScanStats findDeviceMobilityStatePnoScanStats(
             @WifiManager.DeviceMobilityState int state) {
         DeviceMobilityStatePnoScanStats result = null;

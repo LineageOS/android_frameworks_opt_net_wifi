@@ -3838,12 +3838,19 @@ public class WifiMetrics {
                     mWifiUsabilityStatsListGood.add(createWifiUsabilityStatsWithLabel(label));
                 }
             } else {
-                while (mWifiUsabilityStatsListBad.size()
-                        >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
-                    mWifiUsabilityStatsListBad.remove(
-                            mRand.nextInt(mWifiUsabilityStatsListBad.size()));
+                // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
+                // has passed.
+                if (mWifiUsabilityStatsListBad.isEmpty()
+                        || (mWifiUsabilityStatsListBad.getLast().stats[0].timeStampMs
+                        + MIN_DATA_STALL_WAIT_MS
+                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs)) {
+                    while (mWifiUsabilityStatsListBad.size()
+                            >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
+                        mWifiUsabilityStatsListBad.remove(
+                                mRand.nextInt(mWifiUsabilityStatsListBad.size()));
+                    }
+                    mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
                 }
-                mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
             }
             mWifiUsabilityStatsCounter = 0;
         }
