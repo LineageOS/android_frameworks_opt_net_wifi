@@ -2583,7 +2583,8 @@ public class WifiMetricsTest {
         WifiLinkLayerStats stats2 = nextRandomStats(stats1);
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
-        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
         return nextRandomStats(stats2);
     }
 
@@ -2605,7 +2606,8 @@ public class WifiMetricsTest {
 
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
-        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
 
         // Add 2 LABEL_GOOD but only 1 should remain in the converted proto
         WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats2));
@@ -2949,5 +2951,58 @@ public class WifiMetricsTest {
 
         // Client should not get any message listener add failed.
         verify(mWifiUsabilityStatsListener, never()).onStatsUpdated(anyInt(), anyBoolean(), any());
+    }
+
+    /**
+     * Verify that the label and the triggerType of Wifi usability stats are saved correctly
+     * during firmware alert is triggered.
+     * @throws Exception
+     */
+    @Test
+    public void verifyFirmwareAlertUpdatesWifiUsabilityMetrics() throws Exception {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+
+        // Add 1 LABEL_GOOD
+        WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
+        // Firmware alert occurs
+        mWifiMetrics.logFirmwareAlert(2);
+
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+
+        WifiUsabilityStats[] statsList = mDecodedProto.wifiUsabilityStatsList;
+        assertEquals(WifiUsabilityStats.LABEL_GOOD, statsList[0].label);
+        assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
+        assertEquals(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, statsList[1].triggerType);
+    }
+
+    /**
+     * Verify that the label and the triggerType of Wifi usability stats are saved correctly
+     * during Wifi data stall is triggered.
+     * @throws Exception
+     */
+    @Test
+    public void verifyWifiDataStallUpdatesWifiUsabilityMetrics() throws Exception {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+
+        // Add 1 LABEL_GOOD
+        WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
+        // Wifi data stall occurs
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
+
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+        WifiUsabilityStats[] statsList = mDecodedProto.wifiUsabilityStatsList;
+        assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
+        assertEquals(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, statsList[1].triggerType);
     }
 }

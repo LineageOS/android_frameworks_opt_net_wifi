@@ -101,6 +101,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -2958,17 +2959,21 @@ public class ClientModeImplTest {
 
         WifiLinkLayerStats stats = new WifiLinkLayerStats();
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(stats);
-        when(mWifiDataStall.checkForDataStall(any(), any())).thenReturn(false);
+        when(mWifiDataStall.checkForDataStall(any(), any()))
+                .thenReturn(WifiIsUnusableEvent.TYPE_UNKNOWN);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         verify(mWifiMetrics).updateWifiUsabilityStatsEntries(any(), eq(stats));
-        verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+        verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                eq(anyInt()));
 
-        when(mWifiDataStall.checkForDataStall(any(), any())).thenReturn(true);
+        when(mWifiDataStall.checkForDataStall(any(), any()))
+                .thenReturn(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
-        verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+        verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
     }
 
     /**
