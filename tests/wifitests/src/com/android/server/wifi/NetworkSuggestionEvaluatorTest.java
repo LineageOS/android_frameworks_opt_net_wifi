@@ -351,7 +351,61 @@ public class NetworkSuggestionEvaluatorTest {
         assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
 
         // check for any saved networks.
+        verify(mWifiConfigManager, times(suggestionSsids.length))
+                .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
+        // Verify we did not try to add any new networks or other interactions with
+        // WifiConfigManager.
+        verifyNoMoreInteractions(mWifiConfigManager);
+    }
+
+    /**
+     * Ensure that we don't select the only matching network suggestion if it was previously
+     * disabled by the user.
+     * Expected candidate: null
+     * Expected connectable Networks: {suggestionSsids[0]}
+     */
+    @Test
+    public void testSelectNetworkSuggestionForOneMatchButUserForgotTheNetwork() {
+        String[] scanSsids = {"test1", "test2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-67, -76};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\""};
+        int[] securities = {SECURITY_PSK};
+        boolean[] appInteractions = {true};
+        boolean[] meteredness = {true};
+        int[] priorities = {0};
+        int[] uids = {TEST_UID};
+        String[] packageNames = {TEST_PACKAGE};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
+                appInteractions, meteredness, priorities, uids, packageNames);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
+        // Network was disabled by the user.
+        when(mWifiConfigManager.wasEphemeralNetworkDeleted(suggestionSsids[0])).thenReturn(true);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        assertNull(candidate);
+
+        assertEquals(1, connectableNetworks.size());
+        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
+        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
+
+        verify(mWifiConfigManager, times(suggestionSsids.length))
+                .wasEphemeralNetworkDeleted(anyString());
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
         verifyNoMoreInteractions(mWifiConfigManager);

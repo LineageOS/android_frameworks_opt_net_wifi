@@ -2579,7 +2579,7 @@ public class WifiServiceImpl extends BaseWifiService {
     public void disableEphemeralNetwork(String SSID, String packageName) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
                 "WifiService");
-        if (!isPrivileged(Binder.getCallingUid(), Binder.getCallingPid())) {
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             mLog.info("disableEphemeralNetwork not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return;
