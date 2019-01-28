@@ -159,4 +159,23 @@ public class MemoryStoreImplTest {
     final ArgumentCaptor<android.net.ipmemorystore.Blob> mIpMemoryStoreBlobCaptor =
             ArgumentCaptor.forClass(android.net.ipmemorystore.Blob.class);
 
+    /**
+     * An exception should disable further operations.
+     */
+    @Test
+    public void exceptionDisablesFurtherOperations() throws Exception {
+        final byte[] myBlob = new byte[]{0x0, 0x3, 0x1};
+        final String myL2Key = "L2Key:" + myBlob;
+        when(mContext.getSystemService(Context.IP_MEMORY_STORE_SERVICE))
+                .thenReturn(mIpMemoryStore);
+        doThrow(new RuntimeException("Just a test"))
+                .when(mIpMemoryStore).storeBlob(any(), any(), any(), any(), any());
+        mMemoryStoreImpl.start();
+        mMemoryStoreImpl.write(myL2Key, myBlob);
+        // After the failed write, the read should do nothing.
+        mMemoryStoreImpl.read(myL2Key, mBlobListener);
+        verify(mIpMemoryStore, never())
+                .retrieveBlob(any(), any(), any(), any());
+    }
+
 }
