@@ -87,12 +87,11 @@ public class WifiP2pMonitor {
         mWifiInjector = wifiInjector;
     }
 
-    void enableVerboseLogging(int verbose) {
-        if (verbose > 0) {
-            mVerboseLoggingEnabled = true;
-        } else {
-            mVerboseLoggingEnabled = false;
-        }
+    /**
+     * Enable verbose logging for all sub modules.
+     */
+    public void enableVerboseLogging(int verbose) {
+        mVerboseLoggingEnabled = verbose > 0;
     }
 
     private final Map<String, SparseArray<Set<Handler>>> mHandlerMap = new HashMap<>();
