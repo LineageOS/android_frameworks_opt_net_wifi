@@ -22,6 +22,8 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.util.LocalLog;
 
+import com.android.server.wifi.util.ScanResultUtil;
+
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -89,9 +91,15 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             // All matching network credentials are considered equal. So, put any one of them.
             WifiNetworkSuggestion matchingNetworkSuggestion =
                     matchingNetworkSuggestions.stream().findAny().get();
-            candidateNetworkSuggestionToScanResultMap.put(matchingNetworkSuggestion, scanResult);
             onConnectableListener.onConnectable(
                     scanDetail, matchingNetworkSuggestion.wifiConfiguration, 0);
+            // If the user previously forgot this network, don't select it.
+            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
+                    ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
+                mLocalLog.log("Ignoring disabled ephemeral SSID: " + scanResult.SSID);
+                continue;
+            }
+            candidateNetworkSuggestionToScanResultMap.put(matchingNetworkSuggestion, scanResult);
         }
         // Pick the matching network suggestion corresponding to the highest RSSI. This will need to
         // be replaced by a more sophisticated algorithm.
