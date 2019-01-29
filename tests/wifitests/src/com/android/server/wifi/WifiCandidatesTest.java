@@ -41,6 +41,7 @@ public class WifiCandidatesTest {
     @Mock ScanDetail mScanDetail1;
     @Mock ScanDetail mScanDetail2;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock WifiScoreCard.PerBssid mPerBssid;
 
     ScanResult mScanResult1;
     ScanResult mScanResult2;
@@ -70,6 +71,7 @@ public class WifiCandidatesTest {
             }};
         doReturn(mScanResult1).when(mScanDetail1).getScanResult();
         doReturn(mScanResult2).when(mScanDetail2).getScanResult();
+        doReturn(mPerBssid).when(mWifiScoreCard).lookupBssid(any(), any());
     }
 
     /**

@@ -138,6 +138,7 @@ public class WifiCandidates {
      * The key used for tracking candidates, consisting of SSID, security type, BSSID, and network
      * configuration id.
      */
+    // TODO (b/123014687) unify with similar classes in the framework
     public static class Key {
         public final ScanResultMatchInfo matchInfo; // Contains the SSID and security type
         public final MacAddress bssid;
@@ -199,9 +200,13 @@ public class WifiCandidates {
             if (evaluatorScore <= old.evaluatorScore) return false;
             remove(old);
         }
+        WifiScoreCard.PerBssid perBssid = mWifiScoreCard.lookupBssid(
+                key.matchInfo.networkSsid,
+                key.bssid.toString());
+        perBssid.setSecurityType(
+                WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
         Candidate candidate = new Candidate(key,
-                scanDetail, config, evaluatorIndex, evaluatorScore,
-                mWifiScoreCard.lookupBssid(key.matchInfo.networkSsid, key.bssid.toString()));
+                scanDetail, config, evaluatorIndex, evaluatorScore, perBssid);
         mCandidates.put(key, candidate);
         return true;
     }

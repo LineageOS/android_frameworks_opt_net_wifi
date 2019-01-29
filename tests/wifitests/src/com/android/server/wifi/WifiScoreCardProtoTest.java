@@ -48,4 +48,27 @@ public class WifiScoreCardProtoTest {
                 .build();
         assertEquals("FloogleGuest", network.getSsid());
     }
+
+    /**
+     * Make sure that the numeric values of SecurityType proto match
+     * the @IntDef versions.
+     */
+    @Test
+    public void testSecurityTypeValues() throws Exception {
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_OPEN,
+                WifiScoreCardProto.SecurityType.OPEN.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_WEP,
+                WifiScoreCardProto.SecurityType.WEP.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_PSK,
+                WifiScoreCardProto.SecurityType.PSK.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_EAP,
+                WifiScoreCardProto.SecurityType.EAP.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_SAE,
+                WifiScoreCardProto.SecurityType.SAE.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_EAP_SUITE_B,
+                WifiScoreCardProto.SecurityType.EAP_SUITE_B.getNumber());
+        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_OWE,
+                WifiScoreCardProto.SecurityType.OWE.getNumber());
+    }
+
 }
