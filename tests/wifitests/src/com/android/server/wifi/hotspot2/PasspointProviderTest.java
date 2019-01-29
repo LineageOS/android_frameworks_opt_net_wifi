@@ -30,6 +30,8 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
+import android.net.wifi.hotspot2.pps.UpdateParameter;
+import android.text.TextUtils;
 import android.util.Base64;
 
 import androidx.test.filters.SmallTest;
@@ -53,6 +55,8 @@ import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 
 import java.nio.charset.StandardCharsets;
@@ -60,6 +64,7 @@ import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -69,6 +74,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointProvider}.
  */
 @SmallTest
+@RunWith(Parameterized.class)
 public class PasspointProviderTest {
     private static final long PROVIDER_ID = 12L;
     private static final int CREATOR_UID = 1234;
@@ -76,15 +82,33 @@ public class PasspointProviderTest {
     private static final String CA_CERTIFICATE_NAME_2 = "CACERT_HS2_12_1";
     private static final String CLIENT_CERTIFICATE_NAME = "USRCERT_HS2_12";
     private static final String CLIENT_PRIVATE_KEY_NAME = "USRPKEY_HS2_12";
+    private static final String REMEDIATION_CA_CERTIFICATE_NAME = "CACERT_HS2_REMEDIATION_12";
     private static final String CA_CERTIFICATE_ALIAS = "HS2_12_0";
     private static final String CA_CERTIFICATE_ALIAS_2 = "HS2_12_1";
     private static final String CLIENT_CERTIFICATE_ALIAS = "HS2_12";
     private static final String CLIENT_PRIVATE_KEY_ALIAS = "HS2_12";
+    private static final String REMEDIATION_CA_CERTIFICATE_ALIAS = "HS2_REMEDIATION_12";
 
     @Mock WifiKeyStore mKeyStore;
     @Mock SIMAccessor mSimAccessor;
     @Mock RoamingConsortium mRoamingConsortium;
     PasspointProvider mProvider;
+    X509Certificate mRemediationCaCertificate;
+    String mExpectedResult;
+
+    @Parameterized.Parameters
+    public static Collection rootCAConfigsForRemediation() {
+        return Arrays.asList(
+                new Object[][]{
+                        {FakeKeys.CA_CERT0, REMEDIATION_CA_CERTIFICATE_ALIAS}, // For R2 config
+                        {null, null}, // For R1 config
+                });
+    }
+
+    public PasspointProviderTest(X509Certificate remediationCaCertificate, String expectedResult) {
+        mRemediationCaCertificate = remediationCaCertificate;
+        mExpectedResult = expectedResult;
+    }
 
     /** Sets up test. */
     @Before
@@ -241,6 +265,11 @@ public class PasspointProviderTest {
         credential.setClientPrivateKey(FakeKeys.RSA_KEY1);
         credential.setClientCertificateChain(new X509Certificate[] {FakeKeys.CLIENT_CERT});
         config.setCredential(credential);
+        if (mRemediationCaCertificate != null) {
+            UpdateParameter updateParameter = new UpdateParameter();
+            updateParameter.setCaCertificate(mRemediationCaCertificate);
+            config.setSubscriptionUpdate(updateParameter);
+        }
         mProvider = createProvider(config);
 
         // Install client certificate and key to the keystore successfully.
@@ -252,6 +281,8 @@ public class PasspointProviderTest {
                 .thenReturn(true);
         when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
                 .thenReturn(true);
+        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+                .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
         // Verify client certificate and key in the configuration gets cleared and aliases
@@ -260,16 +291,18 @@ public class PasspointProviderTest {
         assertTrue(curConfig.getCredential().getCaCertificates() == null);
         assertTrue(curConfig.getCredential().getClientPrivateKey() == null);
         assertTrue(curConfig.getCredential().getClientCertificateChain() == null);
+        if (mRemediationCaCertificate != null) {
+            assertTrue(curConfig.getSubscriptionUpdate().getCaCertificate() == null);
+        }
         assertTrue(mProvider.getCaCertificateAliases().equals(
                 Arrays.asList(CA_CERTIFICATE_ALIAS, CA_CERTIFICATE_ALIAS_2)));
         assertTrue(mProvider.getClientPrivateKeyAlias().equals(CLIENT_PRIVATE_KEY_ALIAS));
         assertTrue(mProvider.getClientCertificateAlias().equals(CLIENT_CERTIFICATE_ALIAS));
+        assertTrue(TextUtils.equals(mProvider.getRemediationCaCertificateAlias(), mExpectedResult));
     }
 
     /**
      * Verify a failure installation of certificates and key.
-     *
-     * @throws Exception
      */
     @Test
     public void installCertsAndKeysFailure() throws Exception {
@@ -284,6 +317,10 @@ public class PasspointProviderTest {
         credential.setClientPrivateKey(FakeKeys.RSA_KEY1);
         credential.setClientCertificateChain(new X509Certificate[] {FakeKeys.CLIENT_CERT});
         config.setCredential(credential);
+
+        UpdateParameter updateParameter = new UpdateParameter();
+        updateParameter.setCaCertificate(mRemediationCaCertificate);
+        config.setSubscriptionUpdate(updateParameter);
         mProvider = createProvider(config);
 
         // Failed to install client certificate to the keystore.
@@ -295,6 +332,8 @@ public class PasspointProviderTest {
                 .thenReturn(true);
         when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
                 .thenReturn(true);
+        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+                .thenReturn(true);
         assertFalse(mProvider.installCertsAndKeys());
 
         // Verify certificates and key in the configuration are not cleared and aliases
@@ -303,9 +342,13 @@ public class PasspointProviderTest {
         assertTrue(curConfig.getCredential().getCaCertificates() != null);
         assertTrue(curConfig.getCredential().getClientCertificateChain() != null);
         assertTrue(curConfig.getCredential().getClientPrivateKey() != null);
+        if (mRemediationCaCertificate != null) {
+            assertTrue(curConfig.getSubscriptionUpdate().getCaCertificate() != null);
+        }
         assertTrue(mProvider.getCaCertificateAliases() == null);
         assertTrue(mProvider.getClientPrivateKeyAlias() == null);
         assertTrue(mProvider.getClientCertificateAlias() == null);
+        assertTrue(mProvider.getRemediationCaCertificateAlias() == null);
     }
 
     /**
@@ -324,6 +367,11 @@ public class PasspointProviderTest {
         credential.setClientPrivateKey(FakeKeys.RSA_KEY1);
         credential.setClientCertificateChain(new X509Certificate[] {FakeKeys.CLIENT_CERT});
         config.setCredential(credential);
+        if (mRemediationCaCertificate != null) {
+            UpdateParameter updateParameter = new UpdateParameter();
+            updateParameter.setCaCertificate(FakeKeys.CA_CERT0);
+            config.setSubscriptionUpdate(updateParameter);
+        }
         mProvider = createProvider(config);
 
         // Install client certificate and key to the keystore successfully.
@@ -335,11 +383,14 @@ public class PasspointProviderTest {
                 .thenReturn(true);
         when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
                 .thenReturn(true);
+        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+                .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
         assertTrue(mProvider.getCaCertificateAliases().equals(
                 Arrays.asList(CA_CERTIFICATE_ALIAS, CA_CERTIFICATE_ALIAS_2)));
         assertTrue(mProvider.getClientPrivateKeyAlias().equals(CLIENT_PRIVATE_KEY_ALIAS));
         assertTrue(mProvider.getClientCertificateAlias().equals(CLIENT_CERTIFICATE_ALIAS));
+        assertTrue(TextUtils.equals(mProvider.getRemediationCaCertificateAlias(), mExpectedResult));
 
         // Uninstall certificates and key from the keystore.
         mProvider.uninstallCertsAndKeys();
@@ -347,9 +398,14 @@ public class PasspointProviderTest {
         verify(mKeyStore).removeEntryFromKeyStore(CA_CERTIFICATE_NAME_2);
         verify(mKeyStore).removeEntryFromKeyStore(CLIENT_CERTIFICATE_NAME);
         verify(mKeyStore).removeEntryFromKeyStore(CLIENT_PRIVATE_KEY_NAME);
+        if (mRemediationCaCertificate != null) {
+            verify(mKeyStore).removeEntryFromKeyStore(REMEDIATION_CA_CERTIFICATE_NAME);
+        }
+
         assertTrue(mProvider.getCaCertificateAliases() == null);
         assertTrue(mProvider.getClientPrivateKeyAlias() == null);
         assertTrue(mProvider.getClientCertificateAlias() == null);
+        assertTrue(mProvider.getRemediationCaCertificateAlias() == null);
     }
 
     /**

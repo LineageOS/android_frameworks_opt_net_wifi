@@ -589,8 +589,20 @@ public class PasspointProvisioner {
             mPasspointConfiguration.getCredential().setCaCertificates(
                     certificates.toArray(new X509Certificate[0]));
 
-            // TODO(b/116346527): Implement a routine to store trust CA certificates for
-            // remediation and policy server.
+            certificates = trustRootCertificates.get(
+                    OsuServerConnection.TRUST_CERT_TYPE_REMEDIATION);
+            if (certificates == null || certificates.isEmpty()) {
+                Log.e(TAG, "fails to retrieve trust root certificate for Remediation");
+                resetStateMachineForFailure(
+                        ProvisioningCallback.OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES);
+                return;
+            }
+
+            if (mPasspointConfiguration.getSubscriptionUpdate() != null) {
+                mPasspointConfiguration.getSubscriptionUpdate().setCaCertificate(
+                        certificates.get(0));
+            }
+
             try {
                 mWifiManager.addOrUpdatePasspointConfiguration(mPasspointConfiguration);
             } catch (IllegalArgumentException e) {

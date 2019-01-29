@@ -63,9 +63,10 @@ public class PasspointProvider {
     /**
      * Used as part of alias string for certificates and keys.  The alias string is in the format
      * of: [KEY_TYPE]_HS2_[ProviderID]
-     * For example: "CACERT_HS2_0", "USRCERT_HS2_0", "USRPKEY_HS2_0"
+     * For example: "CACERT_HS2_0", "USRCERT_HS2_0", "USRPKEY_HS2_0", "CACERT_HS2_REMEDIATION_0"
      */
     private static final String ALIAS_HS_TYPE = "HS2_";
+    private static final String ALIAS_ALIAS_REMEDIATION_TYPE = "REMEDIATION_";
 
     private final PasspointConfiguration mConfig;
     private final WifiKeyStore mKeyStore;
@@ -79,6 +80,7 @@ public class PasspointProvider {
     private List<String> mCaCertificateAliases;
     private String mClientPrivateKeyAlias;
     private String mClientCertificateAlias;
+    private String mRemediationCaCertificateAlias;
 
     private final long mProviderId;
     private final int mCreatorUid;
@@ -94,13 +96,15 @@ public class PasspointProvider {
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             SIMAccessor simAccessor, long providerId, int creatorUid) {
-        this(config, keyStore, simAccessor, providerId, creatorUid, null, null, null, false, false);
+        this(config, keyStore, simAccessor, providerId, creatorUid, null, null, null, null, false,
+                false);
     }
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             SIMAccessor simAccessor, long providerId, int creatorUid,
             List<String> caCertificateAliases,
             String clientCertificateAlias, String clientPrivateKeyAlias,
+            String remediationCaCertificateAlias,
             boolean hasEverConnected, boolean isShared) {
         // Maintain a copy of the configuration to avoid it being updated by others.
         mConfig = new PasspointConfiguration(config);
@@ -110,6 +114,7 @@ public class PasspointProvider {
         mCaCertificateAliases = caCertificateAliases;
         mClientCertificateAlias = clientCertificateAlias;
         mClientPrivateKeyAlias = clientPrivateKeyAlias;
+        mRemediationCaCertificateAlias = remediationCaCertificateAlias;
         mHasEverConnected = hasEverConnected;
         mIsShared = isShared;
 
@@ -149,6 +154,10 @@ public class PasspointProvider {
 
     public String getClientCertificateAlias() {
         return mClientCertificateAlias;
+    }
+
+    public String getRemediationCaCertificateAlias() {
+        return mRemediationCaCertificateAlias;
     }
 
     public long getProviderId() {
@@ -223,10 +232,31 @@ public class PasspointProvider {
             mClientCertificateAlias = ALIAS_HS_TYPE + mProviderId;
         }
 
+        if (mConfig.getSubscriptionUpdate() != null) {
+            X509Certificate certificate = mConfig.getSubscriptionUpdate().getCaCertificate();
+            if (certificate == null) {
+                Log.e(TAG, "Failed to locate CA certificate for remediation");
+                uninstallCertsAndKeys();
+                return false;
+            }
+            mRemediationCaCertificateAlias =
+                    ALIAS_HS_TYPE + ALIAS_ALIAS_REMEDIATION_TYPE + mProviderId;
+            String certName = Credentials.CA_CERTIFICATE + mRemediationCaCertificateAlias;
+            if (!mKeyStore.putCertInKeyStore(certName, certificate)) {
+                Log.e(TAG, "Failed to install CA certificate for remediation");
+                mRemediationCaCertificateAlias = null;
+                uninstallCertsAndKeys();
+                return false;
+            }
+        }
+
         // Clear the keys and certificates in the configuration.
         mConfig.getCredential().setCaCertificates(null);
         mConfig.getCredential().setClientPrivateKey(null);
         mConfig.getCredential().setClientCertificateChain(null);
+        if (mConfig.getSubscriptionUpdate() != null) {
+            mConfig.getSubscriptionUpdate().setCaCertificate(null);
+        }
         return true;
     }
 
@@ -256,6 +286,14 @@ public class PasspointProvider {
                 Log.e(TAG, "Failed to remove entry: " + mClientCertificateAlias);
             }
             mClientCertificateAlias = null;
+        }
+
+        if (mRemediationCaCertificateAlias != null) {
+            if (!mKeyStore.removeEntryFromKeyStore(
+                    Credentials.CA_CERTIFICATE + mRemediationCaCertificateAlias)) {
+                Log.e(TAG, "Failed to remove entry: " + mRemediationCaCertificateAlias);
+            }
+            mRemediationCaCertificateAlias = null;
         }
     }
 
@@ -428,15 +466,17 @@ public class PasspointProvider {
         return mProviderId == that.mProviderId
                 && (mCaCertificateAliases == null ? that.mCaCertificateAliases == null
                 : mCaCertificateAliases.equals(that.mCaCertificateAliases))
-                        && TextUtils.equals(mClientCertificateAlias, that.mClientCertificateAlias)
-                        && TextUtils.equals(mClientPrivateKeyAlias, that.mClientPrivateKeyAlias)
-                        && (mConfig == null ? that.mConfig == null : mConfig.equals(that.mConfig));
+                && TextUtils.equals(mClientCertificateAlias, that.mClientCertificateAlias)
+                && TextUtils.equals(mClientPrivateKeyAlias, that.mClientPrivateKeyAlias)
+                && (mConfig == null ? that.mConfig == null : mConfig.equals(that.mConfig))
+                && TextUtils.equals(mRemediationCaCertificateAlias,
+                that.mRemediationCaCertificateAlias);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(mProviderId, mCaCertificateAliases, mClientCertificateAlias,
-                mClientPrivateKeyAlias, mConfig);
+                mClientPrivateKeyAlias, mConfig, mRemediationCaCertificateAlias);
     }
 
     @Override
