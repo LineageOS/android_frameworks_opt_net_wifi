@@ -118,6 +118,7 @@ public class WifiMetricsTest {
     @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
     @Mock ExternalCallbackTracker<IWifiUsabilityStatsListener> mListenerTracker;
     @Mock WifiP2pMetrics mWifiP2pMetrics;
+    @Mock DppMetrics mDppMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -127,7 +128,7 @@ public class WifiMetricsTest {
         mTestLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFacade, mClock, mTestLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
-                mWifiP2pMetrics);
+                mWifiP2pMetrics, mDppMetrics);
         mWifiMetrics.setWifiConfigManager(mWcm);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
