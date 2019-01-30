@@ -57,6 +57,7 @@ public class DppManager {
     private final Clock mClock;
     private static final String DPP_TIMEOUT_TAG = TAG + " Request Timeout";
     private static final int DPP_TIMEOUT_MS = 40_000; // 40 seconds
+    private final DppMetrics mDppMetrics;
 
     private final DppEventCallback mDppEventCallback = new DppEventCallback() {
         @Override
@@ -89,13 +90,14 @@ public class DppManager {
     };
 
     DppManager(Looper looper, WifiNative wifiNative, WifiConfigManager wifiConfigManager,
-            Context context) {
+            Context context, DppMetrics dppMetrics) {
         mHandler = new Handler(looper);
         mWifiNative = wifiNative;
         mWifiConfigManager = wifiConfigManager;
         mWifiNative.registerDppEventCallback(mDppEventCallback);
         mContext = context;
         mClock = new Clock();
+        mDppMetrics = dppMetrics;
 
         // Setup timer
         mDppTimeoutMessage = new WakeupMessage(mContext, mHandler,
@@ -151,12 +153,15 @@ public class DppManager {
     public void startDppAsConfiguratorInitiator(int uid, IBinder binder,
             String enrolleeUri, int selectedNetworkId,
             @WifiManager.EasyConnectNetworkRole int enrolleeNetworkRole, IDppCallback callback) {
+        mDppMetrics.updateDppConfiguratorInitiatorRequests();
         if (mDppRequestInfo != null) {
             try {
                 Log.e(TAG, "DPP request already in progress");
                 Log.e(TAG, "Ongoing request UID: " + mDppRequestInfo.uid + ", new UID: "
                         + uid);
 
+                mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_BUSY);
                 // On going DPP. Call the failure callback directly
                 callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
             } catch (RemoteException e) {
@@ -170,6 +175,8 @@ public class DppManager {
             try {
                 Log.e(TAG, "Wi-Fi client interface does not exist");
                 // On going DPP. Call the failure callback directly
+                mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_GENERIC);
                 callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
             } catch (RemoteException e) {
                 // Empty
@@ -184,7 +191,10 @@ public class DppManager {
             try {
                 Log.e(TAG, "Selected network is null");
                 // On going DPP. Call the failure callback directly
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
+                mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+                callback.onFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -213,6 +223,8 @@ public class DppManager {
             try {
                 // Key management must be either PSK or SAE
                 Log.e(TAG, "Key management must be either PSK or SAE");
+                mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
                 callback.onFailure(
                         EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
             } catch (RemoteException e) {
@@ -232,10 +244,10 @@ public class DppManager {
             return;
         }
 
-
         logd("Interface " + mClientIfaceName + ": Initializing URI: " + enrolleeUri);
 
-        mDppTimeoutMessage.schedule(mClock.getElapsedSinceBootMillis() + DPP_TIMEOUT_MS);
+        mDppRequestInfo.startTime = mClock.getElapsedSinceBootMillis();
+        mDppTimeoutMessage.schedule(mDppRequestInfo.startTime + DPP_TIMEOUT_MS);
 
         // Send Enrollee URI and get a peer ID
         int peerId = mWifiNative.addDppPeerUri(mClientIfaceName, enrolleeUri);
@@ -286,12 +298,15 @@ public class DppManager {
      */
     public void startDppAsEnrolleeInitiator(int uid, IBinder binder,
             String configuratorUri, IDppCallback callback) {
+        mDppMetrics.updateDppEnrolleeInitiatorRequests();
         if (mDppRequestInfo != null) {
             try {
                 Log.e(TAG, "DPP request already in progress");
                 Log.e(TAG, "Ongoing request UID: " + mDppRequestInfo.uid + ", new UID: "
                         + uid);
 
+                mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                        .EASY_CONNECT_EVENT_FAILURE_BUSY);
                 // On going DPP. Call the failure callback directly
                 callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
             } catch (RemoteException e) {
@@ -311,7 +326,8 @@ public class DppManager {
             return;
         }
 
-        mDppTimeoutMessage.schedule(mClock.getElapsedSinceBootMillis() + DPP_TIMEOUT_MS);
+        mDppRequestInfo.startTime = mClock.getElapsedSinceBootMillis();
+        mDppTimeoutMessage.schedule(mDppRequestInfo.startTime + DPP_TIMEOUT_MS);
 
         mClientIfaceName = mWifiNative.getClientInterfaceName();
         logd("Interface " + mClientIfaceName + ": Initializing URI: " + configuratorUri);
@@ -394,6 +410,7 @@ public class DppManager {
         public IBinder.DeathRecipient dr;
         public int peerId;
         public IDppCallback callback;
+        public long startTime;
 
         @Override
         public String toString() {
@@ -418,20 +435,25 @@ public class DppManager {
             logd("onSuccessConfigReceived");
 
             if (mDppRequestInfo != null) {
+                long now = mClock.getElapsedSinceBootMillis();
+                mDppMetrics.updateDppOperationTime((int) (now - mDppRequestInfo.startTime));
+
                 NetworkUpdateResult networkUpdateResult = mWifiConfigManager
                         .addOrUpdateNetwork(newWifiConfiguration, mDppRequestInfo.uid);
 
                 if (networkUpdateResult.isSuccess()) {
+                    mDppMetrics.updateDppEnrolleeSuccess();
                     mDppRequestInfo.callback.onSuccessConfigReceived(
                             networkUpdateResult.getNetworkId());
                 } else {
+                    Log.e(TAG, "DPP configuration received, but failed to update network");
+                    mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION);
                     mDppRequestInfo.callback.onFailure(EasyConnectStatusCallback
                             .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION);
                 }
             } else {
                 Log.e(TAG, "Unexpected null Wi-Fi configuration object");
-                mDppRequestInfo.callback.onFailure(EasyConnectStatusCallback
-                        .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION);
             }
         } catch (RemoteException e) {
             Log.e(TAG, "Callback failure");
@@ -450,6 +472,9 @@ public class DppManager {
 
             logd("onSuccess: " + dppStatusCode);
 
+            long now = mClock.getElapsedSinceBootMillis();
+            mDppMetrics.updateDppOperationTime((int) (now - mDppRequestInfo.startTime));
+
             int dppSuccessCode;
 
             // Convert from HAL codes to WifiManager/user codes
@@ -461,12 +486,15 @@ public class DppManager {
 
                 default:
                     Log.e(TAG, "onProgress: unknown code " + dppStatusCode);
+                    mDppMetrics.updateDppFailure(EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_FAILURE_GENERIC);
                     mDppRequestInfo.callback.onFailure(
                             EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
                     cleanupDppResources();
                     return;
             }
 
+            mDppMetrics.updateDppConfiguratorSuccess(dppStatusCode);
             mDppRequestInfo.callback.onSuccess(dppSuccessCode);
 
         } catch (RemoteException e) {
@@ -521,6 +549,9 @@ public class DppManager {
 
             logd("OnFailure: " + dppStatusCode);
 
+            long now = mClock.getElapsedSinceBootMillis();
+            mDppMetrics.updateDppOperationTime((int) (now - mDppRequestInfo.startTime));
+
             int dppFailureCode;
 
             // Convert from HAL codes to WifiManager/user codes
@@ -564,6 +595,7 @@ public class DppManager {
                     break;
             }
 
+            mDppMetrics.updateDppFailure(dppFailureCode);
             mDppRequestInfo.callback.onFailure(dppFailureCode);
 
         } catch (RemoteException e) {

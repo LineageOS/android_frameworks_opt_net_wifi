@@ -118,6 +118,7 @@ public class WifiMetricsTest {
     @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
     @Mock ExternalCallbackTracker<IWifiUsabilityStatsListener> mListenerTracker;
     @Mock WifiP2pMetrics mWifiP2pMetrics;
+    @Mock DppMetrics mDppMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -127,7 +128,7 @@ public class WifiMetricsTest {
         mTestLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFacade, mClock, mTestLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
-                mWifiP2pMetrics);
+                mWifiP2pMetrics, mDppMetrics);
         mWifiMetrics.setWifiConfigManager(mWcm);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
@@ -240,12 +241,16 @@ public class WifiMetricsTest {
     }
 
     private static final int NUM_OPEN_NETWORKS = 2;
-    private static final int NUM_PERSONAL_NETWORKS = 3;
-    private static final int NUM_ENTERPRISE_NETWORKS = 5;
-    private static final int NUM_SAVED_NETWORKS = NUM_OPEN_NETWORKS + NUM_PERSONAL_NETWORKS
-            + NUM_ENTERPRISE_NETWORKS;
+    private static final int NUM_LEGACY_PERSONAL_NETWORKS = 3;
+    private static final int NUM_LEGACY_ENTERPRISE_NETWORKS = 5;
+    private static final int NUM_ENHANCED_OPEN_NETWORKS = 1;
+    private static final int NUM_WPA3_PERSONAL_NETWORKS = 4;
+    private static final int NUM_WPA3_ENTERPRISE_NETWORKS = 6;
+    private static final int NUM_SAVED_NETWORKS = NUM_OPEN_NETWORKS + NUM_LEGACY_PERSONAL_NETWORKS
+            + NUM_LEGACY_ENTERPRISE_NETWORKS + NUM_ENHANCED_OPEN_NETWORKS
+            + NUM_WPA3_PERSONAL_NETWORKS + NUM_WPA3_ENTERPRISE_NETWORKS;
     private static final int NUM_HIDDEN_NETWORKS = NUM_OPEN_NETWORKS;
-    private static final int NUM_PASSPOINT_NETWORKS = NUM_ENTERPRISE_NETWORKS;
+    private static final int NUM_PASSPOINT_NETWORKS = NUM_LEGACY_ENTERPRISE_NETWORKS;
     private static final int NUM_NETWORKS_ADDED_BY_USER = 1;
     private static final int NUM_NETWORKS_ADDED_BY_APPS = NUM_SAVED_NETWORKS
             - NUM_NETWORKS_ADDED_BY_USER;
@@ -280,8 +285,11 @@ public class WifiMetricsTest {
     private static final int RSSI_POLL_FREQUENCY = 5150;
     private static final int NUM_RSSI_LEVELS_TO_INCREMENT = 20;
     private static final int NUM_OPEN_NETWORK_SCAN_RESULTS = 1;
-    private static final int NUM_PERSONAL_NETWORK_SCAN_RESULTS = 4;
-    private static final int NUM_ENTERPRISE_NETWORK_SCAN_RESULTS = 3;
+    private static final int NUM_LEGACY_PERSONAL_NETWORK_SCAN_RESULTS = 4;
+    private static final int NUM_LEGACY_ENTERPRISE_NETWORK_SCAN_RESULTS = 3;
+    private static final int NUM_ENHANCED_OPEN_NETWORK_SCAN_RESULTS = 1;
+    private static final int NUM_WPA3_PERSONAL_NETWORK_SCAN_RESULTS = 2;
+    private static final int NUM_WPA3_ENTERPRISE_NETWORK_SCAN_RESULTS = 1;
     private static final int NUM_HIDDEN_NETWORK_SCAN_RESULTS = 1;
     private static final int NUM_HOTSPOT2_R1_NETWORK_SCAN_RESULTS = 1;
     private static final int NUM_HOTSPOT2_R2_NETWORK_SCAN_RESULTS = 2;
@@ -290,7 +298,11 @@ public class WifiMetricsTest {
     private static final int NUM_EXTERNAL_APP_ONESHOT_SCAN_REQUESTS = 15;
     private static final int NUM_EXTERNAL_FOREGROUND_APP_ONESHOT_SCAN_REQUESTS_THROTTLED = 10;
     private static final int NUM_EXTERNAL_BACKGROUND_APP_ONESHOT_SCAN_REQUESTS_THROTTLED = 16;
-    private static final int NUM_TOTAL_SCAN_RESULTS = 8;
+    // Look at buildMockScanDetailList, this number needs to match the mocked results
+    private static final int NUM_TOTAL_SCAN_RESULTS = NUM_OPEN_NETWORK_SCAN_RESULTS
+            + NUM_LEGACY_PERSONAL_NETWORK_SCAN_RESULTS + NUM_LEGACY_ENTERPRISE_NETWORK_SCAN_RESULTS
+            + NUM_ENHANCED_OPEN_NETWORK_SCAN_RESULTS + NUM_WPA3_PERSONAL_NETWORK_SCAN_RESULTS
+            + NUM_WPA3_ENTERPRISE_NETWORK_SCAN_RESULTS;
     private static final int MIN_RSSI_LEVEL = -127;
     private static final int MAX_RSSI_LEVEL = 0;
     private static final int WIFI_SCORE_RANGE_MIN = 0;
@@ -445,8 +457,12 @@ public class WifiMetricsTest {
         mockScanDetails.add(buildMockScanDetail(true, null, "[ESS]"));
         mockScanDetails.add(buildMockScanDetail(false, null, "[WPA2-PSK-CCMP][ESS]"));
         mockScanDetails.add(buildMockScanDetail(false, null, "[WPA-PSK-CCMP]"));
+        mockScanDetails.add(buildMockScanDetail(false, null, "[WPA2-SAE-CCMP]"));
         mockScanDetails.add(buildMockScanDetail(false, null, "[WPA-PSK-CCMP]"));
         mockScanDetails.add(buildMockScanDetail(false, null, "[WEP]"));
+        mockScanDetails.add(buildMockScanDetail(false, null, "[WPA2-SAE-CCMP]"));
+        mockScanDetails.add(buildMockScanDetail(false, null, "[WPA2-OWE-CCMP]"));
+        mockScanDetails.add(buildMockScanDetail(false, null, "[WPA2-EAP-SUITE-B-192]"));
         mockScanDetails.add(buildMockScanDetail(false, NetworkDetail.HSRelease.R2,
                 "[WPA-EAP-CCMP]"));
         mockScanDetails.add(buildMockScanDetail(false, NetworkDetail.HSRelease.R2,
@@ -461,12 +477,21 @@ public class WifiMetricsTest {
         for (int i = 0; i < NUM_OPEN_NETWORKS; i++) {
             testSavedNetworks.add(WifiConfigurationTestUtil.createOpenHiddenNetwork());
         }
-        for (int i = 0; i < NUM_PERSONAL_NETWORKS; i++) {
+        for (int i = 0; i < NUM_LEGACY_PERSONAL_NETWORKS; i++) {
             testSavedNetworks.add(WifiConfigurationTestUtil.createPskNetwork());
         }
-        for (int i = 0; i < NUM_ENTERPRISE_NETWORKS; i++) {
+        for (int i = 0; i < NUM_LEGACY_ENTERPRISE_NETWORKS; i++) {
             // Passpoint networks are counted in both Passpoint and Enterprise counters
             testSavedNetworks.add(WifiConfigurationTestUtil.createPasspointNetwork());
+        }
+        for (int i = 0; i < NUM_ENHANCED_OPEN_NETWORKS; i++) {
+            testSavedNetworks.add(WifiConfigurationTestUtil.createOweNetwork());
+        }
+        for (int i = 0; i < NUM_WPA3_PERSONAL_NETWORKS; i++) {
+            testSavedNetworks.add(WifiConfigurationTestUtil.createSaeNetwork());
+        }
+        for (int i = 0; i < NUM_WPA3_ENTERPRISE_NETWORKS; i++) {
+            testSavedNetworks.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
         }
         testSavedNetworks.get(0).selfAdded = true;
         return testSavedNetworks;
@@ -882,10 +907,17 @@ public class WifiMetricsTest {
                 NUM_SAVED_NETWORKS, mDecodedProto.numSavedNetworks);
         assertEquals("mDecodedProto.numOpenNetworks == NUM_OPEN_NETWORKS",
                 NUM_OPEN_NETWORKS, mDecodedProto.numOpenNetworks);
-        assertEquals("mDecodedProto.numPersonalNetworks == NUM_PERSONAL_NETWORKS",
-                NUM_PERSONAL_NETWORKS, mDecodedProto.numPersonalNetworks);
-        assertEquals("mDecodedProto.numEnterpriseNetworks == NUM_ENTERPRISE_NETWORKS",
-                NUM_ENTERPRISE_NETWORKS, mDecodedProto.numEnterpriseNetworks);
+        assertEquals("mDecodedProto.numLegacyPersonalNetworks == NUM_LEGACY_PERSONAL_NETWORKS",
+                NUM_LEGACY_PERSONAL_NETWORKS, mDecodedProto.numLegacyPersonalNetworks);
+        assertEquals(
+                "mDecodedProto.numLegacyEnterpriseNetworks == NUM_LEGACY_ENTERPRISE_NETWORKS",
+                NUM_LEGACY_ENTERPRISE_NETWORKS, mDecodedProto.numLegacyEnterpriseNetworks);
+        assertEquals("mDecodedProto.numEnhancedOpenNetworks == NUM_ENHANCED_OPEN_NETWORKS",
+                NUM_ENHANCED_OPEN_NETWORKS, mDecodedProto.numEnhancedOpenNetworks);
+        assertEquals("mDecodedProto.numWpa3PersonalNetworks == NUM_WPA3_PERSONAL_NETWORKS",
+                NUM_WPA3_PERSONAL_NETWORKS, mDecodedProto.numWpa3PersonalNetworks);
+        assertEquals("mDecodedProto.numWpa3EnterpriseNetworks == NUM_WPA3_ENTERPRISE_NETWORKS",
+                NUM_WPA3_ENTERPRISE_NETWORKS, mDecodedProto.numWpa3EnterpriseNetworks);
         assertEquals("mDecodedProto.numNetworksAddedByUser == NUM_NETWORKS_ADDED_BY_USER",
                 NUM_NETWORKS_ADDED_BY_USER, mDecodedProto.numNetworksAddedByUser);
         assertEquals(NUM_HIDDEN_NETWORKS, mDecodedProto.numHiddenNetworks);
@@ -966,10 +998,16 @@ public class WifiMetricsTest {
                 mDecodedProto.numTotalScanResults);
         assertEquals(NUM_OPEN_NETWORK_SCAN_RESULTS * NUM_SCANS,
                 mDecodedProto.numOpenNetworkScanResults);
-        assertEquals(NUM_PERSONAL_NETWORK_SCAN_RESULTS * NUM_SCANS,
-                mDecodedProto.numPersonalNetworkScanResults);
-        assertEquals(NUM_ENTERPRISE_NETWORK_SCAN_RESULTS * NUM_SCANS,
-                mDecodedProto.numEnterpriseNetworkScanResults);
+        assertEquals(NUM_LEGACY_PERSONAL_NETWORK_SCAN_RESULTS * NUM_SCANS,
+                mDecodedProto.numLegacyPersonalNetworkScanResults);
+        assertEquals(NUM_LEGACY_ENTERPRISE_NETWORK_SCAN_RESULTS * NUM_SCANS,
+                mDecodedProto.numLegacyEnterpriseNetworkScanResults);
+        assertEquals(NUM_ENHANCED_OPEN_NETWORK_SCAN_RESULTS * NUM_SCANS,
+                mDecodedProto.numEnhancedOpenNetworkScanResults);
+        assertEquals(NUM_WPA3_PERSONAL_NETWORK_SCAN_RESULTS * NUM_SCANS,
+                mDecodedProto.numWpa3PersonalNetworkScanResults);
+        assertEquals(NUM_WPA3_ENTERPRISE_NETWORK_SCAN_RESULTS * NUM_SCANS,
+                mDecodedProto.numWpa3EnterpriseNetworkScanResults);
         assertEquals(NUM_HIDDEN_NETWORK_SCAN_RESULTS * NUM_SCANS,
                 mDecodedProto.numHiddenNetworkScanResults);
         assertEquals(NUM_HOTSPOT2_R1_NETWORK_SCAN_RESULTS * NUM_SCANS,

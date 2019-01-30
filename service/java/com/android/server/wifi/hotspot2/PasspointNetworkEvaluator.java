@@ -16,18 +16,22 @@
 
 package com.android.server.wifi.hotspot2;
 
+import static com.android.server.wifi.hotspot2.Utils.isCarrierEapMethod;
+
 import android.annotation.NonNull;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Pair;
 
+import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiNetworkSelector;
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
@@ -43,7 +47,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     private final PasspointManager mPasspointManager;
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
-
+    private final CarrierNetworkConfig mCarrierNetworkConfig;
+    private final TelephonyManager mTelephonyManager;
     /**
      * Contained information for a Passpoint network candidate.
      */
@@ -60,10 +65,13 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     }
 
     public PasspointNetworkEvaluator(PasspointManager passpointManager,
-            WifiConfigManager wifiConfigManager, LocalLog localLog) {
+            WifiConfigManager wifiConfigManager, LocalLog localLog,
+            CarrierNetworkConfig carrierNetworkConfig, TelephonyManager telephonyManager) {
         mPasspointManager = passpointManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
+        mCarrierNetworkConfig = carrierNetworkConfig;
+        mTelephonyManager = telephonyManager;
     }
 
     @Override
@@ -81,6 +89,24 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                     @NonNull OnConnectableListener onConnectableListener) {
         // Sweep the ANQP cache to remove any expired ANQP entries.
         mPasspointManager.sweepCache();
+
+        // Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
+        // of the current carrier on the device.
+        if (mWifiConfigManager.isSimPresent()
+                && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
+                && !mPasspointManager.hasCarrierProvider(
+                mTelephonyManager.getNetworkOperator())) {
+            int eapMethod = mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
+                    scanDetails);
+            if (isCarrierEapMethod(eapMethod)) {
+                PasspointConfiguration carrierConfig =
+                        mPasspointManager.createEphemeralPasspointConfigForCarrier(
+                                eapMethod);
+                if (carrierConfig != null) {
+                    mPasspointManager.installEphemeralPasspointConfigForCarrier(carrierConfig);
+                }
+            }
+        }
 
         // Go through each ScanDetail and find the best provider for each ScanDetail.
         List<PasspointNetworkCandidate> candidateList = new ArrayList<>();

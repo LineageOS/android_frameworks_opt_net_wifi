@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
@@ -29,15 +30,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.net.wifi.EAPConstants;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
+import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
@@ -70,8 +74,11 @@ public class PasspointNetworkEvaluatorTest {
     private static final PasspointProvider TEST_PROVIDER2 = generateProvider(TEST_CONFIG2);
 
     @Mock PasspointManager mPasspointManager;
+    @Mock PasspointConfiguration mPasspointConfiguration;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock OnConnectableListener mOnConnectableListener;
+    @Mock TelephonyManager mTelephonyManager;
+    @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     LocalLog mLocalLog;
     PasspointNetworkEvaluator mEvaluator;
 
@@ -108,7 +115,7 @@ public class PasspointNetworkEvaluatorTest {
      * Helper function for generating {@link ScanDetail} for testing.
      *
      * @param ssid The SSID associated with the scan
-     * @param rssiLevel The RSSI level associated with the scan
+     * @param bssid The BSSID associated with the scan
      * @return {@link ScanDetail}
      */
     private static ScanDetail generateScanDetail(String ssid, String bssid) {
@@ -135,7 +142,9 @@ public class PasspointNetworkEvaluatorTest {
         initMocks(this);
         mLocalLog = new LocalLog(512);
         mEvaluator = new PasspointNetworkEvaluator(mPasspointManager, mWifiConfigManager,
-                mLocalLog);
+                mLocalLog, mCarrierNetworkConfig, mTelephonyManager);
+        when(mWifiConfigManager.isSimPresent()).thenReturn(true);
+        when(mTelephonyManager.getNetworkOperator()).thenReturn("123456");
     }
 
     /**
@@ -364,6 +373,103 @@ public class PasspointNetworkEvaluatorTest {
 
         verify(mOnConnectableListener, never()).onConnectable(any(), any(), anyInt());
         verify(testProvider, never()).getWifiConfig();
+    }
+
+    /**
+     * Verify that it never creates an ephemeral Passpoint Configuration when the carrier does not
+     * support encrypted IMSI.
+     */
+    @Test
+    public void skipCreateEphemeralPasspointConfigurationWhenNoSupportEncryptedIMSI() {
+        // Setup ScanDetail and match providers.
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(false);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager, never()).createEphemeralPasspointConfigForCarrier(anyInt());
+    }
+
+    /**
+     * Verify that it never creates an ephemeral Passpoint Configuration when there is no SIM on the
+     * device.
+     */
+    @Test
+    public void skipCreateEphemeralPasspointConfigurationWithoutSIMCard() {
+        // Setup ScanDetail and match providers.
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mWifiConfigManager.isSimPresent()).thenReturn(false);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager, never()).createEphemeralPasspointConfigForCarrier(anyInt());
+    }
+
+    /**
+     * Verify that it never creates an ephemeral Passpoint Configuration when the profile for the
+     * carrier already exists.
+     */
+    @Test
+    public void skipCreateEphemeralPasspointConfigurationWhenProfileExists() {
+        // Setup ScanDetail and match providers.
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(true);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager, never()).createEphemeralPasspointConfigForCarrier(anyInt());
+    }
+
+    /**
+     * Verify that it creates an ephemeral Passpoint Configuration when a EAP-Method is found from
+     * NAI realms matched with the carrier.
+     */
+    @Test
+    public void createEphemeralPasspointConfigurationWhenEapMethodIsFoundFromMatchingNAIRealm() {
+        // Setup ScanDetail
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
+        when(mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
+                any(List.class))).thenReturn(
+                EAPConstants.EAP_AKA);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager).findEapMethodFromNAIRealmMatchedWithCarrier(any(List.class));
+        verify(mPasspointManager).createEphemeralPasspointConfigForCarrier(
+                eq(EAPConstants.EAP_AKA));
+    }
+
+    /**
+     * Verify that it installs the ephemeral configuration when the config is created for the
+     * carrier.
+     */
+    @Test
+    public void installEphemeralPasspointConfiguration() {
+        // Setup ScanDetail
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
+        when(mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
+                any(List.class))).thenReturn(
+                EAPConstants.EAP_AKA);
+        when(mPasspointManager.createEphemeralPasspointConfigForCarrier(
+                EAPConstants.EAP_AKA)).thenReturn(mPasspointConfiguration);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager).installEphemeralPasspointConfigForCarrier(
+                eq(mPasspointConfiguration));
     }
 
     /**

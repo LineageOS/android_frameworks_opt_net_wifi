@@ -43,12 +43,14 @@ public class WifiShellCommand extends ShellCommand {
     private final ClientModeImpl mClientModeImpl;
     private final WifiLockManager mWifiLockManager;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    private final WifiConfigManager mWifiConfigManager;
     private final IPackageManager mPM;
 
     WifiShellCommand(WifiInjector wifiInjector) {
         mClientModeImpl = wifiInjector.getClientModeImpl();
         mWifiLockManager = wifiInjector.getWifiLockManager();
         mWifiNetworkSuggestionsManager = wifiInjector.getWifiNetworkSuggestionsManager();
+        mWifiConfigManager = wifiInjector.getWifiConfigManager();
         mPM = AppGlobals.getPackageManager();
     }
 
@@ -168,6 +170,10 @@ public class WifiShellCommand extends ShellCommand {
                     mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(packageName);
                     return 0;
                 }
+                case "clear-deleted-ephemeral-networks": {
+                    mWifiConfigManager.clearDeletedEphemeralNetworks();
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -211,6 +217,8 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Queries whether network suggestions from the app is approved or not.");
         pw.println("  network-requests-remove-user-approved-access-points <package name>");
         pw.println("    Removes all user approved network requests for the app.");
+        pw.println("  clear-deleted-ephemeral-networks");
+        pw.println("    Clears the deleted ephemeral networks list.");
         pw.println();
     }
 }

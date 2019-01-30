@@ -27,6 +27,9 @@ import static android.net.wifi.WifiManager.EXTRA_ICON;
 import static android.net.wifi.WifiManager.EXTRA_SUBSCRIPTION_REMEDIATION_METHOD;
 import static android.net.wifi.WifiManager.EXTRA_URL;
 
+import static com.android.server.wifi.hotspot2.Utils.isCarrierEapMethod;
+
+import android.annotation.Nullable;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Icon;
@@ -37,14 +40,20 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
+import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Looper;
+import android.os.Process;
 import android.os.UserHandle;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.SIMAccessor;
+import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
@@ -53,6 +62,7 @@ import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants;
 import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
+import com.android.server.wifi.hotspot2.anqp.NAIRealmElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
 
@@ -106,6 +116,7 @@ public class PasspointManager {
     private final CertificateVerifier mCertVerifier;
     private final WifiMetrics mWifiMetrics;
     private final PasspointProvisioner mPasspointProvisioner;
+    private final TelephonyManager mTelephonyManager;
 
     // Counter used for assigning unique identifier to each provider.
     private long mProviderIndex;
@@ -225,6 +236,7 @@ public class PasspointManager {
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
+        mTelephonyManager = TelephonyManager.from(context);
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigUserStoreData(
                 mKeyStore, mSimAccessor, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
@@ -312,6 +324,216 @@ public class PasspointManager {
     }
 
     /**
+     * Finds a EAP method from a NAI realm element matched with MCC/MNC of current carrier.
+     *
+     * @param scanDetails a list of scanResults used to find a matching AP.
+     * @return a EAP method which should be one of EAP-Methods(EAP-SIM,AKA and AKA') if matching
+     * realm is found, {@code -1} otherwise.
+     */
+    public int findEapMethodFromNAIRealmMatchedWithCarrier(List<ScanDetail> scanDetails) {
+        if (!mWifiConfigManager.isSimPresent()) {
+            return -1;
+        }
+        if (scanDetails == null || scanDetails.isEmpty()) {
+            return -1;
+        }
+
+        String mccMnc = mTelephonyManager.getNetworkOperator();
+        if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
+            return -1;
+        }
+
+        String domain = Utils.getRealmForMccMnc(mccMnc);
+        if (domain == null) {
+            return -1;
+        }
+        for (ScanDetail scanDetail : scanDetails) {
+            if (!scanDetail.getNetworkDetail().isInterworking()) {
+                // Skip non-Passpoint APs.
+                continue;
+            }
+
+            // Lookup ANQP data in the cache.
+            long bssid;
+            ScanResult scanResult = scanDetail.getScanResult();
+            InformationElementUtil.RoamingConsortium roamingConsortium =
+                    InformationElementUtil.getRoamingConsortiumIE(scanResult.informationElements);
+            InformationElementUtil.Vsa vsa = InformationElementUtil.getHS2VendorSpecificIE(
+                    scanResult.informationElements);
+            try {
+                bssid = Utils.parseMac(scanResult.BSSID);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Invalid BSSID provided in the scan result: " + scanResult.BSSID);
+                continue;
+            }
+            ANQPNetworkKey anqpKey = ANQPNetworkKey.buildKey(scanResult.SSID, bssid,
+                    scanResult.hessid,
+                    vsa.anqpDomainID);
+            ANQPData anqpEntry = mAnqpCache.getEntry(anqpKey);
+
+            if (anqpEntry == null) {
+                mAnqpRequestManager.requestANQPElements(bssid, anqpKey,
+                        roamingConsortium.anqpOICount > 0,
+                        vsa.hsRelease == NetworkDetail.HSRelease.R2);
+                Log.d(TAG, "ANQP entry not found for: " + anqpKey);
+                continue;
+            }
+
+            // Find a matching domain that has following EAP methods(SIM/AKA/AKA') in NAI realms.
+            NAIRealmElement naiRealmElement = (NAIRealmElement) anqpEntry.getElements().get(
+                    Constants.ANQPElementType.ANQPNAIRealm);
+            int eapMethod = ANQPMatcher.getCarrierEapMethodFromMatchingNAIRealm(domain,
+                    naiRealmElement);
+            if (eapMethod != -1) {
+                return eapMethod;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Creates an ephemeral {@link PasspointConfiguration} for current carrier(SIM) on the device.
+     *
+     * @param eapMethod  eapMethod used to connect Passpoint Network.
+     * @return return the {@link PasspointConfiguration} if a configuration is created successfully,
+     * {@code null} otherwise.
+     */
+    public PasspointConfiguration createEphemeralPasspointConfigForCarrier(int eapMethod) {
+        String mccMnc = mTelephonyManager.getNetworkOperator();
+        if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
+            Log.e(TAG, "invalid length of mccmnc");
+            return null;
+        }
+
+        if (!isCarrierEapMethod(eapMethod)) {
+            Log.e(TAG, "invalid eapMethod type");
+            return null;
+        }
+
+        String domain = Utils.getRealmForMccMnc(mccMnc);
+        if (domain == null) {
+            Log.e(TAG, "can't make a home domain name using " + mccMnc);
+            return null;
+        }
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn(domain);
+        homeSp.setFriendlyName(mTelephonyManager.getNetworkOperatorName());
+        config.setHomeSp(homeSp);
+
+        Credential credential = new Credential();
+        credential.setRealm(domain);
+        Credential.SimCredential simCredential = new Credential.SimCredential();
+
+        // prefix match
+        simCredential.setImsi(mccMnc + "*");
+        simCredential.setEapType(eapMethod);
+        credential.setSimCredential(simCredential);
+        config.setCredential(credential);
+        if (!config.validate()) {
+            Log.e(TAG, "Transient PasspointConfiguration is not a valid format");
+            return null;
+        }
+        return config;
+    }
+
+    /**
+     * Check if the {@link PasspointProvider} for a carrier exists.
+     * @param mccmnc a MCC/MNC of the carrier to find
+     * @return {@code true} if the provider already exists, {@code false} otherwise.
+     */
+    public boolean hasCarrierProvider(@Nullable String mccmnc) {
+        String domain = Utils.getRealmForMccMnc(mccmnc);
+        if (domain == null) {
+            Log.e(TAG, "can't make a home domain name using " + mccmnc);
+            return false;
+        }
+
+        // Check if we already have this provider
+        for (Map.Entry<String, PasspointProvider> provider : mProviders.entrySet()) {
+            PasspointConfiguration installedConfig = provider.getValue().getConfig();
+            if (installedConfig.getCredential().getSimCredential() == null) {
+                continue;
+            }
+            if (domain.equals(provider.getKey())) {
+                // We already have the provider that has same FQDN.
+                return true;
+            }
+
+            IMSIParameter imsiParameter = provider.getValue().getImsiParameter();
+            if (imsiParameter == null) {
+                continue;
+            }
+
+            if (imsiParameter.matchesMccMnc(mccmnc)) {
+                // We already have the provider that has same IMSI.
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Installs a {@link PasspointConfiguration} created for auto connection with EAP-SIM/AKA/AKA'.
+     *
+     * It install the Passpoint configuration created on runtime when the (MCC/MNC) of carrier that
+     * supports encrypted IMSI is matched with one of ScanResults
+     *
+     * @param config the Passpoint Configuration to connect the AP with EAP-SIM/AKA/AKA'
+     * @return {@code true} if config is installed successfully, {@code false} otherwise.
+     */
+    public boolean installEphemeralPasspointConfigForCarrier(PasspointConfiguration config) {
+        if (config == null) {
+            Log.e(TAG, "PasspointConfiguration for carrier is null");
+            return false;
+        }
+        if (!mWifiConfigManager.isSimPresent()) {
+            Log.e(TAG, "Sim is not presented on the device");
+            return false;
+        }
+
+        Credential.SimCredential simCredential = config.getCredential().getSimCredential();
+        if (simCredential == null || simCredential.getImsi() == null) {
+            Log.e(TAG, "This is not for a carrier configuration using EAP-SIM/AKA/AKA'");
+            return false;
+        }
+        if (!config.validate()) {
+            Log.e(TAG,
+                    "It is not a valid format for Passpoint Configuration with EAP-SIM/AKA/AKA'");
+            return false;
+        }
+
+        String imsi = simCredential.getImsi();
+        if (imsi.length() < IMSIParameter.MCC_MNC_LENGTH) {
+            Log.e(TAG, "Invalid IMSI length: " + imsi.length());
+            return false;
+        }
+
+        int index = imsi.indexOf("*");
+        if (index == -1) {
+            Log.e(TAG, "missing * in imsi");
+            return false;
+        }
+
+        if (hasCarrierProvider(imsi.substring(0, index))) {
+            Log.e(TAG, "It is already in the Provider list");
+            return false;
+        }
+
+        // Create a provider and install the necessary certificates and keys.
+        PasspointProvider newProvider = mObjectFactory.makePasspointProvider(
+                config, mKeyStore, mSimAccessor, mProviderIndex++, Process.WIFI_UID);
+        newProvider.setEphemeral(true);
+
+        Log.d(TAG, "installed PasspointConfiguration for carrier : "
+                + config.getHomeSp().getFriendlyName());
+
+        mProviders.put(config.getHomeSp().getFqdn(), newProvider);
+        mWifiConfigManager.saveToStore(true /* forceWrite */);
+        return true;
+    }
+
+    /**
      * Remove a Passpoint provider identified by the given FQDN.
      *
      * @param fqdn The FQDN of the provider to remove
@@ -331,6 +553,19 @@ public class PasspointManager {
         Log.d(TAG, "Removed Passpoint configuration: " + fqdn);
         mWifiMetrics.incrementNumPasspointProviderUninstallSuccess();
         return true;
+    }
+
+    /**
+     * Remove the ephemeral providers that are created temporarily for a carrier.
+     */
+    public void removeEphemeralProviders() {
+        for (Map.Entry<String, PasspointProvider> entry : mProviders.entrySet()) {
+            PasspointProvider provider = entry.getValue();
+            if (provider != null && provider.isEphemeral()) {
+                mProviders.remove(entry.getKey());
+                mWifiConfigManager.removePasspointConfiguredNetwork(entry.getKey());
+            }
+        }
     }
 
     /**
@@ -793,7 +1028,7 @@ public class PasspointManager {
                 mSimAccessor, mProviderIndex++, wifiConfig.creatorUid,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(),
-                enterpriseConfig.getClientCertificateAlias(), false, false);
+                enterpriseConfig.getClientCertificateAlias(), null, false, false);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);
         return true;
     }

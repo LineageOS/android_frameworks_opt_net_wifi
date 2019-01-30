@@ -226,7 +226,15 @@ public class WifiNetworkFactory extends NetworkFactory {
                 approvedScanResult =
                         findUserApprovedAccessPointForActiveRequestFromActiveMatchedScanResults();
             }
-            if (approvedScanResult == null) {
+            if (approvedScanResult != null
+                    && !mWifiConfigManager.wasEphemeralNetworkDeleted(
+                            ScanResultUtil.createQuotedSSID(approvedScanResult.SSID))) {
+                Log.v(TAG, "Approved access point found in matching scan results. "
+                        + "Triggering connect " + approvedScanResult);
+                handleConnectToNetworkUserSelectionInternal(
+                        ScanResultUtil.createNetworkFromScanResult(approvedScanResult));
+                // TODO (b/122658039): Post notification.
+            } else {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "No approved access points found in matching scan results. "
                             + "Sending match callback");
@@ -234,12 +242,6 @@ public class WifiNetworkFactory extends NetworkFactory {
                 sendNetworkRequestMatchCallbacksForActiveRequest(matchedScanResults);
                 // Didn't find an approved match, schedule the next scan.
                 scheduleNextPeriodicScan();
-            } else {
-                Log.v(TAG, "Approved access point found in matching scan results. "
-                        + "Triggering connect " + approvedScanResult);
-                handleConnectToNetworkUserSelectionInternal(
-                        ScanResultUtil.createNetworkFromScanResult(approvedScanResult));
-                // TODO (b/122658039): Post notification.
             }
         }
 
