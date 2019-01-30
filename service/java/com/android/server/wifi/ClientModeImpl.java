@@ -209,6 +209,7 @@ public class ClientModeImpl extends StateMachine {
     }
     private final PasspointManager mPasspointManager;
     private final WifiDataStall mWifiDataStall;
+    private final LinkProbeManager mLinkProbeManager;
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
 
@@ -756,8 +757,8 @@ public class ClientModeImpl extends StateMachine {
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
                             WifiNative wifiNative, WifiScoreCard wifiScoreCard,
                             WrongPasswordNotifier wrongPasswordNotifier,
-                            SarManager sarManager,
-                            WifiTrafficPoller wifiTrafficPoller) {
+                            SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
+                            LinkProbeManager linkProbeManager) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -772,6 +773,7 @@ public class ClientModeImpl extends StateMachine {
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
         mWifiTrafficPoller = wifiTrafficPoller;
+        mLinkProbeManager = linkProbeManager;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStats = IBatteryStats.Stub.asInterface(mFacade.getService(
@@ -1115,6 +1117,7 @@ public class ClientModeImpl extends StateMachine {
         mSupplicantStateTracker.enableVerboseLogging(verbose);
         mPasspointManager.enableVerboseLogging(verbose);
         mNetworkFactory.enableVerboseLogging(verbose);
+        mLinkProbeManager.enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
@@ -4814,6 +4817,7 @@ public class ClientModeImpl extends StateMachine {
         public void enter() {
             mRssiPollToken++;
             if (mEnableRssiPolling) {
+                mLinkProbeManager.reset();
                 sendMessage(CMD_RSSI_POLL, mRssiPollToken, 0);
             }
             if (mNetworkAgent != null) {
@@ -4998,6 +5002,8 @@ public class ClientModeImpl extends StateMachine {
                             mWifiScoreReport.noteIpCheck();
                         }
                         mWifiScoreCard.noteSignalPoll(mWifiInfo);
+                        mLinkProbeManager.updateConnectionStats(
+                                mWifiInfo, mInterfaceName);
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());
@@ -5014,6 +5020,7 @@ public class ClientModeImpl extends StateMachine {
                     if (mEnableRssiPolling) {
                         // First poll
                         mLastSignalLevel = -1;
+                        mLinkProbeManager.reset();
                         fetchRssiLinkSpeedAndFrequencyNative();
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);
