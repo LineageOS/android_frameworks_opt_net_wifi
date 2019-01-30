@@ -16,14 +16,15 @@
 
 package com.android.server.wifi;
 
-
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Process;
 import android.util.LocalLog;
 
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.List;
 
@@ -84,9 +85,18 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
                     || !mCarrierNetworkConfig.isCarrierNetwork(scanResult.SSID)) {
                 continue;
             }
+            int eapType =  mCarrierNetworkConfig.getNetworkEapType(scanResult.SSID);
+            if (!TelephonyUtil.isSimEapMethod(eapType)) {
+                mLocalLog.log(TAG + ": eapType is not a carrier eap method: " + eapType);
+                continue;
+            }
 
             WifiConfiguration config = ScanResultUtil.createNetworkFromScanResult(scanResult);
             config.ephemeral = true;
+            if (config.enterpriseConfig == null) {
+                config.enterpriseConfig = new WifiEnterpriseConfig();
+            }
+            config.enterpriseConfig.setEapMethod(eapType);
 
             // Add the newly created WifiConfiguration to WifiConfigManager.
             NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(config,
