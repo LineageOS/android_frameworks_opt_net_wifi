@@ -28,6 +28,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiPowerStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
 
 /**
  * WifiPowerMetrics holds the wifi power metrics and converts them to WifiPowerStats proto buf.
@@ -75,6 +76,8 @@ public class WifiPowerMetrics {
             m.numBytesRx = stats.getNumPacketsRx();
             m.sleepTimeMs = stats.getSleepTimeMs();
             m.scanTimeMs = stats.getScanTimeMs();
+            m.monitoredRailEnergyConsumedMah = stats.getMonitoredRailChargeConsumedMaMs()
+                    / ((double) DateUtils.HOUR_IN_MILLIS);
         }
         return m;
     }
@@ -120,6 +123,8 @@ public class WifiPowerMetrics {
             pw.println("Number of bytes sent (tx): " + s.numBytesTx);
             pw.println("Number of packets received (rx): " + s.numPacketsRx);
             pw.println("Number of bytes sent (rx): " + s.numBytesRx);
+            pw.println("Energy consumed across measured wifi rails (mAh): "
+                    + new DecimalFormat("#.##").format(s.monitoredRailEnergyConsumedMah));
         }
         WifiRadioUsage wifiRadioUsage = buildWifiRadioUsageProto();
         pw.println("Wifi radio usage metrics:");
