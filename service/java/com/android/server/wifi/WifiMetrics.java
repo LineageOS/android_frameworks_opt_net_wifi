@@ -173,6 +173,10 @@ public class WifiMetrics {
     private int mLastPredictionHorizonSec = -1;
     private int mLastPredictionHorizonSecNoReset = -1;
     private int mSeqNumToFramework = -1;
+    private int mProbeStatusSinceLastUpdate =
+            android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+    private int mProbeElapsedTimeMsSinceLastUpdate = -1;
+    private int mProbeMcsRateSinceLastUpdate = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -3775,6 +3779,28 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.wifiUsabilityScore = mLastWifiUsabilityScoreNoReset;
             wifiUsabilityStatsEntry.seqNumToFramework = mSeqNumToFramework;
             wifiUsabilityStatsEntry.predictionHorizonSec = mLastPredictionHorizonSecNoReset;
+            switch (mProbeStatusSinceLastUpdate) {
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+                    break;
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
+                    break;
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
+                    break;
+                default:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+                    Log.e(TAG, "Unknown link probe status: " + mProbeStatusSinceLastUpdate);
+            }
+            wifiUsabilityStatsEntry.probeElapsedTimeMsSinceLastUpdate =
+                    mProbeElapsedTimeMsSinceLastUpdate;
+            wifiUsabilityStatsEntry.probeMcsRateSinceLastUpdate = mProbeMcsRateSinceLastUpdate;
+            wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
@@ -3808,13 +3834,30 @@ public class WifiMetrics {
 
     private android.net.wifi.WifiUsabilityStatsEntry createNewWifiUsabilityStatsEntryParcelable(
             WifiUsabilityStatsEntry s) {
+        int probeStatus;
+        switch (s.probeStatusSinceLastUpdate) {
+            case WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+                break;
+            case WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
+                break;
+            case WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
+                break;
+            default:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+                Log.e(TAG, "Unknown link probe status: " + s.probeStatusSinceLastUpdate);
+        }
         return new android.net.wifi.WifiUsabilityStatsEntry(s.timeStampMs, s.rssi,
                 s.linkSpeedMbps, s.totalTxSuccess, s.totalTxRetries,
                 s.totalTxBad, s.totalRxSuccess, s.totalRadioOnTimeMs,
                 s.totalRadioTxTimeMs, s.totalRadioRxTimeMs, s.totalScanTimeMs,
                 s.totalNanScanTimeMs, s.totalBackgroundScanTimeMs, s.totalRoamScanTimeMs,
                 s.totalPnoScanTimeMs, s.totalHotspot2ScanTimeMs, s.totalCcaBusyFreqTimeMs,
-                s.totalRadioOnFreqTimeMs, s.totalBeaconRx
+                s.totalRadioOnFreqTimeMs, s.totalBeaconRx, probeStatus,
+                s.probeElapsedTimeMsSinceLastUpdate, s.probeMcsRateSinceLastUpdate,
+                s.rxLinkSpeedMbps
         );
     }
 
@@ -3843,6 +3886,10 @@ public class WifiMetrics {
         out.wifiUsabilityScore = s.wifiUsabilityScore;
         out.seqNumToFramework = s.seqNumToFramework;
         out.predictionHorizonSec = s.predictionHorizonSec;
+        out.probeStatusSinceLastUpdate = s.probeStatusSinceLastUpdate;
+        out.probeElapsedTimeMsSinceLastUpdate = s.probeElapsedTimeMsSinceLastUpdate;
+        out.probeMcsRateSinceLastUpdate = s.probeMcsRateSinceLastUpdate;
+        out.rxLinkSpeedMbps = s.rxLinkSpeedMbps;
         return out;
     }
 

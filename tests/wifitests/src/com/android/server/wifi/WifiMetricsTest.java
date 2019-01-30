@@ -2540,6 +2540,7 @@ public class WifiMetricsTest {
             WifiUsabilityStatsEntry usabilityStats) {
         assertEquals(info.getRssi(), usabilityStats.rssi);
         assertEquals(info.getLinkSpeed(), usabilityStats.linkSpeedMbps);
+        assertEquals(info.getRxLinkSpeedMbps(), usabilityStats.rxLinkSpeedMbps);
         assertEquals(stats.timeStampInMs, usabilityStats.timeStampMs);
         assertEquals(stats.txmpdu_be + stats.txmpdu_bk + stats.txmpdu_vi + stats.txmpdu_vo,
                 usabilityStats.totalTxSuccess);
