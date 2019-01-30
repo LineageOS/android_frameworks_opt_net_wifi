@@ -3199,6 +3199,22 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Verify removing sim will also remove an ephemeral Passpoint Provider.
+     */
+    @Test
+    public void testResetSimNetworkWhenRemovingSim() throws Exception {
+        // Switch to connect mode and verify wifi is reported as enabled
+        startSupplicantAndDispatchMessages();
+
+        // Indicate that sim is removed.
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, false);
+        mLooper.dispatchAll();
+
+        verify(mPasspointManager).removeEphemeralProviders();
+        verify(mWifiConfigManager).resetSimNetworks(eq(false));
+    }
+
+    /**
      * Verifies that WifiLastResortWatchdog is notified of FOURWAY_HANDSHAKE_TIMEOUT.
      */
     @Test

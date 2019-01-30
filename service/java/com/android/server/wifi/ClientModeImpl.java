@@ -4492,7 +4492,11 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_RESET_SIM_NETWORKS:
                     log("resetting EAP-SIM/AKA/AKA' networks since SIM was changed");
-                    mWifiConfigManager.resetSimNetworks(message.arg1 == 1);
+                    boolean simPresent = message.arg1 == 1;
+                    if (!simPresent) {
+                        mPasspointManager.removeEphemeralProviders();
+                    }
+                    mWifiConfigManager.resetSimNetworks(simPresent);
                     break;
                 case CMD_BLUETOOTH_ADAPTER_STATE_CHANGE:
                     mBluetoothConnectionActive = (message.arg1
