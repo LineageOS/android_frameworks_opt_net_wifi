@@ -142,6 +142,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private static final Boolean RELOAD = true;
     private static final Boolean NO_RELOAD = false;
 
+    private static final String[] RECEIVER_PERMISSIONS_FOR_BROADCAST = {
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_WIFI_STATE
+    };
+
     // Two minutes comes from the wpa_supplicant setting
     private static final int GROUP_CREATING_WAIT_TIME_MS = 120 * 1000;
     private static int sGroupCreatingTimeoutIndex = 0;
@@ -383,6 +388,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.REQUEST_DISCOVERY_STATE:
                 case WifiP2pManager.REQUEST_NETWORK_INFO:
                 case WifiP2pManager.UPDATE_CHANNEL_INFO:
+                case WifiP2pManager.REQUEST_DEVICE_INFO:
                     mP2pStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 default:
@@ -1163,6 +1169,16 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             ClientInfo clientInfo = getClientInfo(message.replyTo, true);
                             clientInfo.mPackageName = pkgName;
                         }
+                        break;
+                    case WifiP2pManager.REQUEST_DEVICE_INFO:
+                        if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
+                                getCallingPkgName(message.sendingUid, message.replyTo),
+                                message.sendingUid)) {
+                            replyToMessage(message, WifiP2pManager.RESPONSE_DEVICE_INFO, null);
+                            break;
+                        }
+                        replyToMessage(message, WifiP2pManager.RESPONSE_DEVICE_INFO,
+                                new WifiP2pDevice(mThisDevice));
                         break;
                     default:
                         loge("Unhandled message " + message);
@@ -2929,14 +2945,16 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             final Intent intent = new Intent(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE, new WifiP2pDevice(mThisDevice));
-            mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
+            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
+                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
         }
 
         private void sendPeersChangedBroadcast() {
             final Intent intent = new Intent(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
             intent.putExtra(WifiP2pManager.EXTRA_P2P_DEVICE_LIST, new WifiP2pDeviceList(mPeers));
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
+                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
         }
 
         private void sendP2pConnectionChangedBroadcast() {
@@ -2947,7 +2965,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO, new WifiP2pInfo(mWifiP2pInfo));
             intent.putExtra(WifiP2pManager.EXTRA_NETWORK_INFO, new NetworkInfo(mNetworkInfo));
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_GROUP, new WifiP2pGroup(mGroup));
-            mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
+            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
+                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
             if (mWifiChannel != null) {
                 mWifiChannel.sendMessage(WifiP2pServiceImpl.P2P_CONNECTION_CHANGED,
                         new NetworkInfo(mNetworkInfo));

@@ -89,6 +89,7 @@ public class WifiP2pServiceImplTest {
     private static final String IFACE_NAME_P2P = "mockP2p0";
     private static final long STATE_CHANGE_WAITING_TIME = 1000;
     private static final String thisDeviceMac = "11:22:33:44:55:66";
+    private static final String thisDeviceName = "thisDeviceName";
 
     private ArgumentCaptor<HalDeviceManager.InterfaceAvailableForRequestListener>
             mAvailListenerCaptor = ArgumentCaptor.forClass(
@@ -518,7 +519,7 @@ public class WifiP2pServiceImplTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mContext.getResources()).thenReturn(mResources);
         when(mFrameworkFacade.getStringSetting(any(),
-                eq(Settings.Global.WIFI_P2P_DEVICE_NAME))).thenReturn("p2p_device");
+                eq(Settings.Global.WIFI_P2P_DEVICE_NAME))).thenReturn(thisDeviceName);
         when(mFrameworkFacade.getIntegerSetting(any(),
                 eq(Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET), eq(0))).thenReturn(0);
         when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
@@ -1820,5 +1821,58 @@ public class WifiP2pServiceImplTest {
 
         verify(mWifiP2pMetrics).endConnectionEvent(
                 eq(P2pConnectionEvent.CLF_INVITATION_FAIL));
+    }
+
+    /**
+     * Verify WifiP2pManager.RESPONSE_DEVICE_INFO is returned with null object when a caller
+     * without proper permission attempts.
+     */
+    @Test
+    public void testRequestDeviceInfoFailureWhenPermissionDenied() throws Exception {
+        forceP2pEnabled(mClient1);
+        doNothing().when(mWifiPermissionsUtil).checkPackage(anyInt(), anyString());
+        when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt()))
+                .thenReturn(false);
+        sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
+        sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_DEVICE_INFO);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        assertEquals(WifiP2pManager.RESPONSE_DEVICE_INFO, messageCaptor.getValue().what);
+        assertEquals(null, messageCaptor.getValue().obj);
+    }
+
+    /**
+     * Verify WifiP2pManager.RESPONSE_DEVICE_INFO is returned with expect object when a caller
+     * with proper permission attempts in p2p enabled state.
+     */
+    @Test
+    public void testRequestDeviceInfoSuccessWhenP2pEnabled() throws Exception {
+        forceP2pEnabled(mClient1);
+        when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt())).thenReturn(true);
+        sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
+        sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_DEVICE_INFO);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        assertEquals(WifiP2pManager.RESPONSE_DEVICE_INFO, messageCaptor.getValue().what);
+        WifiP2pDevice wifiP2pDevice = (WifiP2pDevice) messageCaptor.getValue().obj;
+        assertEquals(thisDeviceMac, wifiP2pDevice.deviceAddress);
+        assertEquals(thisDeviceName, wifiP2pDevice.deviceName);
+    }
+
+    /**
+     * Verify WifiP2pManager.RESPONSE_DEVICE_INFO is returned with empty object when a caller
+     * with proper permission attempts in p2p disabled state.
+     */
+    @Test
+    public void testRequestDeviceInfoReturnEmptyWifiP2pDeviceWhenP2pDisabled() throws Exception {
+        when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt())).thenReturn(true);
+        sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
+        sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_DEVICE_INFO);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mClientHandler).sendMessage(messageCaptor.capture());
+        assertEquals(WifiP2pManager.RESPONSE_DEVICE_INFO, messageCaptor.getValue().what);
+        WifiP2pDevice wifiP2pDevice = (WifiP2pDevice) messageCaptor.getValue().obj;
+        assertEquals("", wifiP2pDevice.deviceAddress);
+        assertEquals("", wifiP2pDevice.deviceName);
     }
 }
