@@ -16,7 +16,8 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus
+        .DISABLED_NO_INTERNET_TEMPORARY;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
 
 import static com.android.server.wifi.ClientModeImpl.CMD_PRE_DHCP_ACTION;
@@ -36,7 +37,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
-import android.database.ContentObserver;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
@@ -337,7 +337,6 @@ public class ClientModeImplTest {
     IpClientCallbacks mIpClientCallback;
     PhoneStateListener mPhoneStateListener;
     OsuProvider mOsuProvider;
-    ContentObserver mContentObserver;
     WifiConfiguration mConnectedNetwork;
 
     @Mock WifiScanner mWifiScanner;
@@ -458,10 +457,6 @@ public class ClientModeImplTest {
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO)).thenReturn(
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO);
 
-        when(mFrameworkFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED,
-                0)).thenReturn(0);
-
         when(mFrameworkFacade.makeSupplicantStateTracker(
                 any(Context.class), any(WifiConfigManager.class),
                 any(Handler.class))).thenReturn(mSupplicantStateTracker);
@@ -489,15 +484,6 @@ public class ClientModeImplTest {
         initializeCmi();
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
-
-        /* Capture the ContentObserver for Connected MAC Randomization. */
-        ArgumentCaptor<ContentObserver> observerCaptor =
-                ArgumentCaptor.forClass(ContentObserver.class);
-        verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
-                Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED)), eq(false),
-                observerCaptor.capture());
-        mContentObserver = observerCaptor.getValue();
-
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
     }
 
@@ -2201,8 +2187,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
-
         connect();
         verify(mWifiConfigManager, never()).setNetworkRandomizedMacAddress(0,
                 TEST_LOCAL_MAC_ADDRESS);
@@ -2228,8 +2212,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
-
         connect();
         verify(mWifiConfigManager).setNetworkRandomizedMacAddress(0, TEST_LOCAL_MAC_ADDRESS);
         verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
@@ -2252,7 +2234,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
 
@@ -2279,7 +2260,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
 
@@ -2315,8 +2295,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
-
         WifiConfiguration config = mock(WifiConfiguration.class);
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         when(config.getNetworkSelectionStatus())
@@ -2340,7 +2318,6 @@ public class ClientModeImplTest {
      */
     @Test
     public void testWifiInfoReturnDefaultMacWhenDisconnectedWithRandomization() throws Exception {
-        toggleMacRandomizationSwitch(true);
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
 
@@ -2367,8 +2344,6 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
 
-        toggleMacRandomizationSwitch(true);
-
         WifiConfiguration config = mock(WifiConfiguration.class);
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
         when(config.getOrCreateRandomizedMacAddress())
@@ -2382,71 +2357,6 @@ public class ClientModeImplTest {
 
         verify(config).getOrCreateRandomizedMacAddress();
         verify(mWifiNative, never()).setMacAddress(eq(WIFI_IFACE_NAME), any(MacAddress.class));
-    }
-
-    /**
-     * Verifies that turning on/off Connected MAC Randomization correctly updates metrics.
-     */
-    @Test
-    public void testUpdateConnectedMacRandomizationSettingMetrics() throws Exception {
-        toggleMacRandomizationSwitch(true);
-        verify(mWifiMetrics).setIsMacRandomizationOn(true);
-
-        toggleMacRandomizationSwitch(false);
-        verify(mWifiMetrics).setIsMacRandomizationOn(false);
-
-        // Updating to the same state twice should be no-op
-        toggleMacRandomizationSwitch(false);
-        verify(mWifiMetrics).setIsMacRandomizationOn(false);
-    }
-
-    /**
-     * Verifies that turning on MAC Randomization sets the current MAC to randomized MAC.
-     * @throws Exception
-     */
-    @Test
-    public void testTurnOnConnectedMacRandomizationSetting() throws Exception {
-        initializeAndAddNetworkAndVerifySuccess();
-        when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
-                .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
-        connect();
-
-        // Current MAC is set to factory MAC since MAC randomization is currently off.
-        InOrder inOrder = inOrder(mWifiNative);
-        inOrder.verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_GLOBAL_MAC_ADDRESS);
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
-
-        // After MAC randomization is turned on, the current MAC is set to the randomized MAC.
-        toggleMacRandomizationSwitch(true);
-        mLooper.dispatchAll();
-        inOrder.verify(mWifiNative).disconnect(WIFI_IFACE_NAME);
-        inOrder.verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
-        inOrder.verify(mWifiNative).connectToNetwork(eq(WIFI_IFACE_NAME), any());
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
-    }
-
-    /**
-     * Verifies that turning off MAC Randomization sets the current MAC to factory MAC.
-     * @throws Exception
-     */
-    @Test
-    public void testTurnOffConnectedMacRandomizationSetting() throws Exception {
-        initializeAndAddNetworkAndVerifySuccess();
-        toggleMacRandomizationSwitch(true);
-        connect();
-
-        // Current MAC is set to randomized MAC since MAC randomization is currently on.
-        InOrder inOrder = inOrder(mWifiNative);
-        inOrder.verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
-
-        // Verify that turning off MAC randomization sets the current MAC is back to factory MAC.
-        toggleMacRandomizationSwitch(false);
-        mLooper.dispatchAll();
-        inOrder.verify(mWifiNative).disconnect(WIFI_IFACE_NAME);
-        inOrder.verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_GLOBAL_MAC_ADDRESS);
-        inOrder.verify(mWifiNative).connectToNetwork(eq(WIFI_IFACE_NAME), any());
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
     }
 
     /**
@@ -2780,12 +2690,6 @@ public class ClientModeImplTest {
         verify(mWifiConfigManager).removeAllEphemeralOrPasspointConfiguredNetworks();
     }
 
-    private void toggleMacRandomizationSwitch(boolean isOn) {
-        int status = isOn ? 1 : 0;
-        when(mFrameworkFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0)).thenReturn(status);
-        mContentObserver.onChange(false);
-    }
     /**
      * Verify that WifiInfo's MAC address is updated when the state machine receives
      * NETWORK_CONNECTION_EVENT while in ConnectedState.
@@ -2793,16 +2697,15 @@ public class ClientModeImplTest {
     @Test
     public void verifyWifiInfoMacUpdatedWithNetworkConnectionWhileConnected() throws Exception {
         connect();
-        // Since MAC randomization is off, the current MAC should be factory MAC.
         assertEquals("ConnectedState", getCurrentState().getName());
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
+        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
 
         // Verify receiving a NETWORK_CONNECTION_EVENT changes the MAC in WifiInfo
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
-                .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());
+                .thenReturn(TEST_GLOBAL_MAC_ADDRESS.toString());
         mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
-        assertEquals(TEST_LOCAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
+        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
     }
 
     /**
@@ -2813,7 +2716,9 @@ public class ClientModeImplTest {
     public void verifyWifiInfoMacUpdatedWithNetworkConnectionWhileDisconnected() throws Exception {
         disconnect();
         assertEquals("DisconnectedState", getCurrentState().getName());
-        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getWifiInfo().getMacAddress());
+        // Since MAC randomization is enabled, wifiInfo's MAC should be set to default MAC
+        // when disconnect happens.
+        assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, mCmi.getWifiInfo().getMacAddress());
 
         when(mWifiNative.getMacAddress(WIFI_IFACE_NAME))
                 .thenReturn(TEST_LOCAL_MAC_ADDRESS.toString());

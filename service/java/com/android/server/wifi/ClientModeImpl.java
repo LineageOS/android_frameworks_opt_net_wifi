@@ -668,7 +668,6 @@ public class ClientModeImpl extends StateMachine {
     private AtomicBoolean mUserWantsSuspendOpt = new AtomicBoolean(true);
 
     /* Tracks if user has enabled Connected Mac Randomization through settings */
-    private boolean mEnableConnectedMacRandomization = false;
 
     /**
      * Supplicant scan interval in milliseconds.
@@ -859,15 +858,6 @@ public class ClientModeImpl extends StateMachine {
                     }
                 });
 
-        mFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                        Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED), false,
-                new ContentObserver(getHandler()) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        updateConnectedMacRandomizationGlobalToggle();
-                    }
-                });
-
         mContext.registerReceiver(
                 new BroadcastReceiver() {
                     @Override
@@ -880,8 +870,6 @@ public class ClientModeImpl extends StateMachine {
         mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
 
-        getHandler().post(() -> updateConnectedMacRandomizationGlobalToggle());
-
         PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getName());
 
@@ -890,6 +878,9 @@ public class ClientModeImpl extends StateMachine {
 
         mConnectedMacRandomzationSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
+        mWifiInfo.setEnableConnectedMacRandomization(mConnectedMacRandomzationSupported);
+        mWifiMetrics.setIsMacRandomizationOn(mConnectedMacRandomzationSupported);
+
         mTcpBufferSizes = mContext.getResources().getString(
                 R.string.config_wifi_tcp_buffers);
 
@@ -3386,36 +3377,13 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Set Connected MAC Randomization to on/off depending on the current Settings.Global flag,
-     * and also reassociate to update the MAC address if needed.
-     */
-    private void updateConnectedMacRandomizationGlobalToggle() {
-        int macRandomizationFlag = mFacade.getIntegerSetting(
-                mContext, Settings.Global.WIFI_CONNECTED_MAC_RANDOMIZATION_ENABLED, 0);
-        boolean macRandomizationEnabled = (macRandomizationFlag == 1);
-        if (mEnableConnectedMacRandomization != macRandomizationEnabled) {
-            mEnableConnectedMacRandomization = macRandomizationEnabled;
-            mWifiInfo.setEnableConnectedMacRandomization(macRandomizationEnabled);
-            mWifiMetrics.setIsMacRandomizationOn(macRandomizationEnabled);
-            Log.d(TAG, "EnableConnectedMacRandomization Setting changed to "
-                    + macRandomizationEnabled);
-            // Reconnect to the network (if there is one) to update the MAC address
-            WifiConfiguration config = getCurrentWifiConfiguration();
-            if (config != null) {
-                disconnectCommand();
-                startConnectToNetwork(config.networkId, Process.WIFI_UID, config.BSSID);
-            }
-        }
-    }
-
-    /**
-     * Helper method to check if Connected MAC Randomization is enabled - onDown events are skipped
-     * if this feature is enabled (b/72459123).
+     * Helper method to check if Connected MAC Randomization is supported - onDown events are
+     * skipped if this feature is enabled (b/72459123).
      *
-     * @return boolean true if Connected MAC randomization is enabled, false otherwise
+     * @return boolean true if Connected MAC randomization is supported, false otherwise
      */
     public boolean isConnectedMacRandomizationEnabled() {
-        return mEnableConnectedMacRandomization;
+        return mConnectedMacRandomzationSupported;
     }
 
     /**
@@ -4231,7 +4199,7 @@ public class ClientModeImpl extends StateMachine {
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
 
-                    if (mEnableConnectedMacRandomization && config.macRandomizationSetting
+                    if (config.macRandomizationSetting
                             == WifiConfiguration.RANDOMIZATION_PERSISTENT
                             && mConnectedMacRandomzationSupported) {
                         configureRandomizedMacAddress(config);
