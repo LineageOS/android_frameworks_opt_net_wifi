@@ -764,8 +764,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 });
         private final WifiP2pInfo mWifiP2pInfo = new WifiP2pInfo();
         private WifiP2pGroup mGroup;
-        // Is the HAL (HIDL) interface available for use.
-        private boolean mIsHalInterfaceAvailable = false;
+        // Is the P2P interface available for use.
+        private boolean mIsInterfaceAvailable = false;
         // Is wifi on or off.
         private boolean mIsWifiEnabled = false;
 
@@ -835,7 +835,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 }, new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
                 // Register for interface availability from HalDeviceManager
                 mWifiNative.registerInterfaceAvailableListener((boolean isAvailable) -> {
-                    mIsHalInterfaceAvailable = isAvailable;
+                    mIsInterfaceAvailable = isAvailable;
                     if (isAvailable) {
                         checkAndReEnableP2p();
                     }
@@ -1038,8 +1038,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case WifiP2pManager.REQUEST_P2P_STATE:
                         replyToMessage(message, WifiP2pManager.RESPONSE_P2P_STATE,
-                                (mIsWifiEnabled && isHalInterfaceAvailable()
-                                && isLocationModeEnabled())
+                                (mIsWifiEnabled && mIsInterfaceAvailable && isLocationModeEnabled())
                                 ? WifiP2pManager.WIFI_P2P_STATE_ENABLED
                                 : WifiP2pManager.WIFI_P2P_STATE_DISABLED);
                         break;
@@ -2881,16 +2880,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         // Check & re-enable P2P if needed.
         // P2P interface will be created if all of the below are true:
         // a) Wifi is enabled.
-        // b) HAL (HIDL) interface is available.
+        // b) P2P interface is available.
         // c) There is atleast 1 client app which invoked initialize().
         // d) Location is enabled.
         private void checkAndReEnableP2p() {
             boolean isLocationEnabled = isLocationModeEnabled();
-            boolean isHalInterfaceAvailable = isHalInterfaceAvailable();
             Log.d(TAG, "Wifi enabled=" + mIsWifiEnabled + ", P2P Interface availability="
-                    + isHalInterfaceAvailable + ", Number of clients="
-                    + mDeathDataByBinder.size() + ", Location enabled=" + isLocationEnabled);
-            if (mIsWifiEnabled && isHalInterfaceAvailable
+                    + mIsInterfaceAvailable + ", Number of clients=" + mDeathDataByBinder.size()
+                    + ", Location enabled=" + isLocationEnabled);
+            if (mIsWifiEnabled && mIsInterfaceAvailable
                     && isLocationEnabled && !mDeathDataByBinder.isEmpty()) {
                 sendMessage(ENABLE_P2P);
             }
@@ -2900,17 +2898,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             return mWifiPermissionsUtil.isLocationModeEnabled();
         }
 
-        // Ignore judgement if the device do not support HAL (HIDL) interface
-        private boolean isHalInterfaceAvailable() {
-            return mWifiNative.isHalInterfaceSupported() ? mIsHalInterfaceAvailable : true;
-        }
-
         private void checkAndSendP2pStateChangedBroadcast() {
             boolean isLocationEnabled = isLocationModeEnabled();
-            boolean isHalInterfaceAvailable = isHalInterfaceAvailable();
             Log.d(TAG, "Wifi enabled=" + mIsWifiEnabled + ", P2P Interface availability="
-                    + isHalInterfaceAvailable + ", Location enabled=" + isLocationEnabled);
-            sendP2pStateChangedBroadcast(mIsWifiEnabled && isHalInterfaceAvailable
+                    + mIsInterfaceAvailable + ", Location enabled=" + isLocationEnabled);
+            sendP2pStateChangedBroadcast(mIsWifiEnabled && mIsInterfaceAvailable
                     && isLocationEnabled);
         }
 
