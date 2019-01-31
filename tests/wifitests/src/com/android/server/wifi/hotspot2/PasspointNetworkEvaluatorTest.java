@@ -19,6 +19,7 @@ package com.android.server.wifi.hotspot2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
@@ -511,5 +512,43 @@ public class PasspointNetworkEvaluatorTest {
         verify(mWifiConfigManager).updateScanDetailForNetwork(eq(TEST_NETWORK_ID),
                 updatedCandidateScanDetail.capture());
         assertEquals(TEST_BSSID2, updatedCandidateScanDetail.getValue().getBSSIDString());
+    }
+
+    /**
+     * Verify that the current configuration for the passpoint network is disabled, it returns
+     * {@null} for the candidate.
+     */
+    @Test
+    public void evaluateNetworkWithDisabledWifiConfig() {
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1),
+                generateScanDetail(TEST_SSID2, TEST_BSSID2)});
+
+        WifiConfiguration disableConfig = new WifiConfiguration();
+        WifiConfiguration.NetworkSelectionStatus selectionStatus =
+                new WifiConfiguration.NetworkSelectionStatus();
+        selectionStatus.setNetworkSelectionDisableReason(
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_DHCP_FAILURE);
+        selectionStatus.setNetworkSelectionStatus(
+                WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_TEMPORARY_DISABLED);
+        disableConfig.setNetworkSelectionStatus(selectionStatus);
+        disableConfig.networkId = TEST_NETWORK_ID;
+        TEST_CONFIG1.networkId = TEST_NETWORK_ID;
+
+        // Setup matching providers for ScanDetail with TEST_SSID1.
+        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
+                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+
+        // Return homeProvider for the first ScanDetail (TEST_SSID1) and a null (no match) for
+        // for the second (TEST_SSID2);
+        when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider)
+                .thenReturn(null);
+        when(mWifiConfigManager.getConfiguredNetwork(anyString())).thenReturn(disableConfig);
+
+        assertNull(mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+                false, mOnConnectableListener));
+        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(WifiConfiguration.class),
+                anyInt());
+        verify(mOnConnectableListener, never()).onConnectable(any(), any(), anyInt());
     }
 }
