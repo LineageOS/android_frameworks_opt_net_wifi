@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static java.lang.Math.toIntExact;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -158,6 +160,7 @@ public class WifiConfigStore {
      * Clock instance to retrieve timestamps for alarms.
      */
     private final Clock mClock;
+    private final WifiMetrics mWifiMetrics;
     /**
      * Shared config store file instance. There is 1 shared store file:
      * {@link #STORE_FILE_NAME_SHARED_GENERAL}.
@@ -202,15 +205,17 @@ public class WifiConfigStore {
      * @param context     context to use for retrieving the alarm manager.
      * @param looper      looper instance to post alarm timeouts to.
      * @param clock       clock instance to retrieve timestamps for alarms.
+     * @param wifiMetrics Metrics instance.
      * @param sharedStore StoreFile instance pointing to the shared store file. This should
      *                    be retrieved using {@link #createSharedFile()} method.
      */
-    public WifiConfigStore(Context context, Looper looper, Clock clock,
+    public WifiConfigStore(Context context, Looper looper, Clock clock, WifiMetrics wifiMetrics,
             StoreFile sharedStore) {
 
         mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         mEventHandler = new Handler(looper);
         mClock = clock;
+        mWifiMetrics = wifiMetrics;
         mStoreDataList = new ArrayList<>();
 
         // Initialize the store files.
@@ -447,7 +452,11 @@ public class WifiConfigStore {
             }
         }
         long writeTime = mClock.getElapsedSinceBootMillis() - writeStartTime;
-
+        try {
+            mWifiMetrics.noteWifiConfigStoreWriteDuration(toIntExact(writeTime));
+        } catch (ArithmeticException e) {
+            // Silently ignore on any overflow errors.
+        }
         Log.d(TAG, "Writing to stores completed in " + writeTime + " ms.");
     }
 
@@ -475,6 +484,11 @@ public class WifiConfigStore {
             }
         }
         long readTime = mClock.getElapsedSinceBootMillis() - readStartTime;
+        try {
+            mWifiMetrics.noteWifiConfigStoreReadDuration(toIntExact(readTime));
+        } catch (ArithmeticException e) {
+            // Silently ignore on any overflow errors.
+        }
         Log.d(TAG, "Reading from all stores completed in " + readTime + " ms.");
     }
 
@@ -504,6 +518,7 @@ public class WifiConfigStore {
             deserializeData(userDataBytes, userStoreFile);
         }
         long readTime = mClock.getElapsedSinceBootMillis() - readStartTime;
+        mWifiMetrics.noteWifiConfigStoreReadDuration(toIntExact(readTime));
         Log.d(TAG, "Reading from user stores completed in " + readTime + " ms.");
     }
 

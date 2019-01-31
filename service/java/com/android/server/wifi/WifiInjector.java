@@ -226,7 +226,7 @@ public class WifiInjector {
         // New config store
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
         mWifiConfigStore = new WifiConfigStore(
-                mContext, clientModeImplLooper, mClock,
+                mContext, clientModeImplLooper, mClock, mWifiMetrics,
                 WifiConfigStore.createSharedFile());
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,

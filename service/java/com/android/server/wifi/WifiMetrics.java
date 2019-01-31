@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static java.lang.StrictMath.toIntExact;
+
 import android.content.Context;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.NetworkAgent;
@@ -67,6 +69,7 @@ import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.InformationElementUtil;
+import com.android.server.wifi.util.MetricsUtils;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import org.json.JSONArray;
@@ -145,6 +148,15 @@ public class WifiMetrics {
     public static final int MAX_WIFI_USABILITY_STATS_PER_TYPE_TO_UPLOAD = 2;
     public static final int NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD = 100;
     public static final int MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS = 1000 * 3600; // 1 hour
+    // Histogram for WifiConfigStore IO duration times. Indicates the following 5 buckets (in ms):
+    //   < 50
+    //   [50, 100)
+    //   [100, 150)
+    //   [150, 200)
+    //   [200, 300)
+    //   >= 300
+    private static final int[] WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS =
+            {50, 100, 150, 200, 300};
 
     private Clock mClock;
     private boolean mScreenOn;
@@ -301,6 +313,12 @@ public class WifiMetrics {
 
     /** DPP */
     private final DppMetrics mDppMetrics;
+
+    /** WifiConfigStore read duration histogram. */
+    private SparseIntArray mWifiConfigStoreReadDurationHistogram = new SparseIntArray();
+
+    /** WifiConfigStore write duration histogram. */
+    private SparseIntArray mWifiConfigStoreWriteDurationHistogram = new SparseIntArray();
 
     class RouterFingerPrint {
         private WifiMetricsProto.RouterFingerPrint mRouterFingerPrintProto;
@@ -2522,6 +2540,11 @@ public class WifiMetrics {
                 mWifiP2pMetrics.dump(pw);
                 pw.println("mDppMetrics:");
                 mDppMetrics.dump(pw);
+
+                pw.println("mWifiConfigStoreReadDurationHistogram:"
+                        + mWifiConfigStoreReadDurationHistogram.toString());
+                pw.println("mWifiConfigStoreWriteDurationHistogram:"
+                        + mWifiConfigStoreWriteDurationHistogram.toString());
             }
         }
     }
@@ -2989,6 +3012,12 @@ public class WifiMetrics {
                     .toArray(new DeviceMobilityStatePnoScanStats[0]);
             mWifiLogProto.wifiP2PStats = mWifiP2pMetrics.consolidateProto();
             mWifiLogProto.wifiDppLog = mDppMetrics.consolidateProto();
+            mWifiLogProto.wifiConfigStoreIo = new WifiMetricsProto.WifiConfigStoreIO();
+            mWifiLogProto.wifiConfigStoreIo.readDurations =
+                    makeWifiConfigStoreIODurationBucketArray(mWifiConfigStoreReadDurationHistogram);
+            mWifiLogProto.wifiConfigStoreIo.writeDurations =
+                    makeWifiConfigStoreIODurationBucketArray(
+                            mWifiConfigStoreWriteDurationHistogram);
         }
     }
 
@@ -3016,6 +3045,27 @@ public class WifiMetrics {
             keyVal.numConnectableNetworks = sia.keyAt(i);
             keyVal.count = sia.valueAt(i);
             array[i] = keyVal;
+        }
+        return array;
+    }
+
+    private WifiMetricsProto.WifiConfigStoreIO.DurationBucket[]
+            makeWifiConfigStoreIODurationBucketArray(SparseIntArray sia) {
+        MetricsUtils.GenericBucket[] genericBuckets =
+                MetricsUtils.linearHistogramToGenericBuckets(sia,
+                        WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS);
+        WifiMetricsProto.WifiConfigStoreIO.DurationBucket[] array =
+                new WifiMetricsProto.WifiConfigStoreIO.DurationBucket[genericBuckets.length];
+        try {
+            for (int i = 0; i < genericBuckets.length; i++) {
+                array[i] = new WifiMetricsProto.WifiConfigStoreIO.DurationBucket();
+                array[i].rangeStartMs = toIntExact(genericBuckets[i].start);
+                array[i].rangeEndMs = toIntExact(genericBuckets[i].end);
+                array[i].count = genericBuckets[i].count;
+            }
+        } catch (ArithmeticException e) {
+            // Return empty array on any overflow errors.
+            array = new WifiMetricsProto.WifiConfigStoreIO.DurationBucket[0];
         }
         return array;
     }
@@ -3094,6 +3144,8 @@ public class WifiMetrics {
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
             mProbeElapsedTimeMsSinceLastUpdate = -1;
             mProbeMcsRateSinceLastUpdate = -1;
+            mWifiConfigStoreReadDurationHistogram.clear();
+            mWifiConfigStoreWriteDurationHistogram.clear();
         }
     }
 
@@ -4173,5 +4225,29 @@ public class WifiMetrics {
             mProbeElapsedTimeMsSinceLastUpdate = Integer.MAX_VALUE;
         }
         // TODO(b/112029045): aggregate metrics
+    }
+
+    /**
+     * Update wifi config store read duration.
+     *
+     * @param timeMs Time it took to complete the operation, in milliseconds
+     */
+    public void noteWifiConfigStoreReadDuration(int timeMs) {
+        synchronized (mLock) {
+            MetricsUtils.addValueToLinearHistogram(timeMs, mWifiConfigStoreReadDurationHistogram,
+                    WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS);
+        }
+    }
+
+    /**
+     * Update wifi config store write duration.
+     *
+     * @param timeMs Time it took to complete the operation, in milliseconds
+     */
+    public void noteWifiConfigStoreWriteDuration(int timeMs) {
+        synchronized (mLock) {
+            MetricsUtils.addValueToLinearHistogram(timeMs, mWifiConfigStoreWriteDurationHistogram,
+                    WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS);
+        }
     }
 }
