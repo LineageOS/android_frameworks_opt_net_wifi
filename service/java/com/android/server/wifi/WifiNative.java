@@ -1376,14 +1376,14 @@ public class WifiNative {
     public static final int SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED = 2;
 
     /**
-     * No ACK was received for the frame transmitted using
+     * Driver reported that no ACK was received for the frame transmitted using
      * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}.
      */
     public static final int SEND_MGMT_FRAME_ERROR_NO_ACK = 3;
 
     /**
-     * Error code for when
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()} times out
+     * Error code for when the driver fails to report on the status of the frame sent by
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
      * after {@link WificondControl#SEND_MGMT_FRAME_TIMEOUT_MS} milliseconds.
      */
     public static final int SEND_MGMT_FRAME_ERROR_TIMEOUT = 4;

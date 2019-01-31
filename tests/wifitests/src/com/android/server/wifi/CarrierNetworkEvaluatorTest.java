@@ -31,8 +31,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Process;
 import android.util.LocalLog;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -48,8 +51,6 @@ import org.mockito.stubbing.Answer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import androidx.test.filters.SmallTest;
 
 /**
  * Unit tests for CarrierNeteworkEvaluator
@@ -151,6 +152,14 @@ public class CarrierNetworkEvaluatorTest {
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER2_SSID))).thenReturn(true);
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_SSID))).thenReturn(true);
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_EPH_SSID))).thenReturn(true);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER1_SSID))).thenReturn(
+                WifiEnterpriseConfig.Eap.AKA);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER2_SSID))).thenReturn(
+                WifiEnterpriseConfig.Eap.AKA_PRIME);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_SSID))).thenReturn(
+                WifiEnterpriseConfig.Eap.SIM);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_EPH_SSID))).thenReturn(
+                WifiEnterpriseConfig.Eap.AKA);
 
         mAddOrUpdateNetworkAnswer = new AddOrUpdateNetworkAnswer();
         when(mWifiConfigManager.addOrUpdateNetwork(any(), eq(Process.WIFI_UID))).thenAnswer(

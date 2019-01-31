@@ -173,6 +173,10 @@ public class WifiMetrics {
     private int mLastPredictionHorizonSec = -1;
     private int mLastPredictionHorizonSecNoReset = -1;
     private int mSeqNumToFramework = -1;
+    private int mProbeStatusSinceLastUpdate =
+            android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+    private int mProbeElapsedTimeMsSinceLastUpdate = -1;
+    private int mProbeMcsRateSinceLastUpdate = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -3775,6 +3779,28 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.wifiUsabilityScore = mLastWifiUsabilityScoreNoReset;
             wifiUsabilityStatsEntry.seqNumToFramework = mSeqNumToFramework;
             wifiUsabilityStatsEntry.predictionHorizonSec = mLastPredictionHorizonSecNoReset;
+            switch (mProbeStatusSinceLastUpdate) {
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+                    break;
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
+                    break;
+                case android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
+                    break;
+                default:
+                    wifiUsabilityStatsEntry.probeStatusSinceLastUpdate =
+                            WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+                    Log.e(TAG, "Unknown link probe status: " + mProbeStatusSinceLastUpdate);
+            }
+            wifiUsabilityStatsEntry.probeElapsedTimeMsSinceLastUpdate =
+                    mProbeElapsedTimeMsSinceLastUpdate;
+            wifiUsabilityStatsEntry.probeMcsRateSinceLastUpdate = mProbeMcsRateSinceLastUpdate;
+            wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
@@ -3808,13 +3834,30 @@ public class WifiMetrics {
 
     private android.net.wifi.WifiUsabilityStatsEntry createNewWifiUsabilityStatsEntryParcelable(
             WifiUsabilityStatsEntry s) {
+        int probeStatus;
+        switch (s.probeStatusSinceLastUpdate) {
+            case WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+                break;
+            case WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
+                break;
+            case WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
+                break;
+            default:
+                probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+                Log.e(TAG, "Unknown link probe status: " + s.probeStatusSinceLastUpdate);
+        }
         return new android.net.wifi.WifiUsabilityStatsEntry(s.timeStampMs, s.rssi,
                 s.linkSpeedMbps, s.totalTxSuccess, s.totalTxRetries,
                 s.totalTxBad, s.totalRxSuccess, s.totalRadioOnTimeMs,
                 s.totalRadioTxTimeMs, s.totalRadioRxTimeMs, s.totalScanTimeMs,
                 s.totalNanScanTimeMs, s.totalBackgroundScanTimeMs, s.totalRoamScanTimeMs,
                 s.totalPnoScanTimeMs, s.totalHotspot2ScanTimeMs, s.totalCcaBusyFreqTimeMs,
-                s.totalRadioOnFreqTimeMs, s.totalBeaconRx
+                s.totalRadioOnFreqTimeMs, s.totalBeaconRx, probeStatus,
+                s.probeElapsedTimeMsSinceLastUpdate, s.probeMcsRateSinceLastUpdate,
+                s.rxLinkSpeedMbps
         );
     }
 
@@ -3843,6 +3886,10 @@ public class WifiMetrics {
         out.wifiUsabilityScore = s.wifiUsabilityScore;
         out.seqNumToFramework = s.seqNumToFramework;
         out.predictionHorizonSec = s.predictionHorizonSec;
+        out.probeStatusSinceLastUpdate = s.probeStatusSinceLastUpdate;
+        out.probeElapsedTimeMsSinceLastUpdate = s.probeElapsedTimeMsSinceLastUpdate;
+        out.probeMcsRateSinceLastUpdate = s.probeMcsRateSinceLastUpdate;
+        out.rxLinkSpeedMbps = s.rxLinkSpeedMbps;
         return out;
     }
 
@@ -3882,12 +3929,19 @@ public class WifiMetrics {
                     mWifiUsabilityStatsListGood.add(createWifiUsabilityStatsWithLabel(label));
                 }
             } else {
-                while (mWifiUsabilityStatsListBad.size()
-                        >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
-                    mWifiUsabilityStatsListBad.remove(
-                            mRand.nextInt(mWifiUsabilityStatsListBad.size()));
+                // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
+                // has passed.
+                if (mWifiUsabilityStatsListBad.isEmpty()
+                        || (mWifiUsabilityStatsListBad.getLast().stats[0].timeStampMs
+                        + MIN_DATA_STALL_WAIT_MS
+                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs)) {
+                    while (mWifiUsabilityStatsListBad.size()
+                            >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
+                        mWifiUsabilityStatsListBad.remove(
+                                mRand.nextInt(mWifiUsabilityStatsListBad.size()));
+                    }
+                    mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
                 }
-                mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
             }
             mWifiUsabilityStatsCounter = 0;
         }
@@ -4022,5 +4076,40 @@ public class WifiMetrics {
                 addStaEvent(event);
             }
         }
+    }
+
+    /**
+     * Reports stats for a successful link probe.
+     *
+     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
+     * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
+     *                                 the last Tx success (according to
+     *                                 {@link WifiInfo#txSuccess}).
+     * @param rssi The Rx RSSI at {@code startTimestampMs}.
+     * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
+     * @param elapsedTimeMs The number of milliseconds between when the command to transmit the
+     *                      probe was sent to the driver and when the driver responded that the
+     *                      probe was ACKed. Note: this number should be correlated with the number
+     *                      of retries that the driver attempted before the probe was ACKed.
+     */
+    public void logLinkProbeSuccess(long startTimestampMs, long timeSinceLastTxSuccessMs,
+            int rssi, int linkSpeed, int elapsedTimeMs) {
+        // TODO(b/112029045): aggregate metrics
+    }
+
+    /**
+     * Reports stats for an unsuccessful link probe.
+     *
+     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
+     * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
+     *                                 the last Tx success (according to
+     *                                 {@link WifiInfo#txSuccess}).
+     * @param rssi The Rx RSSI at {@code startTimestampMs}.
+     * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
+     * @param reason The error code for the failure. See {@link WifiNative.SendMgmtFrameError}.
+     */
+    public void logLinkProbeFailure(long startTimestampMs, long timeSinceLastTxSuccessMs,
+            int rssi, int linkSpeed, @WifiNative.SendMgmtFrameError int reason) {
+        // TODO(b/112029045): aggregate metrics
     }
 }

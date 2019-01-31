@@ -70,7 +70,7 @@ public class WificondControl implements IBinder.DeathRecipient {
      * {@link SendMgmtFrameCallback#onFailure(int)} will be called with reason
      * {@link WifiNative#SEND_MGMT_FRAME_ERROR_TIMEOUT}.
      */
-    public static final int SEND_MGMT_FRAME_TIMEOUT_MS = 100;
+    public static final int SEND_MGMT_FRAME_TIMEOUT_MS = 1000;
 
     private static final String TAG = "WificondControl";
 
