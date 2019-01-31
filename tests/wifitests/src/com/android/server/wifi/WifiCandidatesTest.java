@@ -98,6 +98,7 @@ public class WifiCandidatesTest {
         assertEquals(1, mWifiCandidates.size());
         assertEquals(0, mWifiCandidates.getFaultCount());
         assertNull(mWifiCandidates.getLastFault());
+        verify(mPerBssid).setNetworkConfigId(eq(mConfig1.networkId));
     }
 
     /**

@@ -181,6 +181,7 @@ public class WifiScoreCard {
                 wifiInfo.getFrequency(),
                 wifiInfo.getRssi(),
                 wifiInfo.getLinkSpeed());
+        perBssid.setNetworkConfigId(wifiInfo.getNetworkId());
 
         if (DBG) Log.d(TAG, event.toString() + " ID: " + perBssid.id + " " + wifiInfo);
     }
@@ -235,6 +236,17 @@ public class WifiScoreCard {
         mPolled = false;
 
         if (DBG) Log.d(TAG, "CONNECTION_ATTEMPT" + (mAttemptingSwitch ? " X " : " ") + wifiInfo);
+    }
+
+    /**
+     * Records a newly assigned NetworkAgent netId.
+     */
+    public void noteNetworkAgentCreated(ExtendedWifiInfo wifiInfo, int networkAgentId) {
+        PerBssid perBssid = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID());
+        if (DBG) {
+            Log.d(TAG, "NETWORK_AGENT_ID: " + networkAgentId + " ID: " + perBssid.id);
+        }
+        perBssid.mNetworkAgentId = networkAgentId;
     }
 
     /**
@@ -321,6 +333,8 @@ public class WifiScoreCard {
         public final MacAddress bssid;
         public boolean changed;
         private SecurityType mSecurityType = null;
+        private int mNetworkAgentId = Integer.MIN_VALUE;
+        private int mNetworkConfigId = Integer.MIN_VALUE;
         private final Map<Pair<Event, Integer>, PerSignal>
                 mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
@@ -365,6 +379,12 @@ public class WifiScoreCard {
             if (!Objects.equals(securityType, mSecurityType)) {
                 mSecurityType = securityType;
                 changed = true;
+            }
+        }
+        void setNetworkConfigId(int networkConfigId) {
+            // Not serialized, so don't need to set changed, etc.
+            if (networkConfigId >= 0) {
+                mNetworkConfigId = networkConfigId;
             }
         }
         AccessPoint toAccessPoint() {
@@ -721,6 +741,12 @@ public class WifiScoreCard {
                 }
                 if (perBssid.mSecurityType != null) {
                     network.setSecurityType(perBssid.mSecurityType);
+                }
+                if (perBssid.mNetworkAgentId >= network.getNetworkAgentId()) {
+                    network.setNetworkAgentId(perBssid.mNetworkAgentId);
+                }
+                if (perBssid.mNetworkConfigId >= network.getNetworkConfigId()) {
+                    network.setNetworkConfigId(perBssid.mNetworkConfigId);
                 }
             }
             network.addAccessPoints(perBssid.toAccessPoint(obfuscate));
