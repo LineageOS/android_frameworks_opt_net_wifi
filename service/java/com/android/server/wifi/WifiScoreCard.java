@@ -35,6 +35,7 @@ import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
 import com.android.server.wifi.WifiScoreCardProto.Network;
 import com.android.server.wifi.WifiScoreCardProto.NetworkList;
+import com.android.server.wifi.WifiScoreCardProto.SecurityType;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
 import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
 import com.android.server.wifi.util.NativeUtil;
@@ -43,6 +44,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -318,13 +320,14 @@ public class WifiScoreCard {
         public final String ssid;
         public final MacAddress bssid;
         public boolean changed;
+        private SecurityType mSecurityType = null;
         private final Map<Pair<Event, Integer>, PerSignal>
                 mSignalForEventAndFrequency = new ArrayMap<>();
         PerBssid(String ssid, MacAddress bssid) {
             this.ssid = ssid;
             this.bssid = bssid;
             this.l2Key = computeHashedL2Key(ssid, bssid);
-            this.id = (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
+            this.id = idFromL2Key(this.l2Key);
             this.changed = false;
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
@@ -353,6 +356,17 @@ public class WifiScoreCard {
             }
             return ans;
         }
+        SecurityType getSecurityType() {
+            finishPendingRead();
+            return mSecurityType;
+        }
+        void setSecurityType(SecurityType securityType) {
+            finishPendingRead();
+            if (!Objects.equals(securityType, mSecurityType)) {
+                mSecurityType = securityType;
+                changed = true;
+            }
+        }
         AccessPoint toAccessPoint() {
             return toAccessPoint(false);
         }
@@ -363,6 +377,9 @@ public class WifiScoreCard {
             if (!obfuscate) {
                 builder.setBssid(ByteString.copyFrom(bssid.toByteArray()));
             }
+            if (mSecurityType != null) {
+                builder.setSecurityType(mSecurityType);
+            }
             for (PerSignal sig: mSignalForEventAndFrequency.values()) {
                 builder.addEventStats(sig.toSignal());
             }
@@ -371,6 +388,18 @@ public class WifiScoreCard {
         PerBssid merge(AccessPoint ap) {
             if (ap.hasId() && this.id != ap.getId()) {
                 return this;
+            }
+            if (ap.hasSecurityType()) {
+                SecurityType prev = ap.getSecurityType();
+                if (mSecurityType == null) {
+                    mSecurityType = prev;
+                } else if (!mSecurityType.equals(prev)) {
+                    if (DBG) {
+                        Log.i(TAG, "ID: " + id
+                                + "SecurityType changed: " + prev + " to " + mSecurityType);
+                    }
+                    changed = true;
+                }
             }
             for (Signal signal: ap.getEventStatsList()) {
                 Pair<Event, Integer> key = new Pair<>(signal.getEvent(), signal.getFrequency());
@@ -513,6 +542,10 @@ public class WifiScoreCard {
         }
         // Finally, turn that into a UUID
         return UUID.nameUUIDFromBytes(mashed);
+    }
+
+    private static int idFromL2Key(UUID l2Key) {
+        return (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
     }
 
     @VisibleForTesting
@@ -673,18 +706,22 @@ public class WifiScoreCard {
      *
      * Synchronization is the caller's responsibility.
      *
-     * @param obfuscate - if true, bssids are omitted (short id only)
+     * @param obfuscate - if true, ssids and bssids are omitted (short id only)
      */
     public byte[] getNetworkListByteArray(boolean obfuscate) {
-        Map<Pair<String, Integer>, Network.Builder> networks = new ArrayMap<>();
+        Map<String, Network.Builder> networks = new ArrayMap<>();
         for (PerBssid perBssid: mApForBssid.values()) {
-            int securityType = 0; //TODO(b/112196799) See ScanResultMatchInfo
-            Pair<String, Integer> key = new Pair<>(perBssid.ssid, securityType);
+            String key = perBssid.ssid;
             Network.Builder network = networks.get(key);
             if (network == null) {
                 network = Network.newBuilder();
                 networks.put(key, network);
-                network.setSsid(perBssid.ssid);
+                if (!obfuscate) {
+                    network.setSsid(perBssid.ssid);
+                }
+                if (perBssid.mSecurityType != null) {
+                    network.setSecurityType(perBssid.mSecurityType);
+                }
             }
             network.addAccessPoints(perBssid.toAccessPoint(obfuscate));
         }
