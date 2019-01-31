@@ -28,7 +28,6 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager;
-import com.android.server.wifi.PropertyService;
 import com.android.server.wifi.WifiVendorHal;
 
 /**
@@ -41,7 +40,6 @@ public class WifiP2pNative {
     private static final String TAG = "WifiP2pNative";
     private final SupplicantP2pIfaceHal mSupplicantP2pIfaceHal;
     private final HalDeviceManager mHalDeviceManager;
-    private final PropertyService mPropertyService;
     private final WifiVendorHal mWifiVendorHal;
     private IWifiP2pIface mIWifiP2pIface;
     private InterfaceAvailableListenerInternal mInterfaceAvailableListener;
@@ -105,12 +103,10 @@ public class WifiP2pNative {
     }
 
     public WifiP2pNative(WifiVendorHal wifiVendorHal,
-            SupplicantP2pIfaceHal p2pIfaceHal, HalDeviceManager halDeviceManager,
-            PropertyService propertyService) {
+            SupplicantP2pIfaceHal p2pIfaceHal, HalDeviceManager halDeviceManager) {
         mWifiVendorHal = wifiVendorHal;
         mSupplicantP2pIfaceHal = p2pIfaceHal;
         mHalDeviceManager = halDeviceManager;
-        mPropertyService = propertyService;
     }
 
     /**
@@ -154,41 +150,6 @@ public class WifiP2pNative {
     }
 
     /**
-     * Returns whether HAL (HIDL) is supported on this device or not.
-     */
-    public boolean isHalInterfaceSupported() {
-        return mHalDeviceManager.isSupported();
-    }
-
-    private static final String P2P_IFACE_NAME = "p2p0";
-    private static final String P2P_INTERFACE_PROPERTY = "wifi.direct.interface";
-    /**
-     * Helper function to handle creation of P2P iface.
-     * For devices which do not the support the HAL, this will bypass HalDeviceManager &
-     * teardown any existing iface.
-     */
-    private String createP2pIface(Handler handler) {
-        if (mHalDeviceManager.isSupported()) {
-            mIWifiP2pIface = mHalDeviceManager
-                                .createP2pIface(mInterfaceDestroyedListener, handler);
-            if (mIWifiP2pIface == null) {
-                Log.e(TAG, "Failed to create P2p iface in HalDeviceManager");
-                return null;
-            }
-            String ifaceName = HalDeviceManager.getName(mIWifiP2pIface);
-            if (TextUtils.isEmpty(ifaceName)) {
-                Log.e(TAG, "Failed to get p2p iface name");
-                teardownInterface();
-                return null;
-            }
-            return ifaceName;
-        } else {
-            Log.i(TAG, "Vendor Hal is not supported, ignoring createP2pIface.");
-            return mPropertyService.getString(P2P_INTERFACE_PROPERTY, P2P_IFACE_NAME);
-        }
-    }
-
-    /**
      * Register for an interface available callbacks from HalDeviceManager.
      *
      * @param listener callback to be invoked when the interface is available/not available.
@@ -223,15 +184,20 @@ public class WifiP2pNative {
             Handler handler) {
         Log.d(TAG, "Setup P2P interface");
         if (mIWifiP2pIface == null) {
-            mInterfaceDestroyedListener =
-                    new InterfaceDestroyedListenerInternal(destroyedListener);
-            String ifaceName = createP2pIface(handler);
-            if (ifaceName == null) {
-                Log.e(TAG, "Failed to create P2p iface");
+            mInterfaceDestroyedListener = new InterfaceDestroyedListenerInternal(destroyedListener);
+            mIWifiP2pIface = mHalDeviceManager.createP2pIface(mInterfaceDestroyedListener, handler);
+            if (mIWifiP2pIface == null) {
+                Log.e(TAG, "Failed to create P2p iface in HalDeviceManager");
                 return null;
             }
             if (!waitForSupplicantConnection()) {
                 Log.e(TAG, "Failed to connect to supplicant");
+                teardownInterface();
+                return null;
+            }
+            String ifaceName = HalDeviceManager.getName(mIWifiP2pIface);
+            if (TextUtils.isEmpty(ifaceName)) {
+                Log.e(TAG, "Failed to get p2p iface name");
                 teardownInterface();
                 return null;
             }
@@ -241,13 +207,8 @@ public class WifiP2pNative {
                 return null;
             }
             Log.i(TAG, "P2P interface setup completed");
-            return ifaceName;
-        } else {
-            Log.i(TAG, "P2P interface is already existed");
-            return mHalDeviceManager.isSupported()
-                ? HalDeviceManager.getName(mIWifiP2pIface)
-                : mPropertyService.getString(P2P_INTERFACE_PROPERTY, P2P_IFACE_NAME);
         }
+        return HalDeviceManager.getName(mIWifiP2pIface);
     }
 
     /**
@@ -255,17 +216,11 @@ public class WifiP2pNative {
      */
     public void teardownInterface() {
         Log.d(TAG, "Teardown P2P interface");
-        if (mHalDeviceManager.isSupported()) {
-            if (mIWifiP2pIface != null) {
-                String ifaceName = HalDeviceManager.getName(mIWifiP2pIface);
-                mHalDeviceManager.removeIface(mIWifiP2pIface);
-                mInterfaceDestroyedListener.teardownAndInvalidate(ifaceName);
-                Log.i(TAG, "P2P interface teardown completed");
-            }
-        } else {
-            Log.i(TAG, "HAL (HIDL) is not supported. Destroy listener for the interface.");
-            String ifaceName = mPropertyService.getString(P2P_INTERFACE_PROPERTY, P2P_IFACE_NAME);
+        if (mIWifiP2pIface != null) {
+            String ifaceName = HalDeviceManager.getName(mIWifiP2pIface);
+            mHalDeviceManager.removeIface(mIWifiP2pIface);
             mInterfaceDestroyedListener.teardownAndInvalidate(ifaceName);
+            Log.i(TAG, "P2P interface teardown completed");
         }
     }
 
