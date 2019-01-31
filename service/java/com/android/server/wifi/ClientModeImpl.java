@@ -109,6 +109,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.WnmData;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.util.NativeUtil;
@@ -4981,18 +4982,21 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
                         WifiLinkLayerStats stats = getWifiLinkLayerStats();
-                        if (mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats)) {
-                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD);
+                        int statusDataStall =
+                                mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        if (statusDataStall != WifiIsUnusableEvent.TYPE_UNKNOWN) {
+                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                                    convertToUsabilityStatsTriggerType(statusDataStall));
                         }
                         mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
                         mLastLinkLayerStats = stats;
 
                         // Get Info and continue polling
                         fetchRssiLinkSpeedAndFrequencyNative();
-                        mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         // Send the update score to network agent.
                         mWifiScoreReport.calculateAndReportScore(
                                 mWifiInfo, mNetworkAgent, mWifiMetrics);
+                        mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         if (mWifiScoreReport.shouldCheckIpLayer()) {
                             try {
                                 mIpClient.confirmConfiguration();
@@ -5095,6 +5099,28 @@ public class ClientModeImpl extends StateMachine {
 
             return HANDLED;
         }
+    }
+
+    private static int convertToUsabilityStatsTriggerType(int unusableEventTriggerType) {
+        int triggerType;
+        switch (unusableEventTriggerType) {
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX:
+                triggerType = WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX;
+                break;
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX:
+                triggerType = WifiUsabilityStats.TYPE_DATA_STALL_TX_WITHOUT_RX;
+                break;
+            case WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH:
+                triggerType = WifiUsabilityStats.TYPE_DATA_STALL_BOTH;
+                break;
+            case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
+                triggerType = WifiUsabilityStats.TYPE_FIRMWARE_ALERT;
+                break;
+            default:
+                triggerType = WifiUsabilityStats.TYPE_UNKNOWN;
+                Log.e(TAG, "Unknown WifiIsUnusableEvent: " + unusableEventTriggerType);
+        }
+        return triggerType;
     }
 
     class ObtainingIpState extends State {

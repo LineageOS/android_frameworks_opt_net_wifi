@@ -65,12 +65,12 @@ public class WifiDataStall {
      * Checks for data stall by looking at tx/rx packet counts
      * @param oldStats second most recent WifiLinkLayerStats
      * @param newStats most recent WifiLinkLayerStats
-     * @return true if there is a data stall when comparing oldStats and newStats
+     * @return trigger type of WifiIsUnusableEvent
      */
-    public boolean checkForDataStall(WifiLinkLayerStats oldStats, WifiLinkLayerStats newStats) {
+    public int checkForDataStall(WifiLinkLayerStats oldStats, WifiLinkLayerStats newStats) {
         if (oldStats == null || newStats == null) {
             mWifiMetrics.resetWifiIsUnusableLinkLayerStats();
-            return false;
+            return WifiIsUnusableEvent.TYPE_UNKNOWN;
         }
 
         long txSuccessDelta = (newStats.txmpdu_be + newStats.txmpdu_bk
@@ -98,7 +98,7 @@ public class WifiDataStall {
                 || rxSuccessDelta < 0) {
             // There was a reset in WifiLinkLayerStats
             mWifiMetrics.resetWifiIsUnusableLinkLayerStats();
-            return false;
+            return WifiIsUnusableEvent.TYPE_UNKNOWN;
         }
 
         mWifiMetrics.updateWifiIsUnusableLinkLayerStats(txSuccessDelta, txRetriesDelta,
@@ -111,17 +111,17 @@ public class WifiDataStall {
                     (rxSuccessDelta == 0 && txSuccessDelta >= mMinTxSuccessWithoutRx);
             if (dataStallBadTx && dataStallTxSuccessWithoutRx) {
                 mWifiMetrics.logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH);
-                return true;
+                return WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH;
             } else if (dataStallBadTx) {
                 mWifiMetrics.logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
-                return true;
+                return WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX;
             } else if (dataStallTxSuccessWithoutRx) {
                 mWifiMetrics.logWifiIsUnusableEvent(
                         WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX);
-                return true;
+                return WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX;
             }
         }
 
-        return false;
+        return WifiIsUnusableEvent.TYPE_UNKNOWN;
     }
 }
