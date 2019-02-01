@@ -32,10 +32,15 @@ message NetworkList {
 // the same SSID, the same security type, and (hopefully) the same L3 subnet.
 // This message is not stored in the MemoryStore. It is used to package
 // the access points of a network together in dumpsys output or similar.
+// For this purpose, the network_config_id and network_agent_id may be useful
+// for cross-referencing with other parts of the bug report. Neither of these
+// are meaningful across reboots.
 message Network {
   optional string ssid = 1;                // The SSID (not stored)
   optional SecurityType security_type = 2; // Wireless security type
   repeated AccessPoint access_points = 3;  // The list of related APs
+  optional int32 network_config_id = 4;    // The networkId of WifiConfiguration
+  optional int32 network_agent_id = 5;     // Latest NetworkAgent netId
 };
 
 // Describes an access point (single BSSID)

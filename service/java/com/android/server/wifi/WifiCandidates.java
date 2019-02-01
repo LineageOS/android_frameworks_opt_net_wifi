@@ -205,6 +205,7 @@ public class WifiCandidates {
                 key.bssid.toString());
         perBssid.setSecurityType(
                 WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
+        perBssid.setNetworkConfigId(config.networkId);
         Candidate candidate = new Candidate(key,
                 scanDetail, config, evaluatorIndex, evaluatorScore, perBssid);
         mCandidates.put(key, candidate);
