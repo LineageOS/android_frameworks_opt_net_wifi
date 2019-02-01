@@ -57,6 +57,13 @@ public class WifiNetworkSelector {
     @VisibleForTesting
     public static final int MINIMUM_NETWORK_SELECTION_INTERVAL_MS = 10 * 1000;
 
+    /**
+     * Connected score value used to decide whether a still-connected wifi should be treated
+     * as unconnected when filtering scan results.
+     */
+    @VisibleForTesting
+    public static final int WIFI_POOR_SCORE = ConnectedScore.WIFI_TRANSITION_SCORE - 10;
+
     private final WifiConfigManager mWifiConfigManager;
     private final Clock mClock;
     private final LocalLog mLocalLog;
@@ -574,7 +581,7 @@ public class WifiNetworkSelector {
 
         // Filter out unwanted networks.
         mFilteredNetworks = filterScanResults(scanDetails, bssidBlacklist,
-                connected, currentBssid);
+                connected && wifiInfo.score >= WIFI_POOR_SCORE, currentBssid);
         if (mFilteredNetworks.size() == 0) {
             return null;
         }
