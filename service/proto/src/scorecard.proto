@@ -30,23 +30,42 @@ message NetworkList {
 
 // Describes a network, consisting of a collection of access points that share
 // the same SSID, the same security type, and (hopefully) the same L3 subnet.
+// This message is not stored in the MemoryStore. It is used to package
+// the access points of a network together in dumpsys output or similar.
+// For this purpose, the network_config_id and network_agent_id may be useful
+// for cross-referencing with other parts of the bug report. Neither of these
+// are meaningful across reboots.
 message Network {
-  optional string ssid = 1;            // The SSID
-  reserved 2;                          // Reserved for security type
-  repeated AccessPoint access_points = 3;
+  optional string ssid = 1;                // The SSID (not stored)
+  optional SecurityType security_type = 2; // Wireless security type
+  repeated AccessPoint access_points = 3;  // The list of related APs
+  optional int32 network_config_id = 4;    // The networkId of WifiConfiguration
+  optional int32 network_agent_id = 5;     // Latest NetworkAgent netId
 };
 
 // Describes an access point (single BSSID)
 //
-// In addition to the BSSID, a concise id is assigned to track references
+// Beyond the BSSID, a concise id is assigned to track references
 // among APs. These ids are local to the device, but unique among all APs
-// known to the device.
+// known to the device. The BSSID itself is not stored in persistent storage.
 message AccessPoint {
   optional int32 id = 1;               // Concise id
-  optional bytes bssid = 2;            // BSSID of the access point
+  optional bytes bssid = 2;            // BSSID of the access point (not stored)
+  optional SecurityType security_type = 6; // Wireless security type
   optional Technology technology = 3;  // Wireless technology
   repeated Signal event_stats = 4;     // Statistics taken at specific events
   repeated Roam roams = 5;             // Roaming failures and successes
+};
+
+// Describes the IEEE 802.11 security type
+enum SecurityType {
+    OPEN = 0;         // Open - no encryption
+    WEP = 1;          // Should not be used
+    PSK = 2;          // WPA2
+    EAP = 3;          // Extensible Authentication Protocol
+    SAE = 4;          // WPA3
+    EAP_SUITE_B = 5;
+    OWE = 6;          // Opportunistic Wireless Encryption
 };
 
 // Describes the IEEE 802.11 technology used by the access point

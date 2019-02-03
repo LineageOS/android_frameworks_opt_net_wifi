@@ -62,7 +62,7 @@ LOCAL_STATIC_JAVA_LIBRARIES := \
 
 LOCAL_JAVA_LIBRARIES := \
 	android.test.runner \
-	android.hidl.manager-V1.0-java \
+	android.hidl.manager-V1.2-java \
 	android.test.base \
 	android.test.mock
 
@@ -86,6 +86,7 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libgui \
 	libhardware \
 	libandroidicu \
+	libjsoncpp \
 	liblzma \
 	libmedia \
 	libnativehelper \

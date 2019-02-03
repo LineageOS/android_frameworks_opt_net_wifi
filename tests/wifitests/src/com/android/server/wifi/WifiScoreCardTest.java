@@ -54,6 +54,9 @@ public class WifiScoreCardTest {
     static final MacAddress TEST_BSSID_1 = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
     static final MacAddress TEST_BSSID_2 = MacAddress.fromString("1:2:3:4:5:6");
 
+    static final int TEST_NETWORK_AGENT_ID = 123;
+    static final int TEST_NETWORK_CONFIG_ID = 1492;
+
     static final double TOL = 1e-6; // for assertEquals(double, double, tolerance)
 
     WifiScoreCard mWifiScoreCard;
@@ -91,6 +94,7 @@ public class WifiScoreCardTest {
         mWifiInfo = new ExtendedWifiInfo();
         mWifiInfo.setSSID(TEST_SSID_1);
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiInfo.setNetworkId(TEST_NETWORK_CONFIG_ID);
         millisecondsPass(0);
         mWifiScoreCard = new WifiScoreCard(mClock, "some seed");
     }
@@ -209,7 +213,10 @@ public class WifiScoreCardTest {
      */
     private byte[] makeSerializedAccessPointExample() {
         mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
-        millisecondsPass(111);
+        millisecondsPass(10);
+        // Association completes, a NetworkAgent is created
+        mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, TEST_NETWORK_AGENT_ID);
+        millisecondsPass(101);
         mWifiInfo.setRssi(-55);
         mWifiInfo.setFrequency(5805);
         mWifiInfo.setLinkSpeed(384);
@@ -335,6 +342,9 @@ public class WifiScoreCardTest {
         assertTrue(cleaned.length < serialized.length);
         // Check the Base64 version
         assertTrue(Arrays.equals(cleaned, Base64.decode(base64Encoded, Base64.DEFAULT)));
+        // Check that the network ids were carried over
+        assertEquals(TEST_NETWORK_AGENT_ID, network.getNetworkAgentId());
+        assertEquals(TEST_NETWORK_CONFIG_ID, network.getNetworkConfigId());
     }
 
     /**

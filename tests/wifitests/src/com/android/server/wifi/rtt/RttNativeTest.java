@@ -192,8 +192,8 @@ public class RttNativeTest {
                 equalTo(MacAddress.fromString("00:01:02:03:04:00").toByteArray()));
         collector.checkThat("entry 0: rtt type", rttConfig.type, equalTo(RttType.TWO_SIDED));
         collector.checkThat("entry 0: peer type", rttConfig.peer, equalTo(RttPeerType.AP));
-        collector.checkThat("entry 0: lci", rttConfig.mustRequestLci, equalTo(false));
-        collector.checkThat("entry 0: lcr", rttConfig.mustRequestLcr, equalTo(false));
+        collector.checkThat("entry 0: lci", rttConfig.mustRequestLci, equalTo(true));
+        collector.checkThat("entry 0: lcr", rttConfig.mustRequestLcr, equalTo(true));
 
         rttConfig = halRequest.get(1);
         collector.checkThat("entry 1: MAC", rttConfig.addr,

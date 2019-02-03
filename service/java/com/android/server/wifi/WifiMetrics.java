@@ -2036,6 +2036,8 @@ public class WifiMetrics {
     public void logFirmwareAlert(int errorCode) {
         incrementAlertReasonCount(errorCode);
         logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, errorCode);
+        addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_FIRMWARE_ALERT);
     }
 
     public static final String PROTO_DUMP_ARG = "wifiMetricsProto";
@@ -2493,12 +2495,14 @@ public class WifiMetrics {
                 pw.println("mWifiUsabilityStatsList:");
                 for (WifiUsabilityStats stats : mWifiUsabilityStatsListGood) {
                     pw.println("\nlabel=" + stats.label);
+                    pw.println("\ntrigger_type=" + stats.triggerType);
                     for (WifiUsabilityStatsEntry entry : stats.stats) {
                         printWifiUsabilityStatsEntry(pw, entry);
                     }
                 }
                 for (WifiUsabilityStats stats : mWifiUsabilityStatsListBad) {
                     pw.println("\nlabel=" + stats.label);
+                    pw.println("\ntrigger_type=" + stats.triggerType);
                     for (WifiUsabilityStatsEntry entry : stats.stats) {
                         printWifiUsabilityStatsEntry(pw, entry);
                     }
@@ -3804,7 +3808,8 @@ public class WifiMetrics {
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
-                addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD);
+                addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD,
+                        WifiUsabilityStats.TYPE_UNKNOWN);
             }
 
             // Invoke Wifi usability stats listener.
@@ -3893,9 +3898,10 @@ public class WifiMetrics {
         return out;
     }
 
-    private WifiUsabilityStats createWifiUsabilityStatsWithLabel(int label) {
+    private WifiUsabilityStats createWifiUsabilityStatsWithLabel(int label, int triggerType) {
         WifiUsabilityStats wifiUsabilityStats = new WifiUsabilityStats();
         wifiUsabilityStats.label = label;
+        wifiUsabilityStats.triggerType = triggerType;
         wifiUsabilityStats.stats =
                 new WifiUsabilityStatsEntry[mWifiUsabilityStatsEntriesList.size()];
         for (int i = 0; i < mWifiUsabilityStatsEntriesList.size(); i++) {
@@ -3909,7 +3915,7 @@ public class WifiMetrics {
      * Label the current snapshot of WifiUsabilityStatsEntrys and save the labeled data in memory.
      * @param label WifiUsabilityStats.LABEL_GOOD or WifiUsabilityStats.LABEL_BAD
      */
-    public void addToWifiUsabilityStatsList(int label) {
+    public void addToWifiUsabilityStatsList(int label, int triggerType) {
         synchronized (mLock) {
             if (mWifiUsabilityStatsEntriesList.isEmpty()) {
                 return;
@@ -3926,7 +3932,8 @@ public class WifiMetrics {
                         mWifiUsabilityStatsListGood.remove(
                                 mRand.nextInt(mWifiUsabilityStatsListGood.size()));
                     }
-                    mWifiUsabilityStatsListGood.add(createWifiUsabilityStatsWithLabel(label));
+                    mWifiUsabilityStatsListGood.add(
+                            createWifiUsabilityStatsWithLabel(label, triggerType));
                 }
             } else {
                 // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
@@ -3940,7 +3947,8 @@ public class WifiMetrics {
                         mWifiUsabilityStatsListBad.remove(
                                 mRand.nextInt(mWifiUsabilityStatsListBad.size()));
                     }
-                    mWifiUsabilityStatsListBad.add(createWifiUsabilityStatsWithLabel(label));
+                    mWifiUsabilityStatsListBad.add(
+                            createWifiUsabilityStatsWithLabel(label, triggerType));
                 }
             }
             mWifiUsabilityStatsCounter = 0;

@@ -91,14 +91,27 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             // All matching network credentials are considered equal. So, put any one of them.
             WifiNetworkSuggestion matchingNetworkSuggestion =
                     matchingNetworkSuggestions.stream().findAny().get();
-            onConnectableListener.onConnectable(
-                    scanDetail, matchingNetworkSuggestion.wifiConfiguration, 0);
             // If the user previously forgot this network, don't select it.
             if (mWifiConfigManager.wasEphemeralNetworkDeleted(
                     ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
-                mLocalLog.log("Ignoring disabled ephemeral SSID: " + scanResult.SSID);
+                mLocalLog.log("Ignoring disabled ephemeral SSID: "
+                        + WifiNetworkSelector.toScanId(scanResult));
                 continue;
             }
+            // Check if we already have a network with the same credentials in WifiConfigManager
+            // database. If yes, we should check if the network is currently blacklisted.
+            WifiConfiguration existingNetwork =
+                    mWifiConfigManager.getConfiguredNetwork(
+                            matchingNetworkSuggestion.wifiConfiguration.configKey());
+            if (existingNetwork != null
+                    && !existingNetwork.getNetworkSelectionStatus().isNetworkEnabled()
+                    && !mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId)) {
+                mLocalLog.log("Ignoring blacklisted network: "
+                        + WifiNetworkSelector.toNetworkString(existingNetwork));
+                continue;
+            }
+            onConnectableListener.onConnectable(
+                    scanDetail, matchingNetworkSuggestion.wifiConfiguration, 0);
             candidateNetworkSuggestionToScanResultMap.put(matchingNetworkSuggestion, scanResult);
         }
         // Pick the matching network suggestion corresponding to the highest RSSI. This will need to
@@ -115,21 +128,15 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
         }
         WifiNetworkSuggestion candidateNetworkSuggestion =
                 candidateNetworkSuggestionToScanResult.getKey();
-        // Check if we already have a saved network with the same credentials.
-        // Note: This would not happen in the current architecture of network evaluators because
-        // saved network evaluator would run first and find the same candidate & not run any of the
-        // other evaluators. But this architecture could change in the future and we might end
-        // up running through all the evaluators to find all suitable candidates.
-        WifiConfiguration existingSavedNetwork =
+        // Check if we already have a network with the same credentials in WifiConfigManager
+        // database.
+        WifiConfiguration existingNetwork =
                 mWifiConfigManager.getConfiguredNetwork(
                         candidateNetworkSuggestion.wifiConfiguration.configKey());
-        if (existingSavedNetwork != null) {
-            mLocalLog.log(String.format("network suggestion candidate %s network ID:%d",
-                    WifiNetworkSelector.toScanId(existingSavedNetwork
-                            .getNetworkSelectionStatus()
-                            .getCandidate()),
-                    existingSavedNetwork.networkId));
-            return existingSavedNetwork;
+        if (existingNetwork != null) {
+            mLocalLog.log(String.format("network suggestion candidate %s (existing)",
+                    WifiNetworkSelector.toNetworkString(existingNetwork)));
+            return existingNetwork;
         }
         return addCandidateToWifiConfigManager(
                 candidateNetworkSuggestion.wifiConfiguration,
@@ -157,13 +164,8 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             return null;
         }
         int candidateNetworkId = result.getNetworkId();
-        ScanResult candidateScanResult =
-                wifiConfiguration.getNetworkSelectionStatus().getCandidate();
-        mWifiConfigManager.setNetworkCandidateScanResult(
-                candidateNetworkId, candidateScanResult, 0);
-        mLocalLog.log(String.format("new network suggestion candidate %s network ID:%d",
-                WifiNetworkSelector.toScanId(candidateScanResult),
-                candidateNetworkId));
+        mLocalLog.log(String.format("network suggestion candidate %s (new)",
+                WifiNetworkSelector.toNetworkString(wifiConfiguration)));
         return mWifiConfigManager.getConfiguredNetwork(candidateNetworkId);
     }
 

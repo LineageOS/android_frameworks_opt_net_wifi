@@ -175,6 +175,23 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             config.isHomeProviderNetwork = true;
         }
 
+        WifiConfiguration existingNetwork = mWifiConfigManager.getConfiguredNetwork(
+                config.configKey());
+        if (existingNetwork != null) {
+            WifiConfiguration.NetworkSelectionStatus status =
+                    existingNetwork.getNetworkSelectionStatus();
+            if (!status.isNetworkEnabled()) {
+                boolean isSuccess = mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId);
+                if (isSuccess) {
+                    return existingNetwork;
+                }
+                localLog("Current configuration for the Passpoint AP " + config.SSID
+                        + " is disabled, skip this candidate");
+                return null;
+            }
+            return existingNetwork;
+        }
+
         // Add the newly created WifiConfiguration to WifiConfigManager.
         NetworkUpdateResult result =
                 mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);

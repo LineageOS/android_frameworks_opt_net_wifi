@@ -37,6 +37,7 @@ import android.net.wifi.rtt.RangingRequest;
 import android.net.wifi.rtt.RangingResult;
 import android.net.wifi.rtt.RangingResultCallback;
 import android.net.wifi.rtt.ResponderConfig;
+import android.net.wifi.rtt.ResponderLocation;
 import android.net.wifi.rtt.WifiRttManager;
 import android.os.Binder;
 import android.os.Handler;
@@ -1126,21 +1127,39 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                     if (peer.peerHandle == null) {
                         finalResults.add(
                                 new RangingResult(errorCode, peer.macAddress, 0, 0, 0, 0, 0, null,
-                                        null, 0));
+                                        null, null, 0));
                     } else {
                         finalResults.add(
                                 new RangingResult(errorCode, peer.peerHandle, 0, 0, 0, 0, 0, null,
-                                        null, 0));
+                                        null, null, 0));
                     }
                 } else {
                     int status = resultForRequest.status == RttStatus.SUCCESS
                             ? RangingResult.STATUS_SUCCESS : RangingResult.STATUS_FAIL;
-                    byte[] lci = null;
-                    byte[] lcr = null;
-                    if (isCalledFromPrivilegedContext) {
-                        // should not get results if not privileged - but extra check
-                        lci = NativeUtil.byteArrayFromArrayList(resultForRequest.lci.data);
-                        lcr = NativeUtil.byteArrayFromArrayList(resultForRequest.lcr.data);
+                    byte[] lci = NativeUtil.byteArrayFromArrayList(resultForRequest.lci.data);
+                    byte[] lcr = NativeUtil.byteArrayFromArrayList(resultForRequest.lcr.data);
+                    ResponderLocation responderLocation;
+                    try {
+                        responderLocation = new ResponderLocation(lci, lcr);
+                        if (!responderLocation.isValid()) {
+                            responderLocation = null;
+                        }
+                    } catch (Exception e) {
+                        responderLocation = null;
+                        Log.e(TAG,
+                                "ResponderLocation: lci/lcr parser failed exception -- " + e);
+                    }
+                    // Clear LCI and LCR data if the location data should not be retransmitted,
+                    // has a retention expiration time, contains no useful data, or did not parse.
+                    if (responderLocation == null) {
+                        lci = null;
+                        lcr = null;
+                    } else if (!isCalledFromPrivilegedContext) {
+                        // clear the raw lci and lcr buffers and civic location data if the
+                        // caller is not in a privileged context.
+                        lci = null;
+                        lcr = null;
+                        responderLocation.setCivicLocationSubelementDefaults();
                     }
                     if (resultForRequest.successNumber <= 1
                             && resultForRequest.distanceSdInMm != 0) {
@@ -1154,13 +1173,13 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                         finalResults.add(new RangingResult(status, peer.macAddress,
                                 resultForRequest.distanceInMm, resultForRequest.distanceSdInMm,
                                 resultForRequest.rssi / -2, resultForRequest.numberPerBurstPeer,
-                                resultForRequest.successNumber, lci, lcr,
+                                resultForRequest.successNumber, lci, lcr, responderLocation,
                                 resultForRequest.timeStampInUs / CONVERSION_US_TO_MS));
                     } else {
                         finalResults.add(new RangingResult(status, peer.peerHandle,
                                 resultForRequest.distanceInMm, resultForRequest.distanceSdInMm,
                                 resultForRequest.rssi / -2, resultForRequest.numberPerBurstPeer,
-                                resultForRequest.successNumber, lci, lcr,
+                                resultForRequest.successNumber, lci, lcr, responderLocation,
                                 resultForRequest.timeStampInUs / CONVERSION_US_TO_MS));
                     }
                 }
