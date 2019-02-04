@@ -1074,10 +1074,12 @@ public class ClientModeImpl extends StateMachine {
     private void stopIpClient() {
         /* Restore power save and suspend optimizations */
         handlePostDhcpSetup();
-        try {
-            mIpClient.stop();
-        } catch (RemoteException e) {
-            loge("Error stopping IpClient", e);
+        if (mIpClient != null) {
+            try {
+                mIpClient.stop();
+            } catch (RemoteException e) {
+                loge("Error stopping IpClient", e);
+            }
         }
     }
 
