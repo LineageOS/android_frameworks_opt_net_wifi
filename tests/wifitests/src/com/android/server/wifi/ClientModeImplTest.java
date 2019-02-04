@@ -1286,6 +1286,32 @@ public class ClientModeImplTest {
         verify(mTelephonyManager, never()).resetCarrierKeysForImsiEncryption();
     }
 
+    /**
+     * Verify that the network selection status will be updated with
+     * DISABLED_AUTHENTICATION_NO_SUBSCRIBED when service is not subscribed.
+     */
+    @Test
+    public void testEapSimNoSubscribedError() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+
+        mLooper.startAutoDispatch();
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
+        mLooper.stopAutoDispatch();
+
+        verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
+
+        when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(null);
+
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE,
+                WifiNative.EAP_SIM_NOT_SUBSCRIBED);
+        mLooper.dispatchAll();
+
+        verify(mWifiConfigManager).updateNetworkSelectionStatus(anyInt(),
+                eq(WifiConfiguration.NetworkSelectionStatus
+                        .DISABLED_AUTHENTICATION_NO_SUBSCRIPTION));
+    }
+
     @Test
     public void testBadNetworkEvent() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
