@@ -1995,6 +1995,48 @@ public class WifiNetworkFactoryTest {
     }
 
     /**
+     * Verify the we don't bypass user approval for a specific request for an access point that was
+     * already approved previously, but then the user perform network settings reset.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidAndBssidMatchAfterClear()
+            throws Exception {
+        // 1. First request (no user approval bypass)
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        mWifiNetworkFactory.removeCallback(TEST_CALLBACK_IDENTIFIER);
+        reset(mNetworkRequestMatchCallback, mWifiScanner, mAlarmManager, mClientModeImpl);
+
+        // 2. Remove all approvals.
+        mWifiNetworkFactory.clear();
+
+        // 3. Second request for the same access point
+        ScanResult matchingScanResult = mTestScanDatas[0].getResults()[0];
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult.BSSID),
+                        MacAddress.ALL_ZEROS_ADDRESS);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, WifiConfigurationTestUtil.createPskNetwork(),
+                TEST_UID_1, TEST_PACKAGE_NAME_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        // Verify we triggered the match callback.
+        matchedScanResultsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
+        // Verify that we did not send a connection attempt to ClientModeImpl.
+        verify(mClientModeImpl, never()).sendMessage(any());
+    }
+
+    /**
      * Verify the config store save for store user approval.
      */
     @Test

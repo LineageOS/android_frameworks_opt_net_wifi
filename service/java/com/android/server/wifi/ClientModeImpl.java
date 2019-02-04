@@ -6188,6 +6188,13 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
+     * Clear all approved access points from {@link WifiNetworkFactory}.
+     */
+    public void clearNetworkRequestUserApprovedAccessPoints() {
+        mNetworkFactory.clear();
+    }
+
+    /**
      * Gets the factory MAC address of wlan0 (station interface).
      * @return String representation of the factory MAC address.
      */

@@ -232,6 +232,7 @@ public class WifiServiceImplTest {
     @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock TelephonyManager mTelephonyManager;
     @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
+    @Mock WifiConfigManager mWifiConfigManager;
 
     @Spy FakeWifiLog mLog;
 
@@ -355,6 +356,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
+        when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
@@ -3114,6 +3116,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testFactoryReset() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         final String fqdn = "example.com";
@@ -3129,9 +3133,13 @@ public class WifiServiceImplTest {
         when(mClientModeImpl.syncGetPasspointConfigs(any())).thenReturn(Arrays.asList(config));
 
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
 
         verify(mClientModeImpl).syncRemoveNetwork(mAsyncChannel, network.networkId);
         verify(mClientModeImpl).syncRemovePasspointConfig(mAsyncChannel, fqdn);
+        verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
+        verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
+        verify(mWifiNetworkSuggestionsManager).clear();
     }
 
     /**
@@ -3140,15 +3148,21 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testFactoryResetWithoutPasspointSupport() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
         when(mPackageManager.hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
 
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
 
         verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
         verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
         verify(mClientModeImpl, never()).syncRemovePasspointConfig(any(), anyString());
+        verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
+        verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
+        verify(mWifiNetworkSuggestionsManager).clear();
     }
 
     /**

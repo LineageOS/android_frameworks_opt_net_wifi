@@ -2884,6 +2884,12 @@ public class WifiServiceImpl extends BaseWifiService {
                     }
                 }
             }
+
+            mWifiInjector.getClientModeImplHandler().post(() -> {
+                mWifiInjector.getWifiConfigManager().clearDeletedEphemeralNetworks();
+                mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
+                mWifiNetworkSuggestionsManager.clear();
+            });
         }
     }
 
