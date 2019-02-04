@@ -20,10 +20,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.Manifest;
@@ -637,11 +639,11 @@ public class WifiPermissionsUtilTest {
     }
 
     /**
-     * Test case setting: caller does have Location permission.
+     * Test case setting: legacy caller does have Coarse Location permission.
      * A SecurityException should not be thrown.
      */
     @Test
-    public void testEnforceLocationPermission() throws Exception {
+    public void testEnforceCoarseLocationPermissionLegacyApp() throws Exception {
         mThrowSecurityException = false;
         mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.GINGERBREAD;
         mIsLocationEnabled = true;
@@ -654,6 +656,58 @@ public class WifiPermissionsUtilTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+
+        // verify that checking FINE for legacy apps!
+        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
+    }
+
+    /**
+     * Test case setting: legacy caller does have Coarse Location permission.
+     * A SecurityException should not be thrown.
+     */
+    @Test
+    public void testEnforceFineLocationPermissionNewQApp() throws Exception {
+        mThrowSecurityException = false;
+        mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.Q;
+        mIsLocationEnabled = true;
+        mFineLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ALLOWED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        mMockUserInfo.id = mCallingUser;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
+    }
+
+    /**
+     * Test case setting: legacy caller does have Coarse Location permission.
+     * A SecurityException should not be thrown.
+     */
+    @Test
+    public void testEnforceFailureFineLocationPermissionNewQApp() throws Exception {
+        mThrowSecurityException = false;
+        mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.Q;
+        mIsLocationEnabled = true;
+        mCoarseLocationPermission = PackageManager.PERMISSION_GRANTED;
+        mFineLocationPermission = PackageManager.PERMISSION_DENIED;
+        mAllowCoarseLocationApps = AppOpsManager.MODE_ALLOWED;
+        mAllowFineLocationApps = AppOpsManager.MODE_ERRORED;
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mUid = MANAGED_PROFILE_UID;
+        mMockUserInfo.id = mCallingUser;
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        try {
+            codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+            fail("Expected SecurityException not thrown");
+        } catch (SecurityException e) {
+            // empty
+        }
+        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
     }
 
     /**
