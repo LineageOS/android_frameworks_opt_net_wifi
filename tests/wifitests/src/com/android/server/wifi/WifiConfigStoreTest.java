@@ -46,10 +46,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiConfigStore}.
@@ -122,9 +121,9 @@ public class WifiConfigStoreTest {
                     + "</Network>\n"
                     + "</NetworkList>\n"
                     + "<DeletedEphemeralSSIDList>\n"
-                    + "<set name=\"SSIDList\">\n"
-                    + "<string>%s</string>\n"
-                    + "</set>\n"
+                    + "<map name=\"SSIDList\">\n"
+                    + "<long name=\"%s\" value=\"0\" />\n"
+                    + "</map>\n"
                     + "</DeletedEphemeralSSIDList>\n"
                     + "</WifiConfigStoreData>\n";
 
@@ -494,25 +493,25 @@ public class WifiConfigStoreTest {
 
         // Setup deleted ephemeral SSID list.
         DeletedEphemeralSsidsStoreData deletedEphemeralSsids =
-                new DeletedEphemeralSsidsStoreData();
+                new DeletedEphemeralSsidsStoreData(mClock);
         mWifiConfigStore.registerStoreData(deletedEphemeralSsids);
-        String testSsid = "Test SSID";
-        Set<String> ssidList = new HashSet<>();
-        ssidList.add(testSsid);
+        String testSsid = "\"Test SSID\"";
+        Map<String, Long> ssidMap = new HashMap<>();
+        ssidMap.put(testSsid, 0L);
 
         // Setup user store XML bytes.
         String xmlString = String.format(TEST_DATA_XML_STRING_FORMAT,
                 openNetwork.configKey().replaceAll("\"", "&quot;"),
                 openNetwork.SSID.replaceAll("\"", "&quot;"),
                 openNetwork.shared, openNetwork.creatorUid, openNetwork.creatorName,
-                openNetwork.getRandomizedMacAddress(), testSsid);
+                openNetwork.getRandomizedMacAddress(), testSsid.replaceAll("\"", "&quot;"));
         byte[] xmlBytes = xmlString.getBytes(StandardCharsets.UTF_8);
         mUserStore.storeRawDataToWrite(xmlBytes);
 
         mWifiConfigStore.switchUserStoresAndRead(mUserStores);
         WifiConfigurationTestUtil.assertConfigurationsEqualForConfigStore(
                 userConfigs, networkList.getConfigurations());
-        assertEquals(ssidList, deletedEphemeralSsids.getSsidList());
+        assertEquals(ssidMap, deletedEphemeralSsids.getSsidToTimeMap());
     }
 
     /**
@@ -540,25 +539,23 @@ public class WifiConfigStoreTest {
 
         // Setup deleted ephemeral SSID list store data.
         DeletedEphemeralSsidsStoreData deletedEphemeralSsids =
-                new DeletedEphemeralSsidsStoreData();
+                new DeletedEphemeralSsidsStoreData(mClock);
         mWifiConfigStore.registerStoreData(deletedEphemeralSsids);
         String testSsid = "Test SSID";
-        Set<String> ssidList = new HashSet<>();
-        ssidList.add(testSsid);
-        deletedEphemeralSsids.setSsidList(ssidList);
+        Map<String, Long> ssidMap = new HashMap<>();
+        ssidMap.put(testSsid, 0L);
+        deletedEphemeralSsids.setSsidToTimeMap(ssidMap);
 
         // Setup expected XML bytes.
         String xmlString = String.format(TEST_DATA_XML_STRING_FORMAT,
                 openNetwork.configKey().replaceAll("\"", "&quot;"),
                 openNetwork.SSID.replaceAll("\"", "&quot;"),
                 openNetwork.shared, openNetwork.creatorUid, openNetwork.creatorName,
-                openNetwork.getRandomizedMacAddress(), testSsid);
-        byte[] xmlBytes = xmlString.getBytes(StandardCharsets.UTF_8);
+                openNetwork.getRandomizedMacAddress(), testSsid.replaceAll("\"", "&quot;"));
 
         mWifiConfigStore.write(true);
-        assertEquals(xmlBytes.length, mUserStore.getStoreBytes().length);
         // Verify the user store content.
-        assertTrue(Arrays.equals(xmlBytes, mUserStore.getStoreBytes()));
+        assertEquals(xmlString, new String(mUserStore.getStoreBytes()));
     }
 
     /**

@@ -27,15 +27,16 @@ import com.android.internal.util.FastXmlSerializer;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Unit tests for {@link com.android.server.wifi.DeletedEphemeralSsidsStoreData}.
@@ -44,18 +45,27 @@ import java.util.Set;
 public class DeletedEphemeralSsidsStoreDataTest {
     private static final String TEST_SSID1 = "SSID 1";
     private static final String TEST_SSID2 = "SSID 2";
-    private static final String TEST_SSID_LIST_XML_STRING =
+    private static final long TEST_SSID1_TSTAMP = 6837367L;
+    private static final long TEST_SSID2_TSTAMP = 4567367L;
+
+    private static final String TEST_SSID_LIST_XML_STRING_MAP =
+            "<map name=\"SSIDList\">\n"
+            + "<long name=\"" + TEST_SSID1 + "\" value=\"" + TEST_SSID1_TSTAMP + "\" />\n"
+            + "<long name=\"" + TEST_SSID2 + "\" value=\"" + TEST_SSID2_TSTAMP + "\" />\n"
+            + "</map>\n";
+    private static final String TEST_SSID_LIST_XML_STRING_SET =
             "<set name=\"SSIDList\">\n"
             + "<string>" + TEST_SSID1 + "</string>\n"
             + "<string>" + TEST_SSID2 + "</string>\n"
             + "</set>\n";
-    private static final byte[] TEST_SSID_LIST_XML_BYTES =
-            TEST_SSID_LIST_XML_STRING.getBytes(StandardCharsets.UTF_8);
+    @Mock Clock mClock;
     private DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
 
     @Before
     public void setUp() throws Exception {
-        mDeletedEphemeralSsidsStoreData = new DeletedEphemeralSsidsStoreData();
+        MockitoAnnotations.initMocks(this);
+
+        mDeletedEphemeralSsidsStoreData = new DeletedEphemeralSsidsStoreData(mClock);
     }
 
     /**
@@ -80,12 +90,12 @@ public class DeletedEphemeralSsidsStoreDataTest {
      * @return SSID list
      * @throws Exception
      */
-    private Set<String> deserializeData(byte[] data) throws Exception {
+    private Map<String, Long> deserializeData(byte[] data) throws Exception {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
         mDeletedEphemeralSsidsStoreData.deserializeData(in, in.getDepth());
-        return mDeletedEphemeralSsidsStoreData.getSsidList();
+        return mDeletedEphemeralSsidsStoreData.getSsidToTimeMap();
     }
 
     /**
@@ -129,13 +139,13 @@ public class DeletedEphemeralSsidsStoreDataTest {
      * @throws Exception
      */
     @Test
-    public void serializeSsidList() throws Exception {
-        Set<String> ssidList = new HashSet<>();
-        ssidList.add(TEST_SSID1);
-        ssidList.add(TEST_SSID2);
-        mDeletedEphemeralSsidsStoreData.setSsidList(ssidList);
+    public void serializeSsidToTimeMap() throws Exception {
+        Map<String, Long> ssidToTimeMap = new HashMap<>();
+        ssidToTimeMap.put(TEST_SSID1, TEST_SSID1_TSTAMP);
+        ssidToTimeMap.put(TEST_SSID2, TEST_SSID2_TSTAMP);
+        mDeletedEphemeralSsidsStoreData.setSsidToTimeMap(ssidToTimeMap);
         byte[] actualData = serializeData();
-        assertTrue(Arrays.equals(TEST_SSID_LIST_XML_BYTES, actualData));
+        assertEquals(TEST_SSID_LIST_XML_STRING_MAP, new String(actualData));
     }
 
     /**
@@ -145,10 +155,28 @@ public class DeletedEphemeralSsidsStoreDataTest {
      * @throws Exception
      */
     @Test
-    public void deserializeSsidList() throws Exception {
-        Set<String> ssidList = new HashSet<>();
-        ssidList.add(TEST_SSID1);
-        ssidList.add(TEST_SSID2);
-        assertEquals(ssidList, deserializeData(TEST_SSID_LIST_XML_BYTES));
+    public void deserializeSsidToTimeMap() throws Exception {
+        Map<String, Long> ssidToTimeMap = new HashMap<>();
+        ssidToTimeMap.put(TEST_SSID1, TEST_SSID1_TSTAMP);
+        ssidToTimeMap.put(TEST_SSID2, TEST_SSID2_TSTAMP);
+        assertEquals(ssidToTimeMap, deserializeData(TEST_SSID_LIST_XML_STRING_MAP.getBytes()));
+    }
+
+    /**
+     * Verify that user store SSID list is deserialized correctly using the predefined test XML
+     * data.
+     * This simulates the config store migration from the previous set representation to the new
+     * map of ssid to timestamp representation.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void deserializeSsidToTimeMapFromSet() throws Exception {
+        long currentTimeMs = 67934838L;
+        when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
+        Map<String, Long> ssidToTimeMap = new HashMap<>();
+        ssidToTimeMap.put(TEST_SSID1, currentTimeMs);
+        ssidToTimeMap.put(TEST_SSID2, currentTimeMs);
+        assertEquals(ssidToTimeMap, deserializeData(TEST_SSID_LIST_XML_STRING_SET.getBytes()));
     }
 }
