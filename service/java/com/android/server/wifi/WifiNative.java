@@ -1868,6 +1868,7 @@ public class WifiNative {
     /**
      * EAP-SIM Error Codes
      */
+    public static final int EAP_SIM_NOT_SUBSCRIBED = 1031;
     public static final int EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED = 16385;
 
     /**
