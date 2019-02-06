@@ -3660,10 +3660,12 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_READ_PACKET_FILTER:
                     byte[] data = mWifiNative.readPacketFilter(mInterfaceName);
-                    try {
-                        mIpClient.readPacketFilterComplete(data);
-                    } catch (RemoteException e) {
-                        loge("Error notifying IpClient of packet filter read", e);
+                    if (mIpClient != null) {
+                        try {
+                            mIpClient.readPacketFilterComplete(data);
+                        } catch (RemoteException e) {
+                            loge("Error notifying IpClient of packet filter read", e);
+                        }
                     }
                     break;
                 case CMD_SET_FALLBACK_PACKET_FILTERING:
@@ -4016,10 +4018,12 @@ public class ClientModeImpl extends StateMachine {
                     // DNAv4/DNAv6 -style probing for on-link neighbors of
                     // interest (e.g. routers); harmless if none are configured.
                     if (state == SupplicantState.COMPLETED) {
-                        try {
-                            mIpClient.confirmConfiguration();
-                        } catch (RemoteException e) {
-                            loge("Error confirming IpClient configuration", e);
+                        if (mIpClient != null) {
+                            try {
+                                mIpClient.confirmConfiguration();
+                            } catch (RemoteException e) {
+                                loge("Error confirming IpClient configuration", e);
+                            }
                         }
                         mWifiScoreReport.noteIpCheck();
                     }
@@ -4303,12 +4307,14 @@ public class ClientModeImpl extends StateMachine {
                             startConnectToNetwork(netId, message.sendingUid, SUPPLICANT_BSSID_ANY);
                         } else {
                             if (result.hasProxyChanged()) {
-                                log("Reconfiguring proxy on connection");
-                                try {
-                                    mIpClient.setHttpProxy(toStableParcelable(
-                                            getCurrentWifiConfiguration().getHttpProxy()));
-                                } catch (RemoteException e) {
-                                    loge("Error setting IpClient proxy", e);
+                                if (mIpClient != null) {
+                                    log("Reconfiguring proxy on connection");
+                                    try {
+                                        mIpClient.setHttpProxy(toStableParcelable(
+                                                getCurrentWifiConfiguration().getHttpProxy()));
+                                    } catch (RemoteException e) {
+                                        loge("Error setting IpClient proxy", e);
+                                    }
                                 }
                             }
                             if (result.hasIpChanged()) {
@@ -4847,10 +4853,12 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public void exit() {
-            try {
-                mIpClient.stop();
-            } catch (RemoteException e) {
-                loge("Error stopping IpClient", e);
+            if (mIpClient != null) {
+                try {
+                    mIpClient.stop();
+                } catch (RemoteException e) {
+                    loge("Error stopping IpClient", e);
+                }
             }
 
             // This is handled by receiving a NETWORK_DISCONNECTION_EVENT in ConnectModeState
@@ -4882,10 +4890,12 @@ public class ClientModeImpl extends StateMachine {
                     handlePreDhcpSetup();
                     break;
                 case CMD_PRE_DHCP_ACTION_COMPLETE:
-                    try {
-                        mIpClient.completedPreDhcpAction();
-                    } catch (RemoteException e) {
-                        loge("Error completing PreDhcpAction", e);
+                    if (mIpClient != null) {
+                        try {
+                            mIpClient.completedPreDhcpAction();
+                        } catch (RemoteException e) {
+                            loge("Error completing PreDhcpAction", e);
+                        }
                     }
                     break;
                 case CMD_POST_DHCP_ACTION:
@@ -5002,10 +5012,12 @@ public class ClientModeImpl extends StateMachine {
                                 mWifiInfo, mNetworkAgent, mWifiMetrics);
                         mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         if (mWifiScoreReport.shouldCheckIpLayer()) {
-                            try {
-                                mIpClient.confirmConfiguration();
-                            } catch (RemoteException e) {
-                                loge("Error confirming IpClient configuration", e);
+                            if (mIpClient != null) {
+                                try {
+                                    mIpClient.confirmConfiguration();
+                                } catch (RemoteException e) {
+                                    loge("Error confirming IpClient configuration", e);
+                                }
                             }
                             mWifiScoreReport.noteIpCheck();
                         }
@@ -5161,16 +5173,20 @@ public class ClientModeImpl extends StateMachine {
             // CONNECTED.
             stopIpClient();
 
-            try {
-                mIpClient.setHttpProxy(toStableParcelable(currentConfig.getHttpProxy()));
-            } catch (RemoteException e) {
-                loge("Error setting IpClient proxy", e);
+            if (mIpClient != null) {
+                try {
+                    mIpClient.setHttpProxy(toStableParcelable(currentConfig.getHttpProxy()));
+                } catch (RemoteException e) {
+                    loge("Error setting IpClient proxy", e);
+                }
             }
             if (!TextUtils.isEmpty(mTcpBufferSizes)) {
-                try {
-                    mIpClient.setTcpBufferSizes(mTcpBufferSizes);
-                } catch (RemoteException e) {
-                    loge("Error setting IpClient TCP buffer sizes", e);
+                if (mIpClient != null) {
+                    try {
+                        mIpClient.setTcpBufferSizes(mTcpBufferSizes);
+                    } catch (RemoteException e) {
+                        loge("Error setting IpClient TCP buffer sizes", e);
+                    }
                 }
             }
             final ProvisioningConfiguration prov;
@@ -5191,10 +5207,12 @@ public class ClientModeImpl extends StateMachine {
                             .withDisplayName(currentConfig.SSID)
                             .build();
             }
-            try {
-                mIpClient.startProvisioning(prov.toStableParcelable());
-            } catch (RemoteException e) {
-                loge("Error starting IpClient provisioning", e);
+            if (mIpClient != null) {
+                try {
+                    mIpClient.startProvisioning(prov.toStableParcelable());
+                } catch (RemoteException e) {
+                    loge("Error starting IpClient provisioning", e);
+                }
             }
             // Get Link layer stats so as we get fresh tx packet counters
             getWifiLinkLayerStats();
