@@ -283,6 +283,65 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies the addition of a single network when the corresponding ephemeral network exists.
+     */
+    @Test
+    public void testAddSingleOpenNetworkWhenCorrespondingEphemeralNetworkExists() throws Exception {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(openNetwork);
+        WifiConfiguration ephemeralNetwork = new WifiConfiguration(openNetwork);
+        ephemeralNetwork.ephemeral = true;
+
+        verifyAddEphemeralNetworkToWifiConfigManager(ephemeralNetwork);
+
+        NetworkUpdateResult result = addNetworkToWifiConfigManager(openNetwork);
+        assertTrue(result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
+        assertTrue(result.isNewNetwork());
+
+        verifyNetworkRemoveBroadcast(ephemeralNetwork);
+        verifyNetworkAddBroadcast(openNetwork);
+
+        // Verify that the config store write was triggered with this new configuration.
+        verifyNetworkInConfigStoreData(openNetwork);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+
+        // Ensure that the newly added network is disabled.
+        assertEquals(WifiConfiguration.Status.DISABLED, retrievedNetworks.get(0).status);
+    }
+
+    /**
+     * Verifies the addition of an ephemeral network when the corresponding ephemeral network
+     * exists.
+     */
+    @Test
+    public void testAddEphemeralNetworkWhenCorrespondingEphemeralNetworkExists() throws Exception {
+        WifiConfiguration ephemeralNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        ephemeralNetwork.ephemeral = true;
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(ephemeralNetwork);
+
+        WifiConfiguration ephemeralNetwork2 = new WifiConfiguration(ephemeralNetwork);
+        verifyAddEphemeralNetworkToWifiConfigManager(ephemeralNetwork);
+
+        NetworkUpdateResult result = addNetworkToWifiConfigManager(ephemeralNetwork2);
+        assertTrue(result.getNetworkId() != WifiConfiguration.INVALID_NETWORK_ID);
+        verifyNetworkUpdateBroadcast(ephemeralNetwork);
+
+        // Ensure that the write was not invoked for ephemeral network addition.
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+    }
+
+    /**
      * Verifies when adding a new network with already saved MAC, the saved MAC gets set to the
      * internal WifiConfiguration.
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
