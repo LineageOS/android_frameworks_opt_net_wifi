@@ -25,7 +25,6 @@ import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConf
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
@@ -37,6 +36,7 @@ import androidx.test.filters.SmallTest;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Unit tests for {@link com.android.server.wifi.NetworkSuggestionEvaluator}.
@@ -147,12 +148,9 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[0] , candidate.SSID);
 
-        assertEquals(1, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
+        validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
-        verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration,
-                scanDetails[0].getScanResult());
+        verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration);
     }
 
     /**
@@ -183,7 +181,8 @@ public class NetworkSuggestionEvaluatorTest {
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
-        setupAddToWifiConfigManager(suggestions[1].wifiConfiguration);
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+                suggestions[1].wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
         WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
@@ -195,16 +194,10 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[1] , candidate.SSID);
 
-        assertEquals(2, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertEquals(suggestionSsids[1], connectableNetworks.get(1).second.SSID);
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
-        assertEquals(scanSsids[1], connectableNetworks.get(1).first.getScanResult().SSID);
+        validateConnectableNetworks(connectableNetworks, scanSsids);
 
-        verify(mWifiConfigManager).getConfiguredNetwork(eq(
-                suggestions[0].wifiConfiguration.configKey()));
-        verifyAddToWifiConfigManager(suggestions[1].wifiConfiguration,
-                scanDetails[1].getScanResult());
+        verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+                suggestions[1].wifiConfiguration);
     }
 
     /**
@@ -239,7 +232,8 @@ public class NetworkSuggestionEvaluatorTest {
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
-        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+                suggestions[1].wifiConfiguration, suggestions[2].wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
         WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
@@ -251,19 +245,10 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[0] , candidate.SSID);
 
-        assertEquals(2, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertTrue(suggestionSsids[1].equals(connectableNetworks.get(1).second.SSID)
-                || suggestionSsids[2].equals(connectableNetworks.get(1).second.SSID));
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
-        assertEquals(scanSsids[1], connectableNetworks.get(1).first.getScanResult().SSID);
+        validateConnectableNetworks(connectableNetworks, scanSsids);
 
-        verify(mWifiConfigManager, atLeastOnce()).getConfiguredNetwork(eq(
-                suggestions[0].wifiConfiguration.configKey()));
-        verify(mWifiConfigManager).getConfiguredNetwork(eq(
-                suggestions[1].wifiConfiguration.configKey()));
         verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration,
-                scanDetails[0].getScanResult());
+                suggestions[1].wifiConfiguration);
     }
 
     /**
@@ -305,15 +290,16 @@ public class NetworkSuggestionEvaluatorTest {
                 });
 
         assertNull(candidate);
+        assertTrue(connectableNetworks.isEmpty());
 
-        // Connectable networks should still be populated.
-        assertEquals(1, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
-
-        verify(mWifiConfigManager, times(2)).getConfiguredNetwork(eq(
+        verify(mWifiConfigManager, times(suggestionSsids.length))
+                .wasEphemeralNetworkDeleted(anyString());
+        verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
         verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt(), anyString());
+        // Verify we did not try to add any new networks or other interactions with
+        // WifiConfigManager.
+        verifyNoMoreInteractions(mWifiConfigManager);
     }
 
     /**
@@ -357,14 +343,12 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[0] , candidate.SSID);
 
-        assertEquals(1, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
+        validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
         // check for any saved networks.
         verify(mWifiConfigManager, times(suggestionSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
-        verify(mWifiConfigManager, times(2)).getConfiguredNetwork(candidate.configKey());
+        verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
         verifyNoMoreInteractions(mWifiConfigManager);
@@ -526,13 +510,11 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[0] , candidate.SSID);
 
-        assertEquals(1, connectableNetworks.size());
-        assertEquals(suggestionSsids[0], connectableNetworks.get(0).second.SSID);
-        assertEquals(scanSsids[0], connectableNetworks.get(0).first.getScanResult().SSID);
+        validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
         verify(mWifiConfigManager, times(suggestionSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
-        verify(mWifiConfigManager, times(2)).getConfiguredNetwork(eq(
+        verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
         verify(mWifiConfigManager).tryEnableNetwork(eq(
                 suggestions[0].wifiConfiguration.networkId));
@@ -541,36 +523,60 @@ public class NetworkSuggestionEvaluatorTest {
         verifyNoMoreInteractions(mWifiConfigManager);
     }
 
-    private void setupAddToWifiConfigManager(WifiConfiguration candidate) {
-        // setup & verify the WifiConfigmanager interactions for adding/enabling the network.
-        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt(), anyString()))
-                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
-        when(mWifiConfigManager.updateNetworkSelectionStatus(eq(TEST_NETWORK_ID), anyInt()))
-                .thenReturn(true);
-        candidate.networkId  = TEST_NETWORK_ID;
-        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID))
-                .thenReturn(candidate);
+    private void setupAddToWifiConfigManager(WifiConfiguration...candidates) {
+        for (int i = 0; i < candidates.length; i++) {
+            WifiConfiguration candidate = candidates[i];
+            // setup & verify the WifiConfigmanager interactions for adding/enabling the network.
+            when(mWifiConfigManager.addOrUpdateNetwork(
+                    argThat(new WifiConfigMatcher(candidate)), anyInt(), anyString()))
+                    .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID + i));
+            when(mWifiConfigManager.updateNetworkSelectionStatus(eq(TEST_NETWORK_ID + i), anyInt()))
+                    .thenReturn(true);
+            candidate.networkId = TEST_NETWORK_ID + i;
+            when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID + i))
+                    .thenReturn(candidate);
+        }
     }
 
-    private void verifyAddToWifiConfigManager(WifiConfiguration candidate,
-                                              ScanResult scanResultCandidate) {
+    class WifiConfigMatcher implements ArgumentMatcher<WifiConfiguration> {
+        private final WifiConfiguration mConfig;
+
+        WifiConfigMatcher(WifiConfiguration config) {
+            assertNotNull(config);
+            mConfig = config;
+        }
+
+        @Override
+        public boolean matches(WifiConfiguration otherConfig) {
+            if (otherConfig == null) return false;
+            return mConfig.configKey().equals(otherConfig.configKey());
+        }
+    }
+
+    private void verifyAddToWifiConfigManager(WifiConfiguration...candidates) {
         // check for any saved networks.
-        verify(mWifiConfigManager, atLeastOnce()).getConfiguredNetwork(
-                candidate.configKey());
+        verify(mWifiConfigManager, times(candidates.length)).getConfiguredNetwork(anyString());
 
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
-        verify(mWifiConfigManager).addOrUpdateNetwork(wifiConfigurationCaptor.capture(),
-                anyInt(), anyString());
-        WifiConfiguration addedWifiConfiguration = wifiConfigurationCaptor.getValue();
-        assertNotNull(addedWifiConfiguration);
-        assertTrue(addedWifiConfiguration.ephemeral);
-        assertTrue(addedWifiConfiguration.fromWifiNetworkSuggestion);
-        assertEquals(candidate.SSID, addedWifiConfiguration.SSID);
+        verify(mWifiConfigManager, times(candidates.length)).addOrUpdateNetwork(
+                wifiConfigurationCaptor.capture(), anyInt(), anyString());
+        for (int i = 0; i < candidates.length; i++) {
+            WifiConfiguration addedWifiConfiguration = null;
+            for (WifiConfiguration configuration : wifiConfigurationCaptor.getAllValues()) {
+                if (configuration.SSID.equals(candidates[i].SSID)) {
+                    addedWifiConfiguration = configuration;
+                    break;
+                }
+            }
+            assertNotNull(addedWifiConfiguration);
+            assertTrue(addedWifiConfiguration.ephemeral);
+            assertTrue(addedWifiConfiguration.fromWifiNetworkSuggestion);
+        }
 
-        verify(mWifiConfigManager).updateNetworkSelectionStatus(
-                eq(TEST_NETWORK_ID), anyInt());
-        verify(mWifiConfigManager).getConfiguredNetwork(eq(TEST_NETWORK_ID));
+        verify(mWifiConfigManager, times(candidates.length)).updateNetworkSelectionStatus(
+                anyInt(), anyInt());
+        verify(mWifiConfigManager, times(candidates.length)).getConfiguredNetwork(anyInt());
     }
 
     /**
@@ -666,5 +672,19 @@ public class NetworkSuggestionEvaluatorTest {
             when(mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
                     eq(lastScanDetail))).thenReturn((matchingSuggestions));
         }
+    }
+
+    private void validateConnectableNetworks(List<Pair<ScanDetail, WifiConfiguration>> actual,
+                                             String[] expectedSsids) {
+        Set<String> expectedSsidSet = new HashSet<String>(Arrays.asList(expectedSsids));
+        assertEquals(expectedSsidSet.size(), actual.size());
+
+        for (Pair<ScanDetail, WifiConfiguration> candidate : actual) {
+            // check if the scan detail matches the wificonfiguration.
+            assertEquals("\"" + candidate.first.getSSID() + "\"", candidate.second.SSID);
+            // check if both match one of the expected ssid's.
+            assertTrue(expectedSsidSet.remove(candidate.first.getSSID()));
+        }
+        assertTrue(expectedSsidSet.isEmpty());
     }
 }
