@@ -977,12 +977,14 @@ public class WifiServiceImpl extends BaseWifiService {
                     sendHotspotStartedMessageToAllLOHSRequestInfoEntriesLocked();
                     break;
                 case WifiManager.IFACE_IP_MODE_TETHERED:
-                    // we have tethered an interface. we don't really act on this now other than if
-                    // we have LOHS requests, and this is an issue.  return incompatible mode for
-                    // onFailed for the registered requestors since this can result from a race
-                    // between a tether request and a hotspot request (tethering wins).
-                    sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
-                            LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE);
+                    if (!isConcurrentLohsAndTetheringSupported()) {
+                        /* We have tethered an interface. We don't really act on this now other than
+                         * if we have LOHS requests, and this is an issue. Return incompatible mode
+                         * for onFailed for the registered requestors since this can result from a
+                         * race between a tether request and a hotspot request (tethering wins). */
+                        sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
+                                LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE);
+                    }
                     break;
                 case WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR:
                     Slog.d(TAG, "IP mode config error - need to clean up");
@@ -1029,7 +1031,7 @@ public class WifiServiceImpl extends BaseWifiService {
         synchronized (mLocalOnlyHotspotRequests) {
             // If a tethering request comes in while we have LOHS running (or requested), call stop
             // for softap mode and restart softap with the tethering config.
-            if (!mLocalOnlyHotspotRequests.isEmpty()) {
+            if (!isConcurrentLohsAndTetheringSupported() && !mLocalOnlyHotspotRequests.isEmpty()) {
                 stopSoftApInternal();
             }
             return startSoftApInternal(wifiConfig, WifiManager.IFACE_IP_MODE_TETHERED);
@@ -1395,9 +1397,7 @@ public class WifiServiceImpl extends BaseWifiService {
 
         synchronized (mLocalOnlyHotspotRequests) {
             // check if we are currently tethering
-            // TODO(b/110697252): handle all configurations in the wifi stack
-            //                    (just by changing the HAL)
-            if (getMaxApInterfacesCount() < 2
+            if (!isConcurrentLohsAndTetheringSupported()
                     && mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
                 // Tethering is enabled, cannot start LocalOnlyHotspot
                 mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.").flush();
@@ -2385,6 +2385,11 @@ public class WifiServiceImpl extends BaseWifiService {
         //TODO (b/123227116): pull it from the HAL
         return mContext.getResources().getInteger(
                 com.android.internal.R.integer.config_wifi_max_ap_interfaces);
+    }
+
+    private boolean isConcurrentLohsAndTetheringSupported() {
+        // TODO(b/110697252): handle all configurations in the wifi stack (just by changing the HAL)
+        return getMaxApInterfacesCount() >= 2;
     }
 
     /**
