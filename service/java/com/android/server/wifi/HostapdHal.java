@@ -334,7 +334,10 @@ public class HostapdHal {
                     if (mEnableAcs) {
                         ifaceParams1_1.channelParams.acsChannelRanges.addAll(mAcsChannelRanges);
                     }
-                    status = getHostapdMockableV1_1().addAccessPoint_1_1(ifaceParams1_1, nwParams);
+                    android.hardware.wifi.hostapd.V1_1.IHostapd iHostapdV1_1 =
+                            getHostapdMockableV1_1();
+                    if (iHostapdV1_1 == null) return false;
+                    status = iHostapdV1_1.addAccessPoint_1_1(ifaceParams1_1, nwParams);
                 } else {
                     status = mIHostapd.addAccessPoint(ifaceParams, nwParams);
                 }
