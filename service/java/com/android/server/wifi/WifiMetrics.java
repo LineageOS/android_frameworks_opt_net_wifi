@@ -3060,6 +3060,7 @@ public class WifiMetrics {
             mMobilityStatePnoStatsMap.clear();
             mWifiP2pMetrics.clear();
             mDppMetrics.clear();
+            mWifiUsabilityStatsCounter = 0;
         }
     }
 
