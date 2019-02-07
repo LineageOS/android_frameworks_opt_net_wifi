@@ -49,6 +49,9 @@ public class WifiCandidates {
         public final WifiConfiguration config;
         public final int evaluatorIndex;        // First evaluator to nominate this config
         public final int evaluatorScore;        // Score provided by first nominating evaluator
+        public final double lastSelectionWeight; // Value between 0 and 1
+                                                 // 1.0 means recently selected by user or app,
+                                                 // 0.0 means not recently selected by user or app.
 
         private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
 
@@ -57,13 +60,15 @@ public class WifiCandidates {
                          WifiConfiguration config,
                          int evaluatorIndex,
                          int evaluatorScore,
-                         WifiScoreCard.PerBssid perBssid) {
+                         WifiScoreCard.PerBssid perBssid,
+                         double lastSelectionWeight) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
             this.evaluatorIndex = evaluatorIndex;
             this.evaluatorScore = evaluatorScore;
             this.mPerBssid = perBssid;
+            this.lastSelectionWeight = lastSelectionWeight;
         }
 
         public int getScanRssi() {
@@ -177,7 +182,8 @@ public class WifiCandidates {
     public boolean add(ScanDetail scanDetail,
                     WifiConfiguration config,
                     int evaluatorIndex,
-                    int evaluatorScore) {
+                    int evaluatorScore,
+                    double lastSelectionWeightBetweenZeroAndOne) {
         if (config == null) return failure();
         if (scanDetail == null) return failure();
         ScanResult scanResult = scanDetail.getScanResult();
@@ -207,9 +213,17 @@ public class WifiCandidates {
                 WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
         perBssid.setNetworkConfigId(config.networkId);
         Candidate candidate = new Candidate(key,
-                scanDetail, config, evaluatorIndex, evaluatorScore, perBssid);
+                scanDetail, config, evaluatorIndex, evaluatorScore, perBssid,
+                Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0));
         mCandidates.put(key, candidate);
         return true;
+    }
+    /** Adds a new candidate with no user selection weight. */
+    public boolean add(ScanDetail scanDetail,
+                    WifiConfiguration config,
+                    int evaluatorIndex,
+                    int evaluatorScore) {
+        return add(scanDetail, config, evaluatorIndex, evaluatorScore, 0.0);
     }
 
     /**
