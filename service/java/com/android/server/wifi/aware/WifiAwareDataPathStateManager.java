@@ -382,10 +382,11 @@ public class WifiAwareDataPathStateManager {
 
             // potential transmission mechanism for port/transport-protocol information from
             // Responder (alternative to confirm message)
-            Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
+            NetworkInformationData.ParsedResults peerServerInfo = NetworkInformationData.parseTlv(
+                    message);
             if (peerServerInfo != null) {
-                nnriE.getValue().peerPort = peerServerInfo.first;
-                nnriE.getValue().peerTransportProtocol = peerServerInfo.second;
+                nnriE.getValue().peerPort = peerServerInfo.port;
+                nnriE.getValue().peerTransportProtocol = peerServerInfo.transportProtocol;
             }
 
             return null; // ignore this for NDP set up flow: it is used to obtain app_info from Resp
@@ -572,10 +573,11 @@ public class WifiAwareDataPathStateManager {
             // only relevant for the initiator
             if (nnri.networkSpecifier.role
                     == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR) {
-                Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
+                NetworkInformationData.ParsedResults peerServerInfo =
+                        NetworkInformationData.parseTlv(message);
                 if (peerServerInfo != null) {
-                    nnri.peerPort = peerServerInfo.first;
-                    nnri.peerTransportProtocol = peerServerInfo.second;
+                    nnri.peerPort = peerServerInfo.port;
+                    nnri.peerTransportProtocol = peerServerInfo.transportProtocol;
                 }
             }
 
@@ -1479,10 +1481,20 @@ public class WifiAwareDataPathStateManager {
             return tlvc.getArray();
         }
 
+        static class ParsedResults {
+            ParsedResults(int port, int transportProtocol) {
+                this.port = port;
+                this.transportProtocol = transportProtocol;
+            }
+
+            public int port = 0;
+            public int transportProtocol = -1;
+        }
+
         /**
          * Parse the TLV and return <port, transportProtocol>.
          */
-        public static Pair<Integer, Integer> parseTlv(byte[] tlvs) {
+        public static ParsedResults parseTlv(byte[] tlvs) {
             int port = 0;
             int transportProtocol = -1;
 
@@ -1517,7 +1529,7 @@ public class WifiAwareDataPathStateManager {
             if (port == 0 && transportProtocol == -1) {
                 return null;
             }
-            return Pair.create(port, transportProtocol);
+            return new ParsedResults(port, transportProtocol);
         }
 
         private static Pair<Integer, Integer> parseServiceInfoTlv(byte[] tlv) {
