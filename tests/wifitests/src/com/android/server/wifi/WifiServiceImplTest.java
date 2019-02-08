@@ -1149,6 +1149,28 @@ public class WifiServiceImplTest {
      * Only start LocalOnlyHotspot if we are not tethering.
      */
     @Test
+    public void testTetheringDoesNotStartWhenAlreadyTetheringActive() throws Exception {
+        setupClientModeImplHandlerForPost();
+
+        WifiConfiguration config = createValidSoftApConfiguration();
+        assertTrue(mWifiServiceImpl.startSoftAp(config));
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+        assertEquals(config, mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+
+        // Start another session without a stop, that should fail.
+        assertFalse(mWifiServiceImpl.startSoftAp(createValidSoftApConfiguration()));
+
+        verifyNoMoreInteractions(mWifiController);
+    }
+
+    /**
+     * Only start LocalOnlyHotspot if we are not tethering.
+     */
+    @Test
     public void testHotspotDoesNotStartWhenAlreadyTethering() throws Exception {
         setupClientModeImplHandlerForPost();
 

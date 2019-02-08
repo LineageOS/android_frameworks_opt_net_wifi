@@ -1029,6 +1029,12 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
         synchronized (mLocalOnlyHotspotRequests) {
+            // If a tethering request comes in while we have an existing tethering session, return
+            // error.
+            if (mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
+                mLog.err("Tethering is already active.").flush();
+                return false;
+            }
             // If a tethering request comes in while we have LOHS running (or requested), call stop
             // for softap mode and restart softap with the tethering config.
             if (!isConcurrentLohsAndTetheringSupported() && !mLocalOnlyHotspotRequests.isEmpty()) {
@@ -1399,6 +1405,7 @@ public class WifiServiceImpl extends BaseWifiService {
 
         synchronized (mLocalOnlyHotspotRequests) {
             // check if we are currently tethering
+            // TODO(b/123227116): handle all interface combinations just by changing the HAL.
             if (!isConcurrentLohsAndTetheringSupported()
                     && mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
                 // Tethering is enabled, cannot start LocalOnlyHotspot
