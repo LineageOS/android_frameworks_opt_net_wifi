@@ -853,11 +853,13 @@ public class WifiServiceImplTest {
     static final String TEST_SSID_WITH_QUOTES = "\"" + TEST_SSID + "\"";
     static final String TEST_BSSID = "01:02:03:04:05:06";
     static final String TEST_PACKAGE = "package";
+    static final int TEST_NETWORK_ID = 567;
 
     private void setupForGetConnectionInfo() {
         WifiInfo wifiInfo = new WifiInfo();
         wifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(TEST_SSID));
         wifiInfo.setBSSID(TEST_BSSID);
+        wifiInfo.setNetworkId(TEST_NETWORK_ID);
         when(mClientModeImpl.syncRequestConnectionInfo()).thenReturn(wifiInfo);
     }
 
@@ -876,6 +878,7 @@ public class WifiServiceImplTest {
 
         assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
@@ -893,6 +896,7 @@ public class WifiServiceImplTest {
 
         assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
@@ -907,6 +911,7 @@ public class WifiServiceImplTest {
 
         assertEquals(TEST_SSID_WITH_QUOTES, connectionInfo.getSSID());
         assertEquals(TEST_BSSID, connectionInfo.getBSSID());
+        assertEquals(TEST_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
