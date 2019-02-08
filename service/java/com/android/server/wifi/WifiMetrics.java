@@ -531,6 +531,8 @@ public class WifiMetrics {
                 sb.append(mScreenOn);
                 sb.append(". mRouterFingerprint: ");
                 sb.append(mRouterFingerPrint.toString());
+                sb.append(", useRandomizedMac=");
+                sb.append(mConnectionEvent.useRandomizedMac);
             }
             return sb.toString();
         }
@@ -830,6 +832,9 @@ public class WifiMetrics {
             mConnectionEventList.add(mCurrentConnectionEvent);
             mScanResultRssiTimestampMillis = -1;
             if (config != null) {
+                mCurrentConnectionEvent.mConnectionEvent.useRandomizedMac =
+                        config.macRandomizationSetting
+                        == WifiConfiguration.RANDOMIZATION_PERSISTENT;
                 ScanResult candidate = config.getNetworkSelectionStatus().getCandidate();
                 if (candidate != null) {
                     // Cache the RSSI of the candidate, as the connection event level is updated
