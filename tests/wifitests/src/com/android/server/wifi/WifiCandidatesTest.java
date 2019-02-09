@@ -253,8 +253,8 @@ public class WifiCandidatesTest {
         assertEquals(0, mWifiCandidates.size());
         assertEquals(0, mWifiCandidates.getGroupedCandidates().size());
         // Check that we have the right scan details, in either order
-        assertTrue((mScanDetail1 == c1.scanDetail && mScanDetail2 == c2.scanDetail)
-                || (mScanDetail2 == c1.scanDetail && mScanDetail1 == c2.scanDetail));
+        assertTrue((mScanDetail1 == c1.getScanDetail() && mScanDetail2 == c2.getScanDetail())
+                || (mScanDetail2 == c1.getScanDetail() && mScanDetail1 == c2.getScanDetail()));
     }
 
     /**
@@ -277,7 +277,7 @@ public class WifiCandidatesTest {
         // Make sure we kept the one with a higher evaluatorScore
         WifiCandidates.Candidate c;
         c = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
-        assertEquals(15, c.evaluatorScore);
+        assertEquals(15, c.getEvaluatorScore());
     }
 
 }

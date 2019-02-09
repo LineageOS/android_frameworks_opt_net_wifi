@@ -58,7 +58,7 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
      */
     private ScoredCandidate scoreCandidate(Candidate candidate) {
         // Start with the score that the evaluator supplied
-        int score = candidate.evaluatorScore;
+        int score = candidate.getEvaluatorScore();
         if (score == 0) {
             // If the evaluator simply returned a score of zero, supply one based on the RSSI
             int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
@@ -81,14 +81,14 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
             // - skipping award for equivalent / same BSSID
             //       config_wifi_framework_SAME_BSSID_AWARD
             //           = 24
-            if (!WifiConfigurationUtil.isConfigForOpenNetwork(candidate.config)) {
+            if (!candidate.isOpenNetwork()) {
                 score += SECURITY_AWARD_IS_80;
             }
         }
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        score -= 1000 * candidate.evaluatorIndex;
+        score -= 1000 * candidate.getEvaluatorIndex();
 
         return new ScoredCandidate(score, 10, candidate);
     }

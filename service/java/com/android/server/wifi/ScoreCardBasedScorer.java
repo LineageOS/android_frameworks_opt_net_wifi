@@ -72,10 +72,10 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         if (candidate.getFrequency() >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             score += BAND_5GHZ_AWARD_IS_40;
         }
-        if (!WifiConfigurationUtil.isConfigForOpenNetwork(candidate.config)) {
+        if (candidate.isOpenNetwork()) {
             score += SECURITY_AWARD_IS_80;
         }
-        score += (int) (candidate.lastSelectionWeight * LAST_SELECTION_AWARD_IS_480);
+        score += (int) (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);
         // XXX - skipping award for same network
         //        config_wifi_framework_current_network_boost = 16
         // XXX - skipping award for equivalent / same BSSID
@@ -83,7 +83,7 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        score -= 1000 * candidate.evaluatorIndex;
+        score -= 1000 * candidate.getEvaluatorIndex();
 
         return new ScoredCandidate(score, 10, candidate);
     }
