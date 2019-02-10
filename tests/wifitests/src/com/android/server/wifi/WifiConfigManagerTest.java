@@ -336,6 +336,42 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that when a network is read from xml storage, it is assigned a randomized MAC
+     * address if it doesn't have one yet. Then try removing the network and then add it back
+     * again and verify the randomized MAC didn't change.
+     */
+    @Test
+    public void testRandomizedMacAddressIsGeneratedForConfigurationReadFromStore()
+            throws Exception {
+        // Create and add an open network
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        final String defaultMac = openNetwork.getRandomizedMacAddress().toString();
+        List<WifiConfiguration> sharedConfigList = new ArrayList<>();
+        sharedConfigList.add(openNetwork);
+
+        // Setup xml storage
+        setupStoreDataForRead(sharedConfigList, new ArrayList<WifiConfiguration>(),
+                new HashSet<String>());
+        assertTrue(mWifiConfigManager.loadFromStore());
+        verify(mWifiConfigStore).read();
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        // Gets the randomized MAC address of the network added.
+        final String randMac = retrievedNetworks.get(0).getRandomizedMacAddress().toString();
+        // This MAC should be different from the default, uninitialized randomized MAC.
+        assertNotEquals(defaultMac, randMac);
+
+        assertTrue(mWifiConfigManager.removeNetwork(openNetwork.networkId, TEST_CREATOR_UID));
+        assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+
+        // Adds the network back again and verify randomized MAC address stays the same.
+        mWifiConfigManager.addOrUpdateNetwork(openNetwork, TEST_CREATOR_UID);
+        retrievedNetworks = mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        assertEquals(randMac, retrievedNetworks.get(0).getRandomizedMacAddress().toString());
+    }
+
+    /**
      * Verifies the modification of a single network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
      */

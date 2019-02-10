@@ -166,15 +166,14 @@ public class WifiMetrics {
     private WifiLinkLayerStats mLastLinkLayerStats;
     private String mLastBssid;
     private int mLastFrequency = -1;
-    private boolean mIsSameBssidAndFreq = true;
-    private int mSeqNumInsideFramework = -1;
+    private int mSeqNumInsideFramework = 0;
     private int mLastWifiUsabilityScore = -1;
     private int mLastWifiUsabilityScoreNoReset = -1;
     private int mLastPredictionHorizonSec = -1;
     private int mLastPredictionHorizonSecNoReset = -1;
     private int mSeqNumToFramework = -1;
     private int mProbeStatusSinceLastUpdate =
-            android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
+            android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
     private int mProbeElapsedTimeMsSinceLastUpdate = -1;
     private int mProbeMcsRateSinceLastUpdate = -1;
 
@@ -2530,6 +2529,8 @@ public class WifiMetrics {
         line.append(",total_tx_bad=" + entry.totalTxBad);
         line.append(",total_rx_success=" + entry.totalRxSuccess);
         line.append(",total_radio_on_time_ms=" + entry.totalRadioOnTimeMs);
+        line.append(",total_radio_tx_time_ms=" + entry.totalRadioTxTimeMs);
+        line.append(",total_radio_rx_time_ms=" + entry.totalRadioRxTimeMs);
         line.append(",total_scan_time_ms=" + entry.totalScanTimeMs);
         line.append(",total_nan_scan_time_ms=" + entry.totalNanScanTimeMs);
         line.append(",total_background_scan_time_ms=" + entry.totalBackgroundScanTimeMs);
@@ -2540,6 +2541,16 @@ public class WifiMetrics {
         line.append(",wifi_usability_score=" + entry.wifiUsabilityScore);
         line.append(",seq_num_to_framework=" + entry.seqNumToFramework);
         line.append(",prediction_horizon_sec=" + entry.predictionHorizonSec);
+        line.append(",total_cca_busy_freq_time_ms=" + entry.totalCcaBusyFreqTimeMs);
+        line.append(",total_radio_on_freq_time_ms=" + entry.totalRadioOnFreqTimeMs);
+        line.append(",total_beacon_rx=" + entry.totalBeaconRx);
+        line.append(",probe_status_since_last_update=" + entry.probeStatusSinceLastUpdate);
+        line.append(",probe_elapsed_time_ms_since_last_update="
+                + entry.probeElapsedTimeMsSinceLastUpdate);
+        line.append(",probe_mcs_rate_since_last_update=" + entry.probeMcsRateSinceLastUpdate);
+        line.append(",rx_link_speed_mbps=" + entry.rxLinkSpeedMbps);
+        line.append(",seq_num_inside_framework=" + entry.seqNumInsideFramework);
+        line.append(",is_same_bssid_and_freq=" + entry.isSameBssidAndFreq);
         pw.println(line.toString());
     }
 
@@ -3060,6 +3071,19 @@ public class WifiMetrics {
             mMobilityStatePnoStatsMap.clear();
             mWifiP2pMetrics.clear();
             mDppMetrics.clear();
+            mWifiUsabilityStatsCounter = 0;
+            mLastBssid = null;
+            mLastFrequency = -1;
+            mSeqNumInsideFramework = 0;
+            mLastWifiUsabilityScore = -1;
+            mLastWifiUsabilityScoreNoReset = -1;
+            mLastPredictionHorizonSec = -1;
+            mLastPredictionHorizonSecNoReset = -1;
+            mSeqNumToFramework = -1;
+            mProbeStatusSinceLastUpdate =
+                    android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+            mProbeElapsedTimeMsSinceLastUpdate = -1;
+            mProbeMcsRateSinceLastUpdate = -1;
         }
     }
 
@@ -3774,7 +3798,7 @@ public class WifiMetrics {
             }
             wifiUsabilityStatsEntry.totalBeaconRx = stats.beacon_rx;
 
-            mIsSameBssidAndFreq = mLastBssid == null || mLastFrequency == -1
+            boolean isSameBssidAndFreq = mLastBssid == null || mLastFrequency == -1
                     || (mLastBssid.equals(info.getBSSID())
                     && mLastFrequency == info.getFrequency());
             mLastBssid = info.getBSSID();
@@ -3805,6 +3829,8 @@ public class WifiMetrics {
                     mProbeElapsedTimeMsSinceLastUpdate;
             wifiUsabilityStatsEntry.probeMcsRateSinceLastUpdate = mProbeMcsRateSinceLastUpdate;
             wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
+            wifiUsabilityStatsEntry.isSameBssidAndFreq = isSameBssidAndFreq;
+            wifiUsabilityStatsEntry.seqNumInsideFramework = mSeqNumInsideFramework;
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
@@ -3813,9 +3839,14 @@ public class WifiMetrics {
             }
 
             // Invoke Wifi usability stats listener.
-            sendWifiUsabilityStats(mSeqNumInsideFramework, mIsSameBssidAndFreq,
+            sendWifiUsabilityStats(mSeqNumInsideFramework, isSameBssidAndFreq,
                     createNewWifiUsabilityStatsEntryParcelable(wifiUsabilityStatsEntry));
+
             mSeqNumInsideFramework++;
+            mProbeStatusSinceLastUpdate =
+                    android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
+            mProbeElapsedTimeMsSinceLastUpdate = -1;
+            mProbeMcsRateSinceLastUpdate = -1;
         }
     }
 
@@ -3895,6 +3926,8 @@ public class WifiMetrics {
         out.probeElapsedTimeMsSinceLastUpdate = s.probeElapsedTimeMsSinceLastUpdate;
         out.probeMcsRateSinceLastUpdate = s.probeMcsRateSinceLastUpdate;
         out.rxLinkSpeedMbps = s.rxLinkSpeedMbps;
+        out.isSameBssidAndFreq = s.isSameBssidAndFreq;
+        out.seqNumInsideFramework = s.seqNumInsideFramework;
         return out;
     }
 
@@ -4064,6 +4097,7 @@ public class WifiMetrics {
             return;
         }
         synchronized (mLock) {
+            mSeqNumToFramework = seqNum;
             mLastWifiUsabilityScore = score;
             mLastWifiUsabilityScoreNoReset = score;
             mWifiUsabilityScoreCounts.put(score, mWifiUsabilityScoreCounts.get(score) + 1);
@@ -4102,6 +4136,11 @@ public class WifiMetrics {
      */
     public void logLinkProbeSuccess(long startTimestampMs, long timeSinceLastTxSuccessMs,
             int rssi, int linkSpeed, int elapsedTimeMs) {
+        synchronized (mLock) {
+            mProbeStatusSinceLastUpdate =
+                    android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
+            mProbeElapsedTimeMsSinceLastUpdate = elapsedTimeMs;
+        }
         // TODO(b/112029045): aggregate metrics
     }
 
@@ -4118,6 +4157,11 @@ public class WifiMetrics {
      */
     public void logLinkProbeFailure(long startTimestampMs, long timeSinceLastTxSuccessMs,
             int rssi, int linkSpeed, @WifiNative.SendMgmtFrameError int reason) {
+        synchronized (mLock) {
+            mProbeStatusSinceLastUpdate =
+                    android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
+            mProbeElapsedTimeMsSinceLastUpdate = Integer.MAX_VALUE;
+        }
         // TODO(b/112029045): aggregate metrics
     }
 }

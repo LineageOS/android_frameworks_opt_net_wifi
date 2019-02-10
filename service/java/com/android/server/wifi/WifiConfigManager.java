@@ -2977,6 +2977,16 @@ public class WifiConfigManager {
     }
 
     /**
+     * Generate randomized MAC addresses for configured networks and persist mapping to storage.
+     */
+    private void generateRandomizedMacAddresses() {
+        for (WifiConfiguration config : getInternalConfiguredNetworks()) {
+            mRandomizedMacAddressMapping.put(config.configKey(),
+                    config.getOrCreateRandomizedMacAddress().toString());
+        }
+    }
+
+    /**
      * Helper function to populate the internal (in-memory) data from the retrieved stores (file)
      * data.
      * This method:
@@ -2997,6 +3007,7 @@ public class WifiConfigManager {
         clearInternalData();
         loadInternalDataFromSharedStore(sharedConfigurations, macAddressMapping);
         loadInternalDataFromUserStore(userConfigurations, deletedEphemeralSSIDs);
+        generateRandomizedMacAddresses();
         if (mConfiguredNetworks.sizeForAllUsers() == 0) {
             Log.w(TAG, "No stored networks found.");
         }
