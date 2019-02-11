@@ -43,9 +43,11 @@ import com.android.server.wifi.util.NativeUtil;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -328,7 +330,7 @@ public class WifiScoreCard {
 
     final class PerBssid {
         public int id;
-        public final UUID l2Key;
+        public final String l2Key;
         public final String ssid;
         public final MacAddress bssid;
         public boolean changed;
@@ -340,8 +342,9 @@ public class WifiScoreCard {
         PerBssid(String ssid, MacAddress bssid) {
             this.ssid = ssid;
             this.bssid = bssid;
-            this.l2Key = computeHashedL2Key(ssid, bssid);
-            this.id = idFromL2Key(this.l2Key);
+            final long hash = computeHashLong(ssid, bssid);
+            this.l2Key = l2KeyFromLong(hash);
+            this.id = idFromLong(hash);
             this.changed = false;
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
@@ -537,7 +540,7 @@ public class WifiScoreCard {
         return count;
     }
 
-    private UUID computeHashedL2Key(String ssid, MacAddress mac) {
+    private long computeHashLong(String ssid, MacAddress mac) {
         byte[][] parts = {
                 // Our seed keeps the L2Keys specific to this device
                 mL2KeySeed.getBytes(),
@@ -560,12 +563,24 @@ public class WifiScoreCard {
                 mashed[p++] = part[j];
             }
         }
-        // Finally, turn that into a UUID
-        return UUID.nameUUIDFromBytes(mashed);
+        // Finally, turn that into a long
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "SHA-256 not supported.");
+            return 0;
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(md.digest(mashed));
+        return buffer.getLong();
     }
 
-    private static int idFromL2Key(UUID l2Key) {
-        return (int) l2Key.getLeastSignificantBits() & 0x7fffffff;
+    private static int idFromLong(long hash) {
+        return (int) hash & 0x7fffffff;
+    }
+
+    private static String l2KeyFromLong(long hash) {
+        return "W" + Long.toHexString(hash);
     }
 
     @VisibleForTesting
