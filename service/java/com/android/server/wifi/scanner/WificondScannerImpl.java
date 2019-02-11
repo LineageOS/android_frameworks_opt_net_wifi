@@ -411,6 +411,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     }
 
     private boolean startHwPnoScan(WifiNative.PnoSettings pnoSettings) {
+        mWifiNative.removeAllNetworks(mIfaceName);
         return mWifiNative.startPnoScan(mIfaceName, pnoSettings);
     }
 
