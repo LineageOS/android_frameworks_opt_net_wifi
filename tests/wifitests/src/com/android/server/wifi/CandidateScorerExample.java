@@ -65,8 +65,10 @@ final class CandidateScorerExample implements WifiCandidates.CandidateScorer {
         if (is5GHz) {
             score += BAND_5GHZ_AWARD_IS_40;
         }
-        // XXX - skipping award for last user selection
+        // Award for last user selection
         //       config_wifi_framework_LAST_SELECTION_AWARD = 480 - (time in minutes since choice)
+        score += (int) (candidate.lastSelectionWeight * 480);
+
         // XXX - skipping award for same network
         //       config_wifi_framework_current_network_boost = 16
         // XXX - skipping award for equivalent / same BSSID
