@@ -532,7 +532,6 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.allowedPairwiseCiphers, actual.allowedPairwiseCiphers);
         assertEquals(expected.shared, actual.shared);
         assertEquals(expected.getIpConfiguration(), actual.getIpConfiguration());
-        assertEquals(expected.macRandomizationSetting, actual.macRandomizationSetting);
     }
 
     /**
