@@ -306,6 +306,7 @@ public class WifiVendorHalTest {
                 when(mHalDeviceManager.isReady()).thenReturn(true);
                 when(mHalDeviceManager.isStarted()).thenReturn(true);
                 mHalDeviceManagerStatusCallbacks.onStatusChanged();
+                mLooper.dispatchAll();
                 return true;
             }
         }).when(mHalDeviceManager).start();
@@ -315,6 +316,7 @@ public class WifiVendorHalTest {
                 when(mHalDeviceManager.isReady()).thenReturn(true);
                 when(mHalDeviceManager.isStarted()).thenReturn(false);
                 mHalDeviceManagerStatusCallbacks.onStatusChanged();
+                mLooper.dispatchAll();
             }
         }).when(mHalDeviceManager).stop();
         when(mHalDeviceManager.createStaIface(anyBoolean(), any(), eq(null)))
@@ -2314,6 +2316,7 @@ public class WifiVendorHalTest {
         // death of the HAL.
         when(mHalDeviceManager.isReady()).thenReturn(false);
         mHalDeviceManagerStatusCallbacks.onStatusChanged();
+        mLooper.dispatchAll();
 
         verify(mVendorHalDeathHandler).onDeath();
     }

@@ -65,6 +65,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.os.test.TestLooper;
 import android.text.TextUtils;
 import android.util.SparseArray;
 
@@ -138,6 +139,7 @@ public class SupplicantStaIfaceHalTest {
             mISupplicantStaIfaceCallbackV1_1;
     android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback
             mISupplicantStaIfaceCallbackV1_2;
+    private TestLooper mLooper = new TestLooper();
     private SupplicantStaIfaceHal mDut;
     private ArgumentCaptor<IHwBinder.DeathRecipient> mServiceManagerDeathCaptor =
             ArgumentCaptor.forClass(IHwBinder.DeathRecipient.class);
@@ -147,12 +149,12 @@ public class SupplicantStaIfaceHalTest {
             ArgumentCaptor.forClass(IHwBinder.DeathRecipient.class);
     private ArgumentCaptor<IServiceNotification.Stub> mServiceNotificationCaptor =
             ArgumentCaptor.forClass(IServiceNotification.Stub.class);
+    private ArgumentCaptor<Long> mDeathRecipientCookieCaptor = ArgumentCaptor.forClass(Long.class);
     private InOrder mInOrder;
 
     private class SupplicantStaIfaceHalSpy extends SupplicantStaIfaceHal {
-        SupplicantStaIfaceHalSpy(Context context, WifiMonitor monitor,
-                                 PropertyService propertyService) {
-            super(context, monitor, propertyService);
+        SupplicantStaIfaceHalSpy() {
+            super(mContext, mWifiMonitor, mPropertyService, mLooper.getLooper());
         }
 
         @Override
@@ -218,7 +220,7 @@ public class SupplicantStaIfaceHalTest {
                 any(IServiceNotification.Stub.class))).thenReturn(true);
         when(mISupplicantMock.linkToDeath(any(IHwBinder.DeathRecipient.class),
                 anyLong())).thenReturn(true);
-        mDut = new SupplicantStaIfaceHalSpy(mContext, mWifiMonitor, mPropertyService);
+        mDut = new SupplicantStaIfaceHalSpy();
     }
 
     /**
@@ -1465,6 +1467,7 @@ public class SupplicantStaIfaceHalTest {
         assertTrue(mDut.registerDeathHandler(mSupplicantHalDeathHandler));
 
         mServiceManagerDeathCaptor.getValue().serviceDied(5L);
+        mLooper.dispatchAll();
 
         assertFalse(mDut.isInitializationComplete());
         verify(mWifiMonitor).broadcastSupplicantDisconnectionEvent(eq(WLAN0_IFACE_NAME));
@@ -1481,11 +1484,30 @@ public class SupplicantStaIfaceHalTest {
         assertTrue(mDut.isInitializationComplete());
         assertTrue(mDut.registerDeathHandler(mSupplicantHalDeathHandler));
 
-        mSupplicantDeathCaptor.getValue().serviceDied(5L);
+        mSupplicantDeathCaptor.getValue().serviceDied(mDeathRecipientCookieCaptor.getValue());
+        mLooper.dispatchAll();
 
         assertFalse(mDut.isInitializationComplete());
         verify(mWifiMonitor).broadcastSupplicantDisconnectionEvent(eq(WLAN0_IFACE_NAME));
         verify(mSupplicantHalDeathHandler).onDeath();
+    }
+
+    /**
+     * Tests the handling of supplicant death notification.
+     */
+    @Test
+    public void testSupplicantStaleDeathCallback() throws Exception {
+        executeAndValidateInitializationSequence();
+        assertNotNull(mSupplicantDeathCaptor.getValue());
+        assertTrue(mDut.isInitializationComplete());
+        assertTrue(mDut.registerDeathHandler(mSupplicantHalDeathHandler));
+
+        mSupplicantDeathCaptor.getValue().serviceDied(mDeathRecipientCookieCaptor.getValue() - 1);
+        mLooper.dispatchAll();
+
+        assertTrue(mDut.isInitializationComplete());
+        verify(mWifiMonitor, never()).broadcastSupplicantDisconnectionEvent(eq(WLAN0_IFACE_NAME));
+        verify(mSupplicantHalDeathHandler, never()).onDeath();
     }
 
     /**
@@ -1513,7 +1535,8 @@ public class SupplicantStaIfaceHalTest {
 
         // Now trigger a death notification and ensure it's handled.
         assertNotNull(mSupplicantDeathCaptor.getValue());
-        mSupplicantDeathCaptor.getValue().serviceDied(5L);
+        mSupplicantDeathCaptor.getValue().serviceDied(mDeathRecipientCookieCaptor.getValue());
+        mLooper.dispatchAll();
 
         // External death notification fires only once!
         verify(mSupplicantHalDeathHandler).onDeath();
@@ -1936,7 +1959,7 @@ public class SupplicantStaIfaceHalTest {
         assertTrue(mDut.isInitializationComplete());
         assertTrue(mDut.setupIface(WLAN0_IFACE_NAME) == shouldSucceed);
         mInOrder.verify(mISupplicantMock).linkToDeath(mSupplicantDeathCaptor.capture(),
-                anyLong());
+                mDeathRecipientCookieCaptor.capture());
         // verify: listInterfaces is called
         mInOrder.verify(mISupplicantMock).listInterfaces(
                 any(ISupplicant.listInterfacesCallback.class));

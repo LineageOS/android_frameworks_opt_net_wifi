@@ -199,8 +199,9 @@ public class WifiInjector {
         mWifiVendorHal =
                 new WifiVendorHal(mHalDeviceManager, mWifiCoreHandlerThread.getLooper());
         mSupplicantStaIfaceHal =
-                new SupplicantStaIfaceHal(mContext, mWifiMonitor, mPropertyService);
-        mHostapdHal = new HostapdHal(mContext);
+                new SupplicantStaIfaceHal(mContext, mWifiMonitor, mPropertyService,
+                        clientModeImplLooper);
+        mHostapdHal = new HostapdHal(mContext, clientModeImplLooper);
         mWificondControl = new WificondControl(this, mWifiMonitor, mCarrierNetworkConfig,
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 clientModeImplLooper, mClock);

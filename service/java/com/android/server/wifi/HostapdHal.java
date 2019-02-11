@@ -24,7 +24,9 @@ import android.hardware.wifi.hostapd.V1_0.IHostapd;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
+import android.os.Handler;
 import android.os.HwRemoteBinder;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -52,6 +54,7 @@ public class HostapdHal {
 
     private final Object mLock = new Object();
     private boolean mVerboseLoggingEnabled = false;
+    private final Handler mEventHandler;
     private final boolean mEnableAcs;
     private final boolean mEnableIeee80211AC;
     private final List<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange>
@@ -62,6 +65,10 @@ public class HostapdHal {
     private IHostapd mIHostapd;
     private HashMap<String, WifiNative.SoftApListener> mSoftApListeners = new HashMap<>();
     private HostapdDeathEventHandler mDeathEventHandler;
+    private ServiceManagerDeathRecipient mServiceManagerDeathRecipient;
+    private HostapdDeathRecipient mHostapdDeathRecipient;
+    // Death recipient cookie registered for current supplicant instance.
+    private long mDeathRecipientCookie = 0;
 
     private final IServiceNotification mServiceNotificationCallback =
             new IServiceNotification.Stub() {
@@ -73,36 +80,47 @@ public class HostapdHal {
                 }
                 if (!initHostapdService()) {
                     Log.e(TAG, "initalizing IHostapd failed.");
-                    hostapdServiceDiedHandler();
+                    hostapdServiceDiedHandler(mDeathRecipientCookie);
                 } else {
                     Log.i(TAG, "Completed initialization of IHostapd.");
                 }
             }
         }
     };
-    private final HwRemoteBinder.DeathRecipient mServiceManagerDeathRecipient =
-            cookie -> {
+    private class ServiceManagerDeathRecipient implements HwRemoteBinder.DeathRecipient {
+        @Override
+        public void serviceDied(long cookie) {
+            mEventHandler.post(() -> {
                 synchronized (mLock) {
                     Log.w(TAG, "IServiceManager died: cookie=" + cookie);
-                    hostapdServiceDiedHandler();
+                    hostapdServiceDiedHandler(mDeathRecipientCookie);
                     mIServiceManager = null; // Will need to register a new ServiceNotification
                 }
-            };
-    private final HwRemoteBinder.DeathRecipient mHostapdDeathRecipient =
-            cookie -> {
+            });
+        }
+    }
+    private class HostapdDeathRecipient implements HwRemoteBinder.DeathRecipient {
+        @Override
+        public void serviceDied(long cookie) {
+            mEventHandler.post(() -> {
                 synchronized (mLock) {
                     Log.w(TAG, "IHostapd/IHostapd died: cookie=" + cookie);
-                    hostapdServiceDiedHandler();
+                    hostapdServiceDiedHandler(cookie);
                 }
-            };
+            });
+        }
+    }
 
-
-    public HostapdHal(Context context) {
+    public HostapdHal(Context context, Looper looper) {
+        mEventHandler = new Handler(looper);
         mEnableAcs = context.getResources().getBoolean(R.bool.config_wifi_softap_acs_supported);
         mEnableIeee80211AC =
                 context.getResources().getBoolean(R.bool.config_wifi_softap_ieee80211ac_supported);
         mAcsChannelRanges = toAcsChannelRanges(context.getResources().getString(
                 R.string.config_wifi_softap_acs_supported_channel_list));
+
+        mServiceManagerDeathRecipient = new ServiceManagerDeathRecipient();
+        mHostapdDeathRecipient = new HostapdDeathRecipient();
     }
 
     /**
@@ -150,7 +168,7 @@ public class HostapdHal {
             try {
                 if (!mIServiceManager.linkToDeath(mServiceManagerDeathRecipient, 0)) {
                     Log.wtf(TAG, "Error on linkToDeath on IServiceManager");
-                    hostapdServiceDiedHandler();
+                    hostapdServiceDiedHandler(mDeathRecipientCookie);
                     mIServiceManager = null; // Will need to register a new ServiceNotification
                     return false;
                 }
@@ -200,7 +218,7 @@ public class HostapdHal {
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception while trying to register a listener for IHostapd service: "
                         + e);
-                hostapdServiceDiedHandler();
+                hostapdServiceDiedHandler(mDeathRecipientCookie);
                 mIServiceManager = null; // Will need to register a new ServiceNotification
                 return false;
             }
@@ -216,9 +234,9 @@ public class HostapdHal {
         synchronized (mLock) {
             if (mIHostapd == null) return false;
             try {
-                if (!mIHostapd.linkToDeath(mHostapdDeathRecipient, 0)) {
+                if (!mIHostapd.linkToDeath(mHostapdDeathRecipient, ++mDeathRecipientCookie)) {
                     Log.wtf(TAG, "Error on linkToDeath on IHostapd");
-                    hostapdServiceDiedHandler();
+                    hostapdServiceDiedHandler(mDeathRecipientCookie);
                     return false;
                 }
             } catch (RemoteException e) {
@@ -413,8 +431,12 @@ public class HostapdHal {
     /**
      * Handle hostapd death.
      */
-    private void hostapdServiceDiedHandler() {
+    private void hostapdServiceDiedHandler(long cookie) {
         synchronized (mLock) {
+            if (mDeathRecipientCookie != cookie) {
+                Log.i(TAG, "Ignoring stale death recipient notification");
+                return;
+            }
             clearState();
             if (mDeathEventHandler != null) {
                 mDeathEventHandler.onDeath();
@@ -453,7 +475,7 @@ public class HostapdHal {
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception while trying to start hostapd: "
                         + e);
-                hostapdServiceDiedHandler();
+                hostapdServiceDiedHandler(mDeathRecipientCookie);
                 return false;
             } catch (NoSuchElementException e) {
                 // We're starting the daemon, so expect |NoSuchElementException|.
@@ -622,7 +644,7 @@ public class HostapdHal {
 
     private void handleRemoteException(RemoteException e, String methodStr) {
         synchronized (mLock) {
-            hostapdServiceDiedHandler();
+            hostapdServiceDiedHandler(mDeathRecipientCookie);
             Log.e(TAG, "IHostapd." + methodStr + " failed with exception", e);
         }
     }
