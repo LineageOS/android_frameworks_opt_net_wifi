@@ -16,8 +16,7 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus
-        .DISABLED_NO_INTERNET_TEMPORARY;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE;
 
 import static com.android.server.wifi.ClientModeImpl.CMD_PRE_DHCP_ACTION;
@@ -220,11 +219,10 @@ public class ClientModeImplTest {
     }
 
     private Context getContext() throws Exception {
-        PackageManager pkgMgr = mock(PackageManager.class);
-        when(pkgMgr.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)).thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)).thenReturn(true);
 
         Context context = mock(Context.class);
-        when(context.getPackageManager()).thenReturn(pkgMgr);
+        when(context.getPackageManager()).thenReturn(mPackageManager);
 
         MockContentResolver mockContentResolver = new MockContentResolver();
         mockContentResolver.addProvider(Settings.AUTHORITY,
@@ -377,6 +375,7 @@ public class ClientModeImplTest {
     @Mock UntrustedWifiNetworkFactory mUntrustedWifiNetworkFactory;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock LinkProbeManager mLinkProbeManager;
+    @Mock PackageManager mPackageManager;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -1492,15 +1491,16 @@ public class ClientModeImplTest {
         verify(mPropertyService, never()).set(anyString(), anyString());
     }
 
-    private long testGetSupportedFeaturesCase(long supportedFeatures, boolean rttConfigured) {
+    private long testGetSupportedFeaturesCase(long supportedFeatures, boolean rttDisabled) {
         AsyncChannel channel = mock(AsyncChannel.class);
         Message reply = Message.obtain();
         reply.obj = Long.valueOf(supportedFeatures);
         reset(mPropertyService);  // Ignore calls made in setUp()
         when(channel.sendMessageSynchronously(ClientModeImpl.CMD_GET_SUPPORTED_FEATURES))
                 .thenReturn(reply);
-        when(mPropertyService.getBoolean("config.disable_rtt", false))
-                .thenReturn(rttConfigured);
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)).thenReturn(
+                !rttDisabled);
         return mCmi.syncGetSupportedFeatures(channel);
     }
 
