@@ -39,7 +39,7 @@ import java.util.List;
  */
 public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub {
     private static final String TAG = "SupplicantP2pIfaceCallback";
-    private static final boolean DBG = true;
+    private static boolean sVerboseLoggingEnabled = true;
 
     private final String mInterface;
     private final WifiP2pMonitor mMonitor;
@@ -49,9 +49,15 @@ public class SupplicantP2pIfaceCallback extends ISupplicantP2pIfaceCallback.Stub
         mMonitor = monitor;
     }
 
+    /**
+     * Enable verbose logging for all sub modules.
+     */
+    public static void enableVerboseLogging(int verbose) {
+        sVerboseLoggingEnabled = verbose > 0;
+    }
 
     protected static void logd(String s) {
-        if (DBG) Log.d(TAG, s);
+        if (sVerboseLoggingEnabled) Log.d(TAG, s);
     }
 
     /**
