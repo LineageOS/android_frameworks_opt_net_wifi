@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
@@ -60,6 +61,7 @@ public class ActiveModeWardenTest {
 
     @Mock WifiInjector mWifiInjector;
     @Mock Context mContext;
+    @Mock Resources mResources;
     @Mock WifiNative mWifiNative;
     @Mock WifiApConfigStore mWifiApConfigStore;
     TestLooper mLooper;
@@ -97,8 +99,13 @@ public class ActiveModeWardenTest {
         when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mClientModeManager.getScanMode()).thenReturn(SCAN_WITH_HIDDEN_NETWORKS);
+        when(mContext.getResources()).thenReturn(mResources);
         when(mScanOnlyModeManager.getScanMode()).thenReturn(SCAN_WITHOUT_HIDDEN_NETWORKS);
         when(mSoftApManager.getScanMode()).thenReturn(SCAN_NONE);
+
+        when(mResources.getString(
+                eq(com.android.internal.R.string.wifi_localhotspot_configure_ssid_default)))
+                .thenReturn("AndroidShare");
 
         mActiveModeWarden = createActiveModeWarden();
         mLooper.dispatchAll();
@@ -691,5 +698,45 @@ public class ActiveModeWardenTest {
         // can only be in scan or client, so we should not have a client mode active
         verify(mClientModeManager, never()).dump(eq(null), eq(writer), eq(null));
         verify(mScanOnlyModeManager).dump(eq(null), eq(writer), eq(null));
+    }
+
+    /**
+     * Verify that stopping tethering doesn't stop LOHS.
+     */
+    @Test
+    public void testStopTetheringButNotLOHS() throws Exception {
+        // prepare WiFi configurations
+        when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
+        SoftApModeConfiguration tetherConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
+        WifiConfiguration lohsConfigWC = WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext,
+                WifiConfiguration.AP_BAND_2GHZ);
+        SoftApModeConfiguration lohsConfig =
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_LOCAL_ONLY, lohsConfigWC);
+
+        // mock SoftAPManagers
+        when(mSoftApManager.getIpMode()).thenReturn(WifiManager.IFACE_IP_MODE_TETHERED);
+        when(mWifiInjector.makeSoftApManager(any(WifiManager.SoftApCallback.class),
+                                             eq(tetherConfig)))
+                .thenReturn(mSoftApManager);
+        SoftApManager lohsSoftapManager = mock(SoftApManager.class);
+        when(lohsSoftapManager.getIpMode()).thenReturn(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
+        when(mWifiInjector.makeSoftApManager(any(WifiManager.SoftApCallback.class),
+                                             eq(lohsConfig)))
+                .thenReturn(lohsSoftapManager);
+
+        // enable tethering and LOHS
+        mActiveModeWarden.enterSoftAPMode(tetherConfig);
+        mActiveModeWarden.enterSoftAPMode(lohsConfig);
+        mLooper.dispatchAll();
+        verify(mSoftApManager).start();
+        verify(lohsSoftapManager).start();
+        verify(mBatteryStats).noteWifiOn();
+
+        // disable tethering
+        mActiveModeWarden.stopSoftAPMode(WifiManager.IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+        verify(mSoftApManager).stop();
+        verify(lohsSoftapManager, never()).stop();
     }
 }

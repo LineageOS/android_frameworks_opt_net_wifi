@@ -326,7 +326,7 @@ public class WifiControllerTest {
         mLooper.dispatchAll();
 
         verify(mActiveModeWarden, never()).shutdownWifi();
-        verify(mActiveModeWarden).stopSoftAPMode();
+        verify(mActiveModeWarden).stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
     }
 
     /**
@@ -397,7 +397,7 @@ public class WifiControllerTest {
         mLooper.dispatchAll();
 
         verify(mActiveModeWarden, never()).shutdownWifi();
-        verify(mActiveModeWarden).stopSoftAPMode();
+        verify(mActiveModeWarden).stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
     }
 
     /**
@@ -465,7 +465,7 @@ public class WifiControllerTest {
         mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
         mLooper.dispatchAll();
 
-        verify(mActiveModeWarden).stopSoftAPMode();
+        verify(mActiveModeWarden).stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
     }
 
     /**
@@ -855,9 +855,9 @@ public class WifiControllerTest {
         verify(mActiveModeWarden).enterSoftAPMode(any());
 
         // Turn off SoftAp.
-        mWifiController.sendMessage(CMD_SET_AP, 0);
+        mWifiController.sendMessage(CMD_SET_AP, 0, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
         mLooper.dispatchAll();
-        verify(mActiveModeWarden).stopSoftAPMode();
+        verify(mActiveModeWarden).stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
     }
 
     /**
