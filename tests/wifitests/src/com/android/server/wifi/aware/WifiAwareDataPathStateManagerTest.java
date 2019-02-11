@@ -74,6 +74,7 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.test.TestLooper;
+import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -94,6 +95,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -533,7 +535,7 @@ public class WifiAwareDataPathStateManagerTest {
 
             // (2) get confirmation
             mDut.onDataPathConfirmNotification(ndpId + i, peerDataPathMac, true, 0,
-                    buildTlv(true, port, transportProtocol, true), null);
+                    buildTlv(port, transportProtocol, true), null);
             mMockLooper.dispatchAll();
             if (first) {
                 inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
@@ -658,7 +660,7 @@ public class WifiAwareDataPathStateManagerTest {
         // (6.5) provide a (semi) bogus NDP Requst Indication - mostly bogus on Initiator but
         // may contain the peer's TLVs (in this case it does)
         mDut.onDataPathRequestNotification(0, allZeros, ndpId,
-                buildTlv(true, port, transportProtocol, true));
+                buildTlv(port, transportProtocol, true));
 
         // (7) confirm the NDP creation
         mDut.onDataPathConfirmNotification(ndpId, peerDataPathMac, true, 0, null, null);
@@ -677,7 +679,7 @@ public class WifiAwareDataPathStateManagerTest {
                 peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getAddress(),
                 netInfo.getPeerIpv6Addr().getAddress());
         assertEquals(port, netInfo.getPort());
-        assertEquals(-1, netInfo.getTransportProtocol()); // without port will get a -1 (invalid)
+        assertEquals(transportProtocol, netInfo.getTransportProtocol());
 
         // (8) execute 'post' requests
         for (int i = numRequestsPre; i < numRequestsPre + numRequestsPost; ++i) {
@@ -848,33 +850,30 @@ public class WifiAwareDataPathStateManagerTest {
     }
 
     /**
-     * Verify that an invalid TLV configuration results in the default port (0), and transport
-     * protocol (-1) values.
+     * Verify that an TLV configuration with large port/transport-protocol work correctly.
      */
     @Test
-    public void testDataPathInitiatorNetInfoNoSignature() throws Exception {
+    public void testDataPathInitiatorNetInfoLargeValuesExp1() throws Exception {
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv(false, 5, 10, true), 0, -1);
+                buildTlv((1 << 16) - 1, (1 << 8) - 1, true), (1 << 16) - 1, (1 << 8) - 1);
     }
 
     /**
-     * Verify that an invalid TLV configuration (non-positive port value) results in the default
-     * port (0), and transport protocol (-1) values.
+     * Verify that an TLV configuration with large port/transport-protocol work correctly.
      */
     @Test
-    public void testDataPathInitiatorNetInfoBadPort() throws Exception {
+    public void testDataPathInitiatorNetInfoLargeValuesExp2() throws Exception {
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv(true, -1, 10, true), 0, -1);
+                buildTlv(1 << 15, 1 << 7, true), 1 << 15, 1 << 7);
     }
 
     /**
-     * Verify that an invalid TLV configuration (negative transport protocol value) results in
-     * the default port (0), and transport protocol (-1) values.
+     * Verify that an TLV configuration with large port/transport-protocol work correctly.
      */
     @Test
-    public void testDataPathInitiatorNetInfoBadTransportProtocol() throws Exception {
+    public void testDataPathInitiatorNetInfoLargeValuesExp3() throws Exception {
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv(true, 5, -2, true), 0, -1);
+                buildTlv((1 << 15) - 1, (1 << 7) - 1, true), (1 << 15) - 1, (1 << 7) - 1);
     }
 
     /**
@@ -1051,6 +1050,42 @@ public class WifiAwareDataPathStateManagerTest {
     @Test
     public void testDataPathResponderUidSetIncorrectlyError() throws Exception {
         testDataPathInitiatorResponderInvalidUidUtility(true, true);
+    }
+
+    /**
+     * Validate the TLV generation based on a test vector manually generated from spec.
+     */
+    @Test
+    public void testTlvGenerationTestVectorPortTransportProtocol() {
+        int port = 7000;
+        int transportProtocol = 6;
+
+        byte[] tlvData = WifiAwareDataPathStateManager.NetworkInformationData.buildTlv(port,
+                transportProtocol);
+        byte[] testVector =
+                new byte[]{0x01, 0x0d, 0x00, 0x50, 0x6f, (byte) 0x9a, 0x02, 0x00, 0x02, 0x00, 0x58,
+                        0x1b, 0x01, 0x01, 0x00, 0x06};
+
+        assertArrayEquals(testVector, tlvData);
+    }
+
+    /**
+     * Validate the TLV parsing based on a test vector of the port + transport protocol manually
+     * generated from spec.
+     */
+    @Test
+    public void testTlvParsingTestVectorPortTransportProtocol() {
+        int port = 7000;
+        int transportProtocol = 6;
+
+        byte[] testVector =
+                new byte[]{0x01, 0x0d, 0x00, 0x50, 0x6f, (byte) 0x9a, 0x02, 0x00, 0x02, 0x00, 0x58,
+                        0x1b, 0x01, 0x01, 0x00, 0x06};
+
+        Pair<Integer, Integer> parsed =
+                WifiAwareDataPathStateManager.NetworkInformationData.parseTlv(testVector);
+        assertEquals(port, (int) parsed.first);
+        assertEquals(transportProtocol, (int) parsed.second);
     }
 
     /*
@@ -1731,22 +1766,38 @@ public class WifiAwareDataPathStateManagerTest {
 
     // copy of the method in WifiAwareDataPathStateManager - but without error checking (so we can
     // construct invalid TLVs for testing).
-    private static byte[] buildTlv(boolean includeSignature, int port, int transportProtocol,
-            boolean includeGarbageTlv) {
-        TlvBufferUtils.TlvConstructor tlvc = new TlvBufferUtils.TlvConstructor(1, 1);
-        tlvc.allocate(30); // safe size for now
-
-        if (includeSignature) {
-            tlvc.putInt(WifiAwareDataPathStateManager.NetworkInformationData.TYPE_SIGNATURE,
-                    WifiAwareDataPathStateManager.NetworkInformationData.SIGNATURE);
+    private static byte[] buildTlv(int port, int transportProtocol, boolean includeGarbageTlv) {
+        if (port == 0 && transportProtocol == -1) {
+            return null;
         }
 
-        tlvc.putInt(WifiAwareDataPathStateManager.NetworkInformationData.TYPE_PORT, port);
-        tlvc.putByte(WifiAwareDataPathStateManager.NetworkInformationData.TYPE_TRANSPORT_PROTOCOL,
-                (byte) transportProtocol);
+        TlvBufferUtils.TlvConstructor tlvc = new TlvBufferUtils.TlvConstructor(1, 2);
+        tlvc.setByteOrder(ByteOrder.LITTLE_ENDIAN);
+        tlvc.allocate(30); // safe size for now
 
+        tlvc.putRawByteArray(WifiAwareDataPathStateManager.NetworkInformationData.WFA_OUI);
+        tlvc.putRawByte((byte) WifiAwareDataPathStateManager.NetworkInformationData
+                .GENERIC_SERVICE_PROTOCOL_TYPE);
+
+        if (port != 0) {
+            tlvc.putShort(WifiAwareDataPathStateManager.NetworkInformationData.SUB_TYPE_PORT,
+                    (short) port);
+        }
+        if (transportProtocol != -1) {
+            tlvc.putByte(WifiAwareDataPathStateManager.NetworkInformationData
+                    .SUB_TYPE_TRANSPORT_PROTOCOL, (byte) transportProtocol);
+        }
         if (includeGarbageTlv) {
-            tlvc.putInt(WifiAwareDataPathStateManager.NetworkInformationData.TYPE_PORT + 55, 23);
+            tlvc.putShort(55, (short) -1298);
+        }
+
+        byte[] subTypes = tlvc.getArray();
+
+        tlvc.allocate(30);
+        tlvc.putByteArray(WifiAwareDataPathStateManager.NetworkInformationData.SERVICE_INFO_TYPE,
+                subTypes);
+        if (includeGarbageTlv) {
+            tlvc.putInt(78, 44);
         }
 
         return tlvc.getArray();
