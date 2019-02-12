@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -613,7 +614,6 @@ public class WifiNetworkSuggestionsManager {
         }
         // Clear the scan cache.
         removeFromScanResultMatchInfoMap(extNetworkSuggestions);
-        saveToStore();
     }
 
     /**
@@ -640,6 +640,7 @@ public class WifiNetworkSuggestionsManager {
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
         removeInternal(extNetworkSuggestions, packageName, perAppInfo);
+        saveToStore();
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
     }
 
@@ -654,7 +655,26 @@ public class WifiNetworkSuggestionsManager {
         removeInternal(Collections.EMPTY_LIST, packageName, perAppInfo);
         // Remove the package fully from the internal database.
         mActiveNetworkSuggestionsPerApp.remove(packageName);
+        saveToStore();
         Log.i(TAG, "Removed " + packageName);
+    }
+
+    /**
+     * Clear all internal state (for network settings reset).
+     */
+    public void clear() {
+        Iterator<Map.Entry<String, PerAppInfo>> iter =
+                mActiveNetworkSuggestionsPerApp.entrySet().iterator();
+        // Disconnect if we're connected to one of the suggestions.
+        triggerDisconnectIfServingNetworkSuggestionRemoved(
+                mActiveNetworkSuggestionsMatchingConnection);
+        while (iter.hasNext()) {
+            Map.Entry<String, PerAppInfo> entry = iter.next();
+            removeInternal(Collections.EMPTY_LIST, entry.getKey(), entry.getValue());
+            iter.remove();
+        }
+        saveToStore();
+        Log.i(TAG, "Cleared all internal state");
     }
 
     /**

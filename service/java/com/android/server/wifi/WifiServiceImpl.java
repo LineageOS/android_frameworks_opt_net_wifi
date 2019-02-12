@@ -2173,7 +2173,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             WifiInfo result = mClientModeImpl.syncRequestConnectionInfo();
             boolean hideDefaultMacAddress = true;
-            boolean hideBssidAndSsid = true;
+            boolean hideBssidSsidAndNetworkId = true;
 
             try {
                 if (mWifiInjector.getWifiPermissionsWrapper().getLocalMacAddressPermission(uid)
@@ -2181,7 +2181,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     hideDefaultMacAddress = false;
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
-                hideBssidAndSsid = false;
+                hideBssidSsidAndNetworkId = false;
             } catch (RemoteException e) {
                 Log.e(TAG, "Error checking receiver permission", e);
             } catch (SecurityException e) {
@@ -2189,13 +2189,16 @@ public class WifiServiceImpl extends BaseWifiService {
             if (hideDefaultMacAddress) {
                 result.setMacAddress(WifiInfo.DEFAULT_MAC_ADDRESS);
             }
-            if (hideBssidAndSsid) {
+            if (hideBssidSsidAndNetworkId) {
                 result.setBSSID(WifiInfo.DEFAULT_MAC_ADDRESS);
                 result.setSSID(WifiSsid.createFromHex(null));
+                result.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
             }
-            if (mVerboseLoggingEnabled && (hideBssidAndSsid || hideDefaultMacAddress)) {
-                mLog.v("getConnectionInfo: hideBssidAndSSid=" + hideBssidAndSsid
-                        + ", hideDefaultMacAddress=" + hideDefaultMacAddress);
+            if (mVerboseLoggingEnabled && (hideBssidSsidAndNetworkId || hideDefaultMacAddress)) {
+                mLog.v("getConnectionInfo: hideBssidSsidAndNetworkId="
+                        + hideBssidSsidAndNetworkId
+                        + ", hideDefaultMacAddress="
+                        + hideDefaultMacAddress);
             }
             return result;
         } finally {
@@ -2884,6 +2887,12 @@ public class WifiServiceImpl extends BaseWifiService {
                     }
                 }
             }
+
+            mWifiInjector.getClientModeImplHandler().post(() -> {
+                mWifiInjector.getWifiConfigManager().clearDeletedEphemeralNetworks();
+                mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
+                mWifiNetworkSuggestionsManager.clear();
+            });
         }
     }
 

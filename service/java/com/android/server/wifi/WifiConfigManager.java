@@ -52,7 +52,6 @@ import android.util.Pair;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.WifiConfigStoreLegacy.WifiConfigStoreDataLegacy;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -263,7 +262,6 @@ public class WifiConfigManager {
     private final TelephonyManager mTelephonyManager;
     private final WifiKeyStore mWifiKeyStore;
     private final WifiConfigStore mWifiConfigStore;
-    private final WifiConfigStoreLegacy mWifiConfigStoreLegacy;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     /**
@@ -375,7 +373,7 @@ public class WifiConfigManager {
     WifiConfigManager(
             Context context, Clock clock, UserManager userManager,
             TelephonyManager telephonyManager, WifiKeyStore wifiKeyStore,
-            WifiConfigStore wifiConfigStore, WifiConfigStoreLegacy wifiConfigStoreLegacy,
+            WifiConfigStore wifiConfigStore,
             WifiPermissionsUtil wifiPermissionsUtil,
             WifiPermissionsWrapper wifiPermissionsWrapper,
             NetworkListSharedStoreData networkListSharedStoreData,
@@ -390,7 +388,6 @@ public class WifiConfigManager {
         mTelephonyManager = telephonyManager;
         mWifiKeyStore = wifiKeyStore;
         mWifiConfigStore = wifiConfigStore;
-        mWifiConfigStoreLegacy = wifiConfigStoreLegacy;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiPermissionsWrapper = wifiPermissionsWrapper;
 
@@ -3018,46 +3015,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Migrate data from legacy store files. The function performs the following operations:
-     * 1. Check if the legacy store files are present and the new store files are absent on device.
-     * 2. Read all the data from the store files.
-     * 3. Save it to the new store files.
-     * 4. Delete the legacy store file.
-     *
-     * @return true if migration was successful or not needed (fresh install), false if it failed.
-     */
-    public boolean migrateFromLegacyStore() {
-        if (!mWifiConfigStoreLegacy.areStoresPresent()) {
-            Log.d(TAG, "Legacy store files not found. No migration needed!");
-            return true;
-        }
-        if (mWifiConfigStore.areStoresPresent()) {
-            Log.d(TAG, "New store files found. No migration needed!"
-                    + " Remove legacy store files");
-            mWifiConfigStoreLegacy.removeStores();
-            return true;
-        }
-        WifiConfigStoreDataLegacy storeData = mWifiConfigStoreLegacy.read();
-        Log.d(TAG, "Reading from legacy store completed");
-        loadInternalData(storeData.getConfigurations(), new ArrayList<WifiConfiguration>(),
-                storeData.getDeletedEphemeralSSIDs(), mRandomizedMacStoreData.getMacMapping());
-
-        // Setup user store for the current user in case it have not setup yet, so that data
-        // owned by the current user will be backed to the user store.
-        if (mDeferredUserUnlockRead) {
-            mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
-            mDeferredUserUnlockRead = false;
-        }
-
-        if (!saveToStore(true)) {
-            return false;
-        }
-        mWifiConfigStoreLegacy.removeStores();
-        Log.d(TAG, "Migration from legacy store completed");
-        return true;
-    }
-
-    /**
      * Read the config store and load the in-memory lists from the store data retrieved and sends
      * out the networks changed broadcast.
      *
@@ -3065,8 +3022,7 @@ public class WifiConfigManager {
      * 1. Shared WifiConfigStore.xml
      * 2. User WifiConfigStore.xml
      *
-     * @return true on success or not needed (fresh install/pending legacy store migration),
-     * false otherwise.
+     * @return true on success or not needed (fresh install), false otherwise.
      */
     public boolean loadFromStore() {
         // If the user unlock comes in before we load from store, which means the user store have
@@ -3076,9 +3032,6 @@ public class WifiConfigManager {
             Log.i(TAG, "Handling user unlock before loading from store.");
             mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
             mDeferredUserUnlockRead = false;
-        }
-        if (mWifiConfigStoreLegacy.areStoresPresent()) {
-            return true;
         }
         try {
             mWifiConfigStore.read();

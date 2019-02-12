@@ -3731,10 +3731,6 @@ public class ClientModeImpl extends StateMachine {
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
         mLastSignalLevel = -1;
         mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
-        // Attempt to migrate data out of legacy store.
-        if (!mWifiConfigManager.migrateFromLegacyStore()) {
-            Log.e(TAG, "Failed to migrate from legacy config store");
-        }
         // TODO: b/79504296 This broadcast has been deprecated and should be removed
         sendSupplicantConnectionChangedBroadcast(true);
 
@@ -6185,6 +6181,13 @@ public class ClientModeImpl extends StateMachine {
      */
     public void removeNetworkRequestUserApprovedAccessPointsForApp(@NonNull String packageName) {
         mNetworkFactory.removeUserApprovedAccessPointsForApp(packageName);
+    }
+
+    /**
+     * Clear all approved access points from {@link WifiNetworkFactory}.
+     */
+    public void clearNetworkRequestUserApprovedAccessPoints() {
+        mNetworkFactory.clear();
     }
 
     /**

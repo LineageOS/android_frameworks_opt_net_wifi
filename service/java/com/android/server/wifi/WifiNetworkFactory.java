@@ -1186,6 +1186,16 @@ public class WifiNetworkFactory extends NetworkFactory {
                 iter.remove();
             }
         }
+        saveToStore();
+    }
+
+    /**
+     * Clear all internal state (for network settings reset).
+     */
+    public void clear() {
+        mUserApprovedAccessPointMap.clear();
+        Log.i(TAG, "Cleared all internal state");
+        saveToStore();
     }
 }
 
