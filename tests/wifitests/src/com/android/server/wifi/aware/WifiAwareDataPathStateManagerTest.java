@@ -74,7 +74,6 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.test.TestLooper;
-import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -1082,10 +1081,10 @@ public class WifiAwareDataPathStateManagerTest {
                 new byte[]{0x01, 0x0d, 0x00, 0x50, 0x6f, (byte) 0x9a, 0x02, 0x00, 0x02, 0x00, 0x58,
                         0x1b, 0x01, 0x01, 0x00, 0x06};
 
-        Pair<Integer, Integer> parsed =
+        WifiAwareDataPathStateManager.NetworkInformationData.ParsedResults parsed =
                 WifiAwareDataPathStateManager.NetworkInformationData.parseTlv(testVector);
-        assertEquals(port, (int) parsed.first);
-        assertEquals(transportProtocol, (int) parsed.second);
+        assertEquals(port, (int) parsed.port);
+        assertEquals(transportProtocol, (int) parsed.transportProtocol);
     }
 
     /*
