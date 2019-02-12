@@ -44,6 +44,9 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_SECURITY_AWARD
     public static final int SECURITY_AWARD_IS_80 = 80;
 
+    // config_wifi_framework_LAST_SELECTION_AWARD
+    public static final int LAST_SELECTION_AWARD_IS_480 = 480;
+
     // Only use scorecard id we have data from this many polls
     public static final int MIN_POLLS_FOR_SIGNIFICANCE = 30;
 
@@ -72,11 +75,11 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         if (!WifiConfigurationUtil.isConfigForOpenNetwork(candidate.config)) {
             score += SECURITY_AWARD_IS_80;
         }
-        if (candidate.evaluatorIndex == 0 && candidate.evaluatorScore > score) {
-            // For saved networks, mix in the evaluator's score if it is bigger, to account
-            // for aspects that we are ignoring here.
-            score = (score + candidate.evaluatorScore) / 2;
-        }
+        score += (int) (candidate.lastSelectionWeight * LAST_SELECTION_AWARD_IS_480);
+        // XXX - skipping award for same network
+        //        config_wifi_framework_current_network_boost = 16
+        // XXX - skipping award for equivalent / same BSSID
+        //        config_wifi_framework_SAME_BSSID_AWARD = 24
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.

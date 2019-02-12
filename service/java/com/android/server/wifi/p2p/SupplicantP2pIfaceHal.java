@@ -60,8 +60,8 @@ import java.util.stream.Collectors;
  * {@hide}
  */
 public class SupplicantP2pIfaceHal {
-    private static final boolean DBG = true;
     private static final String TAG = "SupplicantP2pIfaceHal";
+    private static boolean sVerboseLoggingEnabled = true;
     private static final int RESULT_NOT_VALID = -1;
     private static final int DEFAULT_GROUP_OWNER_INTENT = 6;
     private static final int DEFAULT_OPERATING_CLASS = 81;
@@ -83,7 +83,7 @@ public class SupplicantP2pIfaceHal {
             new IServiceNotification.Stub() {
         public void onRegistration(String fqName, String name, boolean preexisting) {
             synchronized (mLock) {
-                if (DBG) {
+                if (sVerboseLoggingEnabled) {
                     Log.i(TAG, "IServiceNotification.onRegistration for: " + fqName
                             + ", " + name + " preexisting=" + preexisting);
                 }
@@ -136,12 +136,20 @@ public class SupplicantP2pIfaceHal {
     }
 
     /**
+     * Enable verbose logging for all sub modules.
+     */
+    public static void enableVerboseLogging(int verbose) {
+        sVerboseLoggingEnabled = verbose > 0;
+        SupplicantP2pIfaceCallback.enableVerboseLogging(verbose);
+    }
+
+    /**
      * Registers a service notification for the ISupplicant service, which triggers intialization of
      * the ISupplicantP2pIface
      * @return true if the service notification was successfully registered
      */
     public boolean initialize() {
-        if (DBG) Log.i(TAG, "Registering ISupplicant service ready callback.");
+        if (sVerboseLoggingEnabled) Log.i(TAG, "Registering ISupplicant service ready callback.");
         synchronized (mLock) {
             if (mIServiceManager != null) {
                 Log.i(TAG, "Supplicant HAL already initialized.");
@@ -478,7 +486,7 @@ public class SupplicantP2pIfaceHal {
     }
 
     protected static void logd(String s) {
-        if (DBG) Log.d(TAG, s);
+        if (sVerboseLoggingEnabled) Log.d(TAG, s);
     }
 
     protected static void logCompletion(String operation, SupplicantStatus status) {

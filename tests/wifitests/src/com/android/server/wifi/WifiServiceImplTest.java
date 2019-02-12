@@ -149,6 +149,7 @@ public class WifiServiceImplTest {
     private static final int TEST_NETWORK_REQUEST_MATCH_CALLBACK_IDENTIFIER = 234;
     private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
     private static final String WIFI_IFACE_NAME = "wlan0";
+    private static final String WIFI_IFACE_NAME2 = "wlan1";
     private static final String TEST_COUNTRY_CODE = "US";
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
     private static final List<WifiConfiguration> TEST_WIFI_CONFIGURATION_LIST = Arrays.asList(
@@ -231,6 +232,7 @@ public class WifiServiceImplTest {
     @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock TelephonyManager mTelephonyManager;
     @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
+    @Mock WifiConfigManager mWifiConfigManager;
 
     @Spy FakeWifiLog mLog;
 
@@ -354,6 +356,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
+        when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
@@ -850,11 +853,13 @@ public class WifiServiceImplTest {
     static final String TEST_SSID_WITH_QUOTES = "\"" + TEST_SSID + "\"";
     static final String TEST_BSSID = "01:02:03:04:05:06";
     static final String TEST_PACKAGE = "package";
+    static final int TEST_NETWORK_ID = 567;
 
     private void setupForGetConnectionInfo() {
         WifiInfo wifiInfo = new WifiInfo();
         wifiInfo.setSSID(WifiSsid.createFromAsciiEncoded(TEST_SSID));
         wifiInfo.setBSSID(TEST_BSSID);
+        wifiInfo.setNetworkId(TEST_NETWORK_ID);
         when(mClientModeImpl.syncRequestConnectionInfo()).thenReturn(wifiInfo);
     }
 
@@ -873,6 +878,7 @@ public class WifiServiceImplTest {
 
         assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
@@ -890,6 +896,7 @@ public class WifiServiceImplTest {
 
         assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
@@ -904,6 +911,7 @@ public class WifiServiceImplTest {
 
         assertEquals(TEST_SSID_WITH_QUOTES, connectionInfo.getSSID());
         assertEquals(TEST_BSSID, connectionInfo.getBSSID());
+        assertEquals(TEST_NETWORK_ID, connectionInfo.getNetworkId());
     }
 
     /**
@@ -3113,6 +3121,8 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testFactoryReset() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         final String fqdn = "example.com";
@@ -3128,9 +3138,13 @@ public class WifiServiceImplTest {
         when(mClientModeImpl.syncGetPasspointConfigs(any())).thenReturn(Arrays.asList(config));
 
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
 
         verify(mClientModeImpl).syncRemoveNetwork(mAsyncChannel, network.networkId);
         verify(mClientModeImpl).syncRemovePasspointConfig(mAsyncChannel, fqdn);
+        verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
+        verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
+        verify(mWifiNetworkSuggestionsManager).clear();
     }
 
     /**
@@ -3139,15 +3153,21 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testFactoryResetWithoutPasspointSupport() throws Exception {
+        setupClientModeImplHandlerForPost();
+
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
         when(mPackageManager.hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
 
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
 
         verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
         verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
         verify(mClientModeImpl, never()).syncRemovePasspointConfig(any(), anyString());
+        verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
+        verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
+        verify(mWifiNetworkSuggestionsManager).clear();
     }
 
     /**
@@ -3579,5 +3599,62 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.updateWifiUsabilityScore(anyInt(), anyInt(), 15);
         mLooper.dispatchAll();
         verify(mClientModeImpl).updateWifiUsabilityScore(anyInt(), anyInt(), anyInt());
+    }
+
+    private void setupMaxApInterfaces(int val) {
+        when(mResources.getInteger(
+                eq(com.android.internal.R.integer.config_wifi_max_ap_interfaces)))
+                .thenReturn(val);
+    }
+
+    private void startLohsAndTethering(int apCount) {
+        // initialization
+        setupClientModeImplHandlerForPost();
+        setupMaxApInterfaces(apCount);
+        mWifiServiceImpl.checkAndStartWifi();
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        // start LOHS
+        registerLOHSRequestFull();
+        String ifaceName = apCount >= 2 ? WIFI_IFACE_NAME2 : WIFI_IFACE_NAME;
+        mWifiServiceImpl.updateInterfaceIpState(ifaceName, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(SoftApModeConfiguration.class));
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
+        reset(mWifiController);
+        reset(mHandler);
+
+        // start tethering
+        boolean tetheringResult = mWifiServiceImpl.startSoftAp(null);
+        assertTrue(tetheringResult);
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(SoftApModeConfiguration.class));
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+    }
+
+    @Test
+    public void testStartLohsAndTethering1AP() {
+        startLohsAndTethering(1);
+
+        // verify LOHS got stopped
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        assertEquals(HOTSPOT_FAILED, mMessageCaptor.getValue().what);
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+    }
+
+    @Test
+    public void testStartLohsAndTethering2AP() {
+        startLohsAndTethering(2);
+
+        // verify LOHS didn't get stopped
+        mLooper.dispatchAll();
+        verify(mHandler, never()).handleMessage(any(Message.class));
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0), anyInt());
     }
 }

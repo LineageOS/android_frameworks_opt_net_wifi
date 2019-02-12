@@ -82,7 +82,7 @@ public class WifiCandidatesTest {
         mWifiCandidates.add(null, mConfig1, 1, 42);
         mWifiCandidates.add(mScanDetail1, null, 2, 16);
         doReturn(null).when(mScanDetail2).getScanResult();
-        mWifiCandidates.add(mScanDetail2, mConfig2, 3, 314);
+        mWifiCandidates.add(mScanDetail2, mConfig2, 3, 314, 1.0);
         assertFalse(mWifiCandidates.remove(null));
 
         assertEquals(0, mWifiCandidates.size());
@@ -93,7 +93,7 @@ public class WifiCandidatesTest {
      */
     @Test
     public void testAddJustOne() throws Exception {
-        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14));
+        assertTrue(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0));
 
         assertEquals(1, mWifiCandidates.size());
         assertEquals(0, mWifiCandidates.getFaultCount());
@@ -108,7 +108,7 @@ public class WifiCandidatesTest {
     public void testQuotingBotch() throws Exception {
         // Unfortunately ScanResult.SSID is not quoted; make sure we catch that
         mScanResult1.SSID = mConfig1.SSID;
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0);
 
         // Should not have added this one
         assertEquals(0, mWifiCandidates.size());
@@ -167,7 +167,7 @@ public class WifiCandidatesTest {
         assertTrue(mWifiCandidates == mWifiCandidates.setPicky(true));
         try {
             mScanResult1.SSID = mConfig1.SSID; // As in testQuotingBotch()
-            mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+            mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0);
             fail("Exception not raised in picky mode");
         } catch (IllegalArgumentException e) {
             assertEquals(1, mWifiCandidates.getFaultCount());
@@ -181,14 +181,14 @@ public class WifiCandidatesTest {
     @Test
     public void testNoOverwriteCases() throws Exception {
         // Setup is to add the first candidate
-        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14);
+        mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0);
         assertEquals(1, mWifiCandidates.size());
 
         // Same evaluator, same score. Should not add.
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14));
+        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 14, 0.0));
         assertEquals(0, mWifiCandidates.getFaultCount()); // But not considered a fault
         // Same evaluator, lower score. Should not add.
-        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 13));
+        assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 2, 13, 0.0));
         assertEquals(0, mWifiCandidates.getFaultCount()); // Also not a fault
         // Later evaluator. Should not add (regardless of score).
         assertFalse(mWifiCandidates.add(mScanDetail1, mConfig1, 5, 13));

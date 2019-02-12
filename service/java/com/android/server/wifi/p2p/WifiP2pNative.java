@@ -38,6 +38,7 @@ import com.android.server.wifi.WifiVendorHal;
  */
 public class WifiP2pNative {
     private static final String TAG = "WifiP2pNative";
+    private boolean mVerboseLoggingEnabled = false;
     private final SupplicantP2pIfaceHal mSupplicantP2pIfaceHal;
     private final HalDeviceManager mHalDeviceManager;
     private final WifiVendorHal mWifiVendorHal;
@@ -113,6 +114,8 @@ public class WifiP2pNative {
      * Enable verbose logging for all sub modules.
      */
     public void enableVerboseLogging(int verbose) {
+        mVerboseLoggingEnabled = verbose > 0;
+        SupplicantP2pIfaceHal.enableVerboseLogging(verbose);
     }
 
     private static final int CONNECT_TO_SUPPLICANT_SAMPLING_INTERVAL_MS = 100;

@@ -65,6 +65,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -381,7 +382,7 @@ public class WifiAwareDataPathStateManager {
 
             // potential transmission mechanism for port/transport-protocol information from
             // Responder (alternative to confirm message)
-            Pair<Integer, Byte> peerServerInfo = NetworkInformationData.parseTlv(message);
+            Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
             if (peerServerInfo != null) {
                 nnriE.getValue().peerPort = peerServerInfo.first;
                 nnriE.getValue().peerTransportProtocol = peerServerInfo.second;
@@ -571,7 +572,7 @@ public class WifiAwareDataPathStateManager {
             // only relevant for the initiator
             if (nnri.networkSpecifier.role
                     == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR) {
-                Pair<Integer, Byte> peerServerInfo = NetworkInformationData.parseTlv(message);
+                Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
                 if (peerServerInfo != null) {
                     nnri.peerPort = peerServerInfo.first;
                     nnri.peerTransportProtocol = peerServerInfo.second;
@@ -1076,7 +1077,7 @@ public class WifiAwareDataPathStateManager {
         public byte[] peerDataMac;
         public Inet6Address peerIpv6;
         public int peerPort = 0; // uninitialized (invalid) value
-        public byte peerTransportProtocol = -1; // uninitialized (invalid) value
+        public int peerTransportProtocol = -1; // uninitialized (invalid) value
         public WifiAwareNetworkSpecifier networkSpecifier;
         public List<NanDataPathChannelInfo> channelInfo;
         public long startTimestamp = 0; // request is made (initiator) / get request (responder)
@@ -1432,30 +1433,21 @@ public class WifiAwareDataPathStateManager {
 
     /**
      * Utility (hence static) class encapsulating the data structure used to communicate Wi-Fi Aware
-     * specific network capabilities. These include:
+     * specific network capabilities. The TLV is defined as part of the NANv3 spec:
      *
-     * - Port
-     * - Transport protocol
-     *
-     * The utility class creates and parses a set of TLVs encoded on a byte array. The TLV will use
-     * :
-     * - Type (T): 1 byte
-     * - Value (V): 1 byte
+     * - Generic Service Protocol
+     *   - Port
+     *   - Transport protocol
      */
     @VisibleForTesting
     public static class NetworkInformationData {
-        // signature to be used in first bytes (with T & V) - used as additional insurance against
-        // random data.
-        @VisibleForTesting
-        public static final int SIGNATURE = 0xFAAFABAB;
-
-        // the type (T) of the TLVs
-        @VisibleForTesting
-        public static final byte TYPE_SIGNATURE = 0x00;
-        @VisibleForTesting
-        public static final byte TYPE_PORT = 0x01;
-        @VisibleForTesting
-        public static final byte TYPE_TRANSPORT_PROTOCOL = 0x02;
+        // All package visible to allow usage in unit testing
+        /* package */ static final int IPV6_LL_TYPE = 0x00; // Table 82
+        /* package */ static final int SERVICE_INFO_TYPE = 0x01; // Table 83
+        /* package */ static final byte[] WFA_OUI = {0x50, 0x6F, (byte) 0x9A}; // Table 83
+        /* package */ static final int GENERIC_SERVICE_PROTOCOL_TYPE = 0x02; // Table 50
+        /* package */ static final int SUB_TYPE_PORT = 0x00; // Table 127
+        /* package */ static final int SUB_TYPE_TRANSPORT_PROTOCOL = 0x01; // Table 128
 
         /**
          * Construct the TLV.
@@ -1465,86 +1457,124 @@ public class WifiAwareDataPathStateManager {
                 return null;
             }
 
-            TlvBufferUtils.TlvConstructor tlvc = new TlvBufferUtils.TlvConstructor(1, 1);
+            TlvBufferUtils.TlvConstructor tlvc = new TlvBufferUtils.TlvConstructor(1, 2);
+            tlvc.setByteOrder(ByteOrder.LITTLE_ENDIAN);
             tlvc.allocate(20); // safe size for now
-            tlvc.putInt(TYPE_SIGNATURE, SIGNATURE);
+
+            tlvc.putRawByteArray(WFA_OUI);
+            tlvc.putRawByte((byte) GENERIC_SERVICE_PROTOCOL_TYPE);
 
             if (port != 0) {
-                tlvc.putInt(TYPE_PORT, port);
+                tlvc.putShort(SUB_TYPE_PORT, (short) port);
             }
             if (transportProtocol != -1) {
-                tlvc.putByte(TYPE_TRANSPORT_PROTOCOL, (byte) transportProtocol);
+                tlvc.putByte(SUB_TYPE_TRANSPORT_PROTOCOL, (byte) transportProtocol);
             }
+
+            byte[] subTypes = tlvc.getArray();
+
+            tlvc.allocate(20);
+            tlvc.putByteArray(SERVICE_INFO_TYPE, subTypes);
 
             return tlvc.getArray();
         }
 
         /**
-         * Parse the TLV and return <port, transportProtocol> or null on error.
+         * Parse the TLV and return <port, transportProtocol>.
          */
-        public static Pair<Integer, Byte> parseTlv(byte[] tlvs) {
-            boolean signatureFound = false;
+        public static Pair<Integer, Integer> parseTlv(byte[] tlvs) {
             int port = 0;
-            byte transportProtocol = -1;
+            int transportProtocol = -1;
 
-            if (VDBG) {
-                Log.v(TAG, "parseTlv: tlvs.length=" + ((tlvs == null) ? "null" : tlvs.length)
-                        + ", bytes=" + Arrays.toString(tlvs));
-            }
-            if (tlvs == null || tlvs.length == 0) {
+            try {
+                TlvBufferUtils.TlvIterable tlvi = new TlvBufferUtils.TlvIterable(1, 2, tlvs);
+                tlvi.setByteOrder(ByteOrder.LITTLE_ENDIAN);
+                for (TlvBufferUtils.TlvElement tlve : tlvi) {
+                    switch (tlve.type) {
+                        case IPV6_LL_TYPE:
+                            Log.w(TAG,
+                                    "NetworkInformationData: non-default IPv6 not supporting - "
+                                            + "ignoring");
+                            break;
+                        case SERVICE_INFO_TYPE:
+                            Pair<Integer, Integer> serviceInfo = parseServiceInfoTlv(
+                                    tlve.getRawData());
+                            if (serviceInfo != null) {
+                                port = serviceInfo.first;
+                                transportProtocol = serviceInfo.second;
+                            }
+                            break;
+                        default:
+                            Log.w(TAG,
+                                    "NetworkInformationData: ignoring unknown T -- " + tlve.type);
+                            break;
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "NetworkInformationData: error parsing TLV -- " + e);
                 return null;
             }
+            if (port == 0 && transportProtocol == -1) {
+                return null;
+            }
+            return Pair.create(port, transportProtocol);
+        }
 
-            TlvBufferUtils.TlvIterable tlvi = new TlvBufferUtils.TlvIterable(1, 1, tlvs);
-            for (TlvBufferUtils.TlvElement tlve : tlvi) {
-                switch (tlve.type) {
-                    case TYPE_SIGNATURE:
-                        if (tlve.length != 4) {
-                            Log.e(TAG, "NetworkInformationData: invalid signature length");
+        private static Pair<Integer, Integer> parseServiceInfoTlv(byte[] tlv) {
+            int port = 0;
+            int transportProtocol = -1;
+
+            if (tlv.length < 4) {
+                Log.e(TAG, "NetworkInformationData: invalid SERVICE_INFO_TYPE length");
+                return null;
+            }
+            if (tlv[0] != WFA_OUI[0] || tlv[1] != WFA_OUI[1] || tlv[2] != WFA_OUI[2]) {
+                Log.e(TAG, "NetworkInformationData: unexpected OUI");
+                return null;
+            }
+            if (tlv[3] != GENERIC_SERVICE_PROTOCOL_TYPE) {
+                Log.e(TAG, "NetworkInformationData: invalid type -- " + tlv[3]);
+                return null;
+            }
+            TlvBufferUtils.TlvIterable subTlvi = new TlvBufferUtils.TlvIterable(1,
+                    2, Arrays.copyOfRange(tlv, 4, tlv.length));
+            subTlvi.setByteOrder(ByteOrder.LITTLE_ENDIAN);
+            for (TlvBufferUtils.TlvElement subTlve : subTlvi) {
+                switch (subTlve.type) {
+                    case SUB_TYPE_PORT:
+                        if (subTlve.length != 2) {
+                            Log.e(TAG,
+                                    "NetworkInformationData: invalid port TLV "
+                                            + "length -- " + subTlve.length);
                             return null;
                         }
-                        if (tlve.getInt() != SIGNATURE) {
-                            Log.e(TAG, "NetworkInformationData: invalid signature value");
+                        port = subTlve.getShort();
+                        if (port < 0) {
+                            port += -2 * (int) Short.MIN_VALUE;
+                        }
+                        if (port == 0) {
+                            Log.e(TAG, "NetworkInformationData: invalid port "
+                                    + port);
                             return null;
                         }
-                        signatureFound = true;
                         break;
-                    case TYPE_PORT:
-                        if (tlve.length != 4) {
-                            Log.e(TAG, "NetworkInformationData: invalid port info length");
+                    case SUB_TYPE_TRANSPORT_PROTOCOL:
+                        if (subTlve.length != 1) {
+                            Log.e(TAG,  "NetworkInformationData: invalid transport "
+                                    + "protocol TLV length -- " + subTlve.length);
                             return null;
                         }
-                        port = tlve.getInt();
-                        if (port <= 0) {
-                            Log.e(TAG, "NetworkInformationData: invalid port value - non-positive");
-                            return null;
-                        }
-                        break;
-                    case TYPE_TRANSPORT_PROTOCOL:
-                        if (tlve.length != 1) {
-                            Log.e(TAG, "NetworkInformationData: invalid transport protocol info "
-                                    + "length");
-                            return null;
-                        }
-                        transportProtocol = tlve.getByte();
+                        transportProtocol = subTlve.getByte();
                         if (transportProtocol < 0) {
-                            Log.e(TAG, "NetworkInformationData: invalid transport protocol info -  "
-                                    + "negative");
-                            return null;
+                            transportProtocol += -2 * (int) Byte.MIN_VALUE;
                         }
                         break;
                     default:
-                        Log.w(TAG,
-                                "NetworkInformationData: ignoring invalid T -- " + tlve.type);
+                        Log.w(TAG,  "NetworkInformationData: ignoring unknown "
+                                + "SERVICE_INFO.T -- " + subTlve.type);
                         break;
                 }
             }
-
-            if (!signatureFound) {
-                Log.e(TAG, "NetworkInformationData: parseTlv - signature not found!");
-                return null;
-            }
-
             return Pair.create(port, transportProtocol);
         }
     }
