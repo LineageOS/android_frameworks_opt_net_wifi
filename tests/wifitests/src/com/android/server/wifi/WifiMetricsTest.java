@@ -495,6 +495,7 @@ public class WifiMetricsTest {
             testSavedNetworks.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
         }
         testSavedNetworks.get(0).selfAdded = true;
+        testSavedNetworks.get(0).macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         return testSavedNetworks;
     }
 
@@ -906,6 +907,8 @@ public class WifiMetricsTest {
     public void assertDeserializedMetricsCorrect() throws Exception {
         assertEquals("mDecodedProto.numSavedNetworks == NUM_SAVED_NETWORKS",
                 NUM_SAVED_NETWORKS, mDecodedProto.numSavedNetworks);
+        assertEquals("mDecodedProto.numSavedNetworksWithMacRandomization == NUM_SAVED_NETWORKS-1",
+                NUM_SAVED_NETWORKS - 1, mDecodedProto.numSavedNetworksWithMacRandomization);
         assertEquals("mDecodedProto.numOpenNetworks == NUM_OPEN_NETWORKS",
                 NUM_OPEN_NETWORKS, mDecodedProto.numOpenNetworks);
         assertEquals("mDecodedProto.numLegacyPersonalNetworks == NUM_LEGACY_PERSONAL_NETWORKS",
