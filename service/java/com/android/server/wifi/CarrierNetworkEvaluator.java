@@ -90,6 +90,13 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
                 mLocalLog.log(TAG + ": eapType is not a carrier eap method: " + eapType);
                 continue;
             }
+            // If the user previously forgot this network, don't select it.
+            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
+                    ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
+                mLocalLog.log(TAG + ": Ignoring disabled ephemeral SSID: "
+                        + WifiNetworkSelector.toScanId(scanResult));
+                continue;
+            }
 
             WifiConfiguration config = ScanResultUtil.createNetworkFromScanResult(scanResult);
             config.ephemeral = true;
