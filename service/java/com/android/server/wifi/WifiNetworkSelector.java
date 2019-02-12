@@ -641,15 +641,18 @@ public class WifiNetworkSelector {
                 // one with the smallest evaluatorIndex, and break ties by
                 // picking the one with the highest score.
                 if (best == null
-                        || candidate.evaluatorIndex < best.evaluatorIndex
-                        || (candidate.evaluatorIndex == best.evaluatorIndex
-                            && candidate.evaluatorScore > best.evaluatorScore)) {
+                        || candidate.getEvaluatorIndex() < best.getEvaluatorIndex()
+                        || (candidate.getEvaluatorIndex() == best.getEvaluatorIndex()
+                            && candidate.getEvaluatorScore() > best.getEvaluatorScore())) {
                     best = candidate;
                 }
             }
             if (best != null) {
-                mWifiConfigManager.setNetworkCandidateScanResult(
-                        best.key.networkId, best.scanDetail.getScanResult(), best.evaluatorScore);
+                ScanDetail scanDetail = best.getScanDetail();
+                if (scanDetail != null) {
+                    mWifiConfigManager.setNetworkCandidateScanResult(best.getNetworkConfigId(),
+                            scanDetail.getScanResult(), best.getEvaluatorScore());
+                }
             }
         }
 
