@@ -429,6 +429,7 @@ public class ClientModeImplTest {
                 .thenReturn(mUntrustedWifiNetworkFactory);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
+        when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -516,7 +517,7 @@ public class ClientModeImplTest {
     private void initializeCmi() throws Exception {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
-                mWifiScoreCard, mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
+                mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
                 mLinkProbeManager);
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 

@@ -39,6 +39,7 @@ import android.os.Looper;
 import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserManager;
+import android.provider.Settings.Secure;
 import android.security.KeyStore;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
@@ -168,6 +169,8 @@ public class WifiInjector {
         sWifiInjector = this;
 
         mContext = context;
+        mWifiScoreCard = new WifiScoreCard(mClock,
+                Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID));
         mSettingsStore = new WifiSettingsStore(mContext);
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
@@ -249,7 +252,6 @@ public class WifiInjector {
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(), new RandomizedMacStoreData(),
                 mFrameworkFacade, mWifiCoreHandlerThread.getLooper());
-        mWifiScoreCard = new WifiScoreCard(mClock, "TODO(b/112196799) seed me properly");
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
@@ -257,8 +259,7 @@ public class WifiInjector {
                 new Handler(clientModeImplLooper));
         mWifiMetrics.setScoringParams(mScoringParams);
         mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
-                mWifiConfigManager, mClock,
-                mConnectivityLocalLog);
+                mWifiConfigManager, mClock, mConnectivityLocalLog);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
@@ -298,7 +299,7 @@ public class WifiInjector {
                 mFrameworkFacade, mWifiCoreHandlerThread.getLooper(), mContext);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 clientModeImplLooper, UserManager.get(mContext),
-                this, mBackupManagerProxy, mCountryCode, mWifiNative, mWifiScoreCard,
+                this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager);
         mActiveModeWarden = new ActiveModeWarden(this, mContext, clientModeImplLooper,
