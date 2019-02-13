@@ -2076,7 +2076,7 @@ public class WifiNetworkFactoryTest {
         Set<AccessPoint> expectedApprovedAccessPoints =
                 new HashSet<AccessPoint>() {{
                     add(new AccessPoint(TEST_SSID_1, MacAddress.fromString(TEST_BSSID_1),
-                            ScanResultMatchInfo.NETWORK_TYPE_PSK));
+                            WifiConfiguration.SECURITY_TYPE_PSK));
                 }};
         assertEquals(expectedApprovedAccessPoints, approvedAccessPointsToWrite);
         // Ensure that the new data flag has been reset after read.
@@ -2093,7 +2093,7 @@ public class WifiNetworkFactoryTest {
         Set<AccessPoint> approvedAccessPoints =
                 new HashSet<AccessPoint>() {{
                     add(new AccessPoint(TEST_SSID_1, MacAddress.fromString(TEST_BSSID_1),
-                            ScanResultMatchInfo.NETWORK_TYPE_PSK));
+                            WifiConfiguration.SECURITY_TYPE_PSK));
                 }};
         approvedAccessPointsMapToRead.put(TEST_PACKAGE_NAME_1, approvedAccessPoints);
         mDataSource.fromDeserialized(approvedAccessPointsMapToRead);

@@ -37,6 +37,7 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.INetworkRequestUserSelectionCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiConfiguration.SecurityType;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
@@ -55,7 +56,6 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.ScanResultMatchInfo.NetworkType;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -145,9 +145,10 @@ public class WifiNetworkFactory extends NetworkFactory {
     public static class AccessPoint {
         public final String ssid;
         public final MacAddress bssid;
-        public final @NetworkType int networkType;
+        public final @SecurityType int networkType;
 
-        AccessPoint(@NonNull String ssid, @NonNull MacAddress bssid, @NetworkType int networkType) {
+        AccessPoint(@NonNull String ssid, @NonNull MacAddress bssid,
+                    @SecurityType int networkType) {
             this.ssid = ssid;
             this.bssid = bssid;
             this.networkType = networkType;

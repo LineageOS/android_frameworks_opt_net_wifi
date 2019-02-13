@@ -1963,7 +1963,7 @@ public class WifiMetrics {
 
                 ssids.add(matchInfo);
                 bssids++;
-                boolean isOpen = matchInfo.networkType == ScanResultMatchInfo.NETWORK_TYPE_OPEN;
+                boolean isOpen = matchInfo.networkType == WifiConfiguration.SECURITY_TYPE_OPEN;
                 WifiConfiguration config =
                         mWifiConfigManager.getConfiguredNetworkForScanDetail(scanDetail);
                 boolean isSaved = (config != null) && !config.isEphemeral()

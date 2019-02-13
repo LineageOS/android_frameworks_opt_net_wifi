@@ -21,6 +21,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import android.net.wifi.WifiConfiguration;
+
 import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
@@ -61,11 +63,11 @@ public class WakeupLockTest {
 
         mNetwork1 = new ScanResultMatchInfo();
         mNetwork1.networkSsid = SSID_1;
-        mNetwork1.networkType = ScanResultMatchInfo.NETWORK_TYPE_OPEN;
+        mNetwork1.networkType = WifiConfiguration.SECURITY_TYPE_OPEN;
 
         mNetwork2 = new ScanResultMatchInfo();
         mNetwork2.networkSsid = SSID_2;
-        mNetwork2.networkType = ScanResultMatchInfo.NETWORK_TYPE_EAP;
+        mNetwork2.networkType = WifiConfiguration.SECURITY_TYPE_EAP;
 
         mWakeupLock = new WakeupLock(mWifiConfigManager, mWifiWakeMetrics, mClock);
     }
