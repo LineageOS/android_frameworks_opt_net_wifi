@@ -645,6 +645,8 @@ public class WifiConfigurationTestUtil {
         assertCommonConfigurationElementsEqual(expected, actual);
         assertEquals(expected.networkId, actual.networkId);
         assertEquals(expected.ephemeral, actual.ephemeral);
+        assertEquals(expected.fromWifiNetworkSuggestion, actual.fromWifiNetworkSuggestion);
+        assertEquals(expected.fromWifiNetworkSpecifier, actual.fromWifiNetworkSpecifier);
         assertEquals(expected.trusted, actual.trusted);
     }
 
