@@ -2085,6 +2085,8 @@ public class WifiMetrics {
                     pw.println(eventLine);
                 }
                 pw.println("mWifiLogProto.numSavedNetworks=" + mWifiLogProto.numSavedNetworks);
+                pw.println("mWifiLogProto.numSavedNetworksWithMacRandomization="
+                        + mWifiLogProto.numSavedNetworksWithMacRandomization);
                 pw.println("mWifiLogProto.numOpenNetworks=" + mWifiLogProto.numOpenNetworks);
                 pw.println("mWifiLogProto.numLegacyPersonalNetworks="
                         + mWifiLogProto.numLegacyPersonalNetworks);
@@ -2614,6 +2616,9 @@ public class WifiMetrics {
                 }
                 if (config.isPasspoint()) {
                     mWifiLogProto.numPasspointNetworks++;
+                }
+                if (config.macRandomizationSetting == WifiConfiguration.RANDOMIZATION_PERSISTENT) {
+                    mWifiLogProto.numSavedNetworksWithMacRandomization++;
                 }
             }
         }

@@ -382,10 +382,18 @@ public class WifiAwareDataPathStateManager {
 
             // potential transmission mechanism for port/transport-protocol information from
             // Responder (alternative to confirm message)
-            Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
+            NetworkInformationData.ParsedResults peerServerInfo = NetworkInformationData.parseTlv(
+                    message);
             if (peerServerInfo != null) {
-                nnriE.getValue().peerPort = peerServerInfo.first;
-                nnriE.getValue().peerTransportProtocol = peerServerInfo.second;
+                if (peerServerInfo.port != 0) {
+                    nnriE.getValue().peerPort = peerServerInfo.port;
+                }
+                if (peerServerInfo.transportProtocol != -1) {
+                    nnriE.getValue().peerTransportProtocol = peerServerInfo.transportProtocol;
+                }
+                if (peerServerInfo.ipv6Override != null) {
+                    nnriE.getValue().peerIpv6Override = peerServerInfo.ipv6Override;
+                }
             }
 
             return null; // ignore this for NDP set up flow: it is used to obtain app_info from Resp
@@ -561,22 +569,49 @@ public class WifiAwareDataPathStateManager {
                 }
             }
 
-            try {
-                nnri.peerIpv6 = Inet6Address.getByAddress(null,
-                        MacAddress.fromBytes(mac).getLinkLocalIpv6FromEui48Mac().getAddress(),
-                        NetworkInterface.getByName(nnri.interfaceName));
-            } catch (SocketException | UnknownHostException e) {
-                Log.e(TAG, "onDataPathConfirm: error obtaining scoped IPv6 address -- " + e);
-                nnri.peerIpv6 = null;
-            }
             // only relevant for the initiator
             if (nnri.networkSpecifier.role
                     == WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR) {
-                Pair<Integer, Integer> peerServerInfo = NetworkInformationData.parseTlv(message);
+                NetworkInformationData.ParsedResults peerServerInfo =
+                        NetworkInformationData.parseTlv(message);
                 if (peerServerInfo != null) {
-                    nnri.peerPort = peerServerInfo.first;
-                    nnri.peerTransportProtocol = peerServerInfo.second;
+                    if (peerServerInfo.port != 0) {
+                        nnri.peerPort = peerServerInfo.port;
+                    }
+                    if (peerServerInfo.transportProtocol != -1) {
+                        nnri.peerTransportProtocol = peerServerInfo.transportProtocol;
+                    }
+                    if (peerServerInfo.ipv6Override != null) {
+                        nnri.peerIpv6Override = peerServerInfo.ipv6Override;
+                    }
                 }
+            }
+
+            try {
+                if (nnri.peerIpv6Override == null) {
+                    nnri.peerIpv6 = Inet6Address.getByAddress(null,
+                            MacAddress.fromBytes(mac).getLinkLocalIpv6FromEui48Mac().getAddress(),
+                            NetworkInterface.getByName(nnri.interfaceName));
+                } else {
+                    byte[] addr = new byte[16];
+
+                    addr[0] = (byte) 0xfe;
+                    addr[1] = (byte) 0x80;
+                    addr[8] = nnri.peerIpv6Override[0];
+                    addr[9] = nnri.peerIpv6Override[1];
+                    addr[10] = nnri.peerIpv6Override[2];
+                    addr[11] = nnri.peerIpv6Override[3];
+                    addr[12] = nnri.peerIpv6Override[4];
+                    addr[13] = nnri.peerIpv6Override[5];
+                    addr[14] = nnri.peerIpv6Override[6];
+                    addr[15] = nnri.peerIpv6Override[7];
+
+                    nnri.peerIpv6 = Inet6Address.getByAddress(null, addr,
+                            NetworkInterface.getByName(nnri.interfaceName));
+                }
+            } catch (SocketException | UnknownHostException e) {
+                Log.e(TAG, "onDataPathConfirm: error obtaining scoped IPv6 address -- " + e);
+                nnri.peerIpv6 = null;
             }
 
             if (nnri.peerIpv6 != null) {
@@ -1078,6 +1113,7 @@ public class WifiAwareDataPathStateManager {
         public Inet6Address peerIpv6;
         public int peerPort = 0; // uninitialized (invalid) value
         public int peerTransportProtocol = -1; // uninitialized (invalid) value
+        public byte[] peerIpv6Override = null;
         public WifiAwareNetworkSpecifier networkSpecifier;
         public List<NanDataPathChannelInfo> channelInfo;
         public long startTimestamp = 0; // request is made (initiator) / get request (responder)
@@ -1479,12 +1515,27 @@ public class WifiAwareDataPathStateManager {
             return tlvc.getArray();
         }
 
+        static class ParsedResults {
+            ParsedResults(int port, int transportProtocol, byte[] ipv6Override) {
+                this.port = port;
+                this.transportProtocol = transportProtocol;
+                this.ipv6Override = ipv6Override;
+            }
+
+            public int port = 0;
+            public int transportProtocol = -1;
+            public byte[] ipv6Override = null;
+        }
+
         /**
-         * Parse the TLV and return <port, transportProtocol>.
+         * Parse the TLV and returns:
+         * - Null on parsing error
+         * - <port | 0, transport-protocol | -1, ipv6-override | null> otherwise
          */
-        public static Pair<Integer, Integer> parseTlv(byte[] tlvs) {
+        public static ParsedResults parseTlv(byte[] tlvs) {
             int port = 0;
             int transportProtocol = -1;
+            byte[] ipv6Override = null;
 
             try {
                 TlvBufferUtils.TlvIterable tlvi = new TlvBufferUtils.TlvIterable(1, 2, tlvs);
@@ -1492,17 +1543,21 @@ public class WifiAwareDataPathStateManager {
                 for (TlvBufferUtils.TlvElement tlve : tlvi) {
                     switch (tlve.type) {
                         case IPV6_LL_TYPE:
-                            Log.w(TAG,
-                                    "NetworkInformationData: non-default IPv6 not supporting - "
-                                            + "ignoring");
+                            if (tlve.length != 8) { // 8 bytes in IPv6 address
+                                Log.e(TAG, "NetworkInformationData: invalid IPv6 TLV -- length: "
+                                        + tlve.length);
+                                return null;
+                            }
+                            ipv6Override = tlve.getRawData();
                             break;
                         case SERVICE_INFO_TYPE:
                             Pair<Integer, Integer> serviceInfo = parseServiceInfoTlv(
                                     tlve.getRawData());
-                            if (serviceInfo != null) {
-                                port = serviceInfo.first;
-                                transportProtocol = serviceInfo.second;
+                            if (serviceInfo == null) {
+                                return null;
                             }
+                            port = serviceInfo.first;
+                            transportProtocol = serviceInfo.second;
                             break;
                         default:
                             Log.w(TAG,
@@ -1514,12 +1569,14 @@ public class WifiAwareDataPathStateManager {
                 Log.e(TAG, "NetworkInformationData: error parsing TLV -- " + e);
                 return null;
             }
-            if (port == 0 && transportProtocol == -1) {
-                return null;
-            }
-            return Pair.create(port, transportProtocol);
+            return new ParsedResults(port, transportProtocol, ipv6Override);
         }
 
+        /**
+         * Parse the Service Info TLV:
+         * - Returns null on error
+         * - Returns <port | 0, transport-protocol | -1> otherwise
+         */
         private static Pair<Integer, Integer> parseServiceInfoTlv(byte[] tlv) {
             int port = 0;
             int transportProtocol = -1;

@@ -74,7 +74,6 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.test.TestLooper;
-import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -854,8 +853,13 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathInitiatorNetInfoLargeValuesExp1() throws Exception {
-        testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv((1 << 16) - 1, (1 << 8) - 1, true), (1 << 16) - 1, (1 << 8) - 1);
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                buildTlv((1 << 16) - 1, (1 << 8) - 1, true), (1 << 16) - 1, (1 << 8) - 1,
+                linkLocalIpv6Address);
     }
 
     /**
@@ -863,8 +867,12 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathInitiatorNetInfoLargeValuesExp2() throws Exception {
-        testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv(1 << 15, 1 << 7, true), 1 << 15, 1 << 7);
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                buildTlv(1 << 15, 1 << 7, true), 1 << 15, 1 << 7, linkLocalIpv6Address);
     }
 
     /**
@@ -872,8 +880,27 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathInitiatorNetInfoLargeValuesExp3() throws Exception {
-        testDataPathInitiatorUtilityMore(false, true, true, false, true, false,
-                buildTlv((1 << 15) - 1, (1 << 7) - 1, true), (1 << 15) - 1, (1 << 7) - 1);
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                buildTlv((1 << 15) - 1, (1 << 7) - 1, true), (1 << 15) - 1, (1 << 7) - 1,
+                linkLocalIpv6Address);
+    }
+
+    /**
+     * Verify that an TLV configuration with an IPv6 override works correctly.
+     */
+    @Test
+    public void testDataPathInitiatorNetInfoIpv6Override() throws Exception {
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        final byte[] testVector =
+                new byte[]{0x00, 0x08, 0x00, 0x00, (byte) 0xb3, (byte) 0xe1, (byte) 0xff,
+                        (byte) 0xfe, 0x7a, 0x2f, (byte) 0xa2};
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                testVector, 0, -1, "fe80::b3:e1ff:fe7a:2fa2");
     }
 
     /**
@@ -1082,10 +1109,10 @@ public class WifiAwareDataPathStateManagerTest {
                 new byte[]{0x01, 0x0d, 0x00, 0x50, 0x6f, (byte) 0x9a, 0x02, 0x00, 0x02, 0x00, 0x58,
                         0x1b, 0x01, 0x01, 0x00, 0x06};
 
-        Pair<Integer, Integer> parsed =
+        WifiAwareDataPathStateManager.NetworkInformationData.ParsedResults parsed =
                 WifiAwareDataPathStateManager.NetworkInformationData.parseTlv(testVector);
-        assertEquals(port, (int) parsed.first);
-        assertEquals(transportProtocol, (int) parsed.second);
+        assertEquals(port, (int) parsed.port);
+        assertEquals(transportProtocol, (int) parsed.transportProtocol);
     }
 
     /*
@@ -1211,13 +1238,19 @@ public class WifiAwareDataPathStateManagerTest {
     private void testDataPathInitiatorUtility(boolean useDirect, boolean provideMac,
             boolean providePmk, boolean providePassphrase, boolean getConfirmation,
             boolean immediateHalFailure) throws Exception {
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
         testDataPathInitiatorUtilityMore(useDirect, provideMac, providePmk, providePassphrase,
-                getConfirmation, immediateHalFailure, null, 0, -1);
+                getConfirmation, immediateHalFailure, peerDataPathMac, null, 0, -1,
+                linkLocalIpv6Address);
     }
 
     private void testDataPathInitiatorUtilityMore(boolean useDirect, boolean provideMac,
             boolean providePmk, boolean providePassphrase, boolean getConfirmation,
-            boolean immediateHalFailure, byte[] peerToken, int port, int transportProtocol)
+            boolean immediateHalFailure, byte[] peerDataPathMac, byte[] peerToken, int port,
+            int transportProtocol, String ipv6Address)
             throws Exception {
         final int clientId = 123;
         final byte pubSubId = 58;
@@ -1226,7 +1259,6 @@ public class WifiAwareDataPathStateManagerTest {
         final byte[] pmk = "01234567890123456789012345678901".getBytes();
         final String passphrase = "some passphrase";
         final byte[] peerDiscoveryMac = HexEncoding.decode("000102030405".toCharArray(), false);
-        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
 
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
         ArgumentCaptor<Short> transactionId = ArgumentCaptor.forClass(Short.class);
@@ -1300,9 +1332,7 @@ public class WifiAwareDataPathStateManagerTest {
             inOrderM.verify(mAwareMetricsMock).recordNdpCreation(anyInt(), any());
             WifiAwareNetworkInfo netInfo =
                     (WifiAwareNetworkInfo) netCapCaptor.getValue().getTransportInfo();
-            assertArrayEquals(MacAddress.fromBytes(
-                    peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getAddress(),
-                    netInfo.getPeerIpv6Addr().getAddress());
+            assertEquals(ipv6Address, netInfo.getPeerIpv6Addr().getHostAddress());
             assertEquals(port, netInfo.getPort());
             assertEquals(transportProtocol, netInfo.getTransportProtocol());
         } else {

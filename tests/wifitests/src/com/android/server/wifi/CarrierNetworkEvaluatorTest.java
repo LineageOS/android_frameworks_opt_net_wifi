@@ -291,4 +291,33 @@ public class CarrierNetworkEvaluatorTest {
         verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
         assertNull(selected);
     }
+
+    /**
+     * One carrier Wi-Fi networks visible and cert installed but user has previously forgotten the
+     * network.
+     *
+     * Desired behavior: no networks connectable or selected
+     */
+    @Test
+    public void testAvailableButPreviouslyUserDeleted() {
+        String[] ssids = {CARRIER1_SSID};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        String[] caps = {"[EAP]"};
+        int[] levels = {10};
+
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mWifiConfigManager.wasEphemeralNetworkDeleted("\"" + CARRIER1_SSID + "\""))
+                .thenReturn(true);
+
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
+                freqs, caps, levels, mClock);
+        configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0), true, false);
+
+        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+                mConnectableListener);
+
+        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
+        assertNull(selected);
+    }
 }

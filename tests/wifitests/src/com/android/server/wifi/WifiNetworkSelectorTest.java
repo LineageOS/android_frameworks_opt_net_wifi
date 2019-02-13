@@ -1294,7 +1294,7 @@ public class WifiNetworkSelectorTest {
      */
     @Test
     public void testRegisterCandidateScorer() {
-        WifiCandidates.CandidateScorer candidateScorer = new CandidateScorerExample(mScoringParams);
+        WifiCandidates.CandidateScorer candidateScorer = new CompatibiltyScorer(mScoringParams);
 
         mWifiNetworkSelector.registerCandidateScorer(candidateScorer);
 
