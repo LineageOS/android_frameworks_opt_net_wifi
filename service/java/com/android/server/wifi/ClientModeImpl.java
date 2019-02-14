@@ -2574,6 +2574,8 @@ public class ClientModeImpl extends StateMachine {
             wifiLockManager.handleScreenStateChanged(screenOn);
         }
 
+        mSarManager.handleScreenStateChanged(screenOn);
+
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
