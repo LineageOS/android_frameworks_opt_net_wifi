@@ -152,25 +152,25 @@ public class WifiPermissionsUtil {
      */
     public boolean checkCallersLocationPermission(String pkgName, int uid,
             boolean coarseForTargetSdkLessThanQ) {
+        boolean isTargetSdkLessThanQ = isTargetSdkLessThan(pkgName, Build.VERSION_CODES.Q);
+
         String permissionType = Manifest.permission.ACCESS_FINE_LOCATION;
+        if (coarseForTargetSdkLessThanQ && isTargetSdkLessThanQ) {
+            // Having FINE permission implies having COARSE permission (but not the reverse)
+            permissionType = Manifest.permission.ACCESS_COARSE_LOCATION;
+        }
+        if (mWifiPermissionsWrapper.getUidPermission(permissionType, uid)
+                == PackageManager.PERMISSION_DENIED) {
+            return false;
+        }
 
         // Always checking FINE - even if will not enforce. This will record the request for FINE
         // so that a location request by the app is surfaced to the user.
         boolean isAppOpAllowed = checkAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid);
-
-        if (coarseForTargetSdkLessThanQ && isTargetSdkLessThan(pkgName, Build.VERSION_CODES.Q)) {
-            // Having FINE permission implies having COARSE permission (but not the reverse)
-            permissionType = Manifest.permission.ACCESS_COARSE_LOCATION;
-            if (!isAppOpAllowed) {
-                isAppOpAllowed = checkAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid);
-            }
+        if (!isAppOpAllowed && coarseForTargetSdkLessThanQ && isTargetSdkLessThanQ) {
+            isAppOpAllowed = checkAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid);
         }
-
-        if ((mWifiPermissionsWrapper.getUidPermission(permissionType, uid)
-                == PackageManager.PERMISSION_GRANTED) && isAppOpAllowed) {
-            return true;
-        }
-        return false;
+        return isAppOpAllowed;
     }
 
     /**
