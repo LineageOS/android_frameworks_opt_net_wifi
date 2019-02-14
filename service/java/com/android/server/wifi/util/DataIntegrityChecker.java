@@ -150,14 +150,11 @@ public class DataIntegrityChecker {
         EncryptedData encryptedData = null;
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-            SecretKey secretKeyReference;
-            if (inKeyStore(keyAlias)) {
-                secretKeyReference = getSecretKey(keyAlias);
-            } else {
-                secretKeyReference = createSecretKey(keyAlias);
+            SecretKey secretKeyReference = getOrCreateSecretKey(keyAlias);
+            if (secretKeyReference != null) {
+                cipher.init(Cipher.ENCRYPT_MODE, secretKeyReference);
+                encryptedData = new EncryptedData(cipher.doFinal(data), cipher.getIV(), keyAlias);
             }
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeyReference);
-            encryptedData = new EncryptedData(cipher.doFinal(data), cipher.getIV(), keyAlias);
         } catch (NoSuchAlgorithmException e) {
             Log.e(TAG, "encrypt could not find the algorithm: " + CIPHER_ALGORITHM);
         } catch (NoSuchPaddingException e) {
@@ -177,8 +174,11 @@ public class DataIntegrityChecker {
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, encryptedData.getIv());
-            cipher.init(Cipher.DECRYPT_MODE, getSecretKey(encryptedData.getKeyAlias()), spec);
-            decryptedData = cipher.doFinal(encryptedData.getEncryptedData());
+            SecretKey secretKeyReference = getOrCreateSecretKey(encryptedData.getKeyAlias());
+            if (secretKeyReference != null) {
+                cipher.init(Cipher.DECRYPT_MODE, secretKeyReference, spec);
+                decryptedData = cipher.doFinal(encryptedData.getEncryptedData());
+            }
         } catch (NoSuchAlgorithmException e) {
             Log.e(TAG, "decrypt could not find cipher algorithm " + CIPHER_ALGORITHM);
         } catch (NoSuchPaddingException e) {
@@ -195,68 +195,46 @@ public class DataIntegrityChecker {
         return decryptedData;
     }
 
-    private static SecretKey createSecretKey(String keyAlias) {
-        SecretKey secretKey = null;
-        try {
-            KeyGenerator keyGenerator = KeyGenerator
-                    .getInstance(KeyProperties.KEY_ALGORITHM_AES, KEY_STORE);
-
-            KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(keyAlias,
-                    KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .build();
-
-            keyGenerator.init(keyGenParameterSpec);
-            secretKey = keyGenerator.generateKey();
-        } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "createSecretKey cannot find algorithm");
-        } catch (NoSuchProviderException e) {
-            Log.e(TAG, "createSecretKey cannot find crypto provider");
-        } catch (InvalidAlgorithmParameterException e) {
-            Log.e(TAG, "createSecretKey had an invalid algorithm parameter");
-        }
-        return secretKey;
-    }
-
-    private static SecretKey getSecretKey(String keyAlias) {
+    private static SecretKey getOrCreateSecretKey(String keyAlias) {
         SecretKey secretKey = null;
         try {
             KeyStore keyStore = KeyStore.getInstance(KEY_STORE);
             keyStore.load(null);
-            KeyStore.SecretKeyEntry secretKeyEntry = (KeyStore.SecretKeyEntry) keyStore
-                    .getEntry(keyAlias, null);
-            secretKey = secretKeyEntry.getSecretKey();
+            if (keyStore.containsAlias(keyAlias)) { // The key exists in key store. Get the key.
+                KeyStore.SecretKeyEntry secretKeyEntry = (KeyStore.SecretKeyEntry) keyStore
+                        .getEntry(keyAlias, null);
+                if (secretKeyEntry != null) {
+                    secretKey = secretKeyEntry.getSecretKey();
+                }
+            } else { // The key does not exist in key store. Create the key and store it.
+                KeyGenerator keyGenerator = KeyGenerator
+                        .getInstance(KeyProperties.KEY_ALGORITHM_AES, KEY_STORE);
+
+                KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(keyAlias,
+                        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .build();
+
+                keyGenerator.init(keyGenParameterSpec);
+                secretKey = keyGenerator.generateKey();
+            }
+        } catch (CertificateException e) {
+            Log.e(TAG, "getOrCreateSecretKey had a certificate exception.");
+        } catch (InvalidAlgorithmParameterException e) {
+            Log.e(TAG, "getOrCreateSecretKey had an invalid algorithm parameter");
         } catch (IOException e) {
-            Log.e(TAG, "getSecretKey had an IO exception");
-        } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "getSecretKey could not find the algorithm");
-        }  catch (CertificateException e) {
-            Log.e(TAG, "getSecretKey had a certificate exception");
+            Log.e(TAG, "getOrCreateSecretKey had an IO exception.");
         } catch (KeyStoreException e) {
-            Log.e(TAG, "getSecretKey had a key store exception");
+            Log.e(TAG, "getOrCreateSecretKey cannot find the keystore: " + KEY_STORE);
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "getOrCreateSecretKey cannot find algorithm");
+        } catch (NoSuchProviderException e) {
+            Log.e(TAG, "getOrCreateSecretKey cannot find crypto provider");
         } catch (UnrecoverableEntryException e) {
-            Log.e(TAG, "getSecretKey had an entry exception");
+            Log.e(TAG, "getOrCreateSecretKey had an unrecoverable entry exception.");
         }
         return secretKey;
-    }
-
-    private static boolean inKeyStore(String keyAlias) {
-        boolean ret = false;
-        try {
-            KeyStore ks = KeyStore.getInstance(KEY_STORE);
-            ks.load(null);
-            ret = ks.containsAlias(keyAlias);
-        } catch (KeyStoreException e) {
-            Log.e(TAG, "inKeyStore cannot find the keystore: " + KEY_STORE);
-        } catch (IOException e) {
-            Log.e(TAG, "inKeyStore had an IO exception.");
-        } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "inKeyStore cannot find algorithm.");
-        } catch (CertificateException e) {
-            Log.e(TAG, "inKeyStore had a certificate exception.");
-        }
-        return ret;
     }
 
     private static void writeIntegrityData(EncryptedData encryptedData, File file) {
