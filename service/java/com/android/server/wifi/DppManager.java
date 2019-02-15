@@ -23,7 +23,6 @@ import android.hardware.wifi.supplicant.V1_2.DppAkm;
 import android.hardware.wifi.supplicant.V1_2.DppFailureCode;
 import android.hardware.wifi.supplicant.V1_2.DppNetRole;
 import android.hardware.wifi.supplicant.V1_2.DppProgressCode;
-import android.hardware.wifi.supplicant.V1_2.DppSuccessCode;
 import android.net.wifi.EasyConnectStatusCallback;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.WifiConfiguration;
@@ -68,9 +67,9 @@ public class DppManager {
         }
 
         @Override
-        public void onSuccess(int dppStatusCode) {
+        public void onSuccessConfigSent() {
             mHandler.post(() -> {
-                DppManager.this.onSuccess(dppStatusCode);
+                DppManager.this.onSuccessConfigSent();
             });
         }
 
@@ -463,39 +462,22 @@ public class DppManager {
         cleanupDppResources();
     }
 
-    private void onSuccess(int dppStatusCode) {
+    private void onSuccessConfigSent() {
         try {
             if (mDppRequestInfo == null) {
-                Log.e(TAG, "onSuccess event without a request information object");
+                Log.e(TAG, "onDppSuccessConfigSent event without a request information object");
                 return;
             }
 
-            logd("onSuccess: " + dppStatusCode);
+            logd("onSuccessConfigSent");
 
             long now = mClock.getElapsedSinceBootMillis();
             mDppMetrics.updateDppOperationTime((int) (now - mDppRequestInfo.startTime));
 
-            int dppSuccessCode;
-
-            // Convert from HAL codes to WifiManager/user codes
-            switch (dppStatusCode) {
-                case DppSuccessCode.CONFIGURATION_SENT:
-                    dppSuccessCode = EasyConnectStatusCallback
-                            .EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT;
-                    break;
-
-                default:
-                    Log.e(TAG, "onProgress: unknown code " + dppStatusCode);
-                    mDppMetrics.updateDppFailure(EasyConnectStatusCallback
-                            .EASY_CONNECT_EVENT_FAILURE_GENERIC);
-                    mDppRequestInfo.callback.onFailure(
-                            EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
-                    cleanupDppResources();
-                    return;
-            }
-
-            mDppMetrics.updateDppConfiguratorSuccess(dppStatusCode);
-            mDppRequestInfo.callback.onSuccess(dppSuccessCode);
+            mDppMetrics.updateDppConfiguratorSuccess(
+                    EasyConnectStatusCallback.EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
+            mDppRequestInfo.callback.onSuccess(
+                    EasyConnectStatusCallback.EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
 
         } catch (RemoteException e) {
             Log.e(TAG, "Callback failure");
