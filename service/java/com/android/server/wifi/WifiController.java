@@ -282,7 +282,7 @@ public class WifiController extends StateMachine {
                         SoftApModeConfiguration config = (SoftApModeConfiguration) msg.obj;
                         mActiveModeWarden.enterSoftAPMode((SoftApModeConfiguration) msg.obj);
                     } else {
-                        mActiveModeWarden.stopSoftAPMode();
+                        mActiveModeWarden.stopSoftAPMode(msg.arg2);
                     }
                     break;
                 case CMD_AIRPLANE_TOGGLED:
@@ -603,7 +603,7 @@ public class WifiController extends StateMachine {
         private int mEcmEntryCount;
         @Override
         public void enter() {
-            mActiveModeWarden.stopSoftAPMode();
+            mActiveModeWarden.stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
             boolean configWiFiDisableInECBM =
                     mFacade.getConfigWiFiDisableInECBM(mContext);
             log("WifiController msg getConfigWiFiDisableInECBM "

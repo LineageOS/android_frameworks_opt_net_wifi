@@ -741,7 +741,7 @@ public class WifiServiceImplTest {
         boolean result = mWifiServiceImpl.startSoftAp(null);
         assertTrue(result);
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), mSoftApModeConfigCaptor.capture());
         assertNull(mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
     }
 
@@ -764,7 +764,7 @@ public class WifiServiceImplTest {
         boolean result = mWifiServiceImpl.startSoftAp(config);
         assertTrue(result);
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), mSoftApModeConfigCaptor.capture());
         assertEquals(config, mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
     }
 
@@ -787,7 +787,8 @@ public class WifiServiceImplTest {
     public void testStopSoftApWithPermissions() {
         boolean result = mWifiServiceImpl.stopSoftAp();
         assertTrue(result);
-        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_TETHERED));
     }
 
     /**
@@ -1222,7 +1223,7 @@ public class WifiServiceImplTest {
     public void testStopLocalOnlyHotspotTriggersSoftApStopWithOneRegisteredRequest() {
         registerLOHSRequestFull();
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(SoftApModeConfiguration.class));
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), any(SoftApModeConfiguration.class));
 
         // No permission check required for change_wifi_state.
         verify(mContext, never()).enforceCallingOrSelfPermission(
@@ -1230,7 +1231,8 @@ public class WifiServiceImplTest {
 
         mWifiServiceImpl.stopLocalOnlyHotspot();
         // there is was only one request registered, we should tear down softap
-        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_LOCAL_ONLY));
     }
 
     /**
@@ -1265,7 +1267,7 @@ public class WifiServiceImplTest {
 
     private void verifyLohsBand(int expectedBand) {
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), mSoftApModeConfigCaptor.capture());
         final WifiConfiguration configuration = mSoftApModeConfigCaptor.getValue().mConfig;
         assertNotNull(configuration);
         assertEquals(expectedBand, configuration.apBand);
@@ -1281,7 +1283,8 @@ public class WifiServiceImplTest {
                 mWifiServiceImpl.new LocalOnlyRequestorCallback();
 
         binderDeathCallback.onLocalOnlyHotspotRequestorDeath(mRequestInfo);
-        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_LOCAL_ONLY));
     }
 
     /**
@@ -1309,7 +1312,8 @@ public class WifiServiceImplTest {
         // now stop as the second request and confirm CMD_SET_AP will be sent to make sure binder
         // death requestor was removed
         mWifiServiceImpl.stopLocalOnlyHotspot();
-        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_LOCAL_ONLY));
     }
 
     /**
@@ -1924,7 +1928,8 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
 
-        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_TETHERED));
     }
 
     /**
@@ -1995,7 +2000,8 @@ public class WifiServiceImplTest {
         assertEquals(HOTSPOT_FAILED, message.what);
         assertEquals(ERROR_GENERIC, message.arg1);
 
-        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_LOCAL_ONLY));
 
         // sendMessage should only happen once since the requestor should be unregistered
         reset(mHandler);
@@ -2018,7 +2024,8 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
         mLooper.dispatchAll();
 
-        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_TETHERED));
     }
 
     /**
@@ -3621,7 +3628,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.updateInterfaceIpState(ifaceName, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(SoftApModeConfiguration.class));
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), any(SoftApModeConfiguration.class));
         verify(mHandler).handleMessage(mMessageCaptor.capture());
         assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
         reset(mWifiController);
@@ -3631,11 +3638,15 @@ public class WifiServiceImplTest {
         boolean tetheringResult = mWifiServiceImpl.startSoftAp(null);
         assertTrue(tetheringResult);
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), any(SoftApModeConfiguration.class));
+                .sendMessage(eq(CMD_SET_AP), eq(1), anyInt(), any(SoftApModeConfiguration.class));
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
     }
 
+    /**
+     * Verify LOHS gets stopped when trying to start tethering concurrently on devices that
+     * doesn't support dual AP operation.
+     */
     @Test
     public void testStartLohsAndTethering1AP() {
         startLohsAndTethering(1);
@@ -3645,9 +3656,13 @@ public class WifiServiceImplTest {
         verify(mHandler).handleMessage(mMessageCaptor.capture());
         assertEquals(HOTSPOT_FAILED, mMessageCaptor.getValue().what);
         verify(mWifiController)
-                .sendMessage(eq(CMD_SET_AP), eq(0), eq(0));
+                .sendMessage(eq(CMD_SET_AP), eq(0), eq(WifiManager.IFACE_IP_MODE_LOCAL_ONLY));
     }
 
+    /**
+     * Verify LOHS doesn't get stopped when trying to start tethering concurrently on devices
+     * that does support dual AP operation.
+     */
     @Test
     public void testStartLohsAndTethering2AP() {
         startLohsAndTethering(2);
