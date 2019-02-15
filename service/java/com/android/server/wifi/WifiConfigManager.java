@@ -561,7 +561,7 @@ public class WifiConfigManager {
             boolean savedOnly, boolean maskPasswords, int targetUid) {
         List<WifiConfiguration> networks = new ArrayList<>();
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (savedOnly && config.ephemeral) {
+            if (savedOnly && (config.ephemeral || config.isPasspoint())) {
                 continue;
             }
             networks.add(createExternalWifiConfiguration(config, maskPasswords, targetUid));
