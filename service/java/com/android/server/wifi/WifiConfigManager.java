@@ -1253,6 +1253,17 @@ public class WifiConfigManager {
             Log.e(TAG, "Cannot add/update network before store is read!");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
+        if (!config.isEphemeral()) {
+            // Removes the existing ephemeral network if it exists to add this configuration.
+            WifiConfiguration existingConfig = getConfiguredNetwork(config.configKey());
+            if (existingConfig != null && existingConfig.isEphemeral()) {
+                // In this case, new connection for this config won't happen because same
+                // network is already registered as an ephemeral network.
+                // Clear the Ephemeral Network to address the situation.
+                removeNetwork(existingConfig.networkId, mSystemUiUid);
+            }
+        }
+
         NetworkUpdateResult result = addOrUpdateNetworkInternal(config, uid, packageName);
         if (!result.isSuccess()) {
             Log.e(TAG, "Failed to add/update network " + config.getPrintableSsid());
