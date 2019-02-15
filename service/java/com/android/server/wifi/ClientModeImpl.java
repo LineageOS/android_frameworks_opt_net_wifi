@@ -6236,4 +6236,13 @@ public class ClientModeImpl extends StateMachine {
     public void updateWifiUsabilityScore(int seqNum, int score, int predictionHorizonSec) {
         mWifiMetrics.incrementWifiUsabilityScoreCount(seqNum, score, predictionHorizonSec);
     }
+
+    /**
+     * Sends a link probe.
+     */
+    @VisibleForTesting
+    public void probeLink(WifiNative.SendMgmtFrameCallback callback, int mcs) {
+        mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
+                callback, mcs);
+    }
 }
