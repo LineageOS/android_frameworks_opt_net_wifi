@@ -78,6 +78,7 @@ public class WifiNetworkSelectorTest {
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
         when(mCarrierNetworkConfig.isCarrierNetwork(any())).thenReturn(true);
+        when(mWifiScoreCard.lookupBssid(any(), any())).thenReturn(mPerBssid);
     }
 
     /** Cleans up test. */
@@ -141,6 +142,7 @@ public class WifiNetworkSelectorTest {
     @Mock private Context mContext;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private WifiScoreCard mWifiScoreCard;
+    @Mock private WifiScoreCard.PerBssid mPerBssid;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -243,9 +245,9 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2437, 5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G - 1, mThresholdMinimumRssi5G - 1};
-        int[] securities = {SECURITY_PSK, SECURITY_PSK};
+        int[] securities = {SECURITY_PSK, SECURITY_EAP};
 
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
                 WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
@@ -273,9 +275,9 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2437, 5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + RSSI_BUMP, mThresholdMinimumRssi5G + RSSI_BUMP};
-        int[] securities = {SECURITY_PSK, SECURITY_PSK};
+        int[] securities = {SECURITY_PSK, SECURITY_EAP};
 
         // Make a network selection.
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
@@ -303,7 +305,7 @@ public class WifiNetworkSelectorTest {
      *
      * ClientModeImpl is in disconnected state.
      * scanDetails contains two valid networks.
-     * Perform a network seletion right after the first one.
+     * Perform a network selection right after the first one.
      *
      * Expected behavior: the first network is recommended by Network Selector
      */
@@ -314,7 +316,7 @@ public class WifiNetworkSelectorTest {
         int[] freqs = {2437, 5180};
         String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + RSSI_BUMP, mThresholdMinimumRssi5G + RSSI_BUMP};
-        int[] securities = {SECURITY_PSK, SECURITY_PSK};
+        int[] securities = {SECURITY_EAP, SECURITY_EAP};
 
         // Make a network selection.
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
@@ -403,7 +405,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdQualifiedRssi5G - 2};
         int[] securities = {SECURITY_PSK};
 
@@ -451,7 +453,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdQualifiedRssi5G + 5};
         int[] securities = {SECURITY_PSK};
 
@@ -500,7 +502,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdQualifiedRssi5G + 8};
         int[] securities = {SECURITY_PSK};
 
@@ -532,9 +534,9 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2437, 2457};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + 20, mThresholdMinimumRssi2G + RSSI_BUMP};
-        int[] securities = {SECURITY_PSK, SECURITY_PSK};
+        int[] securities = {SECURITY_EAP, SECURITY_PSK};
 
         // Make a network selection to connect to test1.
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
@@ -573,7 +575,7 @@ public class WifiNetworkSelectorTest {
     }
 
     /**
-     * Ensures that settings the user connect choice updates the
+     * Ensures that setting the user connect choice updates the
      * NetworkSelectionStatus#mConnectChoice for all other WifiConfigurations in range in the last
      * round of network selection.
      *
@@ -585,10 +587,10 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\"", "\"test3\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:f3:7f:ae:8c:f5"};
         int[] freqs = {2437, 5180, 5181};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + RSSI_BUMP, mThresholdMinimumRssi5G + RSSI_BUMP,
                 mThresholdMinimumRssi5G + RSSI_BUMP};
-        int[] securities = {SECURITY_PSK, SECURITY_PSK, SECURITY_PSK};
+        int[] securities = {SECURITY_PSK, SECURITY_EAP, SECURITY_PSK};
 
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
                 WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
@@ -632,7 +634,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2437, 5180};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + RSSI_BUMP, mThresholdMinimumRssi5G + RSSI_BUMP};
         int[] securities = {SECURITY_PSK, SECURITY_PSK};
 
@@ -929,8 +931,8 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {is5GHzNetwork1 ? 5180 : 2437, is5GHzNetwork2 ? 5180 : 2437};
-        String[] caps = {isOpenNetwork1 ? "[ESS]" : "[WPA2-EAP-CCMP][ESS]",
-                         isOpenNetwork2 ? "[ESS]" : "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {isOpenNetwork1 ? "[ESS]" : "[WPA2-PSK][ESS]",
+                         isOpenNetwork2 ? "[ESS]" : "[WPA2-PSK][ESS]"};
         int[] levels = {rssiNetwork1, rssiNetwork2};
         int[] securities = {isOpenNetwork1 ? SECURITY_NONE : SECURITY_PSK,
                             isOpenNetwork2 ? SECURITY_NONE : SECURITY_PSK};
@@ -950,7 +952,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {is5GHz ? 5180 : 2437};
-        String[] caps = {isOpenNetwork ? "[ESS]" : "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {isOpenNetwork ? "[ESS]" : "[WPA2-PSK][ESS]"};
         int[] levels = {rssi};
         int[] securities = {isOpenNetwork ? SECURITY_NONE : SECURITY_PSK};
         testStayOrTryToSwitchImpl(ssids, bssids, freqs, caps, levels, securities, shouldSelect);
@@ -1168,7 +1170,7 @@ public class WifiNetworkSelectorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {2437, 5180};
-        String[] caps = {"[EAP][ESS]"};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
         int[] levels = {mThresholdMinimumRssi2G + RSSI_BUMP};
         int[] securities = {SECURITY_EAP};
         mDummyEvaluator.setEvaluatorToSelectCandidate(false);

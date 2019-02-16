@@ -57,11 +57,11 @@ import java.util.Map;
  */
 @SmallTest
 public class CarrierNetworkEvaluatorTest {
-    private static final String CARRIER1_SSID = "carrier1";
-    private static final String CARRIER2_SSID = "carrier2";
-    private static final String CARRIER_SAVED_SSID = "carrier3-saved";
-    private static final String CARRIER_SAVED_EPH_SSID = "carrier4-saved-ephemeral";
-    private static final String NON_CARRIER_SSID = "non-carrier";
+    private static final String CARRIER1_SSID = "\"carrier1\"";
+    private static final String CARRIER2_SSID = "\"carrier2\"";
+    private static final String CARRIER_SAVED_SSID = "\"carrier3-saved\"";
+    private static final String CARRIER_SAVED_EPH_SSID = "\"carrier4-saved-ephemeral\"";
+    private static final String NON_CARRIER_SSID = "\"non-carrier\"";
 
     private static final int CARRIER1_NET_ID = 1;
     private static final int CARRIER2_NET_ID = 2;
@@ -126,6 +126,9 @@ public class CarrierNetworkEvaluatorTest {
             boolean isSaved) {
         WifiConfiguration newConfig = ScanResultUtil.createNetworkFromScanResult(
                 scanDetail.getScanResult());
+        assertTrue("" + newConfig, WifiConfigurationUtil.validate(newConfig, true));
+        assertEquals(ScanResultMatchInfo.fromScanResult(scanDetail.getScanResult()),
+                ScanResultMatchInfo.fromWifiConfiguration(newConfig));
         newConfig.ephemeral = isEphemeral;
 
         if (isSaved) {
@@ -148,18 +151,23 @@ public class CarrierNetworkEvaluatorTest {
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
 
-        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER1_SSID))).thenReturn(true);
-        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER2_SSID))).thenReturn(true);
-        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_SSID))).thenReturn(true);
-        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_EPH_SSID))).thenReturn(true);
-        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER1_SSID))).thenReturn(
-                WifiEnterpriseConfig.Eap.AKA);
-        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER2_SSID))).thenReturn(
-                WifiEnterpriseConfig.Eap.AKA_PRIME);
-        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_SSID))).thenReturn(
-                WifiEnterpriseConfig.Eap.SIM);
-        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_EPH_SSID))).thenReturn(
-                WifiEnterpriseConfig.Eap.AKA);
+        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER1_SSID.replace("\"", ""))))
+                .thenReturn(true);
+        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER2_SSID.replace("\"", ""))))
+                .thenReturn(true);
+        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_SSID.replace("\"", ""))))
+                .thenReturn(true);
+        when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER_SAVED_EPH_SSID.replace("\"", ""))))
+                .thenReturn(true);
+
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER1_SSID.replace("\"", ""))))
+                .thenReturn(WifiEnterpriseConfig.Eap.AKA);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER2_SSID.replace("\"", ""))))
+                .thenReturn(WifiEnterpriseConfig.Eap.AKA_PRIME);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_SSID.replace("\"", ""))))
+                .thenReturn(WifiEnterpriseConfig.Eap.SIM);
+        when(mCarrierNetworkConfig.getNetworkEapType(eq(CARRIER_SAVED_EPH_SSID.replace("\"", ""))))
+                .thenReturn(WifiEnterpriseConfig.Eap.AKA);
 
         mAddOrUpdateNetworkAnswer = new AddOrUpdateNetworkAnswer();
         when(mWifiConfigManager.addOrUpdateNetwork(any(), eq(Process.WIFI_UID))).thenAnswer(
@@ -192,7 +200,8 @@ public class CarrierNetworkEvaluatorTest {
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:f3:7f:ae:8c:f5",
                 "6c:f3:7f:ae:8c:f6", "6c:f3:7f:ae:8c:f7"};
         int[] freqs = {2470, 2437, 2470, 2470, 2470};
-        String[] caps = {"[EAP]", "[EAP]", "[EAP]", "[EAP]", "[]"};
+        String[] caps = {"[WPA2-EAP-CCMP]", "[WPA2-EAP-CCMP]", "[WPA2-EAP-CCMP]",
+                "[WPA2-EAP-CCMP]", "[]"};
         int[] levels = {10, 20, 11, 15, 50};
 
         List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
@@ -210,26 +219,30 @@ public class CarrierNetworkEvaluatorTest {
                 mWifiConfigCaptor.capture(), anyInt());
 
         assertEquals(4, mScanDetailCaptor.getAllValues().size());
-        assertEquals(CARRIER1_SSID, mScanDetailCaptor.getAllValues().get(0).getSSID());
-        assertEquals(CARRIER2_SSID, mScanDetailCaptor.getAllValues().get(1).getSSID());
-        assertEquals(CARRIER_SAVED_SSID, mScanDetailCaptor.getAllValues().get(2).getSSID());
-        assertEquals(CARRIER_SAVED_EPH_SSID, mScanDetailCaptor.getAllValues().get(3).getSSID());
+        assertEquals(CARRIER1_SSID.replace("\"", ""),
+                mScanDetailCaptor.getAllValues().get(0).getSSID());
+        assertEquals(CARRIER2_SSID.replace("\"", ""),
+                mScanDetailCaptor.getAllValues().get(1).getSSID());
+        assertEquals(CARRIER_SAVED_SSID.replace("\"", ""),
+                mScanDetailCaptor.getAllValues().get(2).getSSID());
+        assertEquals(CARRIER_SAVED_EPH_SSID.replace("\"", ""),
+                mScanDetailCaptor.getAllValues().get(3).getSSID());
 
         assertEquals(4, mWifiConfigCaptor.getAllValues().size());
         WifiConfiguration config1 = mWifiConfigCaptor.getAllValues().get(0);
-        assertEquals("\"" + CARRIER1_SSID + "\"", config1.SSID);
+        assertEquals(CARRIER1_SSID, config1.SSID);
         assertTrue(config1.isEphemeral());
         assertTrue(config1.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config2 = mWifiConfigCaptor.getAllValues().get(1);
-        assertEquals("\"" + CARRIER2_SSID + "\"", config2.SSID);
+        assertEquals(CARRIER2_SSID, config2.SSID);
         assertTrue(config2.isEphemeral());
         assertTrue(config2.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config3 = mWifiConfigCaptor.getAllValues().get(2);
-        assertEquals("\"" + CARRIER_SAVED_SSID + "\"", config3.SSID);
+        assertEquals(CARRIER_SAVED_SSID, config3.SSID);
         assertFalse(config3.isEphemeral());
         assertTrue(config3.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config4 = mWifiConfigCaptor.getAllValues().get(3);
-        assertEquals("\"" + CARRIER_SAVED_EPH_SSID + "\"", config4.SSID);
+        assertEquals(CARRIER_SAVED_EPH_SSID, config4.SSID);
         assertTrue(config4.isEphemeral());
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
 
@@ -272,7 +285,8 @@ public class CarrierNetworkEvaluatorTest {
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:f3:7f:ae:8c:f5",
                 "6c:f3:7f:ae:8c:f6", "6c:f3:7f:ae:8c:f7"};
         int[] freqs = {2470, 2437, 2470, 2470, 2470};
-        String[] caps = {"[EAP]", "[EAP]", "[EAP]", "[EAP]", "[]"};
+        String[] caps = {"[WPA2-EAP-CCMP]", "[WPA2-EAP-CCMP]", "[WPA2-EAP-CCMP]",
+                "[WPA2-EAP-CCMP]", "[]"};
         int[] levels = {10, 20, 30, 40, 50};
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(false);
@@ -303,11 +317,11 @@ public class CarrierNetworkEvaluatorTest {
         String[] ssids = {CARRIER1_SSID};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {2470};
-        String[] caps = {"[EAP]"};
+        String[] caps = {"[WPA2-EAP-CCMP]"};
         int[] levels = {10};
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mWifiConfigManager.wasEphemeralNetworkDeleted("\"" + CARRIER1_SSID + "\""))
+        when(mWifiConfigManager.wasEphemeralNetworkDeleted(CARRIER1_SSID))
                 .thenReturn(true);
 
         List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
