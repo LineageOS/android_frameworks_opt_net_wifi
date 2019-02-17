@@ -1032,7 +1032,7 @@ public class WifiServiceImpl extends BaseWifiService {
             // If a tethering request comes in while we have LOHS running (or requested), call stop
             // for softap mode and restart softap with the tethering config.
             if (!isConcurrentLohsAndTetheringSupported() && !mLocalOnlyHotspotRequests.isEmpty()) {
-                stopSoftApInternal();
+                stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
             }
             return startSoftApInternal(wifiConfig, WifiManager.IFACE_IP_MODE_TETHERED);
         }
@@ -1075,11 +1075,12 @@ public class WifiServiceImpl extends BaseWifiService {
             // If a tethering request comes in while we have LOHS running (or requested), call stop
             // for softap mode and restart softap with the tethering config.
             if (!mLocalOnlyHotspotRequests.isEmpty()) {
+                // This shouldn't affect devices that support concurrent LOHS and tethering
                 mLog.trace("Call to stop Tethering while LOHS is active,"
                         + " Registered LOHS callers will be updated when softap stopped.").flush();
             }
 
-            return stopSoftApInternal();
+            return stopSoftApInternal(WifiManager.IFACE_IP_MODE_TETHERED);
         }
     }
 
@@ -1087,10 +1088,10 @@ public class WifiServiceImpl extends BaseWifiService {
      * Internal method to stop softap mode.  Callers of this method should have already checked
      * proper permissions beyond the NetworkStack permission.
      */
-    private boolean stopSoftApInternal() {
+    private boolean stopSoftApInternal(int mode) {
         mLog.trace("stopSoftApInternal uid=%").c(Binder.getCallingUid()).flush();
 
-        mWifiController.sendMessage(CMD_SET_AP, 0, 0);
+        mWifiController.sendMessage(CMD_SET_AP, 0, mode);
         return true;
     }
 
@@ -1255,10 +1256,11 @@ public class WifiServiceImpl extends BaseWifiService {
             synchronized (mLocalOnlyHotspotRequests) {
                 // if we are currently in hotspot mode, then trigger onStopped for registered
                 // requestors, otherwise something odd happened and we should clear state
-                if (mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_LOCAL_ONLY)) {
+                if (mIfaceIpModes.getOrDefault(ifaceName, WifiManager.IFACE_IP_MODE_UNSPECIFIED)
+                        == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
                     // holding the required lock: send message to requestors and clear the list
                     sendHotspotStoppedMessageToAllLOHSRequestInfoEntriesLocked();
-                } else {
+                } else if (!isConcurrentLohsAndTetheringSupported()) {
                     // LOHS not active: report an error (still holding the required lock)
                     sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(ERROR_GENERIC);
                 }
@@ -1489,7 +1491,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 // if that was the last caller, then call stopSoftAp as WifiService
                 long identity = Binder.clearCallingIdentity();
                 try {
-                    stopSoftApInternal();
+                    stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
                 } finally {
                     Binder.restoreCallingIdentity(identity);
                 }
@@ -2859,9 +2861,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING)) {
-            // Turn mobile hotspot off - will also clear any registered LOHS requests when it is
-            // shut down
-            stopSoftApInternal();
+            // Turn mobile hotspot off
+            stopSoftApInternal(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
         }
 
         if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) {

@@ -176,6 +176,10 @@ public class SoftApManager implements ActiveModeManager {
         return SCAN_NONE;
     }
 
+    public int getIpMode() {
+        return mMode;
+    }
+
     /**
      * Dump info about this softap manager.
      */

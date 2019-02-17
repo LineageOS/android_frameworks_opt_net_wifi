@@ -3048,4 +3048,77 @@ public class WifiMetricsTest {
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, statsList[1].triggerType);
     }
+
+    /**
+     * Test the generation of 'WifiConfigStoreIODuration' read histograms.
+     */
+    @Test
+    public void testWifiConfigStoreReadDurationsHistogramGeneration() throws Exception {
+        mWifiMetrics.noteWifiConfigStoreReadDuration(10);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(20);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(100);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(90);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(130);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(250);
+        mWifiMetrics.noteWifiConfigStoreReadDuration(600);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(5, mDecodedProto.wifiConfigStoreIo.readDurations.length);
+        assertEquals(0, mDecodedProto.wifiConfigStoreIo.writeDurations.length);
+
+        assertEquals(Integer.MIN_VALUE,
+                mDecodedProto.wifiConfigStoreIo.readDurations[0].rangeStartMs);
+        assertEquals(50, mDecodedProto.wifiConfigStoreIo.readDurations[0].rangeEndMs);
+        assertEquals(2, mDecodedProto.wifiConfigStoreIo.readDurations[0].count);
+
+        assertEquals(50, mDecodedProto.wifiConfigStoreIo.readDurations[1].rangeStartMs);
+        assertEquals(100, mDecodedProto.wifiConfigStoreIo.readDurations[1].rangeEndMs);
+        assertEquals(1, mDecodedProto.wifiConfigStoreIo.readDurations[1].count);
+
+        assertEquals(100, mDecodedProto.wifiConfigStoreIo.readDurations[2].rangeStartMs);
+        assertEquals(150, mDecodedProto.wifiConfigStoreIo.readDurations[2].rangeEndMs);
+        assertEquals(2, mDecodedProto.wifiConfigStoreIo.readDurations[2].count);
+
+        assertEquals(200, mDecodedProto.wifiConfigStoreIo.readDurations[3].rangeStartMs);
+        assertEquals(300, mDecodedProto.wifiConfigStoreIo.readDurations[3].rangeEndMs);
+        assertEquals(1, mDecodedProto.wifiConfigStoreIo.readDurations[3].count);
+
+        assertEquals(300, mDecodedProto.wifiConfigStoreIo.readDurations[4].rangeStartMs);
+        assertEquals(Integer.MAX_VALUE,
+                mDecodedProto.wifiConfigStoreIo.readDurations[4].rangeEndMs);
+        assertEquals(1, mDecodedProto.wifiConfigStoreIo.readDurations[4].count);
+    }
+
+    /**
+     * Test the generation of 'WifiConfigStoreIODuration' write histograms.
+     */
+    @Test
+    public void testWifiConfigStoreWriteDurationsHistogramGeneration() throws Exception {
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(10);
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(40);
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(60);
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(90);
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(534);
+        mWifiMetrics.noteWifiConfigStoreWriteDuration(345);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(0, mDecodedProto.wifiConfigStoreIo.readDurations.length);
+        assertEquals(3, mDecodedProto.wifiConfigStoreIo.writeDurations.length);
+
+        assertEquals(Integer.MIN_VALUE,
+                mDecodedProto.wifiConfigStoreIo.writeDurations[0].rangeStartMs);
+        assertEquals(50, mDecodedProto.wifiConfigStoreIo.writeDurations[0].rangeEndMs);
+        assertEquals(2, mDecodedProto.wifiConfigStoreIo.writeDurations[0].count);
+
+        assertEquals(50, mDecodedProto.wifiConfigStoreIo.writeDurations[1].rangeStartMs);
+        assertEquals(100, mDecodedProto.wifiConfigStoreIo.writeDurations[1].rangeEndMs);
+        assertEquals(2, mDecodedProto.wifiConfigStoreIo.writeDurations[1].count);
+
+        assertEquals(300, mDecodedProto.wifiConfigStoreIo.writeDurations[2].rangeStartMs);
+        assertEquals(Integer.MAX_VALUE,
+                mDecodedProto.wifiConfigStoreIo.writeDurations[2].rangeEndMs);
+        assertEquals(2, mDecodedProto.wifiConfigStoreIo.writeDurations[2].count);
+    }
 }

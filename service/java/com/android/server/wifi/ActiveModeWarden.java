@@ -182,14 +182,23 @@ public class ActiveModeWarden {
      * Method to stop soft ap for wifi hotspot.
      *
      * This method will stop any active softAp mode managers.
+     *
+     * @param mode the operating mode of APs to bring down (ex,
+     *             {@link WifiManager.IFACE_IP_MODE_TETHERED} or
+     *             {@link WifiManager.IFACE_IP_MODE_LOCAL_ONLY}).
+     *             Use {@link WifiManager.IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    public void stopSoftAPMode() {
+    public void stopSoftAPMode(int mode) {
         mHandler.post(() -> {
             for (ActiveModeManager manager : mActiveModeManagers) {
-                if (manager instanceof SoftApManager) {
-                    Log.d(TAG, "Stopping SoftApModeManager");
-                    manager.stop();
+                if (!(manager instanceof SoftApManager)) continue;
+                SoftApManager softApManager = (SoftApManager) manager;
+
+                if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
+                        && mode != softApManager.getIpMode()) {
+                    continue;
                 }
+                softApManager.stop();
             }
             updateBatteryStatsWifiState(false);
         });

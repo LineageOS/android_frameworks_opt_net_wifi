@@ -146,6 +146,7 @@ public class WifiConfigStoreTest {
     private TestAlarmManager mAlarmManager;
     private TestLooper mLooper;
     @Mock private Clock mClock;
+    @Mock private WifiMetrics mWifiMetrics;
     private MockStoreFile mSharedStore;
     private MockStoreFile mUserStore;
     private MockStoreFile mUserNetworkSuggestionsStore;
@@ -187,7 +188,8 @@ public class WifiConfigStoreTest {
     public void setUp() throws Exception {
         setupMocks();
 
-        mWifiConfigStore = new WifiConfigStore(mContext, mLooper.getLooper(), mClock, mSharedStore);
+        mWifiConfigStore = new WifiConfigStore(mContext, mLooper.getLooper(), mClock, mWifiMetrics,
+                mSharedStore);
         // Enable verbose logging before tests.
         mWifiConfigStore.enableVerboseLogging(true);
     }
@@ -215,6 +217,8 @@ public class WifiConfigStoreTest {
         assertFalse(mSharedStore.isStoreWritten());
         assertFalse(mUserStore.isStoreWritten());
         assertFalse(mUserNetworkSuggestionsStore.isStoreWritten());
+
+        verify(mWifiMetrics, never()).noteWifiConfigStoreWriteDuration(anyInt());
     }
 
     /**
@@ -235,6 +239,8 @@ public class WifiConfigStoreTest {
         assertTrue(mSharedStore.isStoreWritten());
         assertTrue(mUserStore.isStoreWritten());
         assertFalse(mUserNetworkSuggestionsStore.isStoreWritten());
+
+        verify(mWifiMetrics).noteWifiConfigStoreWriteDuration(anyInt());
     }
 
     /**
@@ -261,6 +267,8 @@ public class WifiConfigStoreTest {
         assertTrue(mSharedStore.isStoreWritten());
         assertTrue(mUserStore.isStoreWritten());
         assertFalse(mUserNetworkSuggestionsStore.isStoreWritten());
+
+        verify(mWifiMetrics).noteWifiConfigStoreWriteDuration(anyInt());
     }
 
     /**
@@ -365,6 +373,9 @@ public class WifiConfigStoreTest {
         mWifiConfigStore.read();
         assertEquals(TEST_USER_DATA, mUserStoreData.getData());
         assertEquals(TEST_SHARE_DATA, mSharedStoreData.getData());
+
+        verify(mWifiMetrics, times(2)).noteWifiConfigStoreReadDuration(anyInt());
+        verify(mWifiMetrics).noteWifiConfigStoreWriteDuration(anyInt());
     }
 
     /**
