@@ -2300,12 +2300,10 @@ public class WifiNative {
         void onSuccessConfigReceived(WifiConfiguration newWifiConfiguration);
 
         /**
-         * Called when DPP success events take place, except for when configuration is received from
-         * an external Configurator. The callback onSuccessConfigReceived will be used in this case.
-         *
-         * @param dppStatusCode Status code of the progress event.
+         * Called when local DPP configurator successfully sends Wi-Fi configuration to a remote
+         * Enrollee.
          */
-        void onSuccess(int dppStatusCode);
+        void onSuccessConfigSent();
 
         /**
          * DPP Progress event.

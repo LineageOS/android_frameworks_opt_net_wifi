@@ -19,7 +19,6 @@ package com.android.server.wifi;
 import static android.hardware.wifi.supplicant.V1_2.DppAkm.PSK;
 import static android.hardware.wifi.supplicant.V1_2.DppAkm.SAE;
 import static android.hardware.wifi.supplicant.V1_2.DppFailureCode.AUTHENTICATION;
-import static android.hardware.wifi.supplicant.V1_2.DppSuccessCode.CONFIGURATION_SENT;
 import static android.net.wifi.EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_AUTHENTICATION;
 import static android.net.wifi.EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK;
 import static android.net.wifi.EasyConnectStatusCallback.EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT;
@@ -435,7 +434,7 @@ public class DppManagerTest {
 
         // Generate an onSuccess callback
         WifiNative.DppEventCallback dppEventCallback = dppEventCallbackCaptor.getValue();
-        dppEventCallback.onSuccess(CONFIGURATION_SENT);
+        dppEventCallback.onSuccessConfigSent();
         mLooper.dispatchAll();
         verify(mDppCallback).onSuccess(EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
         verify(mDppCallback, never()).onSuccessConfigReceived(anyInt());
