@@ -232,7 +232,7 @@ public class WifiInjector {
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
                 UserManager.get(mContext), TelephonyManager.from(mContext),
                 mWifiKeyStore, mWifiConfigStore, mWifiPermissionsUtil,
-                mWifiPermissionsWrapper, new NetworkListSharedStoreData(mContext),
+                mWifiPermissionsWrapper, this, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
                 new DeletedEphemeralSsidsStoreData(mClock), new RandomizedMacStoreData(),
                 mFrameworkFacade, mWifiCoreHandlerThread.getLooper());

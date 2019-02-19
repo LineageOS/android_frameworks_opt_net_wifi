@@ -342,6 +342,59 @@ public class WifiLastResortWatchdog {
     }
 
     /**
+     * Helper function to check if we should ignore BSSID update.
+     * @param bssid BSSID of the access point
+     * @return true if we should ignore BSSID update
+     */
+    public boolean shouldIgnoreBssidUpdate(String bssid) {
+        return mWatchdogAllowedToTrigger
+                && isBssidOnlyApOfSsid(bssid)
+                && isSingleSsidRecorded()
+                && checkIfAtleastOneNetworkHasEverConnected();
+    }
+
+    /**
+     * Helper function to check if we should ignore SSID update.
+     * @return true if should ignore SSID update
+     */
+    public boolean shouldIgnoreSsidUpdate() {
+        return mWatchdogAllowedToTrigger
+                && isSingleSsidRecorded()
+                && checkIfAtleastOneNetworkHasEverConnected();
+    }
+
+    /**
+     * Check the specified BSSID is the only BSSID for its corresponding SSID.
+     * @param bssid BSSID of the access point
+     * @return true if only BSSID for its corresponding SSID be observed
+     */
+    private boolean isBssidOnlyApOfSsid(String bssid) {
+        AvailableNetworkFailureCount availableNetworkFailureCount =
+                mRecentAvailableNetworks.get(bssid);
+        if (availableNetworkFailureCount == null) {
+            return false;
+        }
+        String ssid = availableNetworkFailureCount.ssid;
+        Pair<AvailableNetworkFailureCount, Integer> ssidFails = mSsidFailureCount.get(ssid);
+        if (ssidFails == null) {
+            Log.d(TAG, "isOnlyBssidAvailable: Could not find SSID count for " + ssid);
+            return false;
+        }
+        if (ssidFails.second != 1) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check there is only single SSID be observed.
+     * @return true if only single SSID be observed.
+     */
+    private boolean isSingleSsidRecorded() {
+        return (mSsidFailureCount.size() == 1);
+    }
+
+    /**
      * Check trigger condition: For all available networks, have we met a failure threshold for each
      * of them, and have previously connected to at-least one of the available networks
      * @return is the trigger condition true

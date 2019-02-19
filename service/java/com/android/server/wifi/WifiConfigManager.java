@@ -270,6 +270,8 @@ public class WifiConfigManager {
     private final WifiConfigStore mWifiConfigStore;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
+    private final WifiInjector mWifiInjector;
+
     /**
      * Local log used for debugging any WifiConfigManager issues.
      */
@@ -384,6 +386,7 @@ public class WifiConfigManager {
             WifiConfigStore wifiConfigStore,
             WifiPermissionsUtil wifiPermissionsUtil,
             WifiPermissionsWrapper wifiPermissionsWrapper,
+            WifiInjector wifiInjector,
             NetworkListSharedStoreData networkListSharedStoreData,
             NetworkListUserStoreData networkListUserStoreData,
             DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData,
@@ -398,6 +401,7 @@ public class WifiConfigManager {
         mWifiConfigStore = wifiConfigStore;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiPermissionsWrapper = wifiPermissionsWrapper;
+        mWifiInjector = wifiInjector;
 
         mConfiguredNetworks = new ConfigurationMap(userManager);
         mScanDetailCaches = new HashMap<>(16, 0.75f);
@@ -1574,6 +1578,22 @@ public class WifiConfigManager {
     private boolean updateNetworkSelectionStatus(WifiConfiguration config, int reason) {
         NetworkSelectionStatus networkStatus = config.getNetworkSelectionStatus();
         if (reason != NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
+
+            // Do not update SSID blacklist with information if this is the only
+            // SSID be observed. By ignoring it we will cause additional failures
+            // which will trigger Watchdog.
+            if (reason == NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION
+                    || reason == NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE
+                    || reason == NetworkSelectionStatus.DISABLED_DHCP_FAILURE) {
+                if (mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate()) {
+                    if (mVerboseLoggingEnabled) {
+                        Log.v(TAG, "Ignore update network selection status "
+                                    + "since Watchdog trigger is activated");
+                    }
+                    return false;
+                }
+            }
+
             networkStatus.incrementDisableReasonCounter(reason);
             // For network disable reasons, we should only update the status if we cross the
             // threshold.

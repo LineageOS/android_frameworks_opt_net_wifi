@@ -119,6 +119,8 @@ public class WifiConfigManagerTest {
     @Mock private DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock private WifiPermissionsWrapper mWifiPermissionsWrapper;
+    @Mock private WifiInjector mWifiInjector;
+    @Mock private WifiLastResortWatchdog mWifiLastResortWatchdog;
     @Mock private NetworkListSharedStoreData mNetworkListSharedStoreData;
     @Mock private NetworkListUserStoreData mNetworkListUserStoreData;
     @Mock private DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
@@ -200,6 +202,9 @@ public class WifiConfigManagerTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getDevicePolicyManagerInternal())
                 .thenReturn(mDevicePolicyManagerInternal);
+        when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
+        when(mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate())
+                .thenReturn(false);
         createWifiConfigManager();
         mWifiConfigManager.setOnSavedNetworkUpdateListener(mWcmListener);
         ArgumentCaptor<ContentObserver> observerCaptor =
@@ -4307,9 +4312,10 @@ public class WifiConfigManagerTest {
                 new WifiConfigManager(
                         mContext, mClock, mUserManager, mTelephonyManager,
                         mWifiKeyStore, mWifiConfigStore,
-                        mWifiPermissionsUtil, mWifiPermissionsWrapper, mNetworkListSharedStoreData,
-                        mNetworkListUserStoreData, mDeletedEphemeralSsidsStoreData,
-                        mRandomizedMacStoreData, mFrameworkFacade, mLooper.getLooper());
+                        mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
+                        mNetworkListSharedStoreData, mNetworkListUserStoreData,
+                        mDeletedEphemeralSsidsStoreData, mRandomizedMacStoreData,
+                        mFrameworkFacade, mLooper.getLooper());
         mWifiConfigManager.enableVerboseLogging(1);
     }
 
@@ -5013,5 +5019,37 @@ public class WifiConfigManagerTest {
 
         // Ensure all the networks are removed now.
         assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+    }
+
+    /**
+     * Verifies SSID blacklist consistent with Watchdog trigger.
+     *
+     * Expected behavior: A SSID won't gets blacklisted if there only signle SSID
+     * be observed and Watchdog trigger is activated.
+     */
+    @Test
+    public void verifyConsistentWatchdogAndSsidBlacklist() {
+
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
+
+        when(mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate())
+                .thenReturn(true);
+
+        int networkId = result.getNetworkId();
+        // First set it to enabled.
+        verifyUpdateNetworkSelectionStatus(
+                networkId, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
+
+        int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
+        int assocRejectThreshold =
+                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+        for (int i = 1; i <= assocRejectThreshold; i++) {
+            assertFalse(mWifiConfigManager.updateNetworkSelectionStatus(
+                        networkId, assocRejectReason));
+        }
+
+        assertFalse(mWifiConfigManager.getConfiguredNetwork(networkId)
+                    .getNetworkSelectionStatus().isNetworkTemporaryDisabled());
     }
 }
