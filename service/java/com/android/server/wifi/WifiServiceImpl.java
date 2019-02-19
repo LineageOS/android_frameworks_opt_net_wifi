@@ -869,7 +869,9 @@ public class WifiServiceImpl extends BaseWifiService {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
                 "WifiService");
         // only privileged apps like settings, setup wizard, etc can toggle wifi.
-        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())
+                // Default car dock app is allowed to turn on wifi (but, cannot turn off)
+                && !(isDefaultCarDock(packageName) && enable)) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
