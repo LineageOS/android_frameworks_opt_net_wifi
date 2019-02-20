@@ -160,11 +160,13 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
-                WifiMetricsProto.ConnectionEvent.HLF_DHCP);
+                WifiMetricsProto.ConnectionEvent.HLF_DHCP,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         //end Connection event without starting one
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
-                WifiMetricsProto.ConnectionEvent.HLF_DHCP);
+                WifiMetricsProto.ConnectionEvent.HLF_DHCP,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         //start two ConnectionEvents in a row
         mWifiMetrics.startConnectionEvent(null, "BLUE",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
@@ -1338,7 +1340,8 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_NONE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         //Create a connection event using the config and a scan detail
@@ -1347,7 +1350,8 @@ public class WifiMetricsTest {
         mWifiMetrics.setConnectionScanDetail(scanDetail);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         //Dump proto from mWifiMetrics and deserialize it to mDecodedProto
         dumpProtoAndDeserialize();
@@ -1373,7 +1377,8 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_NONE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         //Dump proto and deserialize
         //This should clear all the metrics in mWifiMetrics,
@@ -1382,6 +1387,32 @@ public class WifiMetricsTest {
         assertEquals(1, mDecodedProto.connectionEvent.length);
         assertEquals(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT,
                 mDecodedProto.connectionEvent[0].level2FailureCode);
+        assertEquals(WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN,
+                mDecodedProto.connectionEvent[0].level2FailureReason);
+    }
+
+    /**
+     * Test that WifiMetrics is serializing/deserializing authentication failure events.
+     */
+    @Test
+    public void testMetricsAuthenticationFailureReason() throws Exception {
+        mWifiMetrics.startConnectionEvent(null, "RED",
+                WifiMetricsProto.ConnectionEvent.ROAM_NONE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD);
+
+        //Dump proto and deserialize
+        //This should clear all the metrics in mWifiMetrics,
+        dumpProtoAndDeserialize();
+        //Check there is only 1 connection events
+        assertEquals(1, mDecodedProto.connectionEvent.length);
+        assertEquals(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
+                mDecodedProto.connectionEvent[0].level2FailureCode);
+        //Check the authentication failure reason
+        assertEquals(WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD,
+                mDecodedProto.connectionEvent[0].level2FailureReason);
     }
 
     /**
@@ -1394,22 +1425,26 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "YELLOW",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "GREEN",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "ORANGE",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         //Dump proto and deserialize
         //This should clear all the metrics in mWifiMetrics,
@@ -1424,12 +1459,14 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "RED",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         //Dump proto and deserialize
         dumpProtoAndDeserialize();
@@ -1448,12 +1485,14 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "YELLOW",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         mWifiMetrics.startConnectionEvent(null, "GREEN",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
 
@@ -1465,7 +1504,8 @@ public class WifiMetricsTest {
         // End the ongoing ConnectionEvent
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
         dumpProtoAndDeserialize();
         assertEquals(1, mDecodedProto.connectionEvent.length);
@@ -2068,7 +2108,8 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
         assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
@@ -2086,7 +2127,8 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
         assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
@@ -2136,11 +2178,13 @@ public class WifiMetricsTest {
             if (successfulConnectionEvent) {
                 mWifiMetrics.endConnectionEvent(
                         WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                        WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                        WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                        WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
             } else {
                 mWifiMetrics.endConnectionEvent(
                         WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
-                        WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                        WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                        WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
             }
         }
         when(mClock.getElapsedSinceBootMillis()).thenReturn(interArrivalTime);

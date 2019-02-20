@@ -3133,12 +3133,14 @@ public class ClientModeImpl extends StateMachine {
      * Inform other components (WifiMetrics, WifiDiagnostics, WifiConnectivityManager, etc.) that
      * the current connection attempt has concluded.
      */
-    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode) {
+    private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode,
+            int level2FailureReason) {
         if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
             mWifiScoreCard.noteConnectionFailure(mWifiInfo,
                     level2FailureCode, connectivityFailureCode);
         }
-        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode);
+        mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode,
+                level2FailureReason);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
         mNetworkFactory.handleConnectionAttemptEnded(
                 level2FailureCode, getCurrentWifiConfiguration());
@@ -3213,7 +3215,8 @@ public class ClientModeImpl extends StateMachine {
         }
         reportConnectionAttemptEnd(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP,
-                WifiMetricsProto.ConnectionEvent.HLF_DHCP);
+                WifiMetricsProto.ConnectionEvent.HLF_DHCP,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         synchronized (mDhcpResultsLock) {
             if (mDhcpResults != null) {
                 mDhcpResults.clear();
@@ -3960,7 +3963,8 @@ public class ClientModeImpl extends StateMachine {
                             timedOut
                                     ? WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT
                                     : WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), bssid,
@@ -3994,10 +3998,35 @@ public class ClientModeImpl extends StateMachine {
                     mWifiConfigManager.updateNetworkSelectionStatus(
                             mTargetNetworkId, disableReason);
                     mWifiConfigManager.clearRecentFailureReason(mTargetNetworkId);
+
                     //If failure occurred while Metrics is tracking a ConnnectionEvent, end it.
+                    int level2FailureReason;
+                    switch (reasonCode) {
+                        case WifiManager.ERROR_AUTH_FAILURE_NONE:
+                            level2FailureReason =
+                                    WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_NONE;
+                            break;
+                        case WifiManager.ERROR_AUTH_FAILURE_TIMEOUT:
+                            level2FailureReason =
+                                    WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_TIMEOUT;
+                            break;
+                        case WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD:
+                            level2FailureReason =
+                                    WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD;
+                            break;
+                        case WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE:
+                            level2FailureReason =
+                                    WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_EAP_FAILURE;
+                            break;
+                        default:
+                            level2FailureReason =
+                                    WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN;
+                            break;
+                    }
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            level2FailureReason);
                     if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD) {
                         mWifiInjector.getWifiLastResortWatchdog()
                                 .noteConnectionFailureAndTriggerIfNeeded(
@@ -4244,7 +4273,8 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_CONNECT Failed to start connection to network " + config);
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                         replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
                                 WifiManager.ERROR);
                         break;
@@ -4947,7 +4977,8 @@ public class ClientModeImpl extends StateMachine {
                         // trigger a disconnect to clear up state.
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                         mWifiNative.disconnect(mInterfaceName);
                         transitionTo(mDisconnectingState);
                     } else {
@@ -4962,7 +4993,8 @@ public class ClientModeImpl extends StateMachine {
                     handleIpConfigurationLost();
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_DHCP,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), mTargetRoamBSSID,
@@ -5286,7 +5318,8 @@ public class ClientModeImpl extends StateMachine {
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                     return NOT_HANDLED;
                 case CMD_SET_HIGH_PERF_MODE:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
@@ -5411,7 +5444,8 @@ public class ClientModeImpl extends StateMachine {
                         if (mVerboseLoggingEnabled) log("roaming watchdog! -> disconnect");
                         mWifiMetrics.endConnectionEvent(
                                 WifiMetrics.ConnectionEvent.FAILURE_ROAM_TIMEOUT,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                         mRoamFailCount++;
                         handleNetworkDisconnect();
                         mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
@@ -5436,7 +5470,8 @@ public class ClientModeImpl extends StateMachine {
                         // Successful framework roam! (probably)
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
 
                         // We must clear the config BSSID, as the wifi chipset may decide to roam
                         // from this point on and having the BSSID specified by QNS would cause
@@ -5498,7 +5533,8 @@ public class ClientModeImpl extends StateMachine {
 
             reportConnectionAttemptEnd(
                     WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                    WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                    WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                    WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
             mWifiConnectivityManager.handleConnectionStateChanged(
                     WifiConnectivityManager.WIFI_STATE_CONNECTED);
             registerConnected();
@@ -5594,7 +5630,8 @@ public class ClientModeImpl extends StateMachine {
                     long lastRoam = 0;
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                     if (mLastDriverRoamAttempt != 0) {
                         // Calculate time since last driver roam attempt
                         lastRoam = mClock.getWallClockMillis() - mLastDriverRoamAttempt;
@@ -5655,7 +5692,8 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_ROAM Failed to start roaming to network " + config);
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                         replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
                                 WifiManager.ERROR);
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
