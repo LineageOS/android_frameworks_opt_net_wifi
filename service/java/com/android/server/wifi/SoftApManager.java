@@ -539,7 +539,7 @@ public class SoftApManager implements ActiveModeManager {
                     mSettingObserver.unregister();
                 }
                 Log.d(TAG, "Resetting num stations on stop");
-                mNumAssociatedStations = 0;
+                setNumAssociatedStations(0);
                 cancelTimeoutMessage();
                 // Need this here since we are exiting |Started| state and won't handle any
                 // future CMD_INTERFACE_STATUS_CHANGED events after this point
