@@ -66,7 +66,10 @@ public class WifiNetworkSelectorTest {
         setupResources();
         setupWifiConfigManager();
         setupWifiInfo();
-        mScoringParams = new ScoringParams(mContext);
+
+        mScoringParams = new ScoringParams();
+        setupThresholds();
+
         mLocalLog = new LocalLog(512);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
@@ -143,6 +146,7 @@ public class WifiNetworkSelectorTest {
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private WifiScoreCard mWifiScoreCard;
     @Mock private WifiScoreCard.PerBssid mPerBssid;
+    @Mock private WifiCandidates.CandidateScorer mCandidateScorer;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -172,18 +176,18 @@ public class WifiNetworkSelectorTest {
         doReturn(true).when(mResource).getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);
 
-        mThresholdMinimumRssi2G = setupIntegerResource(
-                R.integer.config_wifi_framework_wifi_score_entry_rssi_threshold_24GHz, -79);
-        mThresholdMinimumRssi5G = setupIntegerResource(
-                R.integer.config_wifi_framework_wifi_score_entry_rssi_threshold_5GHz, -76);
-        mThresholdQualifiedRssi2G = setupIntegerResource(
-                R.integer.config_wifi_framework_wifi_score_low_rssi_threshold_24GHz, -73);
-        mThresholdQualifiedRssi5G = setupIntegerResource(
-                R.integer.config_wifi_framework_wifi_score_low_rssi_threshold_5GHz, -70);
         mStayOnNetworkMinimumTxRate = setupIntegerResource(
                 R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network, 16);
         mStayOnNetworkMinimumRxRate = setupIntegerResource(
                 R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network, 16);
+    }
+
+    private void setupThresholds() {
+        mThresholdMinimumRssi2G = mScoringParams.getEntryRssi(ScoringParams.BAND2);
+        mThresholdMinimumRssi5G = mScoringParams.getEntryRssi(ScoringParams.BAND5);
+
+        mThresholdQualifiedRssi2G = mScoringParams.getSufficientRssi(ScoringParams.BAND2);
+        mThresholdQualifiedRssi5G = mScoringParams.getSufficientRssi(ScoringParams.BAND5);
     }
 
     private void setupWifiInfo() {
@@ -198,8 +202,12 @@ public class WifiNetworkSelectorTest {
     }
 
     private void setupWifiConfigManager() {
+        setupWifiConfigManager(WifiConfiguration.INVALID_NETWORK_ID);
+    }
+
+    private void setupWifiConfigManager(int networkId) {
         when(mWifiConfigManager.getLastSelectedNetwork())
-                .thenReturn(WifiConfiguration.INVALID_NETWORK_ID);
+                .thenReturn(networkId);
     }
 
     /**
@@ -1301,6 +1309,26 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.registerCandidateScorer(candidateScorer);
 
         test2GhzHighQuality5GhzAvailable();
+    }
+
+    /**
+     * Test that registering a new CandidateScorer causes it to be used
+     */
+    @Test
+    public void testCandidateScorerUse() throws Exception {
+        String myid = "Mock CandidateScorer";
+        when(mCandidateScorer.getIdentifier()).thenReturn(myid);
+        setupWifiConfigManager(13);
+
+        int experimentId = WifiNetworkSelector.experimentIdFromIdentifier(myid);
+        assertTrue("" + myid, 42000000 <=  experimentId && experimentId <= 42999999);
+        String diagnose = "" + mScoringParams + " // " + experimentId;
+        assertTrue(diagnose, mScoringParams.update("expid=" + experimentId));
+        assertEquals(experimentId, mScoringParams.getExperimentIdentifier());
+
+        mWifiNetworkSelector.registerCandidateScorer(mCandidateScorer);
+        test2GhzHighQuality5GhzAvailable(); // calls selectNetwork twice
+        verify(mCandidateScorer, times(2)).scoreCandidates(any());
     }
 
 }
