@@ -111,6 +111,8 @@ public class WifiScoreCardTest {
 
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         assertTrue(perBssid.id > 0);
+        assertNotNull(perBssid.l2Key);
+        assertTrue("L2Key length should be more than 16.", perBssid.l2Key.length() > 16);
 
         mWifiInfo.setBSSID(TEST_BSSID_2.toString());
 
@@ -118,6 +120,7 @@ public class WifiScoreCardTest {
 
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
         assertNotEquals(perBssid.id, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).id);
+        assertNotEquals(perBssid.l2Key, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).l2Key);
     }
 
     /**
