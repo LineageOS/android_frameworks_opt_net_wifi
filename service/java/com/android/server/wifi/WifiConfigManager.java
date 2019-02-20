@@ -227,7 +227,7 @@ public class WifiConfigManager {
     public static final long MAX_PNO_SCAN_FREQUENCY_AGE_MS = (long) 1000 * 3600 * 24 * 30;
 
     private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 1; // 0 = disabled
-    private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 0; // 0 = disabled:
+    private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 1; // 0 = disabled:
 
     /**
      * General sorting algorithm of all networks for scanning purposes:
