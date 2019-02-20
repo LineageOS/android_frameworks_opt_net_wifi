@@ -2962,11 +2962,11 @@ public class SupplicantStaIfaceHal {
         }
 
         @Override
-        public void onDppSuccess(int code) {
+        public void onDppSuccessConfigSent() {
             if (mDppCallback != null) {
-                mDppCallback.onSuccess(code);
+                mDppCallback.onSuccessConfigSent();
             } else {
-                loge("onDppSuccess callback is null");
+                loge("onSuccessConfigSent callback is null");
             }
         }
 
