@@ -76,6 +76,9 @@ public class HalDeviceManager {
 
     private final Clock mClock;
 
+    // cache the value for supporting vendor HAL or not
+    private boolean mIsVendorHalSupported = false;
+
     // public API
     public HalDeviceManager(Clock clock) {
         mClock = clock;
@@ -134,7 +137,7 @@ public class HalDeviceManager {
      * Returns whether the vendor HAL is supported on this device or not.
      */
     public boolean isSupported() {
-        return isSupportedInternal();
+        return mIsVendorHalSupported;
     }
 
     /**
@@ -611,7 +614,7 @@ public class HalDeviceManager {
 
     private void initializeInternal() {
         initIServiceManagerIfNecessary();
-        if (isSupportedInternal()) {
+        if (mIsVendorHalSupported) {
             initIWifiIfNecessary();
         }
     }
@@ -685,6 +688,9 @@ public class HalDeviceManager {
                     Log.wtf(TAG, "Exception while operating on IServiceManager: " + e);
                     mServiceManager = null;
                 }
+
+                // Cache the result for the supporting vendor hal or not
+                mIsVendorHalSupported = isSupportedInternal();
             }
         }
     }
