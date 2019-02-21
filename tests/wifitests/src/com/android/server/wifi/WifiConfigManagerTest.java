@@ -1128,29 +1128,57 @@ public class WifiConfigManagerTest {
      * has no permission to modify the network fails..
      */
     @Test
-    public void testEnableDisableNetworkFailedDueToPermissionDenied() throws Exception {
-        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+    public void testEnableNetworkFailedDueToPermissionDenied() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
 
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
 
-        assertTrue(mWifiConfigManager.enableNetwork(
-                result.getNetworkId(), false, TEST_CREATOR_UID));
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID,
+                mWifiConfigManager.getLastSelectedNetwork());
+
+        // Now try to set it enable with |TEST_UPDATE_UID|, it should fail and the network
+        // should remain disabled.
+        assertFalse(mWifiConfigManager.enableNetwork(
+                result.getNetworkId(), true, TEST_UPDATE_UID));
         WifiConfiguration retrievedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
         NetworkSelectionStatus retrievedStatus = retrievedNetwork.getNetworkSelectionStatus();
-        assertTrue(retrievedStatus.isNetworkEnabled());
-        verifyUpdateNetworkStatus(retrievedNetwork, WifiConfiguration.Status.ENABLED);
+        assertFalse(retrievedStatus.isNetworkEnabled());
+        assertEquals(WifiConfiguration.Status.DISABLED, retrievedNetwork.status);
 
+        // Set last selected network even if the app has no permission to enable it.
+        assertEquals(result.getNetworkId(), mWifiConfigManager.getLastSelectedNetwork());
+    }
+
+    /**
+     * Verifies the enabling of network using
+     * {@link WifiConfigManager#disableNetwork(int, int)} with a UID which
+     * has no permission to modify the network fails..
+     */
+    @Test
+    public void testDisableNetworkFailedDueToPermissionDenied() throws Exception {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
+        assertTrue(mWifiConfigManager.enableNetwork(
+                result.getNetworkId(), true, TEST_CREATOR_UID));
+
+        assertEquals(result.getNetworkId(), mWifiConfigManager.getLastSelectedNetwork());
 
         // Now try to set it disabled with |TEST_UPDATE_UID|, it should fail and the network
         // should remain enabled.
         assertFalse(mWifiConfigManager.disableNetwork(result.getNetworkId(), TEST_UPDATE_UID));
-        retrievedStatus =
-                mWifiConfigManager.getConfiguredNetwork(result.getNetworkId())
-                        .getNetworkSelectionStatus();
+        WifiConfiguration retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
+        NetworkSelectionStatus retrievedStatus = retrievedNetwork.getNetworkSelectionStatus();
         assertTrue(retrievedStatus.isNetworkEnabled());
         assertEquals(WifiConfiguration.Status.ENABLED, retrievedNetwork.status);
+
+        // Clear the last selected network even if the app has no permission to disable it.
+        assertEquals(WifiConfiguration.INVALID_NETWORK_ID,
+                mWifiConfigManager.getLastSelectedNetwork());
     }
 
     /**
