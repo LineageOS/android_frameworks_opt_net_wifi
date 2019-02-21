@@ -438,6 +438,22 @@ public class ActiveModeWardenTest {
     }
 
     /**
+     * Verifies that SoftApStateChanged event isn't passed to WifiServiceImpl for LOHS,
+     * so the state change for LOHS doesn't affect Wifi Tethering indication.
+     */
+    @Test
+    public void doesntCallWifiServiceCallbackOnLOHSStateChanged() throws Exception {
+        enterSoftApActiveMode(new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_LOCAL_ONLY, null));
+
+        mSoftApManagerCallback.onStateChanged(WifiManager.WIFI_AP_STATE_ENABLED, 0);
+        mLooper.dispatchAll();
+
+        verify(mSoftApStateMachineCallback, never()).onStateChanged(anyInt(), anyInt());
+        verify(mSoftApStateMachineCallback, never()).onNumClientsChanged(anyInt());
+    }
+
+    /**
      * Verifies that triggering a state change update will not crash if the callback to
      * WifiServiceImpl is null.
      */
