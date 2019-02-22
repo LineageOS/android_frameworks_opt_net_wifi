@@ -1348,12 +1348,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
 
             private void setupInterfaceFeatures(String interfaceName) {
-                long featureSets = mWifiNative.getSupportedFeatureSet(interfaceName);
-                Log.i(TAG, "P2p feature set 0x" + Long.toHexString(featureSets));
-
-                if ((featureSets & WifiManager.WIFI_FEATURE_P2P_RAND_MAC) != 0) {
+                if (mContext.getResources().getBoolean(
+                        R.bool.config_wifi_p2p_mac_randomization_supported)) {
                     Log.i(TAG, "Supported feature: P2P MAC randomization");
                     mWifiNative.setMacRandomization(true);
+                } else {
+                    mWifiNative.setMacRandomization(false);
                 }
             }
 
