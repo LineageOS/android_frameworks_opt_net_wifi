@@ -5782,6 +5782,17 @@ public class ClientModeImpl extends StateMachine {
                                 + " -> state= "
                                 + WifiInfo.getDetailedStateOf(stateChangeResult.state));
                     }
+                    if (SupplicantState.isConnecting(stateChangeResult.state)) {
+                        WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(
+                                stateChangeResult.networkId);
+
+                        // Update Passpoint information before setNetworkDetailedState as
+                        // WifiTracker monitors NETWORK_STATE_CHANGED_ACTION to update UI.
+                        if (config != null && config.isPasspoint()) {
+                            mWifiInfo.setFQDN(config.FQDN);
+                            mWifiInfo.setProviderFriendlyName(config.providerFriendlyName);
+                        }
+                    }
                     setNetworkDetailedState(WifiInfo.getDetailedStateOf(stateChangeResult.state));
                     /* ConnectModeState does the rest of the handling */
                     ret = NOT_HANDLED;
