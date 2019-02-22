@@ -2342,19 +2342,29 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that the call to removePasspointConfiguration is not redirected to specific API
-     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS permissions and
-     * NETWORK_SETUP_WIZARD.
+     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS permission.
      */
     @Test(expected = SecurityException.class)
     public void testRemovePasspointConfigurationWithOutPermissions() {
         when(mContext.checkCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
                 PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
 
         mWifiServiceImpl.removePasspointConfiguration(null, null);
+    }
+
+    /**
+     * Verify that the call to removePasspointConfiguration for apps targeting below Q SDK will
+     * return false if the caller doesn't have NETWORK_SETTINGS permission.
+     */
+    @Test
+    public void testRemovePasspointConfigurationForAppsTargetingBelowQSDK() {
+        when(mContext.checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
+                PackageManager.PERMISSION_DENIED);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(isNull(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+        assertFalse(mWifiServiceImpl.removePasspointConfiguration(null, null));
     }
 
     /**
