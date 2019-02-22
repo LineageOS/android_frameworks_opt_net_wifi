@@ -65,6 +65,18 @@ public class WifiCandidates {
          */
         boolean isOpenNetwork();
         /**
+         * Returns true for a passpoint network.
+         */
+        boolean isPasspoint();
+        /**
+         * Returns true for an ephemeral network.
+         */
+        boolean isEphemeral();
+        /**
+         * Returns true for a trusted network.
+         */
+        boolean isTrusted();
+        /**
          * Returns the index of the evaluator that provided the candidate.
          */
         int getEvaluatorIndex();
@@ -144,6 +156,21 @@ public class WifiCandidates {
         public boolean isOpenNetwork() {
             // TODO - should be able to base this on key.matchInfo.securityType
             return WifiConfigurationUtil.isConfigForOpenNetwork(config);
+        }
+
+        @Override
+        public boolean isPasspoint() {
+            return config.isPasspoint();
+        }
+
+        @Override
+        public boolean isEphemeral() {
+            return config.ephemeral;
+        }
+
+        @Override
+        public boolean isTrusted() {
+            return config.trusted;
         }
 
         @Override
