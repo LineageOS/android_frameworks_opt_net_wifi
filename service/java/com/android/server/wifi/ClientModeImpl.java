@@ -765,8 +765,7 @@ public class ClientModeImpl extends StateMachine {
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
-                            WifiNative wifiNative, WifiScoreCard wifiScoreCard,
-                            WrongPasswordNotifier wrongPasswordNotifier,
+                            WifiNative wifiNative, WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
                             LinkProbeManager linkProbeManager) {
         super(TAG, looper);
@@ -775,10 +774,10 @@ public class ClientModeImpl extends StateMachine {
         mClock = wifiInjector.getClock();
         mPropertyService = wifiInjector.getPropertyService();
         mBuildProperties = wifiInjector.getBuildProperties();
+        mWifiScoreCard = wifiInjector.getWifiScoreCard();
         mContext = context;
         mFacade = facade;
         mWifiNative = wifiNative;
-        mWifiScoreCard = wifiScoreCard;
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
