@@ -765,8 +765,7 @@ public class ClientModeImpl extends StateMachine {
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
-                            WifiNative wifiNative, WifiScoreCard wifiScoreCard,
-                            WrongPasswordNotifier wrongPasswordNotifier,
+                            WifiNative wifiNative, WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
                             LinkProbeManager linkProbeManager) {
         super(TAG, looper);
@@ -775,10 +774,10 @@ public class ClientModeImpl extends StateMachine {
         mClock = wifiInjector.getClock();
         mPropertyService = wifiInjector.getPropertyService();
         mBuildProperties = wifiInjector.getBuildProperties();
+        mWifiScoreCard = wifiInjector.getWifiScoreCard();
         mContext = context;
         mFacade = facade;
         mWifiNative = wifiNative;
-        mWifiScoreCard = wifiScoreCard;
         mBackupManagerProxy = backupManagerProxy;
         mWrongPasswordNotifier = wrongPasswordNotifier;
         mSarManager = sarManager;
@@ -5781,6 +5780,17 @@ public class ClientModeImpl extends StateMachine {
                         logd("SUPPLICANT_STATE_CHANGE_EVENT state=" + stateChangeResult.state
                                 + " -> state= "
                                 + WifiInfo.getDetailedStateOf(stateChangeResult.state));
+                    }
+                    if (SupplicantState.isConnecting(stateChangeResult.state)) {
+                        WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(
+                                stateChangeResult.networkId);
+
+                        // Update Passpoint information before setNetworkDetailedState as
+                        // WifiTracker monitors NETWORK_STATE_CHANGED_ACTION to update UI.
+                        if (config != null && config.isPasspoint()) {
+                            mWifiInfo.setFQDN(config.FQDN);
+                            mWifiInfo.setProviderFriendlyName(config.providerFriendlyName);
+                        }
                     }
                     setNetworkDetailedState(WifiInfo.getDetailedStateOf(stateChangeResult.state));
                     /* ConnectModeState does the rest of the handling */

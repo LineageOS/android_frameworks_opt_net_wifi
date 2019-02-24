@@ -143,7 +143,7 @@ public class WifiScoreCard {
      */
     public WifiScoreCard(Clock clock, String l2KeySeed) {
         mClock = clock;
-        mL2KeySeed = "" + l2KeySeed;
+        mL2KeySeed = l2KeySeed;
         mDummyPerBssid = new PerBssid("", MacAddress.fromString(DEFAULT_MAC_ADDRESS));
     }
 

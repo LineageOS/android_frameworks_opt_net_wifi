@@ -25,6 +25,7 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -707,7 +708,7 @@ public class WifiPermissionsUtilTest {
         } catch (SecurityException e) {
             // empty
         }
-        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
+        verify(mMockAppOps, never()).noteOp(anyInt(), anyInt(), anyString());
     }
 
     /**
