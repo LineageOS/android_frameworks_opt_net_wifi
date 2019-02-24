@@ -41,12 +41,14 @@ import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiCon
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
@@ -76,7 +78,8 @@ public class WifiNetworkSelectorTest {
                 mWifiScoreCard,
                 mScoringParams,
                 mWifiConfigManager, mClock,
-                mLocalLog);
+                mLocalLog,
+                mWifiMetrics);
         mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -98,6 +101,24 @@ public class WifiNetworkSelectorTest {
         private static final String NAME = "DummyNetworkEvaluator";
 
         private boolean mEvaluatorShouldSelectCandidate = true;
+
+        private int mNetworkIndexToReturn;
+
+        public DummyNetworkEvaluator(int networkIndexToReturn) {
+            mNetworkIndexToReturn = networkIndexToReturn;
+        }
+
+        public DummyNetworkEvaluator() {
+            this(0);
+        }
+
+        public int getNetworkIndexToReturn() {
+            return mNetworkIndexToReturn;
+        }
+
+        public void setNetworkIndexToReturn(int networkIndexToReturn) {
+            mNetworkIndexToReturn = networkIndexToReturn;
+        }
 
         @Override
         public String getName() {
@@ -129,7 +150,7 @@ public class WifiNetworkSelectorTest {
             if (!mEvaluatorShouldSelectCandidate) {
                 return null;
             }
-            ScanDetail scanDetail = scanDetails.get(0);
+            ScanDetail scanDetail = scanDetails.get(mNetworkIndexToReturn);
             mWifiConfigManager.setNetworkCandidateScanResult(0, scanDetail.getScanResult(), 100);
             WifiConfiguration config =
                     mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
@@ -147,6 +168,7 @@ public class WifiNetworkSelectorTest {
     @Mock private WifiScoreCard mWifiScoreCard;
     @Mock private WifiScoreCard.PerBssid mPerBssid;
     @Mock private WifiCandidates.CandidateScorer mCandidateScorer;
+    @Mock private WifiMetrics mWifiMetrics;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -1331,5 +1353,186 @@ public class WifiNetworkSelectorTest {
         verify(mCandidateScorer, times(2)).scoreCandidates(any());
     }
 
+    /**
+     * Tests that no metrics are recorded if there is only a single legacy scorer.
+     */
+    @Test
+    public void testCandidateScorerMetrics_onlyOneScorer() {
+        mWifiNetworkSelector.unregisterCandidateScorer(new CompatibiltyScorer(mScoringParams));
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+
+        test2GhzHighQuality5GhzAvailable();
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
+
+    /**
+     * Tests that metrics are recorded for 2 scorers (legacy and legacy compatibility).
+     */
+    @Test
+    public void testCandidateScorerMetrics_twoScorers() {
+        // unregister ScoreCard scorer, leaving only compatibility scorer
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+
+        test2GhzHighQuality5GhzAvailable();
+
+        String compatibilityExpIdStr = new CompatibiltyScorer(mScoringParams).getIdentifier();
+        int compatibilityExpId = WifiNetworkSelector
+                .experimentIdFromIdentifier(compatibilityExpIdStr);
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(compatibilityExpId,
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, true, 2);
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
+
+    /**
+     * Tests that metrics are recorded for 2 scorers (legacy and legacy compatibility), when
+     * legacy compatibility experiment is active.
+     */
+    @Test
+    public void testCandidateScorerMetrics_twoScorers_experimentActive() {
+        // unregister ScoreCard scorer, leaving only compatibility scorer
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+
+        String compatibilityExpIdStr = new CompatibiltyScorer(mScoringParams).getIdentifier();
+        int compatibilityExpId = WifiNetworkSelector
+                .experimentIdFromIdentifier(compatibilityExpIdStr);
+        mScoringParams.update("expid=" + compatibilityExpId);
+        assertEquals(compatibilityExpId, mScoringParams.getExperimentIdentifier());
+
+        test2GhzHighQuality5GhzAvailable();
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, compatibilityExpId, true, 2);
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
+
+    private static final WifiCandidates.CandidateScorer NULL_SCORER =
+            new WifiCandidates.CandidateScorer() {
+                @Override
+                public String getIdentifier() {
+                    return "NULL_SCORER";
+                }
+
+                @Override
+                public WifiCandidates.ScoredCandidate scoreCandidates(
+                        Collection<WifiCandidates.Candidate> group) {
+                    return new WifiCandidates.ScoredCandidate(0, 0, null);
+                }
+
+                @Override
+                public boolean userConnectChoiceOverrideWanted() {
+                    return false;
+                }
+            };
+
+    /**
+     * Tests that metrics are recorded for 2 scorers (legacy and null score) when one
+     * candidate scorer returns null.
+     */
+    @Test
+    public void testCandidateScorerMetrics_twoScorers_oneNull() {
+        // unregister all default scorers
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+        mWifiNetworkSelector.unregisterCandidateScorer(new CompatibiltyScorer(mScoringParams));
+
+        // add null scorer
+        mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+
+        test2GhzHighQuality5GhzAvailable();
+
+        int nullScorerId = WifiNetworkSelector
+                .experimentIdFromIdentifier(NULL_SCORER.getIdentifier());
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(nullScorerId,
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, false, 2);
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
+
+    /**
+     * Tests that metrics are recorded for 2 scorers (legacy and null score) when the active
+     * candidate scorer returns null.
+     */
+    @Test
+    @Ignore("TODO Until b/126273496 is resolved")
+    public void testCandidateScorerMetrics_twoScorers_nullActive() {
+        // unregister all default scorers
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+        mWifiNetworkSelector.unregisterCandidateScorer(new CompatibiltyScorer(mScoringParams));
+
+        int nullScorerId = WifiNetworkSelector
+                .experimentIdFromIdentifier(NULL_SCORER.getIdentifier());
+
+        mScoringParams.update("expid=" + nullScorerId);
+        assertEquals(nullScorerId, mScoringParams.getExperimentIdentifier());
+
+        // add null scorer
+        mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+
+        test2GhzHighQuality5GhzAvailable();
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, nullScorerId, false, 2);
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
+
+    /**
+     * Tests that metrics are recorded for 3 scorers (legacy, compat, and null scorer).
+     */
+    @Test
+    public void testCandidateScorerMetrics_threeScorers() {
+        mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
+
+        // add null scorer
+        mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+
+        String compatibilityExpIdStr = new CompatibiltyScorer(mScoringParams).getIdentifier();
+        int compatibilityExpId = WifiNetworkSelector
+                .experimentIdFromIdentifier(compatibilityExpIdStr);
+        mScoringParams.update("expid=" + compatibilityExpId);
+        assertEquals(compatibilityExpId, mScoringParams.getExperimentIdentifier());
+
+        test2GhzHighQuality5GhzAvailable();
+
+        int nullScorerId = WifiNetworkSelector
+                .experimentIdFromIdentifier(NULL_SCORER.getIdentifier());
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(nullScorerId,
+                compatibilityExpId, false, 2);
+
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, compatibilityExpId, true, 2);
+
+        verifyNoMoreInteractions(mWifiMetrics);
+    }
 }
 

@@ -2064,8 +2064,14 @@ public class WifiMetricsTest {
         final int id = 42;
         final String expectId = "x" + id;
         when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+        mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
+        assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
     }
 
     /**
@@ -2076,8 +2082,15 @@ public class WifiMetricsTest {
         final int id = 0;
         final String expectId = "";
         when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+        mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
+        assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
+
     }
 
     /** short hand for instantiating an anonymous int array, instead of 'new int[]{a1, a2, ...}' */

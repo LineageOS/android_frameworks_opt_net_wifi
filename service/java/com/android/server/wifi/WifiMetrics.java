@@ -596,10 +596,48 @@ public class WifiMetrics {
                 }
                 sb.append(", screenOn=");
                 sb.append(mScreenOn);
-                sb.append(". mRouterFingerprint: ");
+                sb.append(", mRouterFingerprint=");
                 sb.append(mRouterFingerPrint.toString());
                 sb.append(", useRandomizedMac=");
                 sb.append(mConnectionEvent.useRandomizedMac);
+                sb.append(", connectionNominator=");
+                switch (mConnectionEvent.connectionNominator) {
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN:
+                        sb.append("NOMINATOR_UNKNOWN");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL:
+                        sb.append("NOMINATOR_MANUAL");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED:
+                        sb.append("NOMINATOR_SAVED");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION:
+                        sb.append("NOMINATOR_SUGGESTION");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT:
+                        sb.append("NOMINATOR_PASSPOINT");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER:
+                        sb.append("NOMINATOR_CARRIER");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED:
+                        sb.append("NOMINATOR_EXTERNAL_SCORED");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC:
+                        sb.append("NOMINATOR_NETREC");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE:
+                        sb.append("NOMINATOR_SAVED_USER_CONNECT_CHOICE");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_OPEN_NETWORK_AVAILABLE:
+                        sb.append("NOMINATOR_OPEN_NETWORK_AVAILABLE");
+                        break;
+                    default:
+                        sb.append(String.format("UnrecognizedNominator(%d)",
+                                mConnectionEvent.connectionNominator));
+                }
+                sb.append(", networkSelectorExperimentId=");
+                sb.append(mConnectionEvent.networkSelectorExperimentId);
             }
             return sb.toString();
         }
@@ -891,6 +929,11 @@ public class WifiMetrics {
                     mClock.getWallClockMillis();
             mCurrentConnectionEvent.mConfigBssid = targetBSSID;
             mCurrentConnectionEvent.mConnectionEvent.roamType = roamType;
+            mCurrentConnectionEvent.mConnectionEvent.networkSelectorExperimentId =
+                    mScoringParams.getExperimentIdentifier();
+            // TODO(b/112196799): populate nominator field
+            mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                    WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
             mCurrentConnectionEvent.mRouterFingerPrint.updateFromWifiConfiguration(config);
             mCurrentConnectionEvent.mConfigBssid = "any";
             mCurrentConnectionEvent.mRealStartTime = mClock.getElapsedSinceBootMillis();
