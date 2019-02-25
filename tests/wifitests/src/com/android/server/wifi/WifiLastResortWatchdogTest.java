@@ -1885,4 +1885,115 @@ public class WifiLastResortWatchdogTest {
         verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
         verify(mWifiMetrics, never()).incrementNumLastResortWatchdogSuccesses();
     }
+
+    /**
+     * Test Failure Counting, over failure Threshold check with mixture reason.
+     * Test has 4 buffered networks, cause FAILURE_THRESHOLD failures for mixture failure type
+     *  (leaving one unfailed).
+     * Expected Behavior: 3 of the Available Networks report OverFailureThreshold
+     */
+    @Test
+    public void testMixtureFailureCounting_failureOverThresholdCheck() throws Exception {
+        int associationRejections = 3;
+        int authenticationFailures = 4;
+        int dhcpFailures = 5;
+        // Buffer potential candidates 1,2,3 & 4
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(mSsids,
+                mBssids, mFrequencies, mCaps, mLevels, mIsEphemeral, mHasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < mSsids.length; i++) {
+            assertFailureCountEquals(mBssids[i], 0, 0, 0);
+        }
+
+        //Increment failure count for each network and failure type
+        int net = 0;
+        for (int i = 0; i < associationRejections; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+        for (int i = 0; i < authenticationFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+        }
+        net = 1;
+        for (int i = 0; i < associationRejections; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+        for (int i = 0; i < dhcpFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+        }
+        net = 2;
+        for (int i = 0; i < authenticationFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+        }
+        for (int i = 0; i < dhcpFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(mSsids[net], mBssids[net],
+                    WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+        }
+
+        assertEquals(true, mLastResortWatchdog.isOverFailureThreshold(mBssids[0]));
+        assertEquals(true, mLastResortWatchdog.isOverFailureThreshold(mBssids[1]));
+        assertEquals(true, mLastResortWatchdog.isOverFailureThreshold(mBssids[2]));
+        assertEquals(false, mLastResortWatchdog.isOverFailureThreshold(mBssids[3]));
+    }
+
+    /**
+     * Test Metrics collection with Mixture Reason.
+     * Setup 1 networks. Fail them until watchdog triggers
+     * with 2 authenticationFailures and 5 dhcpFailures.
+     * Expected behavior: Metrics are updated as follows
+     *  Triggers++
+     *  # of Networks += 1
+     *  Triggers with Bad dhcp++
+     *  Number of networks with bad dhcp += 1
+     */
+    @Test
+    public void testMetricsCollectionWithMixtureReason() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] frequencies = {2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-60};
+        boolean[] isEphemeral = {false};
+        boolean[] hasEverConnected = {true};
+        int authenticationFailures = 2;
+        int dhcpFailures = 5;
+
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < ssids.length; i++) {
+            assertFailureCountEquals(bssids[i], 0, 0, 0);
+        }
+
+        //Increment failure counts
+        for (int i = 0; i < authenticationFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                    ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+        }
+        for (int i = 0; i < dhcpFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                    ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+        }
+
+        // Verify relevant WifiMetrics calls were made once with appropriate arguments
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
+        verify(mWifiMetrics, times(1)).addCountToNumLastResortWatchdogAvailableNetworksTotal(1);
+        verify(mWifiMetrics, never())
+                .addCountToNumLastResortWatchdogBadAuthenticationNetworksTotal(anyInt());
+        verify(mWifiMetrics, never())
+                .incrementNumLastResortWatchdogTriggersWithBadAuthentication();
+        verify(mWifiMetrics, never())
+                .addCountToNumLastResortWatchdogBadAssociationNetworksTotal(anyInt());
+        verify(mWifiMetrics, never()).incrementNumLastResortWatchdogTriggersWithBadAssociation();
+        verify(mWifiMetrics, times(1)).addCountToNumLastResortWatchdogBadDhcpNetworksTotal(1);
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggersWithBadDhcp();
+    }
 }

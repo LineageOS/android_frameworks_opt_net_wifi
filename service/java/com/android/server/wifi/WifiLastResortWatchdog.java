@@ -394,11 +394,18 @@ public class WifiLastResortWatchdog {
         int badAuth = 0;
         int badAssoc = 0;
         int badDhcp = 0;
+        int badSum = 0;
         for (Map.Entry<String, Pair<AvailableNetworkFailureCount, Integer>> entry
                 : mSsidFailureCount.entrySet()) {
-            badAuth += (entry.getValue().first.authenticationFailure >= FAILURE_THRESHOLD) ? 1 : 0;
-            badAssoc += (entry.getValue().first.associationRejection >= FAILURE_THRESHOLD) ? 1 : 0;
-            badDhcp += (entry.getValue().first.dhcpFailure >= FAILURE_THRESHOLD) ? 1 : 0;
+            badSum = entry.getValue().first.associationRejection
+                    + entry.getValue().first.authenticationFailure
+                    + entry.getValue().first.dhcpFailure;
+            // count as contributor if over half of badSum.
+            if (badSum >= FAILURE_THRESHOLD) {
+                badAssoc += (entry.getValue().first.associationRejection >= badSum / 2) ? 1 : 0;
+                badAuth += (entry.getValue().first.authenticationFailure >= badSum / 2) ? 1 : 0;
+                badDhcp += (entry.getValue().first.dhcpFailure >= badSum / 2) ? 1 : 0;
+            }
         }
         if (badAuth > 0) {
             mWifiMetrics.addCountToNumLastResortWatchdogBadAuthenticationNetworksTotal(badAuth);
@@ -472,15 +479,12 @@ public class WifiLastResortWatchdog {
 
     /**
      * @param bssid bssid to check the failures for
-     * @return true if any failure count is over FAILURE_THRESHOLD
+     * @return true if sum of failure count is over FAILURE_THRESHOLD
      */
     public boolean isOverFailureThreshold(String bssid) {
-        if ((getFailureCount(bssid, FAILURE_CODE_ASSOCIATION) >= FAILURE_THRESHOLD)
-                || (getFailureCount(bssid, FAILURE_CODE_AUTHENTICATION) >= FAILURE_THRESHOLD)
-                || (getFailureCount(bssid, FAILURE_CODE_DHCP) >= FAILURE_THRESHOLD)) {
-            return true;
-        }
-        return false;
+        return (getFailureCount(bssid, FAILURE_CODE_ASSOCIATION)
+                + getFailureCount(bssid, FAILURE_CODE_AUTHENTICATION)
+                + getFailureCount(bssid, FAILURE_CODE_DHCP)) >= FAILURE_THRESHOLD;
     }
 
     /**
