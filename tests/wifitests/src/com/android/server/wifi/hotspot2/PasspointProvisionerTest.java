@@ -220,7 +220,7 @@ public class PasspointProvisionerTest {
                 .getSystemService(eq(Context.WIFI_SERVICE));
         mPasspointProvisioner = new PasspointProvisioner(mContext, mWifiNative, mObjectFactory,
                 mPasspointManager);
-        when(mOsuNetworkConnection.connect(any(WifiSsid.class), any())).thenReturn(true);
+        when(mOsuNetworkConnection.connect(any(WifiSsid.class), any(), any())).thenReturn(true);
         when(mOsuServerConnection.connect(any(URL.class), any(Network.class))).thenReturn(true);
         when(mOsuServerConnection.validateProvider(any(Locale.class),
                 any(String.class))).thenReturn(true);
@@ -500,7 +500,7 @@ public class PasspointProvisionerTest {
         ArgumentCaptor<WifiSsid> wifiSsidArgumentCaptor = ArgumentCaptor.forClass(WifiSsid.class);
 
         verify(mOsuNetworkConnection, atLeastOnce()).connect(wifiSsidArgumentCaptor.capture(),
-                any(String.class));
+                any(String.class), any(String.class));
         assertEquals(TEST_OSU_SSID3, wifiSsidArgumentCaptor.getValue());
     }
 
@@ -524,7 +524,7 @@ public class PasspointProvisionerTest {
      */
     @Test
     public void verifyConnectAttemptFailure() throws RemoteException {
-        when(mOsuNetworkConnection.connect(any(WifiSsid.class), any())).thenReturn(false);
+        when(mOsuNetworkConnection.connect(any(WifiSsid.class), any(), any())).thenReturn(false);
         initAndStartProvisioning();
 
         // Since connection attempt fails, directly move to FAILED_STATE

@@ -69,6 +69,7 @@ public class OsuNetworkConnectionTest {
     private static final int TEST_NETWORK_ID = 6;
     private static final String TEST_NAI = null;
     private static final String TEST_NAI_OSEN = "access.test.com";
+    private static final String TEST_PROVIDER_NAME = "testService";
     private static final WifiSsid TEST_SSID = WifiSsid.createFromAsciiEncoded("Test SSID");
 
     private OsuNetworkConnection mNetworkConnection;
@@ -164,7 +165,7 @@ public class OsuNetworkConnectionTest {
     public void verifyNetworkConnectionWhenWifiIsDisabled() {
         when(mWifiManager.isWifiEnabled()).thenReturn(false);
         mNetworkConnection.init(mHandler);
-        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
     }
 
     /**
@@ -173,7 +174,8 @@ public class OsuNetworkConnectionTest {
     @Test
     public void verifyOSENUnsupported() {
         mNetworkConnection.init(mHandler);
-        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI_OSEN));
+        assertEquals(false,
+                mNetworkConnection.connect(TEST_SSID, TEST_NAI_OSEN, TEST_PROVIDER_NAME));
     }
 
     /**
@@ -184,7 +186,7 @@ public class OsuNetworkConnectionTest {
     public void verifyNetworkConnectionWhenAddNetworkFails() {
         when(mWifiManager.addNetwork(any(WifiConfiguration.class))).thenReturn(-1);
         mNetworkConnection.init(mHandler);
-        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
         verify(mWifiManager, never()).removeNetwork(TEST_NETWORK_ID);
     }
 
@@ -196,7 +198,7 @@ public class OsuNetworkConnectionTest {
     public void verifyNetworkConnectionWhenEnableNetworkFails() {
         when(mWifiManager.enableNetwork(TEST_NETWORK_ID, true)).thenReturn(false);
         mNetworkConnection.init(mHandler);
-        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
         verify(mWifiManager).removeNetwork(TEST_NETWORK_ID);
     }
 
@@ -210,7 +212,7 @@ public class OsuNetworkConnectionTest {
         mNetworkConnection.init(mHandler);
 
         mNetworkConnection.setEventCallback(mNetworkCallbacks);
-        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
 
         ArgumentCaptor<ConnectivityManager.NetworkCallback> networkCallbackCaptor =
                 ArgumentCaptor.forClass(ConnectivityManager.NetworkCallback.class);
@@ -240,7 +242,7 @@ public class OsuNetworkConnectionTest {
         mNetworkConnection.init(mHandler);
 
         mNetworkConnection.setEventCallback(mNetworkCallbacks);
-        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
 
         ArgumentCaptor<ConnectivityManager.NetworkCallback> networkCallbackCaptor =
                 ArgumentCaptor.forClass(ConnectivityManager.NetworkCallback.class);
@@ -263,7 +265,7 @@ public class OsuNetworkConnectionTest {
         mNetworkConnection.init(mHandler);
 
         mNetworkConnection.setEventCallback(mNetworkCallbacks);
-        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
 
         ArgumentCaptor<ConnectivityManager.NetworkCallback> networkCallbackCaptor =
                 ArgumentCaptor.forClass(ConnectivityManager.NetworkCallback.class);
@@ -290,7 +292,7 @@ public class OsuNetworkConnectionTest {
     @Test
     public void verifyNetworkDisconnect() {
         mNetworkConnection.init(mHandler);
-        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
 
         mNetworkConnection.disconnectIfNeeded();
 
@@ -308,7 +310,7 @@ public class OsuNetworkConnectionTest {
     public void verifyWifiConfigurationForOsuNetwork() {
         mNetworkConnection.init(mHandler);
 
-        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI));
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
 
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor = ArgumentCaptor.forClass(
                 WifiConfiguration.class);
