@@ -2058,8 +2058,10 @@ public class WifiMetrics {
     public void logFirmwareAlert(int errorCode) {
         incrementAlertReasonCount(errorCode);
         logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, errorCode);
-        addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_FIRMWARE_ALERT);
+        if (mScreenOn) {
+            addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                    WifiUsabilityStats.TYPE_FIRMWARE_ALERT);
+        }
     }
 
     public static final String PROTO_DUMP_ARG = "wifiMetricsProto";
