@@ -55,6 +55,8 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
@@ -69,6 +71,8 @@ import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.InformationElementUtil;
+import com.android.server.wifi.util.IntCounter;
+import com.android.server.wifi.util.IntHistogram;
 import com.android.server.wifi.util.MetricsUtils;
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -279,6 +283,25 @@ public class WifiMetrics {
     private final SparseIntArray mObservedHotspotR2ApsPerEssInScanHistogram = new SparseIntArray();
 
     private final SparseIntArray mObserved80211mcApInScanHistogram = new SparseIntArray();
+
+    // link probing stats
+    private final IntCounter mLinkProbeSuccessRssiCounts = new IntCounter(-85, -65);
+    private final IntCounter mLinkProbeFailureRssiCounts = new IntCounter(-85, -65);
+    private final IntCounter mLinkProbeSuccessLinkSpeedCounts = new IntCounter();
+    private final IntCounter mLinkProbeFailureLinkSpeedCounts = new IntCounter();
+
+    private static final int[] LINK_PROBE_TIME_SINCE_LAST_TX_SUCCESS_SECONDS_HISTOGRAM_BUCKETS =
+            {5, 15, 45, 135};
+    private final IntHistogram mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram =
+            new IntHistogram(LINK_PROBE_TIME_SINCE_LAST_TX_SUCCESS_SECONDS_HISTOGRAM_BUCKETS);
+    private final IntHistogram mLinkProbeFailureSecondsSinceLastTxSuccessHistogram =
+            new IntHistogram(LINK_PROBE_TIME_SINCE_LAST_TX_SUCCESS_SECONDS_HISTOGRAM_BUCKETS);
+
+    private static final int[] LINK_PROBE_ELAPSED_TIME_MS_HISTOGRAM_BUCKETS =
+            {5, 10, 15, 20, 25, 50, 100, 200, 400, 800};
+    private final IntHistogram mLinkProbeSuccessElapsedTimeMsHistogram = new IntHistogram(
+            LINK_PROBE_ELAPSED_TIME_MS_HISTOGRAM_BUCKETS);
+    private final IntCounter mLinkProbeFailureReasonCounts = new IntCounter();
 
     private final LinkedList<WifiUsabilityStatsEntry> mWifiUsabilityStatsEntriesList =
             new LinkedList<>();
@@ -1031,7 +1054,7 @@ public class WifiMetrics {
         }
     }
 
-   /**
+    /**
      * Get Background scan count
      */
     public int getBackgroundScanCount() {
@@ -2547,6 +2570,17 @@ public class WifiMetrics {
                         + mWifiConfigStoreReadDurationHistogram.toString());
                 pw.println("mWifiConfigStoreWriteDurationHistogram:"
                         + mWifiConfigStoreWriteDurationHistogram.toString());
+                pw.println("mLinkProbeSuccessRssiCounts:" + mLinkProbeSuccessRssiCounts);
+                pw.println("mLinkProbeFailureRssiCounts:" + mLinkProbeFailureRssiCounts);
+                pw.println("mLinkProbeSuccessLinkSpeedCounts:" + mLinkProbeSuccessLinkSpeedCounts);
+                pw.println("mLinkProbeFailureLinkSpeedCounts:" + mLinkProbeFailureLinkSpeedCounts);
+                pw.println("mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram:"
+                        + mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram);
+                pw.println("mLinkProbeFailureSecondsSinceLastTxSuccessHistogram:"
+                        + mLinkProbeFailureSecondsSinceLastTxSuccessHistogram);
+                pw.println("mLinkProbeSuccessElapsedTimeMsHistogram:"
+                        + mLinkProbeSuccessElapsedTimeMsHistogram);
+                pw.println("mLinkProbeFailureReasonCounts:" + mLinkProbeFailureReasonCounts);
             }
         }
     }
@@ -3020,6 +3054,42 @@ public class WifiMetrics {
             mWifiLogProto.wifiConfigStoreIo.writeDurations =
                     makeWifiConfigStoreIODurationBucketArray(
                             mWifiConfigStoreWriteDurationHistogram);
+
+            LinkProbeStats linkProbeStats = new LinkProbeStats();
+            linkProbeStats.successRssiCounts = mLinkProbeSuccessRssiCounts.toProto();
+            linkProbeStats.failureRssiCounts = mLinkProbeFailureRssiCounts.toProto();
+            linkProbeStats.successLinkSpeedCounts = mLinkProbeSuccessLinkSpeedCounts.toProto();
+            linkProbeStats.failureLinkSpeedCounts = mLinkProbeFailureLinkSpeedCounts.toProto();
+            linkProbeStats.successSecondsSinceLastTxSuccessHistogram =
+                    mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram.toProto();
+            linkProbeStats.failureSecondsSinceLastTxSuccessHistogram =
+                    mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.toProto();
+            linkProbeStats.successElapsedTimeMsHistogram =
+                    mLinkProbeSuccessElapsedTimeMsHistogram.toProto();
+            linkProbeStats.failureReasonCounts =
+                    mLinkProbeFailureReasonCounts.toProto(LinkProbeFailureReasonCount.class,
+                            (reason, count) -> {
+                                LinkProbeFailureReasonCount c = new LinkProbeFailureReasonCount();
+                                c.failureReason = linkProbeFailureReasonToProto(reason);
+                                c.count = count;
+                                return c;
+                            });
+            mWifiLogProto.linkProbeStats = linkProbeStats;
+        }
+    }
+
+    private static int linkProbeFailureReasonToProto(int reason) {
+        switch (reason) {
+            case WifiNative.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
+                return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
+            case WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK:
+                return LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK;
+            case WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT:
+                return LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT;
+            case WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
+                return LinkProbeStats.LINK_PROBE_FAILURE_REASON_ALREADY_STARTED;
+            default:
+                return LinkProbeStats.LINK_PROBE_FAILURE_REASON_UNKNOWN;
         }
     }
 
@@ -3148,6 +3218,14 @@ public class WifiMetrics {
             mProbeMcsRateSinceLastUpdate = -1;
             mWifiConfigStoreReadDurationHistogram.clear();
             mWifiConfigStoreWriteDurationHistogram.clear();
+            mLinkProbeSuccessRssiCounts.clear();
+            mLinkProbeFailureRssiCounts.clear();
+            mLinkProbeSuccessLinkSpeedCounts.clear();
+            mLinkProbeFailureLinkSpeedCounts.clear();
+            mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram.clear();
+            mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.clear();
+            mLinkProbeSuccessElapsedTimeMsHistogram.clear();
+            mLinkProbeFailureReasonCounts.clear();
         }
     }
 
@@ -4204,8 +4282,13 @@ public class WifiMetrics {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
             mProbeElapsedTimeMsSinceLastUpdate = elapsedTimeMs;
+
+            mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram.increment(
+                    (int) (timeSinceLastTxSuccessMs / 1000));
+            mLinkProbeSuccessRssiCounts.increment(rssi);
+            mLinkProbeSuccessLinkSpeedCounts.increment(linkSpeed);
+            mLinkProbeSuccessElapsedTimeMsHistogram.increment(elapsedTimeMs);
         }
-        // TODO(b/112029045): aggregate metrics
     }
 
     /**
@@ -4225,8 +4308,13 @@ public class WifiMetrics {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
             mProbeElapsedTimeMsSinceLastUpdate = Integer.MAX_VALUE;
+
+            mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.increment(
+                    (int) (timeSinceLastTxSuccessMs / 1000));
+            mLinkProbeFailureRssiCounts.increment(rssi);
+            mLinkProbeFailureLinkSpeedCounts.increment(linkSpeed);
+            mLinkProbeFailureReasonCounts.increment(reason);
         }
-        // TODO(b/112029045): aggregate metrics
     }
 
     /**
