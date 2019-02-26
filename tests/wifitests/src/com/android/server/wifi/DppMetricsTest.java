@@ -35,6 +35,7 @@ import static org.junit.Assert.assertTrue;
 import android.test.suitebuilder.annotation.SmallTest;
 
 import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 
 import org.junit.After;
 import org.junit.Before;
@@ -68,22 +69,10 @@ public class DppMetricsTest {
      * @param value Expected value
      */
     private void checkOperationBucketEqualsTo(int index, int value) {
-        boolean found = false;
-
         // Confirm that the consolidated log has the expected value
         WifiMetricsProto.WifiDppLog mWifiDppLogProto = mDppMetrics.consolidateProto();
-
-        int i = 0;
-        for (WifiMetricsProto.WifiDppLog.HistogramBucket hb : mWifiDppLogProto.dppOperationTime) {
-            if (i == index) {
-                assertEquals(hb.count, value);
-                found = true;
-                break;
-            }
-            i++;
-        }
-
-        assertTrue(found);
+        HistogramBucketInt32 hb = mWifiDppLogProto.dppOperationTime[index];
+        assertEquals(hb.count, value);
     }
 
     /**
