@@ -28,6 +28,9 @@ import android.util.Log;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
+
 /**
  * Tracks state that decides if a link probe should be performed. If so, trigger a link probe to
  * evaluate connection quality.
@@ -101,6 +104,17 @@ public class LinkProbeManager {
     /** enables/disables wifi verbose logging */
     public void enableVerboseLogging(boolean enable) {
         mVerboseLoggingEnabled = enable;
+    }
+
+    /** dumps internal state */
+    public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+        pw.println("Dump of LinkProbeManager");
+        pw.println("LinkProbeManager - link probing supported by device: " + mLinkProbingSupported);
+        pw.println("LinkProbeManager - link probing feature flag enabled: " + mLinkProbingEnabled);
+        pw.println("LinkProbeManager - mLastLinkProbeTimestampMs: " + mLastLinkProbeTimestampMs);
+        pw.println("LinkProbeManager - mLastTxSuccessIncreaseTimestampMs: "
+                + mLastTxSuccessIncreaseTimestampMs);
+        pw.println("LinkProbeManager - mLastTxSuccessCount: " + mLastTxSuccessCount);
     }
 
     /**
