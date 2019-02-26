@@ -180,14 +180,12 @@ public class WifiConnectivityManager {
     private int mFullScanMaxRxRate;
 
     // PNO settings
-    private int mMin5GHzRssi;
-    private int mMin24GHzRssi;
-    private int mInitialScoreMax;
     private int mCurrentConnectionBonus;
     private int mSameNetworkBonus;
     private int mSecureBonus;
     private int mBand5GHzBonus;
-
+    private int mRssiScoreOffset;
+    private int mRssiScoreSlope;
     private int mPnoScanIntervalMs;
 
     // BSSID blacklist
@@ -614,9 +612,6 @@ public class WifiConnectivityManager {
         mScoringParams = scoringParams;
         mConnectionAttemptTimeStamps = new LinkedList<>();
 
-        //TODO(b/74793980) - handle these more dynamically
-        mMin5GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND5);
-        mMin24GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND2);
         mBand5GHzBonus = context.getResources().getInteger(
                 R.integer.config_wifi_framework_5GHz_preference_boost_factor);
         mCurrentConnectionBonus = context.getResources().getInteger(
@@ -625,16 +620,16 @@ public class WifiConnectivityManager {
                 R.integer.config_wifi_framework_SAME_BSSID_AWARD);
         mSecureBonus = context.getResources().getInteger(
                 R.integer.config_wifi_framework_SECURITY_AWARD);
+        mRssiScoreOffset = context.getResources().getInteger(
+                R.integer.config_wifi_framework_RSSI_SCORE_OFFSET);
+        mRssiScoreSlope = context.getResources().getInteger(
+                R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);
         mUseSingleRadioChainScanResults = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_use_single_radio_chain_scan_results_network_selection);
-        mInitialScoreMax = (Math.max(mScoringParams.getGoodRssi(ScoringParams.BAND2),
-                                     mScoringParams.getGoodRssi(ScoringParams.BAND5))
-                            + context.getResources().getInteger(
-                                    R.integer.config_wifi_framework_RSSI_SCORE_OFFSET))
-                * context.getResources().getInteger(
-                        R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
+
+
         mFullScanMaxTxRate = context.getResources().getInteger(
                 R.integer.config_wifi_framework_max_tx_rate_for_full_scan);
         mFullScanMaxRxRate = context.getResources().getInteger(
@@ -642,12 +637,13 @@ public class WifiConnectivityManager {
 
         mPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
 
-        localLog("PNO settings:" + " min5GHzRssi " + mMin5GHzRssi
-                + " min24GHzRssi " + mMin24GHzRssi
+        localLog("PNO settings:"
+                + " min5GHzRssi " + mScoringParams.getEntryRssi(ScoringParams.BAND5)
+                + " min24GHzRssi " + mScoringParams.getEntryRssi(ScoringParams.BAND2)
                 + " currentConnectionBonus " + mCurrentConnectionBonus
                 + " sameNetworkBonus " + mSameNetworkBonus
                 + " secureNetworkBonus " + mSecureBonus
-                + " initialScoreMax " + mInitialScoreMax);
+                + " initialScoreMax " + initialScoreMax());
 
         boolean hs2Enabled = context.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT);
@@ -664,6 +660,13 @@ public class WifiConnectivityManager {
 
         // Listen to WifiConfigManager network update events
         mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());
+    }
+
+    /** Returns maximum PNO score, before any awards/bonuses. */
+    private int initialScoreMax() {
+        return mRssiScoreSlope * (Math.max(mScoringParams.getGoodRssi(ScoringParams.BAND2),
+                                           mScoringParams.getGoodRssi(ScoringParams.BAND5))
+                                  + mRssiScoreOffset);
     }
 
     /**
@@ -1020,9 +1023,9 @@ public class WifiConnectivityManager {
 
         pnoSettings.networkList = new PnoSettings.PnoNetwork[listSize];
         pnoSettings.networkList = pnoNetworkList.toArray(pnoSettings.networkList);
-        pnoSettings.min5GHzRssi = mMin5GHzRssi;
-        pnoSettings.min24GHzRssi = mMin24GHzRssi;
-        pnoSettings.initialScoreMax = mInitialScoreMax;
+        pnoSettings.min5GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND5);
+        pnoSettings.min24GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND2);
+        pnoSettings.initialScoreMax = initialScoreMax();
         pnoSettings.currentConnectionBonus = mCurrentConnectionBonus;
         pnoSettings.sameNetworkBonus = mSameNetworkBonus;
         pnoSettings.secureBonus = mSecureBonus;

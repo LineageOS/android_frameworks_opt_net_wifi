@@ -302,7 +302,7 @@ public class WifiInjector {
         mWakeupController = new WakeupController(mContext,
                 mWifiCoreHandlerThread.getLooper(),
                 new WakeupLock(mWifiConfigManager, mWifiMetrics.getWakeupMetrics(), mClock),
-                WakeupEvaluator.fromContext(mContext), wakeupOnboarding, mWifiConfigManager,
+                new WakeupEvaluator(mScoringParams), wakeupOnboarding, mWifiConfigManager,
                 mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade,
                 mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
@@ -472,8 +472,8 @@ public class WifiInjector {
         return mWifiScoreCard;
     }
 
+    /** Gets a TelephonyManager, which moy not be available early on. */
     public TelephonyManager makeTelephonyManager() {
-        // may not be available when WiFi starts
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
     }
 
@@ -485,6 +485,7 @@ public class WifiInjector {
         return mDppManager;
     }
 
+    /** Gets IWificond without caching. */
     public IWificond makeWificond() {
         // We depend on being able to refresh our binder in ClientModeImpl, so don't cache it.
         IBinder binder = ServiceManager.getService(WIFICOND_SERVICE_NAME);
@@ -493,7 +494,6 @@ public class WifiInjector {
 
     /**
      * Create a SoftApManager.
-     * @param listener listener for SoftApManager
      * @param config SoftApModeConfiguration object holding the config and mode
      * @return an instance of SoftApManager
      */
