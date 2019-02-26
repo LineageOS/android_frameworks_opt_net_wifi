@@ -180,6 +180,9 @@ public class WifiP2pMetrics {
                     case P2pConnectionEvent.CONNECTION_LOCAL:
                         sb.append("LOCAL");
                         break;
+                    case P2pConnectionEvent.CONNECTION_FAST:
+                        sb.append("FAST");
+                        break;
                     default:
                         sb.append("UNKNOWN");
                         break;
