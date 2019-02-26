@@ -59,6 +59,8 @@ import java.util.List;
 public class WifiNetworkSelectorTest {
 
     private static final int RSSI_BUMP = 1;
+    private static final int DUMMY_EVALUATOR_ID_1 = -2; // lowest index
+    private static final int DUMMY_EVALUATOR_ID_2 = -1;
 
     /** Sets up test. */
     @Before
@@ -94,8 +96,7 @@ public class WifiNetworkSelectorTest {
     }
 
     /**
-     * All this dummy network evaluator does is to pick the very first network
-     * in the scan results.
+     * All this dummy network evaluator does is to pick the specified network in the scan results.
      */
     public class DummyNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluator {
         private static final String NAME = "DummyNetworkEvaluator";
@@ -103,13 +104,15 @@ public class WifiNetworkSelectorTest {
         private boolean mEvaluatorShouldSelectCandidate = true;
 
         private int mNetworkIndexToReturn;
+        private int mEvaluatorIdToReturn;
 
-        public DummyNetworkEvaluator(int networkIndexToReturn) {
+        public DummyNetworkEvaluator(int networkIndexToReturn, int evaluatorIdToReturn) {
             mNetworkIndexToReturn = networkIndexToReturn;
+            mEvaluatorIdToReturn = evaluatorIdToReturn;
         }
 
         public DummyNetworkEvaluator() {
-            this(0);
+            this(0, DUMMY_EVALUATOR_ID_1);
         }
 
         public int getNetworkIndexToReturn() {
@@ -118,6 +121,11 @@ public class WifiNetworkSelectorTest {
 
         public void setNetworkIndexToReturn(int networkIndexToReturn) {
             mNetworkIndexToReturn = networkIndexToReturn;
+        }
+
+        @Override
+        public @EvaluatorId int getId() {
+            return mEvaluatorIdToReturn;
         }
 
         @Override
@@ -1375,7 +1383,8 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
 
         // add a second NetworkEvaluator that returns the second network in the scan list
-        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
 
         test2GhzHighQuality5GhzAvailable();
 
@@ -1401,7 +1410,8 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.unregisterCandidateScorer(new ScoreCardBasedScorer(mScoringParams));
 
         // add a second NetworkEvaluator that returns the second network in the scan list
-        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
 
         String compatibilityExpIdStr = new CompatibilityScorer(mScoringParams).getIdentifier();
         int compatibilityExpId = WifiNetworkSelector
@@ -1452,7 +1462,8 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
 
         // add a second NetworkEvaluator that returns the second network in the scan list
-        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
 
         test2GhzHighQuality5GhzAvailable();
 
@@ -1488,7 +1499,8 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
 
         // add a second NetworkEvaluator that returns the second network in the scan list
-        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
 
         test2GhzHighQuality5GhzAvailable();
 
@@ -1511,7 +1523,8 @@ public class WifiNetworkSelectorTest {
         mWifiNetworkSelector.registerCandidateScorer(NULL_SCORER);
 
         // add a second NetworkEvaluator that returns the second network in the scan list
-        mWifiNetworkSelector.registerNetworkEvaluator(new DummyNetworkEvaluator(1));
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
 
         String compatibilityExpIdStr = new CompatibilityScorer(mScoringParams).getIdentifier();
         int compatibilityExpId = WifiNetworkSelector

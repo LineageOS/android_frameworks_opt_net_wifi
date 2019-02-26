@@ -59,6 +59,11 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     }
 
     @Override
+    public @EvaluatorId int getId() {
+        return EVALUATOR_ID_CARRIER;
+    }
+
+    @Override
     public String getName() {
         return TAG;
     }

@@ -23,7 +23,6 @@ import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 
 import android.app.AlarmManager;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -42,7 +41,6 @@ import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.io.FileDescriptor;
@@ -589,11 +587,7 @@ public class WifiConnectivityManager {
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
             CarrierNetworkNotifier carrierNetworkNotifier,
             CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Looper looper,
-            Clock clock, LocalLog localLog, SavedNetworkEvaluator savedNetworkEvaluator,
-            ScoredNetworkEvaluator scoredNetworkEvaluator,
-            PasspointNetworkEvaluator passpointNetworkEvaluator,
-            NetworkSuggestionEvaluator networkSuggestionEvaluator,
-            CarrierNetworkEvaluator carrierNetworkEvaluator) {
+            Clock clock, LocalLog localLog) {
         mStateMachine = stateMachine;
         mWifiInjector = injector;
         mConfigManager = configManager;
@@ -644,19 +638,6 @@ public class WifiConnectivityManager {
                 + " sameNetworkBonus " + mSameNetworkBonus
                 + " secureNetworkBonus " + mSecureBonus
                 + " initialScoreMax " + initialScoreMax());
-
-        boolean hs2Enabled = context.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT);
-        localLog("Passpoint is: " + (hs2Enabled ? "enabled" : "disabled"));
-
-        // Register the network evaluators, in order
-        mNetworkSelector.registerNetworkEvaluator(savedNetworkEvaluator);
-        mNetworkSelector.registerNetworkEvaluator(networkSuggestionEvaluator);
-        if (hs2Enabled) {
-            mNetworkSelector.registerNetworkEvaluator(passpointNetworkEvaluator);
-        }
-        mNetworkSelector.registerNetworkEvaluator(carrierNetworkEvaluator);
-        mNetworkSelector.registerNetworkEvaluator(scoredNetworkEvaluator);
 
         // Listen to WifiConfigManager network update events
         mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());

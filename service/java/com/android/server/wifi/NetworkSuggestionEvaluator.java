@@ -161,6 +161,11 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
     }
 
     @Override
+    public @EvaluatorId int getId() {
+        return EVALUATOR_ID_SUGGESTION;
+    }
+
+    @Override
     public String getName() {
         return TAG;
     }
