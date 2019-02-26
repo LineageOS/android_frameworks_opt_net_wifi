@@ -253,7 +253,7 @@ public class PasspointProvisioner {
             mOsuServerConnection.setEventCallback(new OsuServerCallbacks(++mCurrentSessionId));
 
             if (!mOsuNetworkConnection.connect(mOsuProvider.getOsuSsid(),
-                    mOsuProvider.getNetworkAccessIdentifier())) {
+                    mOsuProvider.getNetworkAccessIdentifier(), mOsuProvider.getFriendlyName())) {
                 resetStateMachineForFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
                 return;
             }

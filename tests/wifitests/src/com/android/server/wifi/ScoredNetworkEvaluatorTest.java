@@ -119,7 +119,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {2470};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdQualifiedRssi2G + 8};
         int[] securities = {SECURITY_PSK};
 
@@ -143,7 +143,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {2470};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] levels = {mThresholdQualifiedRssi2G + 8};
         int[] securities = {SECURITY_PSK};
 
@@ -161,7 +161,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
@@ -186,7 +186,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
@@ -230,7 +230,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
@@ -253,7 +253,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
@@ -280,7 +280,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
         Integer[] scores = {null, 120};
         boolean[] meteredHints = {false, true};
@@ -357,7 +357,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
         Integer[] scores = {null, 120};
         boolean[] meteredHints = {false, true};
@@ -389,7 +389,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {5200};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]"};
         int[] securities = {SECURITY_PSK};
         int[] levels = {mThresholdQualifiedRssi5G + 8};
         Integer[] scores = {120};
@@ -421,7 +421,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-PSK][ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_PSK};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 8};
         Integer[] scores = {100, 120};
@@ -454,7 +454,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 8};
         Integer[] scores = {120, 120};
@@ -488,7 +488,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] savedSsids = {"\"test1\""};
         String[] savedBssids = {"6c:f3:7f:ae:8c:f3"};
         int[] savedFreqs = {2470};
-        String[] savedCaps = {"[WPA2-EAP-CCMP][ESS]"};
+        String[] savedCaps = {"[WPA2-PSK][ESS]"};
         int[] savedSecurities = {SECURITY_PSK};
         int[] savedLevels = {mThresholdQualifiedRssi2G + 8};
         // Ephemeral network.
@@ -540,7 +540,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_NONE};
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 8};
         Integer[] scores = {null, null};
@@ -612,7 +612,7 @@ public class ScoredNetworkEvaluatorTest {
         String[] ssids = {"\"test1\"", "\"test2\""};
         String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
         int[] freqs = {2470, 2437};
-        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        String[] caps = {"[WPA2-PSK][ESS]", "[WPA2-PSK][ESS]"};
         int[] securities = {SECURITY_PSK, SECURITY_PSK};
         int[] levels = {mThresholdQualifiedRssi2G + 28, mThresholdQualifiedRssi2G + 28};
         boolean[] meteredHints = {false, false};

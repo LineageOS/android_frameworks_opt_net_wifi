@@ -15,6 +15,13 @@
  */
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiMetricsTestUtil.assertHistogramBucketsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeFailureReasonCountsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertMapEntriesEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildHistogramBucketInt32;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureReasonCount;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildMapEntryInt32Int32;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -63,6 +70,10 @@ import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
+import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
+import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
@@ -3120,5 +3131,83 @@ public class WifiMetricsTest {
         assertEquals(Integer.MAX_VALUE,
                 mDecodedProto.wifiConfigStoreIo.writeDurations[2].rangeEndMs);
         assertEquals(2, mDecodedProto.wifiConfigStoreIo.writeDurations[2].count);
+    }
+
+    /**
+     * Test link probe metrics.
+     */
+    @Test
+    public void testLogLinkProbeMetrics() throws Exception {
+        mWifiMetrics.logLinkProbeSuccess(1000, 10000, -75, 50, 5);
+        mWifiMetrics.logLinkProbeFailure(2000, 30000, -80, 10,
+                WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+        mWifiMetrics.logLinkProbeSuccess(3000, 3000, -71, 160, 12);
+        mWifiMetrics.logLinkProbeFailure(4000, 40000, -80, 6,
+                WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+        mWifiMetrics.logLinkProbeSuccess(5000, 5000, -73, 160, 10);
+        mWifiMetrics.logLinkProbeFailure(6000, 2000, -78, 6,
+                WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+
+        dumpProtoAndDeserialize();
+        LinkProbeStats linkProbeStats = mDecodedProto.linkProbeStats;
+
+        MapEntryInt32Int32[] expectedSuccessRssiHistogram = {
+                buildMapEntryInt32Int32(-75, 1),
+                buildMapEntryInt32Int32(-73, 1),
+                buildMapEntryInt32Int32(-71, 1),
+        };
+        assertMapEntriesEqual(expectedSuccessRssiHistogram,
+                linkProbeStats.successRssiCounts);
+
+        MapEntryInt32Int32[] expectedFailureRssiHistogram = {
+                buildMapEntryInt32Int32(-80, 2),
+                buildMapEntryInt32Int32(-78, 1),
+        };
+        assertMapEntriesEqual(expectedFailureRssiHistogram,
+                linkProbeStats.failureRssiCounts);
+
+        MapEntryInt32Int32[] expectedSuccessLinkSpeedHistogram = {
+                buildMapEntryInt32Int32(50, 1),
+                buildMapEntryInt32Int32(160, 2)
+        };
+        assertMapEntriesEqual(expectedSuccessLinkSpeedHistogram,
+                linkProbeStats.successLinkSpeedCounts);
+
+        MapEntryInt32Int32[] expectedFailureLinkSpeedHistogram = {
+                buildMapEntryInt32Int32(6, 2),
+                buildMapEntryInt32Int32(10, 1)
+        };
+        assertMapEntriesEqual(expectedFailureLinkSpeedHistogram,
+                linkProbeStats.failureLinkSpeedCounts);
+
+        HistogramBucketInt32[] expectedSuccessTimeSinceLastTxSuccessSecondsHistogram = {
+                buildHistogramBucketInt32(Integer.MIN_VALUE, 5, 1),
+                buildHistogramBucketInt32(5, 15, 2)
+        };
+        assertHistogramBucketsEqual(expectedSuccessTimeSinceLastTxSuccessSecondsHistogram,
+                linkProbeStats.successSecondsSinceLastTxSuccessHistogram);
+
+        HistogramBucketInt32[] expectedFailureTimeSinceLastTxSuccessSecondsHistogram = {
+                buildHistogramBucketInt32(Integer.MIN_VALUE, 5, 1),
+                buildHistogramBucketInt32(15, 45, 2)
+        };
+        assertHistogramBucketsEqual(expectedFailureTimeSinceLastTxSuccessSecondsHistogram,
+                linkProbeStats.failureSecondsSinceLastTxSuccessHistogram);
+
+        HistogramBucketInt32[] expectedSuccessElapsedTimeMsHistogram = {
+                buildHistogramBucketInt32(5, 10, 1),
+                buildHistogramBucketInt32(10, 15, 2),
+        };
+        assertHistogramBucketsEqual(expectedSuccessElapsedTimeMsHistogram,
+                linkProbeStats.successElapsedTimeMsHistogram);
+
+        LinkProbeFailureReasonCount[] expectedFailureReasonCount = {
+                buildLinkProbeFailureReasonCount(
+                        LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK, 2),
+                buildLinkProbeFailureReasonCount(
+                        LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT, 1),
+        };
+        assertLinkProbeFailureReasonCountsEqual(expectedFailureReasonCount,
+                linkProbeStats.failureReasonCounts);
     }
 }

@@ -160,10 +160,11 @@ public class OsuNetworkConnection {
      *
      * @param ssid The SSID to connect to
      * @param nai Network access identifier of the network
+     * @param friendlyName a friendly name of service provider
      *
      * @return boolean true if connection was successfully initiated
      */
-    public boolean connect(WifiSsid ssid, String nai) {
+    public boolean connect(WifiSsid ssid, String nai, String friendlyName) {
         if (mConnected) {
             if (mVerboseLoggingEnabled) {
                 // Already connected
@@ -186,6 +187,7 @@ public class OsuNetworkConnection {
 
         // Do not save this network
         config.ephemeral = true;
+        config.providerFriendlyName = friendlyName;
 
         if (TextUtils.isEmpty(nai)) {
             config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
