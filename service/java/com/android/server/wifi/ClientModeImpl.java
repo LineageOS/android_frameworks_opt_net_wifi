@@ -1618,12 +1618,30 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
+     * Checks for a null Message.
+     *
+     * This can happen with sendMessageSynchronously, for example if an
+     * InterruptedException occurs. If this just happens once, silently
+     * ignore it, because it is probably a side effect of shutting down.
+     * If it happens a second time, generate a WTF.
+     */
+    private boolean messageIsNull(Message resultMsg) {
+        if (resultMsg != null) return false;
+        if (mNullMessageCounter.getAndIncrement() > 0) {
+            Log.wtf(TAG, "Persistent null Message", new RuntimeException());
+        }
+        return true;
+    }
+    private AtomicInteger mNullMessageCounter = new AtomicInteger(0);
+
+    /**
      * Add a network synchronously
      *
      * @return network id of the new network
      */
     public int syncAddOrUpdateNetwork(AsyncChannel channel, WifiConfiguration config) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_ADD_OR_UPDATE_NETWORK, config);
+        if (messageIsNull(resultMsg)) return WifiConfiguration.INVALID_NETWORK_ID;
         int result = resultMsg.arg1;
         resultMsg.recycle();
         return result;
@@ -1639,13 +1657,10 @@ public class ClientModeImpl extends StateMachine {
             int targetUid) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid,
                 targetUid);
-        if (resultMsg == null) { // an error has occurred
-            return null;
-        } else {
-            List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
-            resultMsg.recycle();
-            return result;
-        }
+        if (messageIsNull(resultMsg)) return null;
+        List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
+        resultMsg.recycle();
+        return result;
     }
 
     /**
@@ -1658,6 +1673,7 @@ public class ClientModeImpl extends StateMachine {
     public List<WifiConfiguration> syncGetPrivilegedConfiguredNetwork(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(
                 CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS);
+        if (messageIsNull(resultMsg)) return null;
         List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
@@ -1680,6 +1696,7 @@ public class ClientModeImpl extends StateMachine {
         Message resultMsg = channel.sendMessageSynchronously(
                 CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS,
                 scanResults);
+        if (messageIsNull(resultMsg)) return null;
         Map<String, Map<Integer, List<ScanResult>>> configs =
                 (Map<String, Map<Integer, List<ScanResult>>>) resultMsg.obj;
         resultMsg.recycle();
@@ -1699,6 +1716,7 @@ public class ClientModeImpl extends StateMachine {
             AsyncChannel channel) {
         Message resultMsg =
                 channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
+        if (messageIsNull(resultMsg)) return null;
         Map<OsuProvider, List<ScanResult>> providers =
                 (Map<OsuProvider, List<ScanResult>>) resultMsg.obj;
         resultMsg.recycle();
@@ -1717,6 +1735,7 @@ public class ClientModeImpl extends StateMachine {
         Message resultMsg =
                 channel.sendMessageSynchronously(
                         CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS, osuProviders);
+        if (messageIsNull(resultMsg)) return null;
         Map<OsuProvider, PasspointConfiguration> result =
                 (Map<OsuProvider, PasspointConfiguration>) resultMsg.obj;
         resultMsg.recycle();
@@ -1739,6 +1758,7 @@ public class ClientModeImpl extends StateMachine {
         Message resultMsg =
                 channel.sendMessageSynchronously(
                         CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES, fqdnList);
+        if (messageIsNull(resultMsg)) return null;
         List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
@@ -1755,6 +1775,7 @@ public class ClientModeImpl extends StateMachine {
             PasspointConfiguration config, int uid) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG,
                 uid, 0, config);
+        if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 == SUCCESS);
         resultMsg.recycle();
         return result;
@@ -1770,6 +1791,7 @@ public class ClientModeImpl extends StateMachine {
     public boolean syncRemovePasspointConfig(AsyncChannel channel, String fqdn) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_REMOVE_PASSPOINT_CONFIG,
                 fqdn);
+        if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 == SUCCESS);
         resultMsg.recycle();
         return result;
@@ -1783,6 +1805,7 @@ public class ClientModeImpl extends StateMachine {
      */
     public List<PasspointConfiguration> syncGetPasspointConfigs(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_PASSPOINT_CONFIGS);
+        if (messageIsNull(resultMsg)) return null;
         List<PasspointConfiguration> result = (List<PasspointConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
@@ -1803,17 +1826,18 @@ public class ClientModeImpl extends StateMachine {
         msg.obj = callback;
         msg.getData().putParcelable(EXTRA_OSU_PROVIDER, provider);
         Message resultMsg = channel.sendMessageSynchronously(msg);
+        if (messageIsNull(resultMsg)) return false;
         boolean result = resultMsg.arg1 != 0;
         resultMsg.recycle();
         return result;
     }
 
     /**
-     * Get adaptors synchronously
+     * Get the supported feature set synchronously
      */
-
     public long syncGetSupportedFeatures(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_SUPPORTED_FEATURES);
+        if (messageIsNull(resultMsg)) return 0;
         long supportedFeatureSet = ((Long) resultMsg.obj).longValue();
         resultMsg.recycle();
 
@@ -1833,6 +1857,7 @@ public class ClientModeImpl extends StateMachine {
      */
     public WifiLinkLayerStats syncGetLinkLayerStats(AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_GET_LINK_LAYER_STATS);
+        if (messageIsNull(resultMsg)) return null;
         WifiLinkLayerStats result = (WifiLinkLayerStats) resultMsg.obj;
         resultMsg.recycle();
         return result;
@@ -1845,6 +1870,7 @@ public class ClientModeImpl extends StateMachine {
      */
     public boolean syncRemoveNetwork(AsyncChannel channel, int networkId) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_REMOVE_NETWORK, networkId);
+        if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
@@ -1860,6 +1886,7 @@ public class ClientModeImpl extends StateMachine {
     public boolean syncEnableNetwork(AsyncChannel channel, int netId, boolean disableOthers) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_ENABLE_NETWORK, netId,
                 disableOthers ? 1 : 0);
+        if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
@@ -1874,6 +1901,7 @@ public class ClientModeImpl extends StateMachine {
     public boolean syncDisableNetwork(AsyncChannel channel, int netId) {
         Message resultMsg = channel.sendMessageSynchronously(WifiManager.DISABLE_NETWORK, netId);
         boolean result = (resultMsg.what != WifiManager.DISABLE_NETWORK_FAILED);
+        if (messageIsNull(resultMsg)) return false;
         resultMsg.recycle();
         return result;
     }
