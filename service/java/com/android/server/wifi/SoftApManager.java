@@ -79,6 +79,7 @@ public class SoftApManager implements ActiveModeManager {
 
     private String mApInterfaceName;
     private boolean mIfaceIsUp;
+    private boolean mIfaceIsDestroyed;
 
     private final WifiApConfigStore mWifiApConfigStore;
 
@@ -356,6 +357,7 @@ public class SoftApManager implements ActiveModeManager {
             public void enter() {
                 mApInterfaceName = null;
                 mIfaceIsUp = false;
+                mIfaceIsDestroyed = false;
             }
 
             @Override
@@ -510,6 +512,7 @@ public class SoftApManager implements ActiveModeManager {
             @Override
             public void enter() {
                 mIfaceIsUp = false;
+                mIfaceIsDestroyed = false;
                 onUpChanged(mWifiNative.isInterfaceUp(mApInterfaceName));
 
                 mTimeoutDelay = getConfigSoftApTimeoutDelay();
@@ -522,7 +525,7 @@ public class SoftApManager implements ActiveModeManager {
                 if (mSettingObserver != null) {
                     mSettingObserver.register();
                 }
-                
+
                 mSarManager.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
 
                 Log.d(TAG, "Resetting num stations on start");
@@ -532,9 +535,10 @@ public class SoftApManager implements ActiveModeManager {
 
             @Override
             public void exit() {
-                if (mApInterfaceName != null) {
+                if (!mIfaceIsDestroyed) {
                     stopSoftAp();
                 }
+
                 if (mSettingObserver != null) {
                     mSettingObserver.unregister();
                 }
@@ -550,6 +554,7 @@ public class SoftApManager implements ActiveModeManager {
                 mSarManager.setSapWifiState(WifiManager.WIFI_AP_STATE_DISABLED);
                 mApInterfaceName = null;
                 mIfaceIsUp = false;
+                mIfaceIsDestroyed = false;
                 mStateMachine.quitNow();
             }
 
@@ -634,7 +639,7 @@ public class SoftApManager implements ActiveModeManager {
                         Log.d(TAG, "Interface was cleanly destroyed.");
                         updateApState(WifiManager.WIFI_AP_STATE_DISABLING,
                                 WifiManager.WIFI_AP_STATE_ENABLED, 0);
-                        mApInterfaceName = null;
+                        mIfaceIsDestroyed = true;
                         transitionTo(mIdleState);
                         break;
                     case CMD_FAILURE:
