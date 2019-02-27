@@ -26,7 +26,7 @@ import java.util.Collection;
 /**
  * A candidate scorer that attempts to match the previous behavior.
  */
-final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
+final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
 
     private final ScoringParams mScoringParams;
 
@@ -51,13 +51,13 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_SAME_BSSID_AWARD
     public static final int SAME_BSSID_AWARD_IS_24 = 24;
 
-    CompatibiltyScorer(ScoringParams scoringParams) {
+    CompatibilityScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
     }
 
     @Override
     public String getIdentifier() {
-        return "CompatibiltyScorer";
+        return "CompatibilityScorer";
     }
 
     /**

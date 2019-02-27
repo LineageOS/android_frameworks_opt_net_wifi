@@ -812,7 +812,7 @@ public class WifiNetworkSelector {
                 R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
 
         // Register one try out. This is probably not the right place, in the long run.
-        registerCandidateScorer(new CompatibiltyScorer(scoringParams));
+        registerCandidateScorer(new CompatibilityScorer(scoringParams));
         // TODO register in a saner place
         registerCandidateScorer(new ScoreCardBasedScorer(scoringParams));
     }
