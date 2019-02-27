@@ -1782,7 +1782,8 @@ public class WifiServiceImpl extends BaseWifiService {
     public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName) {
         enforceAccessPermission();
         int callingUid = Binder.getCallingUid();
-        if (callingUid != Process.SHELL_UID) { // bypass shell: can get varioud pkg name
+        // bypass shell: can get varioud pkg name
+        if (callingUid != Process.SHELL_UID && callingUid != Process.ROOT_UID) {
             long ident = Binder.clearCallingIdentity();
             try {
                 mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
