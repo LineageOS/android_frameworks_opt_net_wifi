@@ -250,14 +250,16 @@ public class WificondControl implements IBinder.DeathRecipient {
      */
     @Override
     public void binderDied() {
-        Log.e(TAG, "Wificond died!");
-        clearState();
-        // Invalidate the global wificond handle on death. Will be refreshed
-        // on the next setup call.
-        mWificond = null;
-        if (mDeathEventHandler != null) {
-            mDeathEventHandler.onDeath();
-        }
+        mEventHandler.post(() -> {
+            Log.e(TAG, "Wificond died!");
+            clearState();
+            // Invalidate the global wificond handle on death. Will be refreshed
+            // on the next setup call.
+            mWificond = null;
+            if (mDeathEventHandler != null) {
+                mDeathEventHandler.onDeath();
+            }
+        });
     }
 
     /** Enable or disable verbose logging of WificondControl.

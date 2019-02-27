@@ -256,6 +256,7 @@ public class WificondControlTest {
     public void testSetupInterfaceForClientModeErrorWhenWificondIsNotStarted() throws Exception {
         // Invoke wificond death handler to clear the handle.
         mWificondControl.binderDied();
+        mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
         IClientInterface returnedClientInterface =
                 mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
@@ -369,6 +370,7 @@ public class WificondControlTest {
     public void testSetupInterfaceForSoftApModeErrorWhenWificondIsNotStarted() throws Exception {
         // Invoke wificond death handler to clear the handle.
         mWificondControl.binderDied();
+        mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
 
         IApInterface returnedApInterface =
@@ -499,6 +501,7 @@ public class WificondControlTest {
     public void testTearDownInterfacesErrorWhenWificondIsNotStarterd() throws Exception {
         // Invoke wificond death handler to clear the handle.
         mWificondControl.binderDied();
+        mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
         assertFalse(mWificondControl.tearDownInterfaces());
     }
@@ -927,6 +930,7 @@ public class WificondControlTest {
         assertTrue(mWificondControl.initialize(handler));
         verify(mWificond).tearDownInterfaces();
         mWificondControl.binderDied();
+        mLooper.dispatchAll();
         verify(handler).onDeath();
     }
 
@@ -943,6 +947,7 @@ public class WificondControlTest {
         testSetupInterfaceForClientMode();
 
         mWificondControl.binderDied();
+        mLooper.dispatchAll();
         verify(handler).onDeath();
 
         // The handles should be cleared after death.
