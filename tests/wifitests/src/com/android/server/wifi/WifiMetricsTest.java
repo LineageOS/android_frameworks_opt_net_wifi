@@ -62,6 +62,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Pair;
 import android.util.SparseIntArray;
@@ -139,16 +140,19 @@ public class WifiMetricsTest {
     @Mock ExternalCallbackTracker<IOnWifiUsabilityStatsListener> mListenerTracker;
     @Mock WifiP2pMetrics mWifiP2pMetrics;
     @Mock DppMetrics mDppMetrics;
+    @Mock CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
+    @Mock CellularLinkLayerStats mCellularLinkLayerStats;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mDecodedProto = null;
         when(mClock.getElapsedSinceBootMillis()).thenReturn((long) 0);
+        when(mCellularLinkLayerStatsCollector.update()).thenReturn(mCellularLinkLayerStats);
         mTestLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFacade, mClock, mTestLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
-                mWifiP2pMetrics, mDppMetrics);
+                mWifiP2pMetrics, mDppMetrics, mCellularLinkLayerStatsCollector);
         mWifiMetrics.setWifiConfigManager(mWcm);
         mWifiMetrics.setPasspointManager(mPpm);
         mWifiMetrics.setScoringParams(mScoringParams);
@@ -2690,6 +2694,16 @@ public class WifiMetricsTest {
         when(info.getBSSID()).thenReturn("Wifi");
         when(info.getFrequency()).thenReturn(5745);
 
+        int signalStrengthDbm = -50;
+        int signalStrengthDb = -10;
+        boolean isSameRegisteredCell = true;
+        CellularLinkLayerStats cellularStats =  new CellularLinkLayerStats();
+        cellularStats.setIsSameRegisteredCell(isSameRegisteredCell);
+        cellularStats.setDataNetworkType(TelephonyManager.NETWORK_TYPE_LTE);
+        cellularStats.setSignalStrengthDbm(signalStrengthDbm);
+        cellularStats.setSignalStrengthDb(signalStrengthDb);
+        when(mCellularLinkLayerStatsCollector.update()).thenReturn(cellularStats);
+
         WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
         WifiLinkLayerStats stats2 = nextRandomStats(stats1);
         mWifiMetrics.incrementWifiScoreCount(60);
@@ -2701,6 +2715,7 @@ public class WifiMetricsTest {
         mWifiMetrics.incrementWifiUsabilityScoreCount(3, 56, 15);
         mWifiMetrics.logLinkProbeFailure(nextRandInt(), nextRandInt(), nextRandInt(),
                 nextRandInt(), nextRandInt());
+
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
@@ -2741,6 +2756,14 @@ public class WifiMetricsTest {
                 .stats[1].probeElapsedTimeSinceLastUpdateMs);
         assertEquals(-1, mDecodedProto.wifiUsabilityStatsList[0]
                 .stats[0].probeElapsedTimeSinceLastUpdateMs);
+        assertEquals(WifiUsabilityStatsEntry.NETWORK_TYPE_LTE,
+                mDecodedProto.wifiUsabilityStatsList[0].stats[0].cellularDataNetworkType);
+        assertEquals(signalStrengthDbm,
+                mDecodedProto.wifiUsabilityStatsList[0].stats[0].cellularSignalStrengthDbm);
+        assertEquals(signalStrengthDb,
+                mDecodedProto.wifiUsabilityStatsList[0].stats[0].cellularSignalStrengthDb);
+        assertEquals(isSameRegisteredCell,
+                mDecodedProto.wifiUsabilityStatsList[0].stats[0].isSameRegisteredCell);
     }
 
     /**
@@ -3026,6 +3049,14 @@ public class WifiMetricsTest {
         WifiInfo info = mock(WifiInfo.class);
         when(info.getRssi()).thenReturn(nextRandInt());
         when(info.getLinkSpeed()).thenReturn(nextRandInt());
+
+        CellularLinkLayerStats cellularStats = new CellularLinkLayerStats();
+        cellularStats.setIsSameRegisteredCell(false);
+        cellularStats.setDataNetworkType(TelephonyManager.NETWORK_TYPE_UMTS);
+        cellularStats.setSignalStrengthDbm(-100);
+        cellularStats.setSignalStrengthDb(-20);
+        when(mCellularLinkLayerStatsCollector.update()).thenReturn(cellularStats);
+
         WifiLinkLayerStats linkLayerStats = nextRandomStats(new WifiLinkLayerStats());
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
 
@@ -3039,6 +3070,10 @@ public class WifiMetricsTest {
         assertEquals(usabilityStats.getValue().getTimeStampMillis(), linkLayerStats.timeStampInMs);
         assertEquals(usabilityStats.getValue().getTotalRoamScanTimeMillis(),
                 linkLayerStats.on_time_roam_scan);
+        assertEquals(usabilityStats.getValue().getCellularDataNetworkType(),
+                TelephonyManager.NETWORK_TYPE_UMTS);
+        assertEquals(usabilityStats.getValue().getCellularSignalStrengthDbm(), -100);
+        assertEquals(usabilityStats.getValue().getCellularSignalStrengthDb(), -20);
     }
 
     /**
