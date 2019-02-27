@@ -74,6 +74,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
+import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
@@ -2063,8 +2064,14 @@ public class WifiMetricsTest {
         final int id = 42;
         final String expectId = "x" + id;
         when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+        mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
+        assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
     }
 
     /**
@@ -2075,8 +2082,15 @@ public class WifiMetricsTest {
         final int id = 0;
         final String expectId = "";
         when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+        mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
+                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
+        assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
+
     }
 
     /** short hand for instantiating an anonymous int array, instead of 'new int[]{a1, a2, ...}' */
@@ -3209,5 +3223,69 @@ public class WifiMetricsTest {
         };
         assertLinkProbeFailureReasonCountsEqual(expectedFailureReasonCount,
                 linkProbeStats.failureReasonCounts);
+    }
+
+    /**
+     * Tests logNetworkSelectionDecision()
+     */
+    @Test
+    public void testLogNetworkSelectionDecision() throws Exception {
+        mWifiMetrics.logNetworkSelectionDecision(1, 2, true, 6);
+        mWifiMetrics.logNetworkSelectionDecision(1, 2, false, 1);
+        mWifiMetrics.logNetworkSelectionDecision(1, 2, true, 6);
+        mWifiMetrics.logNetworkSelectionDecision(1, 2, true, 2);
+        mWifiMetrics.logNetworkSelectionDecision(3, 2, false, 15);
+        mWifiMetrics.logNetworkSelectionDecision(1, 2, false, 6);
+        mWifiMetrics.logNetworkSelectionDecision(1, 4, true, 2);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(3, mDecodedProto.networkSelectionExperimentDecisionsList.length);
+
+        NetworkSelectionExperimentDecisions exp12 =
+                findUniqueNetworkSelectionExperimentDecisions(1, 2);
+        MapEntryInt32Int32[] exp12SameExpected = {
+                buildMapEntryInt32Int32(2, 1),
+                buildMapEntryInt32Int32(6, 2)
+        };
+        assertMapEntriesEqual(exp12SameExpected, exp12.sameSelectionNumChoicesCounter);
+        MapEntryInt32Int32[] exp12DiffExpected = {
+                buildMapEntryInt32Int32(1, 1),
+                buildMapEntryInt32Int32(6, 1)
+        };
+        assertMapEntriesEqual(exp12DiffExpected, exp12.differentSelectionNumChoicesCounter);
+
+        NetworkSelectionExperimentDecisions exp32 =
+                findUniqueNetworkSelectionExperimentDecisions(3, 2);
+        MapEntryInt32Int32[] exp32SameExpected = {};
+        assertMapEntriesEqual(exp32SameExpected, exp32.sameSelectionNumChoicesCounter);
+        MapEntryInt32Int32[] exp32DiffExpected = {
+                buildMapEntryInt32Int32(
+                        WifiMetrics.NetworkSelectionExperimentResults.MAX_CHOICES, 1)
+        };
+        assertMapEntriesEqual(exp32DiffExpected, exp32.differentSelectionNumChoicesCounter);
+
+        NetworkSelectionExperimentDecisions exp14 =
+                findUniqueNetworkSelectionExperimentDecisions(1, 4);
+        MapEntryInt32Int32[] exp14SameExpected = {
+                buildMapEntryInt32Int32(2, 1)
+        };
+        assertMapEntriesEqual(exp14SameExpected, exp14.sameSelectionNumChoicesCounter);
+        MapEntryInt32Int32[] exp14DiffExpected = {};
+        assertMapEntriesEqual(exp14DiffExpected, exp14.differentSelectionNumChoicesCounter);
+    }
+
+    private NetworkSelectionExperimentDecisions findUniqueNetworkSelectionExperimentDecisions(
+            int experiment1Id, int experiment2Id) {
+        NetworkSelectionExperimentDecisions result = null;
+        for (NetworkSelectionExperimentDecisions d
+                : mDecodedProto.networkSelectionExperimentDecisionsList) {
+            if (d.experiment1Id == experiment1Id && d.experiment2Id == experiment2Id) {
+                assertNull("duplicate found!", result);
+                result = d;
+            }
+        }
+        assertNotNull("not found!", result);
+        return result;
     }
 }

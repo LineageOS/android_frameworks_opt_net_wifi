@@ -37,6 +37,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.provider.Settings;
+import android.util.ArrayMap;
 import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
@@ -58,6 +59,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
+import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
@@ -343,6 +345,31 @@ public class WifiMetrics {
     /** WifiConfigStore write duration histogram. */
     private SparseIntArray mWifiConfigStoreWriteDurationHistogram = new SparseIntArray();
 
+    /**
+     * (experiment1Id, experiment2Id) =>
+     *     (sameSelectionNumChoicesCounter, differentSelectionNumChoicesCounter)
+     */
+    private Map<Pair<Integer, Integer>, NetworkSelectionExperimentResults>
+            mNetworkSelectionExperimentPairNumChoicesCounts = new ArrayMap<>();
+
+    @VisibleForTesting
+    static class NetworkSelectionExperimentResults {
+        public static final int MAX_CHOICES = 10;
+
+        public IntCounter sameSelectionNumChoicesCounter = new IntCounter(0, MAX_CHOICES);
+        public IntCounter differentSelectionNumChoicesCounter = new IntCounter(0, MAX_CHOICES);
+
+        @Override
+        public String toString() {
+            return "NetworkSelectionExperimentResults{"
+                    + "sameSelectionNumChoicesCounter="
+                    + sameSelectionNumChoicesCounter
+                    + ", differentSelectionNumChoicesCounter="
+                    + differentSelectionNumChoicesCounter
+                    + '}';
+        }
+    }
+
     class RouterFingerPrint {
         private WifiMetricsProto.RouterFingerPrint mRouterFingerPrintProto;
         RouterFingerPrint() {
@@ -569,10 +596,48 @@ public class WifiMetrics {
                 }
                 sb.append(", screenOn=");
                 sb.append(mScreenOn);
-                sb.append(". mRouterFingerprint: ");
+                sb.append(", mRouterFingerprint=");
                 sb.append(mRouterFingerPrint.toString());
                 sb.append(", useRandomizedMac=");
                 sb.append(mConnectionEvent.useRandomizedMac);
+                sb.append(", connectionNominator=");
+                switch (mConnectionEvent.connectionNominator) {
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN:
+                        sb.append("NOMINATOR_UNKNOWN");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL:
+                        sb.append("NOMINATOR_MANUAL");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED:
+                        sb.append("NOMINATOR_SAVED");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION:
+                        sb.append("NOMINATOR_SUGGESTION");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT:
+                        sb.append("NOMINATOR_PASSPOINT");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER:
+                        sb.append("NOMINATOR_CARRIER");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED:
+                        sb.append("NOMINATOR_EXTERNAL_SCORED");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC:
+                        sb.append("NOMINATOR_NETREC");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE:
+                        sb.append("NOMINATOR_SAVED_USER_CONNECT_CHOICE");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_OPEN_NETWORK_AVAILABLE:
+                        sb.append("NOMINATOR_OPEN_NETWORK_AVAILABLE");
+                        break;
+                    default:
+                        sb.append(String.format("UnrecognizedNominator(%d)",
+                                mConnectionEvent.connectionNominator));
+                }
+                sb.append(", networkSelectorExperimentId=");
+                sb.append(mConnectionEvent.networkSelectorExperimentId);
             }
             return sb.toString();
         }
@@ -864,6 +929,11 @@ public class WifiMetrics {
                     mClock.getWallClockMillis();
             mCurrentConnectionEvent.mConfigBssid = targetBSSID;
             mCurrentConnectionEvent.mConnectionEvent.roamType = roamType;
+            mCurrentConnectionEvent.mConnectionEvent.networkSelectorExperimentId =
+                    mScoringParams.getExperimentIdentifier();
+            // TODO(b/112196799): populate nominator field
+            mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                    WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
             mCurrentConnectionEvent.mRouterFingerPrint.updateFromWifiConfiguration(config);
             mCurrentConnectionEvent.mConfigBssid = "any";
             mCurrentConnectionEvent.mRealStartTime = mClock.getElapsedSinceBootMillis();
@@ -2570,6 +2640,7 @@ public class WifiMetrics {
                         + mWifiConfigStoreReadDurationHistogram.toString());
                 pw.println("mWifiConfigStoreWriteDurationHistogram:"
                         + mWifiConfigStoreWriteDurationHistogram.toString());
+
                 pw.println("mLinkProbeSuccessRssiCounts:" + mLinkProbeSuccessRssiCounts);
                 pw.println("mLinkProbeFailureRssiCounts:" + mLinkProbeFailureRssiCounts);
                 pw.println("mLinkProbeSuccessLinkSpeedCounts:" + mLinkProbeSuccessLinkSpeedCounts);
@@ -2581,6 +2652,9 @@ public class WifiMetrics {
                 pw.println("mLinkProbeSuccessElapsedTimeMsHistogram:"
                         + mLinkProbeSuccessElapsedTimeMsHistogram);
                 pw.println("mLinkProbeFailureReasonCounts:" + mLinkProbeFailureReasonCounts);
+
+                pw.println("mNetworkSelectionExperimentPairNumChoicesCounts:"
+                        + mNetworkSelectionExperimentPairNumChoicesCounts);
             }
         }
     }
@@ -3075,6 +3149,9 @@ public class WifiMetrics {
                                 return c;
                             });
             mWifiLogProto.linkProbeStats = linkProbeStats;
+
+            mWifiLogProto.networkSelectionExperimentDecisionsList =
+                    makeNetworkSelectionExperimentDecisionsList();
         }
     }
 
@@ -3091,6 +3168,25 @@ public class WifiMetrics {
             default:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_UNKNOWN;
         }
+    }
+
+    private NetworkSelectionExperimentDecisions[] makeNetworkSelectionExperimentDecisionsList() {
+        NetworkSelectionExperimentDecisions[] results = new NetworkSelectionExperimentDecisions[
+                mNetworkSelectionExperimentPairNumChoicesCounts.size()];
+        int i = 0;
+        for (Map.Entry<Pair<Integer, Integer>, NetworkSelectionExperimentResults> entry :
+                mNetworkSelectionExperimentPairNumChoicesCounts.entrySet()) {
+            NetworkSelectionExperimentDecisions result = new NetworkSelectionExperimentDecisions();
+            result.experiment1Id = entry.getKey().first;
+            result.experiment2Id = entry.getKey().second;
+            result.sameSelectionNumChoicesCounter =
+                    entry.getValue().sameSelectionNumChoicesCounter.toProto();
+            result.differentSelectionNumChoicesCounter =
+                    entry.getValue().differentSelectionNumChoicesCounter.toProto();
+            results[i] = result;
+            i++;
+        }
+        return results;
     }
 
     /** Sets the scoring experiment id to current value */
@@ -3226,6 +3322,7 @@ public class WifiMetrics {
             mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.clear();
             mLinkProbeSuccessElapsedTimeMsHistogram.clear();
             mLinkProbeFailureReasonCounts.clear();
+            mNetworkSelectionExperimentPairNumChoicesCounts.clear();
         }
     }
 
@@ -4338,6 +4435,41 @@ public class WifiMetrics {
         synchronized (mLock) {
             MetricsUtils.addValueToLinearHistogram(timeMs, mWifiConfigStoreWriteDurationHistogram,
                     WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS);
+        }
+    }
+
+    /**
+     * Logs the decision of a network selection algorithm when compared against another network
+     * selection algorithm.
+     *
+     * @param experiment1Id ID of one experiment
+     * @param experiment2Id ID of the other experiment
+     * @param isSameDecision did the 2 experiments make the same decision?
+     * @param numNetworkChoices the number of non-null network choices there were, where the null
+     *                          choice is not selecting any network
+     */
+    public void logNetworkSelectionDecision(int experiment1Id, int experiment2Id,
+            boolean isSameDecision, int numNetworkChoices) {
+        if (numNetworkChoices < 0) {
+            Log.e(TAG, "numNetworkChoices cannot be negative!");
+            return;
+        }
+        if (experiment1Id == experiment2Id) {
+            Log.e(TAG, "comparing the same experiment id: " + experiment1Id);
+            return;
+        }
+
+        Pair<Integer, Integer> key = new Pair<>(experiment1Id, experiment2Id);
+        synchronized (mLock) {
+            NetworkSelectionExperimentResults results =
+                    mNetworkSelectionExperimentPairNumChoicesCounts
+                            .computeIfAbsent(key, k -> new NetworkSelectionExperimentResults());
+
+            IntCounter counter = isSameDecision
+                    ? results.sameSelectionNumChoicesCounter
+                    : results.differentSelectionNumChoicesCounter;
+
+            counter.increment(numNetworkChoices);
         }
     }
 }
