@@ -32,7 +32,7 @@ import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.nano.WifiMetricsProto;
-import com.android.server.wifi.util.MetricsUtils;
+import com.android.server.wifi.util.IntHistogram;
 
 import java.io.PrintWriter;
 
@@ -44,7 +44,6 @@ public class DppMetrics {
     private final WifiMetricsProto.WifiDppLog mWifiDppLogProto = new WifiMetricsProto.WifiDppLog();
 
     // Easy-Connect (DPP) Metrics
-    private SparseIntArray mHistogramDppOperationTime = new SparseIntArray();
     // Histogram for DPP operation time. Indicates the following 5 buckets (in seconds):
     //   < 1
     //   [1, 10)
@@ -53,6 +52,7 @@ public class DppMetrics {
     //   >= 39  - which means timeout.
     @VisibleForTesting
     public static final int[] DPP_OPERATION_TIME = {1, 10, 25, 39};
+    private IntHistogram mHistogramDppOperationTime = new IntHistogram(DPP_OPERATION_TIME);
 
     // Failure codes
     private SparseIntArray mHistogramDppFailureCode = new SparseIntArray();
@@ -181,8 +181,7 @@ public class DppMetrics {
      */
     public void updateDppOperationTime(int timeMs) {
         synchronized (mLock) {
-            MetricsUtils.addValueToLinearHistogram(timeMs / 1000, mHistogramDppOperationTime,
-                    DPP_OPERATION_TIME);
+            mHistogramDppOperationTime.increment(timeMs / 1000);
         }
     }
 
@@ -211,7 +210,7 @@ public class DppMetrics {
                 pw.println(mHistogramDppConfiguratorSuccessCode);
             }
 
-            if (mHistogramDppOperationTime.size() > 0) {
+            if (mHistogramDppOperationTime.numNonEmptyBuckets() > 0) {
                 pw.println("mHistogramDppOperationTime=");
                 pw.println(mHistogramDppOperationTime);
             }
@@ -231,21 +230,6 @@ public class DppMetrics {
             mHistogramDppOperationTime.clear();
             mHistogramDppConfiguratorSuccessCode.clear();
         }
-    }
-
-    private WifiMetricsProto.WifiDppLog.HistogramBucket[] consolidateDppOperationTime(
-            SparseIntArray data) {
-        WifiMetricsProto.WifiDppLog.HistogramBucket[] operationTimeArray =
-                new WifiMetricsProto.WifiDppLog.HistogramBucket[data.size()];
-
-        for (int i = 0; i < data.size(); i++) {
-            operationTimeArray[i] = new WifiMetricsProto.WifiDppLog.HistogramBucket();
-            operationTimeArray[i].start = data.keyAt(i);
-            operationTimeArray[i].end = data.keyAt(i);
-            operationTimeArray[i].count = data.valueAt(i);
-        }
-
-        return operationTimeArray;
     }
 
     private WifiMetricsProto.WifiDppLog.DppFailureStatusHistogramBucket[] consolidateDppFailure(
@@ -295,7 +279,7 @@ public class DppMetrics {
             log.dppFailureCode = consolidateDppFailure(mHistogramDppFailureCode);
             log.dppConfiguratorSuccessCode =
                     consolidateDppSuccess(mHistogramDppConfiguratorSuccessCode);
-            log.dppOperationTime = consolidateDppOperationTime(mHistogramDppOperationTime);
+            log.dppOperationTime = mHistogramDppOperationTime.toProto();
         }
         return log;
     }

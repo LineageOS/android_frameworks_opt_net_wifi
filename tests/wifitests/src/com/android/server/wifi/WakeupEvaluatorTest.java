@@ -49,8 +49,9 @@ public class WakeupEvaluatorTest {
     private static final int FREQ_24 = 2402;
     private static final int FREQ_5 = 5000;
 
-    private static final int THRESHOLD_24 = -10;
-    private static final int THRESHOLD_5 = -1;
+    private static final int THRESHOLD_24 = -100;
+    private static final int THRESHOLD_5 = -90;
+    private final ScoringParams mScoringParams = new ScoringParams();
 
     private WakeupEvaluator mWakeupEvaluator;
 
@@ -77,7 +78,10 @@ public class WakeupEvaluatorTest {
 
     @Before
     public void setUp() {
-        mWakeupEvaluator = new WakeupEvaluator(THRESHOLD_24, THRESHOLD_5);
+        String params = "rssi2=-120:" + THRESHOLD_24 + ":-2:-1" + ","
+                      + "rssi5=-120:" + THRESHOLD_5 + ":-2:-1";
+        assertTrue(params, mScoringParams.update(params));
+        mWakeupEvaluator = new WakeupEvaluator(mScoringParams);
     }
 
     /**
