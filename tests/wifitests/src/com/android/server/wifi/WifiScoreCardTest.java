@@ -419,20 +419,21 @@ public class WifiScoreCardTest {
 
         secondsPass(33);
 
-        // There should be one changed bssid now
-        assertEquals(1, mWifiScoreCard.doWrites());
-        assertEquals(1, mKeys.size());
+        // There should be one changed bssid now. We may have already done some writes.
+        mWifiScoreCard.doWrites();
+        assertTrue(mKeys.size() > 0);
 
         // The written blob should not contain the BSSID, though the full serialized version does
-        String writtenHex = hexStringFromByteArray(mBlobs.get(0));
+        String writtenHex = hexStringFromByteArray(mBlobs.get(mKeys.size() - 1));
         String fullHex = hexStringFromByteArray(serialized);
         String bssidHex = hexStringFromByteArray(TEST_BSSID_1.toByteArray());
         assertFalse(writtenHex, writtenHex.contains(bssidHex));
         assertTrue(fullHex, fullHex.contains(bssidHex));
 
         // A second write request should not find anything to write
+        final int beforeSize = mKeys.size();
         assertEquals(0, mWifiScoreCard.doWrites());
-        assertEquals(1, mKeys.size());
+        assertEquals(beforeSize, mKeys.size());
     }
 
     /**

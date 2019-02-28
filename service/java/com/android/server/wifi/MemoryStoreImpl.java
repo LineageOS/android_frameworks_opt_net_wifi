@@ -33,7 +33,7 @@ import java.util.Objects;
  */
 final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
     private static final String TAG = "WifiMemoryStoreImpl";
-    private static final boolean DBG = true; // TODO change to false
+    private static final boolean DBG = true;
 
     // The id of the client that stored this data
     public static final String WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID = "com.android.server.wifi";
@@ -51,13 +51,25 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
         mIpMemoryStore = null;
     }
 
+    private boolean mBroken = false;
+    private void handleException(Exception e) {
+        Log.wtf(TAG, "Exception using IpMemoryStore - disabling WifiScoreReport persistence", e);
+        mBroken = true;
+    }
+
+
     @Override
     public void read(final String key, final BlobListener blobListener) {
-        mIpMemoryStore.retrieveBlob(
-                key,
-                WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID,
-                WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME,
-                new CatchAFallingBlob(key, blobListener));
+        if (mBroken) return;
+        try {
+            mIpMemoryStore.retrieveBlob(
+                    key,
+                    WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID,
+                    WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME,
+                    new CatchAFallingBlob(key, blobListener));
+        } catch (RuntimeException e) {
+            handleException(e);
+        }
     }
 
     /**
@@ -104,14 +116,19 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
 
     @Override
     public void write(String key, byte[] value) {
+        if (mBroken) return;
         final Blob blob = new Blob();
         blob.data = value;
-        mIpMemoryStore.storeBlob(
-                key,
-                WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID,
-                WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME,
-                blob,
-                null /* no listener for now, just fire and forget */);
+        try {
+            mIpMemoryStore.storeBlob(
+                    key,
+                    WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID,
+                    WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME,
+                    blob,
+                    null /* no listener for now, just fire and forget */);
+        } catch (RuntimeException e) {
+            handleException(e);
+        }
     }
 
     /**

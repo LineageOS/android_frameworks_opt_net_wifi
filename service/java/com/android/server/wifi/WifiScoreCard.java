@@ -204,6 +204,7 @@ public class WifiScoreCard {
             if (duration >= SUCCESS_MILLIS_SINCE_ROAM) {
                 update(Event.ROAM_SUCCESS, wifiInfo);
                 mTsRoam = TS_NONE;
+                doWrites();
             }
         }
     }
@@ -218,6 +219,7 @@ public class WifiScoreCard {
     public void noteIpConfiguration(ExtendedWifiInfo wifiInfo) {
         update(Event.IP_CONFIGURATION_SUCCESS, wifiInfo);
         mAttemptingSwitch = false;
+        doWrites();
     }
 
     /**
@@ -280,6 +282,7 @@ public class WifiScoreCard {
             update(Event.ROAM_FAILURE, wifiInfo);
         }
         resetConnectionStateInternal(false);
+        doWrites();
     }
 
     /**
@@ -326,6 +329,7 @@ public class WifiScoreCard {
     public void noteWifiDisabled(ExtendedWifiInfo wifiInfo) {
         update(Event.WIFI_DISABLED, wifiInfo);
         resetConnectionStateInternal(false);
+        doWrites();
     }
 
     final class PerBssid {
@@ -517,7 +521,7 @@ public class WifiScoreCard {
     }
 
     /**
-     * Issues write requests for all changed entries
+     * Issues write requests for all changed entries.
      *
      * This should be called from time to time to save the state to persistent
      * storage. Since we always check internal state first, this does not need
@@ -528,6 +532,7 @@ public class WifiScoreCard {
     public int doWrites() {
         if (mMemoryStore == null) return 0;
         int count = 0;
+        int bytes = 0;
         for (PerBssid perBssid : mApForBssid.values()) {
             if (perBssid.changed) {
                 perBssid.finishPendingRead();
@@ -535,7 +540,11 @@ public class WifiScoreCard {
                 mMemoryStore.write(perBssid.getL2Key(), serialized);
                 perBssid.changed = false;
                 count++;
+                bytes += serialized.length;
             }
+        }
+        if (DBG && count > 0) {
+            Log.v(TAG, "Write count: " + count + ", bytes: " + bytes);
         }
         return count;
     }
