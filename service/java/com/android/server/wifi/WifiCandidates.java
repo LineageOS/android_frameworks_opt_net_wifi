@@ -77,9 +77,9 @@ public class WifiCandidates {
          */
         boolean isTrusted();
         /**
-         * Returns the index of the evaluator that provided the candidate.
+         * Returns the ID of the evaluator that provided the candidate.
          */
-        int getEvaluatorIndex();
+        @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId();
         /**
          * Gets the score that was provided by the evaluator.
          *
@@ -124,7 +124,8 @@ public class WifiCandidates {
         public final Key key;                   // SSID/sectype/BSSID/configId
         public final ScanDetail scanDetail;
         public final WifiConfiguration config;
-        public final int evaluatorIndex;        // First evaluator to nominate this config
+        // First evaluator to nominate this config
+        public final @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId;
         public final int evaluatorScore;        // Score provided by first nominating evaluator
         public final double lastSelectionWeight; // Value between 0 and 1
 
@@ -135,7 +136,7 @@ public class WifiCandidates {
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
                 WifiConfiguration config,
-                int evaluatorIndex,
+                @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                 int evaluatorScore,
                 WifiScoreCard.PerBssid perBssid,
                 double lastSelectionWeight,
@@ -144,7 +145,7 @@ public class WifiCandidates {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
-            this.evaluatorIndex = evaluatorIndex;
+            this.evaluatorId = evaluatorId;
             this.evaluatorScore = evaluatorScore;
             this.mPerBssid = perBssid;
             this.lastSelectionWeight = lastSelectionWeight;
@@ -189,8 +190,8 @@ public class WifiCandidates {
         }
 
         @Override
-        public int getEvaluatorIndex() {
-            return evaluatorIndex;
+        public @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId() {
+            return evaluatorId;
         }
 
         @Override
@@ -345,7 +346,7 @@ public class WifiCandidates {
      */
     public boolean add(ScanDetail scanDetail,
                     WifiConfiguration config,
-                    int evaluatorIndex,
+                    @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                     int evaluatorScore,
                     double lastSelectionWeightBetweenZeroAndOne) {
         if (config == null) return failure();
@@ -365,8 +366,8 @@ public class WifiCandidates {
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {
             // check if we want to replace this old candidate
-            if (evaluatorIndex < old.evaluatorIndex) return failure();
-            if (evaluatorIndex > old.evaluatorIndex) return false;
+            if (evaluatorId < old.evaluatorId) return failure();
+            if (evaluatorId > old.evaluatorId) return false;
             if (evaluatorScore <= old.evaluatorScore) return false;
             remove(old);
         }
@@ -377,7 +378,7 @@ public class WifiCandidates {
                 WifiScoreCardProto.SecurityType.forNumber(key.matchInfo.networkType));
         perBssid.setNetworkConfigId(config.networkId);
         CandidateImpl candidate = new CandidateImpl(key,
-                scanDetail, config, evaluatorIndex, evaluatorScore, perBssid,
+                scanDetail, config, evaluatorId, evaluatorScore, perBssid,
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
                 bssid.equals(mCurrentBssid));
@@ -387,9 +388,9 @@ public class WifiCandidates {
     /** Adds a new candidate with no user selection weight. */
     public boolean add(ScanDetail scanDetail,
                     WifiConfiguration config,
-                    int evaluatorIndex,
+                    @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                     int evaluatorScore) {
-        return add(scanDetail, config, evaluatorIndex, evaluatorScore, 0.0);
+        return add(scanDetail, config, evaluatorId, evaluatorScore, 0.0);
     }
 
     /**

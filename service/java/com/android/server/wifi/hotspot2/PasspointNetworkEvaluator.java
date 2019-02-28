@@ -75,6 +75,11 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     }
 
     @Override
+    public @EvaluatorId int getId() {
+        return EVALUATOR_ID_PASSPOINT;
+    }
+
+    @Override
     public String getName() {
         return NAME;
     }

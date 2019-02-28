@@ -321,8 +321,7 @@ public class WifiConnectivityManagerTest {
                 mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog,
-                null, null, null, null, null);
+                mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog);
     }
 
     /**

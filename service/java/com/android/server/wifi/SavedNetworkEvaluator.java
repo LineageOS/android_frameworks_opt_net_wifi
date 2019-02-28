@@ -85,8 +85,17 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     }
 
     /**
+     * Get the evaluator type.
+     */
+    @Override
+    public @EvaluatorId int getId() {
+        return EVALUATOR_ID_SAVED;
+    }
+
+    /**
      * Get the evaluator name.
      */
+    @Override
     public String getName() {
         return NAME;
     }
