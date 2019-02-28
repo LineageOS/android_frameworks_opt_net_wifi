@@ -5016,15 +5016,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
                         WifiLinkLayerStats stats = getWifiLinkLayerStats();
-                        int statusDataStall =
-                                mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
-                        if (statusDataStall != WifiIsUnusableEvent.TYPE_UNKNOWN) {
-                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                                    convertToUsabilityStatsTriggerType(statusDataStall));
-                        }
-                        mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
-                        mLastLinkLayerStats = stats;
-
                         // Get Info and continue polling
                         fetchRssiLinkSpeedAndFrequencyNative();
                         // Send the update score to network agent.
@@ -5041,6 +5032,14 @@ public class ClientModeImpl extends StateMachine {
                             }
                             mWifiScoreReport.noteIpCheck();
                         }
+                        int statusDataStall =
+                                mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
+                        if (statusDataStall != WifiIsUnusableEvent.TYPE_UNKNOWN) {
+                            mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                                    convertToUsabilityStatsTriggerType(statusDataStall));
+                        }
+                        mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
+                        mLastLinkLayerStats = stats;
                         mWifiScoreCard.noteSignalPoll(mWifiInfo);
                         mLinkProbeManager.updateConnectionStats(
                                 mWifiInfo, mInterfaceName);
