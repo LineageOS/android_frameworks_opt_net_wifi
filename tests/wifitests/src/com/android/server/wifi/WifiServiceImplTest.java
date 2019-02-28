@@ -466,6 +466,28 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that wifi can be enabled by the default car dock app.
+     */
+    @Test
+    public void testSetWifiEnabledSuccessForDefaultCarDockApp()
+            throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        mResolveInfo.activityInfo.packageName = TEST_PACKAGE_NAME;
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mPackageManager).resolveActivity(intentArgumentCaptor.capture(), anyInt());
+        assertNotNull(intentArgumentCaptor.getValue());
+        assertTrue(intentArgumentCaptor.getValue().hasCategory(Intent.CATEGORY_CAR_DOCK));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
      * Verify that the CMD_TOGGLE_WIFI message won't be sent if wifi is already on.
      */
     @Test
@@ -538,6 +560,27 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(false);
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi can't be disabled by the default car dock app.
+     */
+    @Test
+    public void testSetWifiDisabledFailForDefaultCarDockApp() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        mResolveInfo.activityInfo.packageName = TEST_PACKAGE_NAME;
+
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(false);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mPackageManager).resolveActivity(intentArgumentCaptor.capture(), anyInt());
+        assertNotNull(intentArgumentCaptor.getValue());
+        assertTrue(intentArgumentCaptor.getValue().hasCategory(Intent.CATEGORY_CAR_DOCK));
+
         verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
     }
 
@@ -1143,6 +1186,28 @@ public class WifiServiceImplTest {
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
                 TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
+    }
+
+    /**
+     * Only start LocalOnlyHotspot if we are not tethering.
+     */
+    @Test
+    public void testTetheringDoesNotStartWhenAlreadyTetheringActive() throws Exception {
+        setupClientModeImplHandlerForPost();
+
+        WifiConfiguration config = createValidSoftApConfiguration();
+        assertTrue(mWifiServiceImpl.startSoftAp(config));
+        verify(mWifiController)
+                .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
+        assertEquals(config, mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+        mLooper.dispatchAll();
+
+        // Start another session without a stop, that should fail.
+        assertFalse(mWifiServiceImpl.startSoftAp(createValidSoftApConfiguration()));
+
+        verifyNoMoreInteractions(mWifiController);
     }
 
     /**

@@ -156,6 +156,15 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return scanSettings.ignoreLocationSettings;
     }
 
+    // Check if we should hide this request from app-ops if this is a single scan request.
+    private boolean shouldHideFromAppsForSingleScan(Message msg) {
+        if (msg.what != WifiScanner.CMD_START_SINGLE_SCAN) return false;
+        if (!(msg.obj instanceof Bundle)) return false;
+        Bundle bundle = (Bundle) msg.obj;
+        ScanSettings scanSettings = bundle.getParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY);
+        return scanSettings.hideFromAppOps;
+    }
+
     /**
      * Enforce the necessary client permissions for WifiScanner.
      * If the client has NETWORK_STACK permission, then it can "always" send "any" request.
@@ -178,7 +187,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 throw e;
             }
             mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(
-                    getPackageName(msg), uid, shouldIgnoreLocationSettingsForSingleScan(msg));
+                    getPackageName(msg), uid, shouldIgnoreLocationSettingsForSingleScan(msg),
+                    shouldHideFromAppsForSingleScan(msg));
         }
     }
 

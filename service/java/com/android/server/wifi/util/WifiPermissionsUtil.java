@@ -166,9 +166,9 @@ public class WifiPermissionsUtil {
 
         // Always checking FINE - even if will not enforce. This will record the request for FINE
         // so that a location request by the app is surfaced to the user.
-        boolean isAppOpAllowed = checkAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid);
+        boolean isAppOpAllowed = noteAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid);
         if (!isAppOpAllowed && coarseForTargetSdkLessThanQ && isTargetSdkLessThanQ) {
-            isAppOpAllowed = checkAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid);
+            isAppOpAllowed = noteAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid);
         }
         return isAppOpAllowed;
     }
@@ -180,7 +180,7 @@ public class WifiPermissionsUtil {
      * @param uid The uid of the package
      */
     public void enforceFineLocationPermission(String pkgName, int uid) {
-        if (!checkCallersFineLocationPermission(pkgName, uid)) {
+        if (!checkCallersFineLocationPermission(pkgName, uid, false)) {
             throw new SecurityException("UID " + uid + " does not have Fine Location permission");
         }
     }
@@ -192,16 +192,28 @@ public class WifiPermissionsUtil {
      *
      * @param pkgName PackageName of the application requesting access
      * @param uid The uid of the package
+     * @param hideFromAppOps True to invoke {@link AppOpsManager#checkOp(int, int, String)}, false
+     *                       to invoke {@link AppOpsManager#noteOp(int, int, String)}.
      */
-    public boolean checkCallersFineLocationPermission(String pkgName, int uid) {
+    private boolean checkCallersFineLocationPermission(String pkgName, int uid,
+                                                       boolean hideFromAppOps) {
         // Having FINE permission implies having COARSE permission (but not the reverse)
-        if ((mWifiPermissionsWrapper.getUidPermission(
+        if (mWifiPermissionsWrapper.getUidPermission(
                 Manifest.permission.ACCESS_FINE_LOCATION, uid)
-                == PackageManager.PERMISSION_GRANTED)
-                && checkAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid)) {
-            return true;
+                == PackageManager.PERMISSION_DENIED) {
+            return false;
         }
-        return false;
+        if (hideFromAppOps) {
+            // Don't note the operation, just check if the app is allowed to perform the operation.
+            if (!checkAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid)) {
+                return false;
+            }
+        } else {
+            if (!noteAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -265,12 +277,13 @@ public class WifiPermissionsUtil {
      * @param pkgName package name of the application requesting access
      * @param uid The uid of the package
      * @param ignoreLocationSettings Whether this request can bypass location settings.
+     * @param hideFromAppOps Whether to note the request in app-ops logging or not.
      *
      * Note: This is to be used for checking permissions in the internal WifiScanner API surface
      * for requests coming from system apps.
      */
     public void enforceCanAccessScanResultsForWifiScanner(
-            String pkgName, int uid, boolean ignoreLocationSettings)
+            String pkgName, int uid, boolean ignoreLocationSettings, boolean hideFromAppOps)
             throws SecurityException {
         checkPackage(uid, pkgName);
 
@@ -285,7 +298,7 @@ public class WifiPermissionsUtil {
         }
         // LocationAccess by App: caller must have fine & hardware Location permission to have
         // access to location information.
-        if (!checkCallersFineLocationPermission(pkgName, uid)
+        if (!checkCallersFineLocationPermission(pkgName, uid, hideFromAppOps)
                 || !checkCallersHardwareLocationPermission(uid)) {
             throw new SecurityException("UID " + uid + " has no location permission");
         }
@@ -363,7 +376,7 @@ public class WifiPermissionsUtil {
      * and package.
      */
     private boolean isScanAllowedbyApps(String pkgName, int uid) {
-        return checkAppOpAllowed(AppOpsManager.OP_WIFI_SCAN, pkgName, uid);
+        return noteAppOpAllowed(AppOpsManager.OP_WIFI_SCAN, pkgName, uid);
     }
 
     /**
@@ -395,10 +408,13 @@ public class WifiPermissionsUtil {
         return false;
     }
 
-    private boolean checkAppOpAllowed(int op, String pkgName, int uid) {
+    private boolean noteAppOpAllowed(int op, String pkgName, int uid) {
         return mAppOps.noteOp(op, uid, pkgName) == AppOpsManager.MODE_ALLOWED;
     }
 
+    private boolean checkAppOpAllowed(int op, String pkgName, int uid) {
+        return mAppOps.checkOp(op, uid, pkgName) == AppOpsManager.MODE_ALLOWED;
+    }
 
     private boolean retrieveLocationManagerIfNecessary() {
         // This is going to be accessed by multiple threads.

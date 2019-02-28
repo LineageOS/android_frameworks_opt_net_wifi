@@ -132,25 +132,19 @@ public class ScanResultUtil {
     public static void setAllowedKeyManagementFromScanResult(ScanResult scanResult,
             WifiConfiguration config) {
         if (isScanResultForSaeNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SAE);
-            config.requirePMF = true;
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_SAE);
         } else if (isScanResultForPskNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_PSK);
         } else if (isScanResultForEapSuiteBNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.SUITE_B_192);
-            config.requirePMF = true;
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP_SUITE_B);
         } else if (isScanResultForEapNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
         } else if (isScanResultForWepNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-            config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-            config.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_WEP);
         } else if (isScanResultForOweNetwork(scanResult)) {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
-            config.requirePMF = true;
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_OWE);
         } else {
-            config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+            config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_OPEN);
         }
     }
 

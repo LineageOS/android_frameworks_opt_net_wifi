@@ -120,7 +120,6 @@ public class WifiAwareNativeManagerTest {
     public void testControlFlowWithoutInterface() {
         // configure HalDeviceManager as ready/wifi started (and to return an interface if
         // requested)
-        when(mHalDeviceManager.isReady()).thenReturn(true);
         when(mHalDeviceManager.isStarted()).thenReturn(true);
         when(mHalDeviceManager.createNanIface(any(), any())).thenReturn(mWifiNanIfaceMock);
 
@@ -169,7 +168,6 @@ public class WifiAwareNativeManagerTest {
     public void testReferenceCounting() throws Exception {
         // configure HalDeviceManager as ready/wifi started (and to return an interface if
         // requested)
-        when(mHalDeviceManager.isReady()).thenReturn(true);
         when(mHalDeviceManager.isStarted()).thenReturn(true);
         when(mHalDeviceManager.createNanIface(any(), any())).thenReturn(mWifiNanIfaceMock);
 
@@ -231,7 +229,6 @@ public class WifiAwareNativeManagerTest {
     public void testRequestFlowWithAsyncDeletes() throws Exception {
         // configure HalDeviceManager as ready/wifi started (and to return an interface if
         // requested)
-        when(mHalDeviceManager.isReady()).thenReturn(true);
         when(mHalDeviceManager.isStarted()).thenReturn(true);
         when(mHalDeviceManager.createNanIface(any(), any())).thenReturn(mWifiNanIfaceMock);
 
@@ -274,7 +271,6 @@ public class WifiAwareNativeManagerTest {
     public void testBasicFlowHal12() throws Exception {
         // configure HalDeviceManager as ready/wifi started (and to return an interface if
         // requested)
-        when(mHalDeviceManager.isReady()).thenReturn(true);
         when(mHalDeviceManager.isStarted()).thenReturn(true);
         when(mHalDeviceManager.createNanIface(any(), any())).thenReturn(mIWifiNanIface12Mock);
 

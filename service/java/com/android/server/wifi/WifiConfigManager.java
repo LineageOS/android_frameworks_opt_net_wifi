@@ -1718,6 +1718,12 @@ public class WifiConfigManager {
         if (config == null) {
             return false;
         }
+        // Set the "last selected" flag even if the app does not have permissions to modify this
+        // network config. Apps are allowed to connect to networks even if they don't have
+        // permission to modify it.
+        if (disableOthers) {
+            setLastSelectedNetwork(networkId);
+        }
         if (!canModifyNetwork(config, uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to update configuration "
                     + config.configKey());
@@ -1726,9 +1732,6 @@ public class WifiConfigManager {
         if (!updateNetworkSelectionStatus(
                 networkId, WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_ENABLE)) {
             return false;
-        }
-        if (disableOthers) {
-            setLastSelectedNetwork(networkId);
         }
         saveToStore(true);
         return true;
@@ -1753,6 +1756,11 @@ public class WifiConfigManager {
         if (config == null) {
             return false;
         }
+        // Reset the "last selected" flag even if the app does not have permissions to modify this
+        // network config.
+        if (networkId == mLastSelectedNetworkId) {
+            clearLastSelectedNetwork();
+        }
         if (!canModifyNetwork(config, uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to update configuration "
                     + config.configKey());
@@ -1761,9 +1769,6 @@ public class WifiConfigManager {
         if (!updateNetworkSelectionStatus(
                 networkId, NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER)) {
             return false;
-        }
-        if (networkId == mLastSelectedNetworkId) {
-            clearLastSelectedNetwork();
         }
         saveToStore(true);
         return true;

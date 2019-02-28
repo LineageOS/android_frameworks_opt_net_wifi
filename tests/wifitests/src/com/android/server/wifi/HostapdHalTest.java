@@ -33,6 +33,7 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
 import android.os.IHwBinder;
 import android.os.RemoteException;
+import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
@@ -67,6 +68,7 @@ public class HostapdHalTest {
     private MockResources mResources;
     HostapdStatus mStatusSuccess;
     HostapdStatus mStatusFailure;
+    private TestLooper mLooper = new TestLooper();
     private HostapdHal mHostapdHal;
     private ArgumentCaptor<IHwBinder.DeathRecipient> mServiceManagerDeathCaptor =
             ArgumentCaptor.forClass(IHwBinder.DeathRecipient.class);
@@ -81,11 +83,12 @@ public class HostapdHalTest {
             ArgumentCaptor.forClass(android.hardware.wifi.hostapd.V1_1.IHostapd.IfaceParams.class);
     private ArgumentCaptor<IHostapd.NetworkParams> mNetworkParamsCaptor =
             ArgumentCaptor.forClass(IHostapd.NetworkParams.class);
+    private ArgumentCaptor<Long> mDeathRecipientCookieCaptor = ArgumentCaptor.forClass(Long.class);
     private InOrder mInOrder;
 
     private class HostapdHalSpy extends HostapdHal {
         HostapdHalSpy() {
-            super(mContext);
+            super(mContext, mLooper.getLooper());
         }
 
         @Override
@@ -190,8 +193,22 @@ public class HostapdHalTest {
         executeAndValidateInitializationSequence();
 
         mHostapdHal.registerDeathHandler(mHostapdHalDeathHandler);
-        mHostapdDeathCaptor.getValue().serviceDied(0);
+        mHostapdDeathCaptor.getValue().serviceDied(mDeathRecipientCookieCaptor.getValue());
+        mLooper.dispatchAll();
         verify(mHostapdHalDeathHandler).onDeath();
+    }
+
+    /**
+     * Verifies the hostapd death handling.
+     */
+    @Test
+    public void testStaleDeathHandling() throws Exception {
+        executeAndValidateInitializationSequence();
+
+        mHostapdHal.registerDeathHandler(mHostapdHalDeathHandler);
+        mHostapdDeathCaptor.getValue().serviceDied(mDeathRecipientCookieCaptor.getValue() - 1);
+        mLooper.dispatchAll();
+        verify(mHostapdHalDeathHandler, never()).onDeath();
     }
 
     /**
@@ -664,7 +681,8 @@ public class HostapdHalTest {
             // act: cause the onRegistration(...) callback to execute
             mServiceNotificationCaptor.getValue().onRegistration(IHostapd.kInterfaceName, "", true);
             assertTrue(mHostapdHal.isInitializationComplete());
-            mInOrder.verify(mIHostapdMock).linkToDeath(mHostapdDeathCaptor.capture(), anyLong());
+            mInOrder.verify(mIHostapdMock).linkToDeath(mHostapdDeathCaptor.capture(),
+                    mDeathRecipientCookieCaptor.capture());
         } else {
             assertFalse(mHostapdHal.isInitializationComplete());
             mInOrder.verify(mIHostapdMock, never()).linkToDeath(

@@ -86,6 +86,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
@@ -305,6 +306,7 @@ public class WifiVendorHalTest {
                 when(mHalDeviceManager.isReady()).thenReturn(true);
                 when(mHalDeviceManager.isStarted()).thenReturn(true);
                 mHalDeviceManagerStatusCallbacks.onStatusChanged();
+                mLooper.dispatchAll();
                 return true;
             }
         }).when(mHalDeviceManager).start();
@@ -314,6 +316,7 @@ public class WifiVendorHalTest {
                 when(mHalDeviceManager.isReady()).thenReturn(true);
                 when(mHalDeviceManager.isStarted()).thenReturn(false);
                 mHalDeviceManagerStatusCallbacks.onStatusChanged();
+                mLooper.dispatchAll();
             }
         }).when(mHalDeviceManager).stop();
         when(mHalDeviceManager.createStaIface(anyBoolean(), any(), eq(null)))
@@ -367,7 +370,8 @@ public class WifiVendorHalTest {
         mWifiVendorHal.initialize(mVendorHalDeathHandler);
         ArgumentCaptor<WifiVendorHal.HalDeviceManagerStatusListener> hdmCallbackCaptor =
                 ArgumentCaptor.forClass(WifiVendorHal.HalDeviceManagerStatusListener.class);
-        verify(mHalDeviceManager).registerStatusListener(hdmCallbackCaptor.capture(), eq(null));
+        verify(mHalDeviceManager).registerStatusListener(
+                hdmCallbackCaptor.capture(), any(Handler.class));
         mHalDeviceManagerStatusCallbacks = hdmCallbackCaptor.getValue();
 
     }
@@ -2312,6 +2316,7 @@ public class WifiVendorHalTest {
         // death of the HAL.
         when(mHalDeviceManager.isReady()).thenReturn(false);
         mHalDeviceManagerStatusCallbacks.onStatusChanged();
+        mLooper.dispatchAll();
 
         verify(mVendorHalDeathHandler).onDeath();
     }

@@ -18,6 +18,8 @@ package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
 
+import android.net.wifi.WifiConfiguration;
+
 import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
@@ -55,19 +57,19 @@ public class WifiScoreCardProtoTest {
      */
     @Test
     public void testSecurityTypeValues() throws Exception {
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_OPEN,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_OPEN,
                 WifiScoreCardProto.SecurityType.OPEN.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_WEP,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_WEP,
                 WifiScoreCardProto.SecurityType.WEP.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_PSK,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_PSK,
                 WifiScoreCardProto.SecurityType.PSK.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_EAP,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_EAP,
                 WifiScoreCardProto.SecurityType.EAP.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_SAE,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_SAE,
                 WifiScoreCardProto.SecurityType.SAE.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_EAP_SUITE_B,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_EAP_SUITE_B,
                 WifiScoreCardProto.SecurityType.EAP_SUITE_B.getNumber());
-        assertEquals(ScanResultMatchInfo.NETWORK_TYPE_OWE,
+        assertEquals(WifiConfiguration.SECURITY_TYPE_OWE,
                 WifiScoreCardProto.SecurityType.OWE.getNumber());
     }
 
