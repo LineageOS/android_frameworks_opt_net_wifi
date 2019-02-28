@@ -2635,6 +2635,23 @@ public class SupplicantStaIfaceHal {
         public void onAssociationRejected(byte[/* 6 */] bssid, int statusCode, boolean timedOut) {
             synchronized (mLock) {
                 logCallback("onAssociationRejected");
+
+                if (statusCode == StatusCode.UNSPECIFIED_FAILURE) {
+                    WifiConfiguration curConfiguration = getCurrentNetworkLocalConfig(mIfaceName);
+
+                    if (curConfiguration != null
+                            && curConfiguration.allowedKeyManagement
+                                    .get(WifiConfiguration.KeyMgmt.SAE)) {
+                        // Special handling for WPA3-Personal networks. If the password is
+                        // incorrect, the AP will send association rejection, with status code 1
+                        // (unspecified failure). In SAE networks, the password authentication
+                        // is not related to the 4-way handshake. In this case, we will send an
+                        // authentication failure event up.
+                        logCallback("SAE incorrect password");
+                        mWifiMonitor.broadcastAuthenticationFailureEvent(
+                                mIfaceName, WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD, -1);
+                    }
+                }
                 mWifiMonitor.broadcastAssociationRejectionEvent(mIfaceName, statusCode, timedOut,
                         NativeUtil.macAddressFromByteArray(bssid));
             }

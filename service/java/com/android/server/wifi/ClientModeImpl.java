@@ -3938,7 +3938,7 @@ public class ClientModeImpl extends StateMachine {
                     bssid = (String) message.obj;
                     timedOut = message.arg1 > 0;
                     reasonCode = message.arg2;
-                    Log.d(TAG, "Assocation Rejection event: bssid=" + bssid + " reason code="
+                    Log.d(TAG, "Association Rejection event: bssid=" + bssid + " reason code="
                             + reasonCode + " timedOut=" + Boolean.toString(timedOut));
                     if (bssid == null || TextUtils.isEmpty(bssid)) {
                         // If BSSID is null, use the target roam BSSID
