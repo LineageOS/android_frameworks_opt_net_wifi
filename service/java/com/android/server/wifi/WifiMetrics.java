@@ -313,8 +313,8 @@ public class WifiMetrics {
     private final Random mRand = new Random();
     private final ExternalCallbackTracker<IWifiUsabilityStatsListener> mWifiUsabilityListeners;
 
-    private final Map<Integer, DeviceMobilityStatePnoScanStats> mMobilityStatePnoStatsMap =
-            new HashMap<>();
+    private final SparseArray<DeviceMobilityStatePnoScanStats> mMobilityStatePnoStatsMap =
+            new SparseArray<>();
     private int mCurrentDeviceMobilityState;
     /**
      * The timestamp of the start of the current device mobility state.
@@ -669,6 +669,9 @@ public class WifiMetrics {
         };
 
         mCurrentDeviceMobilityState = WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
+        DeviceMobilityStatePnoScanStats unknownStateStats =
+                getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
+        unknownStateStats.numTimesEnteredState++;
         mCurrentDeviceMobilityStateStartMs = mClock.getElapsedSinceBootMillis();
         mCurrentDeviceMobilityStatePnoScanStartMs = -1;
         mWifiUsabilityListeners =
@@ -2628,8 +2631,8 @@ public class WifiMetrics {
                 }
 
                 pw.println("mMobilityStatePnoStatsMap:");
-                for (DeviceMobilityStatePnoScanStats stats : mMobilityStatePnoStatsMap.values()) {
-                    printDeviceMobilityStatePnoScanStats(pw, stats);
+                for (int i = 0; i < mMobilityStatePnoStatsMap.size(); i++) {
+                    printDeviceMobilityStatePnoScanStats(pw, mMobilityStatePnoStatsMap.valueAt(i));
                 }
 
                 mWifiP2pMetrics.dump(pw);
@@ -3118,8 +3121,11 @@ public class WifiMetrics {
                 mWifiLogProto.wifiUsabilityStatsList[2 * i + 1] = usabilityStatsBadCopy.remove(
                         mRand.nextInt(usabilityStatsBadCopy.size()));
             }
-            mWifiLogProto.mobilityStatePnoStatsList = mMobilityStatePnoStatsMap.values()
-                    .toArray(new DeviceMobilityStatePnoScanStats[0]);
+            mWifiLogProto.mobilityStatePnoStatsList =
+                    new DeviceMobilityStatePnoScanStats[mMobilityStatePnoStatsMap.size()];
+            for (int i = 0; i < mMobilityStatePnoStatsMap.size(); i++) {
+                mWifiLogProto.mobilityStatePnoStatsList[i] = mMobilityStatePnoStatsMap.valueAt(i);
+            }
             mWifiLogProto.wifiP2PStats = mWifiP2pMetrics.consolidateProto();
             mWifiLogProto.wifiDppLog = mDppMetrics.consolidateProto();
             mWifiLogProto.wifiConfigStoreIo = new WifiMetricsProto.WifiConfigStoreIO();
@@ -4229,9 +4235,7 @@ public class WifiMetrics {
 
     private DeviceMobilityStatePnoScanStats getOrCreateDeviceMobilityStatePnoScanStats(
             @DeviceMobilityState int deviceMobilityState) {
-        DeviceMobilityStatePnoScanStats stats =
-                mMobilityStatePnoStatsMap.get(deviceMobilityState);
-
+        DeviceMobilityStatePnoScanStats stats = mMobilityStatePnoStatsMap.get(deviceMobilityState);
         if (stats == null) {
             stats = new DeviceMobilityStatePnoScanStats();
             stats.deviceMobilityState = deviceMobilityState;
@@ -4240,8 +4244,18 @@ public class WifiMetrics {
             stats.pnoDurationMs = 0;
             mMobilityStatePnoStatsMap.put(deviceMobilityState, stats);
         }
-
         return stats;
+    }
+
+    /**
+     * Updates the current device mobility state's total duration. This method should be called
+     * before entering a new device mobility state.
+     */
+    private void updateCurrentMobilityStateTotalDuration(long now) {
+        DeviceMobilityStatePnoScanStats stats =
+                getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
+        stats.totalDurationMs += now - mCurrentDeviceMobilityStateStartMs;
+        mCurrentDeviceMobilityStateStartMs = now;
     }
 
     /**
@@ -4251,15 +4265,15 @@ public class WifiMetrics {
      */
     public void enterDeviceMobilityState(@DeviceMobilityState int newState) {
         synchronized (mLock) {
+            long now = mClock.getElapsedSinceBootMillis();
+            updateCurrentMobilityStateTotalDuration(now);
+
             if (newState == mCurrentDeviceMobilityState) return;
 
+            mCurrentDeviceMobilityState = newState;
             DeviceMobilityStatePnoScanStats stats =
                     getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
             stats.numTimesEnteredState++;
-            long now = mClock.getElapsedSinceBootMillis();
-            stats.totalDurationMs += now - mCurrentDeviceMobilityStateStartMs;
-            mCurrentDeviceMobilityStateStartMs = now;
-            mCurrentDeviceMobilityState = newState;
         }
     }
 
@@ -4268,7 +4282,9 @@ public class WifiMetrics {
      */
     public void logPnoScanStart() {
         synchronized (mLock) {
-            mCurrentDeviceMobilityStatePnoScanStartMs = mClock.getElapsedSinceBootMillis();
+            long now = mClock.getElapsedSinceBootMillis();
+            mCurrentDeviceMobilityStatePnoScanStartMs = now;
+            updateCurrentMobilityStateTotalDuration(now);
         }
     }
 
@@ -4291,6 +4307,7 @@ public class WifiMetrics {
             long now = mClock.getElapsedSinceBootMillis();
             stats.pnoDurationMs += now - mCurrentDeviceMobilityStatePnoScanStartMs;
             mCurrentDeviceMobilityStatePnoScanStartMs = -1;
+            updateCurrentMobilityStateTotalDuration(now);
         }
     }
 
