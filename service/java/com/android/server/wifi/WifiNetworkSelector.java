@@ -608,6 +608,9 @@ public class WifiNetworkSelector {
         // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
         WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard);
+        if (currentNetwork != null) {
+            wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
+        }
         int evaluatorIndex = 0;
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
             final int evIndex = evaluatorIndex++; // final required due to lambda below
@@ -809,7 +812,7 @@ public class WifiNetworkSelector {
                 R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
 
         // Register one try out. This is probably not the right place, in the long run.
-        registerCandidateScorer(new CompatibiltyScorer(scoringParams));
+        registerCandidateScorer(new CompatibilityScorer(scoringParams));
         // TODO register in a saner place
         registerCandidateScorer(new ScoreCardBasedScorer(scoringParams));
     }

@@ -43,7 +43,7 @@ public class WifiCandidates {
     private final WifiScoreCard mWifiScoreCard;
 
     /**
-     * Represents a connectable candidate
+     * Represents a connectable candidate.
      */
     public interface Candidate {
         /**
@@ -88,6 +88,15 @@ public class WifiCandidates {
          */
         int getEvaluatorScore();
         /**
+         * Returns true if the candidate is in the same network as the
+         * current connection.
+         */
+        boolean isCurrentNetwork();
+        /**
+         * Return true if the candidate is currently connected.
+         */
+        boolean isCurrentBssid();
+        /**
          * Returns a value between 0 and 1.
          *
          * 1.0 means the network was recently selected by the user or an app.
@@ -120,6 +129,8 @@ public class WifiCandidates {
         public final double lastSelectionWeight; // Value between 0 and 1
 
         private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
+        private final boolean mIsCurrentNetwork;
+        private final boolean mIsCurrentBssid;
 
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
@@ -127,7 +138,9 @@ public class WifiCandidates {
                 int evaluatorIndex,
                 int evaluatorScore,
                 WifiScoreCard.PerBssid perBssid,
-                double lastSelectionWeight) {
+                double lastSelectionWeight,
+                boolean isCurrentNetwork,
+                boolean isCurrentBssid) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
@@ -135,6 +148,8 @@ public class WifiCandidates {
             this.evaluatorScore = evaluatorScore;
             this.mPerBssid = perBssid;
             this.lastSelectionWeight = lastSelectionWeight;
+            this.mIsCurrentNetwork = isCurrentNetwork;
+            this.mIsCurrentBssid = isCurrentBssid;
         }
 
         @Override
@@ -186,6 +201,16 @@ public class WifiCandidates {
         @Override
         public double getLastSelectionWeight() {
             return lastSelectionWeight;
+        }
+
+        @Override
+        public boolean isCurrentNetwork() {
+            return mIsCurrentNetwork;
+        }
+
+        @Override
+        public boolean isCurrentBssid() {
+            return mIsCurrentBssid;
         }
 
         @Override
@@ -296,6 +321,23 @@ public class WifiCandidates {
 
     private final Map<Key, CandidateImpl> mCandidates = new ArrayMap<>();
 
+    private int mCurrentNetworkId = -1;
+    @Nullable private MacAddress mCurrentBssid = null;
+
+    /**
+     * Sets up information about the currently-connected network.
+     */
+    public void setCurrent(int currentNetworkId, String currentBssid) {
+        mCurrentNetworkId = currentNetworkId;
+        mCurrentBssid = null;
+        if (currentBssid == null) return;
+        try {
+            mCurrentBssid = MacAddress.fromString(currentBssid);
+        } catch (RuntimeException e) {
+            failWithException(e);
+        }
+    }
+
     /**
      * Adds a new candidate
      *
@@ -336,7 +378,9 @@ public class WifiCandidates {
         perBssid.setNetworkConfigId(config.networkId);
         CandidateImpl candidate = new CandidateImpl(key,
                 scanDetail, config, evaluatorIndex, evaluatorScore, perBssid,
-                Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0));
+                Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
+                config.networkId == mCurrentNetworkId,
+                bssid.equals(mCurrentBssid));
         mCandidates.put(key, candidate);
         return true;
     }
