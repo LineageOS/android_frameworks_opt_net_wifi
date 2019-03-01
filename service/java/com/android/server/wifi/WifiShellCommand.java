@@ -22,6 +22,8 @@ import android.os.Binder;
 import android.os.ShellCommand;
 
 import java.io.PrintWriter;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Interprets and executes 'adb shell cmd wifi [args]'.
@@ -174,13 +176,42 @@ public class WifiShellCommand extends ShellCommand {
                     mWifiConfigManager.clearDeletedEphemeralNetworks();
                     return 0;
                 }
+                case "send-link-probe": {
+                    return sendLinkProbe(pw);
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
         } catch (Exception e) {
-            pw.println("Exception: " + e);
+            pw.println("Exception while executing WifiShellCommand: ");
+            e.printStackTrace(pw);
         }
         return -1;
+    }
+
+    private int sendLinkProbe(PrintWriter pw) throws InterruptedException {
+        ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(1);
+        mClientModeImpl.probeLink(new WifiNative.SendMgmtFrameCallback() {
+            @Override
+            public void onAck(int elapsedTimeMs) {
+                queue.offer("Link probe succeeded after " + elapsedTimeMs + " ms");
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                queue.offer("Link probe failed with reason " + reason);
+            }
+        }, -1);
+
+        // block until msg is received, or timed out
+        String msg = queue.poll(WificondControl.SEND_MGMT_FRAME_TIMEOUT_MS + 1000,
+                TimeUnit.MILLISECONDS);
+        if (msg == null) {
+            pw.println("Link probe timed out");
+        } else {
+            pw.println(msg);
+        }
+        return 0;
     }
 
     private void checkRootPermission() {
@@ -219,6 +250,8 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Removes all user approved network requests for the app.");
         pw.println("  clear-deleted-ephemeral-networks");
         pw.println("    Clears the deleted ephemeral networks list.");
+        pw.println("  send-link-probe");
+        pw.println("    Manually triggers a link probe.");
         pw.println();
     }
 }
