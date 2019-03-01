@@ -62,8 +62,9 @@ public class WifiConfigurationUtil {
     private static final int SSID_HEX_MIN_LEN = 2;
     private static final int SSID_HEX_MAX_LEN = 64;
     private static final int PSK_ASCII_MIN_LEN = 8 + ENCLOSING_QUOTES_LEN;
-    private static final int PSK_ASCII_MAX_LEN = 63 + ENCLOSING_QUOTES_LEN;
-    private static final int PSK_HEX_LEN = 64;
+    private static final int SAE_ASCII_MIN_LEN = 1 + ENCLOSING_QUOTES_LEN;
+    private static final int PSK_SAE_ASCII_MAX_LEN = 63 + ENCLOSING_QUOTES_LEN;
+    private static final int PSK_SAE_HEX_LEN = 64;
     @VisibleForTesting
     public static final String PASSWORD_MASK = "*";
     private static final String MATCH_EMPTY_SSID_PATTERN_PATH = "";
@@ -408,48 +409,58 @@ public class WifiConfigurationUtil {
         return true;
     }
 
-    private static boolean validatePsk(String psk, boolean isAdd) {
+    private static boolean validatePassword(String password, boolean isAdd, boolean isSae) {
         if (isAdd) {
-            if (psk == null) {
-                Log.e(TAG, "validatePsk: null string");
+            if (password == null) {
+                Log.e(TAG, "validatePassword: null string");
                 return false;
             }
         } else {
-            if (psk == null) {
+            if (password == null) {
                 // This is an update, so the psk can be null if that is not being changed.
                 return true;
-            } else if (psk.equals(PASSWORD_MASK)) {
+            } else if (password.equals(PASSWORD_MASK)) {
                 // This is an update, so the app might have returned back the masked password, let
                 // it thru. WifiConfigManager will handle it.
                 return true;
             }
         }
-        if (psk.isEmpty()) {
-            Log.e(TAG, "validatePsk failed: empty string");
+        if (password.isEmpty()) {
+            Log.e(TAG, "validatePassword failed: empty string");
             return false;
         }
-        if (psk.startsWith("\"")) {
+        if (password.startsWith("\"")) {
             // ASCII PSK string
-            byte[] pskBytes = psk.getBytes(StandardCharsets.US_ASCII);
-            if (pskBytes.length < PSK_ASCII_MIN_LEN) {
-                Log.e(TAG, "validatePsk failed: ascii string size too small: " + pskBytes.length);
+            byte[] passwordBytes = password.getBytes(StandardCharsets.US_ASCII);
+            int targetMinLength;
+
+            if (isSae) {
+                targetMinLength = SAE_ASCII_MIN_LEN;
+            } else {
+                targetMinLength = PSK_ASCII_MIN_LEN;
+            }
+            if (passwordBytes.length < targetMinLength) {
+                Log.e(TAG, "validatePassword failed: ASCII string size too small: "
+                        + passwordBytes.length);
                 return false;
             }
-            if (pskBytes.length > PSK_ASCII_MAX_LEN) {
-                Log.e(TAG, "validatePsk failed: ascii string size too large: " + pskBytes.length);
+            if (passwordBytes.length > PSK_SAE_ASCII_MAX_LEN) {
+                Log.e(TAG, "validatePassword failed: ASCII string size too large: "
+                        + passwordBytes.length);
                 return false;
             }
         } else {
             // HEX PSK string
-            if (psk.length() != PSK_HEX_LEN) {
-                Log.e(TAG, "validatePsk failed: hex string size mismatch: " + psk.length());
+            if (password.length() != PSK_SAE_HEX_LEN) {
+                Log.e(TAG, "validatePassword failed: hex string size mismatch: "
+                        + password.length());
                 return false;
             }
         }
         try {
-            NativeUtil.hexOrQuotedStringToBytes(psk);
+            NativeUtil.hexOrQuotedStringToBytes(password);
         } catch (IllegalArgumentException e) {
-            Log.e(TAG, "validatePsk failed: malformed string: " + psk);
+            Log.e(TAG, "validatePassword failed: malformed string: " + password);
             return false;
         }
         return true;
@@ -585,8 +596,29 @@ public class WifiConfigurationUtil {
             return false;
         }
         if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)
-                && !validatePsk(config.preSharedKey, isAdd)) {
+                && !validatePassword(config.preSharedKey, isAdd, false)) {
             return false;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OWE)) {
+            // PMF mandatory for OWE networks
+            if (!config.requirePMF) {
+                return false;
+            }
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SAE)) {
+            // PMF mandatory for WPA3-Personal networks
+            if (!config.requirePMF) {
+                return false;
+            }
+            if (!validatePassword(config.preSharedKey, isAdd, true)) {
+                return false;
+            }
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            // PMF mandatory for WPA3-Enterprise networks
+            if (!config.requirePMF) {
+                return false;
+            }
         }
         if (!validateIpConfiguration(config.getIpConfiguration())) {
             return false;
@@ -716,8 +748,29 @@ public class WifiConfigurationUtil {
             return false;
         }
         if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)
-                && !validatePsk(config.preSharedKey, true)) {
+                && !validatePassword(config.preSharedKey, true, false)) {
             return false;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OWE)) {
+            // PMF mandatory for OWE networks
+            if (!config.requirePMF) {
+                return false;
+            }
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SAE)) {
+            // PMF mandatory for WPA3-Personal networks
+            if (!config.requirePMF) {
+                return false;
+            }
+            if (!validatePassword(config.preSharedKey, true, true)) {
+                return false;
+            }
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            // PMF mandatory for WPA3-Enterprise networks
+            if (!config.requirePMF) {
+                return false;
+            }
         }
         // TBD: Validate some enterprise params as well in the future here.
         return true;
