@@ -3948,6 +3948,7 @@ public class WifiMetrics {
         event.rxSuccessDelta = mRxSuccessDelta;
         event.packetUpdateTimeDelta = mLlStatsUpdateTimeDelta;
         event.lastLinkLayerStatsUpdateTime = mLlStatsLastUpdateTime;
+        event.screenOn = mScreenOn;
 
         mWifiIsUnusableList.add(new WifiIsUnusableWithTime(event, mClock.getWallClockMillis()));
         if (mWifiIsUnusableList.size() > MAX_UNUSABLE_EVENTS) {

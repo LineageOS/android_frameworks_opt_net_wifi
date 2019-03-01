@@ -2261,6 +2261,7 @@ public class WifiMetricsTest {
         mWifiMetrics.incrementWifiUsabilityScoreCount(1, trigger[8], 15);
         mWifiMetrics.updateWifiIsUnusableLinkLayerStats(trigger[2], trigger[3], trigger[4],
                 trigger[5], trigger[6]);
+        mWifiMetrics.setScreenState(true);
         switch(trigger[0]) {
             case WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX:
             case WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX:
@@ -2301,6 +2302,7 @@ public class WifiMetricsTest {
         assertEquals(expectedValues[6], event.packetUpdateTimeDelta);
         assertEquals(expectedValues[7], event.firmwareAlertCode);
         assertEquals(expectedValues[8], event.lastWifiUsabilityScore);
+        assertEquals(true, event.screenOn);
     }
 
     /**
