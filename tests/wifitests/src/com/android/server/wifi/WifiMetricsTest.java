@@ -3344,6 +3344,90 @@ public class WifiMetricsTest {
         assertMapEntriesEqual(exp14DiffExpected, exp14.differentSelectionNumChoicesCounter);
     }
 
+    /**
+     * Test the generation of 'WifiNetworkRequestApiLog' message.
+     */
+    @Test
+    public void testWifiNetworkRequestApiLog() throws Exception {
+        mWifiMetrics.incrementNetworkRequestApiNumRequest();
+        mWifiMetrics.incrementNetworkRequestApiNumRequest();
+        mWifiMetrics.incrementNetworkRequestApiNumRequest();
+
+        mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(7);
+        mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(0);
+        mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(1);
+
+        mWifiMetrics.incrementNetworkRequestApiNumConnectSuccess();
+
+        mWifiMetrics.incrementNetworkRequestApiNumUserApprovalBypass();
+        mWifiMetrics.incrementNetworkRequestApiNumUserApprovalBypass();
+
+        mWifiMetrics.incrementNetworkRequestApiNumUserReject();
+
+        mWifiMetrics.incrementNetworkRequestApiNumApps();
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(3, mDecodedProto.wifiNetworkRequestApiLog.numRequest);
+        assertEquals(1, mDecodedProto.wifiNetworkRequestApiLog.numConnectSuccess);
+        assertEquals(2, mDecodedProto.wifiNetworkRequestApiLog.numUserApprovalBypass);
+        assertEquals(1, mDecodedProto.wifiNetworkRequestApiLog.numUserReject);
+        assertEquals(1, mDecodedProto.wifiNetworkRequestApiLog.numApps);
+
+        HistogramBucketInt32[] expectedNetworkMatchSizeHistogram = {
+                buildHistogramBucketInt32(0, 1, 1),
+                buildHistogramBucketInt32(1, 5, 1),
+                buildHistogramBucketInt32(5, 10, 1)
+        };
+        assertHistogramBucketsEqual(expectedNetworkMatchSizeHistogram,
+                mDecodedProto.wifiNetworkRequestApiLog.networkMatchSizeHistogram);
+    }
+
+    /**
+     * Test the generation of 'WifiNetworkSuggestionApiLog' message.
+     */
+    @Test
+    public void testWifiNetworkSuggestionApiLog() throws Exception {
+        mWifiMetrics.incrementNetworkSuggestionApiNumModification();
+        mWifiMetrics.incrementNetworkSuggestionApiNumModification();
+        mWifiMetrics.incrementNetworkSuggestionApiNumModification();
+        mWifiMetrics.incrementNetworkSuggestionApiNumModification();
+
+        mWifiMetrics.incrementNetworkSuggestionApiNumConnectSuccess();
+        mWifiMetrics.incrementNetworkSuggestionApiNumConnectSuccess();
+
+        mWifiMetrics.incrementNetworkSuggestionApiNumConnectFailure();
+
+        mWifiMetrics.noteNetworkSuggestionApiListSizeHistogram(new ArrayList<Integer>() {{
+                add(5);
+                add(100);
+                add(50);
+                add(120);
+            }});
+        // Second update should overwrite the prevous write.
+        mWifiMetrics.noteNetworkSuggestionApiListSizeHistogram(new ArrayList<Integer>() {{
+                add(7);
+                add(110);
+                add(40);
+                add(60);
+            }});
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(4, mDecodedProto.wifiNetworkSuggestionApiLog.numModification);
+        assertEquals(2, mDecodedProto.wifiNetworkSuggestionApiLog.numConnectSuccess);
+        assertEquals(1, mDecodedProto.wifiNetworkSuggestionApiLog.numConnectFailure);
+
+        HistogramBucketInt32[] expectedNetworkListSizeHistogram = {
+                buildHistogramBucketInt32(5, 20, 1),
+                buildHistogramBucketInt32(20, 50, 1),
+                buildHistogramBucketInt32(50, 100, 1),
+                buildHistogramBucketInt32(100, 500, 1),
+        };
+        assertHistogramBucketsEqual(expectedNetworkListSizeHistogram,
+                mDecodedProto.wifiNetworkSuggestionApiLog.networkListSizeHistogram);
+    }
+
     private NetworkSelectionExperimentDecisions findUniqueNetworkSelectionExperimentDecisions(
             int experiment1Id, int experiment2Id) {
         NetworkSelectionExperimentDecisions result = null;

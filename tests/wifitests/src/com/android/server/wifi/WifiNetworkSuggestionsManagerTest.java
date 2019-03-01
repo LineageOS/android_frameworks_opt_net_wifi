@@ -101,6 +101,7 @@ public class WifiNetworkSuggestionsManagerTest {
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
     private @Mock ClientModeImpl mClientModeImpl;
+    private @Mock WifiMetrics mWifiMetrics;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
             ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
@@ -157,7 +158,8 @@ public class WifiNetworkSuggestionsManagerTest {
 
         mWifiNetworkSuggestionsManager =
                 new WifiNetworkSuggestionsManager(mContext, new Handler(mLooper.getLooper()),
-                        mWifiInjector, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
+                        mWifiInjector, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore,
+                        mWifiMetrics);
         verify(mContext).getResources();
         verify(mContext).getSystemService(Context.APP_OPS_SERVICE);
         verify(mContext).getSystemService(Context.NOTIFICATION_SERVICE);
@@ -208,6 +210,13 @@ public class WifiNetworkSuggestionsManagerTest {
                     add(networkSuggestion2);
             }};
         assertEquals(expectedAllNetworkSuggestions, allNetworkSuggestions);
+
+        verify(mWifiMetrics, times(2)).incrementNetworkSuggestionApiNumModification();
+        ArgumentCaptor<List<Integer>> maxSizesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mWifiMetrics, times(2)).noteNetworkSuggestionApiListSizeHistogram(
+                maxSizesCaptor.capture());
+        assertNotNull(maxSizesCaptor.getValue());
+        assertEquals(maxSizesCaptor.getValue(), new ArrayList<Integer>() {{ add(1); add(1); }});
     }
 
     /**
@@ -243,6 +252,13 @@ public class WifiNetworkSuggestionsManagerTest {
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList2, TEST_PACKAGE_2));
 
         assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+
+        verify(mWifiMetrics, times(4)).incrementNetworkSuggestionApiNumModification();
+        ArgumentCaptor<List<Integer>> maxSizesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mWifiMetrics, times(4)).noteNetworkSuggestionApiListSizeHistogram(
+                maxSizesCaptor.capture());
+        assertNotNull(maxSizesCaptor.getValue());
+        assertEquals(maxSizesCaptor.getValue(), new ArrayList<Integer>() {{ add(1); add(1); }});
     }
 
     /**
@@ -745,10 +761,40 @@ public class WifiNetworkSuggestionsManagerTest {
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
                 TEST_BSSID);
 
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
+
         // Verify that the correct broadcast was sent out.
         mInorder.verify(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
         validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion);
+
+        // Verify no more broadcast were sent out.
+        verifyNoMoreInteractions(mContext);
+    }
+
+    /**
+     * Verify a successful lookup of a single network suggestion matching the current network
+     * connection failure.
+     */
+    @Test
+    public void testOnNetworkConnectionFailureWithOneMatch() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_PACKAGE_1));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_DHCP, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
+
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectFailure();
 
         // Verify no more broadcast were sent out.
         verifyNoMoreInteractions(mContext);
@@ -787,6 +833,8 @@ public class WifiNetworkSuggestionsManagerTest {
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
+
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
 
         // Verify that the correct broadcasts were sent out.
         for (int i = 0; i < 2; i++) {
@@ -844,6 +892,8 @@ public class WifiNetworkSuggestionsManagerTest {
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration, TEST_BSSID);
 
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
+
         // Verify that the correct broadcasts were sent out.
         for (int i = 0; i < 2; i++) {
             ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
@@ -900,6 +950,8 @@ public class WifiNetworkSuggestionsManagerTest {
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, wifiConfiguration1, TEST_BSSID);
+
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
 
         // Verify that the correct broadcasts were sent out.
         for (int i = 0; i < 2; i++) {
