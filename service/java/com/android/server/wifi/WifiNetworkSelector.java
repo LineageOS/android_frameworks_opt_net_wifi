@@ -738,14 +738,15 @@ public class WifiNetworkSelector {
             mCandidateScorers.clear();
         }
 
-        if (selectedNetwork != null && legacyOverrideWanted) {
-            selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
-        }
-
         if (selectedNetwork != null) {
+            // Update the copy of WifiConfiguration to reflect the scan result candidate update
+            // above.
+            selectedNetwork = mWifiConfigManager.getConfiguredNetwork(selectedNetwork.networkId);
+            if (selectedNetwork != null && legacyOverrideWanted) {
+                selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
+            }
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
-
         return selectedNetwork;
     }
 
