@@ -542,7 +542,7 @@ public class WifiConfigManagerTest {
     /**
      * Verifies the addition of a single ephemeral network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
-     * the {@link WifiConfigManager#getSavedNetworks()} does not return this network.
+     * the {@link WifiConfigManager#getSavedNetworks(int)} does not return this network.
      */
     @Test
     public void testAddSingleEphemeralNetwork() throws Exception {
@@ -561,6 +561,24 @@ public class WifiConfigManagerTest {
         // Ensure that this is not returned in the saved network list.
         assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
         verify(mWcmListener, never()).onSavedNetworkAdded(ephemeralNetwork.networkId);
+    }
+
+    /**
+     * Verifies the addition of a single passpoint network using
+     * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)} and verifies that
+     * the {@link WifiConfigManager#getSavedNetworks(int)} ()} does not return this network.
+     */
+    @Test
+    public void testAddSinglePasspointNetwork() throws Exception {
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+        // Ensure that configured network list is not empty.
+        assertFalse(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+
+        // Ensure that this is not returned in the saved network list.
+        assertTrue(mWifiConfigManager.getSavedNetworks(Process.WIFI_UID).isEmpty());
+        verify(mWcmListener, never()).onSavedNetworkAdded(passpointNetwork.networkId);
     }
 
     /**

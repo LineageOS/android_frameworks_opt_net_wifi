@@ -25,7 +25,6 @@ import android.database.ContentObserver;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
-import android.os.Binder;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.os.WorkSource;
@@ -324,35 +323,21 @@ public class ScanRequestProxy {
      * Helper method to send the scan request status broadcast.
      */
     private void sendScanResultBroadcast(boolean scanSucceeded) {
-        // clear calling identity to send broadcast
-        long callingIdentity = Binder.clearCallingIdentity();
-        try {
-            Intent intent = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-            intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-            intent.putExtra(WifiManager.EXTRA_RESULTS_UPDATED, scanSucceeded);
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
-        } finally {
-            // restore calling identity
-            Binder.restoreCallingIdentity(callingIdentity);
-        }
+        Intent intent = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        intent.putExtra(WifiManager.EXTRA_RESULTS_UPDATED, scanSucceeded);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
     }
 
     /**
      * Helper method to send the scan request failure broadcast to specified package.
      */
     private void sendScanResultFailureBroadcastToPackage(String packageName) {
-        // clear calling identity to send broadcast
-        long callingIdentity = Binder.clearCallingIdentity();
-        try {
-            Intent intent = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-            intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-            intent.putExtra(WifiManager.EXTRA_RESULTS_UPDATED, false);
-            intent.setPackage(packageName);
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
-        } finally {
-            // restore calling identity
-            Binder.restoreCallingIdentity(callingIdentity);
-        }
+        Intent intent = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
+        intent.putExtra(WifiManager.EXTRA_RESULTS_UPDATED, false);
+        intent.setPackage(packageName);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
     }
 
     private void trimPastScanRequestTimesForForegroundApp(
@@ -423,17 +408,12 @@ public class ScanRequestProxy {
      */
     private boolean isRequestFromBackground(int callingUid, String packageName) {
         mAppOps.checkPackage(callingUid, packageName);
-        // getPackageImportance requires PACKAGE_USAGE_STATS permission, so clearing the incoming
-        // identity so the permission check can be done on system process where wifi runs in.
-        long callingIdentity = Binder.clearCallingIdentity();
-        // TODO(b/74970282): This try/catch block may not be necessary (here & above) because all
-        // of these calls are already in ClientModeImpl thread context (offloaded from app's
-        // binder thread).
         try {
             return mActivityManager.getPackageImportance(packageName)
                     > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
-        } finally {
-            Binder.restoreCallingIdentity(callingIdentity);
+        } catch (SecurityException e) {
+            Log.e(TAG, "Failed to check the app state", e);
+            return true;
         }
     }
 

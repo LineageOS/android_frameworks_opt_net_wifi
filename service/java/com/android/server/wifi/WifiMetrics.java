@@ -638,6 +638,24 @@ public class WifiMetrics {
                 }
                 sb.append(", networkSelectorExperimentId=");
                 sb.append(mConnectionEvent.networkSelectorExperimentId);
+                sb.append(", level2FailureReason=");
+                switch(mConnectionEvent.level2FailureReason) {
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_NONE:
+                        sb.append("AUTH_FAILURE_NONE");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_TIMEOUT:
+                        sb.append("AUTH_FAILURE_TIMEOUT");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD:
+                        sb.append("AUTH_FAILURE_WRONG_PSWD");
+                        break;
+                    case WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_EAP_FAILURE:
+                        sb.append("AUTH_FAILURE_EAP_FAILURE");
+                        break;
+                    default:
+                        sb.append("FAILURE_REASON_UNKNOWN");
+                        break;
+                }
             }
             return sb.toString();
         }
@@ -913,11 +931,13 @@ public class WifiMetrics {
                     mCurrentConnectionEvent.mConfigBssid = targetBSSID;
                     // End Connection Event due to new connection attempt to the same network
                     endConnectionEvent(ConnectionEvent.FAILURE_REDUNDANT_CONNECTION_ATTEMPT,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                 } else {
                     // End Connection Event due to new connection attempt to different network
                     endConnectionEvent(ConnectionEvent.FAILURE_NEW_CONNECTION_ATTEMPT,
-                            WifiMetricsProto.ConnectionEvent.HLF_NONE);
+                            WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                 }
             }
             //If past maximum connection events, start removing the oldest
@@ -996,8 +1016,10 @@ public class WifiMetrics {
      *
      * @param level2FailureCode Level 2 failure code returned by supplicant
      * @param connectivityFailureCode WifiMetricsProto.ConnectionEvent.HLF_X
+     * @param level2FailureReason Breakdown of level2FailureCode with more detailed reason
      */
-    public void endConnectionEvent(int level2FailureCode, int connectivityFailureCode) {
+    public void endConnectionEvent(int level2FailureCode, int connectivityFailureCode,
+            int level2FailureReason) {
         synchronized (mLock) {
             if (mCurrentConnectionEvent != null) {
                 boolean result = (level2FailureCode == 1)
@@ -1010,6 +1032,7 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.level2FailureCode = level2FailureCode;
                 mCurrentConnectionEvent.mConnectionEvent.connectivityLevelFailureCode =
                         connectivityFailureCode;
+                mCurrentConnectionEvent.mConnectionEvent.level2FailureReason = level2FailureReason;
                 // ConnectionEvent already added to ConnectionEvents List. Safe to null current here
                 mCurrentConnectionEvent = null;
                 if (!result) {

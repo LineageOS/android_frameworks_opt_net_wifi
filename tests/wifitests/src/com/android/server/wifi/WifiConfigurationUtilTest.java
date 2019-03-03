@@ -216,6 +216,15 @@ public class WifiConfigurationUtilTest {
         assertTrue(WifiConfigurationUtil.validate(
                 WifiConfigurationTestUtil.createEapNetwork(),
                 WifiConfigurationUtil.VALIDATE_FOR_ADD));
+        assertTrue(WifiConfigurationUtil.validate(
+                WifiConfigurationTestUtil.createOweNetwork(),
+                WifiConfigurationUtil.VALIDATE_FOR_ADD));
+        assertTrue(WifiConfigurationUtil.validate(
+                WifiConfigurationTestUtil.createSaeNetwork(),
+                WifiConfigurationUtil.VALIDATE_FOR_ADD));
+        assertTrue(WifiConfigurationUtil.validate(
+                WifiConfigurationTestUtil.createEapSuiteBNetwork(),
+                WifiConfigurationUtil.VALIDATE_FOR_ADD));
     }
 
     /**
@@ -341,12 +350,40 @@ public class WifiConfigurationUtilTest {
     }
 
     /**
+     * Verify that the validate method fails to validate WifiConfiguration with bad sae length.
+     */
+    @Test
+    public void testValidateNegativeCases_BadAsciiSaeLength() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createSaeNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.preSharedKey = "\"abcdffeeretretyetreteteteabe34tetrertertrsraaaaaaaaaaa345eqwrweewq"
+                + "weqe\"";
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+        config.preSharedKey = "\"\"";
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
      * Verify that the validate method fails to validate WifiConfiguration with malformed psk
      * string.
      */
     @Test
     public void testValidateNegativeCases_MalformedAsciiPskString() {
         WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.preSharedKey = "\"abcdfefeeretrety";
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed sae
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedAsciiSaeString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createSaeNetwork();
         assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
 
         config.preSharedKey = "\"abcdfefeeretrety";
@@ -374,6 +411,19 @@ public class WifiConfigurationUtilTest {
     @Test
     public void testValidateNegativeCases_MalformedHexPskString() {
         WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.preSharedKey = "adbdfgretrtyrtyrty";
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed sae
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_MalformedHexSaeString() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createSaeNetwork();
         assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
 
         config.preSharedKey = "adbdfgretrtyrtyrty";
@@ -493,6 +543,45 @@ public class WifiConfigurationUtilTest {
         assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
 
         config.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP + 2);
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed sae
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_SaeMissingPmf() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createSaeNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.requirePMF = false;
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed owe
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_OweMissingPmf() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOweNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.requirePMF = false;
+        assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+    }
+
+    /**
+     * Verify that the validate method fails to validate WifiConfiguration with malformed suiteb
+     * string.
+     */
+    @Test
+    public void testValidateNegativeCases_SuitebMissingPmf() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapSuiteBNetwork();
+        assertTrue(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
+
+        config.requirePMF = false;
         assertFalse(WifiConfigurationUtil.validate(config, WifiConfigurationUtil.VALIDATE_FOR_ADD));
     }
 

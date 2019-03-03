@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
-import android.net.wifi.WifiInfo;
 
 import com.android.server.wifi.WifiCandidates.Candidate;
 import com.android.server.wifi.WifiCandidates.ScoredCandidate;
@@ -47,8 +46,17 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_LAST_SELECTION_AWARD
     public static final int LAST_SELECTION_AWARD_IS_480 = 480;
 
+    // config_wifi_framework_current_network_boost
+    public static final int CURRENT_NETWORK_BOOST_IS_16 = 16;
+
+    // config_wifi_framework_SAME_BSSID_AWARD
+    public static final int SAME_BSSID_AWARD_IS_24 = 24;
+
     // Only use scorecard id we have data from this many polls
     public static final int MIN_POLLS_FOR_SIGNIFICANCE = 30;
+
+    // Maximum allowable adjustment of the cutoff rssi (dB)
+    public static final int RSSI_RAIL = 5;
 
     ScoreCardBasedScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
@@ -63,7 +71,6 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
      * Calculates an individual candidate's score.
      */
     private ScoredCandidate scoreCandidate(Candidate candidate) {
-        // Start with the score that the evaluator supplied
         int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
         int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
         int cutoff = estimatedCutoff(candidate);
@@ -72,24 +79,27 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         if (candidate.getFrequency() >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             score += BAND_5GHZ_AWARD_IS_40;
         }
-        if (candidate.isOpenNetwork()) {
+        score += (int) (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);
+
+        if (candidate.isCurrentNetwork()) {
+            score += CURRENT_NETWORK_BOOST_IS_16 + SAME_BSSID_AWARD_IS_24;
+        }
+
+        if (!candidate.isOpenNetwork()) {
             score += SECURITY_AWARD_IS_80;
         }
-        score += (int) (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);
-        // XXX - skipping award for same network
-        //        config_wifi_framework_current_network_boost = 16
-        // XXX - skipping award for equivalent / same BSSID
-        //        config_wifi_framework_SAME_BSSID_AWARD = 24
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        score -= 1000 * candidate.getEvaluatorIndex();
+        score -= 1000 * candidate.getEvaluatorId();
 
         return new ScoredCandidate(score, 10, candidate);
     }
 
     private int estimatedCutoff(Candidate candidate) {
         int cutoff = -RSSI_SCORE_OFFSET;
+        int lowest = cutoff - RSSI_RAIL;
+        int highest = cutoff + RSSI_RAIL;
         WifiScoreCardProto.Signal signal = candidate.getEventStatistics(Event.SIGNAL_POLL);
         if (signal == null) return cutoff;
         if (!signal.hasRssi()) return cutoff;
@@ -99,7 +109,7 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
             double variance = mean_square - mean * mean;
             double sigma = Math.sqrt(variance);
             double value = mean - 2.0 * sigma;
-            cutoff = (int) Math.min(Math.max(value, WifiInfo.MIN_RSSI), WifiInfo.MAX_RSSI);
+            cutoff = (int) Math.min(Math.max(value, lowest), highest);
         }
         return cutoff;
     }

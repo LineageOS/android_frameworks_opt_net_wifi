@@ -26,7 +26,7 @@ import java.util.Collection;
 /**
  * A candidate scorer that attempts to match the previous behavior.
  */
-final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
+final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
 
     private final ScoringParams mScoringParams;
 
@@ -42,13 +42,22 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_SECURITY_AWARD
     public static final int SECURITY_AWARD_IS_80 = 80;
 
-    CompatibiltyScorer(ScoringParams scoringParams) {
+    // config_wifi_framework_LAST_SELECTION_AWARD
+    public static final int LAST_SELECTION_AWARD_IS_480 = 480;
+
+    // config_wifi_framework_current_network_boost
+    public static final int CURRENT_NETWORK_BOOST_IS_16 = 16;
+
+    // config_wifi_framework_SAME_BSSID_AWARD
+    public static final int SAME_BSSID_AWARD_IS_24 = 24;
+
+    CompatibilityScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
     }
 
     @Override
     public String getIdentifier() {
-        return "CompatibiltyScorer";
+        return "CompatibilityScorer";
     }
 
     /**
@@ -57,38 +66,27 @@ final class CompatibiltyScorer implements WifiCandidates.CandidateScorer {
      * This relies mostly on the scores provided by the evaluator.
      */
     private ScoredCandidate scoreCandidate(Candidate candidate) {
-        // Start with the score that the evaluator supplied
-        int score = candidate.getEvaluatorScore();
-        if (score == 0) {
-            // If the evaluator simply returned a score of zero, supply one based on the RSSI
-            int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
-            int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
-            score = (rssi + RSSI_SCORE_OFFSET) * RSSI_SCORE_SLOPE_IS_4;
-            if (candidate.getFrequency()
-                     >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
-                score += BAND_5GHZ_AWARD_IS_40;
-            }
-            // Note - compared to the saved network evaluator, we are skipping some
-            // awards and bonuses. As long as we are still generating a score in the
-            // saved network evaluator, this is not a problem because for saved
-            // networks this code will not be used at all.
-            // - skipping award for last user selection
-            //       config_wifi_framework_LAST_SELECTION_AWARD
-            //           = 480 - (time in minutes since choice)
-            // - skipping award for same network
-            //       config_wifi_framework_current_network_boost
-            //           = 16
-            // - skipping award for equivalent / same BSSID
-            //       config_wifi_framework_SAME_BSSID_AWARD
-            //           = 24
-            if (!candidate.isOpenNetwork()) {
-                score += SECURITY_AWARD_IS_80;
-            }
+        int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
+        int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
+        int score = (rssi + RSSI_SCORE_OFFSET) * RSSI_SCORE_SLOPE_IS_4;
+
+        if (candidate.getFrequency() >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
+            score += BAND_5GHZ_AWARD_IS_40;
+        }
+        score += (int) (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);
+
+        if (candidate.isCurrentNetwork()) {
+            // Add both traditional awards, as would be be case with firmware roaming
+            score += CURRENT_NETWORK_BOOST_IS_16 + SAME_BSSID_AWARD_IS_24;
+        }
+
+        if (!candidate.isOpenNetwork()) {
+            score += SECURITY_AWARD_IS_80;
         }
 
         // To simulate the old strict priority rule, subtract a penalty based on
         // which evaluator added the candidate.
-        score -= 1000 * candidate.getEvaluatorIndex();
+        score -= 1000 * candidate.getEvaluatorId();
 
         return new ScoredCandidate(score, 10, candidate);
     }

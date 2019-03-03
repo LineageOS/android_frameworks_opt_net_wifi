@@ -335,6 +335,11 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     }
 
     @Override
+    public @EvaluatorId int getId() {
+        return EVALUATOR_ID_SCORED;
+    }
+
+    @Override
     public String getName() {
         return TAG;
     }
