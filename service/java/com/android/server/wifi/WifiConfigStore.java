@@ -29,6 +29,7 @@ import android.util.Xml;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.AtomicFile;
 import com.android.internal.util.FastXmlSerializer;
+import com.android.server.wifi.util.DataIntegrityChecker;
 import com.android.server.wifi.util.XmlUtil;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -42,6 +43,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.DigestException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -465,9 +467,10 @@ public class WifiConfigStore {
 
     /**
      * Class to encapsulate all file writes. This is a wrapper over {@link AtomicFile} to write/read
-     * raw data from the persistent file. This class provides helper methods to read/write the
-     * entire file into a byte array.
-     * This helps to separate out the processing/parsing from the actual file writing.
+     * raw data from the persistent file with integrity. This class provides helper methods to
+     * read/write the entire file into a byte array.
+     * This helps to separate out the processing, parsing, and integrity checking from the actual
+     * file writing.
      */
     public static class StoreFile {
         /**
@@ -486,10 +489,15 @@ public class WifiConfigStore {
          * Store the file name for setting the file permissions/logging purposes.
          */
         private String mFileName;
+        /**
+         * The integrity file storing integrity checking data for the store file.
+         */
+        private DataIntegrityChecker mDataIntegrityChecker;
 
         public StoreFile(File file) {
             mAtomicFile = new AtomicFile(file);
             mFileName = mAtomicFile.getBaseFile().getAbsolutePath();
+            mDataIntegrityChecker = new DataIntegrityChecker(mFileName);
         }
 
         /**
@@ -504,16 +512,31 @@ public class WifiConfigStore {
         /**
          * Read the entire raw data from the store file and return in a byte array.
          *
-         * @return raw data read from the file or null if the file is not found.
+         * @return raw data read from the file or null if the file is not found or the data has
+         * been altered.
          * @throws IOException if an error occurs. The input stream is always closed by the method
          * even when an exception is encountered.
          */
         public byte[] readRawData() throws IOException {
+            byte[] bytes = null;
             try {
-                return mAtomicFile.readFully();
+                bytes = mAtomicFile.readFully();
+                // Check that the file has not been altered since last writeBufferedRawData()
+                if (!mDataIntegrityChecker.isOk(bytes)) {
+                    Log.e(TAG, "Data integrity problem with file: " + mFileName);
+                    return null;
+                }
             } catch (FileNotFoundException e) {
                 return null;
+            } catch (DigestException e) {
+                // When integrity checking is introduced. The existing data will have no related
+                // integrity file for validation. Thus, we will assume the existing data is correct
+                // and immediately create the integrity file.
+                Log.i(TAG, "isOK() had no integrity data to check; thus vacuously "
+                        + "true. Running update now.");
+                mDataIntegrityChecker.update(bytes);
             }
+            return bytes;
         }
 
         /**
@@ -551,6 +574,8 @@ public class WifiConfigStore {
                 }
                 throw e;
             }
+            // There was a legitimate change and update the integrity checker.
+            mDataIntegrityChecker.update(mWriteData);
             // Reset the pending write data after write.
             mWriteData = null;
         }
