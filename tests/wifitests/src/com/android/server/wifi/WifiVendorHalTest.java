@@ -2236,11 +2236,6 @@ public class WifiVendorHalTest {
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
 
-        // Not set, so this should fail.
-        assertFalse(mWifiVendorHal.resetLogHandler());
-        verify(mIWifiChip, never()).enableDebugErrorAlerts(anyBoolean());
-        verify(mIWifiChip, never()).stopLoggingToDebugRingBuffer();
-
         // Now set and then reset.
         assertTrue(mWifiVendorHal.setLoggingEventHandler(
                 mock(WifiNative.WifiLoggerEventHandler.class)));
@@ -2248,11 +2243,39 @@ public class WifiVendorHalTest {
         verify(mIWifiChip).enableDebugErrorAlerts(eq(false));
         verify(mIWifiChip).stopLoggingToDebugRingBuffer();
         reset(mIWifiChip);
+    }
 
-        // Second reset should fail.
+    /**
+     * Test the handling of log handler reset.
+     */
+    @Test
+    public void testResetLogHandlerAfterHalStop() throws Exception {
+        when(mIWifiChip.enableDebugErrorAlerts(anyBoolean())).thenReturn(mWifiStatusSuccess);
+        when(mIWifiChip.stopLoggingToDebugRingBuffer()).thenReturn(mWifiStatusSuccess);
+
+        // Start in STA mode.
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+
+        // Now set the log handler, succeeds.
+        assertTrue(mWifiVendorHal.setLoggingEventHandler(
+                mock(WifiNative.WifiLoggerEventHandler.class)));
+        verify(mIWifiChip).enableDebugErrorAlerts(eq(true));
+
+        // Stop
+        mWifiVendorHal.stopVendorHal();
+
+        // Reset the log handler after stop, not HAL methods invoked.
         assertFalse(mWifiVendorHal.resetLogHandler());
-        verify(mIWifiChip, never()).enableDebugErrorAlerts(anyBoolean());
+        verify(mIWifiChip, never()).enableDebugErrorAlerts(eq(false));
         verify(mIWifiChip, never()).stopLoggingToDebugRingBuffer();
+
+        // Start in STA mode again.
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+
+        // Now set the log handler again, should succeed.
+        assertTrue(mWifiVendorHal.setLoggingEventHandler(
+                mock(WifiNative.WifiLoggerEventHandler.class)));
+        verify(mIWifiChip, times(2)).enableDebugErrorAlerts(eq(true));
     }
 
     /**
