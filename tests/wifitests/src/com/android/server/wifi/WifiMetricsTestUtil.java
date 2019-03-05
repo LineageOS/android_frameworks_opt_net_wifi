@@ -18,6 +18,9 @@ package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
 
+import android.net.wifi.WifiManager;
+
+import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
@@ -94,7 +97,8 @@ public class WifiMetricsTestUtil {
     }
 
     /**
-     * Asserts that the two arrays are equal, reporting any difference between them.
+     * Asserts that the two arrays are equal (ignoring order),
+     * reporting any difference between them.
      */
     public static void assertLinkProbeFailureReasonCountsEqual(
             LinkProbeFailureReasonCount[] expected, LinkProbeFailureReasonCount[] actual) {
@@ -108,7 +112,8 @@ public class WifiMetricsTestUtil {
             LinkProbeFailureReasonCount expectedFailureReasonCount = expected[i];
             LinkProbeFailureReasonCount actualFailureReasonCount = actual[i];
 
-            assertEquals(String.format("LinkProbeFailureReasonCount[%d].key does not match!", i),
+            assertEquals(String.format(
+                    "LinkProbeFailureReasonCount[%d].failureReason does not match!", i),
                     expectedFailureReasonCount.failureReason,
                     actualFailureReasonCount.failureReason);
             assertEquals(String.format("LinkProbeFailureReasonCount[%d].count does not match!", i),
@@ -125,5 +130,51 @@ public class WifiMetricsTestUtil {
         failureReasonCount.failureReason = failureReason;
         failureReasonCount.count = count;
         return failureReasonCount;
+    }
+
+    /**
+     * The constructor we wish DeviceMobilityStatePnoScanStats had.
+     */
+    public static DeviceMobilityStatePnoScanStats buildDeviceMobilityStatePnoScanStats(
+            @WifiManager.DeviceMobilityState int deviceMobilityState, int numTimesEnteredState,
+            long totalDurationMs, long pnoDurationMs) {
+        DeviceMobilityStatePnoScanStats stats = new DeviceMobilityStatePnoScanStats();
+        stats.deviceMobilityState = deviceMobilityState;
+        stats.numTimesEnteredState = numTimesEnteredState;
+        stats.totalDurationMs = totalDurationMs;
+        stats.pnoDurationMs = pnoDurationMs;
+        return stats;
+    }
+
+    /**
+     * Asserts that the two arrays are equal (ignoring order),
+     * reporting any difference between them.
+     */
+    public static void assertDeviceMobilityStatePnoScanStatsEqual(
+            DeviceMobilityStatePnoScanStats[] expected, DeviceMobilityStatePnoScanStats[] actual) {
+
+        assertEquals("Number of DeviceMobilityStatePnoScanStats do not match!",
+                expected.length, actual.length);
+
+        Arrays.sort(expected, Comparator.comparingInt(x -> x.deviceMobilityState));
+        Arrays.sort(actual, Comparator.comparingInt(x -> x.deviceMobilityState));
+
+        for (int i = 0; i < expected.length; i++) {
+            DeviceMobilityStatePnoScanStats expectedStats = expected[i];
+            DeviceMobilityStatePnoScanStats actualStats = actual[i];
+
+            assertEquals(String.format(
+                    "DeviceMobilityStatePnoScanStats[%d].deviceMobilityState does not match!", i),
+                    expectedStats.deviceMobilityState, actualStats.deviceMobilityState);
+            assertEquals(String.format(
+                    "DeviceMobilityStatePnoScanStats[%d].numTimesEnteredState does not match!", i),
+                    expectedStats.numTimesEnteredState, actualStats.numTimesEnteredState);
+            assertEquals(String.format(
+                    "DeviceMobilityStatePnoScanStats[%d].totalDurationMs does not match!", i),
+                    expectedStats.totalDurationMs, actualStats.totalDurationMs);
+            assertEquals(String.format(
+                    "DeviceMobilityStatePnoScanStats[%d].pnoDurationMs does not match!", i),
+                    expectedStats.pnoDurationMs, actualStats.pnoDurationMs);
+        }
     }
 }
