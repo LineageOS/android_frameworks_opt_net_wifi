@@ -4218,6 +4218,8 @@ public class ClientModeImpl extends StateMachine {
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
 
+                    reportConnectionAttemptStart(config, mTargetRoamBSSID,
+                            WifiMetricsProto.ConnectionEvent.ROAM_UNRELATED);
                     if (config.macRandomizationSetting
                             == WifiConfiguration.RANDOMIZATION_PERSISTENT
                             && mConnectedMacRandomzationSupported) {
@@ -4229,9 +4231,6 @@ public class ClientModeImpl extends StateMachine {
                     String currentMacAddress = mWifiNative.getMacAddress(mInterfaceName);
                     mWifiInfo.setMacAddress(currentMacAddress);
                     Log.i(TAG, "Connecting with " + currentMacAddress + " as the mac address");
-
-                    reportConnectionAttemptStart(config, mTargetRoamBSSID,
-                            WifiMetricsProto.ConnectionEvent.ROAM_UNRELATED);
                     if (mWifiNative.connectToNetwork(mInterfaceName, config)) {
                         mWifiMetrics.logStaEvent(StaEvent.TYPE_CMD_START_CONNECT, config);
                         mLastConnectAttemptTimestamp = mClock.getWallClockMillis();
