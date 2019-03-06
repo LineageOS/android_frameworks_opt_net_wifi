@@ -987,7 +987,7 @@ public class ClientModeImplTest {
         assertEquals(sBSSID, wifiInfo.getBSSID());
         assertEquals(sFreq, wifiInfo.getFrequency());
         assertTrue(sWifiSsid.equals(wifiInfo.getWifiSsid()));
-        assertNull(wifiInfo.getProviderFriendlyName());
+        assertNull(wifiInfo.getPasspointProviderFriendlyName());
         // Ensure the connection stats for the network is updated.
         verify(mWifiConfigManager).updateNetworkAfterConnect(FRAMEWORK_NETWORK_ID);
 
@@ -1017,9 +1017,9 @@ public class ClientModeImplTest {
 
         WifiInfo wifiInfo = mCmi.getWifiInfo();
         assertNotNull(wifiInfo);
-        assertEquals(WifiConfigurationTestUtil.TEST_FQDN, wifiInfo.getFqdn());
+        assertEquals(WifiConfigurationTestUtil.TEST_FQDN, wifiInfo.getPasspointFqdn());
         assertEquals(WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME,
-                wifiInfo.getProviderFriendlyName());
+                wifiInfo.getPasspointProviderFriendlyName());
     }
 
     /**
@@ -1048,7 +1048,7 @@ public class ClientModeImplTest {
         assertNotNull(wifiInfo);
         assertTrue(wifiInfo.isOsuAp());
         assertEquals(WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME,
-                wifiInfo.getProviderFriendlyName());
+                wifiInfo.getPasspointProviderFriendlyName());
     }
 
     /**
