@@ -22,6 +22,7 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.Looper;
@@ -60,6 +61,7 @@ public class WakeupController {
     private final WakeupEvaluator mWakeupEvaluator;
     private final WakeupOnboarding mWakeupOnboarding;
     private final WifiConfigManager mWifiConfigManager;
+    private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiInjector mWifiInjector;
     private final WakeupConfigStoreData mWakeupConfigStoreData;
     private final WifiWakeMetrics mWifiWakeMetrics;
@@ -132,6 +134,7 @@ public class WakeupController {
             WakeupOnboarding wakeupOnboarding,
             WifiConfigManager wifiConfigManager,
             WifiConfigStore wifiConfigStore,
+            WifiNetworkSuggestionsManager wifiNetworkSuggestionsManager,
             WifiWakeMetrics wifiWakeMetrics,
             WifiInjector wifiInjector,
             FrameworkFacade frameworkFacade,
@@ -142,6 +145,7 @@ public class WakeupController {
         mWakeupEvaluator = wakeupEvaluator;
         mWakeupOnboarding = wakeupOnboarding;
         mWifiConfigManager = wifiConfigManager;
+        mWifiNetworkSuggestionsManager = wifiNetworkSuggestionsManager;
         mWifiWakeMetrics = wifiWakeMetrics;
         mFrameworkFacade = frameworkFacade;
         mWifiInjector = wifiInjector;
@@ -241,7 +245,7 @@ public class WakeupController {
             List<ScanResult> scanResults =
                     filterDfsScanResults(mWifiInjector.getWifiScanner().getSingleScanResults());
             Set<ScanResultMatchInfo> matchInfos = toMatchInfos(scanResults);
-            matchInfos.retainAll(getGoodSavedNetworks());
+            matchInfos.retainAll(getGoodSavedNetworksAndSuggestions());
 
             // ensure that the last disconnected network is added to the wakeup lock, since we don't
             // want to automatically reconnect to the same network that the user manually
@@ -309,12 +313,13 @@ public class WakeupController {
                 .collect(Collectors.toList());
     }
 
-    /** Returns a filtered set of saved networks from WifiConfigManager. */
-    private Set<ScanResultMatchInfo> getGoodSavedNetworks() {
+    /** Returns a filtered set of saved networks from WifiConfigManager & suggestions
+     * from WifiNetworkSuggestionsManager. */
+    private Set<ScanResultMatchInfo> getGoodSavedNetworksAndSuggestions() {
         List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks(
                 Process.WIFI_UID);
 
-        Set<ScanResultMatchInfo> goodSavedNetworks = new HashSet<>(savedNetworks.size());
+        Set<ScanResultMatchInfo> goodNetworks = new HashSet<>(savedNetworks.size());
         for (WifiConfiguration config : savedNetworks) {
             if (isWideAreaNetwork(config)
                     || config.hasNoInternetAccess()
@@ -322,10 +327,17 @@ public class WakeupController {
                     || !config.getNetworkSelectionStatus().getHasEverConnected()) {
                 continue;
             }
-            goodSavedNetworks.add(ScanResultMatchInfo.fromWifiConfiguration(config));
+            goodNetworks.add(ScanResultMatchInfo.fromWifiConfiguration(config));
         }
 
-        return goodSavedNetworks;
+        Set<WifiNetworkSuggestion> networkSuggestions =
+                mWifiNetworkSuggestionsManager.getAllNetworkSuggestions();
+        for (WifiNetworkSuggestion suggestion : networkSuggestions) {
+            // TODO(b/127799111): Do we need to filter the list similar to saved networks above?
+            goodNetworks.add(
+                    ScanResultMatchInfo.fromWifiConfiguration(suggestion.wifiConfiguration));
+        }
+        return goodNetworks;
     }
 
     //TODO(b/69271702) implement WAN filtering
@@ -362,17 +374,17 @@ public class WakeupController {
         // need to show notification here in case user turns phone on while wifi is off
         mWakeupOnboarding.maybeShowNotification();
 
-        // filter out unsaved networks
-        Set<ScanResultMatchInfo> goodSavedNetworks = getGoodSavedNetworks();
+        // filter out unknown networks
+        Set<ScanResultMatchInfo> goodNetworks = getGoodSavedNetworksAndSuggestions();
         Set<ScanResultMatchInfo> matchInfos = toMatchInfos(scanResults);
-        matchInfos.retainAll(goodSavedNetworks);
+        matchInfos.retainAll(goodNetworks);
 
         mWakeupLock.update(matchInfos);
         if (!mWakeupLock.isUnlocked()) {
             return;
         }
 
-        ScanResult network = mWakeupEvaluator.findViableNetwork(scanResults, goodSavedNetworks);
+        ScanResult network = mWakeupEvaluator.findViableNetwork(scanResults, goodNetworks);
 
         if (network != null) {
             Log.d(TAG, "Enabling wifi for network: " + network.SSID);

@@ -39,19 +39,19 @@ public class WakeupEvaluator {
      * returns null. If there are multiple, it returns the one with the highest RSSI.
      *
      * @param scanResults ScanResults to search
-     * @param savedNetworks Network list to compare against
+     * @param networks Network list to compare against
      * @return The {@link ScanResult} representing an in-range connectable network, or {@code null}
      *         signifying there is no viable network
      */
     public ScanResult findViableNetwork(Collection<ScanResult> scanResults,
-                                        Collection<ScanResultMatchInfo> savedNetworks) {
+                                        Collection<ScanResultMatchInfo> networks) {
         ScanResult selectedScanResult = null;
 
         for (ScanResult scanResult : scanResults) {
             if (isBelowThreshold(scanResult)) {
                 continue;
             }
-            if (savedNetworks.contains(ScanResultMatchInfo.fromScanResult(scanResult))) {
+            if (networks.contains(ScanResultMatchInfo.fromScanResult(scanResult))) {
                 if (selectedScanResult == null || selectedScanResult.level < scanResult.level) {
                     selectedScanResult = scanResult;
                 }
