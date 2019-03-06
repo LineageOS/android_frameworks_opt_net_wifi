@@ -2662,6 +2662,8 @@ public class ClientModeImplTest {
         verify(mWifiScoreCard).noteConnectionAttempt(any());
         // But don't expect to see connection success yet
         verify(mWifiScoreCard, never()).noteIpConfiguration(any());
+        // And certainly not validation success
+        verify(mWifiScoreCard, never()).noteValidationSuccess(any());
     }
 
     /**
@@ -2949,6 +2951,7 @@ public class ClientModeImplTest {
                 .setNetworkValidatedInternetAccess(FRAMEWORK_NETWORK_ID, true);
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
+        verify(mWifiScoreCard).noteValidationSuccess(any());
     }
 
     /**
