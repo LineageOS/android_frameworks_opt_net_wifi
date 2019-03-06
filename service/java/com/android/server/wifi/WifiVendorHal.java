@@ -1481,17 +1481,17 @@ public class WifiVendorHal {
     /**
      * Stops all logging and resets the logger callback.
      * This stops both the alerts and ring buffer data collection.
+     * Existing log handler is cleared.
      */
     public boolean resetLogHandler() {
         synchronized (sLock) {
+            mLogEventHandler = null;
             if (mIWifiChip == null) return boolResult(false);
-            if (mLogEventHandler == null) return boolResult(false);
             try {
                 WifiStatus status = mIWifiChip.enableDebugErrorAlerts(false);
                 if (!ok(status)) return false;
                 status = mIWifiChip.stopLoggingToDebugRingBuffer();
                 if (!ok(status)) return false;
-                mLogEventHandler = null;
                 return true;
             } catch (RemoteException e) {
                 handleRemoteException(e);
