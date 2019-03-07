@@ -443,6 +443,7 @@ public class ClientModeImplTest {
                         return true;
                     }
                 });
+        when(mWifiNative.connectToNetwork(any(), any())).thenReturn(true);
 
         when(mWifiNetworkFactory.hasConnectionRequests()).thenReturn(true);
         when(mUntrustedWifiNetworkFactory.hasConnectionRequests()).thenReturn(true);
@@ -2524,9 +2525,11 @@ public class ClientModeImplTest {
         verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION);
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION),
+                any(WifiConfiguration.class));
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION), any(), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION),
+                any(WifiConfiguration.class), eq(null));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2551,9 +2554,11 @@ public class ClientModeImplTest {
         verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE);
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE),
+                any(WifiConfiguration.class));
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE), any(), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE),
+                any(WifiConfiguration.class), eq(null));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2604,9 +2609,10 @@ public class ClientModeImplTest {
         verify(mWifiConnectivityManager, atLeastOnce()).handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP);
         verify(mWifiNetworkFactory, atLeastOnce()).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any(WifiConfiguration.class));
         verify(mWifiNetworkSuggestionsManager, atLeastOnce()).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any(), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_DHCP), any(WifiConfiguration.class),
+                any(String.class));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
@@ -2637,9 +2643,10 @@ public class ClientModeImplTest {
         verify(mWifiConnectivityManager).handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE);
         verify(mWifiNetworkFactory).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any(WifiConfiguration.class));
         verify(mWifiNetworkSuggestionsManager).handleConnectionAttemptEnded(
-                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any(), any());
+                eq(WifiMetrics.ConnectionEvent.FAILURE_NONE), any(WifiConfiguration.class),
+                any(String.class));
         verifyConnectionEventTimeoutDoesNotOccur();
     }
 
