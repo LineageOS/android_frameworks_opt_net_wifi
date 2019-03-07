@@ -1257,7 +1257,7 @@ public class WifiNetworkSuggestionsManagerTest {
         // Now remove the network suggestion and ensure we did not trigger a disconnect.
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_PACKAGE_1));
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommandInternal();
     }
 
     /**
@@ -1293,11 +1293,11 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Now remove one of the apps and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommandInternal();
 
         // Now remove the other app and ensure we trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
-        verify(mClientModeImpl).disconnectCommand();
+        verify(mClientModeImpl).disconnectCommandInternal();
     }
 
     /**
@@ -1324,7 +1324,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Now remove the app and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommandInternal();
     }
 
     /**
@@ -1356,7 +1356,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
         // Now remove the app and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mClientModeImpl, never()).disconnectCommandInternal();
     }
 
     /**
