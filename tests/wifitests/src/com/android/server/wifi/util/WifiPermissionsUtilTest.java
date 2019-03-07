@@ -37,6 +37,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
+import android.net.NetworkStack;
 import android.os.Build;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -564,7 +565,7 @@ public class WifiPermissionsUtilTest {
     /**
      * Test case setting: Package is valid
      *                    Location Mode Disabled
-     *                    Caller has location permisson
+     *                    Caller has no location permisson
      *                    Caller has NETWORK_SETUP_WIZARD
      * Validate Exception is thrown
      * - Doesn't have Peer Mac Address read permission
@@ -596,7 +597,7 @@ public class WifiPermissionsUtilTest {
     /**
      * Test case setting: Package is valid
      *                    Location Mode Disabled
-     *                    Caller has location permisson
+     *                    Caller has no location permisson
      *                    Caller has NETWORK_MANAGED_PROVISIONING
      * Validate Exception is thrown
      * - Doesn't have Peer Mac Address read permission
@@ -618,6 +619,70 @@ public class WifiPermissionsUtilTest {
         setupTestCase();
         when(mMockPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Disabled
+     *                    Caller has no location permisson
+     *                    Caller has NETWORK_STACK
+     * Validate Exception is thrown
+     * - Doesn't have Peer Mac Address read permission
+     * - Uid is not an active network scorer
+     * - Location Mode is disabled
+     * - doesn't have Coarse Location Access
+     * - which implies no scan result access
+     */
+    @Test
+    public void testEnforceCanAccessScanResults_LocationModeDisabledHasNetworkStack()
+            throws Exception {
+        mThrowSecurityException = false;
+        mUid = MANAGED_PROFILE_UID;
+        mPermissionsList.put(mMacAddressPermission, mUid);
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
+        mIsLocationEnabled = false;
+
+        setupTestCase();
+        when(mMockPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_STACK, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+    }
+
+    /**
+     * Test case setting: Package is valid
+     *                    Location Mode Disabled
+     *                    Caller has no location permisson
+     *                    Caller has MAINLINE_NETWORK_STACK
+     * Validate Exception is thrown
+     * - Doesn't have Peer Mac Address read permission
+     * - Uid is not an active network scorer
+     * - Location Mode is disabled
+     * - doesn't have Coarse Location Access
+     * - which implies no scan result access
+     */
+    @Test
+    public void testEnforceCanAccessScanResults_LocationModeDisabledHasMainlineNetworkStack()
+            throws Exception {
+        mThrowSecurityException = false;
+        mUid = MANAGED_PROFILE_UID;
+        mPermissionsList.put(mMacAddressPermission, mUid);
+        mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
+        mPermissionsList.put(mInteractAcrossUsersFullPermission, mUid);
+        mIsLocationEnabled = false;
+
+        setupTestCase();
+        when(mMockPermissionsWrapper.getUidPermission(
+                NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, MANAGED_PROFILE_UID))
                 .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
