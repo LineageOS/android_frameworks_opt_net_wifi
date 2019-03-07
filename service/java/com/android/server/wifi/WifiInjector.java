@@ -255,7 +255,7 @@ public class WifiInjector {
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
         mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext,
                 new Handler(mWifiCoreHandlerThread.getLooper()), this,
-                mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore);
+                mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
         mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, clientModeImplLooper,
@@ -606,7 +606,7 @@ public class WifiInjector {
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
                 mClock, this, wifiConnectivityManager, mWifiConfigManager,
-                mWifiConfigStore, mWifiPermissionsUtil);
+                mWifiConfigStore, mWifiPermissionsUtil, mWifiMetrics);
     }
 
     /**

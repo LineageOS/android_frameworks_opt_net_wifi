@@ -616,7 +616,7 @@ public class WifiConfigStore {
             pw.print(" ");
             pw.print("Name: " + storeData.getName());
             pw.print(", ");
-            pw.println("File Id: " + storeData.getStoreFileId());
+            pw.print("File Id: " + storeData.getStoreFileId());
             pw.print(", ");
             pw.println("File Name: " + STORE_ID_TO_FILE_NAME.get(storeData.getStoreFileId()));
         }
