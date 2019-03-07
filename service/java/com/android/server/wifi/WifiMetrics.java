@@ -66,6 +66,8 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkRequestApiLog;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkSuggestionApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
@@ -344,6 +346,21 @@ public class WifiMetrics {
 
     /** WifiConfigStore write duration histogram. */
     private SparseIntArray mWifiConfigStoreWriteDurationHistogram = new SparseIntArray();
+
+    /** New  API surface metrics */
+    private final WifiNetworkRequestApiLog mWifiNetworkRequestApiLog =
+            new WifiNetworkRequestApiLog();
+    private static final int[] NETWORK_REQUEST_API_MATCH_SIZE_HISTOGRAM_BUCKETS =
+            {0, 1, 5, 10};
+    private final IntHistogram mWifiNetworkRequestApiMatchSizeHistogram =
+            new IntHistogram(NETWORK_REQUEST_API_MATCH_SIZE_HISTOGRAM_BUCKETS);
+
+    private final WifiNetworkSuggestionApiLog mWifiNetworkSuggestionApiLog =
+            new WifiNetworkSuggestionApiLog();
+    private static final int[] NETWORK_SUGGESTION_API_LIST_SIZE_HISTOGRAM_BUCKETS =
+            {5, 20, 50, 100, 500};
+    private final IntHistogram mWifiNetworkSuggestionApiListSizeHistogram =
+            new IntHistogram(NETWORK_SUGGESTION_API_LIST_SIZE_HISTOGRAM_BUCKETS);
 
     /**
      * (experiment1Id, experiment2Id) =>
@@ -954,9 +971,6 @@ public class WifiMetrics {
             mCurrentConnectionEvent.mConnectionEvent.roamType = roamType;
             mCurrentConnectionEvent.mConnectionEvent.networkSelectorExperimentId =
                     mScoringParams.getExperimentIdentifier();
-            // TODO(b/112196799): populate nominator field
-            mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                    WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
             mCurrentConnectionEvent.mRouterFingerPrint.updateFromWifiConfiguration(config);
             mCurrentConnectionEvent.mConfigBssid = "any";
             mCurrentConnectionEvent.mRealStartTime = mClock.getElapsedSinceBootMillis();
@@ -968,6 +982,26 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.useRandomizedMac =
                         config.macRandomizationSetting
                         == WifiConfiguration.RANDOMIZATION_PERSISTENT;
+                if (config.fromWifiNetworkSpecifier) {
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC;
+                } else if (config.fromWifiNetworkSuggestion) {
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
+                } else if (config.isPasspoint()) {
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
+                } else if (!config.trusted) {
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
+                } else if (!config.ephemeral) {
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
+                } else {
+                    // TODO(b/127452844): populate other nominator fields
+                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                            WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
+                }
                 ScanResult candidate = config.getNetworkSelectionStatus().getCandidate();
                 if (candidate != null) {
                     // Cache the RSSI of the candidate, as the connection event level is updated
@@ -2681,6 +2715,13 @@ public class WifiMetrics {
 
                 pw.println("mNetworkSelectionExperimentPairNumChoicesCounts:"
                         + mNetworkSelectionExperimentPairNumChoicesCounts);
+
+                pw.println("mWifiNetworkRequestApiLog:\n" + mWifiNetworkRequestApiLog);
+                pw.println("mWifiNetworkRequestApiMatchSizeHistogram:\n"
+                        + mWifiNetworkRequestApiMatchSizeHistogram);
+                pw.println("mWifiNetworkSuggestionApiLog:\n" + mWifiNetworkSuggestionApiLog);
+                pw.println("mWifiNetworkSuggestionApiMatchSizeHistogram:\n"
+                        + mWifiNetworkRequestApiMatchSizeHistogram);
             }
         }
     }
@@ -3181,6 +3222,14 @@ public class WifiMetrics {
 
             mWifiLogProto.networkSelectionExperimentDecisionsList =
                     makeNetworkSelectionExperimentDecisionsList();
+
+            mWifiNetworkRequestApiLog.networkMatchSizeHistogram =
+                    mWifiNetworkRequestApiMatchSizeHistogram.toProto();
+            mWifiLogProto.wifiNetworkRequestApiLog = mWifiNetworkRequestApiLog;
+
+            mWifiNetworkSuggestionApiLog.networkListSizeHistogram =
+                    mWifiNetworkSuggestionApiListSizeHistogram.toProto();
+            mWifiLogProto.wifiNetworkSuggestionApiLog = mWifiNetworkSuggestionApiLog;
         }
     }
 
@@ -3352,6 +3401,10 @@ public class WifiMetrics {
             mLinkProbeSuccessElapsedTimeMsHistogram.clear();
             mLinkProbeFailureReasonCounts.clear();
             mNetworkSelectionExperimentPairNumChoicesCounts.clear();
+            mWifiNetworkSuggestionApiLog.clear();
+            mWifiNetworkSuggestionApiLog.clear();
+            mWifiNetworkRequestApiMatchSizeHistogram.clear();
+            mWifiNetworkSuggestionApiListSizeHistogram.clear();
         }
     }
 
@@ -4510,6 +4563,79 @@ public class WifiMetrics {
                     : results.differentSelectionNumChoicesCounter;
 
             counter.increment(numNetworkChoices);
+        }
+    }
+
+    /** Increment number of network request API usage stats */
+    public void incrementNetworkRequestApiNumRequest() {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiLog.numRequest++;
+        }
+    }
+
+    /** Add to the network request API match size histogram */
+    public void incrementNetworkRequestApiMatchSizeHistogram(int matchSize) {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiMatchSizeHistogram.increment(matchSize);
+        }
+    }
+
+    /** Increment number of connection success via network request API */
+    public void incrementNetworkRequestApiNumConnectSuccess() {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiLog.numConnectSuccess++;
+        }
+    }
+
+    /** Increment number of requests that bypassed user approval via network request API */
+    public void incrementNetworkRequestApiNumUserApprovalBypass() {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiLog.numUserApprovalBypass++;
+        }
+    }
+
+    /** Increment number of requests that user rejected via network request API */
+    public void incrementNetworkRequestApiNumUserReject() {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiLog.numUserReject++;
+        }
+    }
+
+    /** Increment number of requests from unique apps via network request API */
+    public void incrementNetworkRequestApiNumApps() {
+        synchronized (mLock) {
+            mWifiNetworkRequestApiLog.numApps++;
+        }
+    }
+
+    /** Increment number of network suggestion API modification by app stats */
+    public void incrementNetworkSuggestionApiNumModification() {
+        synchronized (mLock) {
+            mWifiNetworkSuggestionApiLog.numModification++;
+        }
+    }
+
+    /** Increment number of connection success via network suggestion API */
+    public void incrementNetworkSuggestionApiNumConnectSuccess() {
+        synchronized (mLock) {
+            mWifiNetworkSuggestionApiLog.numConnectSuccess++;
+        }
+    }
+
+    /** Increment number of connection failure via network suggestion API */
+    public void incrementNetworkSuggestionApiNumConnectFailure() {
+        synchronized (mLock) {
+            mWifiNetworkSuggestionApiLog.numConnectFailure++;
+        }
+    }
+
+    /** Clear and set the latest network suggestion API max list size histogram */
+    public void noteNetworkSuggestionApiListSizeHistogram(List<Integer> listSizes) {
+        synchronized (mLock) {
+            mWifiNetworkSuggestionApiListSizeHistogram.clear();
+            for (Integer listSize : listSizes) {
+                mWifiNetworkSuggestionApiListSizeHistogram.increment(listSize);
+            }
         }
     }
 }

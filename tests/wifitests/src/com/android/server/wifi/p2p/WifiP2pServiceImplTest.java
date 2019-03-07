@@ -1351,22 +1351,24 @@ public class WifiP2pServiceImplTest {
         assertTrue(mClientHandler.hasMessages(WifiP2pManager.STOP_LISTEN_SUCCEEDED));
     }
 
-    /** Verify the p2p randomized MAC feature is enabled if wlan driver supports it. */
+    /** Verify the p2p randomized MAC feature is enabled if OEM supports it. */
     @Test
-    public void testP2pRandomMacWithDriverSupport() throws Exception {
-        when(mWifiNative.getSupportedFeatureSet(eq(IFACE_NAME_P2P)))
-                .thenReturn(WifiManager.WIFI_FEATURE_P2P_RAND_MAC);
+    public void testP2pRandomMacWithOemSupport() throws Exception {
+        when(mResources.getBoolean(R.bool.config_wifi_p2p_mac_randomization_supported))
+                .thenReturn(true);
         forceP2pEnabled(mClient1);
+        verify(mWifiNative, never()).setMacRandomization(eq(false));
         verify(mWifiNative).setMacRandomization(eq(true));
     }
 
-    /** Verify the p2p randomized MAC feature is NOT enabled if wlan driver doesn't supports it. */
+    /** Verify the p2p randomized MAC feature is disabled if OEM does not support it. */
     @Test
-    public void testP2pRandomMacWithoutDriverSupport() throws Exception {
-        when(mWifiNative.getSupportedFeatureSet(eq(IFACE_NAME_P2P)))
-                .thenReturn(0x0L);
+    public void testP2pRandomMacWithoutOemSupport() throws Exception {
+        when(mResources.getBoolean(R.bool.config_wifi_p2p_mac_randomization_supported))
+                .thenReturn(false);
         forceP2pEnabled(mClient1);
-        verify(mWifiNative, never()).setMacRandomization(anyBoolean());
+        verify(mWifiNative, never()).setMacRandomization(eq(true));
+        verify(mWifiNative).setMacRandomization(eq(false));
     }
 
     /**

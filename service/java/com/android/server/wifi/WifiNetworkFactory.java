@@ -104,6 +104,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final WifiConfigManager mWifiConfigManager;
     private final WifiConfigStore mWifiConfigStore;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
+    private final WifiMetrics mWifiMetrics;
     private final WifiScanner.ScanSettings mScanSettings;
     private final NetworkFactoryScanListener mScanListener;
     private final PeriodicScanAlarmListener mPeriodicScanTimerListener;
@@ -220,6 +221,12 @@ public class WifiNetworkFactory extends NetworkFactory {
             }
             List<ScanResult> matchedScanResults =
                     getNetworksMatchingActiveNetworkRequest(scanResults);
+            if (mActiveMatchedScanResults == null) {
+                // only note the first match size in metrics (chances of this changing in further
+                // scans is pretty low)
+                mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(
+                        matchedScanResults.size());
+            }
             mActiveMatchedScanResults = matchedScanResults;
 
             ScanResult approvedScanResult = null;
@@ -234,6 +241,7 @@ public class WifiNetworkFactory extends NetworkFactory {
                         + "Triggering connect " + approvedScanResult);
                 handleConnectToNetworkUserSelectionInternal(
                         ScanResultUtil.createNetworkFromScanResult(approvedScanResult));
+                mWifiMetrics.incrementNetworkRequestApiNumUserApprovalBypass();
                 // TODO (b/122658039): Post notification.
             } else {
                 if (mVerboseLoggingEnabled) {
@@ -357,7 +365,8 @@ public class WifiNetworkFactory extends NetworkFactory {
                               WifiConnectivityManager connectivityManager,
                               WifiConfigManager configManager,
                               WifiConfigStore configStore,
-                              WifiPermissionsUtil wifiPermissionsUtil) {
+                              WifiPermissionsUtil wifiPermissionsUtil,
+                              WifiMetrics wifiMetrics) {
         super(looper, context, TAG, nc);
         mContext = context;
         mActivityManager = activityManager;
@@ -370,6 +379,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mWifiConfigManager = configManager;
         mWifiConfigStore = configStore;
         mWifiPermissionsUtil = wifiPermissionsUtil;
+        mWifiMetrics = wifiMetrics;
         // Create the scan settings.
         mScanSettings = new WifiScanner.ScanSettings();
         mScanSettings.type = WifiScanner.TYPE_HIGH_ACCURACY;
@@ -573,6 +583,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             mActiveSpecificNetworkRequestSpecifier = new WifiNetworkSpecifier(
                     wns.ssidPatternMatcher, wns.bssidPatternMatcher, wns.wifiConfiguration,
                     wns.requestorUid, wns.requestorPackageName);
+            mWifiMetrics.incrementNetworkRequestApiNumRequest();
 
             // Start UI to let the user grant/disallow this request from the app.
             startUi();
@@ -752,6 +763,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private void handleRejectUserSelection() {
         Log.w(TAG, "User dismissed notification, cancelling " + mActiveSpecificNetworkRequest);
         teardownForActiveRequest();
+        mWifiMetrics.incrementNetworkRequestApiNumUserReject();
     }
 
     private boolean isUserSelectedNetwork(WifiConfiguration config) {
@@ -797,6 +809,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
         // transition the request from "active" to "connected".
         setupForConnectedRequest();
+        mWifiMetrics.incrementNetworkRequestApiNumConnectSuccess();
     }
 
     /**
@@ -1183,6 +1196,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         if (approvedAccessPoints == null) {
             approvedAccessPoints = new HashSet<>();
             mUserApprovedAccessPointMap.put(requestorPackageName, approvedAccessPoints);
+            // Note the new app in metrics.
+            mWifiMetrics.incrementNetworkRequestApiNumApps();
         }
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + newUserApprovedAccessPoints

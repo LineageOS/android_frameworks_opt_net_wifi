@@ -38,7 +38,7 @@ import java.io.PrintWriter;
 public class LinkProbeManager {
     private static final String TAG = "WifiLinkProbeManager";
 
-    private static final int WIFI_LINK_PROBING_ENABLED_DEFAULT = 0; // 0 = disabled
+    private static final int WIFI_LINK_PROBING_ENABLED_DEFAULT = 1; // 1 = enabled
 
     // TODO(112029045): Use constants from ScoringParams instead
     @VisibleForTesting

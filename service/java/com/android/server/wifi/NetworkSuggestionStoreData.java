@@ -58,6 +58,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_HAS_USER_APPROVED = "SuggestorHasUserApproved";
+    private static final String XML_TAG_SUGGESTOR_MAX_SIZE = "SuggestorMaxSize";
 
     /**
      * Interface define the data source for the network suggestions store data.
@@ -145,11 +146,13 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         for (Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
             String packageName = entry.getKey();
             boolean hasUserApproved = entry.getValue().hasUserApproved;
+            int maxSize = entry.getValue().maxSize;
             Set<ExtendedWifiNetworkSuggestion> networkSuggestions =
                     entry.getValue().extNetworkSuggestions;
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME, packageName);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
+            XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_MAX_SIZE, maxSize);
             serializeExtNetworkSuggestions(out, networkSuggestions);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
@@ -215,10 +218,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_PACKAGE_NAME);
                 boolean hasUserApproved = (boolean) XmlUtil.readNextValueWithName(in,
                         XML_TAG_SUGGESTOR_HAS_USER_APPROVED);
+                int maxSize = (int) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_MAX_SIZE);
                 PerAppInfo perAppInfo = new PerAppInfo(packageName);
                 Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                         parseExtNetworkSuggestions(in, outerTagDepth + 1, perAppInfo);
                 perAppInfo.hasUserApproved = hasUserApproved;
+                perAppInfo.maxSize = maxSize;
                 perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
                 networkSuggestionsMap.put(packageName, perAppInfo);
             } catch (RuntimeException e) {
