@@ -29,6 +29,12 @@ import java.util.Collection;
  */
 final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
 
+    /**
+     * This should match WifiNetworkSelector.experimentIdFromIdentifier(getIdentifier())
+     * when using the default ScoringParams.
+     */
+    public static final int SCORE_CARD_BASED_SCORER_DEFAULT_EXPID = 42902385;
+
     private final ScoringParams mScoringParams;
 
     // config_wifi_framework_RSSI_SCORE_OFFSET

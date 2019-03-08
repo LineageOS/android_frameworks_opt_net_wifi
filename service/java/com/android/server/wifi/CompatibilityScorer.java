@@ -28,6 +28,12 @@ import java.util.Collection;
  */
 final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
 
+    /**
+     * This should match WifiNetworkSelector.experimentIdFromIdentifier(getIdentifier())
+     * when using the default ScoringParams.
+     */
+    public static final int COMPATIBILITY_SCORER_DEFAULT_EXPID = 42504592;
+
     private final ScoringParams mScoringParams;
 
     // config_wifi_framework_RSSI_SCORE_OFFSET
