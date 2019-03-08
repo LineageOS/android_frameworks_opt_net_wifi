@@ -220,21 +220,31 @@ public class WifiKeyStore {
      * @param config Config corresponding to the network.
      */
     public void removeKeys(WifiEnterpriseConfig config) {
-        String client = config.getClientCertificateAlias();
-        // a valid client certificate is configured
-        if (!TextUtils.isEmpty(client)) {
-            if (mVerboseLoggingEnabled) Log.d(TAG, "removing client private key and user cert");
-            mKeyStore.delete(Credentials.USER_PRIVATE_KEY + client, Process.WIFI_UID);
-            mKeyStore.delete(Credentials.USER_CERTIFICATE + client, Process.WIFI_UID);
+        // Do not remove keys that were manually installed by the user
+        if (config.isAppInstalledDeviceKeyAndCert()) {
+            String client = config.getClientCertificateAlias();
+            // a valid client certificate is configured
+            if (!TextUtils.isEmpty(client)) {
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "removing client private key and user cert");
+                }
+                mKeyStore.delete(Credentials.USER_PRIVATE_KEY + client, Process.WIFI_UID);
+                mKeyStore.delete(Credentials.USER_CERTIFICATE + client, Process.WIFI_UID);
+            }
         }
 
-        String[] aliases = config.getCaCertificateAliases();
-        // a valid ca certificate is configured
-        if (aliases != null) {
-            for (String ca : aliases) {
-                if (!TextUtils.isEmpty(ca)) {
-                    if (mVerboseLoggingEnabled) Log.d(TAG, "removing CA cert: " + ca);
-                    mKeyStore.delete(Credentials.CA_CERTIFICATE + ca, Process.WIFI_UID);
+        // Do not remove CA certs that were manually installed by the user
+        if (config.isAppInstalledCaCert()) {
+            String[] aliases = config.getCaCertificateAliases();
+            // a valid ca certificate is configured
+            if (aliases != null) {
+                for (String ca : aliases) {
+                    if (!TextUtils.isEmpty(ca)) {
+                        if (mVerboseLoggingEnabled) {
+                            Log.d(TAG, "removing CA cert: " + ca);
+                        }
+                        mKeyStore.delete(Credentials.CA_CERTIFICATE + ca, Process.WIFI_UID);
+                    }
                 }
             }
         }
