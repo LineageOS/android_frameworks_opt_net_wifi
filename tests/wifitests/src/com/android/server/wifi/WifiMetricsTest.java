@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.net.NetworkAgent;
 import android.net.wifi.EAPConstants;
-import android.net.wifi.IWifiUsabilityStatsListener;
+import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -128,8 +128,8 @@ public class WifiMetricsTest {
     @Mock WifiPowerMetrics mWifiPowerMetrics;
     @Mock WifiDataStall mWifiDataStall;
     @Mock IBinder mAppBinder;
-    @Mock IWifiUsabilityStatsListener mWifiUsabilityStatsListener;
-    @Mock ExternalCallbackTracker<IWifiUsabilityStatsListener> mListenerTracker;
+    @Mock IOnWifiUsabilityStatsListener mOnWifiUsabilityStatsListener;
+    @Mock ExternalCallbackTracker<IOnWifiUsabilityStatsListener> mListenerTracker;
     @Mock WifiP2pMetrics mWifiP2pMetrics;
     @Mock DppMetrics mDppMetrics;
 
@@ -2685,11 +2685,11 @@ public class WifiMetricsTest {
         assertEquals(android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE,
                 mDecodedProto.wifiUsabilityStatsList[0].stats[0].probeStatusSinceLastUpdate);
         assertEquals(12,
-                mDecodedProto.wifiUsabilityStatsList[1].stats[0].probeElapsedTimeMsSinceLastUpdate);
+                mDecodedProto.wifiUsabilityStatsList[1].stats[0].probeElapsedTimeSinceLastUpdateMs);
         assertEquals(Integer.MAX_VALUE, mDecodedProto.wifiUsabilityStatsList[1]
-                .stats[1].probeElapsedTimeMsSinceLastUpdate);
+                .stats[1].probeElapsedTimeSinceLastUpdateMs);
         assertEquals(-1, mDecodedProto.wifiUsabilityStatsList[0]
-                .stats[0].probeElapsedTimeMsSinceLastUpdate);
+                .stats[0].probeElapsedTimeSinceLastUpdateMs);
     }
 
     /**
@@ -2950,7 +2950,7 @@ public class WifiMetricsTest {
         // Register Client for verification.
         ArgumentCaptor<android.net.wifi.WifiUsabilityStatsEntry> usabilityStats =
                 ArgumentCaptor.forClass(android.net.wifi.WifiUsabilityStatsEntry.class);
-        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+        mWifiMetrics.addOnWifiUsabilityListener(mAppBinder, mOnWifiUsabilityStatsListener,
                 TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
         WifiInfo info = mock(WifiInfo.class);
         when(info.getRssi()).thenReturn(nextRandInt());
@@ -2959,14 +2959,14 @@ public class WifiMetricsTest {
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
 
         // Client should get the stats.
-        verify(mWifiUsabilityStatsListener).onStatsUpdated(anyInt(), anyBoolean(),
+        verify(mOnWifiUsabilityStatsListener).onWifiUsabilityStats(anyInt(), anyBoolean(),
                 usabilityStats.capture());
-        assertEquals(usabilityStats.getValue().totalRadioOnTimeMs, linkLayerStats.on_time);
-        assertEquals(usabilityStats.getValue().totalTxBad, linkLayerStats.lostmpdu_be
+        assertEquals(usabilityStats.getValue().getTotalRadioOnTimeMillis(), linkLayerStats.on_time);
+        assertEquals(usabilityStats.getValue().getTotalTxBad(), linkLayerStats.lostmpdu_be
                 + linkLayerStats.lostmpdu_bk + linkLayerStats.lostmpdu_vi
                 + linkLayerStats.lostmpdu_vo);
-        assertEquals(usabilityStats.getValue().timeStampMs, linkLayerStats.timeStampInMs);
-        assertEquals(usabilityStats.getValue().totalRoamScanTimeMs,
+        assertEquals(usabilityStats.getValue().getTimeStampMillis(), linkLayerStats.timeStampInMs);
+        assertEquals(usabilityStats.getValue().getTotalRoamScanTimeMillis(),
                 linkLayerStats.on_time_roam_scan);
     }
 
@@ -2976,9 +2976,9 @@ public class WifiMetricsTest {
     @Test
     public void testRemoveClient() throws RemoteException {
         // Register Client for verification.
-        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+        mWifiMetrics.addOnWifiUsabilityListener(mAppBinder, mOnWifiUsabilityStatsListener,
                 TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
-        mWifiMetrics.removeWifiUsabilityListener(TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
+        mWifiMetrics.removeOnWifiUsabilityListener(TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
         verify(mAppBinder).unlinkToDeath(any(), anyInt());
 
         WifiInfo info = mock(WifiInfo.class);
@@ -2987,7 +2987,8 @@ public class WifiMetricsTest {
         WifiLinkLayerStats linkLayerStats = nextRandomStats(new WifiLinkLayerStats());
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
 
-        verify(mWifiUsabilityStatsListener, never()).onStatsUpdated(anyInt(), anyBoolean(), any());
+        verify(mOnWifiUsabilityStatsListener, never()).onWifiUsabilityStats(anyInt(),
+                anyBoolean(), any());
     }
 
     /**
@@ -2995,7 +2996,7 @@ public class WifiMetricsTest {
      */
     @Test
     public void testAddsForBinderDeathOnAddClient() throws Exception {
-        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+        mWifiMetrics.addOnWifiUsabilityListener(mAppBinder, mOnWifiUsabilityStatsListener,
                 TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
         verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
     }
@@ -3007,7 +3008,7 @@ public class WifiMetricsTest {
     public void testAddsListenerFailureOnLinkToDeath() throws Exception {
         doThrow(new RemoteException())
                 .when(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
-        mWifiMetrics.addWifiUsabilityListener(mAppBinder, mWifiUsabilityStatsListener,
+        mWifiMetrics.addOnWifiUsabilityListener(mAppBinder, mOnWifiUsabilityStatsListener,
                 TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER);
         verify(mAppBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
 
@@ -3018,7 +3019,8 @@ public class WifiMetricsTest {
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, linkLayerStats);
 
         // Client should not get any message listener add failed.
-        verify(mWifiUsabilityStatsListener, never()).onStatsUpdated(anyInt(), anyBoolean(), any());
+        verify(mOnWifiUsabilityStatsListener, never()).onWifiUsabilityStats(anyInt(),
+                anyBoolean(), any());
     }
 
     /**

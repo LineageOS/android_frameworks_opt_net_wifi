@@ -22,13 +22,14 @@ import android.content.Context;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.NetworkAgent;
 import android.net.wifi.EAPConstants;
-import android.net.wifi.IWifiUsabilityStatsListener;
+import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
+import android.net.wifi.WifiUsabilityStatsEntry.ProbeStatus;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Handler;
 import android.os.IBinder;
@@ -190,9 +191,9 @@ public class WifiMetrics {
     private int mLastPredictionHorizonSec = -1;
     private int mLastPredictionHorizonSecNoReset = -1;
     private int mSeqNumToFramework = -1;
-    private int mProbeStatusSinceLastUpdate =
+    @ProbeStatus private int mProbeStatusSinceLastUpdate =
             android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
-    private int mProbeElapsedTimeMsSinceLastUpdate = -1;
+    private int mProbeElapsedTimeSinceLastUpdateMs = -1;
     private int mProbeMcsRateSinceLastUpdate = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
@@ -311,7 +312,7 @@ public class WifiMetrics {
     private final LinkedList<WifiUsabilityStats> mWifiUsabilityStatsListGood = new LinkedList<>();
     private int mWifiUsabilityStatsCounter = 0;
     private final Random mRand = new Random();
-    private final ExternalCallbackTracker<IWifiUsabilityStatsListener> mWifiUsabilityListeners;
+    private final ExternalCallbackTracker<IOnWifiUsabilityStatsListener> mOnWifiUsabilityListeners;
 
     private final Map<Integer, DeviceMobilityStatePnoScanStats> mMobilityStatePnoStatsMap =
             new HashMap<>();
@@ -671,8 +672,8 @@ public class WifiMetrics {
         mCurrentDeviceMobilityState = WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
         mCurrentDeviceMobilityStateStartMs = mClock.getElapsedSinceBootMillis();
         mCurrentDeviceMobilityStatePnoScanStartMs = -1;
-        mWifiUsabilityListeners =
-                new ExternalCallbackTracker<IWifiUsabilityStatsListener>(mHandler);
+        mOnWifiUsabilityListeners =
+                new ExternalCallbackTracker<IOnWifiUsabilityStatsListener>(mHandler);
     }
 
     /**
@@ -2686,7 +2687,7 @@ public class WifiMetrics {
         line.append(",total_beacon_rx=" + entry.totalBeaconRx);
         line.append(",probe_status_since_last_update=" + entry.probeStatusSinceLastUpdate);
         line.append(",probe_elapsed_time_ms_since_last_update="
-                + entry.probeElapsedTimeMsSinceLastUpdate);
+                + entry.probeElapsedTimeSinceLastUpdateMs);
         line.append(",probe_mcs_rate_since_last_update=" + entry.probeMcsRateSinceLastUpdate);
         line.append(",rx_link_speed_mbps=" + entry.rxLinkSpeedMbps);
         line.append(",seq_num_inside_framework=" + entry.seqNumInsideFramework);
@@ -3310,7 +3311,7 @@ public class WifiMetrics {
             mSeqNumToFramework = -1;
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
-            mProbeElapsedTimeMsSinceLastUpdate = -1;
+            mProbeElapsedTimeSinceLastUpdateMs = -1;
             mProbeMcsRateSinceLastUpdate = -1;
             mWifiConfigStoreReadDurationHistogram.clear();
             mWifiConfigStoreWriteDurationHistogram.clear();
@@ -4064,8 +4065,8 @@ public class WifiMetrics {
                             WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
                     Log.e(TAG, "Unknown link probe status: " + mProbeStatusSinceLastUpdate);
             }
-            wifiUsabilityStatsEntry.probeElapsedTimeMsSinceLastUpdate =
-                    mProbeElapsedTimeMsSinceLastUpdate;
+            wifiUsabilityStatsEntry.probeElapsedTimeSinceLastUpdateMs =
+                    mProbeElapsedTimeSinceLastUpdateMs;
             wifiUsabilityStatsEntry.probeMcsRateSinceLastUpdate = mProbeMcsRateSinceLastUpdate;
             wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             wifiUsabilityStatsEntry.isSameBssidAndFreq = isSameBssidAndFreq;
@@ -4084,7 +4085,7 @@ public class WifiMetrics {
             mSeqNumInsideFramework++;
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
-            mProbeElapsedTimeMsSinceLastUpdate = -1;
+            mProbeElapsedTimeSinceLastUpdateMs = -1;
             mProbeMcsRateSinceLastUpdate = -1;
         }
     }
@@ -4097,9 +4098,9 @@ public class WifiMetrics {
      */
     private void sendWifiUsabilityStats(int seqNum, boolean isSameBssidAndFreq,
             android.net.wifi.WifiUsabilityStatsEntry statsEntry) {
-        for (IWifiUsabilityStatsListener listener : mWifiUsabilityListeners.getCallbacks()) {
+        for (IOnWifiUsabilityStatsListener listener : mOnWifiUsabilityListeners.getCallbacks()) {
             try {
-                listener.onStatsUpdated(seqNum, isSameBssidAndFreq, statsEntry);
+                listener.onWifiUsabilityStats(seqNum, isSameBssidAndFreq, statsEntry);
             } catch (RemoteException e) {
                 Log.e(TAG, "Unable to invoke Wifi usability stats entry listener "
                         + listener, e);
@@ -4131,7 +4132,7 @@ public class WifiMetrics {
                 s.totalNanScanTimeMs, s.totalBackgroundScanTimeMs, s.totalRoamScanTimeMs,
                 s.totalPnoScanTimeMs, s.totalHotspot2ScanTimeMs, s.totalCcaBusyFreqTimeMs,
                 s.totalRadioOnFreqTimeMs, s.totalBeaconRx, probeStatus,
-                s.probeElapsedTimeMsSinceLastUpdate, s.probeMcsRateSinceLastUpdate,
+                s.probeElapsedTimeSinceLastUpdateMs, s.probeMcsRateSinceLastUpdate,
                 s.rxLinkSpeedMbps
         );
     }
@@ -4162,7 +4163,7 @@ public class WifiMetrics {
         out.seqNumToFramework = s.seqNumToFramework;
         out.predictionHorizonSec = s.predictionHorizonSec;
         out.probeStatusSinceLastUpdate = s.probeStatusSinceLastUpdate;
-        out.probeElapsedTimeMsSinceLastUpdate = s.probeElapsedTimeMsSinceLastUpdate;
+        out.probeElapsedTimeSinceLastUpdateMs = s.probeElapsedTimeSinceLastUpdateMs;
         out.probeMcsRateSinceLastUpdate = s.probeMcsRateSinceLastUpdate;
         out.rxLinkSpeedMbps = s.rxLinkSpeedMbps;
         out.isSameBssidAndFreq = s.isSameBssidAndFreq;
@@ -4297,26 +4298,26 @@ public class WifiMetrics {
     /**
      * Add a new listener for Wi-Fi usability stats handling.
      */
-    public void addWifiUsabilityListener(IBinder binder, IWifiUsabilityStatsListener listener,
+    public void addOnWifiUsabilityListener(IBinder binder, IOnWifiUsabilityStatsListener listener,
             int listenerIdentifier) {
-        if (!mWifiUsabilityListeners.add(binder, listener, listenerIdentifier)) {
+        if (!mOnWifiUsabilityListeners.add(binder, listener, listenerIdentifier)) {
             Log.e(TAG, "Failed to add listener");
             return;
         }
         if (DBG) {
             Log.v(TAG, "Adding listener. Num listeners: "
-                    + mWifiUsabilityListeners.getNumCallbacks());
+                    + mOnWifiUsabilityListeners.getNumCallbacks());
         }
     }
 
     /**
      * Remove an existing listener for Wi-Fi usability stats handling.
      */
-    public void removeWifiUsabilityListener(int listenerIdentifier) {
-        mWifiUsabilityListeners.remove(listenerIdentifier);
+    public void removeOnWifiUsabilityListener(int listenerIdentifier) {
+        mOnWifiUsabilityListeners.remove(listenerIdentifier);
         if (DBG) {
             Log.v(TAG, "Removing listener. Num listeners: "
-                    + mWifiUsabilityListeners.getNumCallbacks());
+                    + mOnWifiUsabilityListeners.getNumCallbacks());
         }
     }
 
@@ -4378,7 +4379,7 @@ public class WifiMetrics {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_SUCCESS;
-            mProbeElapsedTimeMsSinceLastUpdate = elapsedTimeMs;
+            mProbeElapsedTimeSinceLastUpdateMs = elapsedTimeMs;
 
             mLinkProbeSuccessSecondsSinceLastTxSuccessHistogram.increment(
                     (int) (timeSinceLastTxSuccessMs / 1000));
@@ -4404,7 +4405,7 @@ public class WifiMetrics {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;
-            mProbeElapsedTimeMsSinceLastUpdate = Integer.MAX_VALUE;
+            mProbeElapsedTimeSinceLastUpdateMs = Integer.MAX_VALUE;
 
             mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.increment(
                     (int) (timeSinceLastTxSuccessMs / 1000));
