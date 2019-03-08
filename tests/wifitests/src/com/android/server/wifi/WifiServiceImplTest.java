@@ -115,6 +115,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
@@ -233,6 +234,7 @@ public class WifiServiceImplTest {
     @Mock TelephonyManager mTelephonyManager;
     @Mock IOnWifiUsabilityStatsListener mOnWifiUsabilityStatsListener;
     @Mock WifiConfigManager mWifiConfigManager;
+    @Mock WifiScoreReport mWifiScoreReport;
 
     @Spy FakeWifiLog mLog;
 
@@ -357,6 +359,7 @@ public class WifiServiceImplTest {
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
+        when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
@@ -436,6 +439,35 @@ public class WifiServiceImplTest {
         setupClientModeImplHandlerForRunWithScissors();
 
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
+    }
+
+    /**
+     * Ensure that WifiServiceImpl.dump() calls
+     * {@link ClientModeImpl#updateLinkLayerStatsRssiAndScoreReport()}, then calls
+     * mWifiInjector.getClientModeImplHandler().runWithScissors() at least once before calling
+     * {@link WifiScoreReport#dump(FileDescriptor, PrintWriter, String[])}.
+     *
+     * runWithScissors() needs to be called at least once so that we know that the async call
+     * {@link ClientModeImpl#updateLinkLayerStatsRssiAndScoreReport()} has completed, since
+     * runWithScissors() blocks the current thread until the call completes, which includes all
+     * previous calls posted to that thread.
+     *
+     * This ensures that WifiScoreReport will always get updated RSSI and link layer stats before
+     * dumping during a bug report, no matter if the screen is on or not.
+     */
+    @Test
+    public void testWifiScoreReportDump() {
+        setupClientModeImplHandlerForRunWithScissors();
+
+        mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
+
+        InOrder inOrder = inOrder(mClientModeImpl, mHandlerSpyForCmiRunWithScissors,
+                mWifiScoreReport);
+
+        inOrder.verify(mClientModeImpl).updateLinkLayerStatsRssiAndScoreReport();
+        inOrder.verify(mHandlerSpyForCmiRunWithScissors, atLeastOnce())
+                .runWithScissors(any(), anyLong());
+        inOrder.verify(mWifiScoreReport).dump(any(), any(), any());
     }
 
     /**
