@@ -22,6 +22,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
+import android.net.NetworkStack;
 import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;
@@ -235,10 +236,11 @@ public class WifiPermissionsUtil {
     public void enforceCanAccessScanResults(String pkgName, int uid) throws SecurityException {
         checkPackage(uid, pkgName);
 
-        // Apps with NETWORK_SETTINGS, NETWORK_SETUP_WIZARD & NETWORK_MANAGED_PROVISIONING
-        // are granted a bypass.
+        // Apps with NETWORK_SETTINGS, NETWORK_SETUP_WIZARD, NETWORK_MANAGED_PROVISIONING,
+        // NETWORK_STACK & MAINLINE_NETWORK_STACK are granted a bypass.
         if (checkNetworkSettingsPermission(uid) || checkNetworkSetupWizardPermission(uid)
-                || checkNetworkManagedProvisioningPermission(uid)) {
+                || checkNetworkManagedProvisioningPermission(uid)
+                || checkNetworkStackPermission(uid) || checkMainlineNetworkStackPermission(uid)) {
             return;
         }
 
@@ -460,6 +462,15 @@ public class WifiPermissionsUtil {
     public boolean checkNetworkStackPermission(int uid) {
         return mWifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_STACK, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Returns true if the |uid| holds MAINLINE_NETWORK_STACK permission.
+     */
+    public boolean checkMainlineNetworkStackPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
 
