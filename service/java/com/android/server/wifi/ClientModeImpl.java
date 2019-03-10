@@ -3167,13 +3167,20 @@ public class ClientModeImpl extends StateMachine {
             mWifiScoreCard.noteConnectionFailure(mWifiInfo,
                     level2FailureCode, connectivityFailureCode);
         }
+        // if connected, this should be non-null.
+        WifiConfiguration configuration = getCurrentWifiConfiguration();
+        if (configuration == null) {
+            // If not connected, this should be non-null.
+            configuration = getTargetWifiConfiguration();
+        }
         mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode,
                 level2FailureReason);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
-        mNetworkFactory.handleConnectionAttemptEnded(
-                level2FailureCode, getCurrentWifiConfiguration());
-        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                level2FailureCode, getCurrentWifiConfiguration(), getCurrentBSSID());
+        if (configuration != null) {
+            mNetworkFactory.handleConnectionAttemptEnded(level2FailureCode, configuration);
+            mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                    level2FailureCode, configuration, getCurrentBSSID());
+        }
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
     }
 
@@ -3864,6 +3871,13 @@ public class ClientModeImpl extends StateMachine {
             return null;
         }
         return mWifiConfigManager.getConfiguredNetwork(mLastNetworkId);
+    }
+
+    private WifiConfiguration getTargetWifiConfiguration() {
+        if (mTargetNetworkId == WifiConfiguration.INVALID_NETWORK_ID) {
+            return null;
+        }
+        return mWifiConfigManager.getConfiguredNetwork(mTargetNetworkId);
     }
 
     ScanResult getCurrentScanResult() {
