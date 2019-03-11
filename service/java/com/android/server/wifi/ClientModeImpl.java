@@ -5848,9 +5848,11 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                     if (message.arg2 == 15 /* FOURWAY_HANDSHAKE_TIMEOUT */) {
+                        String bssid = (message.obj == null)
+                                ? mTargetRoamBSSID : (String) message.obj;
                         mWifiInjector.getWifiLastResortWatchdog()
                                 .noteConnectionFailureAndTriggerIfNeeded(
-                                        getTargetSsid(), mTargetRoamBSSID,
+                                        getTargetSsid(), bssid,
                                         WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
                     }
                     break;

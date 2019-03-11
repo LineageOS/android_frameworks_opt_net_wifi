@@ -106,6 +106,7 @@ public class WifiConnectivityManagerTest {
         mFullScanMaxRxPacketRate = mResource.getInteger(
                 R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(anyString())).thenReturn(false);
     }
 
     /**
@@ -2257,5 +2258,30 @@ public class WifiConnectivityManagerTest {
                 WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
         inOrder.verifyNoMoreInteractions();
+    }
+
+    /**
+     * Verifies BSSID blacklist consistent with Watchdog trigger.
+     *
+     * Expected behavior: A BSSID won't gets blacklisted if there only BSSID
+     * of its SSID be observed and Watchdog trigger is activated.
+     */
+    @Test
+    public void verifyConsistentWatchdogAndBssidBlacklist() {
+        String bssid = "6c:f3:7f:ae:8c:f3";
+
+        // If there only one BSSID is available and Watchdog trigger is activated.
+        when(mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(anyString())).thenReturn(true);
+        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
+
+        // Verify that a BSSID won't gets blacklisted if there only one BSSID is available
+        // and watchdog recover is not triggered.
+        for (int i = 0; i < WifiConnectivityManager.BSSID_BLACKLIST_THRESHOLD; i++) {
+            assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
+            mWifiConnectivityManager.trackBssid(bssid, false, 1);
+        }
+
+        // Verify the BSSID is not blacklisted.
+        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
     }
 }
