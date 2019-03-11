@@ -355,6 +355,8 @@ public class ClientModeImpl extends StateMachine {
     private DetailedState mNetworkAgentState;
     private SupplicantStateTracker mSupplicantStateTracker;
 
+    private int mWifiLinkLayerStatsSupported = 4; // Temporary disable
+
     // Indicates that framework is attempting to roam, set true on CMD_START_ROAM, set false when
     // wifi connects or fails to connect
     private boolean mIsAutoRoaming = false;
@@ -1304,15 +1306,20 @@ public class ClientModeImpl extends StateMachine {
             loge("getWifiLinkLayerStats called without an interface");
             return null;
         }
+        WifiLinkLayerStats stats = null;
         mLastLinkLayerStatsUpdate = mClock.getWallClockMillis();
-        WifiLinkLayerStats stats = mWifiNative.getWifiLinkLayerStats(mInterfaceName);
-        if (stats != null) {
-            mOnTime = stats.on_time;
-            mTxTime = stats.tx_time;
-            mRxTime = stats.rx_time;
-            mRunningBeaconCount = stats.beacon_rx;
-            mWifiInfo.updatePacketRates(stats, mLastLinkLayerStatsUpdate);
-        } else {
+        if (mWifiLinkLayerStatsSupported > 0) {
+            stats = mWifiNative.getWifiLinkLayerStats(mInterfaceName);
+            if (stats == null) {
+                mWifiLinkLayerStatsSupported -= 1;
+            } else {
+                mOnTime = stats.on_time;
+                mTxTime = stats.tx_time;
+                mRxTime = stats.rx_time;
+                mRunningBeaconCount = stats.beacon_rx;
+                mWifiInfo.updatePacketRates(stats, mLastLinkLayerStatsUpdate);
+            }
+        } else { // LinkLayerStats are broken or unsupported
             long mTxPkts = mFacade.getTxPackets(mInterfaceName);
             long mRxPkts = mFacade.getRxPackets(mInterfaceName);
             mWifiInfo.updatePacketRates(mTxPkts, mRxPkts, mLastLinkLayerStatsUpdate);
