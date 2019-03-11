@@ -1281,9 +1281,14 @@ public class ClientModeImpl extends StateMachine {
                 mWifiInfo.updatePacketRates(stats, mLastLinkLayerStatsUpdate);
             }
         } else { // LinkLayerStats are broken or unsupported
+<<<<<<< HEAD   (ef8b1a Merge tag 'android-10.0.0_r37' into staging/lineage-17.1_mer)
             long mTxPkts = mFacade.getTxPackets(mInterfaceName);
             long mRxPkts = mFacade.getRxPackets(mInterfaceName);
             mWifiInfo.updatePacketRates(mTxPkts, mRxPkts, mLastLinkLayerStatsUpdate);
+=======
+                long mTxPkts = mFacade.getTxPackets(mInterfaceName);
+                long mRxPkts = mFacade.getRxPackets(mInterfaceName);
+>>>>>>> CHANGE (119f4e resurrect mWifiLinkLayerStatsSupported counter)
         }
         return stats;
     }
