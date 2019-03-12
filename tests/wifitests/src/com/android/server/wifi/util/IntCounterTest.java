@@ -16,12 +16,12 @@
 
 package com.android.server.wifi.util;
 
-import static com.android.server.wifi.WifiMetricsTestUtil.assertMapEntriesEqual;
-import static com.android.server.wifi.WifiMetricsTestUtil.buildMapEntryInt32Int32;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertKeyCountsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
+import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 
 import org.junit.Test;
 
@@ -42,7 +42,7 @@ public class IntCounterTest {
     @Test
     public void testEmpty() {
         IntCounter counter = new IntCounter();
-        assertMapEntriesEqual(new MapEntryInt32Int32[0], counter.toProto());
+        assertKeyCountsEqual(new Int32Count[0], counter.toProto());
     }
 
     /**
@@ -56,18 +56,18 @@ public class IntCounterTest {
             counter.increment(k);
         }
 
-        MapEntryInt32Int32[] expected = {
-                buildMapEntryInt32Int32(-4235, 3),
-                buildMapEntryInt32Int32(-1231, 1),
-                buildMapEntryInt32Int32(-5, 1),
-                buildMapEntryInt32Int32(20, 2),
-                buildMapEntryInt32Int32(34, 2),
-                buildMapEntryInt32Int32(100, 2),
-                buildMapEntryInt32Int32(3535, 2),
-                buildMapEntryInt32Int32(5656, 1),
-                buildMapEntryInt32Int32(6456, 2),
+        Int32Count[] expected = {
+                buildInt32Count(-4235, 3),
+                buildInt32Count(-1231, 1),
+                buildInt32Count(-5, 1),
+                buildInt32Count(20, 2),
+                buildInt32Count(34, 2),
+                buildInt32Count(100, 2),
+                buildInt32Count(3535, 2),
+                buildInt32Count(5656, 1),
+                buildInt32Count(6456, 2),
         };
-        assertMapEntriesEqual(expected, counter.toProto());
+        assertKeyCountsEqual(expected, counter.toProto());
     }
 
     /**
@@ -81,12 +81,12 @@ public class IntCounterTest {
             counter.increment(k);
         }
 
-        MapEntryInt32Int32[] expected = {
-                buildMapEntryInt32Int32(-5, 5),
-                buildMapEntryInt32Int32(20, 2),
-                buildMapEntryInt32Int32(34, 2),
-                buildMapEntryInt32Int32(100, 7),
+        Int32Count[] expected = {
+                buildInt32Count(-5, 5),
+                buildInt32Count(20, 2),
+                buildInt32Count(34, 2),
+                buildInt32Count(100, 7),
         };
-        assertMapEntriesEqual(expected, counter.toProto());
+        assertKeyCountsEqual(expected, counter.toProto());
     }
 }

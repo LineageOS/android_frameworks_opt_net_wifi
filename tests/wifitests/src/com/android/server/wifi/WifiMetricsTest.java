@@ -22,12 +22,12 @@ import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
 
 import static com.android.server.wifi.WifiMetricsTestUtil.assertDeviceMobilityStatePnoScanStatsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertHistogramBucketsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertKeyCountsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeFailureReasonCountsEqual;
-import static com.android.server.wifi.WifiMetricsTestUtil.assertMapEntriesEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildDeviceMobilityStatePnoScanStats;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildHistogramBucketInt32;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureReasonCount;
-import static com.android.server.wifi.WifiMetricsTestUtil.buildMapEntryInt32Int32;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -78,9 +78,9 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
+import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
-import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
@@ -3238,33 +3238,33 @@ public class WifiMetricsTest {
         dumpProtoAndDeserialize();
         LinkProbeStats linkProbeStats = mDecodedProto.linkProbeStats;
 
-        MapEntryInt32Int32[] expectedSuccessRssiHistogram = {
-                buildMapEntryInt32Int32(-75, 1),
-                buildMapEntryInt32Int32(-73, 1),
-                buildMapEntryInt32Int32(-71, 1),
+        Int32Count[] expectedSuccessRssiHistogram = {
+                buildInt32Count(-75, 1),
+                buildInt32Count(-73, 1),
+                buildInt32Count(-71, 1),
         };
-        assertMapEntriesEqual(expectedSuccessRssiHistogram,
+        assertKeyCountsEqual(expectedSuccessRssiHistogram,
                 linkProbeStats.successRssiCounts);
 
-        MapEntryInt32Int32[] expectedFailureRssiHistogram = {
-                buildMapEntryInt32Int32(-80, 2),
-                buildMapEntryInt32Int32(-78, 1),
+        Int32Count[] expectedFailureRssiHistogram = {
+                buildInt32Count(-80, 2),
+                buildInt32Count(-78, 1),
         };
-        assertMapEntriesEqual(expectedFailureRssiHistogram,
+        assertKeyCountsEqual(expectedFailureRssiHistogram,
                 linkProbeStats.failureRssiCounts);
 
-        MapEntryInt32Int32[] expectedSuccessLinkSpeedHistogram = {
-                buildMapEntryInt32Int32(50, 1),
-                buildMapEntryInt32Int32(160, 2)
+        Int32Count[] expectedSuccessLinkSpeedHistogram = {
+                buildInt32Count(50, 1),
+                buildInt32Count(160, 2)
         };
-        assertMapEntriesEqual(expectedSuccessLinkSpeedHistogram,
+        assertKeyCountsEqual(expectedSuccessLinkSpeedHistogram,
                 linkProbeStats.successLinkSpeedCounts);
 
-        MapEntryInt32Int32[] expectedFailureLinkSpeedHistogram = {
-                buildMapEntryInt32Int32(6, 2),
-                buildMapEntryInt32Int32(10, 1)
+        Int32Count[] expectedFailureLinkSpeedHistogram = {
+                buildInt32Count(6, 2),
+                buildInt32Count(10, 1)
         };
-        assertMapEntriesEqual(expectedFailureLinkSpeedHistogram,
+        assertKeyCountsEqual(expectedFailureLinkSpeedHistogram,
                 linkProbeStats.failureLinkSpeedCounts);
 
         HistogramBucketInt32[] expectedSuccessTimeSinceLastTxSuccessSecondsHistogram = {
@@ -3317,35 +3317,35 @@ public class WifiMetricsTest {
 
         NetworkSelectionExperimentDecisions exp12 =
                 findUniqueNetworkSelectionExperimentDecisions(1, 2);
-        MapEntryInt32Int32[] exp12SameExpected = {
-                buildMapEntryInt32Int32(2, 1),
-                buildMapEntryInt32Int32(6, 2)
+        Int32Count[] exp12SameExpected = {
+                buildInt32Count(2, 1),
+                buildInt32Count(6, 2)
         };
-        assertMapEntriesEqual(exp12SameExpected, exp12.sameSelectionNumChoicesCounter);
-        MapEntryInt32Int32[] exp12DiffExpected = {
-                buildMapEntryInt32Int32(1, 1),
-                buildMapEntryInt32Int32(6, 1)
+        assertKeyCountsEqual(exp12SameExpected, exp12.sameSelectionNumChoicesCounter);
+        Int32Count[] exp12DiffExpected = {
+                buildInt32Count(1, 1),
+                buildInt32Count(6, 1)
         };
-        assertMapEntriesEqual(exp12DiffExpected, exp12.differentSelectionNumChoicesCounter);
+        assertKeyCountsEqual(exp12DiffExpected, exp12.differentSelectionNumChoicesCounter);
 
         NetworkSelectionExperimentDecisions exp32 =
                 findUniqueNetworkSelectionExperimentDecisions(3, 2);
-        MapEntryInt32Int32[] exp32SameExpected = {};
-        assertMapEntriesEqual(exp32SameExpected, exp32.sameSelectionNumChoicesCounter);
-        MapEntryInt32Int32[] exp32DiffExpected = {
-                buildMapEntryInt32Int32(
+        Int32Count[] exp32SameExpected = {};
+        assertKeyCountsEqual(exp32SameExpected, exp32.sameSelectionNumChoicesCounter);
+        Int32Count[] exp32DiffExpected = {
+                buildInt32Count(
                         WifiMetrics.NetworkSelectionExperimentResults.MAX_CHOICES, 1)
         };
-        assertMapEntriesEqual(exp32DiffExpected, exp32.differentSelectionNumChoicesCounter);
+        assertKeyCountsEqual(exp32DiffExpected, exp32.differentSelectionNumChoicesCounter);
 
         NetworkSelectionExperimentDecisions exp14 =
                 findUniqueNetworkSelectionExperimentDecisions(1, 4);
-        MapEntryInt32Int32[] exp14SameExpected = {
-                buildMapEntryInt32Int32(2, 1)
+        Int32Count[] exp14SameExpected = {
+                buildInt32Count(2, 1)
         };
-        assertMapEntriesEqual(exp14SameExpected, exp14.sameSelectionNumChoicesCounter);
-        MapEntryInt32Int32[] exp14DiffExpected = {};
-        assertMapEntriesEqual(exp14DiffExpected, exp14.differentSelectionNumChoicesCounter);
+        assertKeyCountsEqual(exp14SameExpected, exp14.sameSelectionNumChoicesCounter);
+        Int32Count[] exp14DiffExpected = {};
+        assertKeyCountsEqual(exp14DiffExpected, exp14.differentSelectionNumChoicesCounter);
     }
 
     /**
