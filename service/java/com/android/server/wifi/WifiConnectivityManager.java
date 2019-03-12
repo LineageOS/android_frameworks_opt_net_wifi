@@ -1283,6 +1283,14 @@ public class WifiConnectivityManager {
             return mBssidBlacklist.remove(bssid) != null;
         }
 
+        // Do not update BSSID blacklist with information if this is the only
+        // BSSID for its SSID. By ignoring it we will cause additional failures
+        // which will trigger Watchdog.
+        if (mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid)) {
+            localLog("Ignore update Bssid Blacklist since Watchdog trigger is activated");
+            return false;
+        }
+
         // Update the bssid's blacklist status when it is disabled because of
         // association rejection.
         BssidBlacklistStatus status = mBssidBlacklist.get(bssid);

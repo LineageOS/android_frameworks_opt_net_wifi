@@ -67,6 +67,10 @@ public class WifiLastResortWatchdog {
     public static final String BUGREPORT_TITLE = "Wifi watchdog triggered";
     public static final double PROB_TAKE_BUGREPORT_DEFAULT = 1;
 
+    // Number of milliseconds to wait before re-enable Watchdog triger
+    @VisibleForTesting
+    public static final long LAST_TRIGGER_TIMEOUT_MILLIS = 2 * 3600 * 1000; // 2 hours
+
     /**
      * Cached WifiConfigurations of available networks seen within MAX_BSSID_AGE scan results
      * Key:BSSID, Value:Counters of failure types
@@ -85,7 +89,7 @@ public class WifiLastResortWatchdog {
     // Is Watchdog allowed to trigger now? Set to false after triggering. Set to true after
     // successfully connecting or a new network (SSID) becomes available to connect to.
     private boolean mWatchdogAllowedToTrigger = true;
-    private long mTimeLastTrigger;
+    private long mTimeLastTrigger = 0;
 
     private WifiInjector mWifiInjector;
     private WifiMetrics mWifiMetrics;
@@ -145,7 +149,13 @@ public class WifiLastResortWatchdog {
                         // This is a new SSID, create new FailureCount for it and set AP count to 1
                         ssidFailsAndApCount = Pair.create(new AvailableNetworkFailureCount(config),
                                 1);
-                        setWatchdogTriggerEnabled(true);
+                        // Do not re-enable Watchdog in LAST_TRIGGER_TIMEOUT_MILLIS
+                        // after last time Watchdog be triggered
+                        if (mTimeLastTrigger == 0
+                                || (mClock.getElapsedSinceBootMillis() - mTimeLastTrigger)
+                                    >= LAST_TRIGGER_TIMEOUT_MILLIS) {
+                            setWatchdogTriggerEnabled(true);
+                        }
                     } else {
                         final Integer numberOfAps = ssidFailsAndApCount.second;
                         // This is not a new SSID, increment the AP count for it
@@ -339,6 +349,59 @@ public class WifiLastResortWatchdog {
         }
         availableNetworkFailureCount.incrementFailureCount(reason);
         incrementSsidFailureCount(ssid, reason);
+    }
+
+    /**
+     * Helper function to check if we should ignore BSSID update.
+     * @param bssid BSSID of the access point
+     * @return true if we should ignore BSSID update
+     */
+    public boolean shouldIgnoreBssidUpdate(String bssid) {
+        return mWatchdogAllowedToTrigger
+                && isBssidOnlyApOfSsid(bssid)
+                && isSingleSsidRecorded()
+                && checkIfAtleastOneNetworkHasEverConnected();
+    }
+
+    /**
+     * Helper function to check if we should ignore SSID update.
+     * @return true if should ignore SSID update
+     */
+    public boolean shouldIgnoreSsidUpdate() {
+        return mWatchdogAllowedToTrigger
+                && isSingleSsidRecorded()
+                && checkIfAtleastOneNetworkHasEverConnected();
+    }
+
+    /**
+     * Check the specified BSSID is the only BSSID for its corresponding SSID.
+     * @param bssid BSSID of the access point
+     * @return true if only BSSID for its corresponding SSID be observed
+     */
+    private boolean isBssidOnlyApOfSsid(String bssid) {
+        AvailableNetworkFailureCount availableNetworkFailureCount =
+                mRecentAvailableNetworks.get(bssid);
+        if (availableNetworkFailureCount == null) {
+            return false;
+        }
+        String ssid = availableNetworkFailureCount.ssid;
+        Pair<AvailableNetworkFailureCount, Integer> ssidFails = mSsidFailureCount.get(ssid);
+        if (ssidFails == null) {
+            Log.d(TAG, "isOnlyBssidAvailable: Could not find SSID count for " + ssid);
+            return false;
+        }
+        if (ssidFails.second != 1) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check there is only single SSID be observed.
+     * @return true if only single SSID be observed.
+     */
+    private boolean isSingleSsidRecorded() {
+        return (mSsidFailureCount.size() == 1);
     }
 
     /**

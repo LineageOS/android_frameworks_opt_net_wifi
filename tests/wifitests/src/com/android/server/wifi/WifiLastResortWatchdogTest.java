@@ -1381,7 +1381,8 @@ public class WifiLastResortWatchdogTest {
     }
 
     /**
-     * Case 24: Test enabling/disabling of Watchdog Trigger, trigger re-enabled after new network
+     * Case 24: Test enabling/disabling of Watchdog Trigger, trigger re-enabled after
+     * timeout mechanism with new network available.
      * In this test, we have 3 networks. Increment failures until Watchdog triggers and deactivates,
      * we then buffer a new network (network 4), then increment failures until all networks over
      * threshold Expected behavior: Watchdog able to trigger again after discovering a new network
@@ -1393,6 +1394,9 @@ public class WifiLastResortWatchdogTest {
         int dhcpFailures = WifiLastResortWatchdog.FAILURE_THRESHOLD + 3;
         boolean[] hasEverConnected = {false, true, false, false};
         boolean watchdogTriggered;
+
+        final long timeAtFailure = 100;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure);
 
         // Buffer potential candidates 1,2,3
         List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(
@@ -1416,12 +1420,14 @@ public class WifiLastResortWatchdogTest {
             assertEquals(false, watchdogTriggered);
         }
 
+        when(mClock.getElapsedSinceBootMillis())
+                .thenReturn(timeAtFailure + WifiLastResortWatchdog.LAST_TRIGGER_TIMEOUT_MILLIS);
+
         candidates = createFilteredQnsCandidates(mSsids, mBssids, mFrequencies, mCaps, mLevels,
                 mIsEphemeral, hasEverConnected);
         mLastResortWatchdog.updateAvailableNetworks(candidates);
 
         incrementFailuresUntilTrigger(mSsids, mBssids);
-
     }
 
     /**
@@ -1460,9 +1466,9 @@ public class WifiLastResortWatchdogTest {
             assertFailureCountEquals(bssids[i], 0, 0, 0);
         }
 
-        final long timeAtFailure = 100;
-        final long timeAtReconnect = 5000;
-        final long expectedDuration = timeAtReconnect - timeAtFailure;
+        long timeAtFailure = 100;
+        long timeAtReconnect = 5000;
+        long expectedDuration = timeAtReconnect - timeAtFailure;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure, timeAtReconnect);
 
         //Increment failure counts
@@ -1528,6 +1534,11 @@ public class WifiLastResortWatchdogTest {
             mLastResortWatchdog.updateAvailableNetworks(candidates);
         }
 
+        timeAtFailure = 10100;
+        timeAtReconnect = 15000;
+        expectedDuration = timeAtReconnect - timeAtFailure;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure, timeAtReconnect);
+
         //Increment failure counts
         for (int i = 0; i < WifiLastResortWatchdog.FAILURE_THRESHOLD; i++) {
             mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
@@ -1540,12 +1551,17 @@ public class WifiLastResortWatchdogTest {
                     ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
         }
 
+        // increment the timer to enable Watchdog
+        when(mClock.getElapsedSinceBootMillis())
+                .thenReturn(timeAtFailure + WifiLastResortWatchdog.LAST_TRIGGER_TIMEOUT_MILLIS);
+
         // Add network #5 back into the candidates
         candidates = createFilteredQnsCandidates(ssids,
                 bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
 
-        // LastResortWatchdog should reactivate because there is a new network (#5) available,
-        // Not because it was successful
+        // LastResortWatchdog should reactivate if there is a new network (#5)
+        // available and time interval after last Watchdog trigger is over
+        // LAST_TRIGGER_TIMEOUT_MILLIS.
         mLastResortWatchdog.updateAvailableNetworks(candidates);
 
         // Simulate wifi connecting
@@ -1995,5 +2011,66 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, never()).incrementNumLastResortWatchdogTriggersWithBadAssociation();
         verify(mWifiMetrics, times(1)).addCountToNumLastResortWatchdogBadDhcpNetworksTotal(1);
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggersWithBadDhcp();
+    }
+
+    /**
+     * Test Watchdog with time based logic.
+     *
+     * After Watchdog has triggered once and still fail to connect,
+     * Watchdog will not be allowed to work in 2 hours.
+     * Expected result: Watchdog won't be trigger again
+     */
+    @Test
+    public void testWatchdogWithTimeBasedLogic() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] frequencies = {2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-60};
+        boolean[] isEphemeral = {false};
+        boolean[] hasEverConnected = {true};
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < mSsids.length; i++) {
+            assertFailureCountEquals(mBssids[i], 0, 0, 0);
+        }
+
+        final long timeAtFailure = 100;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure);
+
+        incrementFailuresUntilTrigger(ssids, bssids);
+
+        // Verify watchdog has triggered a restart
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
+
+        // Age out network
+        for (int i = 0; i < WifiLastResortWatchdog.MAX_BSSID_AGE; i++) {
+            mLastResortWatchdog.updateAvailableNetworks(null);
+        }
+        assertEquals(mLastResortWatchdog.getRecentAvailableNetworks().size(), 0);
+
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure + (300 * 1000));
+
+        // network back into the candidates
+        candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < mSsids.length; i++) {
+            assertFailureCountEquals(mBssids[i], 0, 0, 0);
+        }
+
+        // Increment failure counts
+        for (int i = 0; i < WifiLastResortWatchdog.FAILURE_THRESHOLD; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                    ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+
+        // Watchdog should not be triggerred since time based logic.
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
     }
 }
