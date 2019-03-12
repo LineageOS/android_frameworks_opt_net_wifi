@@ -3540,7 +3540,7 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_BOOT_COMPLETED:
                     // get other services that we need to manage
                     getAdditionalWifiServiceInterfaces();
-                    new MemoryStoreImpl(mContext, mWifiScoreCard).start();
+                    new MemoryStoreImpl(mContext, mWifiInjector, mWifiScoreCard).start();
                     if (!mWifiConfigManager.loadFromStore()) {
                         Log.e(TAG, "Failed to load from config store");
                     }
