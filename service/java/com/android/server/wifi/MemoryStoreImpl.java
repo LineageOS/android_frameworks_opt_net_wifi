@@ -138,7 +138,7 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
         if (mIpMemoryStore != null) {
             Log.w(TAG, "Reconnecting to IpMemoryStore service");
         }
-        mIpMemoryStore = (IpMemoryStore) mContext.getSystemService(Context.IP_MEMORY_STORE_SERVICE);
+        mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
         if (mIpMemoryStore == null) {
             Log.e(TAG, "No IpMemoryStore service!");
             return;

@@ -22,8 +22,8 @@ import android.net.wifi.WifiManager;
 
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
+import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
-import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -39,8 +39,7 @@ public class WifiMetricsTestUtil {
      */
     public static void assertHistogramBucketsEqual(HistogramBucketInt32[] expected,
             HistogramBucketInt32[] actual) {
-        assertEquals("Number of buckets do not match!",
-                expected.length, actual.length);
+        assertEquals("Number of buckets do not match!", expected.length, actual.length);
 
         for (int i = 0; i < expected.length; i++) {
             HistogramBucketInt32 expectedBucket = expected[i];
@@ -70,29 +69,27 @@ public class WifiMetricsTestUtil {
      * Asserts that the two arrays are equal, reporting any difference between them.
      * Note: The order of key counts in each array must match!
      */
-    public static void assertMapEntriesEqual(MapEntryInt32Int32[] expected,
-            MapEntryInt32Int32[] actual) {
-        assertEquals("Number of map entries do not match!",
-                expected.length, actual.length);
+    public static void assertKeyCountsEqual(Int32Count[] expected, Int32Count[] actual) {
+        assertEquals("Number of key counts do not match!", expected.length, actual.length);
 
         for (int i = 0; i < expected.length; i++) {
-            MapEntryInt32Int32 expectedKeyCount = expected[i];
-            MapEntryInt32Int32 actualKeyCount = actual[i];
+            Int32Count expectedKeyCount = expected[i];
+            Int32Count actualKeyCount = actual[i];
 
             assertEquals(String.format("KeyCount[%d].key does not match!", i),
                     expectedKeyCount.key, actualKeyCount.key);
-            assertEquals(String.format("KeyCount[%d].value does not match!", i),
-                    expectedKeyCount.value, actualKeyCount.value);
+            assertEquals(String.format("KeyCount[%d].count does not match!", i),
+                    expectedKeyCount.count, actualKeyCount.count);
         }
     }
 
     /**
-     * The constructor we wish MapEntryInt32Int32 had.
+     * The constructor we wish Int32Count had.
      */
-    public static MapEntryInt32Int32 buildMapEntryInt32Int32(int key, int count) {
-        MapEntryInt32Int32 keyCount = new MapEntryInt32Int32();
+    public static Int32Count buildInt32Count(int key, int count) {
+        Int32Count keyCount = new Int32Count();
         keyCount.key = key;
-        keyCount.value = count;
+        keyCount.count = count;
         return keyCount;
     }
 

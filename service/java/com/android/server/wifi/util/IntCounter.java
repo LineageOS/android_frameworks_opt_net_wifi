@@ -18,7 +18,7 @@ package com.android.server.wifi.util;
 
 import android.util.SparseIntArray;
 
-import com.android.server.wifi.nano.WifiMetricsProto.MapEntryInt32Int32;
+import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 
 import java.lang.reflect.Array;
 import java.util.Iterator;
@@ -141,11 +141,11 @@ public class IntCounter extends SparseIntArray implements Iterable<IntCounter.Ke
     /**
      * Converts this object to a standard Protobuf representation.
      */
-    public MapEntryInt32Int32[] toProto() {
-        return toProto(MapEntryInt32Int32.class, (key, count) -> {
-            MapEntryInt32Int32 entry = new MapEntryInt32Int32();
+    public Int32Count[] toProto() {
+        return toProto(Int32Count.class, (key, count) -> {
+            Int32Count entry = new Int32Count();
             entry.key = key;
-            entry.value = count;
+            entry.count = count;
             return entry;
         });
     }
