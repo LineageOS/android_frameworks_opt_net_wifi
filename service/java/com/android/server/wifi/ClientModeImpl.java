@@ -5646,6 +5646,7 @@ public class ClientModeImpl extends StateMachine {
                         removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
                         mWifiDiagnostics.reportConnectionEvent(
                                 WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
+                        mWifiScoreCard.noteValidationSuccess(mWifiInfo);
                         config = getCurrentWifiConfiguration();
                         if (config != null) {
                             // re-enable autojoin
