@@ -771,8 +771,8 @@ public class WifiNetworkSuggestionsManager {
         Notification notification = new Notification.Builder(
                 mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
-                .setTicker(mResources.getString(R.string.wifi_suggestion_title, appName))
-                .setContentTitle(mResources.getString(R.string.wifi_suggestion_title, appName))
+                .setTicker(mResources.getString(R.string.wifi_suggestion_title))
+                .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentText(mResources.getString(R.string.wifi_suggestion_content, appName))
                 .setDeleteIntent(getPrivateBroadcast(NOTIFICATION_USER_DISMISSED_INTENT_ACTION,
                         packageName, uid))

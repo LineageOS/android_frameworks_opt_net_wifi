@@ -1836,8 +1836,6 @@ public class WifiNetworkSuggestionsManagerTest {
 
     private boolean checkUserApprovalNotificationParams(
             Notification notification, String expectedAppName) {
-        if (!notification.tickerText.toString().contains(expectedAppName)) return false;
-        if (!notification.extras.getString(EXTRA_TITLE).contains(expectedAppName)) return false;
         if (!notification.extras.getString(EXTRA_TEXT).contains(expectedAppName)) return false;
         return true;
     }
