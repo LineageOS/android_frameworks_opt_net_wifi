@@ -38,7 +38,7 @@ set -x # print commands
 adb root
 adb wait-for-device
 
-adb install -r -g "$OUT/data/app/FrameworksWifiTests/FrameworksWifiTests.apk"
+adb install -r -g "$OUT/testcases/FrameworksWifiTests/arm64/FrameworksWifiTests.apk"
 
 adb shell am instrument --no-hidden-api-checks -w "$@" \
   'com.android.server.wifi.test/com.android.server.wifi.CustomTestRunner'
