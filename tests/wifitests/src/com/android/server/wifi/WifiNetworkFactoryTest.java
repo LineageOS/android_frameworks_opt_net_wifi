@@ -487,17 +487,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Verify UI start.
-        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext).startActivityAsUser(
-                intentArgumentCaptor.capture(), eq(UserHandle.getUserHandleForUid(TEST_UID_1)));
-        Intent intent = intentArgumentCaptor.getValue();
-        assertNotNull(intent);
-        assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
-        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_APP_NAME),
-                TEST_APP_NAME);
-        assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
-        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
-        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
+        validateUiStartParams(true);
 
         // Verify scan settings.
         verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
@@ -517,17 +507,7 @@ public class WifiNetworkFactoryTest {
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
         // Verify UI start.
-        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext).startActivityAsUser(
-                intentArgumentCaptor.capture(), eq(UserHandle.getUserHandleForUid(TEST_UID_1)));
-        Intent intent = intentArgumentCaptor.getValue();
-        assertNotNull(intent);
-        assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
-        assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
-        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_APP_NAME),
-                TEST_APP_NAME);
-        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
-        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
+        validateUiStartParams(true);
 
         // Verify scan settings.
         verify(mWifiScanner).startScan(mScanSettingsArgumentCaptor.capture(), any(),
@@ -696,6 +676,8 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        validateUiStartParams(true);
+
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
 
@@ -736,6 +718,8 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        validateUiStartParams(false);
 
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
@@ -779,6 +763,8 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        validateUiStartParams(true);
+
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
 
@@ -820,6 +806,8 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        validateUiStartParams(false);
 
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
@@ -863,6 +851,8 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        validateUiStartParams(true);
 
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
@@ -909,6 +899,8 @@ public class WifiNetworkFactoryTest {
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
 
+        validateUiStartParams(true);
+
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
 
@@ -940,7 +932,7 @@ public class WifiNetworkFactoryTest {
 
         // Setup network specifier for open networks.
         PatternMatcher ssidPatternMatch =
-                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_PREFIX);
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
         Pair<MacAddress, MacAddress> bssidPatternMatch =
                 Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
         WifiConfiguration wifiConfiguration = new WifiConfiguration();
@@ -951,6 +943,8 @@ public class WifiNetworkFactoryTest {
 
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
         mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        validateUiStartParams(true);
 
         mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
                 TEST_CALLBACK_IDENTIFIER);
@@ -2452,5 +2446,21 @@ public class WifiNetworkFactoryTest {
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(messenger, atLeastOnce()).send(messageCaptor.capture());
         assertEquals(NetworkFactory.EVENT_UNFULFILLABLE_REQUEST, messageCaptor.getValue().what);
+    }
+
+    private void validateUiStartParams(boolean expectedIsReqForSingeNetwork) {
+        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivityAsUser(
+                intentArgumentCaptor.capture(), eq(UserHandle.getUserHandleForUid(TEST_UID_1)));
+        Intent intent = intentArgumentCaptor.getValue();
+        assertNotNull(intent);
+        assertEquals(intent.getAction(), WifiNetworkFactory.UI_START_INTENT_ACTION);
+        assertTrue(intent.getCategories().contains(WifiNetworkFactory.UI_START_INTENT_CATEGORY));
+        assertEquals(intent.getStringExtra(WifiNetworkFactory.UI_START_INTENT_EXTRA_APP_NAME),
+                TEST_APP_NAME);
+        assertEquals(expectedIsReqForSingeNetwork, intent.getBooleanExtra(
+                WifiNetworkFactory.UI_START_INTENT_EXTRA_REQUEST_IS_FOR_SINGLE_NETWORK, false));
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) != 0);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
     }
 }
