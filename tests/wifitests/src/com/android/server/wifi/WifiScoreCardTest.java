@@ -193,8 +193,12 @@ public class WifiScoreCardTest {
         }
         // Make sure our simulated time adds up
         assertEquals(mMilliSecondsSinceBoot, 99999);
+        // Validation success, rather late!
+        mWifiScoreCard.noteValidationSuccess(mWifiInfo);
         // A long while later, wifi is toggled off
         secondsPass(9900);
+        // Second validation success should not matter.
+        mWifiScoreCard.noteValidationSuccess(mWifiInfo);
         mWifiScoreCard.noteWifiDisabled(mWifiInfo);
 
 
@@ -208,6 +212,8 @@ public class WifiScoreCardTest {
                 .elapsedMs.maxValue, TOL);
         assertEquals(999.0,  perBssid.lookupSignal(Event.FIRST_POLL_AFTER_CONNECTION, 5805)
                 .elapsedMs.minValue, TOL);
+        assertEquals(99999.0, perBssid.lookupSignal(Event.VALIDATION_SUCCESS, 5805)
+                .elapsedMs.sum, TOL);
         assertNull(perBssid.lookupSignal(Event.SIGNAL_POLL, 5805).elapsedMs);
     }
 
