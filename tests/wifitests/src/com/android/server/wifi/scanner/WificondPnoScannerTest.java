@@ -45,6 +45,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -177,7 +178,7 @@ public class WificondPnoScannerTest {
             WifiNative.PnoSettings pnoSettings, WifiNative.ScanEventHandler scanEventHandler,
             WifiNative.PnoEventHandler pnoEventHandler) {
         // Scans succeed
-        when(mWifiNative.scan(eq(IFACE_NAME), anyInt(), any(), any(Set.class))).thenReturn(true);
+        when(mWifiNative.scan(eq(IFACE_NAME), anyInt(), any(), any(List.class))).thenReturn(true);
         when(mWifiNative.startPnoScan(eq(IFACE_NAME), any(WifiNative.PnoSettings.class)))
                 .thenReturn(true);
         when(mWifiNative.stopPnoScan(IFACE_NAME)).thenReturn(true);
