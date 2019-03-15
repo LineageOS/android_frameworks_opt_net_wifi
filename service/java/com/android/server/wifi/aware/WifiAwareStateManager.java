@@ -52,6 +52,7 @@ import com.android.internal.util.MessageUtils;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.internal.util.WakeupMessage;
+import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -378,7 +379,8 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      * @param looper Thread looper on which to run the handler.
      */
     public void start(Context context, Looper looper, WifiAwareMetrics awareMetrics,
-            WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionsWrapper) {
+            WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionsWrapper,
+            Clock clock) {
         Log.i(TAG, "start()");
 
         mContext = context;
@@ -388,7 +390,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         mSm.setDbg(VVDBG);
         mSm.start();
 
-        mDataPathMgr = new WifiAwareDataPathStateManager(this);
+        mDataPathMgr = new WifiAwareDataPathStateManager(this, clock);
         mDataPathMgr.start(mContext, mSm.getHandler().getLooper(), awareMetrics,
                 wifiPermissionsUtil, permissionsWrapper);
 
