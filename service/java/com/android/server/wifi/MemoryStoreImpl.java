@@ -43,11 +43,13 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
 
     @NonNull private final Context mContext;
     @NonNull private final WifiScoreCard mWifiScoreCard;
+    @NonNull private final WifiInjector mWifiInjector;
     @Nullable private IpMemoryStore mIpMemoryStore;
 
-    MemoryStoreImpl(Context context, WifiScoreCard wifiScoreCard) {
+    MemoryStoreImpl(Context context, WifiInjector wifiInjector, WifiScoreCard wifiScoreCard) {
         mContext = Preconditions.checkNotNull(context);
         mWifiScoreCard = Preconditions.checkNotNull(wifiScoreCard);
+        mWifiInjector = Preconditions.checkNotNull(wifiInjector);
         mIpMemoryStore = null;
     }
 
@@ -138,7 +140,7 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
         if (mIpMemoryStore != null) {
             Log.w(TAG, "Reconnecting to IpMemoryStore service");
         }
-        mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
+        mIpMemoryStore = mWifiInjector.getIpMemoryStore();
         if (mIpMemoryStore == null) {
             Log.e(TAG, "No IpMemoryStore service!");
             return;

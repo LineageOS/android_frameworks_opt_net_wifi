@@ -23,6 +23,7 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.SystemSensorManager;
+import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
@@ -149,6 +150,7 @@ public class WifiInjector {
     private final DppMetrics mDppMetrics;
     private final DppManager mDppManager;
     private final LinkProbeManager mLinkProbeManager;
+    private final IpMemoryStore mIpMemoryStore;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -324,6 +326,7 @@ public class WifiInjector {
                 BatteryStatsService.getService());
         mDppManager = new DppManager(mWifiCoreHandlerThread.getLooper(), mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
+        mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
 
         // Register the various network evaluators with the network selector.
         mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
@@ -724,5 +727,9 @@ public class WifiInjector {
 
     public WifiNetworkSuggestionsManager getWifiNetworkSuggestionsManager() {
         return mWifiNetworkSuggestionsManager;
+    }
+
+    public IpMemoryStore getIpMemoryStore() {
+        return mIpMemoryStore;
     }
 }
