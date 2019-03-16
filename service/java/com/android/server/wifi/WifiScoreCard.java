@@ -814,4 +814,21 @@ public class WifiScoreCard {
         return Base64.encodeToString(raw, Base64.DEFAULT);
     }
 
+    /**
+     * Clears the internal state.
+     *
+     * This is called in response to a factoryReset call from Settings.
+     * The memory store will be called after we are called, to wipe the stable
+     * storage as well. Since we will have just removed all of our networks,
+     * it is very unlikely that we're connected, or will connect immediately.
+     * Any in-flight reads will land in the objects we are dropping here, and
+     * the memory store should drop the in-flight writes. Ideally we would
+     * avoid issuing reads until we were sure that the memory store had
+     * received the factoryReset.
+     */
+    public void clear() {
+        mApForBssid.clear();
+        resetConnectionStateInternal(false);
+    }
+
 }

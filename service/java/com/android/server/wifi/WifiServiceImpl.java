@@ -2907,6 +2907,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 mWifiInjector.getWifiConfigManager().clearDeletedEphemeralNetworks();
                 mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
                 mWifiNetworkSuggestionsManager.clear();
+                mWifiInjector.getWifiScoreCard().clear();
             });
         }
     }
