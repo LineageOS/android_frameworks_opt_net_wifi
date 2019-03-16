@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import static android.net.shared.LinkPropertiesParcelableUtil.toStableParcelable;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER_DISCONNECT;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
@@ -1587,20 +1588,19 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Disconnect from Access Point
+     * Method to trigger a disconnect.
+     * Note: To be used from within the wifi stack.
      */
-    public void disconnectCommand() {
-        sendMessage(CMD_DISCONNECT);
+    public void disconnectCommandInternal() {
+        sendMessage(CMD_DISCONNECT, 0 /* fromExternal */);
     }
 
     /**
      * Method to trigger a disconnect.
-     *
-     * @param uid UID of requesting caller
-     * @param reason disconnect reason
+     * Note: To be used from public API surface.
      */
-    public void disconnectCommand(int uid, int reason) {
-        sendMessage(CMD_DISCONNECT, uid, reason);
+    public void disconnectCommandExternal() {
+        sendMessage(CMD_DISCONNECT, 1 /* fromExternal */);
     }
 
     /**
@@ -3540,7 +3540,7 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_BOOT_COMPLETED:
                     // get other services that we need to manage
                     getAdditionalWifiServiceInterfaces();
-                    new MemoryStoreImpl(mContext, mWifiScoreCard).start();
+                    new MemoryStoreImpl(mContext, mWifiInjector, mWifiScoreCard).start();
                     if (!mWifiConfigManager.loadFromStore()) {
                         Log.e(TAG, "Failed to load from config store");
                     }
@@ -3671,7 +3671,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case CMD_USER_UNLOCK:
@@ -4129,7 +4129,7 @@ public class ClientModeImpl extends StateMachine {
                     netId = message.arg1;
                     if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                         // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case CMD_ENABLE_NETWORK:
@@ -4153,7 +4153,7 @@ public class ClientModeImpl extends StateMachine {
                         replyToMessage(message, WifiManager.DISABLE_NETWORK_SUCCEEDED);
                         if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                             // Disconnect and let autojoin reselect a new network
-                            sendMessage(CMD_DISCONNECT);
+                            disconnectCommandInternal();
                         }
                     } else {
                         loge("Failed to disable network");
@@ -4168,7 +4168,7 @@ public class ClientModeImpl extends StateMachine {
                         if (config.networkId == mTargetNetworkId
                                 || config.networkId == mLastNetworkId) {
                             // Disconnect and let autojoin reselect a new network
-                            sendMessage(CMD_DISCONNECT);
+                            disconnectCommandInternal();
                         }
                     }
                     break;
@@ -4328,7 +4328,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network.
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case CMD_REMOVE_USER_CONFIGURATIONS:
@@ -4337,7 +4337,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network.
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case WifiManager.CONNECT_NETWORK:
@@ -4418,7 +4418,7 @@ public class ClientModeImpl extends StateMachine {
                     netId = message.arg1;
                     if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                         // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case CMD_ASSOCIATED_BSSID:
@@ -4482,7 +4482,7 @@ public class ClientModeImpl extends StateMachine {
                     } else {
                         logw("Connected to unknown networkId " + mLastNetworkId
                                 + ", disconnecting...");
-                        sendMessage(CMD_DISCONNECT);
+                        disconnectCommandInternal();
                     }
                     break;
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
@@ -4515,7 +4515,7 @@ public class ClientModeImpl extends StateMachine {
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
                             logd("Disconnect from current network since its provider is updated");
-                            sendMessage(CMD_DISCONNECT);
+                            disconnectCommandInternal();
                         }
                         replyToMessage(message, message.what, SUCCESS);
                     } else {
@@ -4528,7 +4528,7 @@ public class ClientModeImpl extends StateMachine {
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
                             logd("Disconnect from current network since its provider is removed");
-                            sendMessage(CMD_DISCONNECT);
+                            disconnectCommandInternal();
                         }
                         mWifiConfigManager.removePasspointConfiguredNetwork(fqdn);
                         replyToMessage(message, message.what, SUCCESS);
@@ -5055,8 +5055,17 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_DISCONNECT:
-                    mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
-                            StaEvent.DISCONNECT_GENERIC);
+                    boolean fromExternal = message.arg1 == 1;
+                    if (fromExternal) {
+                        mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
+                                StaEvent.DISCONNECT_API);
+                        // For external disconnect requests, temporarily disable the network.
+                        mWifiConfigManager.updateNetworkSelectionStatus(
+                                mLastNetworkId, DISABLED_BY_WIFI_MANAGER_DISCONNECT);
+                    } else {
+                        mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
+                                StaEvent.DISCONNECT_GENERIC);
+                    }
                     mWifiNative.disconnect(mInterfaceName);
                     transitionTo(mDisconnectingState);
                     break;

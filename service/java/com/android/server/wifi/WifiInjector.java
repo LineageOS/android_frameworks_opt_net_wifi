@@ -23,6 +23,7 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.SystemSensorManager;
+import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
@@ -149,6 +150,7 @@ public class WifiInjector {
     private final DppMetrics mDppMetrics;
     private final DppManager mDppManager;
     private final LinkProbeManager mLinkProbeManager;
+    private final IpMemoryStore mIpMemoryStore;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -254,6 +256,8 @@ public class WifiInjector {
         mWifiNetworkSelector.registerCandidateScorer(compatibilityScorer);
         ScoreCardBasedScorer scoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(scoreCardBasedScorer);
+        BubbleFunScorer bubbleFunScorer = new BubbleFunScorer(mScoringParams);
+        mWifiNetworkSelector.registerCandidateScorer(bubbleFunScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
@@ -309,8 +313,8 @@ public class WifiInjector {
                 mWifiCoreHandlerThread.getLooper(),
                 new WakeupLock(mWifiConfigManager, mWifiMetrics.getWakeupMetrics(), mClock),
                 new WakeupEvaluator(mScoringParams), wakeupOnboarding, mWifiConfigManager,
-                mWifiConfigStore, mWifiMetrics.getWakeupMetrics(), this, mFrameworkFacade,
-                mClock);
+                mWifiConfigStore, mWifiNetworkSuggestionsManager, mWifiMetrics.getWakeupMetrics(),
+                this, mFrameworkFacade, mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
                 mClientModeImpl, mFrameworkFacade, clientModeImplLooper);
         mWifiController = new WifiController(mContext, mClientModeImpl, clientModeImplLooper,
@@ -322,6 +326,7 @@ public class WifiInjector {
                 BatteryStatsService.getService());
         mDppManager = new DppManager(mWifiCoreHandlerThread.getLooper(), mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
+        mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
 
         // Register the various network evaluators with the network selector.
         mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
@@ -722,5 +727,9 @@ public class WifiInjector {
 
     public WifiNetworkSuggestionsManager getWifiNetworkSuggestionsManager() {
         return mWifiNetworkSuggestionsManager;
+    }
+
+    public IpMemoryStore getIpMemoryStore() {
+        return mIpMemoryStore;
     }
 }

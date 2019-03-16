@@ -3304,4 +3304,40 @@ public class ClientModeImplTest {
         assertEquals(OP_PACKAGE_NAME,
                 mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
     }
+
+    /**
+     * Verifies the handling of disconnect initiated from API surface when connected to a network.
+     */
+    @Test
+    public void testExternalDisconnectWhenConnected() throws Exception {
+        connect();
+
+        mCmi.disconnectCommandExternal(); // Simulate settings invoking this.
+        mLooper.dispatchAll();
+
+        verify(mWifiNative).disconnect(WIFI_IFACE_NAME);
+        verify(mWifiMetrics).logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
+                StaEvent.DISCONNECT_API);
+        // verify that we temp blacklist the network.
+        verify(mWifiConfigManager).updateNetworkSelectionStatus(0,
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER_DISCONNECT);
+    }
+
+    /**
+     * Verifies the handling of disconnect initiated internally when connected to a network.
+     */
+    @Test
+    public void testInternalDisconnectWhenConnected() throws Exception {
+        connect();
+
+        mCmi.disconnectCommandInternal(); // Internal stack initiated disconnect.
+        mLooper.dispatchAll();
+
+        verify(mWifiNative).disconnect(WIFI_IFACE_NAME);
+        verify(mWifiMetrics).logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
+                StaEvent.DISCONNECT_GENERIC);
+        // verify that we don't temp blacklist the network.
+        verify(mWifiConfigManager, never()).updateNetworkSelectionStatus(0,
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER_DISCONNECT);
+    }
 }

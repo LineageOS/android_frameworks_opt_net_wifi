@@ -92,6 +92,9 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     public static final String UI_START_INTENT_EXTRA_APP_NAME =
             "com.android.settings.wifi.extra.APP_NAME";
+    @VisibleForTesting
+    public static final String UI_START_INTENT_EXTRA_REQUEST_IS_FOR_SINGLE_NETWORK =
+            "com.android.settings.wifi.extra.REQUEST_IS_FOR_SINGLE_NETWORK";
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -937,7 +940,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Invoked at the termination of current connected request processing.
     private void teardownForConnectedNetwork() {
         Log.i(TAG, "Disconnecting from network on reset");
-        mWifiInjector.getClientModeImpl().disconnectCommand();
+        mWifiInjector.getClientModeImpl().disconnectCommandInternal();
         mConnectedSpecificNetworkRequest = null;
         mConnectedSpecificNetworkRequestSpecifier = null;
         // ensure there is no active request in progress.
@@ -1123,6 +1126,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(UI_START_INTENT_EXTRA_APP_NAME,
                 getAppName(mActiveSpecificNetworkRequestSpecifier.requestorPackageName));
+        intent.putExtra(UI_START_INTENT_EXTRA_REQUEST_IS_FOR_SINGLE_NETWORK,
+                isActiveRequestForSingleNetwork());
         mContext.startActivityAsUser(intent, UserHandle.getUserHandleForUid(
                 mActiveSpecificNetworkRequestSpecifier.requestorUid));
     }
@@ -1142,6 +1147,23 @@ public class WifiNetworkFactory extends NetworkFactory {
             return false;
         }
         return true;
+    }
+
+    // Helper method to determine if the specifier does not contain any patterns and matches
+    // a single network.
+    private boolean isActiveRequestForSingleNetwork() {
+        if (mActiveSpecificNetworkRequestSpecifier == null) return false;
+
+        if (mActiveSpecificNetworkRequestSpecifier.ssidPatternMatcher.getType()
+                == PatternMatcher.PATTERN_LITERAL) {
+            return true;
+        }
+        if (Objects.equals(
+                mActiveSpecificNetworkRequestSpecifier.bssidPatternMatcher.second,
+                MacAddress.BROADCAST_ADDRESS)) {
+            return true;
+        }
+        return false;
     }
 
     private @Nullable ScanResult
