@@ -467,6 +467,8 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_ENABLE_RSSI_POLL                               = BASE + 82;
     /* RSSI poll */
     static final int CMD_RSSI_POLL                                      = BASE + 83;
+    /** Runs RSSI poll once */
+    static final int CMD_ONESHOT_RSSI_POLL                              = BASE + 84;
     /* Enable suspend mode optimizations in the driver */
     static final int CMD_SET_SUSPEND_OPT_ENABLED                        = BASE + 86;
 
@@ -2246,6 +2248,7 @@ public class ClientModeImpl extends StateMachine {
                 }
                 break;
             case CMD_RSSI_POLL:
+            case CMD_ONESHOT_RSSI_POLL:
             case CMD_UNWANTED_NETWORK:
             case WifiManager.RSSI_PKTCNT_FETCH:
                 sb.append(" ");
@@ -3558,6 +3561,7 @@ public class ClientModeImpl extends StateMachine {
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                 case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
                 case CMD_RSSI_POLL:
+                case CMD_ONESHOT_RSSI_POLL:
                 case CMD_PRE_DHCP_ACTION:
                 case CMD_PRE_DHCP_ACTION_COMPLETE:
                 case CMD_POST_DHCP_ACTION:
@@ -5099,14 +5103,14 @@ public class ClientModeImpl extends StateMachine {
                         sendNetworkStateChangeBroadcast(mLastBssid);
                     }
                     break;
+                case CMD_ONESHOT_RSSI_POLL:
+                    if (!mEnableRssiPolling) {
+                        updateLinkLayerStatsRssiAndScoreReportInternal();
+                    }
+                    break;
                 case CMD_RSSI_POLL:
                     if (message.arg1 == mRssiPollToken) {
-                        WifiLinkLayerStats stats = getWifiLinkLayerStats();
-                        // Get Info and continue polling
-                        fetchRssiLinkSpeedAndFrequencyNative();
-                        // Send the update score to network agent.
-                        mWifiScoreReport.calculateAndReportScore(
-                                mWifiInfo, mNetworkAgent, mWifiMetrics);
+                        WifiLinkLayerStats stats = updateLinkLayerStatsRssiAndScoreReportInternal();
                         mWifiMetrics.updateWifiUsabilityStatsEntries(mWifiInfo, stats);
                         if (mWifiScoreReport.shouldCheckIpLayer()) {
                             if (mIpClient != null) {
@@ -5252,6 +5256,25 @@ public class ClientModeImpl extends StateMachine {
 
             return HANDLED;
         }
+
+        /**
+         * Fetches link stats and updates Wifi Score Report.
+         */
+        private WifiLinkLayerStats updateLinkLayerStatsRssiAndScoreReportInternal() {
+            WifiLinkLayerStats stats = getWifiLinkLayerStats();
+            // Get Info and continue polling
+            fetchRssiLinkSpeedAndFrequencyNative();
+            // Send the update score to network agent.
+            mWifiScoreReport.calculateAndReportScore(mWifiInfo, mNetworkAgent, mWifiMetrics);
+            return stats;
+        }
+    }
+
+    /**
+     * Fetches link stats and updates Wifi Score Report.
+     */
+    public void updateLinkLayerStatsRssiAndScoreReport() {
+        sendMessage(CMD_ONESHOT_RSSI_POLL);
     }
 
     private static int convertToUsabilityStatsTriggerType(int unusableEventTriggerType) {
