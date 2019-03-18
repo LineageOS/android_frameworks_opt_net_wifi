@@ -4971,6 +4971,9 @@ public class ClientModeImpl extends StateMachine {
             mCountryCode.setReadyForChange(true);
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
             mWifiStateTracker.updateState(WifiStateTracker.DISCONNECTED);
+            //Inform WifiLockManager
+            WifiLockManager wifiLockManager = mWifiInjector.getWifiLockManager();
+            wifiLockManager.updateWifiClientConnected(false);
         }
 
         @Override
@@ -5600,6 +5603,9 @@ public class ClientModeImpl extends StateMachine {
             mTargetNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
             mWifiInjector.getWifiLastResortWatchdog().connectedStateTransition(true);
             mWifiStateTracker.updateState(WifiStateTracker.CONNECTED);
+            //Inform WifiLockManager
+            WifiLockManager wifiLockManager = mWifiInjector.getWifiLockManager();
+            wifiLockManager.updateWifiClientConnected(true);
         }
         @Override
         public boolean processMessage(Message message) {
