@@ -17,6 +17,7 @@
 package com.android.server.wifi.p2p;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.hardware.wifi.V1_0.IWifiP2pIface;
 import android.hardware.wifi.V1_0.IfaceType;
 import android.net.wifi.p2p.WifiP2pConfig;
@@ -87,8 +88,10 @@ public class WifiP2pNative {
             mValid = true;
         }
 
-        public void teardownAndInvalidate(@NonNull String ifaceName) {
-            mSupplicantP2pIfaceHal.teardownIface(ifaceName);
+        public void teardownAndInvalidate(@Nullable String ifaceName) {
+            if (!TextUtils.isEmpty(ifaceName)) {
+                mSupplicantP2pIfaceHal.teardownIface(ifaceName);
+            }
             mIWifiP2pIface = null;
             mValid = false;
         }
