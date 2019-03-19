@@ -530,8 +530,6 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     }
 
     private boolean flushDump(int errorCode) {
-        if (mBuildProperties.isUserBuild()) return false;
-
         if (errorCode == REPORT_REASON_USER_ACTION) return false;
 
         long currentTime = mClock.getWallClockMillis();
