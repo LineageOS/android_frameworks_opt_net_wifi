@@ -556,6 +556,12 @@ public class ActiveModeWarden {
     }  // class ModeStateMachine
 
     private class SoftApCallbackImpl extends ModeCallback implements WifiManager.SoftApCallback {
+        private int mMode;
+
+        private SoftApCallbackImpl(int mode) {
+            mMode = mode;
+        }
+
         @Override
         public void onStateChanged(int state, int reason) {
             if (state == WifiManager.WIFI_AP_STATE_DISABLED) {
@@ -566,17 +572,17 @@ public class ActiveModeWarden {
                 updateBatteryStatsWifiState(false);
             }
 
-            if (mSoftApCallback != null) {
+            if (mSoftApCallback != null && mMode == WifiManager.IFACE_IP_MODE_TETHERED) {
                 mSoftApCallback.onStateChanged(state, reason);
             }
         }
 
         @Override
         public void onNumClientsChanged(int numClients) {
-            if (mSoftApCallback != null) {
-                mSoftApCallback.onNumClientsChanged(numClients);
-            } else {
+            if (mSoftApCallback == null) {
                 Log.d(TAG, "SoftApCallback is null. Dropping NumClientsChanged event.");
+            } else if (mMode == WifiManager.IFACE_IP_MODE_TETHERED) {
+                mSoftApCallback.onNumClientsChanged(numClients);
             }
         }
     }
@@ -591,7 +597,7 @@ public class ActiveModeWarden {
             config = null;
         }
 
-        SoftApCallbackImpl callback = new SoftApCallbackImpl();
+        SoftApCallbackImpl callback = new SoftApCallbackImpl(softapConfig.getTargetMode());
         ActiveModeManager manager = mWifiInjector.makeSoftApManager(callback, softapConfig);
         callback.setActiveModeManager(manager);
         manager.start();
