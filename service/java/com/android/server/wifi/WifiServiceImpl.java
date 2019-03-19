@@ -2722,6 +2722,9 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
             }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         } else {
+            // Polls link layer stats and RSSI. This allows the stats to show up in
+            // WifiScoreReport's dump() output when taking a bug report even if the screen is off.
+            mClientModeImpl.updateLinkLayerStatsRssiAndScoreReport();
             pw.println("Wi-Fi is " + mClientModeImpl.syncGetWifiStateByName());
             pw.println("Verbose logging is " + (mVerboseLoggingEnabled ? "on" : "off"));
             pw.println("Stay-awake conditions: " +

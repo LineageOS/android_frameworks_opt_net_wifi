@@ -376,6 +376,7 @@ public class ClientModeImplTest {
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock LinkProbeManager mLinkProbeManager;
     @Mock PackageManager mPackageManager;
+    @Mock WifiLockManager mWifiLockManager;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -429,6 +430,7 @@ public class ClientModeImplTest {
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
+        when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -994,6 +996,7 @@ public class ClientModeImplTest {
 
         verify(mWifiStateTracker).updateState(eq(WifiStateTracker.CONNECTED));
         assertEquals("ConnectedState", getCurrentState().getName());
+        verify(mWifiLockManager).updateWifiClientConnected(true);
     }
 
     /**
@@ -1227,7 +1230,6 @@ public class ClientModeImplTest {
                 eq(WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE));
 
         assertEquals("DisconnectedState", getCurrentState().getName());
-
     }
 
     /**
@@ -1402,7 +1404,9 @@ public class ClientModeImplTest {
 
     @Test
     public void disconnect() throws Exception {
+        InOrder inOrderWifiLockManager = inOrder(mWifiLockManager);
         connect();
+        inOrderWifiLockManager.verify(mWifiLockManager).updateWifiClientConnected(true);
 
         mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, -1, 3, sBSSID);
         mLooper.dispatchAll();
@@ -1413,6 +1417,7 @@ public class ClientModeImplTest {
         verify(mWifiStateTracker).updateState(eq(WifiStateTracker.DISCONNECTED));
         verify(mWifiNetworkSuggestionsManager).handleDisconnect(any(), any());
         assertEquals("DisconnectedState", getCurrentState().getName());
+        inOrderWifiLockManager.verify(mWifiLockManager).updateWifiClientConnected(false);
     }
 
     /**
