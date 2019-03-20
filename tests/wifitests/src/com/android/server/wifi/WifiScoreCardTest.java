@@ -452,13 +452,25 @@ public class WifiScoreCardTest {
     }
 
     /**
-     * Installing a MemoryStore after startup should issue reads
+     * Installing a MemoryStore after startup should issue reads.
      */
     @Test
     public void testReadAfterDelayedMemoryStoreInstallation() throws Exception {
         makeSerializedAccessPointExample();
         mWifiScoreCard.installMemoryStore(mMemoryStore);
         verify(mMemoryStore).read(any(), any());
+    }
+
+    /**
+     * Calling clear should forget the state.
+     */
+    @Test
+    public void testClearReallyDoesClearTheState() throws Exception {
+        byte[] serialized = makeSerializedAccessPointExample();
+        assertNotEquals(0, serialized.length);
+        mWifiScoreCard.clear();
+        byte[] leftovers = mWifiScoreCard.getNetworkListByteArray(false);
+        assertEquals(0, leftovers.length);
     }
 
 }
