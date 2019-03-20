@@ -25,10 +25,12 @@ import static android.telephony.TelephonyManager.NETWORK_TYPE_TD_SCDMA;
 import static android.telephony.TelephonyManager.NETWORK_TYPE_UMTS;
 import static android.telephony.TelephonyManager.NETWORK_TYPE_UNKNOWN;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.validateMockitoUsage;
-import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.telephony.CellInfo;
@@ -55,6 +57,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,6 +72,8 @@ public class CellularLinkLayerStatsCollectorTest {
     private static final int DBM_VAL = -110;
     private static final int DB_VAL = -20;
     private static final int DB_VAL_EVDO = 4;
+    private static final int SUBID = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
+    MockitoSession mMockingSession = null;
     @Mock Context mContext;
     @Mock TelephonyManager mTelephonyManager;
     @Mock SubscriptionManager mSubscriptionManager;
@@ -83,11 +88,17 @@ public class CellularLinkLayerStatsCollectorTest {
         when(mTelephonyManager.createForSubscriptionId(anyInt()))
                 .thenReturn(mTelephonyManager);
         mCollector = new CellularLinkLayerStatsCollector(mContext);
+        mMockingSession = mockitoSession().mockStatic(SubscriptionManager.class).startMocking();
+        when(SubscriptionManager.getDefaultDataSubscriptionId()).thenReturn(SUBID);
+        when(SubscriptionManager.getDefaultSubscriptionId()).thenReturn(SUBID);
     }
 
     @After
     public void cleanUp() throws Exception {
         validateMockitoUsage();
+        if (mMockingSession != null) {
+            mMockingSession.finishMocking();
+        }
     }
 
     private List<CellInfo> generateCellInfoList(@NetworkType int networkType) {
@@ -173,6 +184,9 @@ public class CellularLinkLayerStatsCollectorTest {
 
         CellularLinkLayerStats mStats = mCollector.update();
 
+        assertEquals(SUBID, SubscriptionManager.getDefaultDataSubscriptionId());
+        assertEquals(SUBID, SubscriptionManager.getDefaultSubscriptionId());
+
         assertEquals(trueStats.getSignalStrengthDbm(), mStats.getSignalStrengthDbm());
         assertEquals(trueStats.getSignalStrengthDb(), mStats.getSignalStrengthDb());
         assertEquals(trueStats.getDataNetworkType(), mStats.getDataNetworkType());
@@ -180,7 +194,7 @@ public class CellularLinkLayerStatsCollectorTest {
     }
 
     @Test
-    public void testEmptySignalStrength() throws Exception {
+    public void testEmptySignalStrengthLte() throws Exception {
         @NetworkType int networkType;
         CellularLinkLayerStats trueStats = new CellularLinkLayerStats();
 
