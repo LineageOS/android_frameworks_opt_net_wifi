@@ -73,6 +73,7 @@ import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.test.BidirectionalAsyncChannel;
+import com.android.server.wifi.CellularLinkLayerStatsCollector;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.DppMetrics;
 import com.android.server.wifi.FakeWifiLog;
@@ -132,7 +133,7 @@ public class WifiScanningServiceTest {
     TestLooper mLooper;
     WifiScanningServiceImpl mWifiScanningServiceImpl;
     @Mock WifiP2pMetrics mWifiP2pMetrics;
-
+    @Mock CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
     @Before
     public void setUp() throws Exception {
@@ -152,7 +153,7 @@ public class WifiScanningServiceTest {
         mLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, mLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), new WifiPowerMetrics(),
-                mWifiP2pMetrics, mDppMetrics);
+                mWifiP2pMetrics, mDppMetrics, mCellularLinkLayerStatsCollector);
         when(mWifiScannerImplFactory
                 .create(any(), any(), any()))
                 .thenReturn(mWifiScannerImpl);

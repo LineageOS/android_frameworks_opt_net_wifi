@@ -38,6 +38,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.util.ArrayMap;
 import android.util.Base64;
 import android.util.Log;
@@ -370,6 +371,8 @@ public class WifiMetrics {
     private Map<Pair<Integer, Integer>, NetworkSelectionExperimentResults>
             mNetworkSelectionExperimentPairNumChoicesCounts = new ArrayMap<>();
 
+    private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
+
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
         public static final int MAX_CHOICES = 10;
@@ -682,7 +685,8 @@ public class WifiMetrics {
     public WifiMetrics(Context context, FrameworkFacade facade, Clock clock, Looper looper,
             WifiAwareMetrics awareMetrics, RttMetrics rttMetrics,
             WifiPowerMetrics wifiPowerMetrics, WifiP2pMetrics wifiP2pMetrics,
-            DppMetrics dppMetrics) {
+            DppMetrics dppMetrics,
+            CellularLinkLayerStatsCollector cellularLinkLayerStatsCollector) {
         mContext = context;
         mFacade = facade;
         mClock = clock;
@@ -695,6 +699,7 @@ public class WifiMetrics {
         mWifiPowerMetrics = wifiPowerMetrics;
         mWifiP2pMetrics = wifiP2pMetrics;
         mDppMetrics = dppMetrics;
+        mCellularLinkLayerStatsCollector = cellularLinkLayerStatsCollector;
         loadSettings();
         mHandler = new Handler(looper) {
             public void handleMessage(Message msg) {
@@ -2759,6 +2764,10 @@ public class WifiMetrics {
         line.append(",rx_link_speed_mbps=" + entry.rxLinkSpeedMbps);
         line.append(",seq_num_inside_framework=" + entry.seqNumInsideFramework);
         line.append(",is_same_bssid_and_freq=" + entry.isSameBssidAndFreq);
+        line.append(",cellular_data_network_type=" + entry.cellularDataNetworkType);
+        line.append(",cellular_signal_strength_dbm=" + entry.cellularSignalStrengthDbm);
+        line.append(",cellular_signal_strength_db=" + entry.cellularSignalStrengthDb);
+        line.append(",is_same_registered_cell=" + entry.isSameRegisteredCell);
         pw.println(line.toString());
     }
 
@@ -4154,6 +4163,15 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             wifiUsabilityStatsEntry.isSameBssidAndFreq = isSameBssidAndFreq;
             wifiUsabilityStatsEntry.seqNumInsideFramework = mSeqNumInsideFramework;
+
+            CellularLinkLayerStats cls = mCellularLinkLayerStatsCollector.update();
+            if (DBG) Log.v(TAG, "Latest Cellular Link Layer Stats: " + cls);
+            wifiUsabilityStatsEntry.cellularDataNetworkType =
+                    parseDataNetworkTypeToProto(cls.getDataNetworkType());
+            wifiUsabilityStatsEntry.cellularSignalStrengthDbm = cls.getSignalStrengthDbm();
+            wifiUsabilityStatsEntry.cellularSignalStrengthDb = cls.getSignalStrengthDb();
+            wifiUsabilityStatsEntry.isSameRegisteredCell = cls.getIsSameRegisteredCell();
+
             mWifiUsabilityStatsEntriesList.add(wifiUsabilityStatsEntry);
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
@@ -4173,6 +4191,53 @@ public class WifiMetrics {
         }
     }
 
+    private int parseDataNetworkTypeToProto(int cellularDataNetworkType) {
+        switch (cellularDataNetworkType) {
+            case TelephonyManager.NETWORK_TYPE_UNKNOWN:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_UNKNOWN;
+            case TelephonyManager.NETWORK_TYPE_GSM:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_GSM;
+            case TelephonyManager.NETWORK_TYPE_CDMA:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_CDMA;
+            case TelephonyManager.NETWORK_TYPE_EVDO_0:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_EVDO_0;
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_UMTS;
+            case TelephonyManager.NETWORK_TYPE_TD_SCDMA:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_TD_SCDMA;
+            case TelephonyManager.NETWORK_TYPE_LTE:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_LTE;
+            case TelephonyManager.NETWORK_TYPE_NR:
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_NR;
+            default:
+                Log.e(TAG, "Unknown data network type : " + cellularDataNetworkType);
+                return WifiUsabilityStatsEntry.NETWORK_TYPE_UNKNOWN;
+        }
+    }
+
+    private int parseDataNetworkTypeFromProto(int cellularDataNetworkType) {
+        switch (cellularDataNetworkType) {
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_UNKNOWN:
+                return TelephonyManager.NETWORK_TYPE_UNKNOWN;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_GSM:
+                return TelephonyManager.NETWORK_TYPE_GSM;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_CDMA:
+                return TelephonyManager.NETWORK_TYPE_CDMA;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_EVDO_0:
+                return TelephonyManager.NETWORK_TYPE_EVDO_0;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_UMTS:
+                return TelephonyManager.NETWORK_TYPE_UMTS;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_TD_SCDMA:
+                return TelephonyManager.NETWORK_TYPE_TD_SCDMA;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_LTE:
+                return TelephonyManager.NETWORK_TYPE_LTE;
+            case WifiUsabilityStatsEntry.NETWORK_TYPE_NR:
+                return TelephonyManager.NETWORK_TYPE_NR;
+            default:
+                Log.e(TAG, "Unknown data network type : " + cellularDataNetworkType);
+                return TelephonyManager.NETWORK_TYPE_UNKNOWN;
+        }
+    }
     /**
      * Send Wifi usability stats.
      * @param seqNum
@@ -4208,6 +4273,7 @@ public class WifiMetrics {
                 probeStatus = android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_UNKNOWN;
                 Log.e(TAG, "Unknown link probe status: " + s.probeStatusSinceLastUpdate);
         }
+        int cellularDataNetworkType = parseDataNetworkTypeFromProto(s.cellularDataNetworkType);
         return new android.net.wifi.WifiUsabilityStatsEntry(s.timeStampMs, s.rssi,
                 s.linkSpeedMbps, s.totalTxSuccess, s.totalTxRetries,
                 s.totalTxBad, s.totalRxSuccess, s.totalRadioOnTimeMs,
@@ -4216,7 +4282,9 @@ public class WifiMetrics {
                 s.totalPnoScanTimeMs, s.totalHotspot2ScanTimeMs, s.totalCcaBusyFreqTimeMs,
                 s.totalRadioOnFreqTimeMs, s.totalBeaconRx, probeStatus,
                 s.probeElapsedTimeSinceLastUpdateMs, s.probeMcsRateSinceLastUpdate,
-                s.rxLinkSpeedMbps
+                s.rxLinkSpeedMbps, cellularDataNetworkType,
+                s.cellularSignalStrengthDbm, s.cellularSignalStrengthDb,
+                s.isSameRegisteredCell
         );
     }
 
@@ -4251,6 +4319,10 @@ public class WifiMetrics {
         out.rxLinkSpeedMbps = s.rxLinkSpeedMbps;
         out.isSameBssidAndFreq = s.isSameBssidAndFreq;
         out.seqNumInsideFramework = s.seqNumInsideFramework;
+        out.cellularDataNetworkType = s.cellularDataNetworkType;
+        out.cellularSignalStrengthDbm = s.cellularSignalStrengthDbm;
+        out.cellularSignalStrengthDb = s.cellularSignalStrengthDb;
+        out.isSameRegisteredCell = s.isSameRegisteredCell;
         return out;
     }
 
