@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -96,8 +98,11 @@ public class WifiNetworkSelector {
     private final int mStayOnNetworkMinimumTxRate;
     private final int mStayOnNetworkMinimumRxRate;
     private final boolean mEnableAutoJoinWhenAssociated;
+    private final WifiNative mWifiNative;
 
     private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
+    private boolean mIsEasyConnectSupportedInitialized = false;
+    private boolean mIsEasyConnectSupported;
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -407,6 +412,17 @@ public class WifiNetworkSelector {
         return validScanDetails;
     }
 
+    private boolean isEnhancedOpenSupported() {
+        if (mIsEasyConnectSupportedInitialized) {
+            return mIsEasyConnectSupported;
+        }
+
+        mIsEasyConnectSupportedInitialized = true;
+        mIsEasyConnectSupported = (mWifiNative.getSupportedFeatureSet(
+                mWifiNative.getClientInterfaceName()) & WIFI_FEATURE_OWE) != 0;
+        return mIsEasyConnectSupported;
+    }
+
     /**
      * This returns a list of ScanDetails that were filtered in the process of network selection.
      * The list is further filtered for only open unsaved networks.
@@ -417,10 +433,17 @@ public class WifiNetworkSelector {
      */
     public List<ScanDetail> getFilteredScanDetailsForOpenUnsavedNetworks() {
         List<ScanDetail> openUnsavedNetworks = new ArrayList<>();
+        boolean enhancedOpenSupported = isEnhancedOpenSupported();
         for (ScanDetail scanDetail : mFilteredNetworks) {
             ScanResult scanResult = scanDetail.getScanResult();
 
             if (!ScanResultUtil.isScanResultForOpenNetwork(scanResult)) {
+                continue;
+            }
+
+            // Filter out Enhanced Open networks on devices that do not support it
+            if (ScanResultUtil.isScanResultForOweNetwork(scanResult)
+                    && !enhancedOpenSupported) {
                 continue;
             }
 
@@ -820,13 +843,14 @@ public class WifiNetworkSelector {
 
     WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog,
-            WifiMetrics wifiMetrics) {
+            WifiMetrics wifiMetrics, WifiNative wifiNative) {
         mWifiConfigManager = configManager;
         mClock = clock;
         mWifiScoreCard = wifiScoreCard;
         mScoringParams = scoringParams;
         mLocalLog = localLog;
         mWifiMetrics = wifiMetrics;
+        mWifiNative = wifiNative;
 
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);
