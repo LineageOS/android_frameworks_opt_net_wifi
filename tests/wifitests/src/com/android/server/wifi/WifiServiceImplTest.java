@@ -235,6 +235,7 @@ public class WifiServiceImplTest {
     @Mock IOnWifiUsabilityStatsListener mOnWifiUsabilityStatsListener;
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiScoreReport mWifiScoreReport;
+    @Mock WifiScoreCard mWifiScoreCard;
 
     @Spy FakeWifiLog mLog;
 
@@ -360,6 +361,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
+        when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         when(mPackageManager.hasSystemFeature(
@@ -3259,6 +3261,7 @@ public class WifiServiceImplTest {
         verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
+        verify(mWifiScoreCard).clear();
     }
 
     /**
