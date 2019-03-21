@@ -33,11 +33,12 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
      * This should match WifiNetworkSelector.experimentIdFromIdentifier(getIdentifier())
      * when using the default ScoringParams.
      */
-    public static final int BUBBLE_FUN_SCORER_DEFAULT_EXPID = 42598151;
+    public static final int BUBBLE_FUN_SCORER_DEFAULT_EXPID = 42598152;
 
-    private static final double SECURITY_AWARD = 80.0;
-    private static final double CURRENT_NETWORK_BOOST = 80.0;
-    private static final double LOW_BAND_FACTOR = 0.3;
+    private static final double SECURITY_AWARD = 44.0;
+    private static final double CURRENT_NETWORK_BOOST = 22.0;
+    private static final double LAST_SELECTION_BOOST = 250.0;
+    private static final double LOW_BAND_FACTOR = 0.25;
     private static final double TYPICAL_SCAN_RSSI_STD = 4.0;
 
     private final ScoringParams mScoringParams;
@@ -48,7 +49,7 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
 
     @Override
     public String getIdentifier() {
-        return "BubbleFunScorer_v1";
+        return "BubbleFunScorer_v2";
     }
 
     /**
@@ -65,18 +66,6 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
         // If we are below the entry threshold, make the score more negative
         if (score < 0.0) score *= 10.0;
 
-        // A recently selected network gets a large boost
-        score += candidate.getLastSelectionWeight() * CURRENT_NETWORK_BOOST;
-
-        // Hysteresis to prefer staying on the current network.
-        if (candidate.isCurrentNetwork()) {
-            score += CURRENT_NETWORK_BOOST;
-        }
-
-        if (!candidate.isOpenNetwork()) {
-            score += SECURITY_AWARD;
-        }
-
         // The gain is approximately the derivative of shapeFunction at the given rssi
         // This is used to estimate the error
         double gain = shapeFunction(rssi + 0.5)
@@ -87,6 +76,18 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
         if (candidate.getFrequency() < ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             score *= LOW_BAND_FACTOR;
             gain *= LOW_BAND_FACTOR;
+        }
+
+        // A recently selected network gets a large boost
+        score += candidate.getLastSelectionWeight() * LAST_SELECTION_BOOST;
+
+        // Hysteresis to prefer staying on the current network.
+        if (candidate.isCurrentNetwork()) {
+            score += CURRENT_NETWORK_BOOST;
+        }
+
+        if (!candidate.isOpenNetwork()) {
+            score += SECURITY_AWARD;
         }
 
         return new ScoredCandidate(score, TYPICAL_SCAN_RSSI_STD * gain, candidate);
