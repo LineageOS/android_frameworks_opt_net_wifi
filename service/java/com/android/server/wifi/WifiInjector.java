@@ -484,6 +484,10 @@ public class WifiInjector {
         return mPasspointManager;
     }
 
+    public CarrierNetworkConfig getCarrierNetworkConfig() {
+        return mCarrierNetworkConfig;
+    }
+
     public WakeupController getWakeupController() {
         return mWakeupController;
     }
