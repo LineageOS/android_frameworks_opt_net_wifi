@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.util;
 
+import android.annotation.NonNull;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.telephony.ImsiEncryptionInfo;
@@ -45,6 +46,10 @@ public class TelephonyUtil {
     public static final String TAG = "TelephonyUtil";
 
     public static final String DEFAULT_EAP_PREFIX = "\0";
+
+    public static final int CARRIER_INVALID_TYPE = -1;
+    public static final int CARRIER_MNO_TYPE = 0; // Mobile Network Operator
+    public static final int CARRIER_MVNO_TYPE = 1; // Mobile Virtual Network Operator
 
     private static final String THREE_GPP_NAI_REALM_FORMAT = "wlan.mnc%s.mcc%s.3gppnetwork.org";
 
@@ -639,5 +644,24 @@ public class TelephonyUtil {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Get the carrier type of current SIM.
+     *
+     * @param tm {@link TelephonyManager} instance
+     * @return carrier type of current active sim, {{@link #CARRIER_INVALID_TYPE}} if sim is not
+     * ready or {@code tm} is {@code null}
+     */
+    public static int getCarrierType(@NonNull TelephonyManager tm) {
+        if (tm == null || tm.getSimState() != TelephonyManager.SIM_STATE_READY) {
+            return CARRIER_INVALID_TYPE;
+        }
+
+        // If two APIs return the same carrier ID, then is considered as MNO, otherwise MVNO
+        if (tm.getCarrierIdFromSimMccMnc() == tm.getSimCarrierId()) {
+            return CARRIER_MNO_TYPE;
+        }
+        return CARRIER_MVNO_TYPE;
     }
 }

@@ -412,6 +412,31 @@ public class PasspointNetworkEvaluatorTest {
     }
 
     /**
+     * Verify that it never creates an ephemeral Passpoint Configuration when the carrier is not
+     * MNO.
+     */
+    @Test
+    public void skipCreateEphemeralPasspointConfigurationForNonMNO() {
+        // Setup ScanDetail and match providers.
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+
+        // MVNO carrier is enabled.
+        when(mTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(1);
+        when(mTelephonyManager.getSimCarrierId()).thenReturn(20);
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
+        when(mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
+                any(List.class))).thenReturn(
+                EAPConstants.EAP_AKA);
+
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
+        verify(mPasspointManager, never()).createEphemeralPasspointConfigForCarrier(anyInt());
+    }
+
+    /**
      * Verify that it never creates an ephemeral Passpoint Configuration when the profile for the
      * carrier already exists.
      */
@@ -437,6 +462,11 @@ public class PasspointNetworkEvaluatorTest {
         // Setup ScanDetail
         List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
                 generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+
+        // MNO carrier is enabled.
+        when(mTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(1);
+        when(mTelephonyManager.getSimCarrierId()).thenReturn(1);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
         when(mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
@@ -459,6 +489,11 @@ public class PasspointNetworkEvaluatorTest {
         // Setup ScanDetail
         List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
                 generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+
+        // MNO carrier is enabled.
+        when(mTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(1);
+        when(mTelephonyManager.getSimCarrierId()).thenReturn(1);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
         when(mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(

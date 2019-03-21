@@ -33,6 +33,7 @@ import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiNetworkSelector;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,8 +97,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         mPasspointManager.sweepCache();
 
         // Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
-        // of the current carrier on the device.
-        if (mWifiConfigManager.isSimPresent()
+        // of the current MNO carrier on the device.
+        if ((TelephonyUtil.getCarrierType(mTelephonyManager) == TelephonyUtil.CARRIER_MNO_TYPE)
                 && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
                 && !mPasspointManager.hasCarrierProvider(
                 mTelephonyManager.getNetworkOperator())) {
