@@ -504,7 +504,7 @@ public class WifiNetworkSuggestionsManager {
             if (mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
                 Log.i(TAG, "Only network suggestion matching the connected network removed. "
                         + "Disconnecting...");
-                mWifiInjector.getClientModeImpl().disconnectCommandInternal();
+                mWifiInjector.getClientModeImpl().disconnectCommand();
             }
         }
     }

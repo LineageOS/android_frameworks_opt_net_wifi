@@ -1644,7 +1644,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         mLog.info("disconnect uid=%").c(Binder.getCallingUid()).flush();
-        mClientModeImpl.disconnectCommandExternal();
+        mClientModeImpl.disconnectCommand();
         return true;
     }
 

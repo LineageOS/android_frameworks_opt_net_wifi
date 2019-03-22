@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX;
-
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -4980,7 +4978,7 @@ public class WifiConfigManagerTest {
                     NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP,
                     retrievedDisableTime);
             verifyUpdateNetworkStatus(retrievedNetwork, WifiConfiguration.Status.ENABLED);
-        } else if (reason < NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX) {
+        } else if (reason < NetworkSelectionStatus.DISABLED_TLS_VERSION_MISMATCH) {
             // For temporarily disabled networks, we need to ensure that the current status remains
             // until the threshold is crossed.
             assertEquals(temporaryDisableReasonCounter, retrievedDisableReasonCounter);

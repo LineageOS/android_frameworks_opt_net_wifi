@@ -937,7 +937,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Invoked at the termination of current connected request processing.
     private void teardownForConnectedNetwork() {
         Log.i(TAG, "Disconnecting from network on reset");
-        mWifiInjector.getClientModeImpl().disconnectCommandInternal();
+        mWifiInjector.getClientModeImpl().disconnectCommand();
         mConnectedSpecificNetworkRequest = null;
         mConnectedSpecificNetworkRequestSpecifier = null;
         // ensure there is no active request in progress.

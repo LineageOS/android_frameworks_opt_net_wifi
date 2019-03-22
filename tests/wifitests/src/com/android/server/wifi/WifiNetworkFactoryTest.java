@@ -587,7 +587,7 @@ public class WifiNetworkFactoryTest {
         // Release the network request.
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
         // Verify that we did not trigger a disconnect because we've not yet connected.
-        verify(mClientModeImpl, never()).disconnectCommandInternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
         // Re-enable connectivity manager .
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
 
@@ -1411,7 +1411,7 @@ public class WifiNetworkFactoryTest {
         // Now release the network request.
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
         // Verify that we triggered a disconnect.
-        verify(mClientModeImpl).disconnectCommandInternal();
+        verify(mClientModeImpl).disconnectCommand();
         // Re-enable connectivity manager .
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
     }
@@ -1586,12 +1586,12 @@ public class WifiNetworkFactoryTest {
         verify(mWifiConnectivityManager, times(1)).setSpecificNetworkRequestInProgress(true);
         verify(mWifiScanner, times(2)).startScan(any(), any(), any());
         // we shouldn't disconnect until the user accepts the next request.
-        verify(mClientModeImpl, never()).disconnectCommandInternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
 
         // Remove the connected request1 & ensure we disconnect.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
-        verify(mClientModeImpl).disconnectCommandInternal();
+        verify(mClientModeImpl).disconnectCommand();
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
                 mAlarmManager);
@@ -1636,7 +1636,7 @@ public class WifiNetworkFactoryTest {
 
         // We shouldn't explicitly disconnect, the new connection attempt will implicitly disconnect
         // from the connected network.
-        verify(mClientModeImpl, never()).disconnectCommandInternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
 
         // Remove the stale request1 & ensure nothing happens (because it was replaced by the
         // second request)
@@ -1649,7 +1649,7 @@ public class WifiNetworkFactoryTest {
         // Now remove the rejected request2, ensure we disconnect & re-enable auto-join.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier2);
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
-        verify(mClientModeImpl).disconnectCommandInternal();
+        verify(mClientModeImpl).disconnectCommand();
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,
@@ -1685,12 +1685,12 @@ public class WifiNetworkFactoryTest {
 
         // we shouldn't disconnect/re-enable auto-join until the connected request is released.
         verify(mWifiConnectivityManager, never()).setSpecificNetworkRequestInProgress(false);
-        verify(mClientModeImpl, never()).disconnectCommandInternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
 
         // Remove the connected request1 & ensure we disconnect & ensure auto-join is re-enabled.
         mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier1);
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
-        verify(mClientModeImpl).disconnectCommandInternal();
+        verify(mClientModeImpl).disconnectCommand();
         verify(mWifiConnectivityManager).setSpecificNetworkRequestInProgress(false);
 
         verifyNoMoreInteractions(mWifiConnectivityManager, mWifiScanner, mClientModeImpl,

@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX;
-
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.admin.DeviceAdminInfo;
@@ -128,7 +126,6 @@ public class WifiConfigManager {
             1,  //  threshold for DISABLED_NO_INTERNET_TEMPORARY
             1,  //  threshold for DISABLED_WPS_START
             6,  //  threshold for DISABLED_TLS_VERSION_MISMATCH
-            1,  //  threshold for DISABLED_BY_WIFI_MANAGER_DISCONNECT
             1,  //  threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
             1,  //  threshold for DISABLED_NO_INTERNET_PERMANENT
             1,  //  threshold for DISABLED_BY_WIFI_MANAGER
@@ -153,7 +150,6 @@ public class WifiConfigManager {
             10 * 60 * 1000,     // threshold for DISABLED_NO_INTERNET_TEMPORARY
             0 * 60 * 1000,      // threshold for DISABLED_WPS_START
             Integer.MAX_VALUE,  // threshold for DISABLED_TLS_VERSION
-            1 * 60 * 60 * 1000,  //  threshold for DISABLED_BY_WIFI_MANAGER_DISCONNECT
             Integer.MAX_VALUE,  // threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
             Integer.MAX_VALUE,  // threshold for DISABLED_NO_INTERNET_PERMANENT
             Integer.MAX_VALUE,  // threshold for DISABLED_BY_WIFI_MANAGER
@@ -1568,7 +1564,7 @@ public class WifiConfigManager {
         if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
             setNetworkSelectionEnabled(config);
             setNetworkStatus(config, WifiConfiguration.Status.ENABLED);
-        } else if (reason < NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX) {
+        } else if (reason < NetworkSelectionStatus.DISABLED_TLS_VERSION_MISMATCH) {
             setNetworkSelectionTemporarilyDisabled(config, reason);
         } else {
             setNetworkSelectionPermanentlyDisabled(config, reason);
