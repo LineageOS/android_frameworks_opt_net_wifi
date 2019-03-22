@@ -56,6 +56,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -711,6 +712,9 @@ public class WifiNetworkFactory extends NetworkFactory {
         // Note: We don't do any error checks on the networkId because ClientModeImpl will do the
         // necessary checks when processing CONNECT_NETWORK.
         int networkId = addNetworkToWifiConfigManager(network);
+
+        mWifiMetrics.setNominatorForNetwork(networkId,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER);
 
         // Send the connect request to ClientModeImpl.
         // TODO(b/117601161): Refactor this.

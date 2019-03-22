@@ -373,6 +373,12 @@ public class WifiMetrics {
 
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
+    /**
+     * Tracks the nominator for each network (i.e. which entity made the suggestion to connect).
+     * This object should not be cleared.
+     */
+    private final SparseIntArray mNetworkIdToNominatorId = new SparseIntArray();
+
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
         public static final int MAX_CHOICES = 10;
@@ -644,8 +650,8 @@ public class WifiMetrics {
                     case WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED:
                         sb.append("NOMINATOR_EXTERNAL_SCORED");
                         break;
-                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC:
-                        sb.append("NOMINATOR_NETREC");
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER:
+                        sb.append("NOMINATOR_SPECIFIER");
                         break;
                     case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE:
                         sb.append("NOMINATOR_SAVED_USER_CONNECT_CHOICE");
@@ -988,26 +994,9 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.useRandomizedMac =
                         config.macRandomizationSetting
                         == WifiConfiguration.RANDOMIZATION_PERSISTENT;
-                if (config.fromWifiNetworkSpecifier) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC;
-                } else if (config.fromWifiNetworkSuggestion) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
-                } else if (config.isPasspoint()) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
-                } else if (!config.trusted) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
-                } else if (!config.ephemeral) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
-                } else {
-                    // TODO(b/127452844): populate other nominator fields
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
-                }
+                mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                        mNetworkIdToNominatorId.get(config.networkId,
+                                WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN);
                 ScanResult candidate = config.getNetworkSelectionStatus().getCandidate();
                 if (candidate != null) {
                     // Cache the RSSI of the candidate, as the connection event level is updated
@@ -2728,6 +2717,7 @@ public class WifiMetrics {
                 pw.println("mWifiNetworkSuggestionApiLog:\n" + mWifiNetworkSuggestionApiLog);
                 pw.println("mWifiNetworkSuggestionApiMatchSizeHistogram:\n"
                         + mWifiNetworkRequestApiMatchSizeHistogram);
+                pw.println("mNetworkIdToNominatorId:\n" + mNetworkIdToNominatorId);
             }
         }
     }
@@ -4710,6 +4700,19 @@ public class WifiMetrics {
             for (Integer listSize : listSizes) {
                 mWifiNetworkSuggestionApiListSizeHistogram.increment(listSize);
             }
+        }
+    }
+
+    /**
+     * Sets the nominator for a network (i.e. which entity made the suggestion to connect)
+     * @param networkId the ID of the network, from its {@link WifiConfiguration}
+     * @param nominatorId the entity that made the suggestion to connect to this network,
+     *                    from {@link WifiMetricsProto.ConnectionEvent.ConnectionNominator}
+     */
+    public void setNominatorForNetwork(int networkId, int nominatorId) {
+        synchronized (mLock) {
+            if (networkId == WifiConfiguration.INVALID_NETWORK_ID) return;
+            mNetworkIdToNominatorId.put(networkId, nominatorId);
         }
     }
 }

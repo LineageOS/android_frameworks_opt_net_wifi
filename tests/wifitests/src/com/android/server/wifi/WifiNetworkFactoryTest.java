@@ -64,6 +64,7 @@ import android.util.Pair;
 
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.WifiNetworkFactory.AccessPoint;
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -1046,6 +1047,8 @@ public class WifiNetworkFactoryTest {
         expectedWifiConfiguration.ephemeral = true;
         expectedWifiConfiguration.fromWifiNetworkSpecifier = true;
         WifiConfigurationTestUtil.assertConfigurationEqual(expectedWifiConfiguration, network);
+        verify(mWifiMetrics).setNominatorForNetwork(anyInt(),
+                eq(WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER));
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(messageCaptor.capture());
@@ -1157,6 +1160,8 @@ public class WifiNetworkFactoryTest {
         expectedWifiConfiguration.ephemeral = true;
         expectedWifiConfiguration.fromWifiNetworkSpecifier = true;
         WifiConfigurationTestUtil.assertConfigurationEqual(expectedWifiConfiguration, network);
+        verify(mWifiMetrics).setNominatorForNetwork(anyInt(),
+                eq(WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER));
 
         // Verify connection message.
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
