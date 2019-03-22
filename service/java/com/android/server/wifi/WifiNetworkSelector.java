@@ -30,6 +30,7 @@ import android.net.wifi.WifiInfo;
 import android.os.Process;
 import android.text.TextUtils;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
@@ -659,6 +660,7 @@ public class WifiNetworkSelector {
         // Determine the weight for the last user selection
         final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
         final double lastSelectionWeight = calculateLastSelectionWeight();
+        final ArraySet<Integer> mNetworkIds = new ArraySet<>();
 
         // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
@@ -674,6 +676,7 @@ public class WifiNetworkSelector {
                     (scanDetail, config, score) -> {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
+                            mNetworkIds.add(config.networkId);
                             if (config.networkId == lastUserSelectedNetworkId) {
                                 wifiCandidates.add(scanDetail, config,
                                         registeredEvaluator.getId(), score, lastSelectionWeight);
@@ -685,6 +688,10 @@ public class WifiNetworkSelector {
                                     evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
                     });
+            if (choice != null && !mNetworkIds.contains(choice.networkId)) {
+                Log.wtf(TAG, registeredEvaluator.getName()
+                        + " failed to report choice with noConnectibleListener");
+            }
             if (selectedNetwork == null && choice != null) {
                 selectedNetwork = choice; // First one wins
                 localLog(registeredEvaluator.getName() + " selects "
