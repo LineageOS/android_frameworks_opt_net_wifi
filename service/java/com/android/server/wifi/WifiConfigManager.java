@@ -2796,7 +2796,8 @@ public class WifiConfigManager {
                 if (TelephonyUtil.isSimConfig(config)) {
                     Pair<String, String> currentIdentity =
                             TelephonyUtil.getSimIdentity(mTelephonyManager,
-                                    new TelephonyUtil(), config);
+                                    new TelephonyUtil(), config,
+                                    mWifiInjector.getCarrierNetworkConfig());
                     if (mVerboseLoggingEnabled) {
                         Log.d(TAG, "New identity for config " + config + ": " + currentIdentity);
                     }
