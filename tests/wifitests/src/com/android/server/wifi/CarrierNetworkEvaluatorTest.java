@@ -122,8 +122,8 @@ public class CarrierNetworkEvaluatorTest {
 
     private AddOrUpdateNetworkAnswer mAddOrUpdateNetworkAnswer;
 
-    private void configureNewSsid(int networkId, ScanDetail scanDetail, boolean isEphemeral,
-            boolean isSaved) {
+    private WifiConfiguration configureNewSsid(int networkId, ScanDetail scanDetail,
+            boolean isEphemeral, boolean isSaved) {
         WifiConfiguration newConfig = ScanResultUtil.createNetworkFromScanResult(
                 scanDetail.getScanResult());
         assertTrue("" + newConfig, WifiConfigurationUtil.validate(newConfig, true));
@@ -140,6 +140,7 @@ public class CarrierNetworkEvaluatorTest {
                 anyInt())).thenReturn(true);
         when(mWifiConfigManager.getConfiguredNetwork(networkId)).thenReturn(newConfig);
         mAddOrUpdateNetworkAnswer.addConfig(newConfig, networkId);
+        return newConfig;
     }
 
     /** Sets up test. */
@@ -334,4 +335,41 @@ public class CarrierNetworkEvaluatorTest {
         verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
         assertNull(selected);
     }
+
+    /**
+     * One carrier Wi-Fi networks visible and cert installed but ssid is blacklisted.
+     *
+     * Desired behavior: no networks connectable or selected
+     */
+    @Test
+    public void testAvailableButBlacklisted() {
+        String[] ssids = {CARRIER1_SSID};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        String[] caps = {"[WPA2-EAP-CCMP]"};
+        int[] levels = {10};
+
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
+                freqs, caps, levels, mClock);
+        WifiConfiguration blacklisted =
+                configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0), true, false);
+        blacklisted.getNetworkSelectionStatus()
+                .setNetworkSelectionStatus(
+                        WifiConfiguration.NetworkSelectionStatus
+                                .NETWORK_SELECTION_PERMANENTLY_DISABLED);
+        when(mWifiConfigManager.getConfiguredNetwork(eq(blacklisted.configKey())))
+                .thenReturn(blacklisted);
+        when(mWifiConfigManager.tryEnableNetwork(CARRIER1_NET_ID))
+                .thenReturn(false);
+
+        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+                mConnectableListener);
+        verify(mWifiConfigManager).getConfiguredNetwork(eq(blacklisted.configKey()));
+
+        verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
+        assertNull(selected);
+    }
+
 }
