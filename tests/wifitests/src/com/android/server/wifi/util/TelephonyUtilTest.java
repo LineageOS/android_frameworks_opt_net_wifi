@@ -584,4 +584,29 @@ public class TelephonyUtilTest {
         assertEquals("UMTS-AUTS", response.type);
         assertEquals(":2233", response.response);
     }
+
+    /**
+     * Verify that anonymous identity should be a valid format based on MCC/MNC of current SIM.
+     */
+    @Test
+    public void getAnonymousIdentityWithSim() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        String mccmnc = "123456";
+        String expectedIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
+        when(tm.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(tm.getSimOperator()).thenReturn(mccmnc);
+
+        assertEquals(expectedIdentity, TelephonyUtil.getAnonymousIdentityWith3GppRealm(tm));
+    }
+
+    /**
+     * Verify that anonymous identity should be {@code null} when SIM is absent.
+     */
+    @Test
+    public void getAnonymousIdentityWithoutSim() {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        when(tm.getSimState()).thenReturn(TelephonyManager.SIM_STATE_ABSENT);
+
+        assertNull(TelephonyUtil.getAnonymousIdentityWith3GppRealm(tm));
+    }
 }
