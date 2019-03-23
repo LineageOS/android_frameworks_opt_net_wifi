@@ -2863,17 +2863,21 @@ public class WifiMetricsTest {
 
         WifiLinkLayerStats stats3 = new WifiLinkLayerStats();
         WifiLinkLayerStats stats4 = new WifiLinkLayerStats();
-        stats4.timeStampInMs = stats3.timeStampInMs - 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
-        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
             stats3 = nextRandomStats(stats3);
         }
-        addBadWifiUsabilityStats(stats3);
-        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
             stats4 = nextRandomStats(stats4);
         }
-        addBadWifiUsabilityStats(stats4);
+        stats4.timeStampInMs = stats3.timeStampInMs - 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
         dumpProtoAndDeserialize();
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
     }
@@ -2898,17 +2902,21 @@ public class WifiMetricsTest {
 
         WifiLinkLayerStats stats3 = new WifiLinkLayerStats();
         WifiLinkLayerStats stats4 = new WifiLinkLayerStats();
-        stats4.timeStampInMs = stats3.timeStampInMs + 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
-        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
             stats3 = nextRandomStats(stats3);
         }
-        addBadWifiUsabilityStats(stats3);
-        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 2; i++) {
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+        for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
             stats4 = nextRandomStats(stats4);
         }
-        addBadWifiUsabilityStats(stats4);
+        stats4.timeStampInMs = stats3.timeStampInMs + 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
         dumpProtoAndDeserialize();
         assertEquals(4, mDecodedProto.wifiUsabilityStatsList.length);
     }

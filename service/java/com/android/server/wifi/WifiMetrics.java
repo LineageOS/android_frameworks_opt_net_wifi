@@ -124,7 +124,7 @@ public class WifiMetrics {
     private static final int MIN_WIFI_SCORE = 0;
     private static final int MAX_WIFI_SCORE = NetworkAgent.WIFI_BASE_SCORE;
     private static final int MIN_WIFI_USABILITY_SCORE = 0; // inclusive
-    private static final int MAX_WIFI_USABILITY_SCORE = 60; // inclusive
+    private static final int MAX_WIFI_USABILITY_SCORE = 100; // inclusive
     @VisibleForTesting
     static final int LOW_WIFI_SCORE = 50; // Mobile data score
     @VisibleForTesting
@@ -151,7 +151,7 @@ public class WifiMetrics {
     private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 1; // 1 = true
     private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 1; // 1 = true
     // Max number of WifiUsabilityStatsEntry elements to store in the ringbuffer.
-    public static final int MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE = 20;
+    public static final int MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE = 40;
     // Max number of WifiUsabilityStats elements to store for each type.
     public static final int MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE = 10;
     // Max number of WifiUsabilityStats per labeled type to upload to server
@@ -4352,9 +4352,10 @@ public class WifiMetrics {
                 // Only add a good event if at least |MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS|
                 // has passed.
                 if (mWifiUsabilityStatsListGood.isEmpty()
-                        || mWifiUsabilityStatsListGood.getLast().stats[0].timeStampMs
+                        || mWifiUsabilityStatsListGood.getLast().stats[mWifiUsabilityStatsListGood
+                        .getLast().stats.length - 1].timeStampMs
                         + MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS
-                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs) {
+                        < mWifiUsabilityStatsEntriesList.getLast().timeStampMs) {
                     while (mWifiUsabilityStatsListGood.size()
                             >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
                         mWifiUsabilityStatsListGood.remove(
@@ -4367,9 +4368,10 @@ public class WifiMetrics {
                 // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
                 // has passed.
                 if (mWifiUsabilityStatsListBad.isEmpty()
-                        || (mWifiUsabilityStatsListBad.getLast().stats[0].timeStampMs
+                        || (mWifiUsabilityStatsListBad.getLast().stats[mWifiUsabilityStatsListBad
+                        .getLast().stats.length - 1].timeStampMs
                         + MIN_DATA_STALL_WAIT_MS
-                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs)) {
+                        < mWifiUsabilityStatsEntriesList.getLast().timeStampMs)) {
                     while (mWifiUsabilityStatsListBad.size()
                             >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
                         mWifiUsabilityStatsListBad.remove(
