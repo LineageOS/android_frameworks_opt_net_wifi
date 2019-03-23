@@ -66,6 +66,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * Unit test harness for WifiAwareStateManager.
  */
@@ -151,7 +152,7 @@ public class WifiAwareServiceImplTest {
                 mock(WifiAwareNativeManager.class), mock(WifiAwareNativeApi.class),
                 mock(WifiAwareNativeCallback.class));
         verify(mAwareStateManagerMock).start(eq(mContextMock), any(), eq(mAwareMetricsMock),
-                eq(mWifiPermissionsUtil), eq(mPermissionsWrapperMock));
+                eq(mWifiPermissionsUtil), eq(mPermissionsWrapperMock), any());
     }
 
     /**

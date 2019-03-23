@@ -25,6 +25,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.WifiNative;
 
 import java.security.InvalidKeyException;
@@ -73,14 +74,20 @@ public class TelephonyUtil {
      *
      * @param tm TelephonyManager instance
      * @param config WifiConfiguration that indicates what sort of authentication is necessary
+     * @param telephonyUtil TelephonyUtil instance
+     * @param carrierNetworkConfig CarrierNetworkConfig instance
      * @return Pair<identify, encrypted identity> or null if the SIM is not available
      * or config is invalid
      */
     public static Pair<String, String> getSimIdentity(TelephonyManager tm,
-                                                      TelephonyUtil telephonyUtil,
-                                                      WifiConfiguration config) {
+            TelephonyUtil telephonyUtil,
+            WifiConfiguration config, CarrierNetworkConfig carrierNetworkConfig) {
         if (tm == null) {
             Log.e(TAG, "No valid TelephonyManager");
+            return null;
+        }
+        if (carrierNetworkConfig == null) {
+            Log.e(TAG, "No valid CarrierNetworkConfig");
             return null;
         }
         String imsi = tm.getSubscriberId();
@@ -104,8 +111,15 @@ public class TelephonyUtil {
             return null;
         }
 
+        int base64EncodingFlag = carrierNetworkConfig.getBase64EncodingFlag(config.SSID);
+        if (base64EncodingFlag == -1) {
+            // no encrypted IMSI identity.
+            return Pair.create(identity, "");
+        }
         String encryptedIdentity = buildEncryptedIdentity(telephonyUtil,
-                getSimMethodForConfig(config), imsi, mccMnc, imsiEncryptionInfo);
+                getSimMethodForConfig(config), imsi, mccMnc, imsiEncryptionInfo,
+                base64EncodingFlag);
+
         // In case of failure for encryption, set empty string
         if (encryptedIdentity == null) encryptedIdentity = "";
         return Pair.create(identity, encryptedIdentity);
@@ -116,15 +130,17 @@ public class TelephonyUtil {
      * a Base64 encoded string.
      *
      * @param key The public key to use for encryption
+     * @param encodingFlag base64 encoding flag
      * @return Base64 encoded string, or null if encryption failed
      */
     @VisibleForTesting
-    public String encryptDataUsingPublicKey(PublicKey key, byte[] data) {
+    public String encryptDataUsingPublicKey(PublicKey key, byte[] data, int encodingFlag) {
         try {
             Cipher cipher = Cipher.getInstance(IMSI_CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, key);
             byte[] encryptedBytes = cipher.doFinal(data);
-            return Base64.encodeToString(encryptedBytes, 0, encryptedBytes.length, Base64.DEFAULT);
+
+            return Base64.encodeToString(encryptedBytes, 0, encryptedBytes.length, encodingFlag);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
                 | IllegalBlockSizeException | BadPaddingException e) {
             Log.e(TAG, "Encryption failed: " + e.getMessage());
@@ -138,14 +154,16 @@ public class TelephonyUtil {
      * "0" - EAP-AKA Identity
      * "1" - EAP-SIM Identity
      * "6" - EAP-AKA' Identity
+     *
      * @param eapMethod EAP authentication method: EAP-SIM, EAP-AKA, EAP-AKA'
      * @param imsi The IMSI retrieved from the SIM
      * @param mccMnc The MCC MNC identifier retrieved from the SIM
      * @param imsiEncryptionInfo The IMSI encryption info retrieved from the SIM
+     * @param base64EncodingFlag base64 encoding flag
      */
     private static String buildEncryptedIdentity(TelephonyUtil telephonyUtil, int eapMethod,
-                                                 String imsi, String mccMnc,
-                                                 ImsiEncryptionInfo imsiEncryptionInfo) {
+            String imsi, String mccMnc,
+            ImsiEncryptionInfo imsiEncryptionInfo, int base64EncodingFlag) {
         if (imsiEncryptionInfo == null) {
             return null;
         }
@@ -155,9 +173,10 @@ public class TelephonyUtil {
             return null;
         }
         imsi = prefix + imsi;
+
         // Build and return the encrypted identity.
         String encryptedImsi = telephonyUtil.encryptDataUsingPublicKey(
-                imsiEncryptionInfo.getPublicKey(), imsi.getBytes());
+                imsiEncryptionInfo.getPublicKey(), imsi.getBytes(), base64EncodingFlag);
         if (encryptedImsi == null) {
             Log.e(TAG, "Failed to encrypt IMSI");
             return null;

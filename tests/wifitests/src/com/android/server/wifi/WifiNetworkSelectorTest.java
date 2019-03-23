@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+
 import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_EAP;
 import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_NONE;
 import static com.android.server.wifi.WifiConfigurationTestUtil.SECURITY_PSK;
@@ -81,7 +83,8 @@ public class WifiNetworkSelectorTest {
                 mScoringParams,
                 mWifiConfigManager, mClock,
                 mLocalLog,
-                mWifiMetrics);
+                mWifiMetrics,
+                mWifiNative);
         mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -89,6 +92,7 @@ public class WifiNetworkSelectorTest {
         when(mWifiScoreCard.lookupBssid(any(), any())).thenReturn(mPerBssid);
         mCompatibilityScorer = new CompatibilityScorer(mScoringParams);
         mScoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
+        when(mWifiNative.getClientInterfaceName()).thenReturn("wlan0");
     }
 
     /** Cleans up test. */
@@ -179,6 +183,7 @@ public class WifiNetworkSelectorTest {
     @Mock private WifiScoreCard.PerBssid mPerBssid;
     @Mock private WifiCandidates.CandidateScorer mCandidateScorer;
     @Mock private WifiMetrics mWifiMetrics;
+    @Mock private WifiNative mWifiNative;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -1169,6 +1174,69 @@ public class WifiNetworkSelectorTest {
     @Test
     public void getfilterOpenUnsavedNetworks_returnsEmptyListWhenNoNetworkSelectionMade() {
         assertTrue(mWifiNetworkSelector.getFilteredScanDetailsForOpenUnsavedNetworks().isEmpty());
+    }
+
+    /**
+     * {@link WifiNetworkSelector#getFilteredScanDetailsForOpenUnsavedNetworks()} for device that
+     * supports enhanced open networks, should filter out networks that are not open and not
+     * enhanced open after network selection is made.
+     *
+     * Expected behavior: return open and enhanced open networks only
+     */
+    @Test
+    public void getfilterOpenUnsavedNetworks_filtersForOpenAndOweNetworksOweSupported() {
+        String[] ssids = {"\"test1\"", "\"test2\"", "\"test3\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:f3:7f:ae:8c:f5"};
+        int[] freqs = {2437, 5180, 2414};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]", "[RSN-OWE-CCMP][ESS]"};
+        int[] levels = {mThresholdMinimumRssi2G, mThresholdMinimumRssi5G + RSSI_BUMP,
+                mThresholdMinimumRssi2G + RSSI_BUMP};
+        mDummyEvaluator.setEvaluatorToSelectCandidate(false);
+        when(mWifiNative.getSupportedFeatureSet(anyString()))
+                .thenReturn(new Long(WIFI_FEATURE_OWE));
+
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(
+                ssids, bssids, freqs, caps, levels, mClock);
+        HashSet<String> blacklist = new HashSet<>();
+
+        mWifiNetworkSelector.selectNetwork(scanDetails, blacklist, mWifiInfo, false, true, false);
+        List<ScanDetail> expectedOpenUnsavedNetworks = new ArrayList<>();
+        expectedOpenUnsavedNetworks.add(scanDetails.get(1));
+        expectedOpenUnsavedNetworks.add(scanDetails.get(2));
+        assertEquals("Expect open unsaved networks",
+                expectedOpenUnsavedNetworks,
+                mWifiNetworkSelector.getFilteredScanDetailsForOpenUnsavedNetworks());
+    }
+
+    /**
+     * {@link WifiNetworkSelector#getFilteredScanDetailsForOpenUnsavedNetworks()} for device that
+     * does not support enhanced open networks, should filter out both networks that are not open
+     * and enhanced open after network selection is made.
+     *
+     * Expected behavior: return open networks only
+     */
+    @Test
+    public void getfilterOpenUnsavedNetworks_filtersForOpenAndOweNetworksOweNotSupported() {
+        String[] ssids = {"\"test1\"", "\"test2\"", "\"test3\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:f3:7f:ae:8c:f5"};
+        int[] freqs = {2437, 5180, 2414};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[ESS]", "[RSN-OWE-CCMP][ESS]"};
+        int[] levels = {mThresholdMinimumRssi2G, mThresholdMinimumRssi5G + RSSI_BUMP,
+                mThresholdMinimumRssi2G + RSSI_BUMP};
+        mDummyEvaluator.setEvaluatorToSelectCandidate(false);
+        when(mWifiNative.getSupportedFeatureSet(anyString()))
+                .thenReturn(new Long(~WIFI_FEATURE_OWE));
+
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(
+                ssids, bssids, freqs, caps, levels, mClock);
+        HashSet<String> blacklist = new HashSet<>();
+
+        mWifiNetworkSelector.selectNetwork(scanDetails, blacklist, mWifiInfo, false, true, false);
+        List<ScanDetail> expectedOpenUnsavedNetworks = new ArrayList<>();
+        expectedOpenUnsavedNetworks.add(scanDetails.get(1));
+        assertEquals("Expect open unsaved networks",
+                expectedOpenUnsavedNetworks,
+                mWifiNetworkSelector.getFilteredScanDetailsForOpenUnsavedNetworks());
     }
 
     /**

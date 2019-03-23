@@ -53,6 +53,7 @@ public class CarrierNetworkConfig {
     private static final int ENCODED_SSID_INDEX = 0;
     private static final int EAP_TYPE_INDEX = 1;
     private static final int CONFIG_ELEMENT_SIZE = 2;
+
     private static final Uri CONTENT_URI = Uri.parse("content://carrier_information/carrier");
 
     private boolean mDbg = false;
@@ -60,6 +61,12 @@ public class CarrierNetworkConfig {
     private final Map<String, NetworkInfo> mCarrierNetworkMap;
     private boolean mIsCarrierImsiEncryptionInfoAvailable = false;
     private ImsiEncryptionInfo mLastImsiEncryptionInfo = null; // used for dumpsys only
+
+    // RFC2045: adds Line Feed at each 76 chars and encode it.
+    public static final int ENCODING_METHOD_RFC_2045 = 2045;
+
+    // RFC4648: encodes whole data into one string.
+    public static final int ENCODING_METHOD_RFC_4648 = 4648;
 
     /**
      * Enable/disable verbose logging.
@@ -118,6 +125,15 @@ public class CarrierNetworkConfig {
     }
 
     /**
+     * @return the base64 encoding flag with a carrier AP, or -1 if the specified AP is not
+     * associate with a carrier network.
+     */
+    public int getBase64EncodingFlag(String ssid) {
+        NetworkInfo info = mCarrierNetworkMap.get(ssid);
+        return info == null ? -1 : info.mBase64EncodingFlag;
+    }
+
+    /**
      * @return True if carrier IMSI encryption info is available, False otherwise.
      */
     public boolean isCarrierEncryptionInfoAvailable() {
@@ -157,16 +173,19 @@ public class CarrierNetworkConfig {
     private static class NetworkInfo {
         final int mEapType;
         final String mCarrierName;
+        final int mBase64EncodingFlag;
 
-        NetworkInfo(int eapType, String carrierName) {
+        NetworkInfo(int eapType, String carrierName, int base64EncodingFlag) {
             mEapType = eapType;
             mCarrierName = carrierName;
+            mBase64EncodingFlag = base64EncodingFlag;
         }
 
         @Override
         public String toString() {
             return new StringBuffer("NetworkInfo: eap=").append(mEapType).append(
-                    ", carrier=").append(mCarrierName).toString();
+                    ", carrier=").append(mCarrierName).append("base64EncodingFlag=").append(
+                    mBase64EncodingFlag).toString();
         }
     }
 
@@ -230,22 +249,35 @@ public class CarrierNetworkConfig {
             return;
         }
 
+        int encodeMethod = carrierConfig.getInt(
+                CarrierConfigManager.KEY_IMSI_ENCODING_METHOD_INT, ENCODING_METHOD_RFC_2045);
+        if (encodeMethod != ENCODING_METHOD_RFC_2045 && encodeMethod != ENCODING_METHOD_RFC_4648) {
+            Log.e(TAG, "Invalid encoding method type: " + encodeMethod);
+            return;
+        }
+
         for (String networkConfig : networkConfigs) {
             String[] configArr = networkConfig.split(NETWORK_CONFIG_SEPARATOR);
+
             if (configArr.length != CONFIG_ELEMENT_SIZE) {
                 Log.e(TAG, "Ignore invalid config: " + networkConfig);
                 continue;
             }
+
             try {
+                int flag = Base64.DEFAULT;
+                if (encodeMethod == ENCODING_METHOD_RFC_4648) {
+                    flag = Base64.NO_WRAP;
+                }
                 String ssid = new String(Base64.decode(
-                        configArr[ENCODED_SSID_INDEX], Base64.DEFAULT));
+                        configArr[ENCODED_SSID_INDEX], flag));
                 int eapType = parseEapType(Integer.parseInt(configArr[EAP_TYPE_INDEX]));
                 // Verify EAP type, must be a SIM based EAP type.
                 if (eapType == -1) {
                     Log.e(TAG, "Invalid EAP type: " + configArr[EAP_TYPE_INDEX]);
                     continue;
                 }
-                mCarrierNetworkMap.put(ssid, new NetworkInfo(eapType, carrierName));
+                mCarrierNetworkMap.put(ssid, new NetworkInfo(eapType, carrierName, flag));
             } catch (NumberFormatException e) {
                 Log.e(TAG, "Failed to parse EAP type: '" + configArr[EAP_TYPE_INDEX] + "' "
                         + e.getMessage());
