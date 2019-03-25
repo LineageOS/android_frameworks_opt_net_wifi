@@ -110,6 +110,17 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
             }
             config.enterpriseConfig.setEapMethod(eapType);
 
+            // Check if we already have a network with the same credentials in WifiConfigManager
+            // database. If yes, we should check if the network is currently blacklisted.
+            WifiConfiguration existingNetwork =
+                    mWifiConfigManager.getConfiguredNetwork(config.configKey());
+            if (existingNetwork != null
+                    && !existingNetwork.getNetworkSelectionStatus().isNetworkEnabled()
+                    && !mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId)) {
+                mLocalLog.log(TAG + ": Ignoring blacklisted network: "
+                        + WifiNetworkSelector.toNetworkString(existingNetwork));
+                continue;
+            }
             // Add the newly created WifiConfiguration to WifiConfigManager.
             NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(config,
                     Process.WIFI_UID);
@@ -131,7 +142,10 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
 
             config = mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
 
-            WifiConfiguration.NetworkSelectionStatus nss = config.getNetworkSelectionStatus();
+            WifiConfiguration.NetworkSelectionStatus nss = null;
+            if (config != null) {
+                nss = config.getNetworkSelectionStatus();
+            }
             if (nss == null) {
                 mLocalLog.log(TAG + ": null network selection status for: " + config);
                 continue;
