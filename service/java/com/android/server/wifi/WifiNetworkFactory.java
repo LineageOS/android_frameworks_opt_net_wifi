@@ -136,6 +136,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean mPeriodicScanTimerSet = false;
     private boolean mConnectionTimeoutSet = false;
     private boolean mIsPeriodicScanPaused = false;
+    // We sent a new connection request and are waiting for connection success.
+    private boolean mPendingConnectionSuccess = false;
     private boolean mWifiEnabled = false;
     /**
      * Indicates that we have new data to serialize.
@@ -748,6 +750,8 @@ public class WifiNetworkFactory extends NetworkFactory {
 
         // Trigger connection to the network.
         connectToNetwork(networkToConnect);
+        // Triggered connection to network, now wait for the connection status.
+        mPendingConnectionSuccess = true;
     }
 
     private void handleConnectToNetworkUserSelection(WifiConfiguration network) {
@@ -796,7 +800,10 @@ public class WifiNetworkFactory extends NetworkFactory {
      * Invoked by {@link ClientModeImpl} on successful connection to a network.
      */
     private void handleNetworkConnectionSuccess(@NonNull WifiConfiguration connectedNetwork) {
-        if (mUserSelectedNetwork == null || connectedNetwork == null) return;
+        if (mUserSelectedNetwork == null || connectedNetwork == null
+                || !mPendingConnectionSuccess) {
+            return;
+        }
         if (!isUserSelectedNetwork(connectedNetwork)) {
             Log.w(TAG, "Connected to unknown network " + connectedNetwork + ". Ignoring...");
             return;
@@ -819,7 +826,9 @@ public class WifiNetworkFactory extends NetworkFactory {
      * Invoked by {@link ClientModeImpl} on failure to connect to a network.
      */
     private void handleNetworkConnectionFailure(@NonNull WifiConfiguration failedNetwork) {
-        if (mUserSelectedNetwork == null || failedNetwork == null) return;
+        if (mUserSelectedNetwork == null || failedNetwork == null || !mPendingConnectionSuccess) {
+            return;
+        }
         if (!isUserSelectedNetwork(failedNetwork)) {
             Log.w(TAG, "Connection failed to unknown network " + failedNetwork + ". Ignoring...");
             return;
@@ -904,6 +913,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mUserSelectedNetworkConnectRetryCount = 0;
         mIsPeriodicScanPaused = false;
         mActiveMatchedScanResults = null;
+        mPendingConnectionSuccess = false;
         // Cancel periodic scan, connection timeout alarm.
         cancelPeriodicScans();
         cancelConnectionTimeout();
@@ -933,6 +943,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mConnectedSpecificNetworkRequestSpecifier = mActiveSpecificNetworkRequestSpecifier;
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
+        mPendingConnectionSuccess = false;
         // Cancel connection timeout alarm.
         cancelConnectionTimeout();
     }
