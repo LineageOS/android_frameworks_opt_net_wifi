@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import static android.net.shared.LinkPropertiesParcelableUtil.toStableParcelable;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER_DISCONNECT;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
@@ -1591,19 +1590,20 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Method to trigger a disconnect.
-     * Note: To be used from within the wifi stack.
+     * Disconnect from Access Point
      */
-    public void disconnectCommandInternal() {
-        sendMessage(CMD_DISCONNECT, 0 /* fromExternal */);
+    public void disconnectCommand() {
+        sendMessage(CMD_DISCONNECT);
     }
 
     /**
      * Method to trigger a disconnect.
-     * Note: To be used from public API surface.
+     *
+     * @param uid UID of requesting caller
+     * @param reason disconnect reason
      */
-    public void disconnectCommandExternal() {
-        sendMessage(CMD_DISCONNECT, 1 /* fromExternal */);
+    public void disconnectCommand(int uid, int reason) {
+        sendMessage(CMD_DISCONNECT, uid, reason);
     }
 
     /**
@@ -3676,7 +3676,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case CMD_USER_UNLOCK:
@@ -4134,7 +4134,7 @@ public class ClientModeImpl extends StateMachine {
                     netId = message.arg1;
                     if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                         // Disconnect and let autojoin reselect a new network
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case CMD_ENABLE_NETWORK:
@@ -4158,7 +4158,7 @@ public class ClientModeImpl extends StateMachine {
                         replyToMessage(message, WifiManager.DISABLE_NETWORK_SUCCEEDED);
                         if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                             // Disconnect and let autojoin reselect a new network
-                            disconnectCommandInternal();
+                            sendMessage(CMD_DISCONNECT);
                         }
                     } else {
                         loge("Failed to disable network");
@@ -4173,7 +4173,7 @@ public class ClientModeImpl extends StateMachine {
                         if (config.networkId == mTargetNetworkId
                                 || config.networkId == mLastNetworkId) {
                             // Disconnect and let autojoin reselect a new network
-                            disconnectCommandInternal();
+                            sendMessage(CMD_DISCONNECT);
                         }
                     }
                     break;
@@ -4334,7 +4334,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network.
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case CMD_REMOVE_USER_CONFIGURATIONS:
@@ -4343,7 +4343,7 @@ public class ClientModeImpl extends StateMachine {
                     if (removedNetworkIds.contains(mTargetNetworkId)
                             || removedNetworkIds.contains(mLastNetworkId)) {
                         // Disconnect and let autojoin reselect a new network.
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case WifiManager.CONNECT_NETWORK:
@@ -4424,7 +4424,7 @@ public class ClientModeImpl extends StateMachine {
                     netId = message.arg1;
                     if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                         // Disconnect and let autojoin reselect a new network
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case CMD_ASSOCIATED_BSSID:
@@ -4488,7 +4488,7 @@ public class ClientModeImpl extends StateMachine {
                     } else {
                         logw("Connected to unknown networkId " + mLastNetworkId
                                 + ", disconnecting...");
-                        disconnectCommandInternal();
+                        sendMessage(CMD_DISCONNECT);
                     }
                     break;
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
@@ -4521,7 +4521,7 @@ public class ClientModeImpl extends StateMachine {
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
                             logd("Disconnect from current network since its provider is updated");
-                            disconnectCommandInternal();
+                            sendMessage(CMD_DISCONNECT);
                         }
                         replyToMessage(message, message.what, SUCCESS);
                     } else {
@@ -4534,7 +4534,7 @@ public class ClientModeImpl extends StateMachine {
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
                             logd("Disconnect from current network since its provider is removed");
-                            disconnectCommandInternal();
+                            sendMessage(CMD_DISCONNECT);
                         }
                         mWifiConfigManager.removePasspointConfiguredNetwork(fqdn);
                         replyToMessage(message, message.what, SUCCESS);
@@ -5064,17 +5064,8 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_DISCONNECT:
-                    boolean fromExternal = message.arg1 == 1;
-                    if (fromExternal) {
-                        mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
-                                StaEvent.DISCONNECT_API);
-                        // For external disconnect requests, temporarily disable the network.
-                        mWifiConfigManager.updateNetworkSelectionStatus(
-                                mLastNetworkId, DISABLED_BY_WIFI_MANAGER_DISCONNECT);
-                    } else {
-                        mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
-                                StaEvent.DISCONNECT_GENERIC);
-                    }
+                    mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
+                            StaEvent.DISCONNECT_GENERIC);
                     mWifiNative.disconnect(mInterfaceName);
                     transitionTo(mDisconnectingState);
                     break;

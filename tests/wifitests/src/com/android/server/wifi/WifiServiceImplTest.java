@@ -2814,7 +2814,7 @@ public class WifiServiceImplTest {
         doThrow(new SecurityException()).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         assertTrue(mWifiServiceImpl.disconnect(TEST_PACKAGE_NAME));
-        verify(mClientModeImpl).disconnectCommandExternal();
+        verify(mClientModeImpl).disconnectCommand();
     }
 
     /**
@@ -2826,7 +2826,7 @@ public class WifiServiceImplTest {
     public void testDisconnectWithChangeWifiStatePerm() throws Exception {
         assertFalse(mWifiServiceImpl.disconnect(TEST_PACKAGE_NAME));
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl, never()).disconnectCommandExternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
     }
 
     /**
@@ -2845,7 +2845,7 @@ public class WifiServiceImplTest {
 
         }
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl, never()).disconnectCommandExternal();
+        verify(mClientModeImpl, never()).disconnectCommand();
     }
 
     @Test
