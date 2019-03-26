@@ -40,12 +40,14 @@ $ANDROID_BUILD_TOP/build/soong/soong_ui.bash --make-mode \
   MODULES-IN-external-jacoco \
   FrameworksWifiTests
 
+APK_NAME="$(ls -t $(find $OUT -name FrameworksWifiTests.apk) | head -n 1)"
+
 adb root
 adb wait-for-device
 
 adb shell rm -f $REMOTE_COVERAGE_OUTPUT_FILE
 
-adb install -r -g "$OUT/data/app/FrameworksWifiTests/FrameworksWifiTests.apk"
+adb install -r -g "$APK_NAME"
 
 adb shell am instrument -e coverage true --no-hidden-api-checks -w 'com.android.server.wifi.test/com.android.server.wifi.CustomTestRunner'
 
