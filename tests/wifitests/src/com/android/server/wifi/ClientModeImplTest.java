@@ -140,6 +140,7 @@ public class ClientModeImplTest {
                     ? ClientModeImpl.NUM_LOG_RECS_VERBOSE_LOW_MEMORY
                     : ClientModeImpl.NUM_LOG_RECS_VERBOSE);
     private static final int FRAMEWORK_NETWORK_ID = 0;
+    private static final int PASSPOINT_NETWORK_ID = 1;
     private static final int TEST_RSSI = -54;
     private static final int TEST_NETWORK_ID = 54;
     private static final int WPS_SUPPLICANT_NETWORK_ID = 5;
@@ -1027,6 +1028,39 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Tests that Passpoint fields in WifiInfo are reset when connecting to a non-Passpoint network
+     * during DisconnectedState.
+     * @throws Exception
+     */
+    @Test
+    public void testResetWifiInfoPasspointFields() throws Exception {
+        loadComponentsInStaMode();
+        WifiConfiguration config = spy(WifiConfigurationTestUtil.createPasspointNetwork());
+        config.SSID = sWifiSsid.toString();
+        config.BSSID = sBSSID;
+        config.networkId = PASSPOINT_NETWORK_ID;
+        when(config.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
+        config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        setupAndStartConnectSequence(config);
+        validateSuccessfulConnectSequence(config);
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(PASSPOINT_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(FRAMEWORK_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
+        assertNotNull(wifiInfo);
+        assertNull(wifiInfo.getPasspointFqdn());
+        assertNull(wifiInfo.getPasspointProviderFriendlyName());
+    }
+
+    /**
      * Tests the OSU information is set in WifiInfo for OSU AP connection.
      */
     @Test
@@ -1053,6 +1087,40 @@ public class ClientModeImplTest {
         assertTrue(wifiInfo.isOsuAp());
         assertEquals(WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME,
                 wifiInfo.getPasspointProviderFriendlyName());
+    }
+
+    /**
+     * Tests that OSU fields in WifiInfo are reset when connecting to a non-OSU network during
+     * DisconnectedState.
+     * @throws Exception
+     */
+    @Test
+    public void testResetWifiInfoOsuFields() throws Exception {
+        loadComponentsInStaMode();
+        WifiConfiguration osuConfig = spy(WifiConfigurationTestUtil.createEphemeralNetwork());
+        osuConfig.SSID = sWifiSsid.toString();
+        osuConfig.BSSID = sBSSID;
+        osuConfig.osu = true;
+        osuConfig.networkId = PASSPOINT_NETWORK_ID;
+        osuConfig.providerFriendlyName = WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME;
+        when(osuConfig.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
+        osuConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        setupAndStartConnectSequence(osuConfig);
+        validateSuccessfulConnectSequence(osuConfig);
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(PASSPOINT_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(FRAMEWORK_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
+        assertNotNull(wifiInfo);
+        assertFalse(wifiInfo.isOsuAp());
     }
 
     /**

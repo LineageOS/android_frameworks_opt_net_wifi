@@ -5901,6 +5901,9 @@ public class ClientModeImpl extends StateMachine {
 
                         // Update Passpoint information before setNetworkDetailedState as
                         // WifiTracker monitors NETWORK_STATE_CHANGED_ACTION to update UI.
+                        mWifiInfo.setFQDN(null);
+                        mWifiInfo.setOsuAp(false);
+                        mWifiInfo.setProviderFriendlyName(null);
                         if (config != null && (config.isPasspoint() || config.osu)) {
                             if (config.isPasspoint()) {
                                 mWifiInfo.setFQDN(config.FQDN);
