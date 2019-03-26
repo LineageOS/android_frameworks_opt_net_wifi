@@ -101,7 +101,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         if ((TelephonyUtil.getCarrierType(mTelephonyManager) == TelephonyUtil.CARRIER_MNO_TYPE)
                 && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
                 && !mPasspointManager.hasCarrierProvider(
-                mTelephonyManager.getNetworkOperator())) {
+                mTelephonyManager.getSimOperator())) {
             int eapMethod = mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
                     scanDetails);
             if (isCarrierEapMethod(eapMethod)) {
