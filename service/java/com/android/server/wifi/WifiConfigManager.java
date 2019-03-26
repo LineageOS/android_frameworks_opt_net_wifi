@@ -1060,7 +1060,7 @@ public class WifiConfigManager {
      */
     private void updateRandomizedMacAddress(WifiConfiguration config) {
         // Update randomized MAC address according to stored map
-        final String key = config.configKey();
+        final String key = config.getSsidAndSecurityTypeString();
         // If the key is not found in the current store, then it means this network has never been
         // seen before. So add it to store.
         if (!mRandomizedMacAddressMapping.containsKey(key)) {
@@ -1167,8 +1167,8 @@ public class WifiConfigManager {
                 newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS or"
-                    + "NETWORK_SETUP_WIZARD.");
+                    + "Settings " + config.getSsidAndSecurityTypeString() + ". Must have "
+                    + "NETWORK_SETTINGS or NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
@@ -3034,7 +3034,7 @@ public class WifiConfigManager {
      */
     private void generateRandomizedMacAddresses() {
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            mRandomizedMacAddressMapping.put(config.configKey(),
+            mRandomizedMacAddressMapping.put(config.getSsidAndSecurityTypeString(),
                     config.getOrCreateRandomizedMacAddress().toString());
         }
     }
