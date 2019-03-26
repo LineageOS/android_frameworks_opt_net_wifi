@@ -68,8 +68,6 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
 
     /**
      * Calculates an individual candidate's score.
-     *
-     * This relies mostly on the scores provided by the evaluator.
      */
     private ScoredCandidate scoreCandidate(Candidate candidate) {
         int rssiSaturationThreshold = mScoringParams.getGoodRssi(candidate.getFrequency());
@@ -94,7 +92,10 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
         // which evaluator added the candidate.
         score -= 1000 * candidate.getEvaluatorId();
 
-        return new ScoredCandidate(score, 10, candidate);
+        // The old method breaks ties on the basis of RSSI, which we can
+        // emulate easily since our score does not need to be an integer.
+        double tieBreaker = candidate.getScanRssi() / 1000.0;
+        return new ScoredCandidate(score + tieBreaker, 10, candidate);
     }
 
     @Override
