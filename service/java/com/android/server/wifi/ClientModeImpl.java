@@ -3463,7 +3463,7 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch (message.what) {
                 case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED: {
@@ -3747,7 +3747,12 @@ public class ClientModeImpl extends StateMachine {
                     loge("Error! unhandled message" + message);
                     break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+
+            return handleStatus;
         }
     }
 
@@ -3979,7 +3984,7 @@ public class ClientModeImpl extends StateMachine {
             Set<Integer> removedNetworkIds;
             int reasonCode;
             boolean timedOut;
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch (message.what) {
                 case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
@@ -4226,7 +4231,7 @@ public class ClientModeImpl extends StateMachine {
                             handle3GAuthRequest(requestData);
                         }
                     } else {
-                        loge("Invalid sim auth request");
+                        loge("Invalid SIM auth request");
                     }
                     break;
                 case CMD_GET_MATCHING_OSU_PROVIDERS:
@@ -4263,7 +4268,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_START_ROAM:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
-                    return HANDLED;
+                    break;
                 case CMD_START_CONNECT:
                     /* connect command coming from auto-join */
                     netId = message.arg1;
@@ -4440,7 +4445,8 @@ public class ClientModeImpl extends StateMachine {
                                     someBssid));
                         }
                     }
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case WifiMonitor.NETWORK_CONNECTION_EVENT:
                     if (mVerboseLoggingEnabled) log("Network connection established");
                     mLastNetworkId = message.arg1;
@@ -4624,9 +4630,15 @@ public class ClientModeImpl extends StateMachine {
                     mWifiConnectivityManager.enable(message.arg1 == 1 ? true : false);
                     break;
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+
+            return handleStatus;
         }
     }
 
@@ -4984,7 +4996,7 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch (message.what) {
                 case CMD_PRE_DHCP_ACTION:
@@ -5085,7 +5097,8 @@ public class ClientModeImpl extends StateMachine {
                         replyToMessage(message, WifiManager.CONNECT_NETWORK_SUCCEEDED);
                         break;
                     }
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case WifiMonitor.NETWORK_CONNECTION_EVENT:
                     mWifiInfo.setBSSID((String) message.obj);
                     mLastNetworkId = message.arg1;
@@ -5130,7 +5143,7 @@ public class ClientModeImpl extends StateMachine {
                                 mPollRssiIntervalMsecs);
                         if (mVerboseLoggingEnabled) sendRssiChangeBroadcast(mWifiInfo.getRssi());
                         mWifiTrafficPoller.notifyOnDataActivity(mWifiInfo.txSuccess,
-                                                                mWifiInfo.rxSuccess);
+                                mWifiInfo.rxSuccess);
                     } else {
                         // Polling has completed
                     }
@@ -5210,7 +5223,8 @@ public class ClientModeImpl extends StateMachine {
                         }
                     }
                     /* allow parent state to reset data for other networks */
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case CMD_START_IP_PACKET_OFFLOAD: {
                     int slot = message.arg1;
                     int intervalSeconds = message.arg2;
@@ -5244,10 +5258,15 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 }
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
 
-            return HANDLED;
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+
+            return handleStatus;
         }
 
         /**
@@ -5373,7 +5392,7 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch(message.what) {
                 case CMD_START_CONNECT:
@@ -5389,15 +5408,21 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case CMD_SET_HIGH_PERF_MODE:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     break;
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+            return handleStatus;
         }
     }
 
@@ -5463,8 +5488,9 @@ public class ClientModeImpl extends StateMachine {
         }
         @Override
         public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
             WifiConfiguration config;
+            boolean handleStatus = HANDLED;
+
             switch (message.what) {
                 case CMD_IP_CONFIGURATION_LOST:
                     config = getCurrentWifiConfiguration();
@@ -5472,12 +5498,13 @@ public class ClientModeImpl extends StateMachine {
                         mWifiDiagnostics.captureBugReportData(
                                 WifiDiagnostics.REPORT_REASON_AUTOROAM_FAILURE);
                     }
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case CMD_UNWANTED_NETWORK:
                     if (mVerboseLoggingEnabled) {
                         log("Roaming and CS doesnt want the network -> ignore");
                     }
-                    return HANDLED;
+                    break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     /**
                      * If we get a SUPPLICANT_STATE_CHANGE_EVENT indicating a DISCONNECT
@@ -5579,9 +5606,14 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+            return handleStatus;
         }
 
         @Override
@@ -5626,7 +5658,7 @@ public class ClientModeImpl extends StateMachine {
         @Override
         public boolean processMessage(Message message) {
             WifiConfiguration config = null;
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch (message.what) {
                 case CMD_UNWANTED_NETWORK:
@@ -5670,7 +5702,7 @@ public class ClientModeImpl extends StateMachine {
                             }
                         }
                     }
-                    return HANDLED;
+                    break;
                 case CMD_NETWORK_STATUS:
                     if (message.arg1 == NetworkAgent.VALID_NETWORK) {
                         // stop collect last-mile stats since validation pass
@@ -5689,16 +5721,17 @@ public class ClientModeImpl extends StateMachine {
                                     config.networkId, true);
                         }
                     }
-                    return HANDLED;
+                    break;
                 case CMD_ACCEPT_UNVALIDATED:
                     boolean accept = (message.arg1 != 0);
                     mWifiConfigManager.setNetworkNoInternetAccessExpected(mLastNetworkId, accept);
-                    return HANDLED;
+                    break;
                 case CMD_ASSOCIATED_BSSID:
                     // ASSOCIATING to a new BSSID while already connected, indicates
                     // that driver is roaming
                     mLastDriverRoamAttempt = mClock.getWallClockMillis();
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                     long lastRoam = 0;
                     reportConnectionAttemptEnd(
@@ -5774,9 +5807,15 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+
+            return handleStatus;
         }
 
         @Override
@@ -5813,7 +5852,8 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
+
             switch (message.what) {
                 case CMD_DISCONNECT:
                     if (mVerboseLoggingEnabled) {
@@ -5838,9 +5878,14 @@ public class ClientModeImpl extends StateMachine {
                     transitionTo(mDisconnectedState);
                     break;
                 default:
-                    return NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return HANDLED;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+            return handleStatus;
         }
     }
 
@@ -5868,9 +5913,7 @@ public class ClientModeImpl extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            boolean ret = HANDLED;
-
-            logStateAndMessage(message, this);
+            boolean handleStatus = HANDLED;
 
             switch (message.what) {
                 case CMD_DISCONNECT:
@@ -5912,7 +5955,7 @@ public class ClientModeImpl extends StateMachine {
                     }
                     setNetworkDetailedState(WifiInfo.getDetailedStateOf(stateChangeResult.state));
                     /* ConnectModeState does the rest of the handling */
-                    ret = NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
                     break;
                 case WifiP2pServiceImpl.P2P_CONNECTION_CHANGED:
                     NetworkInfo info = (NetworkInfo) message.obj;
@@ -5926,16 +5969,21 @@ public class ClientModeImpl extends StateMachine {
                         break;
                     } else {
                         // ConnectModeState handles it
-                        ret = NOT_HANDLED;
+                        handleStatus = NOT_HANDLED;
                     }
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
                     handleScreenStateChanged(message.arg1 != 0);
                     break;
                 default:
-                    ret = NOT_HANDLED;
+                    handleStatus = NOT_HANDLED;
+                    break;
             }
-            return ret;
+
+            if (handleStatus == HANDLED) {
+                logStateAndMessage(message, this);
+            }
+            return handleStatus;
         }
 
         @Override
