@@ -1241,6 +1241,30 @@ public class ClientModeImplTest {
         assertEquals(WifiManager.CONNECT_NETWORK_SUCCEEDED, reply.what);
     }
 
+    /**
+     * Tests that manual connection to a network (from settings app) logs the correct nominator ID.
+     */
+    @Test
+    public void testManualConnectNominator() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        Message msg = Message.obtain();
+        msg.what = WifiManager.CONNECT_NETWORK;
+        msg.arg1 = TEST_NETWORK_ID;
+        msg.obj = null;
+        msg.sendingUid = Process.SYSTEM_UID;
+
+        WifiConfiguration config = new WifiConfiguration();
+        config.networkId = TEST_NETWORK_ID;
+
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
+
+        mCmi.sendMessage(msg);
+        mLooper.dispatchAll();
+
+        verify(mWifiMetrics).setNominatorForNetwork(TEST_NETWORK_ID,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL);
+    }
+
     @Test
     public void testDhcpFailure() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();

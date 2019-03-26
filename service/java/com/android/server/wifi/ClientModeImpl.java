@@ -1172,7 +1172,8 @@ public class ClientModeImpl extends StateMachine {
     private boolean connectToUserSelectNetwork(int netId, int uid, boolean forceReconnect) {
         logd("connectToUserSelectNetwork netId " + netId + ", uid " + uid
                 + ", forceReconnect = " + forceReconnect);
-        if (mWifiConfigManager.getConfiguredNetwork(netId) == null) {
+        WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(netId);
+        if (config == null) {
             loge("connectToUserSelectNetwork Invalid network Id=" + netId);
             return false;
         }
@@ -1191,6 +1192,10 @@ public class ClientModeImpl extends StateMachine {
             logi("connectToUserSelectNetwork already connecting/connected=" + netId);
         } else {
             mWifiConnectivityManager.prepareForForcedConnection(netId);
+            if (uid == Process.SYSTEM_UID) {
+                mWifiMetrics.setNominatorForNetwork(config.networkId,
+                        WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL);
+            }
             startConnectToNetwork(netId, uid, SUPPLICANT_BSSID_ANY);
         }
         return true;
