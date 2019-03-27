@@ -126,6 +126,7 @@ public class WifiMetricsTest {
     TestLooper mTestLooper;
     Random mRandom = new Random();
     private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
+    private static final int TEST_NETWORK_ID = 42;
     @Mock Context mContext;
     @Mock FrameworkFacade mFacade;
     @Mock Clock mClock;
@@ -1344,6 +1345,10 @@ public class WifiMetricsTest {
         when(scanDetail.getNetworkDetail()).thenReturn(networkDetail);
         when(scanDetail.getScanResult()).thenReturn(scanResult);
 
+        config.networkId = TEST_NETWORK_ID;
+        mWifiMetrics.setNominatorForNetwork(TEST_NETWORK_ID,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL);
+
         //Create a connection event using only the config
         mWifiMetrics.startConnectionEvent(config, "Red",
                 WifiMetricsProto.ConnectionEvent.ROAM_NONE);
@@ -1375,6 +1380,54 @@ public class WifiMetricsTest {
                 mDecodedProto.connectionEvent[1].routerFingerprint.routerTechnology);
         assertTrue(mDecodedProto.connectionEvent[0].useRandomizedMac);
         assertFalse(mDecodedProto.connectionEvent[1].useRandomizedMac);
+        assertEquals(WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL,
+                mDecodedProto.connectionEvent[0].connectionNominator);
+    }
+
+    /**
+     * Tests that the mapping from networkId to nominatorId is not cleared.
+     */
+    @Test
+    public void testNetworkToNominatorNotCleared() throws Exception {
+        //Setup mock configs and scan details
+        NetworkDetail networkDetail = mock(NetworkDetail.class);
+        when(networkDetail.getWifiMode()).thenReturn(NETWORK_DETAIL_WIFIMODE);
+        when(networkDetail.getSSID()).thenReturn(SSID);
+        when(networkDetail.getDtimInterval()).thenReturn(NETWORK_DETAIL_DTIM);
+        ScanResult scanResult = mock(ScanResult.class);
+        scanResult.level = SCAN_RESULT_LEVEL;
+        WifiConfiguration config = mock(WifiConfiguration.class);
+        config.SSID = "\"" + SSID + "\"";
+        config.dtimInterval = CONFIG_DTIM;
+        config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        WifiConfiguration.NetworkSelectionStatus networkSelectionStat =
+                mock(WifiConfiguration.NetworkSelectionStatus.class);
+        when(networkSelectionStat.getCandidate()).thenReturn(scanResult);
+        when(config.getNetworkSelectionStatus()).thenReturn(networkSelectionStat);
+        ScanDetail scanDetail = mock(ScanDetail.class);
+        when(scanDetail.getNetworkDetail()).thenReturn(networkDetail);
+        when(scanDetail.getScanResult()).thenReturn(scanResult);
+
+        config.networkId = TEST_NETWORK_ID;
+        mWifiMetrics.setNominatorForNetwork(TEST_NETWORK_ID,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER);
+
+        // dump() calls clear() internally
+        mWifiMetrics.dump(null, new PrintWriter(new StringWriter()),
+                new String[]{WifiMetrics.PROTO_DUMP_ARG});
+
+        // Create a connection event using only the config
+        mWifiMetrics.startConnectionEvent(config, "Red",
+                WifiMetricsProto.ConnectionEvent.ROAM_NONE);
+        mWifiMetrics.endConnectionEvent(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE,
+                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER,
+                mDecodedProto.connectionEvent[0].connectionNominator);
     }
 
     /**

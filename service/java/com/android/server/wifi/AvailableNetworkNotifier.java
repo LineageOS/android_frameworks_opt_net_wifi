@@ -38,6 +38,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
@@ -140,11 +141,18 @@ public class AvailableNetworkNotifier {
     /** System wide identifier for notification in Notification Manager */
     private final int mSystemMessageNotificationId;
 
+    /**
+     * The nominator id for this class, from
+     * {@link com.android.server.wifi.nano.WifiMetricsProto.ConnectionEvent.ConnectionNominator}
+     */
+    private final int mNominatorId;
+
     public AvailableNetworkNotifier(
             String tag,
             String storeDataIdentifier,
             String toggleSettingsName,
             int notificationIdentifier,
+            int nominatorId,
             Context context,
             Looper looper,
             FrameworkFacade framework,
@@ -158,6 +166,7 @@ public class AvailableNetworkNotifier {
         mStoreDataIdentifier = storeDataIdentifier;
         mToggleSettingsName = toggleSettingsName;
         mSystemMessageNotificationId = notificationIdentifier;
+        mNominatorId = nominatorId;
         mContext = context;
         mHandler = new Handler(looper);
         mFrameworkFacade = framework;
@@ -425,13 +434,19 @@ public class AvailableNetworkNotifier {
                 "User initiated connection to recommended network: "
                         + "\"" + mRecommendedNetwork.SSID + "\"");
         WifiConfiguration network = createRecommendedNetworkConfig(mRecommendedNetwork);
-        Message msg = Message.obtain();
-        msg.what = WifiManager.CONNECT_NETWORK;
-        msg.arg1 = WifiConfiguration.INVALID_NETWORK_ID;
-        msg.obj = network;
-        msg.replyTo = mSrcMessenger;
-        mClientModeImpl.sendMessage(msg);
-        addNetworkToBlacklist(mRecommendedNetwork.SSID);
+
+        NetworkUpdateResult result = mConfigManager.addOrUpdateNetwork(network, Process.WIFI_UID);
+        if (result.isSuccess()) {
+            mWifiMetrics.setNominatorForNetwork(result.netId, mNominatorId);
+
+            Message msg = Message.obtain();
+            msg.what = WifiManager.CONNECT_NETWORK;
+            msg.arg1 = result.netId;
+            msg.obj = null;
+            msg.replyTo = mSrcMessenger;
+            mClientModeImpl.sendMessage(msg);
+            addNetworkToBlacklist(mRecommendedNetwork.SSID);
+        }
 
         mState = STATE_CONNECTING_IN_NOTIFICATION;
         mHandler.postDelayed(

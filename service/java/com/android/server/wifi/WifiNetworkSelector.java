@@ -37,6 +37,7 @@ import android.util.Pair;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.lang.annotation.Retention;
@@ -598,6 +599,8 @@ public class WifiNetworkSelector {
             localLog("After user selection adjustment, the final candidate is:"
                     + WifiNetworkSelector.toNetworkString(candidate) + " : "
                     + scanResultCandidate.BSSID);
+            mWifiMetrics.setNominatorForNetwork(candidate.networkId,
+                    WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE);
         }
         return candidate;
     }
@@ -673,6 +676,8 @@ public class WifiNetworkSelector {
                                 wifiCandidates.add(scanDetail, config,
                                         registeredEvaluator.getId(), score);
                             }
+                            mWifiMetrics.setNominatorForNetwork(config.networkId,
+                                    evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
                     });
             if (selectedNetwork == null && choice != null) {
@@ -771,6 +776,24 @@ public class WifiNetworkSelector {
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
         return selectedNetwork;
+    }
+
+    private static int evaluatorIdToNominatorId(@NetworkEvaluator.EvaluatorId int evaluatorId) {
+        switch (evaluatorId) {
+            case NetworkEvaluator.EVALUATOR_ID_SAVED:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
+            case NetworkEvaluator.EVALUATOR_ID_SUGGESTION:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
+            case NetworkEvaluator.EVALUATOR_ID_PASSPOINT:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
+            case NetworkEvaluator.EVALUATOR_ID_CARRIER:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER;
+            case NetworkEvaluator.EVALUATOR_ID_SCORED:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
+            default:
+                Log.e(TAG, "UnrecognizedEvaluatorId" + evaluatorId);
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
+        }
     }
 
     private static boolean isSameNetworkSelection(WifiConfiguration c1, WifiConfiguration c2) {

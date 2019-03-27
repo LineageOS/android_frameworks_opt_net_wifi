@@ -936,11 +936,7 @@ public class WifiConfigManager {
             internalConfig.allowedGroupManagementCiphers =
                     (BitSet) externalConfig.allowedGroupManagementCiphers.clone();
         }
-        if (externalConfig.allowedSuiteBCiphers != null
-                && !externalConfig.allowedSuiteBCiphers.isEmpty()) {
-            internalConfig.allowedSuiteBCiphers =
-                    (BitSet) externalConfig.allowedSuiteBCiphers.clone();
-        }
+        // allowedSuiteBCiphers is set internally according to the certificate type
 
         // Copy over the |IpConfiguration| parameters if set.
         if (externalConfig.getIpConfiguration() != null) {
