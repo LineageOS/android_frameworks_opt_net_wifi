@@ -40,9 +40,9 @@ import fi.iki.elonen.NanoHTTPD;
  * redirect server no longer needed.
  */
 public class RedirectListener extends NanoHTTPD {
-    // 4 minutes for the maximum wait time.
+    // 10 minutes for the maximum wait time.
     @VisibleForTesting
-    static final int USER_TIMEOUT_MILLIS = 4 * 60 * 1000;
+    static final int USER_TIMEOUT_MILLIS = 10 * 60 * 1000;
 
     private static final String TAG = "PasspointRedirectListener";
     private final String mPath;
