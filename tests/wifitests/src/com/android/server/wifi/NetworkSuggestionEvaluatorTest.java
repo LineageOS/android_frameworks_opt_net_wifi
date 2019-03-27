@@ -125,7 +125,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -148,7 +148,7 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[0] , candidate.SSID);
 
-        validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
+        validateConnectableNetworks(connectableNetworks, scanSsids[0]);
 
         verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration);
     }
@@ -170,7 +170,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK, SECURITY_PSK};
         boolean[] appInteractions = {true, true};
         boolean[] meteredness = {true, true};
-        int[] priorities = {0, 1};
+        int[] priorities = {-1, -1};
         int[] uids = {TEST_UID, TEST_UID};
         String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE};
 
@@ -194,10 +194,56 @@ public class NetworkSuggestionEvaluatorTest {
         assertNotNull(candidate);
         assertEquals(suggestionSsids[1] , candidate.SSID);
 
-        validateConnectableNetworks(connectableNetworks, scanSsids);
+        validateConnectableNetworks(connectableNetworks, scanSsids[0], scanSsids[1]);
 
-        verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+        verifyAddToWifiConfigManager(suggestions[1].wifiConfiguration,
                 suggestions[1].wifiConfiguration);
+    }
+
+    /**
+     * Ensure that we select the network suggestion corresponding to the scan result with
+     * higest priority.
+     * Expected candidate: suggestionSsids[0]
+     * Expected connectable Networks: {suggestionSsids[0], suggestionSsids[1]}
+     */
+    @Test
+    public void testSelectNetworkSuggestionForMultipleMatchHighPriorityWins() {
+        String[] scanSsids = {"test1", "test2"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-56, -45};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\"", "\"" + scanSsids[1] + "\""};
+        int[] securities = {SECURITY_PSK, SECURITY_PSK};
+        boolean[] appInteractions = {true, true};
+        boolean[] meteredness = {true, true};
+        int[] priorities = {5, 1};
+        int[] uids = {TEST_UID, TEST_UID};
+        String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
+                appInteractions, meteredness, priorities, uids, packageNames);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+                suggestions[1].wifiConfiguration);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        assertNotNull(candidate);
+        assertEquals(suggestionSsids[0] , candidate.SSID);
+
+        validateConnectableNetworks(connectableNetworks, scanSsids[0]);
+
+        verifyAddToWifiConfigManager(suggestions[0].wifiConfiguration);
     }
 
     /**
@@ -221,7 +267,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK, SECURITY_PSK, SECURITY_PSK};
         boolean[] appInteractions = {true, true, false};
         boolean[] meteredness = {true, true, false};
-        int[] priorities = {0, 1, 0};
+        int[] priorities = {-1, -1, -1};
         int[] uids = {TEST_UID, TEST_UID, TEST_UID_OTHER};
         String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE, TEST_PACKAGE_OTHER};
 
@@ -252,6 +298,66 @@ public class NetworkSuggestionEvaluatorTest {
     }
 
     /**
+     * Ensure that we select the network suggestion with the higest priority among network
+     * suggestions from the same package. Among different packages, pick the suggestion
+     * corresponding to the scan result with highest RSSI.
+     *
+     * The suggestion[1] has higher priority than suggestion[0] even though it has lower RSSI than
+     * suggestion[0].
+     *
+     * Expected candidate: suggestionSsids[1]
+     * Expected connectable Networks: {suggestionSsids[1],
+     *                                 (suggestionSsids[2],
+     *                                  suggestionSsids[3]}
+     */
+    @Test
+    public void
+            testSelectNetworkSuggestionForMultipleMatchWithMultipleSuggestionsHighPriorityWins() {
+        String[] scanSsids = {"test1", "test2", "test3", "test4"};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "6c:fc:de:34:12",
+                "6c:fd:a1:11:11:98"};
+        int[] freqs = {2470, 2437, 2470, 2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]",
+                "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-23, -45, -56, -65};
+        String[] suggestionSsids = {"\"" + scanSsids[0] + "\"", "\"" + scanSsids[1] + "\"",
+                "\"" + scanSsids[2] + "\"", "\"" + scanSsids[3] + "\""};
+        int[] securities = {SECURITY_PSK, SECURITY_PSK, SECURITY_PSK, SECURITY_PSK};
+        boolean[] appInteractions = {true, true, false, false};
+        boolean[] meteredness = {true, true, false, false};
+        int[] priorities = {0, 5, -1, -1};
+        int[] uids = {TEST_UID, TEST_UID, TEST_UID_OTHER, TEST_UID_OTHER};
+        String[] packageNames = {TEST_PACKAGE, TEST_PACKAGE, TEST_PACKAGE_OTHER,
+                TEST_PACKAGE_OTHER};
+
+        ScanDetail[] scanDetails =
+                buildScanDetails(scanSsids, bssids, freqs, caps, levels, mClock);
+        WifiNetworkSuggestion[] suggestions = buildNetworkSuggestions(suggestionSsids, securities,
+                appInteractions, meteredness, priorities, uids, packageNames);
+        // Link the scan result with suggestions.
+        linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration,
+                suggestions[1].wifiConfiguration, suggestions[2].wifiConfiguration,
+                suggestions[3].wifiConfiguration);
+
+        List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
+        WifiConfiguration candidate = mNetworkSuggestionEvaluator.evaluateNetworks(
+                Arrays.asList(scanDetails), null, null, true, false,
+                (ScanDetail scanDetail, WifiConfiguration configuration, int score) -> {
+                    connectableNetworks.add(Pair.create(scanDetail, configuration));
+                });
+
+        assertNotNull(candidate);
+        assertEquals(suggestionSsids[1] , candidate.SSID);
+
+        validateConnectableNetworks(connectableNetworks, scanSsids[1], scanSsids[2], scanSsids[3]);
+
+        verifyAddToWifiConfigManager(suggestions[1].wifiConfiguration,
+                suggestions[2].wifiConfiguration, suggestions[3].wifiConfiguration);
+    }
+
+    /**
      * Ensure that we select the only matching network suggestion, but return null because
      * we failed the {@link WifiConfigManager} interactions.
      * Expected candidate: null.
@@ -268,7 +374,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -292,7 +398,7 @@ public class NetworkSuggestionEvaluatorTest {
         assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
-        verify(mWifiConfigManager, times(suggestionSsids.length))
+        verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
@@ -319,7 +425,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -346,7 +452,7 @@ public class NetworkSuggestionEvaluatorTest {
         validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
         // check for any saved networks.
-        verify(mWifiConfigManager, times(suggestionSsids.length))
+        verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
         // Verify we did not try to add any new networks or other interactions with
@@ -371,7 +477,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -396,7 +502,7 @@ public class NetworkSuggestionEvaluatorTest {
         assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
-        verify(mWifiConfigManager, times(suggestionSsids.length))
+        verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
@@ -421,7 +527,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -450,7 +556,7 @@ public class NetworkSuggestionEvaluatorTest {
         assertNull(candidate);
         assertTrue(connectableNetworks.isEmpty());
 
-        verify(mWifiConfigManager, times(suggestionSsids.length))
+        verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
@@ -479,7 +585,7 @@ public class NetworkSuggestionEvaluatorTest {
         int[] securities = {SECURITY_PSK};
         boolean[] appInteractions = {true};
         boolean[] meteredness = {true};
-        int[] priorities = {0};
+        int[] priorities = {-1};
         int[] uids = {TEST_UID};
         String[] packageNames = {TEST_PACKAGE};
 
@@ -512,7 +618,7 @@ public class NetworkSuggestionEvaluatorTest {
 
         validateConnectableNetworks(connectableNetworks, new String[] {scanSsids[0]});
 
-        verify(mWifiConfigManager, times(suggestionSsids.length))
+        verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
@@ -555,7 +661,7 @@ public class NetworkSuggestionEvaluatorTest {
 
     private void verifyAddToWifiConfigManager(WifiConfiguration...candidates) {
         // check for any saved networks.
-        verify(mWifiConfigManager, times(candidates.length)).getConfiguredNetwork(anyString());
+        verify(mWifiConfigManager, atLeast(candidates.length)).getConfiguredNetwork(anyString());
 
         ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor =
                 ArgumentCaptor.forClass(WifiConfiguration.class);
@@ -675,8 +781,8 @@ public class NetworkSuggestionEvaluatorTest {
     }
 
     private void validateConnectableNetworks(List<Pair<ScanDetail, WifiConfiguration>> actual,
-                                             String[] expectedSsids) {
-        Set<String> expectedSsidSet = new HashSet<String>(Arrays.asList(expectedSsids));
+                                             String...expectedSsids) {
+        Set<String> expectedSsidSet = new HashSet<>(Arrays.asList(expectedSsids));
         assertEquals(expectedSsidSet.size(), actual.size());
 
         for (Pair<ScanDetail, WifiConfiguration> candidate : actual) {
