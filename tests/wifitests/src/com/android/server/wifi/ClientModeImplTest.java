@@ -3156,7 +3156,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics).updateWifiUsabilityStatsEntries(any(), eq(stats));
         verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                eq(anyInt()));
+                eq(anyInt()), eq(-1));
 
         when(mWifiDataStall.checkForDataStall(any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
@@ -3164,7 +3164,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
     }
 
     /**
@@ -3416,6 +3416,6 @@ public class ClientModeImplTest {
         verify(mWifiMetrics).logWifiIsUnusableEvent(
                 WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
     }
 }

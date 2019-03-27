@@ -2730,7 +2730,7 @@ public class WifiMetricsTest {
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
         return nextRandomStats(stats2);
     }
 
@@ -2776,7 +2776,7 @@ public class WifiMetricsTest {
 
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
 
         // Add 2 LABEL_GOOD but only 1 should remain in the converted proto
         WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats2));
@@ -2930,7 +2930,7 @@ public class WifiMetricsTest {
         }
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
         for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
             stats4 = nextRandomStats(stats4);
@@ -2938,7 +2938,7 @@ public class WifiMetricsTest {
         stats4.timeStampInMs = stats3.timeStampInMs - 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
         dumpProtoAndDeserialize();
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
     }
@@ -2969,7 +2969,7 @@ public class WifiMetricsTest {
         }
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats3);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
         for (int i = 0; i < WifiMetrics.MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE - 1; i++) {
             mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
             stats4 = nextRandomStats(stats4);
@@ -2977,7 +2977,7 @@ public class WifiMetricsTest {
         stats4.timeStampInMs = stats3.timeStampInMs + 1 + WifiMetrics.MIN_DATA_STALL_WAIT_MS;
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats4);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX);
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
         dumpProtoAndDeserialize();
         assertEquals(4, mDecodedProto.wifiUsabilityStatsList.length);
     }
@@ -3223,6 +3223,7 @@ public class WifiMetricsTest {
         assertEquals(WifiUsabilityStats.LABEL_GOOD, statsList[0].label);
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, statsList[1].triggerType);
+        assertEquals(2, statsList[1].firmwareAlertCode);
     }
 
     /**
@@ -3242,13 +3243,14 @@ public class WifiMetricsTest {
         WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
         // Wifi data stall occurs
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
 
         dumpProtoAndDeserialize();
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
         WifiUsabilityStats[] statsList = mDecodedProto.wifiUsabilityStatsList;
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, statsList[1].triggerType);
+        assertEquals(-1, statsList[1].firmwareAlertCode);
     }
 
     /**
@@ -3567,7 +3569,7 @@ public class WifiMetricsTest {
         WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
         // IP reachability lost occurs
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
 
         dumpProtoAndDeserialize();
         assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
