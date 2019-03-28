@@ -378,6 +378,7 @@ public class ClientModeImplTest {
     @Mock LinkProbeManager mLinkProbeManager;
     @Mock PackageManager mPackageManager;
     @Mock WifiLockManager mWifiLockManager;
+    @Mock AsyncChannel mNullAsyncChannel;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -491,6 +492,7 @@ public class ClientModeImplTest {
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
+        when(mNullAsyncChannel.sendMessageSynchronously(any())).thenReturn(null);
     }
 
     private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
@@ -3417,5 +3419,42 @@ public class ClientModeImplTest {
                 WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+    }
+
+    /**
+     * Verify that syncGetAllMatchingFqdnsForScanResults does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetAllMatchingFqdnsForScanResult_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetAllMatchingFqdnsForScanResults(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingOsuProviders does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetMatchingOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingPasspointConfigsForOsuProviders does not return null from a null
+     * message.
+     */
+    @Test
+    public void testSyncGetMatchingPasspointConfigsForOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingPasspointConfigsForOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetWifiConfigsForPasspointProfiles does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetWifiConfigsForPasspointProfiles_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetWifiConfigsForPasspointProfiles(null, mNullAsyncChannel));
     }
 }
