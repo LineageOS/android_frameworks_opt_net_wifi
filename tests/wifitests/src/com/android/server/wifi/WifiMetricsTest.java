@@ -3656,4 +3656,192 @@ public class WifiMetricsTest {
         assertHistogramBucketsEqual(expectedLowLatencyHistogram,
                 mDecodedProto.wifiLockStats.lowLatencyLockAcqDurationSecHistogram);
     }
+
+    /**
+     * Verify that LABEL_GOOD stats are generated if Wifi score breaches low and there
+     * is no WifiIsUnusableEvent in MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreGeneratedByWifiScoreBreachLow() throws Exception {
+        // The elapsed time falls into the interval for adding good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS + 1,
+                false, true);
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi score breaches low and the checking
+     * time is less than MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedByWifiScoreBreachLow() throws Exception {
+        // The elapsed time is shorter than necessary to add good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS - 1,
+                false, true);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi score breaches low and the checking
+     * time is greater than VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedIfWifiScoreBreachExpires() throws Exception {
+        // The Wifi score breaching expires for adding good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS + 1,
+                false, true);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi score breaches low and there is
+     * WifiIsUnusableEvent occured within MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedIfBadEventOccured() throws Exception {
+        // The elapsed time falls into the interval for adding good stats and bad event occurs
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS + 1,
+                true, true);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are generated if Wifi usability score breaches low and there
+     * is no WifiIsUnusableEvent in MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreGeneratedByWifiUsabilityScoreBreachLow() throws Exception {
+        // The elapsed time falls into the interval for adding good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS + 1,
+                false, false);
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi usability score breaches low and
+     * the checking time is less than MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedByWifiUsabilityScoreBreachLow() throws Exception {
+        // The elapsed time is shorter than necessary to add good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS - 1,
+                false, false);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi usability score breaches low and
+     * the checking time is greater than VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedIfWifiUsabilityScoreBreachExpires() throws Exception {
+        // The Wifi usability score breaching expires for adding good stats
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS + 1,
+                false, false);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Verify that LABEL_GOOD stats are not generated if Wifi usability score breaches low and there
+     * is WifiIsUnusableEvent occured within MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS millis
+     * @throws Exception
+     */
+    @Test
+    public void testGoodStatsAreNotGeneratedIfBadEventOccuredForUsabilityScore() throws Exception {
+        // The elapsed time falls into the interval for adding good stats and bad event occurs
+        createTestForDataCollectionByScoreBreach(
+                WifiMetrics.MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS + 1,
+                true, false);
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
+
+    /**
+     * Create a test to verify data collection logic triggered by score breaching low
+     * @param elapsedTimeAfterBreach The elapsed time after score breaches low
+     * @param isThereBadEvent Whether there is a bad event happened after score breaches low
+     * @param isWifiScore Whether it is Wifi score or not that breaches the threshold
+     */
+    private void createTestForDataCollectionByScoreBreach(
+            long elapsedTimeAfterBreach, boolean isThereBadEvent, boolean isWifiScore) {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats2 = new WifiLinkLayerStats();
+        mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
+
+        addOneBadWifiUsabilityStats(info);
+        if (isWifiScore) {
+            stats2 = wifiScoreBreachesLow(info, stats2);
+        } else {
+            stats2 = wifiUsabilityScoreBreachesLow(info, stats2);
+        }
+        if (isThereBadEvent) {
+            mWifiMetrics.logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
+        }
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(elapsedTimeAfterBreach);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+    }
+
+    // Simulate adding one LABEL_BAD WifiUsabilityStats
+    private void addOneBadWifiUsabilityStats(WifiInfo info) {
+        WifiLinkLayerStats stats1 = new WifiLinkLayerStats();
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_DATA_STALL_BAD_TX, -1);
+    }
+
+    // Simulate that Wifi score breaches low
+    private WifiLinkLayerStats wifiScoreBreachesLow(WifiInfo info, WifiLinkLayerStats stats2) {
+        int upper = WifiMetrics.LOW_WIFI_SCORE + 7;
+        int lower = WifiMetrics.LOW_WIFI_SCORE - 8;
+        mWifiMetrics.incrementWifiScoreCount(upper);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        stats2 = nextRandomStats(stats2);
+        long timeMs = 0;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        // Wifi score breaches low
+        mWifiMetrics.incrementWifiScoreCount(lower);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        stats2 = nextRandomStats(stats2);
+        return stats2;
+    }
+
+    // Simulate that Wifi usability score breaches low
+    private WifiLinkLayerStats wifiUsabilityScoreBreachesLow(WifiInfo info,
+            WifiLinkLayerStats stats2) {
+        int upper = WifiMetrics.LOW_WIFI_USABILITY_SCORE + 7;
+        int lower = WifiMetrics.LOW_WIFI_USABILITY_SCORE - 8;
+        mWifiMetrics.incrementWifiUsabilityScoreCount(1, upper, 30);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        stats2 = nextRandomStats(stats2);
+        long timeMs = 0;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeMs);
+        // Wifi usability score breaches low
+        mWifiMetrics.incrementWifiUsabilityScoreCount(2, lower, 30);
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
+        stats2 = nextRandomStats(stats2);
+        return stats2;
+    }
 }
