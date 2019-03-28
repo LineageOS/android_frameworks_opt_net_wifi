@@ -1360,6 +1360,66 @@ public class WifiNetworkFactoryTest {
     }
 
     /**
+     * Verify that we ignore connection success events after the first one (may be triggered by a
+     * roam event)
+     */
+    @Test
+    public void testNetworkSpecifierDuplicateHandleConnectionSuccess() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection success indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
+
+        // Verify that we sent the connection success callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(
+                argThat(new WifiConfigMatcher(mSelectedNetwork)));
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        verify(mWifiMetrics).incrementNetworkRequestApiNumConnectSuccess();
+
+        // Send second network connection success indication which should be ignored.
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
+        verifyNoMoreInteractions(mNetworkRequestMatchCallback);
+    }
+
+    /**
+     * Verify that we ignore any connection failure events after the first connection success (may
+     * be triggered by a disconnect).
+     * Note: The disconnect handling will be done via the NetworkAgent.
+     */
+    @Test
+    public void testNetworkSpecifierHandleConnectionFailureAfterSuccess() throws Exception {
+        sendNetworkRequestAndSetupForConnectionStatus();
+
+        // Send network connection success indication.
+        assertNotNull(mSelectedNetwork);
+        mWifiNetworkFactory.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, mSelectedNetwork);
+
+        // Verify that we sent the connection success callback.
+        verify(mNetworkRequestMatchCallback).onUserSelectionConnectSuccess(
+                argThat(new WifiConfigMatcher(mSelectedNetwork)));
+        // verify we canceled the timeout alarm.
+        verify(mAlarmManager).cancel(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+
+        verify(mWifiMetrics).incrementNetworkRequestApiNumConnectSuccess();
+
+        // Send a network connection failure indication which should be ignored (beyond the retry
+        // limit to trigger the failure handling).
+        for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
+            mWifiNetworkFactory.handleConnectionAttemptEnded(
+                    WifiMetrics.ConnectionEvent.FAILURE_DHCP, mSelectedNetwork);
+            mLooper.dispatchAll();
+        }
+        // Verify that we ignore the second connection failure callback.
+        verifyNoMoreInteractions(mNetworkRequestMatchCallback);
+    }
+
+    /**
      * Verify handling of connection success to a different network.
      */
     @Test
