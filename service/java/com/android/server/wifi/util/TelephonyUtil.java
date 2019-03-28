@@ -116,11 +116,8 @@ public class TelephonyUtil {
             return null;
         }
 
-        int base64EncodingFlag = carrierNetworkConfig.getBase64EncodingFlag(config.SSID);
-        if (base64EncodingFlag == -1) {
-            // no encrypted IMSI identity.
-            return Pair.create(identity, "");
-        }
+        int base64EncodingFlag = carrierNetworkConfig.getBase64EncodingFlag();
+
         String encryptedIdentity = buildEncryptedIdentity(telephonyUtil,
                 getSimMethodForConfig(config), imsi, mccMnc, imsiEncryptionInfo,
                 base64EncodingFlag);
