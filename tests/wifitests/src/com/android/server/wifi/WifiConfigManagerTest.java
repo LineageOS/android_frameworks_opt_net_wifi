@@ -3318,6 +3318,81 @@ public class WifiConfigManagerTest {
     }
 
     /**
+     * Verifies that the store read after bootup received after
+     * a previous user unlock and user switch via {@link WifiConfigManager#handleUserSwitch(int)}
+     * results in a user store read.
+     */
+    @Test
+    public void testHandleBootupAfterPreviousUserUnlockAndSwitch() throws Exception {
+        int user1 = TEST_DEFAULT_USER;
+        int user2 = TEST_DEFAULT_USER + 1;
+        setupUserProfiles(user2);
+
+        // Unlock the user1 (default user) for the first time and ensure that we don't read the data
+        // (need to wait for loadFromStore invocation).
+        mWifiConfigManager.handleUserUnlock(user1);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).read();
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
+                .switchUserStoresAndRead(any(List.class));
+
+        // Switch from user1 to user2 and ensure that we don't read or write any data
+        // (need to wait for loadFromStore invocation).
+        mWifiConfigManager.handleUserSwitch(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).read();
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
+                .switchUserStoresAndRead(any(List.class));
+
+        // Now load from the store.
+        assertTrue(mWifiConfigManager.loadFromStore());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore).read();
+
+        // Unlock the user2 and ensure that we read from the user store.
+        setupStoreDataForUserRead(new ArrayList<>(), new HashMap<>());
+        mWifiConfigManager.handleUserUnlock(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore)
+                .switchUserStoresAndRead(any(List.class));
+    }
+
+    /**
+     * Verifies that the store read after bootup received after
+     * a user switch and unlock of a previous user via {@link WifiConfigManager#
+     * handleUserSwitch(int)} results in a user store read.
+     */
+    @Test
+    public void testHandleBootupAfterUserSwitchAndPreviousUserUnlock() throws Exception {
+        int user1 = TEST_DEFAULT_USER;
+        int user2 = TEST_DEFAULT_USER + 1;
+        setupUserProfiles(user2);
+
+        // Switch from user1 to user2 and ensure that we don't read or write any data
+        // (need to wait for loadFromStore invocation).
+        mWifiConfigManager.handleUserSwitch(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).read();
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
+                .switchUserStoresAndRead(any(List.class));
+
+        // Unlock the user1 for the first time and ensure that we don't read the data
+        mWifiConfigManager.handleUserUnlock(user1);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).read();
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never()).write(anyBoolean());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
+                .switchUserStoresAndRead(any(List.class));
+
+        // Now load from the store.
+        assertTrue(mWifiConfigManager.loadFromStore());
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore).read();
+
+        // Unlock the user2 and ensure that we read from the user store.
+        setupStoreDataForUserRead(new ArrayList<>(), new HashMap<>());
+        mWifiConfigManager.handleUserUnlock(user2);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore)
+                .switchUserStoresAndRead(any(List.class));
+    }
+
+    /**
      * Verifies the foreground user unlock via {@link WifiConfigManager#handleUserUnlock(int)} does
      * not always result in a store read unless the user had switched or just booted up.
      */

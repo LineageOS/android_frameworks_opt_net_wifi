@@ -2871,6 +2871,8 @@ public class WifiConfigManager {
             Log.w(TAG, "User switch before store is read!");
             mConfiguredNetworks.setNewUser(userId);
             mCurrentUserId = userId;
+            // Reset any state from previous user unlock.
+            mDeferredUserUnlockRead = false;
             // Cannot read data from new user's CE store file before they log-in.
             mPendingUnlockStoreRead = true;
             return new HashSet<>();
@@ -2905,12 +2907,16 @@ public class WifiConfigManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Handling user unlock for " + userId);
         }
+        if (userId != mCurrentUserId) {
+            Log.e(TAG, "Ignore user unlock for non current user " + userId);
+            return;
+        }
         if (mPendingStoreRead) {
             Log.w(TAG, "Ignore user unlock until store is read!");
             mDeferredUserUnlockRead = true;
             return;
         }
-        if (userId == mCurrentUserId && mPendingUnlockStoreRead) {
+        if (mPendingUnlockStoreRead) {
             handleUserUnlockOrSwitch(mCurrentUserId);
         }
     }
