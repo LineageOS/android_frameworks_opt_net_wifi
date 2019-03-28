@@ -591,15 +591,23 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
+    public void handleBootCompleted() {
+        Log.d(TAG, "Handle boot completed");
+        mClientModeImpl.handleBootCompleted();
+    }
+
     public void handleUserSwitch(int userId) {
+        Log.d(TAG, "Handle user switch " + userId);
         mClientModeImpl.handleUserSwitch(userId);
     }
 
     public void handleUserUnlock(int userId) {
+        Log.d(TAG, "Handle user unlock " + userId);
         mClientModeImpl.handleUserUnlock(userId);
     }
 
     public void handleUserStop(int userId) {
+        Log.d(TAG, "Handle user stop " + userId);
         mClientModeImpl.handleUserStop(userId);
     }
 
