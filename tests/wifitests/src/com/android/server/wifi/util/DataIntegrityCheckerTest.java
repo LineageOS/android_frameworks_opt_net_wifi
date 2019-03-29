@@ -18,6 +18,7 @@ package com.android.server.wifi.util;
 
 import static org.junit.Assert.*;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -72,6 +73,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test(expected = DigestException.class)
+    @Ignore
     public void testIntegrityWithoutUpdate() throws Exception {
         File tmpFile = File.createTempFile("testIntegrityWithoutUpdate", ".tmp");
 
