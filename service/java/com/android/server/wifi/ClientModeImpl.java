@@ -5073,6 +5073,10 @@ public class ClientModeImpl extends StateMachine {
                     if (mVerboseLoggingEnabled && message.obj != null) log((String) message.obj);
                     mWifiDiagnostics.captureBugReportData(
                             WifiDiagnostics.REPORT_REASON_REACHABILITY_LOST);
+                    mWifiMetrics.logWifiIsUnusableEvent(
+                            WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
+                    mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                            WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
                     if (mIpReachabilityDisconnectEnabled) {
                         handleIpReachabilityLost();
                         transitionTo(mDisconnectingState);

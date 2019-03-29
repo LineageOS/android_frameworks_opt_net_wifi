@@ -4011,6 +4011,8 @@ public class WifiMetrics {
                 break;
             case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                 break;
+            case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                break;
             default:
                 Log.e(TAG, "Unknown WifiIsUnusableEvent: " + triggerType);
                 return;
