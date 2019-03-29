@@ -199,12 +199,10 @@ public class PasspointProvisionerTest {
         mSession = ExtendedMockito.mockitoSession().mockStatic(
                 RedirectListener.class).mockStatic(PpsMoParser.class).mockStatic(
                 UpdateResponseMessage.class).startMocking();
-
-        when(RedirectListener.createInstance(mLooper.getLooper())).thenReturn(
-                mRedirectListener);
+        when(RedirectListener.createInstance(mLooper.getLooper())).thenReturn(mRedirectListener);
         when(mRedirectListener.getServerUrl()).thenReturn(new URL(TEST_REDIRECT_URL));
         when(mRedirectListener.startServer(
-                any(RedirectListener.RedirectCallback.class))).thenReturn(true);
+                any(RedirectListener.RedirectCallback.class), any(Handler.class))).thenReturn(true);
         when(mRedirectListener.isAlive()).thenReturn(true);
         when(mWifiManager.isWifiEnabled()).thenReturn(true);
         when(mObjectFactory.makeOsuNetworkConnection(any(Context.class)))
@@ -356,7 +354,8 @@ public class PasspointProvisionerTest {
                 verify(mCallback).onProvisioningStatus(
                         ProvisioningCallback.OSU_STATUS_WAITING_FOR_REDIRECT_RESPONSE);
                 verify(mRedirectListener, atLeastOnce())
-                        .startServer(mOnRedirectReceivedArgumentCaptor.capture());
+                        .startServer(mOnRedirectReceivedArgumentCaptor.capture(),
+                                any(Handler.class));
                 mRedirectReceivedListener = mOnRedirectReceivedArgumentCaptor.getValue();
                 verifyNoMoreInteractions(mCallback);
             } else if (step == STEP_WAIT_FOR_SECOND_SOAP_RESPONSE) {
@@ -368,7 +367,7 @@ public class PasspointProvisionerTest {
                 mRedirectReceivedListener.onRedirectReceived();
                 mLooper.dispatchAll();
 
-                verify(mRedirectListener, atLeastOnce()).stopServer();
+                verify(mRedirectListener, atLeastOnce()).stopServer(any(Handler.class));
                 verify(mCallback).onProvisioningStatus(
                         ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
                 verify(mCallback).onProvisioningStatus(
@@ -517,6 +516,35 @@ public class PasspointProvisionerTest {
         mLooper.dispatchAll();
         verify(mCallback).onProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
+    }
+
+    /**
+     * Verifies existing provisioning flow is aborted when failing to create an instance of {@link
+     * RedirectListener}.
+     */
+    @Test
+    public void verifyRedirectStartFailure() throws RemoteException {
+        when(RedirectListener.createInstance(mLooper.getLooper())).thenReturn(null);
+        mPasspointProvisioner.init(mLooper.getLooper());
+        verify(mOsuNetworkConnection).init(mHandlerCaptor.capture());
+
+        mHandler = mHandlerCaptor.getValue();
+        assertEquals(mHandler.getLooper(), mLooper.getLooper());
+
+        mLooper.dispatchAll();
+
+        assertTrue(mPasspointProvisioner.startSubscriptionProvisioning(
+                TEST_UID, mOsuProvider, mCallback));
+
+        mLooper.dispatchAll();
+
+        // Since creating an instance of RedirectListener, directly move to FAILED_STATE
+        verify(mCallback).onProvisioningFailure(
+                ProvisioningCallback.OSU_FAILURE_START_REDIRECT_LISTENER);
+
+        // Failure case, no more runnable posted
+        verifyNoMoreInteractions(mCallback);
+
     }
 
     /**
@@ -775,7 +803,7 @@ public class PasspointProvisionerTest {
         mRedirectReceivedListener.onRedirectTimedOut();
         mLooper.dispatchAll();
 
-        verify(mRedirectListener, atLeastOnce()).stopServer();
+        verify(mRedirectListener, atLeastOnce()).stopServer(any(Handler.class));
         verify(mCallback).onProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER);
         // No further runnable posted
@@ -794,7 +822,7 @@ public class PasspointProvisionerTest {
         mRedirectReceivedListener.onRedirectReceived();
         mLooper.dispatchAll();
 
-        verify(mRedirectListener, atLeastOnce()).stopServer();
+        verify(mRedirectListener, atLeastOnce()).stopServer(any(Handler.class));
         verify(mCallback).onProvisioningStatus(
                 ProvisioningCallback.OSU_STATUS_REDIRECT_RESPONSE_RECEIVED);
         verify(mCallback).onProvisioningStatus(

@@ -55,6 +55,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.util.SparseIntArray;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
@@ -89,8 +90,6 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     private WifiPermissionsUtil mWifiPermissionsUtil;
     private ActivityManager mActivityManager;
     private PowerManager mPowerManager;
-    private LocationManager mLocationManager;
-    private FrameworkFacade mFrameworkFacade;
     private long mBackgroundProcessExecGapMs;
 
     private RttServiceSynchronized mRttServiceSynchronized;
@@ -99,7 +98,10 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
 
     /* package */ static final String HAL_RANGING_TIMEOUT_TAG = TAG + " HAL Ranging Timeout";
 
-    private static final long HAL_RANGING_TIMEOUT_MS = 5_000; // 5 sec
+    @VisibleForTesting
+    public static final long HAL_RANGING_TIMEOUT_MS = 5_000; // 5 sec
+    @VisibleForTesting
+    public static final long HAL_AWARE_RANGING_TIMEOUT_MS = 10_000; // 10 sec
 
     // Default value for RTT background throttling interval.
     private static final long DEFAULT_BACKGROUND_PROCESS_EXEC_GAP_MS = 1_800_000; // 30 min
@@ -230,12 +232,10 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         mRttNative = rttNative;
         mRttMetrics = rttMetrics;
         mWifiPermissionsUtil = wifiPermissionsUtil;
-        mFrameworkFacade = frameworkFacade;
         mRttServiceSynchronized = new RttServiceSynchronized(looper, rttNative);
 
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
         mPowerManager = mContext.getSystemService(PowerManager.class);
-        mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
         mContext.registerReceiver(new BroadcastReceiver() {
@@ -829,8 +829,14 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             nextRequest.cmdId = mNextCommandId++;
             if (mRttNative.rangeRequest(nextRequest.cmdId, nextRequest.request,
                     nextRequest.isCalledFromPrivilegedContext)) {
-                mRangingTimeoutMessage.schedule(
-                        mClock.getElapsedSinceBootMillis() + HAL_RANGING_TIMEOUT_MS);
+                long timeout = HAL_RANGING_TIMEOUT_MS;
+                for (ResponderConfig responderConfig : nextRequest.request.mRttPeers) {
+                    if (responderConfig.responderType == ResponderConfig.RESPONDER_AWARE) {
+                        timeout = HAL_AWARE_RANGING_TIMEOUT_MS;
+                        break;
+                    }
+                }
+                mRangingTimeoutMessage.schedule(mClock.getElapsedSinceBootMillis() + timeout);
             } else {
                 Log.w(TAG, "RttServiceSynchronized.startRanging: native rangeRequest call failed");
                 try {

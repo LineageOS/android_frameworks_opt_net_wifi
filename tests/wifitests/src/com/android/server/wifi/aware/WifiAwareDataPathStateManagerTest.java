@@ -80,6 +80,7 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.AsyncChannel;
+import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -101,6 +102,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+
 /**
  * Unit test harness for WifiAwareDataPathStateManager class.
  */
@@ -111,6 +113,7 @@ public class WifiAwareDataPathStateManagerTest {
     private TestLooper mMockLooper;
     private Handler mMockLooperHandler;
     private WifiAwareStateManager mDut;
+    @Mock private Clock mClock;
     @Mock private WifiAwareNativeManager mMockNativeManager;
     @Spy private TestUtils.MonitoredWifiAwareNativeApi mMockNative =
             new TestUtils.MonitoredWifiAwareNativeApi();
@@ -164,12 +167,13 @@ public class WifiAwareDataPathStateManagerTest {
         mDut = new WifiAwareStateManager();
         mDut.setNative(mMockNativeManager, mMockNative);
         mDut.start(mMockContext, mMockLooper.getLooper(), mAwareMetricsMock,
-                mWifiPermissionsUtil, mPermissionsWrapperMock);
+                mWifiPermissionsUtil, mPermissionsWrapperMock, mClock);
         mDut.startLate();
         mMockLooper.dispatchAll();
 
         when(mMockNetworkInterface.configureAgentProperties(any(), any(), anyInt(), any(), any(),
                 any())).thenReturn(true);
+        when(mMockNetworkInterface.isAddressUsable(any())).thenReturn(true);
 
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mMockPowerManager.isInteractive()).thenReturn(true);
@@ -867,7 +871,7 @@ public class WifiAwareDataPathStateManagerTest {
 
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
                 buildTlv((1 << 16) - 1, (1 << 8) - 1, true), (1 << 16) - 1, (1 << 8) - 1,
-                linkLocalIpv6Address);
+                linkLocalIpv6Address, 0);
     }
 
     /**
@@ -880,7 +884,7 @@ public class WifiAwareDataPathStateManagerTest {
                 peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
 
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
-                buildTlv(1 << 15, 1 << 7, true), 1 << 15, 1 << 7, linkLocalIpv6Address);
+                buildTlv(1 << 15, 1 << 7, true), 1 << 15, 1 << 7, linkLocalIpv6Address, 0);
     }
 
     /**
@@ -894,7 +898,7 @@ public class WifiAwareDataPathStateManagerTest {
 
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
                 buildTlv((1 << 15) - 1, (1 << 7) - 1, true), (1 << 15) - 1, (1 << 7) - 1,
-                linkLocalIpv6Address);
+                linkLocalIpv6Address, 0);
     }
 
     /**
@@ -908,7 +912,38 @@ public class WifiAwareDataPathStateManagerTest {
                         (byte) 0xfe, 0x7a, 0x2f, (byte) 0xa2};
 
         testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
-                testVector, 0, -1, "fe80::b3:e1ff:fe7a:2fa2");
+                testVector, 0, -1, "fe80::b3:e1ff:fe7a:2fa2", 0);
+    }
+
+    /**
+     * Verify that retrying address validation a 'small' number of times results in successful
+     * NDP setup.
+     */
+    @Test
+    public void testDataPathInitiatorAddressValidationRetrySuccess() throws Exception {
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                null, 0, -1, linkLocalIpv6Address,
+                WifiAwareDataPathStateManager.ADDRESS_VALIDATION_TIMEOUT_MS
+                        / WifiAwareDataPathStateManager.ADDRESS_VALIDATION_RETRY_INTERVAL_MS - 1);
+    }
+
+    /**
+     * Verify that retrying address validation a 'large' number of times results in failure.
+     */
+    @Test
+    public void testDataPathInitiatorAddressValidationRetryFail() throws Exception {
+        final byte[] peerDataPathMac = HexEncoding.decode("0A0B0C0D0E0F".toCharArray(), false);
+        String linkLocalIpv6Address = MacAddress.fromBytes(
+                peerDataPathMac).getLinkLocalIpv6FromEui48Mac().getHostAddress();
+
+        testDataPathInitiatorUtilityMore(false, true, true, false, true, false, peerDataPathMac,
+                null, 0, -1, linkLocalIpv6Address,
+                WifiAwareDataPathStateManager.ADDRESS_VALIDATION_TIMEOUT_MS
+                        / WifiAwareDataPathStateManager.ADDRESS_VALIDATION_RETRY_INTERVAL_MS + 10);
     }
 
     /**
@@ -1254,13 +1289,13 @@ public class WifiAwareDataPathStateManagerTest {
 
         testDataPathInitiatorUtilityMore(useDirect, provideMac, providePmk, providePassphrase,
                 getConfirmation, immediateHalFailure, peerDataPathMac, null, 0, -1,
-                linkLocalIpv6Address);
+                linkLocalIpv6Address, 0);
     }
 
     private void testDataPathInitiatorUtilityMore(boolean useDirect, boolean provideMac,
             boolean providePmk, boolean providePassphrase, boolean getConfirmation,
             boolean immediateHalFailure, byte[] peerDataPathMac, byte[] peerToken, int port,
-            int transportProtocol, String ipv6Address)
+            int transportProtocol, String ipv6Address, int numAddrValidationRetries)
             throws Exception {
         final int clientId = 123;
         final byte pubSubId = 58;
@@ -1275,7 +1310,7 @@ public class WifiAwareDataPathStateManagerTest {
         ArgumentCaptor<NetworkCapabilities> netCapCaptor = ArgumentCaptor.forClass(
                 NetworkCapabilities.class);
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt);
+                mMockNwMgt, mMockNetworkInterface);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         if (!providePmk) {
@@ -1332,20 +1367,56 @@ public class WifiAwareDataPathStateManagerTest {
 
         // (2) get confirmation OR timeout
         if (getConfirmation) {
+            if (numAddrValidationRetries > 0) {
+                when(mMockNetworkInterface.isAddressUsable(any())).thenReturn(false);
+            }
+            when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
+
             mDut.onDataPathConfirmNotification(ndpId, peerDataPathMac, true, 0, peerToken, null);
             mMockLooper.dispatchAll();
             inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
             inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+            inOrder.verify(mMockNetworkInterface).configureAgentProperties(any(), any(), anyInt(),
+                    any(), any(), any());
             inOrder.verify(mMockCm).registerNetworkAgent(messengerCaptor.capture(), any(), any(),
                     netCapCaptor.capture(), anyInt(), any(), anyInt());
-            inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.SUCCESS),
-                    eq(useDirect), anyLong());
-            inOrderM.verify(mAwareMetricsMock).recordNdpCreation(anyInt(), any());
-            WifiAwareNetworkInfo netInfo =
-                    (WifiAwareNetworkInfo) netCapCaptor.getValue().getTransportInfo();
-            assertEquals(ipv6Address, netInfo.getPeerIpv6Addr().getHostAddress());
-            assertEquals(port, netInfo.getPort());
-            assertEquals(transportProtocol, netInfo.getTransportProtocol());
+
+            inOrder.verify(mMockNetworkInterface).isAddressUsable(any());
+            boolean timedout = false;
+            for (int i = 0; i < numAddrValidationRetries; ++i) {
+                if (i == numAddrValidationRetries - 1) {
+                    when(mMockNetworkInterface.isAddressUsable(any())).thenReturn(true);
+                }
+
+                long currentTime = (i + 1L)
+                        * WifiAwareDataPathStateManager.ADDRESS_VALIDATION_RETRY_INTERVAL_MS;
+                when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTime);
+                mMockLooper.moveTimeForward(
+                        WifiAwareDataPathStateManager.ADDRESS_VALIDATION_RETRY_INTERVAL_MS + 1);
+                mMockLooper.dispatchAll();
+                inOrder.verify(mMockNetworkInterface).isAddressUsable(any());
+
+                if (currentTime > WifiAwareDataPathStateManager.ADDRESS_VALIDATION_TIMEOUT_MS) {
+                    timedout = true;
+                    break;
+                }
+            }
+
+            if (timedout) {
+                verifyUnfullfillableDispatched(res.mReverseMessenger);
+                inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
+                mDut.onEndDataPathResponse(transactionId.getValue(), true, 0);
+            } else {
+                inOrder.verify(mMockNetworkInterface).sendAgentNetworkInfo(any(), any());
+                inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.SUCCESS),
+                        eq(useDirect), anyLong());
+                inOrderM.verify(mAwareMetricsMock).recordNdpCreation(anyInt(), any());
+                WifiAwareNetworkInfo netInfo =
+                        (WifiAwareNetworkInfo) netCapCaptor.getValue().getTransportInfo();
+                assertEquals(ipv6Address, netInfo.getPeerIpv6Addr().getHostAddress());
+                assertEquals(port, netInfo.getPort());
+                assertEquals(transportProtocol, netInfo.getTransportProtocol());
+            }
         } else {
             assertTrue(mAlarmManager.dispatch(
                     WifiAwareStateManager.HAL_DATA_PATH_CONFIRM_TIMEOUT_TAG));
@@ -1377,7 +1448,8 @@ public class WifiAwareDataPathStateManagerTest {
             inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt,
+                mMockNetworkInterface);
     }
 
     private void testDataPathResponderUtility(boolean useDirect, boolean provideMac,

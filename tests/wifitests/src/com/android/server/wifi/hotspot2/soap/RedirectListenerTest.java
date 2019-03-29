@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import android.os.Handler;
 import android.os.Looper;
 import android.os.test.TestLooper;
 
@@ -47,6 +48,7 @@ public class RedirectListenerTest {
     private RedirectListenerSpy mRedirectListener;
     private URL mServerUrl;
     private TestLooper mLooper = new TestLooper();
+    private Handler mHandler = new Handler(mLooper.getLooper());
 
     @Mock RedirectListener.RedirectCallback mListener;
     @Mock NanoHTTPD.IHTTPSession mIHTTPSession;
@@ -55,7 +57,7 @@ public class RedirectListenerTest {
     private class RedirectListenerSpy extends RedirectListener {
         boolean mIsStart = false;
         RedirectListenerSpy(Looper looper, int port) throws IOException {
-            super(looper, looper, port);
+            super(looper, port);
         }
 
         @Override
@@ -80,20 +82,19 @@ public class RedirectListenerTest {
     @Before
     public void setUp() throws Exception {
         initMocks(this);
-
         mRedirectListener = new RedirectListenerSpy(mLooper.getLooper(), TEST_PORT);
         mServerUrl = mRedirectListener.getServerUrl();
     }
 
     private void verifyStartServer() {
-        mRedirectListener.startServer(mListener);
+        mRedirectListener.startServer(mListener, mHandler);
         mLooper.dispatchAll();
 
         assertTrue(mRedirectListener.mIsStart);
     }
 
     private void verifyStopServer() {
-        mRedirectListener.stopServer();
+        mRedirectListener.stopServer(mHandler);
         mLooper.dispatchAll();
 
         assertFalse(mRedirectListener.mIsStart);

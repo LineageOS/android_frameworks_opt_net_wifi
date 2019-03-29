@@ -78,6 +78,23 @@ public class RttTestUtils {
     }
 
     /**
+     * Returns a dummy ranging request with 2 requests:
+     * - First: 802.11mc capable
+     */
+    public static RangingRequest getDummyRangingRequestMcOnly(byte lastMacByte) {
+        RangingRequest.Builder builder = new RangingRequest.Builder();
+
+        ScanResult scan1 = new ScanResult();
+        scan1.BSSID = "00:01:02:03:04:" + String.format("%02d", lastMacByte);
+        scan1.setFlag(ScanResult.FLAG_80211mc_RESPONDER);
+        scan1.channelWidth = ScanResult.CHANNEL_WIDTH_40MHZ;
+
+        builder.addAccessPoint(scan1);
+
+        return builder.build();
+    }
+
+    /**
      * Returns a dummy ranging request with 2 requests - neither of which support 802.11mc.
      */
     public static RangingRequest getDummyRangingRequestNo80211mcSupport(byte lastMacByte) {

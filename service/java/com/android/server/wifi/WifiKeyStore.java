@@ -26,10 +26,13 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.Key;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -250,6 +253,21 @@ public class WifiKeyStore {
         }
     }
 
+
+    /**
+     * @param certData byte array of the certificate
+     */
+    private X509Certificate buildCACertificate(byte[] certData) {
+        try {
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            InputStream inputStream = new ByteArrayInputStream(certData);
+            X509Certificate caCertificateX509 = (X509Certificate) certificateFactory
+                    .generateCertificate(inputStream);
+            return caCertificateX509;
+        } catch (CertificateException e) {
+            return null;
+        }
+    }
     /**
      * Update/Install keys for given enterprise network.
      *
@@ -277,6 +295,46 @@ public class WifiKeyStore {
                 return false;
             }
         }
+
+        // For Suite-B-192 (WPA3-Enterprise), set the SuiteBCipher field based on the
+        // CA certificate type. Suite-B requires SHA384, reject other certs.
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            // Read the first CA certificate, and initialize
+            byte[] certData = mKeyStore.get(
+                    Credentials.CA_CERTIFICATE + config.enterpriseConfig.getCaCertificateAlias(),
+                    android.os.Process.WIFI_UID);
+
+            if (certData == null) {
+                Log.e(TAG, "Failed reading CA certificate for Suite-B");
+                return false;
+            }
+
+            X509Certificate x509CaCert = buildCACertificate(certData);
+
+            if (x509CaCert != null) {
+                String sigAlgOid = x509CaCert.getSigAlgOID();
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "Signature algorithm: " + sigAlgOid);
+                }
+                config.allowedSuiteBCiphers.clear();
+                // ecdsa-with-SHA384
+                if (sigAlgOid.equals("1.2.840.10045.4.3.3")) {
+                    config.allowedSuiteBCiphers.set(
+                            WifiConfiguration.SuiteBCipher.ECDHE_ECDSA);
+                    if (mVerboseLoggingEnabled) {
+                        Log.d(TAG, "Selecting Suite-B ECDSA");
+                    }
+                } else {
+                    Log.e(TAG, "Invalid CA certificate type for Suite-B: "
+                            + sigAlgOid);
+                    return false;
+                }
+            } else {
+                Log.e(TAG, "Invalid CA certificate for Suite-B");
+                return false;
+            }
+        }
+
         return true;
     }
 }
