@@ -2768,6 +2768,7 @@ public class WifiMetricsTest {
         mWifiMetrics.incrementWifiUsabilityScoreCount(3, 56, 15);
         mWifiMetrics.logLinkProbeFailure(nextRandInt(), nextRandInt(), nextRandInt(),
                 nextRandInt(), nextRandInt());
+        mWifiMetrics.enterDeviceMobilityState(DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
@@ -2817,6 +2818,9 @@ public class WifiMetricsTest {
                 mDecodedProto.wifiUsabilityStatsList[0].stats[0].cellularSignalStrengthDb);
         assertEquals(isSameRegisteredCell,
                 mDecodedProto.wifiUsabilityStatsList[0].stats[0].isSameRegisteredCell);
+        assertEquals(DEVICE_MOBILITY_STATE_HIGH_MVMT, mDecodedProto.wifiUsabilityStatsList[1]
+                .stats[mDecodedProto.wifiUsabilityStatsList[1].stats.length - 1]
+                .deviceMobilityState);
     }
 
     /**
