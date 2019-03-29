@@ -39,6 +39,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testIntegrityWithKnownDataAndKnownAlias() throws Exception {
         File integrityFile = File.createTempFile("testIntegrityWithKnownDataAndKnownAlias",
                 ".tmp");
@@ -57,6 +58,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testIntegrityWithUnknownDataAndKnownAlias() throws Exception {
         File integrityFile = File.createTempFile("testIntegrityWithUnknownDataAndKnownAlias",
                 ".tmp");
