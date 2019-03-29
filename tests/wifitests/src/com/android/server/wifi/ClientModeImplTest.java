@@ -531,7 +531,7 @@ public class ClientModeImplTest {
         mBinderToken = Binder.clearCallingIdentity();
 
         /* Send the BOOT_COMPLETED message to setup some CMI state. */
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
 
         verify(mWifiNetworkFactory, atLeastOnce()).register();
@@ -561,7 +561,7 @@ public class ClientModeImplTest {
     public void createNew() throws Exception {
         assertEquals("DefaultState", getCurrentState().getName());
 
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
     }

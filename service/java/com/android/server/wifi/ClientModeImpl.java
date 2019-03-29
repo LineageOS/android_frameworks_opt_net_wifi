@@ -872,15 +872,6 @@ public class ClientModeImpl extends StateMachine {
                     }
                 });
 
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        sendMessage(CMD_BOOT_COMPLETED);
-                    }
-                },
-                new IntentFilter(Intent.ACTION_LOCKED_BOOT_COMPLETED));
-
         mUserWantsSuspendOpt.set(mFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
 
@@ -2065,6 +2056,13 @@ public class ClientModeImpl extends StateMachine {
         mWifiConnectivityManager.dump(fd, pw, args);
         mWifiInjector.getWakeupController().dump(fd, pw, args);
         mLinkProbeManager.dump(fd, pw, args);
+    }
+
+    /**
+     * Trigger message to handle boot completed event.
+     */
+    public void handleBootCompleted() {
+        sendMessage(CMD_BOOT_COMPLETED);
     }
 
     /**

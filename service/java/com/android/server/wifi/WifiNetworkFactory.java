@@ -64,6 +64,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -739,12 +740,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         WifiConfiguration networkToConnect =
                 new WifiConfiguration(mActiveSpecificNetworkRequestSpecifier.wifiConfiguration);
         networkToConnect.SSID = network.SSID;
-        // If the request is for a specific SSID and BSSID, then set WifiConfiguration.BSSID field
-        // to prevent roaming.
-        if (isActiveRequestForSingleAccessPoint()) {
-            networkToConnect.BSSID =
-                    mActiveSpecificNetworkRequestSpecifier.bssidPatternMatcher.first.toString();
-        }
+        // Set the WifiConfiguration.BSSID field to prevent roaming.
+        networkToConnect.BSSID = findBestBssidFromActiveMatchedScanResultsForNetwork(network);
         // Mark the network ephemeral so that it's automatically removed at the end of connection.
         networkToConnect.ephemeral = true;
         networkToConnect.fromWifiNetworkSpecifier = true;
@@ -1179,6 +1176,33 @@ public class WifiNetworkFactory extends NetworkFactory {
             return true;
         }
         return false;
+    }
+
+    // Will return the best bssid to use for the current request's connection.
+    //
+    // Note: This will never return null, unless there is some internal error.
+    // For ex:
+    // i) The latest scan results were empty.
+    // ii) The latest scan result did not contain any BSSID for the SSID user chose.
+    private @Nullable String findBestBssidFromActiveMatchedScanResultsForNetwork(
+            @NonNull WifiConfiguration network) {
+        if (mActiveSpecificNetworkRequestSpecifier == null
+                || mActiveMatchedScanResults == null) return null;
+        ScanResult selectedScanResult = mActiveMatchedScanResults
+                .stream()
+                .filter(scanResult -> Objects.equals(
+                        ScanResultMatchInfo.fromScanResult(scanResult),
+                        ScanResultMatchInfo.fromWifiConfiguration(network)))
+                .max(Comparator.comparing(scanResult -> scanResult.level))
+                .orElse(null);
+        if (selectedScanResult == null) { // Should never happen.
+            Log.wtf(TAG, "Expected to find at least one matching scan result");
+            return null;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Best bssid selected for the request " + selectedScanResult);
+        }
+        return selectedScanResult.BSSID;
     }
 
     private @Nullable ScanResult
