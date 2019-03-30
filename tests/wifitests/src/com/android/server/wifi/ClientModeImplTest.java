@@ -378,6 +378,7 @@ public class ClientModeImplTest {
     @Mock LinkProbeManager mLinkProbeManager;
     @Mock PackageManager mPackageManager;
     @Mock WifiLockManager mWifiLockManager;
+    @Mock AsyncChannel mNullAsyncChannel;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -491,6 +492,7 @@ public class ClientModeImplTest {
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
+        when(mNullAsyncChannel.sendMessageSynchronously(any())).thenReturn(null);
     }
 
     private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
@@ -531,7 +533,7 @@ public class ClientModeImplTest {
         mBinderToken = Binder.clearCallingIdentity();
 
         /* Send the BOOT_COMPLETED message to setup some CMI state. */
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
 
         verify(mWifiNetworkFactory, atLeastOnce()).register();
@@ -561,7 +563,7 @@ public class ClientModeImplTest {
     public void createNew() throws Exception {
         assertEquals("DefaultState", getCurrentState().getName());
 
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
     }
@@ -3400,5 +3402,59 @@ public class ClientModeImplTest {
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
                 mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+    }
+
+    /**
+     * Verify that a WifiIsUnusableEvent is logged and the current list of usability stats entries
+     * are labeled and saved when receiving an IP reachability lost message.
+     * @throws Exception
+     */
+    @Test
+    public void verifyIpReachabilityLostMsgUpdatesWifiUsabilityMetrics() throws Exception {
+        connect();
+
+        mCmi.sendMessage(ClientModeImpl.CMD_IP_REACHABILITY_LOST);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics).logWifiIsUnusableEvent(
+                WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
+        verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+    }
+
+    /**
+     * Verify that syncGetAllMatchingFqdnsForScanResults does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetAllMatchingFqdnsForScanResult_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetAllMatchingFqdnsForScanResults(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingOsuProviders does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetMatchingOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingPasspointConfigsForOsuProviders does not return null from a null
+     * message.
+     */
+    @Test
+    public void testSyncGetMatchingPasspointConfigsForOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingPasspointConfigsForOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetWifiConfigsForPasspointProfiles does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetWifiConfigsForPasspointProfiles_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetWifiConfigsForPasspointProfiles(null, mNullAsyncChannel));
     }
 }

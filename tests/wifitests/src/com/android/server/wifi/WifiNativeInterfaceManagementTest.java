@@ -447,6 +447,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWificondControl).setupInterfaceForSoftApMode(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).registerObserver(mNetworkObserverCaptor1.capture());
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
 
         // Execute a teardown of the interface to ensure that the new iface removal works.
         executeAndValidateTeardownSoftApInterface(false, false, IFACE_NAME_0, mIfaceCallback1,
@@ -497,6 +499,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mNwManagementService).clearInterfaceAddresses(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).setInterfaceIpv6PrivacyExtensions(IFACE_NAME_0, true);
         mInOrder.verify(mNwManagementService).disableIpv6(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
 
         // Execute a teardown of the interface to ensure that the new iface removal works.
         executeAndValidateTeardownClientInterface(false, false, IFACE_NAME_0, mIfaceCallback1,
@@ -706,6 +710,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWificondControl).setupInterfaceForSoftApMode(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).registerObserver(mNetworkObserverCaptor1.capture());
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
 
         // Step (c) - Iface up on old iface, ignored!
         mNetworkObserverCaptor0.getValue().interfaceLinkStateChanged(IFACE_NAME_0, true);
@@ -1163,6 +1169,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mNwManagementService).clearInterfaceAddresses(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).setInterfaceIpv6PrivacyExtensions(IFACE_NAME_0, true);
         mInOrder.verify(mNwManagementService).disableIpv6(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
 
         // Now setup an AP interface.
         assertEquals(IFACE_NAME_0, mWifiNative.setupInterfaceForSoftApMode(mIfaceCallback1));
@@ -1186,6 +1194,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWificondControl).setupInterfaceForSoftApMode(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).registerObserver(mNetworkObserverCaptor1.capture());
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
     }
 
     /**
@@ -1212,6 +1222,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWificondControl).setupInterfaceForSoftApMode(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).registerObserver(mNetworkObserverCaptor0.capture());
         mInOrder.verify(mNwManagementService).getInterfaceConfig(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
 
         // Now setup a STA interface.
         assertEquals(IFACE_NAME_0,
@@ -1240,6 +1252,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mNwManagementService).clearInterfaceAddresses(IFACE_NAME_0);
         mInOrder.verify(mNwManagementService).setInterfaceIpv6PrivacyExtensions(IFACE_NAME_0, true);
         mInOrder.verify(mNwManagementService).disableIpv6(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
     }
 
     /**
@@ -1302,6 +1316,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mNwManagementService).clearInterfaceAddresses(ifaceName);
         mInOrder.verify(mNwManagementService).setInterfaceIpv6PrivacyExtensions(ifaceName, true);
         mInOrder.verify(mNwManagementService).disableIpv6(ifaceName);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(ifaceName);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(ifaceName);
     }
 
     private void executeAndValidateTeardownClientInterface(
@@ -1372,6 +1388,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mNwManagementService).registerObserver(networkObserverCaptor.capture());
         mInOrder.verify(mWifiMonitor).startMonitoring(ifaceName);
         mInOrder.verify(mNwManagementService).getInterfaceConfig(ifaceName);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(ifaceName);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(ifaceName);
     }
 
     private void executeAndValidateTeardownClientInterfaceForScan(
@@ -1442,6 +1460,8 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWificondControl).setupInterfaceForSoftApMode(ifaceName);
         mInOrder.verify(mNwManagementService).registerObserver(networkObserverCaptor.capture());
         mInOrder.verify(mNwManagementService).getInterfaceConfig(ifaceName);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(ifaceName);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(ifaceName);
     }
 
     private void executeAndValidateTeardownSoftApInterface(

@@ -2331,7 +2331,7 @@ public class WifiMetricsTest {
         return bitSet;
     }
 
-    private static final int NUM_UNUSABLE_EVENT = 4;
+    private static final int NUM_UNUSABLE_EVENT = 5;
     private static final int NUM_UNUSABLE_EVENT_TIME_THROTTLE = 3;
 
     /**
@@ -2344,7 +2344,8 @@ public class WifiMetricsTest {
         {WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX,        60,  60,  50,  40,  30,  1000,  -1, 51},
         {WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX, 55,  40,  30,  0,   0,   500,   -1, 52},
         {WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH,          60,  90,  30,  30,  0,   1000,  -1, 53},
-        {WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT,           55,  55,  30,  15,  10,  1000,   4, 54}
+        {WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT,           55,  55,  30,  15,  10,  1000,   4, 54},
+        {WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST,     50,  56,  28,  17,  12,  1000,  -1, 45}
     };
 
     /**
@@ -2376,6 +2377,9 @@ public class WifiMetricsTest {
                 break;
             case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                 mWifiMetrics.logWifiIsUnusableEvent(trigger[0], trigger[7]);
+                break;
+            case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                mWifiMetrics.logWifiIsUnusableEvent(trigger[0]);
                 break;
             default:
                 break;
@@ -2768,6 +2772,7 @@ public class WifiMetricsTest {
         mWifiMetrics.incrementWifiUsabilityScoreCount(3, 56, 15);
         mWifiMetrics.logLinkProbeFailure(nextRandInt(), nextRandInt(), nextRandInt(),
                 nextRandInt(), nextRandInt());
+        mWifiMetrics.enterDeviceMobilityState(DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
@@ -2817,6 +2822,9 @@ public class WifiMetricsTest {
                 mDecodedProto.wifiUsabilityStatsList[0].stats[0].cellularSignalStrengthDb);
         assertEquals(isSameRegisteredCell,
                 mDecodedProto.wifiUsabilityStatsList[0].stats[0].isSameRegisteredCell);
+        assertEquals(DEVICE_MOBILITY_STATE_HIGH_MVMT, mDecodedProto.wifiUsabilityStatsList[1]
+                .stats[mDecodedProto.wifiUsabilityStatsList[1].stats.length - 1]
+                .deviceMobilityState);
     }
 
     /**
@@ -3540,5 +3548,31 @@ public class WifiMetricsTest {
         }
         assertNotNull("not found!", result);
         return result;
+    }
+
+    /**
+     * Verify that the label and the triggerType of Wifi usability stats are saved correctly
+     * during IP reachability lost message is received.
+     * @throws Exception
+     */
+    @Test
+    public void verifyIpReachabilityLostUpdatesWifiUsabilityMetrics() throws Exception {
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+
+        // Add 1 LABEL_GOOD
+        WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
+        // IP reachability lost occurs
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+
+        dumpProtoAndDeserialize();
+        assertEquals(2, mDecodedProto.wifiUsabilityStatsList.length);
+        WifiUsabilityStats[] statsList = mDecodedProto.wifiUsabilityStatsList;
+        assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
+        assertEquals(WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, statsList[1].triggerType);
     }
 }

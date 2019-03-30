@@ -650,20 +650,32 @@ public class WifiLockManager {
     private boolean setLowLatencyMode(boolean enabled) {
         int lowLatencySupport = getLowLatencyModeSupport();
 
-        if (lowLatencySupport == LOW_LATENCY_SUPPORTED) {
-            return mClientModeImpl.setLowLatencyMode(enabled);
-        } else if (lowLatencySupport == LOW_LATENCY_NOT_SUPPORTED) {
-            // Since low-latency mode is not supported, use power save instead
-            // Note: low-latency mode enabled ==> power-save disabled
-            if (mVerboseLoggingEnabled) {
-                Slog.d(TAG, "low-latency is not supported, using power-save instead");
-            }
-
-            return mClientModeImpl.setPowerSave(!enabled);
-        } else {
-            // Support undefined, no need to attempt either functions
+        if (lowLatencySupport == LOW_LATENCY_SUPPORT_UNDEFINED) {
+            // Support undefined, no action is taken
             return false;
         }
+
+        if (lowLatencySupport == LOW_LATENCY_SUPPORTED) {
+            if (!mClientModeImpl.setLowLatencyMode(enabled)) {
+                Slog.e(TAG, "Failed to set low latency mode");
+                return false;
+            }
+
+            if (!mClientModeImpl.setPowerSave(!enabled)) {
+                Slog.e(TAG, "Failed to set power save mode");
+                // Revert the low latency mode
+                mClientModeImpl.setLowLatencyMode(!enabled);
+                return false;
+            }
+        } else if (lowLatencySupport == LOW_LATENCY_NOT_SUPPORTED) {
+            // Only set power save mode
+            if (!mClientModeImpl.setPowerSave(!enabled)) {
+                Slog.e(TAG, "Failed to set power save mode");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private synchronized WifiLock findLockByBinder(IBinder binder) {

@@ -2758,6 +2758,7 @@ public class WifiMetrics {
         line.append(",cellular_signal_strength_dbm=" + entry.cellularSignalStrengthDbm);
         line.append(",cellular_signal_strength_db=" + entry.cellularSignalStrengthDb);
         line.append(",is_same_registered_cell=" + entry.isSameRegisteredCell);
+        line.append(",device_mobility_state=" + entry.deviceMobilityState);
         pw.println(line.toString());
     }
 
@@ -4010,6 +4011,8 @@ public class WifiMetrics {
                 break;
             case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                 break;
+            case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                break;
             default:
                 Log.e(TAG, "Unknown WifiIsUnusableEvent: " + triggerType);
                 return;
@@ -4153,6 +4156,7 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             wifiUsabilityStatsEntry.isSameBssidAndFreq = isSameBssidAndFreq;
             wifiUsabilityStatsEntry.seqNumInsideFramework = mSeqNumInsideFramework;
+            wifiUsabilityStatsEntry.deviceMobilityState = mCurrentDeviceMobilityState;
 
             CellularLinkLayerStats cls = mCellularLinkLayerStatsCollector.update();
             if (DBG) Log.v(TAG, "Latest Cellular Link Layer Stats: " + cls);
@@ -4313,6 +4317,7 @@ public class WifiMetrics {
         out.cellularSignalStrengthDbm = s.cellularSignalStrengthDbm;
         out.cellularSignalStrengthDb = s.cellularSignalStrengthDb;
         out.isSameRegisteredCell = s.isSameRegisteredCell;
+        out.deviceMobilityState = s.deviceMobilityState;
         return out;
     }
 

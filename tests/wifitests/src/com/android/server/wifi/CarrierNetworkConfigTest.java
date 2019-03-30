@@ -139,7 +139,7 @@ public class CarrierNetworkConfigTest {
         assertTrue(mCarrierNetworkConfig.isCarrierNetwork(TEST_SSID));
         assertEquals(TEST_INTERNAL_EAP_TYPE, mCarrierNetworkConfig.getNetworkEapType(TEST_SSID));
         assertEquals(TEST_CARRIER_NAME, mCarrierNetworkConfig.getCarrierName(TEST_SSID));
-        assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag(TEST_SSID));
+        assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
     }
 
     /**
@@ -212,14 +212,13 @@ public class CarrierNetworkConfigTest {
         assertFalse(mCarrierNetworkConfig.isCarrierNetwork(TEST_SSID));
         assertEquals(-1, mCarrierNetworkConfig.getNetworkEapType(TEST_SSID));
         assertEquals(null, mCarrierNetworkConfig.getCarrierName(TEST_SSID));
-        assertEquals(-1, mCarrierNetworkConfig.getBase64EncodingFlag(TEST_SSID));
+        assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
 
         // Verify that updated SSID is associated with a carrier network.
         assertTrue(mCarrierNetworkConfig.isCarrierNetwork(updatedSsid));
         assertEquals(updatedInternalEapType, mCarrierNetworkConfig.getNetworkEapType(updatedSsid));
         assertEquals(updatedCarrierName, mCarrierNetworkConfig.getCarrierName(updatedSsid));
-        assertEquals(Base64.DEFAULT,
-                mCarrierNetworkConfig.getBase64EncodingFlag(updatedSsid));
+        assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
     }
 
     /**
@@ -263,7 +262,7 @@ public class CarrierNetworkConfigTest {
                         CarrierNetworkConfig.ENCODING_METHOD_RFC_4648));
         mBroadcastReceiver.onReceive(mContext,
                 new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
-        assertEquals(Base64.NO_WRAP, mCarrierNetworkConfig.getBase64EncodingFlag(TEST_SSID));
+        assertEquals(Base64.NO_WRAP, mCarrierNetworkConfig.getBase64EncodingFlag());
     }
 
     /**
@@ -281,6 +280,6 @@ public class CarrierNetworkConfigTest {
         assertFalse(mCarrierNetworkConfig.isCarrierNetwork(ssid));
         assertEquals(-1, mCarrierNetworkConfig.getNetworkEapType(ssid));
         assertEquals(null, mCarrierNetworkConfig.getCarrierName(ssid));
-        assertEquals(-1, mCarrierNetworkConfig.getBase64EncodingFlag(ssid));
+        assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
     }
 }

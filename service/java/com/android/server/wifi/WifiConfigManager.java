@@ -1060,7 +1060,7 @@ public class WifiConfigManager {
      */
     private void updateRandomizedMacAddress(WifiConfiguration config) {
         // Update randomized MAC address according to stored map
-        final String key = config.configKey();
+        final String key = config.getSsidAndSecurityTypeString();
         // If the key is not found in the current store, then it means this network has never been
         // seen before. So add it to store.
         if (!mRandomizedMacAddressMapping.containsKey(key)) {
@@ -1167,8 +1167,8 @@ public class WifiConfigManager {
                 newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS or"
-                    + "NETWORK_SETUP_WIZARD.");
+                    + "Settings " + config.getSsidAndSecurityTypeString() + ". Must have "
+                    + "NETWORK_SETTINGS or NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
@@ -2871,6 +2871,8 @@ public class WifiConfigManager {
             Log.w(TAG, "User switch before store is read!");
             mConfiguredNetworks.setNewUser(userId);
             mCurrentUserId = userId;
+            // Reset any state from previous user unlock.
+            mDeferredUserUnlockRead = false;
             // Cannot read data from new user's CE store file before they log-in.
             mPendingUnlockStoreRead = true;
             return new HashSet<>();
@@ -2905,12 +2907,16 @@ public class WifiConfigManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Handling user unlock for " + userId);
         }
+        if (userId != mCurrentUserId) {
+            Log.e(TAG, "Ignore user unlock for non current user " + userId);
+            return;
+        }
         if (mPendingStoreRead) {
             Log.w(TAG, "Ignore user unlock until store is read!");
             mDeferredUserUnlockRead = true;
             return;
         }
-        if (userId == mCurrentUserId && mPendingUnlockStoreRead) {
+        if (mPendingUnlockStoreRead) {
             handleUserUnlockOrSwitch(mCurrentUserId);
         }
     }
@@ -3034,7 +3040,7 @@ public class WifiConfigManager {
      */
     private void generateRandomizedMacAddresses() {
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            mRandomizedMacAddressMapping.put(config.configKey(),
+            mRandomizedMacAddressMapping.put(config.getSsidAndSecurityTypeString(),
                     config.getOrCreateRandomizedMacAddress().toString());
         }
     }

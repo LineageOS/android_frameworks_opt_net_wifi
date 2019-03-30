@@ -18,6 +18,7 @@ package com.android.server.wifi.util;
 
 import static org.junit.Assert.*;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -38,6 +39,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testIntegrityWithKnownDataAndKnownAlias() throws Exception {
         File integrityFile = File.createTempFile("testIntegrityWithKnownDataAndKnownAlias",
                 ".tmp");
@@ -56,6 +58,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testIntegrityWithUnknownDataAndKnownAlias() throws Exception {
         File integrityFile = File.createTempFile("testIntegrityWithUnknownDataAndKnownAlias",
                 ".tmp");
@@ -72,6 +75,7 @@ public class DataIntegrityCheckerTest {
      * @throws Exception
      */
     @Test(expected = DigestException.class)
+    @Ignore
     public void testIntegrityWithoutUpdate() throws Exception {
         File tmpFile = File.createTempFile("testIntegrityWithoutUpdate", ".tmp");
 
