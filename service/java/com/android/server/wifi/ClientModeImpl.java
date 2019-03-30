@@ -1689,13 +1689,14 @@ public class ClientModeImpl extends StateMachine {
      * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
      * WifiManager#PASSPOINT_ROAMING_NETWORK}).
      */
+    @NonNull
     Map<String, Map<Integer, List<ScanResult>>> syncGetAllMatchingFqdnsForScanResults(
             List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg = channel.sendMessageSynchronously(
                 CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS,
                 scanResults);
-        if (messageIsNull(resultMsg)) return null;
+        if (messageIsNull(resultMsg)) return new HashMap<>();
         Map<String, Map<Integer, List<ScanResult>>> configs =
                 (Map<String, Map<Integer, List<ScanResult>>>) resultMsg.obj;
         resultMsg.recycle();
@@ -1710,12 +1711,13 @@ public class ClientModeImpl extends StateMachine {
      * @param channel     Channel for communicating with the state machine
      * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}.
      */
+    @NonNull
     public Map<OsuProvider, List<ScanResult>> syncGetMatchingOsuProviders(
             List<ScanResult> scanResults,
             AsyncChannel channel) {
         Message resultMsg =
                 channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
-        if (messageIsNull(resultMsg)) return null;
+        if (messageIsNull(resultMsg)) return new HashMap<>();
         Map<OsuProvider, List<ScanResult>> providers =
                 (Map<OsuProvider, List<ScanResult>>) resultMsg.obj;
         resultMsg.recycle();
@@ -1729,12 +1731,13 @@ public class ClientModeImpl extends StateMachine {
      * @param channel  AsyncChannel to use for the response
      * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
      */
+    @NonNull
     public Map<OsuProvider, PasspointConfiguration> syncGetMatchingPasspointConfigsForOsuProviders(
             List<OsuProvider> osuProviders, AsyncChannel channel) {
         Message resultMsg =
                 channel.sendMessageSynchronously(
                         CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS, osuProviders);
-        if (messageIsNull(resultMsg)) return null;
+        if (messageIsNull(resultMsg)) return new HashMap<>();
         Map<OsuProvider, PasspointConfiguration> result =
                 (Map<OsuProvider, PasspointConfiguration>) resultMsg.obj;
         resultMsg.recycle();
@@ -1752,12 +1755,13 @@ public class ClientModeImpl extends StateMachine {
      * @return List of {@link WifiConfiguration} converted from
      * {@link com.android.server.wifi.hotspot2.PasspointProvider}
      */
+    @NonNull
     public List<WifiConfiguration> syncGetWifiConfigsForPasspointProfiles(List<String> fqdnList,
             AsyncChannel channel) {
         Message resultMsg =
                 channel.sendMessageSynchronously(
                         CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES, fqdnList);
-        if (messageIsNull(resultMsg)) return null;
+        if (messageIsNull(resultMsg)) return new ArrayList<>();
         List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
