@@ -68,6 +68,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiLockStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkRequestApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkSuggestionApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
@@ -363,6 +364,19 @@ public class WifiMetrics {
             {5, 20, 50, 100, 500};
     private final IntHistogram mWifiNetworkSuggestionApiListSizeHistogram =
             new IntHistogram(NETWORK_SUGGESTION_API_LIST_SIZE_HISTOGRAM_BUCKETS);
+    private final WifiLockStats mWifiLockStats = new WifiLockStats();
+    private static final int[] WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS =
+            {1, 10, 60, 600, 3600};
+
+    private final IntHistogram mWifiLockHighPerfAcqDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+    private final IntHistogram mWifiLockLowLatencyAcqDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+
+    private final IntHistogram mWifiLockHighPerfActiveSessionDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+    private final IntHistogram mWifiLockLowLatencyActiveSessionDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
 
     /**
      * (experiment1Id, experiment2Id) =>
@@ -2718,6 +2732,16 @@ public class WifiMetrics {
                 pw.println("mWifiNetworkSuggestionApiMatchSizeHistogram:\n"
                         + mWifiNetworkRequestApiMatchSizeHistogram);
                 pw.println("mNetworkIdToNominatorId:\n" + mNetworkIdToNominatorId);
+                pw.println("mWifiLockStats:\n" + mWifiLockStats);
+                pw.println("mWifiLockHighPerfAcqDurationSecHistogram:\n"
+                        + mWifiLockHighPerfAcqDurationSecHistogram);
+                pw.println("mWifiLockLowLatencyAcqDurationSecHistogram:\n"
+                        + mWifiLockLowLatencyAcqDurationSecHistogram);
+                pw.println("mWifiLockHighPerfActiveSessionDurationSecHistogram:\n"
+                        + mWifiLockHighPerfActiveSessionDurationSecHistogram);
+                pw.println("mWifiLockLowLatencyActiveSessionDurationSecHistogram:\n"
+                        + mWifiLockLowLatencyActiveSessionDurationSecHistogram);
+
             }
         }
     }
@@ -3231,6 +3255,20 @@ public class WifiMetrics {
             mWifiNetworkSuggestionApiLog.networkListSizeHistogram =
                     mWifiNetworkSuggestionApiListSizeHistogram.toProto();
             mWifiLogProto.wifiNetworkSuggestionApiLog = mWifiNetworkSuggestionApiLog;
+
+            mWifiLockStats.highPerfLockAcqDurationSecHistogram =
+                    mWifiLockHighPerfAcqDurationSecHistogram.toProto();
+
+            mWifiLockStats.lowLatencyLockAcqDurationSecHistogram =
+                    mWifiLockLowLatencyAcqDurationSecHistogram.toProto();
+
+            mWifiLockStats.highPerfActiveSessionDurationSecHistogram =
+                    mWifiLockHighPerfActiveSessionDurationSecHistogram.toProto();
+
+            mWifiLockStats.lowLatencyActiveSessionDurationSecHistogram =
+                    mWifiLockLowLatencyActiveSessionDurationSecHistogram.toProto();
+
+            mWifiLogProto.wifiLockStats = mWifiLockStats;
         }
     }
 
@@ -3406,6 +3444,11 @@ public class WifiMetrics {
             mWifiNetworkSuggestionApiLog.clear();
             mWifiNetworkRequestApiMatchSizeHistogram.clear();
             mWifiNetworkSuggestionApiListSizeHistogram.clear();
+            mWifiLockHighPerfAcqDurationSecHistogram.clear();
+            mWifiLockLowLatencyAcqDurationSecHistogram.clear();
+            mWifiLockHighPerfActiveSessionDurationSecHistogram.clear();
+            mWifiLockLowLatencyActiveSessionDurationSecHistogram.clear();
+            mWifiLockStats.clear();
         }
     }
 
@@ -4720,6 +4763,44 @@ public class WifiMetrics {
         synchronized (mLock) {
             if (networkId == WifiConfiguration.INVALID_NETWORK_ID) return;
             mNetworkIdToNominatorId.put(networkId, nominatorId);
+        }
+    }
+
+    /** Add a WifiLock acqusition session */
+    public void addWifiLockAcqSession(int lockType, long duration) {
+        switch (lockType) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                mWifiLockHighPerfAcqDurationSecHistogram.increment((int) (duration / 1000));
+                break;
+
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                mWifiLockLowLatencyAcqDurationSecHistogram.increment((int) (duration / 1000));
+                break;
+
+            default:
+                Log.e(TAG, "addWifiLockAcqSession: Invalid lock type: " + lockType);
+                break;
+        }
+    }
+
+    /** Add a WifiLock active session */
+    public void addWifiLockActiveSession(int lockType, long duration) {
+        switch (lockType) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                mWifiLockStats.highPerfActiveTimeMs += duration;
+                mWifiLockHighPerfActiveSessionDurationSecHistogram.increment(
+                        (int) (duration / 1000));
+                break;
+
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                mWifiLockStats.lowLatencyActiveTimeMs += duration;
+                mWifiLockLowLatencyActiveSessionDurationSecHistogram.increment(
+                        (int) (duration / 1000));
+                break;
+
+            default:
+                Log.e(TAG, "addWifiLockActiveSession: Invalid lock type: " + lockType);
+                break;
         }
     }
 }
