@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.net.IpMemoryStore;
 import android.net.ipmemorystore.Blob;
+import android.net.ipmemorystore.Status;
 import android.util.Log;
 
 import com.android.internal.util.Preconditions;
@@ -82,8 +83,7 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
      *
      */
     private static class CatchAFallingBlob
-            extends android.net.ipmemorystore.IOnBlobRetrievedListener.Default
-            implements android.net.ipmemorystore.IOnBlobRetrievedListener {
+            implements android.net.ipmemorystore.OnBlobRetrievedListener {
         private final String mL2Key;
         private final WifiScoreCard.BlobListener mBlobListener;
 
@@ -93,13 +93,7 @@ final class MemoryStoreImpl implements WifiScoreCard.MemoryStore {
         }
 
         @Override
-        public void onBlobRetrieved(
-                android.net.ipmemorystore.StatusParcelable statusParcelable,
-                String l2Key,
-                String name,
-                Blob data) {
-            android.net.ipmemorystore.Status status =
-                    new android.net.ipmemorystore.Status(statusParcelable);
+        public void onBlobRetrieved(Status status, String l2Key, String name, Blob data) {
             if (!Objects.equals(mL2Key, l2Key)) {
                 throw new IllegalArgumentException("l2Key does not match request");
             }
