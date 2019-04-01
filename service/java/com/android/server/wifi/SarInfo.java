@@ -152,13 +152,20 @@ public class SarInfo {
     /**
      * setSarScenarioNeeded()
      * Returns true if a call towards HAL to set SAR scenario to that value would be
-     * necessary.
+     * necessary. This happens in the following cases:
+     *   1. All Wifi modes were disabled, hence we need to init the SAR scenario value.
+     *   2. The new scenario is different from the last reported one.
+     *
      * Returns false if the last call to HAL was to set the scenario to that value, hence,
      * another call to set the SAR scenario to the same value would be redundant.
      */
     public boolean setSarScenarioNeeded(int scenario) {
         attemptedSarScenario = scenario;
-        return (mLastReportedScenario != scenario);
+
+        if (mAllWifiDisabled || (mLastReportedScenario != scenario)) {
+            return true;
+        }
+        return false;
     }
 
     /**
