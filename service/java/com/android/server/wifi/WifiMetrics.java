@@ -68,6 +68,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent.ConfigInfo;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiLockStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkRequestApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkSuggestionApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
@@ -124,7 +125,7 @@ public class WifiMetrics {
     private static final int MIN_WIFI_SCORE = 0;
     private static final int MAX_WIFI_SCORE = NetworkAgent.WIFI_BASE_SCORE;
     private static final int MIN_WIFI_USABILITY_SCORE = 0; // inclusive
-    private static final int MAX_WIFI_USABILITY_SCORE = 60; // inclusive
+    private static final int MAX_WIFI_USABILITY_SCORE = 100; // inclusive
     @VisibleForTesting
     static final int LOW_WIFI_SCORE = 50; // Mobile data score
     @VisibleForTesting
@@ -151,7 +152,7 @@ public class WifiMetrics {
     private static final int WIFI_IS_UNUSABLE_EVENT_METRICS_ENABLED_DEFAULT = 1; // 1 = true
     private static final int WIFI_LINK_SPEED_METRICS_ENABLED_DEFAULT = 1; // 1 = true
     // Max number of WifiUsabilityStatsEntry elements to store in the ringbuffer.
-    public static final int MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE = 20;
+    public static final int MAX_WIFI_USABILITY_STATS_ENTRIES_LIST_SIZE = 40;
     // Max number of WifiUsabilityStats elements to store for each type.
     public static final int MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE = 10;
     // Max number of WifiUsabilityStats per labeled type to upload to server
@@ -363,6 +364,19 @@ public class WifiMetrics {
             {5, 20, 50, 100, 500};
     private final IntHistogram mWifiNetworkSuggestionApiListSizeHistogram =
             new IntHistogram(NETWORK_SUGGESTION_API_LIST_SIZE_HISTOGRAM_BUCKETS);
+    private final WifiLockStats mWifiLockStats = new WifiLockStats();
+    private static final int[] WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS =
+            {1, 10, 60, 600, 3600};
+
+    private final IntHistogram mWifiLockHighPerfAcqDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+    private final IntHistogram mWifiLockLowLatencyAcqDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+
+    private final IntHistogram mWifiLockHighPerfActiveSessionDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
+    private final IntHistogram mWifiLockLowLatencyActiveSessionDurationSecHistogram =
+            new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
 
     /**
      * (experiment1Id, experiment2Id) =>
@@ -372,6 +386,12 @@ public class WifiMetrics {
             mNetworkSelectionExperimentPairNumChoicesCounts = new ArrayMap<>();
 
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
+
+    /**
+     * Tracks the nominator for each network (i.e. which entity made the suggestion to connect).
+     * This object should not be cleared.
+     */
+    private final SparseIntArray mNetworkIdToNominatorId = new SparseIntArray();
 
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
@@ -644,8 +664,8 @@ public class WifiMetrics {
                     case WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED:
                         sb.append("NOMINATOR_EXTERNAL_SCORED");
                         break;
-                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC:
-                        sb.append("NOMINATOR_NETREC");
+                    case WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER:
+                        sb.append("NOMINATOR_SPECIFIER");
                         break;
                     case WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE:
                         sb.append("NOMINATOR_SAVED_USER_CONNECT_CHOICE");
@@ -988,26 +1008,9 @@ public class WifiMetrics {
                 mCurrentConnectionEvent.mConnectionEvent.useRandomizedMac =
                         config.macRandomizationSetting
                         == WifiConfiguration.RANDOMIZATION_PERSISTENT;
-                if (config.fromWifiNetworkSpecifier) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_NETREC;
-                } else if (config.fromWifiNetworkSuggestion) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
-                } else if (config.isPasspoint()) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
-                } else if (!config.trusted) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
-                } else if (!config.ephemeral) {
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
-                } else {
-                    // TODO(b/127452844): populate other nominator fields
-                    mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
-                            WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
-                }
+                mCurrentConnectionEvent.mConnectionEvent.connectionNominator =
+                        mNetworkIdToNominatorId.get(config.networkId,
+                                WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN);
                 ScanResult candidate = config.getNetworkSelectionStatus().getCandidate();
                 if (candidate != null) {
                     // Cache the RSSI of the candidate, as the connection event level is updated
@@ -2728,6 +2731,17 @@ public class WifiMetrics {
                 pw.println("mWifiNetworkSuggestionApiLog:\n" + mWifiNetworkSuggestionApiLog);
                 pw.println("mWifiNetworkSuggestionApiMatchSizeHistogram:\n"
                         + mWifiNetworkRequestApiMatchSizeHistogram);
+                pw.println("mNetworkIdToNominatorId:\n" + mNetworkIdToNominatorId);
+                pw.println("mWifiLockStats:\n" + mWifiLockStats);
+                pw.println("mWifiLockHighPerfAcqDurationSecHistogram:\n"
+                        + mWifiLockHighPerfAcqDurationSecHistogram);
+                pw.println("mWifiLockLowLatencyAcqDurationSecHistogram:\n"
+                        + mWifiLockLowLatencyAcqDurationSecHistogram);
+                pw.println("mWifiLockHighPerfActiveSessionDurationSecHistogram:\n"
+                        + mWifiLockHighPerfActiveSessionDurationSecHistogram);
+                pw.println("mWifiLockLowLatencyActiveSessionDurationSecHistogram:\n"
+                        + mWifiLockLowLatencyActiveSessionDurationSecHistogram);
+
             }
         }
     }
@@ -2768,6 +2782,7 @@ public class WifiMetrics {
         line.append(",cellular_signal_strength_dbm=" + entry.cellularSignalStrengthDbm);
         line.append(",cellular_signal_strength_db=" + entry.cellularSignalStrengthDb);
         line.append(",is_same_registered_cell=" + entry.isSameRegisteredCell);
+        line.append(",device_mobility_state=" + entry.deviceMobilityState);
         pw.println(line.toString());
     }
 
@@ -3240,6 +3255,20 @@ public class WifiMetrics {
             mWifiNetworkSuggestionApiLog.networkListSizeHistogram =
                     mWifiNetworkSuggestionApiListSizeHistogram.toProto();
             mWifiLogProto.wifiNetworkSuggestionApiLog = mWifiNetworkSuggestionApiLog;
+
+            mWifiLockStats.highPerfLockAcqDurationSecHistogram =
+                    mWifiLockHighPerfAcqDurationSecHistogram.toProto();
+
+            mWifiLockStats.lowLatencyLockAcqDurationSecHistogram =
+                    mWifiLockLowLatencyAcqDurationSecHistogram.toProto();
+
+            mWifiLockStats.highPerfActiveSessionDurationSecHistogram =
+                    mWifiLockHighPerfActiveSessionDurationSecHistogram.toProto();
+
+            mWifiLockStats.lowLatencyActiveSessionDurationSecHistogram =
+                    mWifiLockLowLatencyActiveSessionDurationSecHistogram.toProto();
+
+            mWifiLogProto.wifiLockStats = mWifiLockStats;
         }
     }
 
@@ -3415,6 +3444,11 @@ public class WifiMetrics {
             mWifiNetworkSuggestionApiLog.clear();
             mWifiNetworkRequestApiMatchSizeHistogram.clear();
             mWifiNetworkSuggestionApiListSizeHistogram.clear();
+            mWifiLockHighPerfAcqDurationSecHistogram.clear();
+            mWifiLockLowLatencyAcqDurationSecHistogram.clear();
+            mWifiLockHighPerfActiveSessionDurationSecHistogram.clear();
+            mWifiLockLowLatencyActiveSessionDurationSecHistogram.clear();
+            mWifiLockStats.clear();
         }
     }
 
@@ -4020,6 +4054,8 @@ public class WifiMetrics {
                 break;
             case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                 break;
+            case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                break;
             default:
                 Log.e(TAG, "Unknown WifiIsUnusableEvent: " + triggerType);
                 return;
@@ -4163,6 +4199,7 @@ public class WifiMetrics {
             wifiUsabilityStatsEntry.rxLinkSpeedMbps = info.getRxLinkSpeedMbps();
             wifiUsabilityStatsEntry.isSameBssidAndFreq = isSameBssidAndFreq;
             wifiUsabilityStatsEntry.seqNumInsideFramework = mSeqNumInsideFramework;
+            wifiUsabilityStatsEntry.deviceMobilityState = mCurrentDeviceMobilityState;
 
             CellularLinkLayerStats cls = mCellularLinkLayerStatsCollector.update();
             if (DBG) Log.v(TAG, "Latest Cellular Link Layer Stats: " + cls);
@@ -4323,6 +4360,7 @@ public class WifiMetrics {
         out.cellularSignalStrengthDbm = s.cellularSignalStrengthDbm;
         out.cellularSignalStrengthDb = s.cellularSignalStrengthDb;
         out.isSameRegisteredCell = s.isSameRegisteredCell;
+        out.deviceMobilityState = s.deviceMobilityState;
         return out;
     }
 
@@ -4352,9 +4390,10 @@ public class WifiMetrics {
                 // Only add a good event if at least |MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS|
                 // has passed.
                 if (mWifiUsabilityStatsListGood.isEmpty()
-                        || mWifiUsabilityStatsListGood.getLast().stats[0].timeStampMs
+                        || mWifiUsabilityStatsListGood.getLast().stats[mWifiUsabilityStatsListGood
+                        .getLast().stats.length - 1].timeStampMs
                         + MIN_WIFI_GOOD_USABILITY_STATS_PERIOD_MS
-                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs) {
+                        < mWifiUsabilityStatsEntriesList.getLast().timeStampMs) {
                     while (mWifiUsabilityStatsListGood.size()
                             >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
                         mWifiUsabilityStatsListGood.remove(
@@ -4367,9 +4406,10 @@ public class WifiMetrics {
                 // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
                 // has passed.
                 if (mWifiUsabilityStatsListBad.isEmpty()
-                        || (mWifiUsabilityStatsListBad.getLast().stats[0].timeStampMs
+                        || (mWifiUsabilityStatsListBad.getLast().stats[mWifiUsabilityStatsListBad
+                        .getLast().stats.length - 1].timeStampMs
                         + MIN_DATA_STALL_WAIT_MS
-                        < mWifiUsabilityStatsEntriesList.get(0).timeStampMs)) {
+                        < mWifiUsabilityStatsEntriesList.getLast().timeStampMs)) {
                     while (mWifiUsabilityStatsListBad.size()
                             >= MAX_WIFI_USABILITY_STATS_LIST_SIZE_PER_TYPE) {
                         mWifiUsabilityStatsListBad.remove(
@@ -4710,6 +4750,57 @@ public class WifiMetrics {
             for (Integer listSize : listSizes) {
                 mWifiNetworkSuggestionApiListSizeHistogram.increment(listSize);
             }
+        }
+    }
+
+    /**
+     * Sets the nominator for a network (i.e. which entity made the suggestion to connect)
+     * @param networkId the ID of the network, from its {@link WifiConfiguration}
+     * @param nominatorId the entity that made the suggestion to connect to this network,
+     *                    from {@link WifiMetricsProto.ConnectionEvent.ConnectionNominator}
+     */
+    public void setNominatorForNetwork(int networkId, int nominatorId) {
+        synchronized (mLock) {
+            if (networkId == WifiConfiguration.INVALID_NETWORK_ID) return;
+            mNetworkIdToNominatorId.put(networkId, nominatorId);
+        }
+    }
+
+    /** Add a WifiLock acqusition session */
+    public void addWifiLockAcqSession(int lockType, long duration) {
+        switch (lockType) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                mWifiLockHighPerfAcqDurationSecHistogram.increment((int) (duration / 1000));
+                break;
+
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                mWifiLockLowLatencyAcqDurationSecHistogram.increment((int) (duration / 1000));
+                break;
+
+            default:
+                Log.e(TAG, "addWifiLockAcqSession: Invalid lock type: " + lockType);
+                break;
+        }
+    }
+
+    /** Add a WifiLock active session */
+    public void addWifiLockActiveSession(int lockType, long duration) {
+        switch (lockType) {
+            case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
+                mWifiLockStats.highPerfActiveTimeMs += duration;
+                mWifiLockHighPerfActiveSessionDurationSecHistogram.increment(
+                        (int) (duration / 1000));
+                break;
+
+            case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
+                mWifiLockStats.lowLatencyActiveTimeMs += duration;
+                mWifiLockLowLatencyActiveSessionDurationSecHistogram.increment(
+                        (int) (duration / 1000));
+                break;
+
+            default:
+                Log.e(TAG, "addWifiLockActiveSession: Invalid lock type: " + lockType);
+                break;
         }
     }
 }

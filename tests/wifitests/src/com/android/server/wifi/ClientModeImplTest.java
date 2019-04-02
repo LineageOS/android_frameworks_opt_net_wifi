@@ -140,6 +140,7 @@ public class ClientModeImplTest {
                     ? ClientModeImpl.NUM_LOG_RECS_VERBOSE_LOW_MEMORY
                     : ClientModeImpl.NUM_LOG_RECS_VERBOSE);
     private static final int FRAMEWORK_NETWORK_ID = 0;
+    private static final int PASSPOINT_NETWORK_ID = 1;
     private static final int TEST_RSSI = -54;
     private static final int TEST_NETWORK_ID = 54;
     private static final int WPS_SUPPLICANT_NETWORK_ID = 5;
@@ -377,6 +378,7 @@ public class ClientModeImplTest {
     @Mock LinkProbeManager mLinkProbeManager;
     @Mock PackageManager mPackageManager;
     @Mock WifiLockManager mWifiLockManager;
+    @Mock AsyncChannel mNullAsyncChannel;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -490,6 +492,7 @@ public class ClientModeImplTest {
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
+        when(mNullAsyncChannel.sendMessageSynchronously(any())).thenReturn(null);
     }
 
     private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
@@ -530,7 +533,7 @@ public class ClientModeImplTest {
         mBinderToken = Binder.clearCallingIdentity();
 
         /* Send the BOOT_COMPLETED message to setup some CMI state. */
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
 
         verify(mWifiNetworkFactory, atLeastOnce()).register();
@@ -560,7 +563,7 @@ public class ClientModeImplTest {
     public void createNew() throws Exception {
         assertEquals("DefaultState", getCurrentState().getName());
 
-        mCmi.sendMessage(ClientModeImpl.CMD_BOOT_COMPLETED);
+        mCmi.handleBootCompleted();
         mLooper.dispatchAll();
         assertEquals("DefaultState", getCurrentState().getName());
     }
@@ -1027,6 +1030,39 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Tests that Passpoint fields in WifiInfo are reset when connecting to a non-Passpoint network
+     * during DisconnectedState.
+     * @throws Exception
+     */
+    @Test
+    public void testResetWifiInfoPasspointFields() throws Exception {
+        loadComponentsInStaMode();
+        WifiConfiguration config = spy(WifiConfigurationTestUtil.createPasspointNetwork());
+        config.SSID = sWifiSsid.toString();
+        config.BSSID = sBSSID;
+        config.networkId = PASSPOINT_NETWORK_ID;
+        when(config.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
+        config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        setupAndStartConnectSequence(config);
+        validateSuccessfulConnectSequence(config);
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(PASSPOINT_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(FRAMEWORK_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
+        assertNotNull(wifiInfo);
+        assertNull(wifiInfo.getPasspointFqdn());
+        assertNull(wifiInfo.getPasspointProviderFriendlyName());
+    }
+
+    /**
      * Tests the OSU information is set in WifiInfo for OSU AP connection.
      */
     @Test
@@ -1053,6 +1089,40 @@ public class ClientModeImplTest {
         assertTrue(wifiInfo.isOsuAp());
         assertEquals(WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME,
                 wifiInfo.getPasspointProviderFriendlyName());
+    }
+
+    /**
+     * Tests that OSU fields in WifiInfo are reset when connecting to a non-OSU network during
+     * DisconnectedState.
+     * @throws Exception
+     */
+    @Test
+    public void testResetWifiInfoOsuFields() throws Exception {
+        loadComponentsInStaMode();
+        WifiConfiguration osuConfig = spy(WifiConfigurationTestUtil.createEphemeralNetwork());
+        osuConfig.SSID = sWifiSsid.toString();
+        osuConfig.BSSID = sBSSID;
+        osuConfig.osu = true;
+        osuConfig.networkId = PASSPOINT_NETWORK_ID;
+        osuConfig.providerFriendlyName = WifiConfigurationTestUtil.TEST_PROVIDER_FRIENDLY_NAME;
+        when(osuConfig.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
+        osuConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
+        setupAndStartConnectSequence(osuConfig);
+        validateSuccessfulConnectSequence(osuConfig);
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(PASSPOINT_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(FRAMEWORK_NETWORK_ID, sWifiSsid, sBSSID,
+                        SupplicantState.ASSOCIATING));
+        mLooper.dispatchAll();
+
+        WifiInfo wifiInfo = mCmi.getWifiInfo();
+        assertNotNull(wifiInfo);
+        assertFalse(wifiInfo.isOsuAp());
     }
 
     /**
@@ -1171,6 +1241,30 @@ public class ClientModeImplTest {
         mLooper.stopAutoDispatch();
 
         assertEquals(WifiManager.CONNECT_NETWORK_SUCCEEDED, reply.what);
+    }
+
+    /**
+     * Tests that manual connection to a network (from settings app) logs the correct nominator ID.
+     */
+    @Test
+    public void testManualConnectNominator() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        Message msg = Message.obtain();
+        msg.what = WifiManager.CONNECT_NETWORK;
+        msg.arg1 = TEST_NETWORK_ID;
+        msg.obj = null;
+        msg.sendingUid = Process.SYSTEM_UID;
+
+        WifiConfiguration config = new WifiConfiguration();
+        config.networkId = TEST_NETWORK_ID;
+
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
+
+        mCmi.sendMessage(msg);
+        mLooper.dispatchAll();
+
+        verify(mWifiMetrics).setNominatorForNetwork(TEST_NETWORK_ID,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL);
     }
 
     @Test
@@ -3308,5 +3402,59 @@ public class ClientModeImplTest {
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
                 mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+    }
+
+    /**
+     * Verify that a WifiIsUnusableEvent is logged and the current list of usability stats entries
+     * are labeled and saved when receiving an IP reachability lost message.
+     * @throws Exception
+     */
+    @Test
+    public void verifyIpReachabilityLostMsgUpdatesWifiUsabilityMetrics() throws Exception {
+        connect();
+
+        mCmi.sendMessage(ClientModeImpl.CMD_IP_REACHABILITY_LOST);
+        mLooper.dispatchAll();
+        verify(mWifiMetrics).logWifiIsUnusableEvent(
+                WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
+        verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+    }
+
+    /**
+     * Verify that syncGetAllMatchingFqdnsForScanResults does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetAllMatchingFqdnsForScanResult_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetAllMatchingFqdnsForScanResults(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingOsuProviders does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetMatchingOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetMatchingPasspointConfigsForOsuProviders does not return null from a null
+     * message.
+     */
+    @Test
+    public void testSyncGetMatchingPasspointConfigsForOsuProviders_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetMatchingPasspointConfigsForOsuProviders(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Verify that syncGetWifiConfigsForPasspointProfiles does not return null from a null message.
+     */
+    @Test
+    public void testSyncGetWifiConfigsForPasspointProfiles_doesNotReturnNull() {
+        assertNotNull(
+                mCmi.syncGetWifiConfigsForPasspointProfiles(null, mNullAsyncChannel));
     }
 }

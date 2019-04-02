@@ -482,4 +482,13 @@ public class WifiPermissionsUtil {
                 android.Manifest.permission.NETWORK_MANAGED_PROVISIONING, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
+
+    /**
+     * Returns true if the |uid| holds NETWORK_CARRIER_PROVISIONING permission.
+     */
+    public boolean checkNetworkCarrierProvisioningPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.NETWORK_CARRIER_PROVISIONING, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
 }

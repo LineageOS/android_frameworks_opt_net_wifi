@@ -145,7 +145,7 @@ public class PasspointNetworkEvaluatorTest {
         mEvaluator = new PasspointNetworkEvaluator(mPasspointManager, mWifiConfigManager,
                 mLocalLog, mCarrierNetworkConfig, mTelephonyManager);
         when(mWifiConfigManager.isSimPresent()).thenReturn(true);
-        when(mTelephonyManager.getNetworkOperator()).thenReturn("123456");
+        when(mTelephonyManager.getSimOperator()).thenReturn("123456");
     }
 
     /**

@@ -296,7 +296,7 @@ public class WifiKeyStore {
             }
         }
 
-        // For Suite-B-192 (WPA3-Enterprise), set the SuiteBCipher field based on the
+        // For WPA3-Enterprise 192-bit networks, set the SuiteBCipher field based on the
         // CA certificate type. Suite-B requires SHA384, reject other certs.
         if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
             // Read the first CA certificate, and initialize
@@ -317,8 +317,24 @@ public class WifiKeyStore {
                     Log.d(TAG, "Signature algorithm: " + sigAlgOid);
                 }
                 config.allowedSuiteBCiphers.clear();
-                // ecdsa-with-SHA384
-                if (sigAlgOid.equals("1.2.840.10045.4.3.3")) {
+
+                // Wi-Fi alliance requires the use of both ECDSA secp384r1 and RSA 3072 certificates
+                // in WPA3-Enterprise 192-bit security networks, which are also known as Suite-B-192
+                // networks, even though NSA Suite-B-192 mandates ECDSA only. The use of the term
+                // Suite-B was already coined in the IEEE 802.11-2016 specification for
+                // AKM 00-0F-AC but the test plan for WPA3-Enterprise 192-bit for APs mandates
+                // support for both RSA and ECDSA, and for STAs it mandates ECDSA and optionally
+                // RSA. In order to be compatible with all WPA3-Enterprise 192-bit deployments,
+                // we are supporting both types here.
+                if (sigAlgOid.equals("1.2.840.113549.1.1.12")) {
+                    // sha384WithRSAEncryption
+                    config.allowedSuiteBCiphers.set(
+                            WifiConfiguration.SuiteBCipher.ECDHE_RSA);
+                    if (mVerboseLoggingEnabled) {
+                        Log.d(TAG, "Selecting Suite-B RSA");
+                    }
+                } else if (sigAlgOid.equals("1.2.840.10045.4.3.3")) {
+                    // ecdsa-with-SHA384
                     config.allowedSuiteBCiphers.set(
                             WifiConfiguration.SuiteBCipher.ECDHE_ECDSA);
                     if (mVerboseLoggingEnabled) {
@@ -334,7 +350,6 @@ public class WifiKeyStore {
                 return false;
             }
         }
-
         return true;
     }
 }

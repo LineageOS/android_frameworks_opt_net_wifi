@@ -85,6 +85,7 @@ import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -3455,12 +3456,12 @@ public class WifiServiceImplTest {
     public void testAddNetworkSuggestions() {
         setupClientModeImplHandlerForRunWithScissors();
 
-        when(mWifiNetworkSuggestionsManager.add(any(), anyString()))
+        when(mWifiNetworkSuggestionsManager.add(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
 
-        when(mWifiNetworkSuggestionsManager.add(any(), anyString()))
+        when(mWifiNetworkSuggestionsManager.add(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
@@ -3470,7 +3471,8 @@ public class WifiServiceImplTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
 
-        verify(mWifiNetworkSuggestionsManager, times(2)).add(any(), eq(TEST_PACKAGE_NAME));
+        verify(mWifiNetworkSuggestionsManager, times(2)).add(
+                any(), eq(Binder.getCallingUid()),  eq(TEST_PACKAGE_NAME));
     }
 
     /**

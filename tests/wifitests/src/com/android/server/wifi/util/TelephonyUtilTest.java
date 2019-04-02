@@ -57,7 +57,7 @@ public class TelephonyUtilTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        when(mCarrierNetworkConfig.getBase64EncodingFlag(anyString())).thenReturn(-1);
+        when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(Base64.DEFAULT);
         mTelephonyUtil = new TelephonyUtil();
     }
     @Test
@@ -148,7 +148,7 @@ public class TelephonyUtilTest {
                     TelephonyManager.KEY_TYPE_WLAN, null, key, null);
             when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
                     .thenReturn(info);
-            when(mCarrierNetworkConfig.getBase64EncodingFlag(anyString())).thenReturn(flag);
+            when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(flag);
 
             assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
                     WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
@@ -190,7 +190,7 @@ public class TelephonyUtilTest {
                     TelephonyManager.KEY_TYPE_WLAN, keyIdentifier, key, null);
             when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
                     .thenReturn(info);
-            when(mCarrierNetworkConfig.getBase64EncodingFlag(anyString())).thenReturn(flag);
+            when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(flag);
 
             assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
                     WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
