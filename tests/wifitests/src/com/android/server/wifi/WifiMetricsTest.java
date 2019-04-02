@@ -3575,4 +3575,83 @@ public class WifiMetricsTest {
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, statsList[1].triggerType);
     }
+
+    /**
+     * Test the WifiLock active session statistics
+     */
+    @Test
+    public void testWifiLockActiveSession() throws Exception {
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 100000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 10000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 10000000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 1000);
+
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 90000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 900000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 9000);
+        mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 20000000);
+
+        dumpProtoAndDeserialize();
+
+        assertEquals(10111000, mDecodedProto.wifiLockStats.highPerfActiveTimeMs);
+        assertEquals(20999000, mDecodedProto.wifiLockStats.lowLatencyActiveTimeMs);
+
+        HistogramBucketInt32[] expectedHighPerfHistogram = {
+                buildHistogramBucketInt32(1, 10, 1),
+                buildHistogramBucketInt32(10, 60, 1),
+                buildHistogramBucketInt32(60, 600, 1),
+                buildHistogramBucketInt32(3600, Integer.MAX_VALUE, 1),
+        };
+
+        HistogramBucketInt32[] expectedLowLatencyHistogram = {
+                buildHistogramBucketInt32(1, 10, 1),
+                buildHistogramBucketInt32(60, 600, 1),
+                buildHistogramBucketInt32(600, 3600, 1),
+                buildHistogramBucketInt32(3600, Integer.MAX_VALUE, 1),
+        };
+
+        assertHistogramBucketsEqual(expectedHighPerfHistogram,
+                mDecodedProto.wifiLockStats.highPerfActiveSessionDurationSecHistogram);
+
+        assertHistogramBucketsEqual(expectedLowLatencyHistogram,
+                mDecodedProto.wifiLockStats.lowLatencyActiveSessionDurationSecHistogram);
+    }
+
+    /**
+     * Test the WifiLock acquisition session statistics
+     */
+    @Test
+    public void testWifiLockAcqSession() throws Exception {
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 100000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 10000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 10000000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF, 1000);
+
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 90000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 900000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 9000);
+        mWifiMetrics.addWifiLockAcqSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, 20000000);
+
+        dumpProtoAndDeserialize();
+
+        HistogramBucketInt32[] expectedHighPerfHistogram = {
+                buildHistogramBucketInt32(1, 10, 1),
+                buildHistogramBucketInt32(10, 60, 1),
+                buildHistogramBucketInt32(60, 600, 1),
+                buildHistogramBucketInt32(3600, Integer.MAX_VALUE, 1),
+        };
+
+        HistogramBucketInt32[] expectedLowLatencyHistogram = {
+                buildHistogramBucketInt32(1, 10, 1),
+                buildHistogramBucketInt32(60, 600, 1),
+                buildHistogramBucketInt32(600, 3600, 1),
+                buildHistogramBucketInt32(3600, Integer.MAX_VALUE, 1),
+        };
+
+        assertHistogramBucketsEqual(expectedHighPerfHistogram,
+                mDecodedProto.wifiLockStats.highPerfLockAcqDurationSecHistogram);
+
+        assertHistogramBucketsEqual(expectedLowLatencyHistogram,
+                mDecodedProto.wifiLockStats.lowLatencyLockAcqDurationSecHistogram);
+    }
 }
