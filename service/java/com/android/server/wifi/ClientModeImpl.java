@@ -5078,7 +5078,7 @@ public class ClientModeImpl extends StateMachine {
                     mWifiMetrics.logWifiIsUnusableEvent(
                             WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
                     mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                            WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+                            WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
                     if (mIpReachabilityDisconnectEnabled) {
                         handleIpReachabilityLost();
                         transitionTo(mDisconnectingState);
@@ -5143,7 +5143,7 @@ public class ClientModeImpl extends StateMachine {
                                 mWifiDataStall.checkForDataStall(mLastLinkLayerStats, stats);
                         if (statusDataStall != WifiIsUnusableEvent.TYPE_UNKNOWN) {
                             mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                                    convertToUsabilityStatsTriggerType(statusDataStall));
+                                    convertToUsabilityStatsTriggerType(statusDataStall), -1);
                         }
                         mWifiMetrics.incrementWifiLinkLayerUsageStats(stats);
                         mLastLinkLayerStats = stats;
@@ -5314,6 +5314,9 @@ public class ClientModeImpl extends StateMachine {
                 break;
             case WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT:
                 triggerType = WifiUsabilityStats.TYPE_FIRMWARE_ALERT;
+                break;
+            case WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST:
+                triggerType = WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST;
                 break;
             default:
                 triggerType = WifiUsabilityStats.TYPE_UNKNOWN;
