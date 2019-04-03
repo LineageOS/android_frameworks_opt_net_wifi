@@ -879,9 +879,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
         if (!isPrivileged
-                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
-                // Default car dock app is allowed to turn on wifi (but, cannot turn off)
-                && !(isDefaultCarDock(packageName) && enable)) {
+                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
