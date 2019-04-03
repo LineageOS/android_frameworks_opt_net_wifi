@@ -502,28 +502,6 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that wifi can be enabled by the default car dock app.
-     */
-    @Test
-    public void testSetWifiEnabledSuccessForDefaultCarDockApp()
-            throws Exception {
-        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
-                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        mResolveInfo.activityInfo.packageName = TEST_PACKAGE_NAME;
-
-        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
-        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
-
-        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mPackageManager).resolveActivity(intentArgumentCaptor.capture(), anyInt());
-        assertNotNull(intentArgumentCaptor.getValue());
-        assertTrue(intentArgumentCaptor.getValue().hasCategory(Intent.CATEGORY_CAR_DOCK));
-
-        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
-    }
-
-    /**
      * Verify that wifi can be enabled by the apps targeting pre-Q SDK.
      */
     @Test
@@ -778,27 +756,6 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(false);
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
-        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
-    }
-
-    /**
-     * Verify that wifi can't be disabled by the default car dock app.
-     */
-    @Test
-    public void testSetWifiDisabledFailForDefaultCarDockApp() throws Exception {
-        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
-                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        mResolveInfo.activityInfo.packageName = TEST_PACKAGE_NAME;
-
-        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(false);
-        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
-        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
-
-        ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mPackageManager).resolveActivity(intentArgumentCaptor.capture(), anyInt());
-        assertNotNull(intentArgumentCaptor.getValue());
-        assertTrue(intentArgumentCaptor.getValue().hasCategory(Intent.CATEGORY_CAR_DOCK));
-
         verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
     }
 
