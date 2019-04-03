@@ -24,6 +24,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanS
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
+import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -172,6 +173,58 @@ public class WifiMetricsTestUtil {
             assertEquals(String.format(
                     "DeviceMobilityStatePnoScanStats[%d].pnoDurationMs does not match!", i),
                     expectedStats.pnoDurationMs, actualStats.pnoDurationMs);
+        }
+    }
+
+    /**
+     * Creates a StaEvent of type TYPE_LINK_PROBE that was successful.
+     */
+    public static StaEvent buildLinkProbeSuccessStaEvent(int elapsedTimeMs) {
+        StaEvent probe = new StaEvent();
+        probe.type = StaEvent.TYPE_LINK_PROBE;
+        probe.linkProbeWasSuccess = true;
+        probe.linkProbeSuccessElapsedTimeMs = elapsedTimeMs;
+        return probe;
+    }
+
+    /**
+     * Creates a StaEvent of type TYPE_LINK_PROBE that failed.
+     */
+    public static StaEvent buildLinkProbeFailureStaEvent(int reason) {
+        StaEvent probe = new StaEvent();
+        probe.type = StaEvent.TYPE_LINK_PROBE;
+        probe.linkProbeWasSuccess = false;
+        probe.linkProbeFailureReason = reason;
+        return probe;
+    }
+
+    /**
+     * Asserts that the two arrays are equal, reporting any difference between them.
+     * Note that the order must match.
+     */
+    public static void assertLinkProbeStaEventsEqual(StaEvent[] expected, StaEvent[] actual) {
+        assertEquals("Number of StaEvents do not match!", expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            StaEvent expectedEvent = expected[i];
+            StaEvent actualEvent = actual[i];
+
+            assertEquals(String.format("expected StaEvent[%d].type != TYPE_LINK_PROBE", i),
+                    StaEvent.TYPE_LINK_PROBE, expectedEvent.type);
+            assertEquals(String.format("actual StaEvent[%d].type != TYPE_LINK_PROBE", i),
+                    StaEvent.TYPE_LINK_PROBE, actualEvent.type);
+            assertEquals(String.format("StaEvent[%d].linkProbeWasSuccess does not match!", i),
+                    expectedEvent.linkProbeWasSuccess, actualEvent.linkProbeWasSuccess);
+            if (expectedEvent.linkProbeWasSuccess) {
+                assertEquals(String.format(
+                        "StaEvent[%d].linkProbeSuccessElapsedTimeMs does not match!", i),
+                        expectedEvent.linkProbeSuccessElapsedTimeMs,
+                        actualEvent.linkProbeSuccessElapsedTimeMs);
+            } else {
+                assertEquals(String.format(
+                        "StaEvent[%d].linkProbeFailureReason does not match!", i),
+                        expectedEvent.linkProbeFailureReason, actualEvent.linkProbeFailureReason);
+            }
         }
     }
 }
