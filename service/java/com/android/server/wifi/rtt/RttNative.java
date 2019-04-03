@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.rtt;
 
+import android.annotation.Nullable;
 import android.hardware.wifi.V1_0.IWifiRttController;
 import android.hardware.wifi.V1_0.IWifiRttControllerEventCallback;
 import android.hardware.wifi.V1_0.RttBw;
@@ -120,6 +121,14 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      */
     public boolean isReady() {
         return mIWifiRttController != null;
+    }
+
+    /**
+     * Returns the RTT capabilities. Will only be null when disabled (e.g. no STA interface
+     * available - not necessarily up).
+     */
+    public @Nullable RttCapabilities getRttCapabilities() {
+        return mRttCapabilities;
     }
 
     /**
