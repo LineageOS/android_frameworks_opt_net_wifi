@@ -32,6 +32,7 @@ import static android.net.wifi.WifiManager.SAP_START_FAILURE_NO_CHANNEL;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
@@ -523,6 +524,165 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that wifi can be enabled by the apps targeting pre-Q SDK.
+     */
+    @Test
+    public void testSetWifiEnabledSuccessForAppsTargetingBelowQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi cannot be enabled by the apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiEnabledFailureForAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify a SecurityException is thrown if OPSTR_CHANGE_WIFI_STATE is disabled for the app.
+     */
+    @Test
+    public void testSetWifiEnableAppOpsRejected() throws Exception {
+        doThrow(new SecurityException()).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        try {
+            mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true);
+            fail();
+        } catch (SecurityException e) {
+
+        }
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify a SecurityException is thrown if OP_CHANGE_WIFI_STATE is set to MODE_IGNORED
+     * for the app.
+     */
+    @Test // No exception expected, but the operation should not be done
+    public void testSetWifiEnableAppOpsIgnored() throws Exception {
+        doReturn(AppOpsManager.MODE_IGNORED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+
+        mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true);
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that a call from an app with the NETWORK_SETTINGS permission can enable wifi if we
+     * are in airplane mode.
+     */
+    @Test
+    public void testSetWifiEnabledFromNetworkSettingsHolderWhenInAirplaneMode() throws Exception {
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(true);
+        when(mContext.checkPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS), anyInt(), anyInt()))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+
+        assertTrue(mWifiServiceImpl.setWifiEnabled(SYSUI_PACKAGE_NAME, true));
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that a caller without the NETWORK_SETTINGS permission can't enable wifi
+     * if we are in airplane mode.
+     */
+    @Test
+    public void testSetWifiEnabledFromAppFailsWhenInAirplaneMode() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(true);
+        when(mContext.checkPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS), anyInt(), anyInt()))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that a call from an app with the NETWORK_SETTINGS permission can enable wifi if we
+     * are in softap mode.
+     */
+    @Test
+    public void testSetWifiEnabledFromNetworkSettingsHolderWhenApEnabled() throws Exception {
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_ENABLING, SAP_START_FAILURE_GENERAL,
+                WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mContext.checkPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS), anyInt(), anyInt()))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(SYSUI_PACKAGE_NAME, true));
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that a call from an app cannot enable wifi if we are in softap mode.
+     */
+    @Test
+    public void testSetWifiEnabledFromAppFailsWhenApEnabled() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mWifiServiceImpl.checkAndStartWifi();
+
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat(new IntentFilterMatcher()));
+
+        TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
+                WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_ENABLING, SAP_START_FAILURE_GENERAL,
+                WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+
+        when(mContext.checkPermission(
+                eq(android.Manifest.permission.NETWORK_SETTINGS), anyInt(), anyInt()))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+        verify(mSettingsStore, never()).handleWifiToggled(anyBoolean());
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+
+    /**
      * Verify that the CMD_TOGGLE_WIFI message won't be sent if wifi is already on.
      */
     @Test
@@ -551,17 +711,6 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify setWifiEnabled returns failure if a caller does not have the NETWORK_SETTINGS
-     * permission to toggle wifi.
-     */
-    @Test
-    public void testSetWifiEnableWithoutNetworkSettingsPermission() throws Exception {
-        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
-        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
-    }
-
-    /**
      * Verify that wifi can be disabled by a caller with NETWORK_SETTINGS permission.
      */
     @Test
@@ -584,6 +733,40 @@ public class WifiServiceImplTest {
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
         verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi can be disabled by the apps targeting pre-Q SDK.
+     */
+    @Test
+    public void testSetWifiDisabledSuccessForAppsTargetingBelowQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi cannot be disabled by the apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiDisabledFailureForAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+
+        verify(mWifiController, never()).sendMessage(eq(CMD_WIFI_TOGGLED));
     }
 
     /**

@@ -874,16 +874,31 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public synchronized boolean setWifiEnabled(String packageName, boolean enable) {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
-                "WifiService");
-        // only privileged apps like settings, setup wizard, etc can toggle wifi.
-        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())
+        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+            return false;
+        }
+        boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
+        if (!isPrivileged
+                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
                 // Default car dock app is allowed to turn on wifi (but, cannot turn off)
                 && !(isDefaultCarDock(packageName) && enable)) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
         }
+        // If Airplane mode is enabled, only privileged apps are allowed to toggle Wifi
+        if (mSettingsStore.isAirplaneModeOn() && !isPrivileged) {
+            mLog.err("setWifiEnabled in Airplane mode: only Settings can toggle wifi").flush();
+            return false;
+        }
+
+        // If SoftAp is enabled, only privileged apps are allowed to toggle wifi
+        boolean apEnabled = mWifiApState == WifiManager.WIFI_AP_STATE_ENABLED;
+        if (apEnabled && !isPrivileged) {
+            mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
+            return false;
+        }
+
         mLog.info("setWifiEnabled package=% uid=% enable=%").c(packageName)
                 .c(Binder.getCallingUid()).c(enable).flush();
         long ident = Binder.clearCallingIdentity();
