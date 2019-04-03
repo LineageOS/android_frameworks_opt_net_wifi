@@ -390,6 +390,8 @@ public class WifiMetrics {
     private Map<Pair<Integer, Integer>, NetworkSelectionExperimentResults>
             mNetworkSelectionExperimentPairNumChoicesCounts = new ArrayMap<>();
 
+    private int mNetworkSelectorExperimentId;
+
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
     /**
@@ -1001,7 +1003,7 @@ public class WifiMetrics {
             mCurrentConnectionEvent.mConfigBssid = targetBSSID;
             mCurrentConnectionEvent.mConnectionEvent.roamType = roamType;
             mCurrentConnectionEvent.mConnectionEvent.networkSelectorExperimentId =
-                    mScoringParams.getExperimentIdentifier();
+                    mNetworkSelectorExperimentId;
             mCurrentConnectionEvent.mRouterFingerPrint.updateFromWifiConfiguration(config);
             mCurrentConnectionEvent.mConfigBssid = "any";
             mCurrentConnectionEvent.mRealStartTime = mClock.getElapsedSinceBootMillis();
@@ -4798,6 +4800,15 @@ public class WifiMetrics {
         synchronized (mLock) {
             if (networkId == WifiConfiguration.INVALID_NETWORK_ID) return;
             mNetworkIdToNominatorId.put(networkId, nominatorId);
+        }
+    }
+
+    /**
+     * Sets the numeric CandidateScorer id.
+     */
+    public void setNetworkSelectorExperimentId(int expId) {
+        synchronized (mLock) {
+            mNetworkSelectorExperimentId = expId;
         }
     }
 

@@ -2159,13 +2159,12 @@ public class WifiMetricsTest {
     }
 
     /**
-     * Check ScoringParams
+     * Check network selector id
      */
     @Test
-    public void testExperimentId() throws Exception {
-        final int id = 42;
-        final String expectId = "x" + id;
-        when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+    public void testNetworkSelectorExperimentId() throws Exception {
+        final int id = 42888888;
+        mWifiMetrics.setNetworkSelectorExperimentId(id);
         mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
                 WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
         mWifiMetrics.endConnectionEvent(
@@ -2173,8 +2172,19 @@ public class WifiMetricsTest {
                 WifiMetricsProto.ConnectionEvent.HLF_NONE,
                 WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         dumpProtoAndDeserialize();
-        assertEquals(expectId, mDecodedProto.scoreExperimentId);
         assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
+    }
+
+    /**
+     * Check ScoringParams
+     */
+    @Test
+    public void testExperimentId() throws Exception {
+        final int id = 42;
+        final String expectId = "x" + id;
+        when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
+        dumpProtoAndDeserialize();
+        assertEquals(expectId, mDecodedProto.scoreExperimentId);
     }
 
     /**
@@ -2185,16 +2195,8 @@ public class WifiMetricsTest {
         final int id = 0;
         final String expectId = "";
         when(mScoringParams.getExperimentIdentifier()).thenReturn(id);
-        mWifiMetrics.startConnectionEvent(mTestWifiConfig, "TestNetwork",
-                WifiMetricsProto.ConnectionEvent.ROAM_ENTERPRISE);
-        mWifiMetrics.endConnectionEvent(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE,
-                WifiMetricsProto.ConnectionEvent.HLF_NONE,
-                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
         dumpProtoAndDeserialize();
         assertEquals(expectId, mDecodedProto.scoreExperimentId);
-        assertEquals(id, mDecodedProto.connectionEvent[0].networkSelectorExperimentId);
-
     }
 
     /** short hand for instantiating an anonymous int array, instead of 'new int[]{a1, a2, ...}' */
