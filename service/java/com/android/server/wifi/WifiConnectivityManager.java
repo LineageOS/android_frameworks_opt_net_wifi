@@ -440,6 +440,7 @@ public class WifiConnectivityManager {
 
         @Override
         public void onResults(WifiScanner.ScanData[] results) {
+            mSingleScanRestartCount = 0;
         }
 
         @Override
