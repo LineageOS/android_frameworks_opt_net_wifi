@@ -485,7 +485,7 @@ public class TelephonyUtil {
             byte[] result = Base64.decode(tmResponse, Base64.DEFAULT);
             Log.v(TAG, "Hex Response -" + makeHex(result));
             int sresLen = result[0];
-            if (sresLen >= result.length) {
+            if (sresLen < 0 || sresLen >= result.length) {
                 Log.e(TAG, "malformed response - " + tmResponse);
                 return null;
             }
@@ -496,7 +496,7 @@ public class TelephonyUtil {
                 return null;
             }
             int kcLen = result[kcOffset];
-            if (kcOffset + kcLen > result.length) {
+            if (kcLen < 0 || kcOffset + kcLen > result.length) {
                 Log.e(TAG, "malformed response - " + tmResponse);
                 return null;
             }
