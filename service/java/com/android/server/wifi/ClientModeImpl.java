@@ -23,6 +23,8 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
+import static com.android.server.wifi.CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -4481,6 +4483,7 @@ public class ClientModeImpl extends StateMachine {
                             }
                         }
                         mWifiConnectivityManager.trackBssid(mLastBssid, true, reasonCode);
+
                         // We need to get the updated pseudonym from supplicant for EAP-SIM/AKA/AKA'
                         if (config.enterpriseConfig != null
                                 && TelephonyUtil.isSimEapMethod(
@@ -4490,9 +4493,22 @@ public class ClientModeImpl extends StateMachine {
                             if (anonymousIdentity != null) {
                                 config.enterpriseConfig.setAnonymousIdentity(anonymousIdentity);
                             } else {
-                                Log.d(TAG, "Failed to get updated anonymous identity"
-                                        + " from supplicant, reset it in WifiConfiguration.");
-                                config.enterpriseConfig.setAnonymousIdentity(null);
+                                CarrierNetworkConfig carrierNetworkConfig =
+                                        mWifiInjector.getCarrierNetworkConfig();
+                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable() && (
+                                        carrierNetworkConfig.getEapIdentitySequence()
+                                                == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI)) {
+                                    // In case of a carrier supporting encrypted IMSI and
+                                    // anonymous identity, we need to send anonymous@realm as
+                                    // EAP-IDENTITY response.
+                                    config.enterpriseConfig.setAnonymousIdentity(
+                                            TelephonyUtil.getAnonymousIdentityWith3GppRealm(
+                                                    getTelephonyManager()));
+                                } else {
+                                    Log.d(TAG, "Failed to get updated anonymous identity"
+                                            + " from supplicant, reset it in WifiConfiguration.");
+                                    config.enterpriseConfig.setAnonymousIdentity(null);
+                                }
                             }
                             mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
                         }

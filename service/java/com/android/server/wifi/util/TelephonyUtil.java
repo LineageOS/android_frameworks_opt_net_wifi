@@ -34,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.HashMap;
 
+import javax.annotation.Nonnull;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -44,14 +45,13 @@ import javax.crypto.NoSuchPaddingException;
  */
 public class TelephonyUtil {
     public static final String TAG = "TelephonyUtil";
-
     public static final String DEFAULT_EAP_PREFIX = "\0";
 
     public static final int CARRIER_INVALID_TYPE = -1;
     public static final int CARRIER_MNO_TYPE = 0; // Mobile Network Operator
     public static final int CARRIER_MVNO_TYPE = 1; // Mobile Virtual Network Operator
-
-    private static final String THREE_GPP_NAI_REALM_FORMAT = "wlan.mnc%s.mcc%s.3gppnetwork.org";
+    public static final String ANONYMOUS_IDENTITY = "anonymous";
+    public static final String THREE_GPP_NAI_REALM_FORMAT = "wlan.mnc%s.mcc%s.3gppnetwork.org";
 
     // IMSI encryption method: RSA-OAEP with SHA-256 hash function
     private static final String IMSI_CIPHER_TRANSFORMATION =
@@ -125,6 +125,34 @@ public class TelephonyUtil {
         // In case of failure for encryption, set empty string
         if (encryptedIdentity == null) encryptedIdentity = "";
         return Pair.create(identity, encryptedIdentity);
+    }
+
+    /**
+     * Gets Anonymous identity for current active SIM.
+     *
+     * @param tm TelephonyManager instance
+     * @return anonymous identity@realm which is based on current MCC/MNC, {@code null} if SIM is
+     * not ready or absent.
+     */
+    public static String getAnonymousIdentityWith3GppRealm(@Nonnull TelephonyManager tm) {
+        if (tm == null || tm.getSimState() != TelephonyManager.SIM_STATE_READY) {
+            return null;
+        }
+        String mccMnc = tm.getSimOperator();
+        if (mccMnc == null || mccMnc.isEmpty()) {
+            return null;
+        }
+
+        // Extract mcc & mnc from mccMnc
+        String mcc = mccMnc.substring(0, 3);
+        String mnc = mccMnc.substring(3);
+
+        if (mnc.length() == 2) {
+            mnc = "0" + mnc;
+        }
+
+        String realm = String.format(THREE_GPP_NAI_REALM_FORMAT, mnc, mcc);
+        return ANONYMOUS_IDENTITY + "@" + realm;
     }
 
     /**

@@ -61,6 +61,7 @@ public class CarrierNetworkConfig {
     private final Map<String, NetworkInfo> mCarrierNetworkMap;
     private boolean mIsCarrierImsiEncryptionInfoAvailable = false;
     private int mBase64EncodingMethod = Base64.DEFAULT;
+    private int mEapIdentitySequence = IDENTITY_SEQUENCE_IMSI;
     private ImsiEncryptionInfo mLastImsiEncryptionInfo = null; // used for dumpsys only
 
     // RFC2045: adds Line Feed at each 76 chars and encode it.
@@ -68,6 +69,9 @@ public class CarrierNetworkConfig {
 
     // RFC4648: encodes whole data into one string.
     public static final int ENCODING_METHOD_RFC_4648 = 4648;
+
+    public static final int IDENTITY_SEQUENCE_IMSI = 1;
+    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI = 2;
 
     /**
      * Enable/disable verbose logging.
@@ -130,6 +134,13 @@ public class CarrierNetworkConfig {
      */
     public int getBase64EncodingFlag() {
         return mBase64EncodingMethod;
+    }
+
+    /**
+     * @return the sequence of sending EAP-IDENTITY during EAP SIM/AKA authentication.
+     */
+    public int getEapIdentitySequence() {
+        return mEapIdentitySequence;
     }
 
     /**
@@ -255,6 +266,16 @@ public class CarrierNetworkConfig {
         if (encodeMethod == ENCODING_METHOD_RFC_4648) {
             mBase64EncodingMethod = Base64.NO_WRAP;
         }
+
+        int sequence = carrierConfig.getInt(CarrierConfigManager.KEY_EAP_IDENTITY_SEQUENCE_INT,
+                IDENTITY_SEQUENCE_IMSI);
+        if (sequence != IDENTITY_SEQUENCE_IMSI
+                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI) {
+            Log.e(TAG, "Invalid eap identity sequence: " + sequence);
+            return;
+        }
+        mEapIdentitySequence = sequence;
+
         for (String networkConfig : networkConfigs) {
             String[] configArr = networkConfig.split(NETWORK_CONFIG_SEPARATOR);
             if (configArr.length != CONFIG_ELEMENT_SIZE) {
@@ -309,6 +330,7 @@ public class CarrierNetworkConfig {
         pw.println("mIsCarrierImsiEncryptionInfoAvailable="
                 + mIsCarrierImsiEncryptionInfoAvailable);
         pw.println("mBase64EncodingMethod=" + mBase64EncodingMethod);
+        pw.println("mEapIdentitySequence=" + mEapIdentitySequence);
         pw.println("mLastImsiEncryptionInfo=" + mLastImsiEncryptionInfo);
     }
 }
