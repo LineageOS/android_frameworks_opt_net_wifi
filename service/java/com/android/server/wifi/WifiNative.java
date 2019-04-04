@@ -139,6 +139,8 @@ public class WifiNative {
         public InterfaceCallback externalListener;
         /** Network observer registered for this interface */
         public NetworkObserverInternal networkObserver;
+        /** Interface feature set / capabilities */
+        public long featureSet;
 
         Iface(int id, @Iface.IfaceType int type) {
             this.id = id;
@@ -968,6 +970,8 @@ public class WifiNative {
             onInterfaceStateChanged(iface, isInterfaceUp(iface.name));
             initializeNwParamsForClientInterface(iface.name);
             Log.i(TAG, "Successfully setup " + iface);
+
+            iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             return iface.name;
         }
     }
@@ -1019,6 +1023,8 @@ public class WifiNative {
             // update the interface state before we exit.
             onInterfaceStateChanged(iface, isInterfaceUp(iface.name));
             Log.i(TAG, "Successfully setup " + iface);
+
+            iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             return iface.name;
         }
     }
@@ -1073,6 +1079,8 @@ public class WifiNative {
             // update the interface state before we exit.
             onInterfaceStateChanged(iface, isInterfaceUp(iface.name));
             Log.i(TAG, "Successfully setup " + iface);
+
+            iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             return iface.name;
         }
     }
@@ -2618,6 +2626,24 @@ public class WifiNative {
      * @return bitmask defined by WifiManager.WIFI_FEATURE_*
      */
     public long getSupportedFeatureSet(@NonNull String ifaceName) {
+        synchronized (mLock) {
+            Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null) {
+                Log.e(TAG, "Could not get Iface object for interface " + ifaceName);
+                return 0;
+            }
+
+            return iface.featureSet;
+        }
+    }
+
+    /**
+     * Get the supported features
+     *
+     * @param ifaceName Name of the interface.
+     * @return bitmask defined by WifiManager.WIFI_FEATURE_*
+     */
+    private long getSupportedFeatureSetInternal(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.getAdvancedKeyMgmtCapabilities(ifaceName)
                 | mWifiVendorHal.getSupportedFeatureSet(ifaceName);
     }

@@ -51,6 +51,7 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 
 import org.junit.Before;
@@ -72,6 +73,7 @@ public class OpenNetworkNotifierTest {
     private static final String TEST_SSID_2 = "Test SSID 2";
     private static final int MIN_RSSI_LEVEL = -127;
     private static final String OPEN_NET_NOTIFIER_TAG = OpenNetworkNotifier.TAG;
+    private static final int TEST_NETWORK_ID = 42;
 
     @Mock private Context mContext;
     @Mock private Resources mResources;
@@ -126,6 +128,8 @@ public class OpenNetworkNotifierTest {
                 observerCaptor.capture());
         mContentObserver = observerCaptor.getValue();
         mNotificationController.handleScreenStateChanged(true);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
     }
 
     /**
@@ -680,6 +684,9 @@ public class OpenNetworkNotifierTest {
         verify(mNotificationManager).notify(anyInt(), any());
 
         mBroadcastReceiver.onReceive(mContext, createIntent(ACTION_CONNECT_TO_NETWORK));
+
+        verify(mWifiMetrics).setNominatorForNetwork(TEST_NETWORK_ID,
+                WifiMetricsProto.ConnectionEvent.NOMINATOR_OPEN_NETWORK_AVAILABLE);
 
         ArgumentCaptor<Message> connectMessageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mClientModeImpl).sendMessage(connectMessageCaptor.capture());

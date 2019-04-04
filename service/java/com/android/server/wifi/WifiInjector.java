@@ -254,7 +254,7 @@ public class WifiInjector {
                 new Handler(clientModeImplLooper));
         mWifiMetrics.setScoringParams(mScoringParams);
         mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
-                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiMetrics);
+                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiMetrics, mWifiNative);
         CompatibilityScorer compatibilityScorer = new CompatibilityScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(compatibilityScorer);
         ScoreCardBasedScorer scoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
@@ -273,14 +273,14 @@ public class WifiInjector {
                 mFrameworkFacade, mNetworkScoreManager, mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
         mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
-                mCarrierNetworkConfig, mConnectivityLocalLog);
+                mCarrierNetworkConfig, mConnectivityLocalLog, this);
         mSimAccessor = new SIMAccessor(mContext);
         mPasspointManager = new PasspointManager(mContext, mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
                 mWifiMetrics);
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
-                mCarrierNetworkConfig, TelephonyManager.from(mContext));
+                mCarrierNetworkConfig, this);
         mWifiMetrics.setPasspointManager(mPasspointManager);
         mScanRequestProxy = new ScanRequestProxy(mContext,
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
@@ -319,7 +319,7 @@ public class WifiInjector {
                 mWifiConfigStore, mWifiNetworkSuggestionsManager, mWifiMetrics.getWakeupMetrics(),
                 this, mFrameworkFacade, mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
-                mClientModeImpl, mFrameworkFacade, clientModeImplLooper);
+                mClientModeImpl, mFrameworkFacade, clientModeImplLooper, mClock, mWifiMetrics);
         mWifiController = new WifiController(mContext, mClientModeImpl, clientModeImplLooper,
                 mSettingsStore, mWifiServiceHandlerThread.getLooper(), mFrameworkFacade,
                 mActiveModeWarden);
@@ -482,6 +482,10 @@ public class WifiInjector {
 
     public PasspointManager getPasspointManager() {
         return mPasspointManager;
+    }
+
+    public CarrierNetworkConfig getCarrierNetworkConfig() {
+        return mCarrierNetworkConfig;
     }
 
     public WakeupController getWakeupController() {

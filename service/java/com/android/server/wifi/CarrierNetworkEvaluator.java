@@ -20,6 +20,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Process;
+import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator;
@@ -50,12 +51,23 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     private final WifiConfigManager mWifiConfigManager;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final LocalLog mLocalLog;
+    private final WifiInjector mWifiInjector;
+    private TelephonyManager mTelephonyManager;
 
     public CarrierNetworkEvaluator(WifiConfigManager wifiConfigManager,
-            CarrierNetworkConfig carrierNetworkConfig, LocalLog localLog) {
+            CarrierNetworkConfig carrierNetworkConfig, LocalLog localLog,
+            WifiInjector wifiInjector) {
         mWifiConfigManager = wifiConfigManager;
         mCarrierNetworkConfig = carrierNetworkConfig;
         mLocalLog = localLog;
+        mWifiInjector = wifiInjector;
+    }
+
+    private TelephonyManager getTelephonyManager() {
+        if (mTelephonyManager == null) {
+            mTelephonyManager = mWifiInjector.makeTelephonyManager();
+        }
+        return mTelephonyManager;
     }
 
     @Override
@@ -110,6 +122,18 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
             }
             config.enterpriseConfig.setEapMethod(eapType);
 
+            // Check if we already have a network with the same credentials in WifiConfigManager
+            // database. If yes, we should check if the network is currently blacklisted.
+            WifiConfiguration existingNetwork =
+                    mWifiConfigManager.getConfiguredNetwork(config.configKey());
+            if (existingNetwork != null
+                    && !existingNetwork.getNetworkSelectionStatus().isNetworkEnabled()
+                    && !mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId)) {
+                mLocalLog.log(TAG + ": Ignoring blacklisted network: "
+                        + WifiNetworkSelector.toNetworkString(existingNetwork));
+                continue;
+            }
+
             // Add the newly created WifiConfiguration to WifiConfigManager.
             NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(config,
                     Process.WIFI_UID);
@@ -131,7 +155,18 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
 
             config = mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
 
-            WifiConfiguration.NetworkSelectionStatus nss = config.getNetworkSelectionStatus();
+            WifiConfiguration.NetworkSelectionStatus nss = null;
+            if (config != null) {
+                nss = config.getNetworkSelectionStatus();
+
+                // In case of a carrier supporting anonymous identity, we need
+                // to send anonymous@realm as EAP-IDENTITY response.
+                if (mCarrierNetworkConfig.getEapIdentitySequence()
+                        == CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI) {
+                    config.enterpriseConfig.setAnonymousIdentity(
+                            TelephonyUtil.getAnonymousIdentityWith3GppRealm(getTelephonyManager()));
+                }
+            }
             if (nss == null) {
                 mLocalLog.log(TAG + ": null network selection status for: " + config);
                 continue;

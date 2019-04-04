@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -28,6 +30,7 @@ import android.net.wifi.WifiInfo;
 import android.os.Process;
 import android.text.TextUtils;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
@@ -35,6 +38,7 @@ import android.util.Pair;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.lang.annotation.Retention;
@@ -77,6 +81,11 @@ public class WifiNetworkSelector {
     public static final int WIFI_POOR_SCORE = ConnectedScore.WIFI_TRANSITION_SCORE - 10;
 
     /**
+     * The identifier string of the CandidateScorer to use (in the absence of overrides).
+     */
+    public static final String PRESET_CANDIDATE_SCORER_NAME = "CompatibilityScorer";
+
+    /**
      * Experiment ID for the legacy scorer.
      */
     public static final int LEGACY_CANDIDATE_SCORER_EXP_ID = 0;
@@ -96,8 +105,11 @@ public class WifiNetworkSelector {
     private final int mStayOnNetworkMinimumTxRate;
     private final int mStayOnNetworkMinimumRxRate;
     private final boolean mEnableAutoJoinWhenAssociated;
+    private final WifiNative mWifiNative;
 
     private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
+    private boolean mIsEasyConnectSupportedInitialized = false;
+    private boolean mIsEasyConnectSupported;
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -407,6 +419,17 @@ public class WifiNetworkSelector {
         return validScanDetails;
     }
 
+    private boolean isEnhancedOpenSupported() {
+        if (mIsEasyConnectSupportedInitialized) {
+            return mIsEasyConnectSupported;
+        }
+
+        mIsEasyConnectSupportedInitialized = true;
+        mIsEasyConnectSupported = (mWifiNative.getSupportedFeatureSet(
+                mWifiNative.getClientInterfaceName()) & WIFI_FEATURE_OWE) != 0;
+        return mIsEasyConnectSupported;
+    }
+
     /**
      * This returns a list of ScanDetails that were filtered in the process of network selection.
      * The list is further filtered for only open unsaved networks.
@@ -417,10 +440,17 @@ public class WifiNetworkSelector {
      */
     public List<ScanDetail> getFilteredScanDetailsForOpenUnsavedNetworks() {
         List<ScanDetail> openUnsavedNetworks = new ArrayList<>();
+        boolean enhancedOpenSupported = isEnhancedOpenSupported();
         for (ScanDetail scanDetail : mFilteredNetworks) {
             ScanResult scanResult = scanDetail.getScanResult();
 
             if (!ScanResultUtil.isScanResultForOpenNetwork(scanResult)) {
+                continue;
+            }
+
+            // Filter out Enhanced Open networks on devices that do not support it
+            if (ScanResultUtil.isScanResultForOweNetwork(scanResult)
+                    && !enhancedOpenSupported) {
                 continue;
             }
 
@@ -575,6 +605,8 @@ public class WifiNetworkSelector {
             localLog("After user selection adjustment, the final candidate is:"
                     + WifiNetworkSelector.toNetworkString(candidate) + " : "
                     + scanResultCandidate.BSSID);
+            mWifiMetrics.setNominatorForNetwork(candidate.networkId,
+                    WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED_USER_CONNECT_CHOICE);
         }
         return candidate;
     }
@@ -628,6 +660,7 @@ public class WifiNetworkSelector {
         // Determine the weight for the last user selection
         final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
         final double lastSelectionWeight = calculateLastSelectionWeight();
+        final ArraySet<Integer> mNetworkIds = new ArraySet<>();
 
         // Go through the registered network evaluators in order
         WifiConfiguration selectedNetwork = null;
@@ -643,6 +676,7 @@ public class WifiNetworkSelector {
                     (scanDetail, config, score) -> {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
+                            mNetworkIds.add(config.networkId);
                             if (config.networkId == lastUserSelectedNetworkId) {
                                 wifiCandidates.add(scanDetail, config,
                                         registeredEvaluator.getId(), score, lastSelectionWeight);
@@ -650,8 +684,14 @@ public class WifiNetworkSelector {
                                 wifiCandidates.add(scanDetail, config,
                                         registeredEvaluator.getId(), score);
                             }
+                            mWifiMetrics.setNominatorForNetwork(config.networkId,
+                                    evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
                     });
+            if (choice != null && !mNetworkIds.contains(choice.networkId)) {
+                Log.wtf(TAG, registeredEvaluator.getName()
+                        + " failed to report choice with noConnectibleListener");
+            }
             if (selectedNetwork == null && choice != null) {
                 selectedNetwork = choice; // First one wins
                 localLog(registeredEvaluator.getName() + " selects "
@@ -690,75 +730,80 @@ public class WifiNetworkSelector {
             }
         }
 
+        ArrayMap<Integer, Integer> experimentNetworkSelections = new ArrayMap<>(); // for metrics
+
+        final int legacySelectedNetworkId = selectedNetwork == null
+                ? WifiConfiguration.INVALID_NETWORK_ID
+                : selectedNetwork.networkId;
+
+        int selectedNetworkId = legacySelectedNetworkId;
+
+        // Run all the CandidateScorers
         boolean legacyOverrideWanted = true;
-
-        // Run any (experimental) CandidateScorers we have
-        try {
-            int activeExperimentId = LEGACY_CANDIDATE_SCORER_EXP_ID; // default legacy
-            ArrayMap<Integer, WifiConfiguration> experimentNetworkSelections = new ArrayMap<>();
-            experimentNetworkSelections.put(activeExperimentId, selectedNetwork);
-
-            for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
-                String id = candidateScorer.getIdentifier();
-                int expid = experimentIdFromIdentifier(id);
-                WifiCandidates.ScoredCandidate choice = wifiCandidates.choose(candidateScorer);
-                if (choice.candidateKey != null) {
-                    boolean thisOne = (expid == mScoringParams.getExperimentIdentifier());
-                    localLog(id + (thisOne ? " chooses " : " would choose ")
-                            + choice.candidateKey.networkId
-                            + " score " + choice.value + "+/-" + choice.err
-                            + " expid " + expid);
-                    int networkId = choice.candidateKey.networkId;
-                    WifiConfiguration thisSelectedNetwork =
-                            mWifiConfigManager.getConfiguredNetwork(networkId);
-                    experimentNetworkSelections.put(expid, thisSelectedNetwork);
-                    if (thisOne) { // update selected network only if this experiment is active
-                        activeExperimentId = expid; // ensures that experiment id actually exists
-                        selectedNetwork = thisSelectedNetwork;
-                        legacyOverrideWanted = candidateScorer.userConnectChoiceOverrideWanted();
-                        Log.i(TAG, id + " chooses " + networkId);
-                    }
-                } else {
-                    localLog(candidateScorer.getIdentifier() + " found no candidates");
-                    experimentNetworkSelections.put(expid, null);
-                }
+        final WifiCandidates.CandidateScorer activeScorer = getActiveCandidateScorer();
+        for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
+            WifiCandidates.ScoredCandidate choice;
+            try {
+                choice = wifiCandidates.choose(candidateScorer);
+            } catch (RuntimeException e) {
+                Log.wtf(TAG, "Exception running a CandidateScorer", e);
+                continue;
             }
-
-            for (Map.Entry<Integer, WifiConfiguration> entry :
-                    experimentNetworkSelections.entrySet()) {
-                int experimentId = entry.getKey();
-                if (experimentId == activeExperimentId) continue;
-                WifiConfiguration thisSelectedNetwork = entry.getValue();
-                mWifiMetrics.logNetworkSelectionDecision(experimentId, activeExperimentId,
-                        isSameNetworkSelection(selectedNetwork, thisSelectedNetwork),
-                        groupedCandidates.size());
+            int networkId = choice.candidateKey == null
+                    ? WifiConfiguration.INVALID_NETWORK_ID
+                    : choice.candidateKey.networkId;
+            String chooses = " would choose ";
+            if (candidateScorer == activeScorer) {
+                chooses = " chooses ";
+                legacyOverrideWanted = candidateScorer.userConnectChoiceOverrideWanted();
+                selectedNetworkId = networkId;
             }
-        } catch (RuntimeException e) {
-            Log.wtf(TAG, "Exception running a CandidateScorer, disabling", e);
-            mCandidateScorers.clear();
+            String id = candidateScorer.getIdentifier();
+            int expid = experimentIdFromIdentifier(id);
+            localLog(id + chooses + networkId
+                    + " score " + choice.value + "+/-" + choice.err
+                    + " expid " + expid);
+            experimentNetworkSelections.put(expid, networkId);
         }
 
-        if (selectedNetwork != null) {
-            // Update the copy of WifiConfiguration to reflect the scan result candidate update
-            // above.
-            selectedNetwork = mWifiConfigManager.getConfiguredNetwork(selectedNetwork.networkId);
-            if (selectedNetwork != null && legacyOverrideWanted) {
-                selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
-            }
+        // Update metrics about differences in the selections made by various methods
+        final int activeExperimentId = activeScorer == null ? LEGACY_CANDIDATE_SCORER_EXP_ID
+                : experimentIdFromIdentifier(activeScorer.getIdentifier());
+        experimentNetworkSelections.put(LEGACY_CANDIDATE_SCORER_EXP_ID, legacySelectedNetworkId);
+        for (Map.Entry<Integer, Integer> entry :
+                experimentNetworkSelections.entrySet()) {
+            int experimentId = entry.getKey();
+            if (experimentId == activeExperimentId) continue;
+            int thisSelectedNetworkId = entry.getValue();
+            mWifiMetrics.logNetworkSelectionDecision(experimentId, activeExperimentId,
+                    selectedNetworkId == thisSelectedNetworkId,
+                    groupedCandidates.size());
+        }
+
+        // Get a fresh copy of WifiConfiguration reflecting any scan result updates
+        selectedNetwork = mWifiConfigManager.getConfiguredNetwork(selectedNetworkId);
+        if (selectedNetwork != null && legacyOverrideWanted) {
+            selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
         return selectedNetwork;
     }
 
-    private static boolean isSameNetworkSelection(WifiConfiguration c1, WifiConfiguration c2) {
-        if (c1 == null && c2 == null) {
-            return true;
-        } else if (c1 == null && c2 != null) {
-            return false;
-        } else if (c1 != null && c2 == null) {
-            return false;
-        } else {
-            return c1.networkId == c2.networkId;
+    private static int evaluatorIdToNominatorId(@NetworkEvaluator.EvaluatorId int evaluatorId) {
+        switch (evaluatorId) {
+            case NetworkEvaluator.EVALUATOR_ID_SAVED:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
+            case NetworkEvaluator.EVALUATOR_ID_SUGGESTION:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
+            case NetworkEvaluator.EVALUATOR_ID_PASSPOINT:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
+            case NetworkEvaluator.EVALUATOR_ID_CARRIER:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER;
+            case NetworkEvaluator.EVALUATOR_ID_SCORED:
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
+            default:
+                Log.e(TAG, "UnrecognizedEvaluatorId" + evaluatorId);
+                return WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
         }
     }
 
@@ -772,6 +817,27 @@ public class WifiNetworkSelector {
             lastSelectionWeight = Math.min(Math.max(unclipped, 0.0), 1.0);
         }
         return lastSelectionWeight;
+    }
+
+    private WifiCandidates.CandidateScorer getActiveCandidateScorer() {
+        WifiCandidates.CandidateScorer ans = mCandidateScorers.get(PRESET_CANDIDATE_SCORER_NAME);
+        int overrideExperimentId = mScoringParams.getExperimentIdentifier();
+        if (overrideExperimentId >= MIN_SCORER_EXP_ID) {
+            for (WifiCandidates.CandidateScorer candidateScorer : mCandidateScorers.values()) {
+                int expId = experimentIdFromIdentifier(candidateScorer.getIdentifier());
+                if (expId == overrideExperimentId) {
+                    ans = candidateScorer;
+                    break;
+                }
+            }
+        }
+        if (ans == null && PRESET_CANDIDATE_SCORER_NAME != null) {
+            Log.wtf(TAG, PRESET_CANDIDATE_SCORER_NAME + " is not registered!");
+        }
+        mWifiMetrics.setNetworkSelectorExperimentId(ans == null
+                ? LEGACY_CANDIDATE_SCORER_EXP_ID
+                : experimentIdFromIdentifier(ans.getIdentifier()));
+        return ans;
     }
 
     /**
@@ -807,7 +873,7 @@ public class WifiNetworkSelector {
     }
 
     /**
-     * Derives a numeric experiment identifer from a CandidateScorer's identifier.
+     * Derives a numeric experiment identifier from a CandidateScorer's identifier.
      *
      * @returns a positive number that starts with the decimal digits ID_PREFIX
      */
@@ -817,16 +883,18 @@ public class WifiNetworkSelector {
     }
     private static final int ID_SUFFIX_MOD = 1_000_000;
     private static final int ID_PREFIX = 42;
+    private static final int MIN_SCORER_EXP_ID = ID_PREFIX * ID_SUFFIX_MOD;
 
     WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog,
-            WifiMetrics wifiMetrics) {
+            WifiMetrics wifiMetrics, WifiNative wifiNative) {
         mWifiConfigManager = configManager;
         mClock = clock;
         mWifiScoreCard = wifiScoreCard;
         mScoringParams = scoringParams;
         mLocalLog = localLog;
         mWifiMetrics = wifiMetrics;
+        mWifiNative = wifiNative;
 
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);

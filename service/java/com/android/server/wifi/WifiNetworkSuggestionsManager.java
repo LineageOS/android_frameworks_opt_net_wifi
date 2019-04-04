@@ -504,7 +504,7 @@ public class WifiNetworkSuggestionsManager {
             if (mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
                 Log.i(TAG, "Only network suggestion matching the connected network removed. "
                         + "Disconnecting...");
-                mWifiInjector.getClientModeImpl().disconnectCommandInternal();
+                mWifiInjector.getClientModeImpl().disconnectCommand();
             }
         }
     }
@@ -549,7 +549,7 @@ public class WifiNetworkSuggestionsManager {
      * Add the provided list of network suggestions from the corresponding app's active list.
      */
     public @WifiManager.NetworkSuggestionsStatusCode int add(
-            List<WifiNetworkSuggestion> networkSuggestions, String packageName) {
+            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + networkSuggestions.size() + " networks from " + packageName);
         }
@@ -561,6 +561,10 @@ public class WifiNetworkSuggestionsManager {
         if (perAppInfo == null) {
             perAppInfo = new PerAppInfo(packageName);
             mActiveNetworkSuggestionsPerApp.put(packageName, perAppInfo);
+            if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
+                Log.i(TAG, "Setting the carrier provisioning app approved");
+                perAppInfo.hasUserApproved = true;
+            }
         }
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                 convertToExtendedWnsSet(networkSuggestions, perAppInfo);
@@ -581,7 +585,7 @@ public class WifiNetworkSuggestionsManager {
         }
         if (perAppInfo.extNetworkSuggestions.isEmpty()) {
             // Start tracking app-op changes from the app if they have active suggestions.
-            startTrackingAppOpsChange(packageName, networkSuggestions.get(0).suggestorUid);
+            startTrackingAppOpsChange(packageName, uid);
         }
         perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
         // Update the max size for this app.

@@ -75,6 +75,7 @@ public class ScoredNetworkEvaluatorTest {
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock private OnConnectableListener mOnConnectableListener;
     @Captor private ArgumentCaptor<NetworkKey[]> mNetworkKeyArrayCaptor;
+    @Captor private ArgumentCaptor<WifiConfiguration> mWifiConfigCaptor;
 
     private WifiNetworkScoreCache mScoreCache;
     private ScoredNetworkEvaluator mScoredNetworkEvaluator;
@@ -272,6 +273,51 @@ public class ScoredNetworkEvaluatorTest {
     }
 
     /**
+     * When we have created a new ephemeral network, make sure that mOnConnectableListener
+     * is called.
+     */
+    @Test
+    public void testEvaluateNetworks_newEphemeralNetworkMustBeReportedAsConnectable() {
+        String[] ssids = {"\"test1\"", "\"test2\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[WPA2-PSK][ESS]", "[ESS]"};
+        int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
+        Integer[] scores = {null, 120};
+        boolean[] meteredHints = {false, false};
+
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(
+                ssids, bssids, freqs, caps, levels, mClock);
+        WifiNetworkSelectorTestUtil.configureScoreCache(mScoreCache,
+                scanDetails, scores, meteredHints);
+
+        ScanResult scanResult = scanDetails.get(1).getScanResult();
+        WifiConfiguration ephemeralNetworkConfig = WifiNetworkSelectorTestUtil
+                .setupEphemeralNetwork(mWifiConfigManager, 1, scanDetails.get(1), meteredHints[1]);
+
+        // No saved networks.
+        when(mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(any(ScanDetail.class)))
+                .thenReturn(null);
+
+        // But when we create one, this is should be it.
+        when(mWifiConfigManager.addOrUpdateNetwork(any(), anyInt()))
+                .thenReturn(new NetworkUpdateResult(1));
+
+        // Untrusted networks allowed.
+        WifiConfiguration candidate = mScoredNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, false, true, mOnConnectableListener);
+
+        WifiConfigurationTestUtil.assertConfigurationEqual(ephemeralNetworkConfig, candidate);
+        WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
+                scanResult, candidate);
+        assertEquals(meteredHints[1], candidate.meteredHint);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
+    }
+
+    /**
      * When no saved networks available, choose the available ephemeral networks
      * if untrusted networks are allowed.
      */
@@ -306,6 +352,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanResult, candidate);
         assertEquals(meteredHints[1], candidate.meteredHint);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -346,6 +396,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanResults[1], candidate);
         assertEquals(meteredHints[1], candidate.meteredHint);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -411,6 +465,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[0], candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanDetails.get(0).getScanResult(), candidate);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -443,6 +501,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanDetails.get(1).getScanResult(), candidate);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -476,6 +538,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[0], candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanDetails.get(0).getScanResult(), candidate);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -529,6 +595,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiConfigurationTestUtil.assertConfigurationEqual(ephemeralNetworkConfig, candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 ephemeralScanResult, candidate);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -601,6 +671,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanResults[1], candidate);
         assertEquals(meteredHints[1], candidate.meteredHint);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
     }
 
     /**
@@ -633,5 +707,10 @@ public class ScoredNetworkEvaluatorTest {
         WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
                 scanDetails.get(1).getScanResult(), candidate);
+        verify(mOnConnectableListener, atLeastOnce())
+                .onConnectable(any(), mWifiConfigCaptor.capture(), anyInt());
+        assertTrue(mWifiConfigCaptor.getAllValues().stream()
+                .anyMatch(c -> c.networkId == candidate.networkId));
+
     }
 }

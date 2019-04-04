@@ -42,17 +42,18 @@ import android.net.wifi.aware.WifiAwareNetworkInfo;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
 import android.net.wifi.aware.WifiAwareUtils;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.ServiceManager;
-import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -60,6 +61,7 @@ import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.net.DatagramSocket;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -97,7 +99,13 @@ public class WifiAwareDataPathStateManager {
     private static final int NETWORK_FACTORY_BANDWIDTH_AVAIL = 1;
     private static final int NETWORK_FACTORY_SIGNAL_STRENGTH_AVAIL = 1;
 
+    @VisibleForTesting
+    public static final int ADDRESS_VALIDATION_RETRY_INTERVAL_MS = 1_000; // 1 second
+    @VisibleForTesting
+    public static final int ADDRESS_VALIDATION_TIMEOUT_MS = 5_000; // 5 seconds
+
     private final WifiAwareStateManager mMgr;
+    private final Clock mClock;
     public NetworkInterfaceWrapper mNiWrapper = new NetworkInterfaceWrapper();
     private static final NetworkCapabilities sNetworkCapabilitiesFilter = new NetworkCapabilities();
     private final Set<String> mInterfaces = new HashSet<>();
@@ -108,14 +116,16 @@ public class WifiAwareDataPathStateManager {
     private WifiPermissionsUtil mWifiPermissionsUtil;
     private WifiPermissionsWrapper mPermissionsWrapper;
     private Looper mLooper;
+    private Handler mHandler;
     private WifiAwareNetworkFactory mNetworkFactory;
     public INetworkManagementService mNwService;
 
     // internal debug flag to override API check
     /* package */ boolean mAllowNdpResponderFromAnyOverride = false;
 
-    public WifiAwareDataPathStateManager(WifiAwareStateManager mgr) {
+    public WifiAwareDataPathStateManager(WifiAwareStateManager mgr, Clock clock) {
         mMgr = mgr;
+        mClock = clock;
     }
 
     /**
@@ -131,6 +141,7 @@ public class WifiAwareDataPathStateManager {
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mPermissionsWrapper = permissionsWrapper;
         mLooper = looper;
+        mHandler = new Handler(mLooper);
 
         sNetworkCapabilitiesFilter.clearAll();
         sNetworkCapabilitiesFilter.addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE);
@@ -282,8 +293,7 @@ public class WifiAwareDataPathStateManager {
             Log.w(TAG, "onDataPathInitiateSuccess: network request in incorrect state: state="
                     + nnri.state);
             mNetworkRequestsCache.remove(networkSpecifier);
-            mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
-            mMgr.endDataPath(ndpId);
+            declareUnfullfillableAndEndDp(nnri, ndpId);
             return;
         }
 
@@ -428,7 +438,7 @@ public class WifiAwareDataPathStateManager {
 
         nnri.state = AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_RESPOND_RESPONSE;
         nnri.ndpId = ndpId;
-        nnri.startTimestamp = SystemClock.elapsedRealtime();
+        nnri.startTimestamp = mClock.getElapsedSinceBootMillis();
         mMgr.respondToDataPathRequest(true, ndpId, nnri.interfaceName, nnri.networkSpecifier.pmk,
                 nnri.networkSpecifier.passphrase,
                 NetworkInformationData.buildTlv(nnri.networkSpecifier.port,
@@ -565,8 +575,7 @@ public class WifiAwareDataPathStateManager {
                     Log.e(TAG, "onDataPathConfirm: ACCEPT nnri=" + nnri
                             + ": can't configure network - "
                             + e);
-                    mMgr.endDataPath(ndpId);
-                    nnri.state = AwareNetworkRequestInformation.STATE_TERMINATING;
+                    declareUnfullfillableAndEndDp(nnri, ndpId);
                     return networkSpecifier;
                 }
             } else {
@@ -633,6 +642,7 @@ public class WifiAwareDataPathStateManager {
 
             if (!mNiWrapper.configureAgentProperties(nnri, nnri.equivalentRequests, ndpId,
                     networkInfo, networkCapabilities, linkProperties)) {
+                declareUnfullfillableAndEndDp(nnri, ndpId);
                 return networkSpecifier;
             }
 
@@ -641,12 +651,9 @@ public class WifiAwareDataPathStateManager {
                     new NetworkInfo(ConnectivityManager.TYPE_NONE, 0, NETWORK_TAG, ""),
                     networkCapabilities, linkProperties, NETWORK_FACTORY_SCORE_AVAIL,
                     nnri);
-            nnri.networkAgent.sendNetworkInfo(networkInfo);
-
-            mAwareMetrics.recordNdpStatus(NanStatusType.SUCCESS, networkSpecifier.isOutOfBand(),
-                    nnri.startTimestamp);
-            nnri.startTimestamp = SystemClock.elapsedRealtime(); // update time-stamp for duration
-            mAwareMetrics.recordNdpCreation(nnri.uid, mNetworkRequestsCache);
+            nnri.startValidationTimestamp = mClock.getElapsedSinceBootMillis();
+            handleAddressValidation(nnri, linkProperties, networkInfo, ndpId,
+                    networkSpecifier.isOutOfBand());
         } else {
             if (VDBG) {
                 Log.v(TAG, "onDataPathConfirm: data-path for networkSpecifier=" + networkSpecifier
@@ -659,6 +666,38 @@ public class WifiAwareDataPathStateManager {
         }
 
         return networkSpecifier;
+    }
+
+    private void handleAddressValidation(AwareNetworkRequestInformation nnri,
+            LinkProperties linkProperties, NetworkInfo networkInfo, int ndpId,
+            boolean isOutOfBand) {
+        if (mNiWrapper.isAddressUsable(linkProperties)) {
+            mNiWrapper.sendAgentNetworkInfo(nnri.networkAgent, networkInfo);
+
+            mAwareMetrics.recordNdpStatus(NanStatusType.SUCCESS, isOutOfBand, nnri.startTimestamp);
+            nnri.startTimestamp = mClock.getElapsedSinceBootMillis(); // update time-stamp
+            mAwareMetrics.recordNdpCreation(nnri.uid, mNetworkRequestsCache);
+        } else {
+            if (mClock.getElapsedSinceBootMillis() - nnri.startValidationTimestamp
+                    > ADDRESS_VALIDATION_TIMEOUT_MS) {
+                Log.e(TAG, "Timed-out while waiting for IPv6 address to be usable");
+
+                declareUnfullfillableAndEndDp(nnri, ndpId);
+                return;
+            }
+            if (mDbg) {
+                Log.d(TAG, "Failed address validation");
+            }
+            mHandler.postDelayed(() -> {
+                handleAddressValidation(nnri, linkProperties, networkInfo, ndpId, isOutOfBand);
+            }, ADDRESS_VALIDATION_RETRY_INTERVAL_MS);
+        }
+    }
+
+    private void declareUnfullfillableAndEndDp(AwareNetworkRequestInformation nnri, int ndpId) {
+        mNetworkFactory.letAppKnowThatRequestsAreUnavailable(nnri);
+        mMgr.endDataPath(ndpId);
+        nnri.state = AwareNetworkRequestInformation.STATE_TERMINATING;
     }
 
     /**
@@ -906,7 +945,7 @@ public class WifiAwareDataPathStateManager {
                         null);
                 nnri.state =
                         AwareNetworkRequestInformation.STATE_INITIATOR_WAIT_FOR_REQUEST_RESPONSE;
-                nnri.startTimestamp = SystemClock.elapsedRealtime();
+                nnri.startTimestamp = mClock.getElapsedSinceBootMillis();
             } else {
                 nnri.state = AwareNetworkRequestInformation.STATE_RESPONDER_WAIT_FOR_REQUEST;
             }
@@ -979,7 +1018,11 @@ public class WifiAwareDataPathStateManager {
         }
     }
 
-    private class WifiAwareNetworkAgent extends NetworkAgent {
+    /**
+     * Network agent for Wi-Fi Aware.
+     */
+    @VisibleForTesting
+    public class WifiAwareNetworkAgent extends NetworkAgent {
         private NetworkInfo mNetworkInfo;
         private AwareNetworkRequestInformation mAwareNetworkRequestInfo;
 
@@ -1140,6 +1183,7 @@ public class WifiAwareDataPathStateManager {
         public WifiAwareNetworkSpecifier networkSpecifier;
         public List<NanDataPathChannelInfo> channelInfo;
         public long startTimestamp = 0; // request is made (initiator) / get request (responder)
+        public long startValidationTimestamp = 0; // NDP created and starting to validate IPv6 addr
 
         public WifiAwareNetworkAgent networkAgent;
 
@@ -1491,6 +1535,36 @@ public class WifiAwareDataPathStateManager {
                     new RouteInfo(new IpPrefix("fe80::/64"), null, nnri.interfaceName));
 
             return true;
+        }
+
+        /**
+         * Tries binding to the input address to check whether it is configured (and therefore
+         * usable).
+         */
+        public boolean isAddressUsable(LinkProperties linkProperties) {
+            InetAddress address = linkProperties.getLinkAddresses().get(0).getAddress();
+            DatagramSocket testDatagramSocket = null;
+            try {
+                testDatagramSocket = new DatagramSocket(0, address);
+            } catch (SocketException e) {
+                if (mDbg) {
+                    Log.d(TAG, "Can't create socket on address " + address + " -- " + e);
+                }
+                return false;
+            } finally {
+                if (testDatagramSocket != null) {
+                    testDatagramSocket.close();
+                }
+            }
+            return true;
+        }
+
+        /**
+         * Send updated network information to the agent.
+         */
+        public void sendAgentNetworkInfo(WifiAwareNetworkAgent networkAgent,
+                NetworkInfo networkInfo) {
+            networkAgent.sendNetworkInfo(networkInfo);
         }
     }
 

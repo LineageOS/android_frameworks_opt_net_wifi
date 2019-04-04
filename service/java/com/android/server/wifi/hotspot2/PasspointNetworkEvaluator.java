@@ -31,8 +31,10 @@ import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
+import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiNetworkSelector;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +50,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
-    private final TelephonyManager mTelephonyManager;
+    private final WifiInjector mWifiInjector;
+    private TelephonyManager mTelephonyManager;
     /**
      * Contained information for a Passpoint network candidate.
      */
@@ -66,12 +69,19 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
 
     public PasspointNetworkEvaluator(PasspointManager passpointManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
-            CarrierNetworkConfig carrierNetworkConfig, TelephonyManager telephonyManager) {
+            CarrierNetworkConfig carrierNetworkConfig, WifiInjector wifiInjector) {
         mPasspointManager = passpointManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
         mCarrierNetworkConfig = carrierNetworkConfig;
-        mTelephonyManager = telephonyManager;
+        mWifiInjector = wifiInjector;
+    }
+
+    private TelephonyManager getTelephonyManager() {
+        if (mTelephonyManager == null) {
+            mTelephonyManager = mWifiInjector.makeTelephonyManager();
+        }
+        return mTelephonyManager;
     }
 
     @Override
@@ -96,11 +106,12 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         mPasspointManager.sweepCache();
 
         // Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
-        // of the current carrier on the device.
-        if (mWifiConfigManager.isSimPresent()
+        // of the current MNO carrier on the device.
+        if ((getTelephonyManager() != null)
+                && (TelephonyUtil.getCarrierType(mTelephonyManager)
+                == TelephonyUtil.CARRIER_MNO_TYPE)
                 && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
-                && !mPasspointManager.hasCarrierProvider(
-                mTelephonyManager.getNetworkOperator())) {
+                && !mPasspointManager.hasCarrierProvider(mTelephonyManager.getSimOperator())) {
             int eapMethod = mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
                     scanDetails);
             if (isCarrierEapMethod(eapMethod)) {
@@ -175,6 +186,16 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
      */
     private WifiConfiguration createWifiConfigForProvider(PasspointNetworkCandidate networkInfo) {
         WifiConfiguration config = networkInfo.mProvider.getWifiConfig();
+        if (TelephonyUtil.isSimEapMethod(config.enterpriseConfig.getEapMethod())
+                && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
+                && (mCarrierNetworkConfig.getEapIdentitySequence()
+                == CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI)) {
+            // In case of a carrier supporting encrypted IMSI and anonymous identity, we need
+            // to send anonymous@realm as EAP-IDENTITY response.
+            config.enterpriseConfig.setAnonymousIdentity(
+                    TelephonyUtil.getAnonymousIdentityWith3GppRealm(
+                            getTelephonyManager()));
+        }
         config.SSID = ScanResultUtil.createQuotedSSID(networkInfo.mScanDetail.getSSID());
         if (networkInfo.mMatchStatus == PasspointMatch.HomeProvider) {
             config.isHomeProviderNetwork = true;

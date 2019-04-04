@@ -79,8 +79,11 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libbinder \
 	libbinderthreadstate \
 	libc++ \
+	ld-android \
+	libdl_android \
 	libcamera_client \
 	libcamera_metadata \
+	libcgrouprc \
 	libcutils \
 	libexpat \
 	libgui \

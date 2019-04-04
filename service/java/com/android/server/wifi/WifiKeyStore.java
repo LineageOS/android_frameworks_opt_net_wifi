@@ -26,10 +26,13 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.Key;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -250,6 +253,21 @@ public class WifiKeyStore {
         }
     }
 
+
+    /**
+     * @param certData byte array of the certificate
+     */
+    private X509Certificate buildCACertificate(byte[] certData) {
+        try {
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            InputStream inputStream = new ByteArrayInputStream(certData);
+            X509Certificate caCertificateX509 = (X509Certificate) certificateFactory
+                    .generateCertificate(inputStream);
+            return caCertificateX509;
+        } catch (CertificateException e) {
+            return null;
+        }
+    }
     /**
      * Update/Install keys for given enterprise network.
      *
@@ -274,6 +292,61 @@ public class WifiKeyStore {
                 }
             } catch (IllegalStateException e) {
                 Log.e(TAG, config.SSID + " invalid config for key installation: " + e.getMessage());
+                return false;
+            }
+        }
+
+        // For WPA3-Enterprise 192-bit networks, set the SuiteBCipher field based on the
+        // CA certificate type. Suite-B requires SHA384, reject other certs.
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            // Read the first CA certificate, and initialize
+            byte[] certData = mKeyStore.get(
+                    Credentials.CA_CERTIFICATE + config.enterpriseConfig.getCaCertificateAlias(),
+                    android.os.Process.WIFI_UID);
+
+            if (certData == null) {
+                Log.e(TAG, "Failed reading CA certificate for Suite-B");
+                return false;
+            }
+
+            X509Certificate x509CaCert = buildCACertificate(certData);
+
+            if (x509CaCert != null) {
+                String sigAlgOid = x509CaCert.getSigAlgOID();
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "Signature algorithm: " + sigAlgOid);
+                }
+                config.allowedSuiteBCiphers.clear();
+
+                // Wi-Fi alliance requires the use of both ECDSA secp384r1 and RSA 3072 certificates
+                // in WPA3-Enterprise 192-bit security networks, which are also known as Suite-B-192
+                // networks, even though NSA Suite-B-192 mandates ECDSA only. The use of the term
+                // Suite-B was already coined in the IEEE 802.11-2016 specification for
+                // AKM 00-0F-AC but the test plan for WPA3-Enterprise 192-bit for APs mandates
+                // support for both RSA and ECDSA, and for STAs it mandates ECDSA and optionally
+                // RSA. In order to be compatible with all WPA3-Enterprise 192-bit deployments,
+                // we are supporting both types here.
+                if (sigAlgOid.equals("1.2.840.113549.1.1.12")) {
+                    // sha384WithRSAEncryption
+                    config.allowedSuiteBCiphers.set(
+                            WifiConfiguration.SuiteBCipher.ECDHE_RSA);
+                    if (mVerboseLoggingEnabled) {
+                        Log.d(TAG, "Selecting Suite-B RSA");
+                    }
+                } else if (sigAlgOid.equals("1.2.840.10045.4.3.3")) {
+                    // ecdsa-with-SHA384
+                    config.allowedSuiteBCiphers.set(
+                            WifiConfiguration.SuiteBCipher.ECDHE_ECDSA);
+                    if (mVerboseLoggingEnabled) {
+                        Log.d(TAG, "Selecting Suite-B ECDSA");
+                    }
+                } else {
+                    Log.e(TAG, "Invalid CA certificate type for Suite-B: "
+                            + sigAlgOid);
+                    return false;
+                }
+            } else {
+                Log.e(TAG, "Invalid CA certificate for Suite-B");
                 return false;
             }
         }

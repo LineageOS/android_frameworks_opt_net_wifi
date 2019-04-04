@@ -73,6 +73,7 @@ import android.util.SparseArray;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -170,7 +171,7 @@ public class WifiAwareStateManagerTest {
         mDut = new WifiAwareStateManager();
         mDut.setNative(mMockNativeManager, mMockNative);
         mDut.start(mMockContext, mMockLooper.getLooper(), mAwareMetricsMock,
-                mWifiPermissionsUtil, mPermissionsWrapperMock);
+                mWifiPermissionsUtil, mPermissionsWrapperMock, new Clock());
         mDut.startLate();
         mMockLooper.dispatchAll();
         verify(mMockContext, times(3)).registerReceiver(bcastRxCaptor.capture(),

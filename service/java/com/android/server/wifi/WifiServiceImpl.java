@@ -591,15 +591,23 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
+    public void handleBootCompleted() {
+        Log.d(TAG, "Handle boot completed");
+        mClientModeImpl.handleBootCompleted();
+    }
+
     public void handleUserSwitch(int userId) {
+        Log.d(TAG, "Handle user switch " + userId);
         mClientModeImpl.handleUserSwitch(userId);
     }
 
     public void handleUserUnlock(int userId) {
+        Log.d(TAG, "Handle user unlock " + userId);
         mClientModeImpl.handleUserUnlock(userId);
     }
 
     public void handleUserStop(int userId) {
+        Log.d(TAG, "Handle user stop " + userId);
         mClientModeImpl.handleUserStop(userId);
     }
 
@@ -866,16 +874,29 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public synchronized boolean setWifiEnabled(String packageName, boolean enable) {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE,
-                "WifiService");
-        // only privileged apps like settings, setup wizard, etc can toggle wifi.
-        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())
-                // Default car dock app is allowed to turn on wifi (but, cannot turn off)
-                && !(isDefaultCarDock(packageName) && enable)) {
+        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
+            return false;
+        }
+        boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
+        if (!isPrivileged
+                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
         }
+        // If Airplane mode is enabled, only privileged apps are allowed to toggle Wifi
+        if (mSettingsStore.isAirplaneModeOn() && !isPrivileged) {
+            mLog.err("setWifiEnabled in Airplane mode: only Settings can toggle wifi").flush();
+            return false;
+        }
+
+        // If SoftAp is enabled, only privileged apps are allowed to toggle wifi
+        boolean apEnabled = mWifiApState == WifiManager.WIFI_AP_STATE_ENABLED;
+        if (apEnabled && !isPrivileged) {
+            mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
+            return false;
+        }
+
         mLog.info("setWifiEnabled package=% uid=% enable=%").c(packageName)
                 .c(Binder.getCallingUid()).c(enable).flush();
         long ident = Binder.clearCallingIdentity();
@@ -1644,7 +1665,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         mLog.info("disconnect uid=%").c(Binder.getCallingUid()).flush();
-        mClientModeImpl.disconnectCommandExternal();
+        mClientModeImpl.disconnectCommand();
         return true;
     }
 
@@ -3221,11 +3242,12 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
+        int callingUid = Binder.getCallingUid();
         Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.add(
-                            networkSuggestions, callingPackageName);
+                            networkSuggestions, callingUid, callingPackageName);
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to add network suggestions");

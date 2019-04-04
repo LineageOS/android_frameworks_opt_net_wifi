@@ -1357,6 +1357,60 @@ public class WifiConnectivityManagerTest {
     }
 
     /**
+     * Verify that a successful scan result resets scan retry counter
+     *
+     * Steps
+     * 1. Trigger a scan that fails
+     * 2. Let the retry succeed
+     * 3. Trigger a scan again and have it and all subsequent retries fail
+     * 4. Verify that there are MAX_SCAN_RESTART_ALLOWED + 3 startScan calls. (2 are from the
+     * original scans, and MAX_SCAN_RESTART_ALLOWED + 1 from retries)
+     */
+    @Test
+    public void verifyScanFailureCountIsResetAfterOnResult() {
+        // Setup WifiScanner to fail
+        doAnswer(new AnswerWithArguments() {
+            public void answer(ScanSettings settings, ScanListener listener,
+                    WorkSource workSource) throws Exception {
+                listener.onFailure(-1, "ScanFailure");
+            }}).when(mWifiScanner).startScan(anyObject(), anyObject(), anyObject());
+
+        mWifiConnectivityManager.forceConnectivityScan(null);
+        // make the retry succeed
+        doAnswer(new AnswerWithArguments() {
+            public void answer(ScanSettings settings, ScanListener listener,
+                    WorkSource workSource) throws Exception {
+                listener.onResults(null);
+            }}).when(mWifiScanner).startScan(anyObject(), anyObject(), anyObject());
+        mAlarmManager.dispatch(WifiConnectivityManager.RESTART_SINGLE_SCAN_TIMER_TAG);
+        mLooper.dispatchAll();
+
+        // Verify that startScan is called once for the original scan, plus once for the retry.
+        // The successful retry should have now cleared the restart count
+        verify(mWifiScanner, times(2)).startScan(anyObject(), anyObject(), anyObject());
+
+        // Now force a new scan and verify we retry MAX_SCAN_RESTART_ALLOWED times
+        doAnswer(new AnswerWithArguments() {
+            public void answer(ScanSettings settings, ScanListener listener,
+                    WorkSource workSource) throws Exception {
+                listener.onFailure(-1, "ScanFailure");
+            }}).when(mWifiScanner).startScan(anyObject(), anyObject(), anyObject());
+        mWifiConnectivityManager.forceConnectivityScan(null);
+        // Fire the alarm timer 2x timers
+        for (int i = 0; i < (WifiConnectivityManager.MAX_SCAN_RESTART_ALLOWED * 2); i++) {
+            mAlarmManager.dispatch(WifiConnectivityManager.RESTART_SINGLE_SCAN_TIMER_TAG);
+            mLooper.dispatchAll();
+        }
+
+        // Verify that the connectivity scan has been retried for MAX_SCAN_RESTART_ALLOWED + 3
+        // times. Note, WifiScanner.startScan() is invoked 2 times by the first part of this test,
+        // and additionally MAX_SCAN_RESTART_ALLOWED + 1 times from forceConnectivityScan and
+        // subsequent retries.
+        verify(mWifiScanner, times(WifiConnectivityManager.MAX_SCAN_RESTART_ALLOWED + 3)).startScan(
+                anyObject(), anyObject(), anyObject());
+    }
+
+    /**
      * Listen to scan results not requested by WifiConnectivityManager and
      * act on them.
      *

@@ -17,9 +17,7 @@
 package com.android.server.wifi.hotspot2.soap;
 
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
 
@@ -42,15 +40,13 @@ import fi.iki.elonen.NanoHTTPD;
  * redirect server no longer needed.
  */
 public class RedirectListener extends NanoHTTPD {
-    // 4 minutes for the maximum wait time.
+    // 10 minutes for the maximum wait time.
     @VisibleForTesting
-    static final int USER_TIMEOUT_MILLIS = 4 * 60 * 1000;
+    static final int USER_TIMEOUT_MILLIS = 10 * 60 * 1000;
 
     private static final String TAG = "PasspointRedirectListener";
-
     private final String mPath;
     private final URL mServerUrl;
-    private final Handler mStartStopHandler;
     private final Handler mHandler;
     private Runnable mTimeOutTask;
     private RedirectCallback mRedirectCallback;
@@ -72,7 +68,7 @@ public class RedirectListener extends NanoHTTPD {
     }
 
     @VisibleForTesting
-    /* package */ RedirectListener(Looper looper, @Nullable Looper startStopLooper, int port)
+    /* package */ RedirectListener(Looper looper, int port)
             throws IOException {
         super(InetAddress.getLocalHost().getHostAddress(), port);
 
@@ -82,12 +78,6 @@ public class RedirectListener extends NanoHTTPD {
         mServerUrl = new URL("http", getHostname(), port, mPath);
         mHandler = new Handler(looper);
         mTimeOutTask = () -> mRedirectCallback.onRedirectTimedOut();
-        if (startStopLooper == null) {
-            HandlerThread redirectHandlerThread = new HandlerThread("RedirectListenerHandler");
-            redirectHandlerThread.start();
-            startStopLooper = redirectHandlerThread.getLooper();
-        }
-        mStartStopHandler = new Handler(startStopLooper);
     }
 
     /**
@@ -99,8 +89,14 @@ public class RedirectListener extends NanoHTTPD {
     public static RedirectListener createInstance(@NonNull Looper looper) {
         RedirectListener redirectListener;
         try {
-            redirectListener = new RedirectListener(looper, null,
-                    new ServerSocket(0, 1, InetAddress.getLocalHost()).getLocalPort());
+            ServerSocket serverSocket = new ServerSocket(0, 1, InetAddress.getLocalHost());
+            redirectListener = new RedirectListener(looper, serverSocket.getLocalPort());
+            redirectListener.setServerSocketFactory(() -> {
+                // Close current server socket so that new server socket is able to bind the port
+                // in the start() of NanoHTTPD.
+                serverSocket.close();
+                return new ServerSocket();
+            });
         } catch (IOException e) {
             Log.e(TAG, "fails to create an instance: " + e);
             return null;
@@ -112,11 +108,16 @@ public class RedirectListener extends NanoHTTPD {
      * Start redirect listener
      *
      * @param callback to be notified when the redirect request is received or timed out.
-     * @return {@code true} in success, {@code false} if the {@code callback} is {@code null} or the
-     * server is already running.
+     * @param startHandler handler on which the start code is executed.
+     * @return {@code true} in success, {@code false} if the {@code callback} and {@code
+     * startHandler} are {@code null} or the server is already running.
      */
-    public boolean startServer(@NonNull RedirectCallback callback) {
+    public boolean startServer(@NonNull RedirectCallback callback, @NonNull Handler startHandler) {
         if (callback == null) {
+            return false;
+        }
+
+        if (startHandler == null) {
             return false;
         }
 
@@ -126,7 +127,7 @@ public class RedirectListener extends NanoHTTPD {
         }
         mRedirectCallback = callback;
 
-        mStartStopHandler.post(() -> {
+        startHandler.post(() -> {
             try {
                 start();
             } catch (IOException e) {
@@ -139,13 +140,18 @@ public class RedirectListener extends NanoHTTPD {
 
     /**
      * Stop redirect listener
+     *
+     * @param stopHandler handler on which the stop code is executed.
      */
-    public void stopServer() {
+    public void stopServer(@NonNull Handler stopHandler) {
         if (mHandler.hasCallbacks(mTimeOutTask)) {
             mHandler.removeCallbacks(mTimeOutTask);
         }
+        if (stopHandler == null) {
+            return;
+        }
         if (isServerAlive()) {
-            mStartStopHandler.post(() -> stop());
+            stopHandler.post(() -> stop());
         }
     }
 

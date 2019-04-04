@@ -93,6 +93,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
 /**
  * Unit test harness for the RttServiceImpl class.
  */
@@ -253,8 +254,12 @@ public class RttServiceImplTest {
         RangingRequest[] requests = new RangingRequest[numIter];
         List<Pair<List<RttResult>, List<RangingResult>>> results = new ArrayList<>();
 
-        for (int i = 0; i < numIter; ++i) {
-            requests[i] = RttTestUtils.getDummyRangingRequest((byte) i);
+        for (int i = 0; i < numIter; ++i) { // even: MC, non-MC, Aware, odd: MC only
+            if (i % 2 == 0) {
+                requests[i] = RttTestUtils.getDummyRangingRequestMcOnly((byte) i);
+            } else {
+                requests[i] = RttTestUtils.getDummyRangingRequest((byte) i);
+            }
             results.add(RttTestUtils.getDummyRangingResults(requests[i]));
         }
 
@@ -267,7 +272,7 @@ public class RttServiceImplTest {
         for (int i = 0; i < numIter; ++i) {
             // (2) verify that request issued to native
             verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(requests[i]), eq(true));
-            verifyWakeupSet();
+            verifyWakeupSet(i % 2 != 0, 0);
 
             // (3) native calls back with result
             mDut.onRangingResults(mIntCaptor.getValue(), results.get(i).first);
@@ -324,7 +329,7 @@ public class RttServiceImplTest {
 
         // verify that requested with MAC address translated from the PeerHandle issued to Native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), mRequestCaptor.capture(), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         RangingRequest finalRequest = mRequestCaptor.getValue();
         assertNotEquals("Request to native is not null", null, finalRequest);
@@ -398,7 +403,7 @@ public class RttServiceImplTest {
             if (i == 0) {
                 verify(mockCallback).onRangingFailure(RangingResultCallback.STATUS_CODE_FAIL);
             } else {
-                verifyWakeupSet();
+                verifyWakeupSet(true, 0);
             }
 
             // (4) on failed HAL: even if native calls back with result we shouldn't dispatch
@@ -443,7 +448,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) native calls back with result - should get a FAILED callback
         when(mockPermissionUtil.checkCallersLocationPermission(eq(mPackageName),
@@ -494,7 +499,7 @@ public class RttServiceImplTest {
             // (3) verify first request and all odd requests issued to HAL
             if (i == 0 || i % 2 == 1) {
                 verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(requests[i]), eq(true));
-                verifyWakeupSet();
+                verifyWakeupSet(true, 0);
             }
 
             // (4) trigger first death recipient (which will map to the even UID)
@@ -563,7 +568,7 @@ public class RttServiceImplTest {
 
         verify(mockIbinder).linkToDeath(mDeathRecipientCaptor.capture(), anyInt());
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (2) execute binder death
         mDeathRecipientCaptor.getValue().binderDied();
@@ -613,7 +618,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) cancel the request
         mDut.cancelRanging(worksourceCancel);
@@ -659,7 +664,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) cancel the request
         mDut.cancelRanging(worksourceCancel);
@@ -697,7 +702,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) native calls back with result - but wrong ID
         mDut.onRangingResults(mIntCaptor.getValue() + 1,
@@ -748,7 +753,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) return results with missing entries
         mDut.onRangingResults(mIntCaptor.getValue(), results.first);
@@ -791,7 +796,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) return results with ALL results missing
         mDut.onRangingResults(mIntCaptor.getValue(), new ArrayList<>());
@@ -844,7 +849,7 @@ public class RttServiceImplTest {
 
         // (2) verify that request issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(false));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) return results with missing entries
         mDut.onRangingResults(mIntCaptor.getValue(), results.first);
@@ -886,7 +891,7 @@ public class RttServiceImplTest {
         // verify that request 1 issued to native
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request1), eq(true));
         int cmdId1 = mIntCaptor.getValue();
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (2) time-out
         mAlarmManager.dispatch(RttServiceImpl.HAL_RANGING_TIMEOUT_TAG);
@@ -896,7 +901,7 @@ public class RttServiceImplTest {
         verify(mockNative).rangeCancel(eq(cmdId1), any());
         verify(mockCallback).onRangingFailure(RangingResultCallback.STATUS_CODE_FAIL);
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request2), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (3) send both result 1 and result 2
         mDut.onRangingResults(cmdId1, result1.first);
@@ -955,7 +960,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request1), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, clock.time);
 
         // (1.1) get result
         mDut.onRangingResults(mIntCaptor.getValue(), result1.first);
@@ -977,7 +982,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request3), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, clock.time);
 
         // (3.1) get result
         mDut.onRangingResults(mIntCaptor.getValue(), result3.first);
@@ -995,7 +1000,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request4), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, clock.time);
 
         // (4.1) get result
         mDut.onRangingResults(mIntCaptor.getValue(), result4.first);
@@ -1086,7 +1091,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request1), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, clock.time);
 
         // (1.1) get result
         mDut.onRangingResults(mIntCaptor.getValue(), result1.first);
@@ -1102,7 +1107,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request2), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, clock.time);
 
         // (2.1) get result
         mDut.onRangingResults(mIntCaptor.getValue(), result2.first);
@@ -1171,7 +1176,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // 2. issue FLOOD LEVEL requests + 10 at various UIDs - no failure expected
         for (int i = 0; i < RttServiceImpl.MAX_QUEUED_PER_UID + 10; ++i) {
@@ -1237,7 +1242,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         nativeInorder.verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // 2. issue FLOOD LEVEL requests + 10: should get 11 failures (10 extra + 1 original)
         for (int i = 0; i < RttServiceImpl.MAX_QUEUED_PER_UID + 10; ++i) {
@@ -1257,7 +1262,7 @@ public class RttServiceImplTest {
         verifyWakeupCancelled();
 
         nativeInorder.verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // 4. issue a request: don't expect a failure
         mDut.startRanging(mockIbinder, mPackageName, useUids ? null : ws, request, mockCallback);
@@ -1337,7 +1342,7 @@ public class RttServiceImplTest {
         mMockLooper.dispatchAll();
 
         verify(mockNative).rangeRequest(mIntCaptor.capture(), eq(request1), eq(true));
-        verifyWakeupSet();
+        verifyWakeupSet(true, 0);
 
         // (2) disable RTT: all requests should "fail"
         if (failureMode == FAILURE_MODE_DISABLE_WIFI) {
@@ -1416,10 +1421,15 @@ public class RttServiceImplTest {
         mLocationModeReceiver.onReceive(mockContext, intent);
     }
 
-    private void verifyWakeupSet() {
-        mInOrder.verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), anyLong(),
+    private void verifyWakeupSet(boolean useAwareTimeout, long baseTime) {
+        ArgumentCaptor<Long> longCaptor = ArgumentCaptor.forClass(Long.class);
+
+        mInOrder.verify(mAlarmManager.getAlarmManager()).setExact(anyInt(), longCaptor.capture(),
                 eq(RttServiceImpl.HAL_RANGING_TIMEOUT_TAG), any(AlarmManager.OnAlarmListener.class),
                 any(Handler.class));
+
+        assertEquals(baseTime + (useAwareTimeout ? RttServiceImpl.HAL_AWARE_RANGING_TIMEOUT_MS
+                : RttServiceImpl.HAL_RANGING_TIMEOUT_MS), longCaptor.getValue().longValue());
     }
 
     private void verifyWakeupCancelled() {

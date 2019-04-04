@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX;
-
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.admin.DeviceAdminInfo;
@@ -128,7 +126,6 @@ public class WifiConfigManager {
             1,  //  threshold for DISABLED_NO_INTERNET_TEMPORARY
             1,  //  threshold for DISABLED_WPS_START
             6,  //  threshold for DISABLED_TLS_VERSION_MISMATCH
-            1,  //  threshold for DISABLED_BY_WIFI_MANAGER_DISCONNECT
             1,  //  threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
             1,  //  threshold for DISABLED_NO_INTERNET_PERMANENT
             1,  //  threshold for DISABLED_BY_WIFI_MANAGER
@@ -153,7 +150,6 @@ public class WifiConfigManager {
             10 * 60 * 1000,     // threshold for DISABLED_NO_INTERNET_TEMPORARY
             0 * 60 * 1000,      // threshold for DISABLED_WPS_START
             Integer.MAX_VALUE,  // threshold for DISABLED_TLS_VERSION
-            1 * 60 * 60 * 1000,  //  threshold for DISABLED_BY_WIFI_MANAGER_DISCONNECT
             Integer.MAX_VALUE,  // threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
             Integer.MAX_VALUE,  // threshold for DISABLED_NO_INTERNET_PERMANENT
             Integer.MAX_VALUE,  // threshold for DISABLED_BY_WIFI_MANAGER
@@ -940,11 +936,7 @@ public class WifiConfigManager {
             internalConfig.allowedGroupManagementCiphers =
                     (BitSet) externalConfig.allowedGroupManagementCiphers.clone();
         }
-        if (externalConfig.allowedSuiteBCiphers != null
-                && !externalConfig.allowedSuiteBCiphers.isEmpty()) {
-            internalConfig.allowedSuiteBCiphers =
-                    (BitSet) externalConfig.allowedSuiteBCiphers.clone();
-        }
+        // allowedSuiteBCiphers is set internally according to the certificate type
 
         // Copy over the |IpConfiguration| parameters if set.
         if (externalConfig.getIpConfiguration() != null) {
@@ -1068,7 +1060,7 @@ public class WifiConfigManager {
      */
     private void updateRandomizedMacAddress(WifiConfiguration config) {
         // Update randomized MAC address according to stored map
-        final String key = config.configKey();
+        final String key = config.getSsidAndSecurityTypeString();
         // If the key is not found in the current store, then it means this network has never been
         // seen before. So add it to store.
         if (!mRandomizedMacAddressMapping.containsKey(key)) {
@@ -1175,8 +1167,8 @@ public class WifiConfigManager {
                 newInternalConfig) && !mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
             Log.e(TAG, "UID " + uid + " does not have permission to modify MAC randomization "
-                    + "Settings " + config.configKey() + ". Must have NETWORK_SETTINGS or"
-                    + "NETWORK_SETUP_WIZARD.");
+                    + "Settings " + config.getSsidAndSecurityTypeString() + ". Must have "
+                    + "NETWORK_SETTINGS or NETWORK_SETUP_WIZARD.");
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
 
@@ -1568,7 +1560,7 @@ public class WifiConfigManager {
         if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
             setNetworkSelectionEnabled(config);
             setNetworkStatus(config, WifiConfiguration.Status.ENABLED);
-        } else if (reason < NETWORK_SELECTION_DISABLED_PERMANENT_STARTING_INDEX) {
+        } else if (reason < NetworkSelectionStatus.DISABLED_TLS_VERSION_MISMATCH) {
             setNetworkSelectionTemporarilyDisabled(config, reason);
         } else {
             setNetworkSelectionPermanentlyDisabled(config, reason);
@@ -2796,7 +2788,8 @@ public class WifiConfigManager {
                 if (TelephonyUtil.isSimConfig(config)) {
                     Pair<String, String> currentIdentity =
                             TelephonyUtil.getSimIdentity(mTelephonyManager,
-                                    new TelephonyUtil(), config);
+                                    new TelephonyUtil(), config,
+                                    mWifiInjector.getCarrierNetworkConfig());
                     if (mVerboseLoggingEnabled) {
                         Log.d(TAG, "New identity for config " + config + ": " + currentIdentity);
                     }
@@ -2878,6 +2871,8 @@ public class WifiConfigManager {
             Log.w(TAG, "User switch before store is read!");
             mConfiguredNetworks.setNewUser(userId);
             mCurrentUserId = userId;
+            // Reset any state from previous user unlock.
+            mDeferredUserUnlockRead = false;
             // Cannot read data from new user's CE store file before they log-in.
             mPendingUnlockStoreRead = true;
             return new HashSet<>();
@@ -2912,12 +2907,16 @@ public class WifiConfigManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Handling user unlock for " + userId);
         }
+        if (userId != mCurrentUserId) {
+            Log.e(TAG, "Ignore user unlock for non current user " + userId);
+            return;
+        }
         if (mPendingStoreRead) {
             Log.w(TAG, "Ignore user unlock until store is read!");
             mDeferredUserUnlockRead = true;
             return;
         }
-        if (userId == mCurrentUserId && mPendingUnlockStoreRead) {
+        if (mPendingUnlockStoreRead) {
             handleUserUnlockOrSwitch(mCurrentUserId);
         }
     }
@@ -3041,7 +3040,7 @@ public class WifiConfigManager {
      */
     private void generateRandomizedMacAddresses() {
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            mRandomizedMacAddressMapping.put(config.configKey(),
+            mRandomizedMacAddressMapping.put(config.getSsidAndSecurityTypeString(),
                     config.getOrCreateRandomizedMacAddress().toString());
         }
     }
