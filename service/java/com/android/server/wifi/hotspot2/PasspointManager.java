@@ -431,7 +431,7 @@ public class PasspointManager {
         credential.setSimCredential(simCredential);
         config.setCredential(credential);
         if (!config.validate()) {
-            Log.e(TAG, "Transient PasspointConfiguration is not a valid format");
+            Log.e(TAG, "Transient PasspointConfiguration is not a valid format: " + config);
             return null;
         }
         return config;

@@ -63,6 +63,9 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -165,6 +168,24 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                         pw.println("Can't convert value to integer -- '" + valueStr + "'");
                         return -1;
                     }
+                } else if ("get_capabilities".equals(cmd)) {
+                    android.hardware.wifi.V1_0.RttCapabilities cap =
+                            mRttNative.getRttCapabilities();
+                    JSONObject j = new JSONObject();
+                    if (cap != null) {
+                        try {
+                            j.put("rttOneSidedSupported", cap.rttOneSidedSupported);
+                            j.put("rttFtmSupported", cap.rttFtmSupported);
+                            j.put("lciSupported", cap.lciSupported);
+                            j.put("lcrSupported", cap.lcrSupported);
+                            j.put("responderSupported", cap.responderSupported);
+                            j.put("mcVersion", cap.mcVersion);
+                        } catch (JSONException e) {
+                            Log.e(TAG, "onCommand: get_capabilities e=" + e);
+                        }
+                    }
+                    getOutPrintWriter().println(j.toString());
+                    return 0;
                 } else {
                     handleDefaultCommands(cmd);
                 }
@@ -183,6 +204,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             pw.println("    Print this help text.");
             pw.println("  reset");
             pw.println("    Reset parameters to default values.");
+            pw.println("  get_capabilities: prints out the RTT capabilities as a JSON string");
             pw.println("  get <name>");
             pw.println("    Get the value of the control parameter.");
             pw.println("  set <name> <value>");

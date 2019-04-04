@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Process;
+import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
 import androidx.test.filters.SmallTest;
@@ -62,6 +63,7 @@ public class CarrierNetworkEvaluatorTest {
     private static final String CARRIER_SAVED_SSID = "\"carrier3-saved\"";
     private static final String CARRIER_SAVED_EPH_SSID = "\"carrier4-saved-ephemeral\"";
     private static final String NON_CARRIER_SSID = "\"non-carrier\"";
+    private static final String TEST_MCC_MNC = "123456";
 
     private static final int CARRIER1_NET_ID = 1;
     private static final int CARRIER2_NET_ID = 2;
@@ -74,9 +76,10 @@ public class CarrierNetworkEvaluatorTest {
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private LocalLog mLocalLog;
-    @Mock private NetworkUpdateResult mNetworkUpdateResult;
     @Mock private Clock mClock;
     @Mock private WifiNetworkSelector.NetworkEvaluator.OnConnectableListener mConnectableListener;
+    @Mock private WifiInjector mWifiInjector;
+    @Mock private TelephonyManager mTelephonyManager;
 
     private ArgumentCaptor<ScanDetail> mScanDetailCaptor = ArgumentCaptor.forClass(
             ScanDetail.class);
@@ -148,9 +151,15 @@ public class CarrierNetworkEvaluatorTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        mDut = new CarrierNetworkEvaluator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog);
+        mDut = new CarrierNetworkEvaluator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog,
+                mWifiInjector);
 
+        when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
+        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
+                CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI);
 
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER1_SSID.replace("\"", ""))))
                 .thenReturn(true);
@@ -248,6 +257,7 @@ public class CarrierNetworkEvaluatorTest {
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
 
         assertEquals(config2.configKey(), selected.configKey()); // SSID2 has the highest RSSI
+        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
@@ -372,4 +382,31 @@ public class CarrierNetworkEvaluatorTest {
         assertNull(selected);
     }
 
+    /**
+     * One carrier Wi-Fi network that is visible and supports anonymous identity.
+     *
+     * Desired behavior: anonymous identity is configured.
+     */
+    @Test
+    public void testAnonymousIdentityConfigured() {
+        String[] ssids = {CARRIER1_SSID};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        String[] caps = {"[WPA2-EAP-CCMP]"};
+        int[] levels = {10};
+        String expectedAnonymousIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
+                CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI);
+        List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
+                freqs, caps, levels, mClock);
+        WifiConfiguration carrierConfig = configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0),
+                true, false);
+
+        WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
+                mConnectableListener);
+
+        assertEquals(carrierConfig.configKey(), selected.configKey());
+        assertEquals(expectedAnonymousIdentity, selected.enterpriseConfig.getAnonymousIdentity());
+    }
 }

@@ -81,16 +81,18 @@ public class CarrierNetworkConfigTest {
      * @param ssid The SSID of the carrier network
      * @param eapType The EAP type of the carrier network
      * @param encodingMethod base64 encoding method
+     * @param eapIdentitySequence eap identity sequence
      * @return {@link PersistableBundle} containing carrier config
      */
-    private PersistableBundle generateTestConfig(String ssid, int eapType, int encodingMethod) {
+    private PersistableBundle generateTestConfig(String ssid, int eapType, int encodingMethod,
+            int eapIdentitySequence) {
         PersistableBundle bundle = new PersistableBundle();
         String networkConfig =
                 new String(Base64.encode(ssid.getBytes(), Base64.DEFAULT)) + "," + eapType;
         bundle.putStringArray(CarrierConfigManager.KEY_CARRIER_WIFI_STRING_ARRAY,
-                new String[] {networkConfig});
+                new String[]{networkConfig});
         bundle.putInt(CarrierConfigManager.KEY_IMSI_ENCODING_METHOD_INT, encodingMethod);
-
+        bundle.putInt(CarrierConfigManager.KEY_EAP_IDENTITY_SEQUENCE_INT, eapIdentitySequence);
         return bundle;
     }
 
@@ -107,7 +109,8 @@ public class CarrierNetworkConfigTest {
         when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
         when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
                 .thenReturn(generateTestConfig(TEST_SSID, TEST_STANDARD_EAP_TYPE,
-                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045));
+                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI));
         when(mSubscriptionManager.getActiveSubscriptionInfoList())
                 .thenReturn(Arrays.asList(new SubscriptionInfo[] {TEST_SUBSCRIPTION_INFO}));
         when(mTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
@@ -140,6 +143,8 @@ public class CarrierNetworkConfigTest {
         assertEquals(TEST_INTERNAL_EAP_TYPE, mCarrierNetworkConfig.getNetworkEapType(TEST_SSID));
         assertEquals(TEST_CARRIER_NAME, mCarrierNetworkConfig.getCarrierName(TEST_SSID));
         assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
+        assertEquals(CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI,
+                mCarrierNetworkConfig.getEapIdentitySequence());
     }
 
     /**
@@ -204,7 +209,8 @@ public class CarrierNetworkConfigTest {
                 .thenReturn(Arrays.asList(new SubscriptionInfo[] {updatedSubscriptionInfo}));
         when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
                 .thenReturn(generateTestConfig(updatedSsid, updatedStandardEapType,
-                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045));
+                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI));
         mBroadcastReceiver.onReceive(mContext,
                 new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
 
@@ -213,12 +219,16 @@ public class CarrierNetworkConfigTest {
         assertEquals(-1, mCarrierNetworkConfig.getNetworkEapType(TEST_SSID));
         assertEquals(null, mCarrierNetworkConfig.getCarrierName(TEST_SSID));
         assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
+        assertEquals(CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI,
+                mCarrierNetworkConfig.getEapIdentitySequence());
 
         // Verify that updated SSID is associated with a carrier network.
         assertTrue(mCarrierNetworkConfig.isCarrierNetwork(updatedSsid));
         assertEquals(updatedInternalEapType, mCarrierNetworkConfig.getNetworkEapType(updatedSsid));
         assertEquals(updatedCarrierName, mCarrierNetworkConfig.getCarrierName(updatedSsid));
         assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
+        assertEquals(CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI,
+                mCarrierNetworkConfig.getEapIdentitySequence());
     }
 
     /**
@@ -259,7 +269,8 @@ public class CarrierNetworkConfigTest {
     public void verifyBase64EncodingTypeWithRfc4648() {
         when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
                 .thenReturn(generateTestConfig(TEST_SSID, TEST_STANDARD_EAP_TYPE,
-                        CarrierNetworkConfig.ENCODING_METHOD_RFC_4648));
+                        CarrierNetworkConfig.ENCODING_METHOD_RFC_4648,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI));
         mBroadcastReceiver.onReceive(mContext,
                 new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
         assertEquals(Base64.NO_WRAP, mCarrierNetworkConfig.getBase64EncodingFlag());
@@ -273,7 +284,8 @@ public class CarrierNetworkConfigTest {
     public void verifyBase64EncodingTypeWithUnsupportedEncodingMethod() {
         String ssid = "invalid carrier AP";
         when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
-                .thenReturn(generateTestConfig(ssid, TEST_STANDARD_EAP_TYPE, 123));
+                .thenReturn(generateTestConfig(ssid, TEST_STANDARD_EAP_TYPE, 123,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI));
         mBroadcastReceiver.onReceive(mContext,
                 new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
 
@@ -281,5 +293,22 @@ public class CarrierNetworkConfigTest {
         assertEquals(-1, mCarrierNetworkConfig.getNetworkEapType(ssid));
         assertEquals(null, mCarrierNetworkConfig.getCarrierName(ssid));
         assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
+    }
+
+    /**
+     * Verify that anonymous identity should be supported when carrier configuration is configured
+     * to support anonymous followed by encrypted IMSI for eap identity.
+     */
+    @Test
+    public void verifyEapIdentitySequenceWithAnonymous() {
+        when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
+                .thenReturn(generateTestConfig(TEST_SSID, TEST_STANDARD_EAP_TYPE,
+                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI));
+        mBroadcastReceiver.onReceive(mContext,
+                new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
+
+        assertEquals(CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI,
+                mCarrierNetworkConfig.getEapIdentitySequence());
     }
 }

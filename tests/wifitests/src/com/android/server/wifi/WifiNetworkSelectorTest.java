@@ -783,6 +783,7 @@ public class WifiNetworkSelectorTest {
                     WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED,
                     WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED)));
         }
+        verify(mWifiMetrics, atLeastOnce()).setNetworkSelectorExperimentId(anyInt());
     }
 
     /**
@@ -1627,6 +1628,7 @@ public class WifiNetworkSelectorTest {
         verify(mWifiMetrics).logNetworkSelectionDecision(
                 WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, nullScorerId, false, 2);
         verify(mWifiMetrics, atLeastOnce()).setNominatorForNetwork(anyInt(), anyInt());
+        verify(mWifiMetrics, atLeastOnce()).setNetworkSelectorExperimentId(anyInt());
         verifyNoMoreInteractions(mWifiMetrics);
     }
 
@@ -1670,6 +1672,8 @@ public class WifiNetworkSelectorTest {
 
         verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(
                 WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, compatibilityExpId, true, 2);
+
+        int expid = CompatibilityScorer.COMPATIBILITY_SCORER_DEFAULT_EXPID;
+        verify(mWifiMetrics, atLeastOnce()).setNetworkSelectorExperimentId(eq(expid));
     }
 }
-

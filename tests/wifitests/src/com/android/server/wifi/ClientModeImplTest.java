@@ -103,6 +103,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -379,6 +380,7 @@ public class ClientModeImplTest {
     @Mock PackageManager mPackageManager;
     @Mock WifiLockManager mWifiLockManager;
     @Mock AsyncChannel mNullAsyncChannel;
+    @Mock CarrierNetworkConfig mCarrierNetworkConfig;
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -433,6 +435,7 @@ public class ClientModeImplTest {
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
+        when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -997,9 +1000,43 @@ public class ClientModeImplTest {
         // Ensure the connection stats for the network is updated.
         verify(mWifiConfigManager).updateNetworkAfterConnect(FRAMEWORK_NETWORK_ID);
 
+        // Anonymous Identity is not set.
+        assertEquals("", mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
         verify(mWifiStateTracker).updateState(eq(WifiStateTracker.CONNECTED));
         assertEquals("ConnectedState", getCurrentState().getName());
         verify(mWifiLockManager).updateWifiClientConnected(true);
+    }
+
+    /**
+     * Tests anonymous identity is set again whenever a connection is established for the carrier
+     * that supports encrypted IMSI and anonymous identity.
+     */
+    @Test
+    public void testSetAnonymousIdentityWhenConnectionIsEstablished() throws Exception {
+        mConnectedNetwork = spy(WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE));
+        when(mTelephonyManager.getSimOperator()).thenReturn("123456");
+        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        String expectedAnonymousIdentity = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
+                mTelephonyManager);
+        triggerConnect();
+
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
+                CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI);
+        when(mWifiConfigManager.getScanDetailCacheForNetwork(FRAMEWORK_NETWORK_ID))
+                .thenReturn(mScanDetailCache);
+
+        when(mScanDetailCache.getScanDetail(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq));
+        when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq).getScanResult());
+
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+
+        assertEquals(expectedAnonymousIdentity,
+                mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
@@ -3158,7 +3195,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics).updateWifiUsabilityStatsEntries(any(), eq(stats));
         verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                eq(anyInt()));
+                eq(anyInt()), eq(-1));
 
         when(mWifiDataStall.checkForDataStall(any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
@@ -3166,7 +3203,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
     }
 
     /**
@@ -3418,7 +3455,7 @@ public class ClientModeImplTest {
         verify(mWifiMetrics).logWifiIsUnusableEvent(
                 WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST);
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
     }
 
     /**

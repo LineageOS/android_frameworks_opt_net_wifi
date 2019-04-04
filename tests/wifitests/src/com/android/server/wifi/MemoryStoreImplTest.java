@@ -112,23 +112,23 @@ public class MemoryStoreImplTest {
                 eq(myL2Key),                                                  // String l2Key
                 eq(MemoryStoreImpl.WIFI_FRAMEWORK_IP_MEMORY_STORE_CLIENT_ID), // String clientId
                 eq(MemoryStoreImpl.WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME), // String name
-                mIOnBlobRetrievedListenerCaptor.capture());
+                mOnBlobRetrievedListenerCaptor.capture());
         verifyNoMoreInteractions(mIpMemoryStore, mBlobListener);
         // Now simulate the completion of the read request
         final android.net.ipmemorystore.Blob wrappedBlob = new android.net.ipmemorystore.Blob();
         wrappedBlob.data = myBlob;
-        mIOnBlobRetrievedListenerCaptor.getValue()
+        mOnBlobRetrievedListenerCaptor.getValue()
                 .onBlobRetrieved(
-                        statusSuccess.toParcelable(),
+                        statusSuccess,
                         myL2Key,
                         MemoryStoreImpl.WIFI_FRAMEWORK_IP_MEMORY_STORE_DATA_NAME,
                         wrappedBlob);
         verify(mBlobListener).onBlobRetrieved(mBytesCaptor.capture());
         assertArrayEquals(myBlob, mBytesCaptor.getValue());
     }
-    final ArgumentCaptor<android.net.ipmemorystore.IOnBlobRetrievedListener>
-            mIOnBlobRetrievedListenerCaptor =
-            ArgumentCaptor.forClass(android.net.ipmemorystore.IOnBlobRetrievedListener.class);
+    final ArgumentCaptor<android.net.ipmemorystore.OnBlobRetrievedListener>
+            mOnBlobRetrievedListenerCaptor =
+            ArgumentCaptor.forClass(android.net.ipmemorystore.OnBlobRetrievedListener.class);
     final ArgumentCaptor<byte[]>
             mBytesCaptor =
             ArgumentCaptor.forClass(byte[].class);

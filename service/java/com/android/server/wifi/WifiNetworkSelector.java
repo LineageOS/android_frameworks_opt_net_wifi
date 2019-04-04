@@ -834,6 +834,9 @@ public class WifiNetworkSelector {
         if (ans == null && PRESET_CANDIDATE_SCORER_NAME != null) {
             Log.wtf(TAG, PRESET_CANDIDATE_SCORER_NAME + " is not registered!");
         }
+        mWifiMetrics.setNetworkSelectorExperimentId(ans == null
+                ? LEGACY_CANDIDATE_SCORER_EXP_ID
+                : experimentIdFromIdentifier(ans.getIdentifier()));
         return ans;
     }
 

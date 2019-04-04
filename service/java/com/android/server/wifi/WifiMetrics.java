@@ -168,6 +168,10 @@ public class WifiMetrics {
     //   >= 300
     private static final int[] WIFI_CONFIG_STORE_IO_DURATION_BUCKET_RANGES_MS =
             {50, 100, 150, 200, 300};
+    // Minimum time wait before generating a LABEL_GOOD stats after score breaching low.
+    public static final int MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS = 60 * 1000; // 1 minute
+    // Maximum time that a score breaching low event stays valid.
+    public static final int VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS = 90 * 1000; // 1.5 minutes
 
     private Clock mClock;
     private boolean mScreenOn;
@@ -199,6 +203,7 @@ public class WifiMetrics {
             android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
     private int mProbeElapsedTimeSinceLastUpdateMs = -1;
     private int mProbeMcsRateSinceLastUpdate = -1;
+    private long mScoreBreachLowTimeMillis = -1;
 
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
@@ -384,6 +389,8 @@ public class WifiMetrics {
      */
     private Map<Pair<Integer, Integer>, NetworkSelectionExperimentResults>
             mNetworkSelectionExperimentPairNumChoicesCounts = new ArrayMap<>();
+
+    private int mNetworkSelectorExperimentId;
 
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
@@ -996,7 +1003,7 @@ public class WifiMetrics {
             mCurrentConnectionEvent.mConfigBssid = targetBSSID;
             mCurrentConnectionEvent.mConnectionEvent.roamType = roamType;
             mCurrentConnectionEvent.mConnectionEvent.networkSelectorExperimentId =
-                    mScoringParams.getExperimentIdentifier();
+                    mNetworkSelectorExperimentId;
             mCurrentConnectionEvent.mRouterFingerPrint.updateFromWifiConfiguration(config);
             mCurrentConnectionEvent.mConfigBssid = "any";
             mCurrentConnectionEvent.mRealStartTime = mClock.getElapsedSinceBootMillis();
@@ -1701,6 +1708,11 @@ public class WifiMetrics {
                 StaEvent event = new StaEvent();
                 event.type = StaEvent.TYPE_SCORE_BREACH;
                 addStaEvent(event);
+                // Only record the first score breach by checking whether mScoreBreachLowTimeMillis
+                // has been set to -1
+                if (!wifiWins && mScoreBreachLowTimeMillis == -1) {
+                    mScoreBreachLowTimeMillis = mClock.getElapsedSinceBootMillis();
+                }
             }
         }
     }
@@ -2222,7 +2234,7 @@ public class WifiMetrics {
         logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, errorCode);
         if (mScreenOn) {
             addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                    WifiUsabilityStats.TYPE_FIRMWARE_ALERT);
+                    WifiUsabilityStats.TYPE_FIRMWARE_ALERT, errorCode);
         }
     }
 
@@ -3429,6 +3441,7 @@ public class WifiMetrics {
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_NO_PROBE;
             mProbeElapsedTimeSinceLastUpdateMs = -1;
             mProbeMcsRateSinceLastUpdate = -1;
+            mScoreBreachLowTimeMillis = -1;
             mWifiConfigStoreReadDurationHistogram.clear();
             mWifiConfigStoreWriteDurationHistogram.clear();
             mLinkProbeSuccessRssiCounts.clear();
@@ -4037,6 +4050,7 @@ public class WifiMetrics {
      * @param firmwareAlertCode WifiIsUnusableEvent.firmwareAlertCode for firmware alert code
      */
     public void logWifiIsUnusableEvent(int triggerType, int firmwareAlertCode) {
+        mScoreBreachLowTimeMillis = -1;
         if (!mUnusableEventLogging) {
             return;
         }
@@ -4213,7 +4227,17 @@ public class WifiMetrics {
             mWifiUsabilityStatsCounter++;
             if (mWifiUsabilityStatsCounter >= NUM_WIFI_USABILITY_STATS_ENTRIES_PER_WIFI_GOOD) {
                 addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD,
-                        WifiUsabilityStats.TYPE_UNKNOWN);
+                        WifiUsabilityStats.TYPE_UNKNOWN, -1);
+            }
+            if (mScoreBreachLowTimeMillis != -1) {
+                long elapsedTime =  mClock.getElapsedSinceBootMillis() - mScoreBreachLowTimeMillis;
+                if (elapsedTime >= MIN_SCORE_BREACH_TO_GOOD_STATS_WAIT_TIME_MS) {
+                    mScoreBreachLowTimeMillis = -1;
+                    if (elapsedTime <= VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS) {
+                        addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_GOOD,
+                                WifiUsabilityStats.TYPE_UNKNOWN, -1);
+                    }
+                }
             }
 
             // Invoke Wifi usability stats listener.
@@ -4364,10 +4388,12 @@ public class WifiMetrics {
         return out;
     }
 
-    private WifiUsabilityStats createWifiUsabilityStatsWithLabel(int label, int triggerType) {
+    private WifiUsabilityStats createWifiUsabilityStatsWithLabel(int label, int triggerType,
+            int firmwareAlertCode) {
         WifiUsabilityStats wifiUsabilityStats = new WifiUsabilityStats();
         wifiUsabilityStats.label = label;
         wifiUsabilityStats.triggerType = triggerType;
+        wifiUsabilityStats.firmwareAlertCode = firmwareAlertCode;
         wifiUsabilityStats.stats =
                 new WifiUsabilityStatsEntry[mWifiUsabilityStatsEntriesList.size()];
         for (int i = 0; i < mWifiUsabilityStatsEntriesList.size(); i++) {
@@ -4380,8 +4406,11 @@ public class WifiMetrics {
     /**
      * Label the current snapshot of WifiUsabilityStatsEntrys and save the labeled data in memory.
      * @param label WifiUsabilityStats.LABEL_GOOD or WifiUsabilityStats.LABEL_BAD
+     * @param triggerType what event triggers WifiUsabilityStats
+     * @param firmwareAlertCode the firmware alert code when the stats was triggered by a
+     *        firmware alert
      */
-    public void addToWifiUsabilityStatsList(int label, int triggerType) {
+    public void addToWifiUsabilityStatsList(int label, int triggerType, int firmwareAlertCode) {
         synchronized (mLock) {
             if (mWifiUsabilityStatsEntriesList.isEmpty()) {
                 return;
@@ -4400,11 +4429,13 @@ public class WifiMetrics {
                                 mRand.nextInt(mWifiUsabilityStatsListGood.size()));
                     }
                     mWifiUsabilityStatsListGood.add(
-                            createWifiUsabilityStatsWithLabel(label, triggerType));
+                            createWifiUsabilityStatsWithLabel(label, triggerType,
+                                    firmwareAlertCode));
                 }
             } else {
                 // Only add a bad event if at least |MIN_DATA_STALL_WAIT_MS|
                 // has passed.
+                mScoreBreachLowTimeMillis = -1;
                 if (mWifiUsabilityStatsListBad.isEmpty()
                         || (mWifiUsabilityStatsListBad.getLast().stats[mWifiUsabilityStatsListBad
                         .getLast().stats.length - 1].timeStampMs
@@ -4416,7 +4447,8 @@ public class WifiMetrics {
                                 mRand.nextInt(mWifiUsabilityStatsListBad.size()));
                     }
                     mWifiUsabilityStatsListBad.add(
-                            createWifiUsabilityStatsWithLabel(label, triggerType));
+                            createWifiUsabilityStatsWithLabel(label, triggerType,
+                                    firmwareAlertCode));
                 }
             }
             mWifiUsabilityStatsCounter = 0;
@@ -4562,6 +4594,11 @@ public class WifiMetrics {
                 StaEvent event = new StaEvent();
                 event.type = StaEvent.TYPE_WIFI_USABILITY_SCORE_BREACH;
                 addStaEvent(event);
+                // Only record the first score breach by checking whether mScoreBreachLowTimeMillis
+                // has been set to -1
+                if (!wifiWins && mScoreBreachLowTimeMillis == -1) {
+                    mScoreBreachLowTimeMillis = mClock.getElapsedSinceBootMillis();
+                }
             }
         }
     }
@@ -4763,6 +4800,15 @@ public class WifiMetrics {
         synchronized (mLock) {
             if (networkId == WifiConfiguration.INVALID_NETWORK_ID) return;
             mNetworkIdToNominatorId.put(networkId, nominatorId);
+        }
+    }
+
+    /**
+     * Sets the numeric CandidateScorer id.
+     */
+    public void setNetworkSelectorExperimentId(int expId) {
+        synchronized (mLock) {
+            mNetworkSelectorExperimentId = expId;
         }
     }
 

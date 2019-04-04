@@ -83,6 +83,7 @@ LOCAL_JNI_SHARED_LIBRARIES := \
 	libdl_android \
 	libcamera_client \
 	libcamera_metadata \
+	libcgrouprc \
 	libcutils \
 	libexpat \
 	libgui \
