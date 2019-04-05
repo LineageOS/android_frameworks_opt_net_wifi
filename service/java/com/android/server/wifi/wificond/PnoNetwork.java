@@ -52,7 +52,10 @@ public class PnoNetwork implements Parcelable {
     /** override hash code */
     @Override
     public int hashCode() {
-        return Objects.hash(isHidden, ssid, frequencies);
+        return Objects.hash(
+                isHidden,
+                Arrays.hashCode(ssid),
+                Arrays.hashCode(frequencies));
     }
 
     /** implement Parcelable interface */
