@@ -6411,6 +6411,9 @@ public class ClientModeImpl extends StateMachine {
         if (macAddress != null) {
             return macAddress.toString();
         }
+        if (!mConnectedMacRandomzationSupported) {
+            return mWifiNative.getMacAddress(mInterfaceName);
+        }
         return null;
     }
 
