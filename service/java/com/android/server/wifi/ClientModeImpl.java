@@ -28,7 +28,6 @@ import static com.android.server.wifi.CarrierNetworkConfig.IDENTITY_SEQUENCE_ANO
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
-import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -56,7 +55,6 @@ import android.net.SocketKeepalive;
 import android.net.SocketKeepalive.InvalidPacketException;
 import android.net.StaticIpConfiguration;
 import android.net.TcpKeepalivePacketData;
-import android.net.TrafficStats;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientUtil;
@@ -336,7 +334,7 @@ public class ClientModeImpl extends StateMachine {
     // This is the BSSID we are trying to associate to, it can be set to SUPPLICANT_BSSID_ANY
     // if we havent selected a BSSID for joining.
     private String mTargetRoamBSSID = SUPPLICANT_BSSID_ANY;
-    // This one is used to track whta is the current target network ID. This is used for error
+    // This one is used to track the current target network ID. This is used for error
     // handling during connection setup since many error message from supplicant does not report
     // SSID Once connected, it will be set to invalid
     private int mTargetNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
@@ -1085,13 +1083,6 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    PendingIntent getPrivateBroadcast(String action, int requestCode) {
-        Intent intent = new Intent(action, null);
-        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-        intent.setPackage("android");
-        return mFacade.getBroadcast(mContext, requestCode, intent, 0);
-    }
-
     /**
      * Set wpa_supplicant log level using |mVerboseLoggingLevel| flag.
      */
@@ -1228,18 +1219,6 @@ public class ClientModeImpl extends StateMachine {
 
     private int mMessageHandlingStatus = 0;
 
-    //TODO: this is used only to track connection attempts, however the link state and packet per
-    //TODO: second logic should be folded into that
-    private boolean checkOrDeferScanAllowed(Message msg) {
-        long now = mClock.getWallClockMillis();
-        if (mLastConnectAttemptTimestamp != 0 && (now - mLastConnectAttemptTimestamp) < 10000) {
-            Message dmsg = Message.obtain(msg);
-            sendMessageDelayed(dmsg, 11000 - (now - mLastConnectAttemptTimestamp));
-            return false;
-        }
-        return true;
-    }
-
     private int mOnTime = 0;
     private int mTxTime = 0;
     private int mRxTime = 0;
@@ -1318,7 +1297,8 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    int startWifiIPPacketOffload(int slot, KeepalivePacketData packetData, int intervalSeconds) {
+    private int startWifiIPPacketOffload(int slot, KeepalivePacketData packetData,
+            int intervalSeconds) {
         byte[] packet = null;
         byte[] dstMac = null;
         int proto = 0;
@@ -1342,7 +1322,7 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    int stopWifiIPPacketOffload(int slot) {
+    private int stopWifiIPPacketOffload(int slot) {
         int ret = mWifiNative.stopSendingOffloadedPacket(mInterfaceName, slot);
         if (ret != 0) {
             loge("stopWifiIPPacketOffload(" + slot + "): hardware error " + ret);
@@ -1352,12 +1332,12 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
-    int startRssiMonitoringOffload(byte maxRssi, byte minRssi,
+    private int startRssiMonitoringOffload(byte maxRssi, byte minRssi,
             WifiNative.WifiRssiEventHandler rssiHandler) {
         return mWifiNative.startRssiMonitoring(mInterfaceName, maxRssi, minRssi, rssiHandler);
     }
 
-    int stopRssiMonitoringOffload() {
+    private int stopRssiMonitoringOffload() {
         return mWifiNative.stopRssiMonitoring(mInterfaceName);
     }
 
@@ -1396,7 +1376,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * TODO: doc
+     * Converts the current wifi state to a printable form.
      */
     public String syncGetWifiStateByName() {
         switch (mWifiState.get()) {
@@ -2662,6 +2642,9 @@ public class ClientModeImpl extends StateMachine {
         }
     }
 
+    /**
+     * Makes a record of the user intent about suspend optimizations.
+     */
     private void setSuspendOptimizations(int reason, boolean enabled) {
         if (mVerboseLoggingEnabled) log("setSuspendOptimizations: " + reason + " " + enabled);
         if (enabled) {
@@ -2745,7 +2728,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiMetrics.handlePollResult(mWifiInfo);
     }
 
-    // Polling has completed, hence we wont have a score anymore
+    // Polling has completed, hence we won't have a score anymore
     private void cleanWifiScore() {
         mWifiInfo.txBadRate = 0;
         mWifiInfo.txSuccessRate = 0;
@@ -2800,50 +2783,6 @@ public class ClientModeImpl extends StateMachine {
         // Now clear the merged link properties.
         mLinkProperties.clear();
         if (mNetworkAgent != null) mNetworkAgent.sendLinkProperties(mLinkProperties);
-    }
-
-    /**
-     * try to update default route MAC address.
-     */
-    private String updateDefaultRouteMacAddress(int timeout) {
-        String address = null;
-        for (RouteInfo route : mLinkProperties.getRoutes()) {
-            if (route.isDefaultRoute() && route.hasGateway()) {
-                InetAddress gateway = route.getGateway();
-                if (gateway instanceof Inet4Address) {
-                    if (mVerboseLoggingEnabled) {
-                        logd("updateDefaultRouteMacAddress found Ipv4 default :"
-                                + gateway.getHostAddress());
-                    }
-                    address = macAddressFromRoute(gateway.getHostAddress());
-                    /* The gateway's MAC address is known */
-                    if ((address == null) && (timeout > 0)) {
-                        boolean reachable = false;
-                        TrafficStats.setThreadStatsTag(TrafficStats.TAG_SYSTEM_PROBE);
-                        try {
-                            reachable = gateway.isReachable(timeout);
-                        } catch (Exception e) {
-                            loge("updateDefaultRouteMacAddress exception reaching :"
-                                    + gateway.getHostAddress());
-
-                        } finally {
-                            TrafficStats.clearThreadStatsTag();
-                            if (reachable) {
-                                address = macAddressFromRoute(gateway.getHostAddress());
-                                if (mVerboseLoggingEnabled) {
-                                    logd("updateDefaultRouteMacAddress reachable (tried again) :"
-                                            + gateway.getHostAddress() + " found " + address);
-                                }
-                            }
-                        }
-                    }
-                    if (address != null) {
-                        mWifiConfigManager.setNetworkDefaultGwMacAddress(mLastNetworkId, address);
-                    }
-                }
-            }
-        }
-        return address;
     }
 
     private void sendRssiChangeBroadcast(final int newRssi) {
@@ -3307,7 +3246,7 @@ public class ClientModeImpl extends StateMachine {
         try {
             reader = new BufferedReader(new FileReader("/proc/net/arp"));
 
-            // Skip over the line bearing colum titles
+            // Skip over the line bearing column titles
             String line = reader.readLine();
 
             while ((line = reader.readLine()) != null) {
@@ -3882,7 +3821,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Returns WifiConfiguration object correponding to the currently connected network, null if
+     * Returns WifiConfiguration object corresponding to the currently connected network, null if
      * not connected.
      */
     public WifiConfiguration getCurrentWifiConfiguration() {
@@ -5532,7 +5471,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_UNWANTED_NETWORK:
                     if (mVerboseLoggingEnabled) {
-                        log("Roaming and CS doesnt want the network -> ignore");
+                        log("Roaming and CS doesn't want the network -> ignore");
                     }
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
@@ -5655,9 +5594,6 @@ public class ClientModeImpl extends StateMachine {
     class ConnectedState extends State {
         @Override
         public void enter() {
-            // TODO: b/64349637 Investigate getting default router IP/MAC address info from
-            // IpManager
-            //updateDefaultRouteMacAddress(1000);
             if (mVerboseLoggingEnabled) {
                 log("Enter ConnectedState  mScreenOn=" + mScreenOn);
             }
@@ -5923,7 +5859,7 @@ public class ClientModeImpl extends StateMachine {
         @Override
         public void enter() {
             Log.i(TAG, "disconnectedstate enter");
-            // We dont scan frequently if this is a temporary disconnect
+            // We don't scan frequently if this is a temporary disconnect
             // due to p2p
             if (mTemporarilyDisconnectWifi) {
                 p2pSendMessage(WifiP2pServiceImpl.DISCONNECT_WIFI_RESPONSE);
