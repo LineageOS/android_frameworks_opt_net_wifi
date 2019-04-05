@@ -398,6 +398,8 @@ public class WifiMetricsTest {
     private static final int DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING = 75;
     private static final int NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES = 5;
     private static final int NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS = 4;
+    private static final int NUM_ADD_OR_UPDATE_NETWORK_CALLS = 5;
+    private static final int NUM_ENABLE_NETWORK_CALLS = 6;
 
     /** Number of notifications per "Connect to Network" notification type. */
     private static final int[] NUM_CONNECT_TO_NETWORK_NOTIFICATIONS = {0, 10, 20, 30, 40};
@@ -856,6 +858,12 @@ public class WifiMetricsTest {
         for (int i = 0; i < NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS; i++) {
             mWifiMetrics.incrementOneshotScanWithDfsCount();
         }
+        for (int i = 0; i < NUM_ADD_OR_UPDATE_NETWORK_CALLS; i++) {
+            mWifiMetrics.incrementNumAddOrUpdateNetworkCalls();
+        }
+        for (int i = 0; i < NUM_ENABLE_NETWORK_CALLS; i++) {
+            mWifiMetrics.incrementNumEnableNetworkCalls();
+        }
 
         mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
         mWifiMetrics.setIsMacRandomizationOn(IS_MAC_RANDOMIZATION_ON);
@@ -1217,6 +1225,8 @@ public class WifiMetricsTest {
                 mDecodedProto.numSarSensorRegistrationFailures);
         assertEquals(NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS,
                 mDecodedProto.numOneshotHasDfsChannelScans);
+        assertEquals(NUM_ADD_OR_UPDATE_NETWORK_CALLS, mDecodedProto.numAddOrUpdateNetworkCalls);
+        assertEquals(NUM_ENABLE_NETWORK_CALLS, mDecodedProto.numEnableNetworkCalls);
     }
 
     /**
@@ -3778,6 +3788,29 @@ public class WifiMetricsTest {
         dumpProtoAndDeserialize();
         assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
     }
+
+    /**
+     * Verify that incrementNumWifiToggles increments the corrects fields based on input.
+     */
+    @Test
+    public void testIncrementNumWifiToggles() throws Exception {
+        mWifiMetrics.incrementNumWifiToggles(true, true);
+        for (int i = 0; i < 2; i++) {
+            mWifiMetrics.incrementNumWifiToggles(true, false);
+        }
+        for (int i = 0; i < 3; i++) {
+            mWifiMetrics.incrementNumWifiToggles(false, true);
+        }
+        for (int i = 0; i < 4; i++) {
+            mWifiMetrics.incrementNumWifiToggles(false, false);
+        }
+        dumpProtoAndDeserialize();
+        assertEquals(1, mDecodedProto.wifiToggleStats.numToggleOnPrivileged);
+        assertEquals(2, mDecodedProto.wifiToggleStats.numToggleOffPrivileged);
+        assertEquals(3, mDecodedProto.wifiToggleStats.numToggleOnNormal);
+        assertEquals(4, mDecodedProto.wifiToggleStats.numToggleOffNormal);
+    }
+
 
     /**
      * Create a test to verify data collection logic triggered by score breaching low
