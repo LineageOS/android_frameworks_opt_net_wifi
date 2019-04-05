@@ -3314,6 +3314,7 @@ public class ClientModeImplTest {
         initializeAndAddNetworkAndVerifySuccess();
         assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getFactoryMacAddress());
         verify(mWifiNative).getFactoryMacAddress(WIFI_IFACE_NAME);
+        verify(mWifiNative).getMacAddress(anyString()); // called once when setting up client mode
     }
 
     /**
@@ -3325,6 +3326,22 @@ public class ClientModeImplTest {
         when(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME)).thenReturn(null);
         assertNull(mCmi.getFactoryMacAddress());
         verify(mWifiNative).getFactoryMacAddress(WIFI_IFACE_NAME);
+        verify(mWifiNative).getMacAddress(anyString()); // called once when setting up client mode
+    }
+
+    /**
+     * Verify that when WifiNative#getFactoryMacAddress fails, if the device does not support
+     * MAC randomization then the currently programmed MAC address gets returned.
+     */
+    @Test
+    public void testGetFactoryMacAddressFailWithNoMacRandomizationSupport() throws Exception {
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, false);
+        initializeCmi();
+        initializeAndAddNetworkAndVerifySuccess();
+        when(mWifiNative.getFactoryMacAddress(WIFI_IFACE_NAME)).thenReturn(null);
+        assertEquals(TEST_GLOBAL_MAC_ADDRESS.toString(), mCmi.getFactoryMacAddress());
+        verify(mWifiNative).getFactoryMacAddress(anyString());
+        verify(mWifiNative, times(2)).getMacAddress(WIFI_IFACE_NAME);
     }
 
     @Test
