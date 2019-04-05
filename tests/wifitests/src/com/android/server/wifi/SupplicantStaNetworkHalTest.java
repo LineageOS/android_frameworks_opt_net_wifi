@@ -214,7 +214,8 @@ public class SupplicantStaNetworkHalTest {
     @Test
     public void testWepNetworkWifiConfigurationSaveLoad() throws Exception {
         WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        config.BSSID = "34:45:19:09:45";
+        config.BSSID = " *NOT USED* "; // we want the other bssid!
+        config.getNetworkSelectionStatus().setNetworkSelectionBSSID("34:45:19:09:45:66");
         testWifiConfigurationSaveLoad(config);
     }
 
@@ -387,8 +388,8 @@ public class SupplicantStaNetworkHalTest {
     }
 
     /**
-     * Tests the failure to load invalid key mgmt (unkown bit set in the supplicant network key_mgmt
-     * variable read).
+     * Tests the failure to load invalid key mgmt (unknown bit set in the
+     * supplicant network key_mgmt variable read).
      */
     @Test
     public void testInvalidKeyMgmtLoadFailure() throws Exception {
@@ -1512,7 +1513,7 @@ public class SupplicantStaNetworkHalTest {
             }
         }).when(mISupplicantStaNetworkMock).setProactiveKeyCaching(any(boolean.class));
 
-        /** Callback registeration */
+        /** Callback registration */
         doAnswer(new AnswerWithArguments() {
             public SupplicantStatus answer(ISupplicantStaNetworkCallback cb)
                     throws RemoteException {
@@ -1549,6 +1550,7 @@ public class SupplicantStaNetworkHalTest {
         mSupplicantNetwork =
                 new SupplicantStaNetworkHal(mISupplicantStaNetworkMock, IFACE_NAME, mContext,
                         mWifiMonitor);
+        mSupplicantNetwork.enableVerboseLogging(true);
     }
 
     // Private class to to store/inspect values set via the HIDL mock.
