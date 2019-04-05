@@ -2582,28 +2582,31 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that the call to removePasspointConfiguration is not redirected to specific API
-     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS permission.
+     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS and
+     * NETWORK_CARRIER_PROVISIONING permission.
      */
     @Test(expected = SecurityException.class)
     public void testRemovePasspointConfigurationWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
+                false);
 
         mWifiServiceImpl.removePasspointConfiguration(null, null);
     }
 
     /**
      * Verify that the call to removePasspointConfiguration for apps targeting below Q SDK will
-     * return false if the caller doesn't have NETWORK_SETTINGS permission.
+     * return false if the caller doesn't have NETWORK_SETTINGS and NETWORK_CARRIER_PROVISIONING
+     * permission.
      */
     @Test
     public void testRemovePasspointConfigurationForAppsTargetingBelowQSDK() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
+                false);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(isNull(),
                 eq(Build.VERSION_CODES.Q))).thenReturn(true);
+
         assertFalse(mWifiServiceImpl.removePasspointConfiguration(null, null));
     }
 
@@ -3382,6 +3385,7 @@ public class WifiServiceImplTest {
 
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         final String fqdn = "example.com";
         WifiConfiguration network = WifiConfigurationTestUtil.createOpenNetwork();
         PasspointConfiguration config = new PasspointConfiguration();
