@@ -24,10 +24,13 @@ import static com.android.server.wifi.WifiMetricsTestUtil.assertDeviceMobilitySt
 import static com.android.server.wifi.WifiMetricsTestUtil.assertHistogramBucketsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertKeyCountsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeFailureReasonCountsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeStaEventsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildDeviceMobilityStatePnoScanStats;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildHistogramBucketInt32;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureReasonCount;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureStaEvent;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeSuccessStaEvent;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -3344,6 +3347,17 @@ public class WifiMetricsTest {
                 WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         dumpProtoAndDeserialize();
+
+        StaEvent[] expected = {
+                buildLinkProbeSuccessStaEvent(5),
+                buildLinkProbeFailureStaEvent(LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK),
+                buildLinkProbeSuccessStaEvent(12),
+                buildLinkProbeFailureStaEvent(LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK),
+                buildLinkProbeSuccessStaEvent(10),
+                buildLinkProbeFailureStaEvent(LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT)
+        };
+        assertLinkProbeStaEventsEqual(expected, mDecodedProto.staEventList);
+
         LinkProbeStats linkProbeStats = mDecodedProto.linkProbeStats;
 
         Int32Count[] expectedSuccessRssiHistogram = {

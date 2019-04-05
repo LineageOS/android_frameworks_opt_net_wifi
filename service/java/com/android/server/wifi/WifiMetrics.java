@@ -3284,7 +3284,7 @@ public class WifiMetrics {
         }
     }
 
-    private static int linkProbeFailureReasonToProto(int reason) {
+    private static int linkProbeFailureReasonToProto(@WifiNative.SendMgmtFrameError int reason) {
         switch (reason) {
             case WifiNative.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
@@ -3799,6 +3799,16 @@ public class WifiMetrics {
                 break;
             case StaEvent.TYPE_WIFI_USABILITY_SCORE_BREACH:
                 sb.append("WIFI_USABILITY_SCORE_BREACH");
+                break;
+            case StaEvent.TYPE_LINK_PROBE:
+                sb.append("LINK_PROBE");
+                sb.append(" linkProbeWasSuccess=").append(event.linkProbeWasSuccess);
+                if (event.linkProbeWasSuccess) {
+                    sb.append(" linkProbeSuccessElapsedTimeMs=")
+                            .append(event.linkProbeSuccessElapsedTimeMs);
+                } else {
+                    sb.append(" linkProbeFailureReason=").append(event.linkProbeFailureReason);
+                }
                 break;
             default:
                 sb.append("UNKNOWN " + event.type + ":");
@@ -4629,6 +4639,13 @@ public class WifiMetrics {
             mLinkProbeSuccessRssiCounts.increment(rssi);
             mLinkProbeSuccessLinkSpeedCounts.increment(linkSpeed);
             mLinkProbeSuccessElapsedTimeMsHistogram.increment(elapsedTimeMs);
+
+            StaEvent event = new StaEvent();
+            event.type = StaEvent.TYPE_LINK_PROBE;
+            event.linkProbeWasSuccess = true;
+            event.linkProbeSuccessElapsedTimeMs = elapsedTimeMs;
+            // TODO(129958996): Cap number of link probe StaEvents
+            addStaEvent(event);
         }
     }
 
@@ -4655,6 +4672,13 @@ public class WifiMetrics {
             mLinkProbeFailureRssiCounts.increment(rssi);
             mLinkProbeFailureLinkSpeedCounts.increment(linkSpeed);
             mLinkProbeFailureReasonCounts.increment(reason);
+
+            StaEvent event = new StaEvent();
+            event.type = StaEvent.TYPE_LINK_PROBE;
+            event.linkProbeWasSuccess = false;
+            event.linkProbeFailureReason = linkProbeFailureReasonToProto(reason);
+            // TODO(129958996): Cap number of link probe StaEvents
+            addStaEvent(event);
         }
     }
 
