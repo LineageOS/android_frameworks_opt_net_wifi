@@ -71,6 +71,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.WifiLinkLayerUsageStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiLockStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkRequestApiLog;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiNetworkSuggestionApiLog;
+import com.android.server.wifi.nano.WifiMetricsProto.WifiToggleStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStatsEntry;
 import com.android.server.wifi.nano.WifiMetricsProto.WpsMetrics;
@@ -372,6 +373,7 @@ public class WifiMetrics {
     private final WifiLockStats mWifiLockStats = new WifiLockStats();
     private static final int[] WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS =
             {1, 10, 60, 600, 3600};
+    private final WifiToggleStats mWifiToggleStats = new WifiToggleStats();
 
     private final IntHistogram mWifiLockHighPerfAcqDurationSecHistogram =
             new IntHistogram(WIFI_LOCK_SESSION_DURATION_HISTOGRAM_BUCKETS);
@@ -2753,6 +2755,11 @@ public class WifiMetrics {
                         + mWifiLockHighPerfActiveSessionDurationSecHistogram);
                 pw.println("mWifiLockLowLatencyActiveSessionDurationSecHistogram:\n"
                         + mWifiLockLowLatencyActiveSessionDurationSecHistogram);
+                pw.println("mWifiToggleStats:\n" + mWifiToggleStats);
+                pw.println("mWifiLogProto.numAddOrUpdateNetworkCalls="
+                        + mWifiLogProto.numAddOrUpdateNetworkCalls);
+                pw.println("mWifiLogProto.numEnableNetworkCalls="
+                        + mWifiLogProto.numEnableNetworkCalls);
 
             }
         }
@@ -3281,6 +3288,7 @@ public class WifiMetrics {
                     mWifiLockLowLatencyActiveSessionDurationSecHistogram.toProto();
 
             mWifiLogProto.wifiLockStats = mWifiLockStats;
+            mWifiLogProto.wifiToggleStats = mWifiToggleStats;
         }
     }
 
@@ -3462,6 +3470,7 @@ public class WifiMetrics {
             mWifiLockHighPerfActiveSessionDurationSecHistogram.clear();
             mWifiLockLowLatencyActiveSessionDurationSecHistogram.clear();
             mWifiLockStats.clear();
+            mWifiToggleStats.clear();
         }
     }
 
@@ -4871,6 +4880,35 @@ public class WifiMetrics {
             default:
                 Log.e(TAG, "addWifiLockActiveSession: Invalid lock type: " + lockType);
                 break;
+        }
+    }
+
+    /** Increments metrics counting number of addOrUpdateNetwork calls. **/
+    public void incrementNumAddOrUpdateNetworkCalls() {
+        synchronized (mLock) {
+            mWifiLogProto.numAddOrUpdateNetworkCalls++;
+        }
+    }
+
+    /** Increments metrics counting number of enableNetwork calls. **/
+    public void incrementNumEnableNetworkCalls() {
+        synchronized (mLock) {
+            mWifiLogProto.numEnableNetworkCalls++;
+        }
+    }
+
+    /** Add to WifiToggleStats **/
+    public void incrementNumWifiToggles(boolean isPrivileged, boolean enable) {
+        synchronized (mLock) {
+            if (isPrivileged && enable) {
+                mWifiToggleStats.numToggleOnPrivileged++;
+            } else if (isPrivileged && !enable) {
+                mWifiToggleStats.numToggleOffPrivileged++;
+            } else if (!isPrivileged && enable) {
+                mWifiToggleStats.numToggleOnNormal++;
+            } else {
+                mWifiToggleStats.numToggleOffNormal++;
+            }
         }
     }
 }

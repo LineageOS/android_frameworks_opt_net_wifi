@@ -910,6 +910,7 @@ public class WifiServiceImpl extends BaseWifiService {
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
+        mWifiMetrics.incrementNumWifiToggles(isPrivileged, enable);
         mWifiController.sendMessage(CMD_WIFI_TOGGLED);
         return true;
     }
@@ -2041,6 +2042,12 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         mLog.info("addOrUpdateNetwork uid=%").c(Binder.getCallingUid()).flush();
 
+        if (config == null) {
+            Slog.e(TAG, "bad network configuration");
+            return -1;
+        }
+        mWifiMetrics.incrementNumAddOrUpdateNetworkCalls();
+
         // Previously, this API is overloaded for installing Passpoint profiles.  Now
         // that we have a dedicated API for doing it, redirect the call to the dedicated API.
         if (config.isPasspoint()) {
@@ -2070,24 +2077,19 @@ public class WifiServiceImpl extends BaseWifiService {
             return 0;
         }
 
-        if (config != null) {
-            //TODO: pass the Uid the ClientModeImpl as a message parameter
-            Slog.i("addOrUpdateNetwork", " uid = " + Integer.toString(Binder.getCallingUid())
-                    + " SSID " + config.SSID
-                    + " nid=" + Integer.toString(config.networkId));
-            if (config.networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-                config.creatorUid = Binder.getCallingUid();
-            } else {
-                config.lastUpdateUid = Binder.getCallingUid();
-            }
-            if (mClientModeImplChannel != null) {
-                return mClientModeImpl.syncAddOrUpdateNetwork(mClientModeImplChannel, config);
-            } else {
-                Slog.e(TAG, "mClientModeImplChannel is not initialized");
-                return -1;
-            }
+        //TODO: pass the Uid the ClientModeImpl as a message parameter
+        Slog.i("addOrUpdateNetwork", " uid = " + Integer.toString(Binder.getCallingUid())
+                + " SSID " + config.SSID
+                + " nid=" + Integer.toString(config.networkId));
+        if (config.networkId == WifiConfiguration.INVALID_NETWORK_ID) {
+            config.creatorUid = Binder.getCallingUid();
         } else {
-            Slog.e(TAG, "bad network configuration");
+            config.lastUpdateUid = Binder.getCallingUid();
+        }
+        if (mClientModeImplChannel != null) {
+            return mClientModeImpl.syncAddOrUpdateNetwork(mClientModeImplChannel, config);
+        } else {
+            Slog.e(TAG, "mClientModeImplChannel is not initialized");
             return -1;
         }
     }
@@ -2156,6 +2158,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 .c(Binder.getCallingUid())
                 .c(disableOthers).flush();
 
+        mWifiMetrics.incrementNumEnableNetworkCalls();
         if (mClientModeImplChannel != null) {
             return mClientModeImpl.syncEnableNetwork(mClientModeImplChannel, netId,
                     disableOthers);
