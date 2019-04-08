@@ -219,8 +219,8 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
-     * Registers a service notification for the ISupplicant service, which triggers intialization of
-     * the ISupplicantStaIface
+     * Registers a service notification for the ISupplicant service, which triggers initialization
+     * of the ISupplicantStaIface
      * @return true if the service notification was successfully registered
      */
     public boolean initialize() {
@@ -352,7 +352,7 @@ public class SupplicantStaIfaceHal {
             android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface iface =
                     getStaIfaceMockableV1_1(ifaceHwBinder);
             SupplicantStaIfaceHalCallbackV1_1 callbackV1_1 =
-                new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
+                    new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
 
             if (!registerCallbackV1_1(iface, callbackV1_1)) {
                 return false;
@@ -699,8 +699,8 @@ public class SupplicantStaIfaceHal {
     protected android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface
             getStaIfaceMockableV1_1(ISupplicantIface iface) {
         synchronized (mLock) {
-            return android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface.
-                    asInterface(iface.asBinder());
+            return android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface
+                    .asInterface(iface.asBinder());
         }
     }
 
