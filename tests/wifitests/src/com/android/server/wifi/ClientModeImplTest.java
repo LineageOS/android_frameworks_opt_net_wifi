@@ -618,6 +618,7 @@ public class ClientModeImplTest {
         assertEquals("DisconnectedState", getCurrentState().getName());
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
+        assertEquals("enabled", mCmi.syncGetWifiStateByName());
 
         // reset the expectations on mContext since we did get an expected broadcast, but we should
         // not on the next transition
@@ -630,6 +631,7 @@ public class ClientModeImplTest {
         assertEquals(ClientModeImpl.DISABLED_MODE, mCmi.getOperationalModeForTest());
         assertEquals("DefaultState", getCurrentState().getName());
         assertEquals(WifiManager.WIFI_STATE_DISABLED, mCmi.syncGetWifiState());
+        assertEquals("disabled", mCmi.syncGetWifiStateByName());
         verify(mContext, never()).sendStickyBroadcastAsUser(
                 (Intent) argThat(new WifiEnablingStateIntentMatcher()), any());
     }
@@ -2102,7 +2104,7 @@ public class ClientModeImplTest {
 
     /**
      * Test that connected SSID and BSSID are exposed to system server.
-     * Also tests that {@link ClientModeImpl#syncRequestConnectionInfo(String)} always
+     * Also tests that {@link ClientModeImpl#syncRequestConnectionInfo()} always
      * returns a copy of WifiInfo.
      */
     @Test
@@ -2317,7 +2319,7 @@ public class ClientModeImplTest {
                 any(NetworkInfo.class), any(LinkProperties.class), any(NetworkCapabilities.class),
                 anyInt(), any(NetworkMisc.class), anyInt());
 
-        ArrayList<Integer> thresholdsArray = new ArrayList();
+        ArrayList<Integer> thresholdsArray = new ArrayList<>();
         thresholdsArray.add(RSSI_THRESHOLD_MAX);
         thresholdsArray.add(RSSI_THRESHOLD_MIN);
         Bundle thresholds = new Bundle();
@@ -2376,6 +2378,15 @@ public class ClientModeImplTest {
         assertEquals(signalPollResult.rxBitrate, wifiInfo.getRxLinkSpeedMbps());
         assertEquals(sFreq, wifiInfo.getFrequency());
         verify(mWifiScoreCard).noteSignalPoll(any());
+    }
+
+    /**
+     * Verify RSSI polling with verbose logging
+     */
+    @Test
+    public void verifyConnectedModeRssiPollingWithVerboseLogging() throws Exception {
+        mCmi.enableVerboseLogging(1);
+        verifyConnectedModeRssiPolling();
     }
 
     /**
