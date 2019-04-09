@@ -43,6 +43,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseIntArray;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
@@ -62,7 +64,8 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
     private static final boolean VDBG = false; // STOPSHIP if true
     /* package */ boolean mDbg = false;
 
-    private static final String SERVICE_NAME_FOR_OOB_DATA_PATH = "Wi-Fi Aware Data Path";
+    @VisibleForTesting
+    static final String SERVICE_NAME_FOR_OOB_DATA_PATH = "Wi-Fi Aware Data Path";
 
     private final WifiAwareNativeManager mHal;
     private SparseIntArray mTransactionIds; // VDBG only!
