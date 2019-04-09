@@ -56,7 +56,7 @@ public class NativeScanResultTest {
      *  values unchanged.
      */
     @Test
-    public void canSerializeAndDeserialize() throws Exception {
+    public void canSerializeAndDeserialize() {
         NativeScanResult scanResult = new NativeScanResult();
         scanResult.ssid = TEST_SSID;
         scanResult.bssid = TEST_BSSID;
@@ -66,9 +66,9 @@ public class NativeScanResultTest {
         scanResult.tsf = TEST_TSF;
         scanResult.capability = TEST_CAPABILITY;
         scanResult.associated = TEST_ASSOCIATED;
-        scanResult.radioChainInfos = new ArrayList(
-                Arrays.asList(new RadioChainInfo(RADIO_CHAIN_IDS[0], RADIO_CHAIN_LEVELS[0]),
-                        new RadioChainInfo(RADIO_CHAIN_IDS[1], RADIO_CHAIN_LEVELS[1])));
+        scanResult.radioChainInfos = new ArrayList<>(Arrays.asList(
+                new RadioChainInfo(RADIO_CHAIN_IDS[0], RADIO_CHAIN_LEVELS[0]),
+                new RadioChainInfo(RADIO_CHAIN_IDS[1], RADIO_CHAIN_LEVELS[1])));
         Parcel parcel = Parcel.obtain();
         scanResult.writeToParcel(parcel, 0);
         // Rewind the pointer to the head of the parcel.
@@ -81,7 +81,7 @@ public class NativeScanResultTest {
         assertEquals(scanResult.frequency, scanResultDeserialized.frequency);
         assertEquals(scanResult.signalMbm, scanResultDeserialized.signalMbm);
         assertEquals(scanResult.tsf, scanResultDeserialized.tsf);
-        assertTrue(scanResult.capability.equals(scanResultDeserialized.capability));
+        assertEquals(scanResult.capability, scanResultDeserialized.capability);
         assertEquals(scanResult.associated, scanResultDeserialized.associated);
         assertTrue(scanResult.radioChainInfos.containsAll(scanResultDeserialized.radioChainInfos));
     }
