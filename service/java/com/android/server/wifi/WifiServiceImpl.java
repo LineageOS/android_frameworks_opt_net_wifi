@@ -2811,25 +2811,47 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("acquireWifiLock uid=% lockMode=%")
                 .c(Binder.getCallingUid())
                 .c(lockMode).flush();
-        if (mWifiLockManager.acquireWifiLock(lockMode, tag, binder, ws)) {
-            return true;
+
+        Mutable<Boolean> lockSuccess = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    lockSuccess.value = mWifiLockManager.acquireWifiLock(lockMode, tag, binder, ws);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to acquireWifiLock");
+            return false;
         }
-        return false;
+
+        return lockSuccess.value;
     }
 
     @Override
     public void updateWifiLockWorkSource(IBinder binder, WorkSource ws) {
         mLog.info("updateWifiLockWorkSource uid=%").c(Binder.getCallingUid()).flush();
-        mWifiLockManager.updateWifiLockWorkSource(binder, ws);
+
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    mWifiLockManager.updateWifiLockWorkSource(binder, ws);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to updateWifiLockWorkSource");
+        }
     }
 
     @Override
     public boolean releaseWifiLock(IBinder binder) {
         mLog.info("releaseWifiLock uid=%").c(Binder.getCallingUid()).flush();
-        if (mWifiLockManager.releaseWifiLock(binder)) {
-            return true;
+
+        Mutable<Boolean> lockSuccess = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> {
+                    lockSuccess.value = mWifiLockManager.releaseWifiLock(binder);
+                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to releaseWifiLock");
+            return false;
         }
-        return false;
+        return lockSuccess.value;
     }
 
     @Override
