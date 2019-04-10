@@ -215,7 +215,7 @@ public class WifiStateMachine extends StateMachine {
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
-    public NvWifi mNvWifi;
+    public static NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -811,8 +811,7 @@ public class WifiStateMachine extends StateMachine {
         mWifiInfo = new ExtendedWifiInfo();
         if (mNvWifi == null) {
             // create one instance only
-            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
-                    mWifiConfigManager, mWifiConnectivityManager);
+            mNvWifi = new NvWifi(mContext, mInterfaceName);
         }
         mSupplicantStateTracker =
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
@@ -2410,6 +2409,8 @@ public class WifiStateMachine extends StateMachine {
 
         mSarManager.handleScreenStateChanged(screenOn);
 
+        mNvWifi.handleScreenStateChanged(screenOn);
+
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
@@ -2771,6 +2772,9 @@ public class WifiStateMachine extends StateMachine {
                     + " - " + Thread.currentThread().getStackTrace()[4].getMethodName()
                     + " - " + Thread.currentThread().getStackTrace()[5].getMethodName());
         }
+
+        mNvWifi.flushScanMonitor();
+        mNvWifi.handleConnectivityStateChange();
 
         stopRssiMonitoringOffload();
 
@@ -3291,6 +3295,8 @@ public class WifiStateMachine extends StateMachine {
                                 // If we are not in connect mode yet, this will be dropped and the
                                 // ConnectMode.enter method will call to enable p2p.
                                 sendMessage(CMD_ENABLE_P2P);
+
+                                mWifiP2pChannel.sendMessage(NvWifi.CMD_NV_SET_NV_WIFI, WifiStateMachine.mNvWifi);
                             }
                         } else {
                             // TODO: We should probably do some cleanup or attempt a retry
@@ -3937,6 +3943,7 @@ public class WifiStateMachine extends StateMachine {
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), bssid,
                                     WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     mWifiDiagnostics.captureBugReportData(
@@ -3969,6 +3976,7 @@ public class WifiStateMachine extends StateMachine {
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), mTargetRoamBSSID,
                                     WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     SupplicantState state = handleSupplicantStateChange(message);
@@ -5043,6 +5051,15 @@ public class WifiStateMachine extends StateMachine {
                             .withDisplayName(currentConfig.SSID)
                             .withRandomMacAddress()
                             .build();
+            } else if (!WifiStateMachine.mNvWifi.isIPv6Enabled()) {
+                StaticIpConfiguration staticIpConfig = currentConfig.getStaticIpConfiguration();
+                prov = IpClient.buildProvisioningConfiguration()
+                            .withStaticConfiguration(staticIpConfig)
+                            .withApfCapabilities(mWifiNative.getApfCapabilities(mInterfaceName))
+                            .withNetwork(getCurrentNetwork())
+                            .withDisplayName(currentConfig.SSID)
+                            .withoutIPv6()
+                            .build();
             } else {
                 StaticIpConfiguration staticIpConfig = currentConfig.getStaticIpConfiguration();
                 prov = IpClient.buildProvisioningConfiguration()
@@ -5937,7 +5954,7 @@ public class WifiStateMachine extends StateMachine {
         return result;
     }
 
-    public NvWifi getNvWifi() {
+    public static NvWifi getNvWifi() {
         return mNvWifi;
     }
 
