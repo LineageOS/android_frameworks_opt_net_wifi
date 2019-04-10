@@ -30,6 +30,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.WifiStateMachine;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -43,6 +44,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.GuardedBy;
+
+import vendor.nvidia.hardware.server.wifi.NvWifi;
 
 /**
  * Implementation of the WifiScanner HAL API that uses wificond to perform all scans
@@ -81,6 +84,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     // Settings for the currently running pno scan, null if no scan active
     private LastPnoScanSettings mLastPnoScanSettings = null;
 
+    private NvWifi mNvWifi;
+    private boolean mIsScanAllowed;
+
     private final boolean mHwPnoScanSupported;
 
     /**
@@ -105,6 +111,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mAlarmManager = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
         mEventHandler = new Handler(looper, this);
         mClock = clock;
+
+        mNvWifi = WifiStateMachine.getNvWifi();
+        mIsScanAllowed = true;
 
         // Check if the device supports HW PNO scans.
         mHwPnoScanSupported = mContext.getResources().getBoolean(
@@ -207,6 +216,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
 
                 mScanTimeoutListener = new AlarmManager.OnAlarmListener() {
                     @Override public void onAlarm() {
+                        if (mNvWifi != null) {
+                            mIsScanAllowed = mNvWifi.isScanAllowed(-3, null);
+                        }
                         handleScanTimeout();
                     }
                 };
@@ -417,6 +429,13 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
 
     private void stopHwPnoScan() {
         mWifiNative.stopPnoScan(mIfaceName);
+    }
+
+    public boolean isBlakeConnected() {
+        if (mNvWifi != null) {
+            return mNvWifi.isBlakeConnected();
+        }
+        return false;
     }
 
     /**
