@@ -216,7 +216,7 @@ public class WifiStateMachine extends StateMachine {
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
-    public NvWifi mNvWifi;
+    public static NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -5977,7 +5977,7 @@ public class WifiStateMachine extends StateMachine {
         return result;
     }
 
-    public NvWifi getNvWifi() {
+    public static NvWifi getNvWifi() {
         return mNvWifi;
     }
 }
