@@ -259,7 +259,7 @@ public class ClientModeImpl extends StateMachine {
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
-    public NvWifi mNvWifi;
+    public static NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -799,8 +799,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiInfo = new ExtendedWifiInfo(context);
         if (mNvWifi == null) {
             // create one instance only
-            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
-                    mWifiConfigManager, mWifiConnectivityManager);
+            mNvWifi = new NvWifi(mContext, mInterfaceName);
         }
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
@@ -2368,6 +2367,8 @@ public class ClientModeImpl extends StateMachine {
 
         mSarManager.handleScreenStateChanged(screenOn);
 
+        mNvWifi.handleScreenStateChanged(screenOn);
+
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
@@ -2759,6 +2760,10 @@ public class ClientModeImpl extends StateMachine {
             mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
             mWifiNetworkSuggestionsManager.handleDisconnect(wifiConfig, getCurrentBSSID());
         }
+
+        mNvWifi.flushScanMonitor();
+        mNvWifi.handleConnectivityStateChange();
+
         stopRssiMonitoringOffload();
 
         clearTargetBssid("handleNetworkDisconnect");
@@ -3403,6 +3408,8 @@ public class ClientModeImpl extends StateMachine {
                     if (ac == mWifiP2pChannel) {
                         if (message.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
                             p2pSendMessage(AsyncChannel.CMD_CHANNEL_FULL_CONNECTION);
+
+                            mWifiP2pChannel.sendMessage(NvWifi.CMD_NV_SET_NV_WIFI, WifiStateMachine.mNvWifi);
                         } else {
                             // TODO: We should probably do some cleanup or attempt a retry
                             // b/34283611
@@ -3912,6 +3919,7 @@ public class ClientModeImpl extends StateMachine {
                                         WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
                     }
                     mTargetNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     stopIpClient();
@@ -3981,6 +3989,7 @@ public class ClientModeImpl extends StateMachine {
                                         (mLastBssid == null) ? mTargetBssid : mLastBssid,
                                         WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
                     }
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     SupplicantState state = handleSupplicantStateChange(message);
@@ -6632,7 +6641,7 @@ public class ClientModeImpl extends StateMachine {
         return true;
     }
 
-    public NvWifi getNvWifi() {
+    public static NvWifi getNvWifi() {
         return mNvWifi;
     }
 

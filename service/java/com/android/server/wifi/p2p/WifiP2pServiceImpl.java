@@ -124,6 +124,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * WifiP2pService includes a state machine to perform Wi-Fi p2p operations. Applications
  * communicate with this service to issue device discovery and connectivity requests
@@ -300,6 +302,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     // An anonymized device address. This is used instead of the own device MAC to prevent the
     // latter from leaking to apps
     private static final String ANONYMIZED_DEVICE_ADDRESS = "02:00:00:00:00:00";
+
+    private NvWifi mNvWifi;
 
     /**
      * Error code definition.
@@ -1086,6 +1090,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         // always reset this - we went to a state that doesn't support discovery so
                         // it would have stopped regardless
                         mDiscoveryPostponed = false;
+                        if (mNvWifi != null) {
+                            mNvWifi.isScanAllowed(NvWifi.P2P_SCAN_SOURCE, null);
+                        }
                         if (mDiscoveryBlocked && mWifiChannel != null) {
                             mWifiChannel.replyToMessage(message, message.arg2);
                         }
@@ -1348,6 +1355,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         replyToMessage(message, WifiP2pManager.RESPONSE_DEVICE_INFO,
                                 maybeEraseOwnDeviceAddress(mThisDevice, message.sendingUid));
+                        break;
+                    case NvWifi.CMD_NV_SET_NV_WIFI:
+                        mNvWifi = (NvWifi) message.obj;
                         break;
                     default:
                         loge("Unhandled message " + message);
@@ -1671,6 +1681,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         // do not send service discovery request while normal find operation.
                         clearSupplicantServiceRequest();
+                        if (mNvWifi != null) {
+                            mNvWifi.isScanAllowed(NvWifi.P2P_SCAN_SOURCE, null);
+                        }
                         if (mWifiNative.p2pFind(DISCOVER_TIMEOUT_S)) {
                             mWifiP2pMetrics.incrementPeerScans();
                             replyToMessage(message, WifiP2pManager.DISCOVER_PEERS_SUCCEEDED);
@@ -1707,6 +1720,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             break;
                         }
                         if (mVerboseLoggingEnabled) logd(getName() + " discover services");
+                        if (mNvWifi != null) {
+                            mNvWifi.isScanAllowed(NvWifi.P2P_SCAN_SOURCE, null);
+                        }
                         if (!updateSupplicantServiceRequest()) {
                             replyToMessage(message, WifiP2pManager.DISCOVER_SERVICES_FAILED,
                                     WifiP2pManager.NO_SERVICE_REQUESTS);
