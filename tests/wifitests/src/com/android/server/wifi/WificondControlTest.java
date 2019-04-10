@@ -39,7 +39,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.app.AlarmManager;
-import android.net.MacAddress;
 import android.net.wifi.IApInterface;
 import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.IClientInterface;
@@ -195,7 +194,6 @@ public class WificondControlTest {
                 networkList[1].flags = 0;
                 networkList[1].frequencies = TEST_FREQUENCIES_2;
             }};
-    private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("ee:33:a2:94:10:92");
 
     private static final int TEST_MCS_RATE = 5;
     private static final int TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS = 100;
@@ -974,27 +972,6 @@ public class WificondControlTest {
         // The handles should be cleared after death.
         assertNull(mWificondControl.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));
         verify(mWificond, never()).getAvailable5gNonDFSChannels();
-    }
-
-    /**
-     * Verifies setMacAddress() success.
-     */
-    @Test
-    public void testSetMacAddressSuccess() throws Exception {
-        byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
-        assertTrue(mWificondControl.setMacAddress(TEST_INTERFACE_NAME, TEST_MAC_ADDRESS));
-        verify(mClientInterface).setMacAddress(macByteArray);
-    }
-
-    /**
-     * Verifies setMacAddress() can handle failure.
-     */
-    @Test
-    public void testSetMacAddressFailDueToExceptionInInterface() throws Exception {
-        byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
-        doThrow(new RemoteException()).when(mClientInterface).setMacAddress(macByteArray);
-        assertFalse(mWificondControl.setMacAddress(TEST_INTERFACE_NAME, TEST_MAC_ADDRESS));
-        verify(mClientInterface).setMacAddress(macByteArray);
     }
 
     /**
