@@ -93,6 +93,7 @@ import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.FrameworkFacade;
+import com.android.server.wifi.WifiBackupRestore.SupplicantBackupMigration;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.WifiSettingsConfigStore;
@@ -104,7 +105,11 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.wifi.resources.R;
 
+import java.io.BufferedReader;
 import java.io.FileDescriptor;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -135,6 +140,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     private static final String NETWORKTYPE = "WIFI_P2P";
     @VisibleForTesting
     static final int DEFAULT_GROUP_OWNER_INTENT = 6;
+    private static final String P2P_SUPPLICANT_CONFIG_FILE = "/data/misc/wifi/p2p_supplicant.conf";
 
     private Context mContext;
 
@@ -511,6 +517,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 "WifiP2pService");
     }
 
+    private void enforceReadCredentialPermission() {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.READ_WIFI_CREDENTIAL,
+                "WifiP2pService");
+    }
+
     private boolean checkAnyPermissionOf(String... permissions) {
         for (String permission : permissions) {
             if (mContext.checkCallingOrSelfPermission(permission)
@@ -770,6 +781,62 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             pw.println("mIpClient:");
             IpClientUtil.dumpIpClient(ipClient, fd, pw, args);
         }
+    }
+
+    @Override
+    public Bundle getPrivilegedP2pInfo(String ssid) {
+        enforceReadCredentialPermission();
+        return readP2pInfoFromSupplicantFile(ssid);
+    }
+
+    private Bundle readP2pInfoFromSupplicantFile(String key) {
+        Bundle result = new Bundle();
+        BufferedReader reader = null;
+        boolean found = false;
+        String ssid = null;
+        String bssid = null;
+        String psk = null;
+
+        try {
+            reader = new BufferedReader(new FileReader(P2P_SUPPLICANT_CONFIG_FILE));
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                if (line.matches("[ \\t]*network=\\{")) {
+                    found = true;
+                    ssid = null;
+                    bssid = null;
+                    psk = null;
+                } else if (line.matches("[ \\t]*\\}")) {
+                    found = false;
+                }
+
+                if (found) {
+                    String trimmedLine = line.trim();
+                    if (trimmedLine.startsWith("ssid=")) {
+                        ssid = trimmedLine.substring(5).replaceAll("^\"|\"$", "");
+                    } else if (trimmedLine.startsWith("bssid=")) {
+                        bssid = trimmedLine.substring(6);
+                    } else if (trimmedLine.startsWith("psk=")) {
+                        psk = trimmedLine.substring(4).replaceAll("^\"|\"$", "");
+                    }
+
+                    if (!(ssid == null || !ssid.equals(key) || bssid == null || psk == null)) {
+                        result.putString(SupplicantBackupMigration.SUPPLICANT_KEY_SSID, ssid);
+                        result.putString("bssid", bssid);
+                        result.putString(SupplicantBackupMigration.SUPPLICANT_KEY_PSK, psk);
+                        break;
+                    }
+                }
+            }
+            reader.close();
+        } catch (IOException ex) {
+            try {
+                if (reader != null) {
+                    reader.close();
+                }
+            } catch (IOException ex2) {}
+        }
+
+        return result;
     }
 
     /**
