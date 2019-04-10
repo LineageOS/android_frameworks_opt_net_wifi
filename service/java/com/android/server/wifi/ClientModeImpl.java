@@ -231,7 +231,7 @@ public class ClientModeImpl extends StateMachine {
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
-    public NvWifi mNvWifi;
+    public static NvWifi mNvWifi;
 
     private void processRssiThreshold(byte curRssi, int reason,
             WifiNative.WifiRssiEventHandler rssiHandler) {
@@ -822,8 +822,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiInfo = new ExtendedWifiInfo();
         if (mNvWifi == null) {
             // create one instance only
-            mNvWifi = new NvWifi(mContext, mInterfaceName, this,
-                    mWifiConfigManager, mWifiConnectivityManager);
+            mNvWifi = new NvWifi(mContext, mInterfaceName);
         }
         mSupplicantStateTracker =
                 mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
@@ -2636,6 +2635,8 @@ public class ClientModeImpl extends StateMachine {
 
         mSarManager.handleScreenStateChanged(screenOn);
 
+        mNvWifi.handleScreenStateChanged(screenOn);
+
         if (mVerboseLoggingEnabled) log("handleScreenStateChanged Exit: " + screenOn);
     }
 
@@ -3006,6 +3007,9 @@ public class ClientModeImpl extends StateMachine {
             mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
             mWifiNetworkSuggestionsManager.handleDisconnect(wifiConfig, getCurrentBSSID());
         }
+
+        mNvWifi.flushScanMonitor();
+        mNvWifi.handleConnectivityStateChange();
 
         stopRssiMonitoringOffload();
 
@@ -3488,6 +3492,8 @@ public class ClientModeImpl extends StateMachine {
                     if (ac == mWifiP2pChannel) {
                         if (message.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
                             p2pSendMessage(AsyncChannel.CMD_CHANNEL_FULL_CONNECTION);
+
+                            mWifiP2pChannel.sendMessage(NvWifi.CMD_NV_SET_NV_WIFI, WifiStateMachine.mNvWifi);
                         } else {
                             // TODO: We should probably do some cleanup or attempt a retry
                             // b/34283611
@@ -4047,6 +4053,7 @@ public class ClientModeImpl extends StateMachine {
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), bssid,
                                     WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     mWifiDiagnostics.captureBugReportData(
@@ -4111,6 +4118,7 @@ public class ClientModeImpl extends StateMachine {
                                         getTargetSsid(), mTargetRoamBSSID,
                                         WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
                     }
+                    mNvWifi.flushScanMonitor();
                     break;
                 case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                     SupplicantState state = handleSupplicantStateChange(message);
@@ -5427,6 +5435,15 @@ public class ClientModeImpl extends StateMachine {
                             .withNetwork(getCurrentNetwork())
                             .withDisplayName(currentConfig.SSID)
                             .build();
+            } else if (!WifiStateMachine.mNvWifi.isIPv6Enabled()) {
+                StaticIpConfiguration staticIpConfig = currentConfig.getStaticIpConfiguration();
+                prov = new ProvisioningConfiguration.Builder()
+                            .withStaticConfiguration(staticIpConfig)
+                            .withApfCapabilities(mWifiNative.getApfCapabilities(mInterfaceName))
+                            .withNetwork(getCurrentNetwork())
+                            .withDisplayName(currentConfig.SSID)
+                            .withoutIPv6()
+                            .build();
             } else {
                 StaticIpConfiguration staticIpConfig = currentConfig.getStaticIpConfiguration();
                 prov = new ProvisioningConfiguration.Builder()
@@ -6469,7 +6486,7 @@ public class ClientModeImpl extends StateMachine {
                 callback, mcs);
     }
 
-    public NvWifi getNvWifi() {
+    public static NvWifi getNvWifi() {
         return mNvWifi;
     }
 
