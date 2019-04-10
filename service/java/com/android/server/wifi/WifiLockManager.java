@@ -20,9 +20,8 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
-import android.os.Message;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
@@ -31,9 +30,6 @@ import android.util.SparseArray;
 import android.util.StatsLog;
 
 import com.android.internal.app.IBatteryStats;
-import com.android.internal.util.AsyncChannel;
-import com.android.server.wifi.util.WifiAsyncChannel;
-import com.android.server.wifi.util.WifiHandler;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -62,9 +58,9 @@ public class WifiLockManager {
     private final FrameworkFacade mFrameworkFacade;
     private final ClientModeImpl mClientModeImpl;
     private final ActivityManager mActivityManager;
-    private final ClientModeImplInterfaceHandler mCmiIfaceHandler;
+    private final Handler mHandler;
     private final WifiMetrics mWifiMetrics;
-    private WifiAsyncChannel mClientModeImplChannel;
+    private final WifiNative mWifiNative;
 
     private final List<WifiLock> mWifiLocks = new ArrayList<>();
     // map UIDs to their corresponding records (for low-latency locks)
@@ -85,15 +81,16 @@ public class WifiLockManager {
     private long mCurrentSessionStartTimeMs;
 
     WifiLockManager(Context context, IBatteryStats batteryStats,
-            ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade, Looper looper,
-            Clock clock, WifiMetrics wifiMetrics) {
+            ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade, Handler handler,
+            WifiNative wifiNative, Clock clock, WifiMetrics wifiMetrics) {
         mContext = context;
         mBatteryStats = batteryStats;
         mClientModeImpl = clientModeImpl;
         mFrameworkFacade = frameworkFacade;
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
-        mCmiIfaceHandler = new ClientModeImplInterfaceHandler(looper);
         mCurrentOpMode = WifiManager.WIFI_MODE_NO_LOCKS_HELD;
+        mWifiNative = wifiNative;
+        mHandler = handler;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
 
@@ -147,7 +144,7 @@ public class WifiLockManager {
         mActivityManager.addOnUidImportanceListener(new ActivityManager.OnUidImportanceListener() {
             @Override
             public void onUidImportance(final int uid, final int importance) {
-                mCmiIfaceHandler.post(() -> {
+                mHandler.post(() -> {
                     UidRec uidRec = mLowLatencyUidWatchList.get(uid);
                     if (uidRec == null) {
                         // Not a uid in the watch list
@@ -647,10 +644,13 @@ public class WifiLockManager {
     }
 
     private int getLowLatencyModeSupport() {
-        if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED
-                && mClientModeImplChannel != null) {
-            long supportedFeatures =
-                    mClientModeImpl.syncGetSupportedFeatures(mClientModeImplChannel);
+        if (mLatencyModeSupport == LOW_LATENCY_SUPPORT_UNDEFINED) {
+            String ifaceName = mWifiNative.getClientInterfaceName();
+            if (ifaceName == null) {
+                return LOW_LATENCY_SUPPORT_UNDEFINED;
+            }
+
+            long supportedFeatures = mWifiNative.getSupportedFeatureSet(ifaceName);
             if (supportedFeatures != 0) {
                 if ((supportedFeatures & WifiManager.WIFI_FEATURE_LOW_LATENCY) != 0) {
                     mLatencyModeSupport = LOW_LATENCY_SUPPORTED;
@@ -790,45 +790,6 @@ public class WifiLockManager {
             mVerboseLoggingEnabled = true;
         } else {
             mVerboseLoggingEnabled = false;
-        }
-    }
-
-    /**
-     * Handles interaction with ClientModeImpl
-     */
-    private class ClientModeImplInterfaceHandler extends WifiHandler {
-        private WifiAsyncChannel mCmiChannel;
-
-        ClientModeImplInterfaceHandler(Looper looper) {
-            super(TAG, looper);
-            mCmiChannel = mFrameworkFacade.makeWifiAsyncChannel(TAG);
-            mCmiChannel.connect(mContext, this, mClientModeImpl.getHandler());
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED: {
-                    if (msg.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
-                        mClientModeImplChannel = mCmiChannel;
-                    } else {
-                        Slog.e(TAG, "ClientModeImpl connection failure, error=" + msg.arg1);
-                        mClientModeImplChannel = null;
-                    }
-                    break;
-                }
-                case AsyncChannel.CMD_CHANNEL_DISCONNECTED: {
-                    Slog.e(TAG, "ClientModeImpl channel lost, msg.arg1 =" + msg.arg1);
-                    mClientModeImplChannel = null;
-                    //Re-establish connection
-                    mCmiChannel.connect(mContext, this, mClientModeImpl.getHandler());
-                    break;
-                }
-                default: {
-                    Slog.d(TAG, "ClientModeImplInterfaceHandler.handleMessage ignoring msg=" + msg);
-                    break;
-                }
-            }
         }
     }
 
