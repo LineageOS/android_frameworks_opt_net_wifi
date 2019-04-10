@@ -258,7 +258,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         sendMessage(CMD_VENDOR_HAL_HWBINDER_DEATH);
     };
     private boolean mIpReachabilityDisconnectEnabled = true;
-    public NvWifi mNvWifi;
+    public static NvWifi mNvWifi;
 
     @Override
     public void onRssiThresholdBreached(byte curRssi) {
@@ -7406,7 +7406,7 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
         return result;
     }
 
-    public NvWifi getNvWifi() {
+    public static NvWifi getNvWifi() {
         return mNvWifi;
     }
 }
