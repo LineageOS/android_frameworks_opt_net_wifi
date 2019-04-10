@@ -81,6 +81,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     private static final String TAG = WifiScanningService.TAG;
@@ -105,6 +107,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         Log.e(TAG, message);
         mLocalLog.log(message);
     }
+
+    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
 
     @Override
     public Messenger getMessenger() {
@@ -916,6 +920,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                                     "bad parcel params");
                             replyFailed(msg, WifiScanner.REASON_INVALID_REQUEST,
                                     "bad parcel params");
+                            return HANDLED;
+                        }
+                        if (mNvWifi != null && !mNvWifi.isScanAllowed(scanSettings.pid, null)) {
                             return HANDLED;
                         }
                         if (validateScanRequest(ci, handler, scanSettings)) {
