@@ -72,6 +72,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     private static final String TAG = WifiScanningService.TAG;
@@ -98,6 +100,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     private WifiScannerImpl mScannerImpl;
+
+    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
 
     @Override
     public Messenger getMessenger() {
@@ -614,6 +618,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                                 scanParams.getParcelable(WifiScanner.SCAN_PARAMS_SCAN_SETTINGS_KEY);
                         WorkSource workSource =
                                 scanParams.getParcelable(WifiScanner.SCAN_PARAMS_WORK_SOURCE_KEY);
+                        if (mNvWifi != null && !mNvWifi.isScanAllowed(scanSettings.pid, null)) {
+                            return HANDLED;
+                        }
                         if (validateScanRequest(ci, handler, scanSettings)) {
                             logScanRequest("addSingleScanRequest", ci, handler, workSource,
                                     scanSettings, null);

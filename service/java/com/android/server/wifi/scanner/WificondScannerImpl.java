@@ -30,6 +30,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.WifiStateMachine;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -43,6 +44,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.GuardedBy;
+
+import vendor.nvidia.hardware.server.wifi.NvWifi;
 
 /**
  * Implementation of the WifiScanner HAL API that uses wificond to perform all scans
@@ -82,6 +85,8 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     private LastPnoScanSettings mLastPnoScanSettings = null;
 
     private final boolean mHwPnoScanSupported;
+
+    private NvWifi mNvWifi = WifiStateMachine.getNvWifi();
 
     /**
      * Duration to wait before timing out a scan.
@@ -269,6 +274,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                 Log.w(TAG, "Scan failed");
                 cancelScanTimeout();
                 reportScanFailure();
+                mNvWifi.checkAndSetScan();
                 break;
             case WifiMonitor.PNO_SCAN_RESULTS_EVENT:
                 pollLatestScanDataForPno();
@@ -419,13 +425,20 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mWifiNative.stopPnoScan(mIfaceName);
     }
 
+    public boolean isBlakeConnected() {
+        if (mNvWifi != null) {
+            return mNvWifi.isBlakeConnected();
+        }
+        return false;
+    }
+
     /**
      * Hw Pno Scan is required only for disconnected PNO when the device supports it.
      * @param isConnectedPno Whether this is connected PNO vs disconnected PNO.
      * @return true if HW PNO scan is required, false otherwise.
      */
     private boolean isHwPnoScanRequired(boolean isConnectedPno) {
-        return (!isConnectedPno && mHwPnoScanSupported);
+        return (!isConnectedPno && mHwPnoScanSupported && !isBlakeConnected());
     }
 
     @Override
