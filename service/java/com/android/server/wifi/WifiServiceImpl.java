@@ -2306,8 +2306,9 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public boolean removePasspointConfiguration(String fqdn, String packageName) {
-        if (mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
-                != PERMISSION_GRANTED) {
+        final int uid = Binder.getCallingUid();
+        if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                && !mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
             if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
                 return false;
             }
