@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import vendor.nvidia.hardware.server.wifi.NvWifi;
+
 /**
  * Implementation of the WifiScanner HAL API that uses wificond to perform all scans
  * @see com.android.server.wifi.scanner.WifiScannerImpl for more details on each method.
@@ -419,13 +421,20 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mWifiNative.stopPnoScan(mIfaceName);
     }
 
+    public boolean isBlakeConnected() {
+        if (mNvWifi != null) {
+            return mNvWifi.isBlakeConnected();
+        }
+        return false;
+    }
+
     /**
      * Hw Pno Scan is required only for disconnected PNO when the device supports it.
      * @param isConnectedPno Whether this is connected PNO vs disconnected PNO.
      * @return true if HW PNO scan is required, false otherwise.
      */
     private boolean isHwPnoScanRequired(boolean isConnectedPno) {
-        return (!isConnectedPno && mHwPnoScanSupported);
+        return (!isConnectedPno && mHwPnoScanSupported && !isBlakeConnected());
     }
 
     @Override
