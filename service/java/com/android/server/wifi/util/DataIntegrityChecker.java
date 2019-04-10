@@ -319,7 +319,7 @@ public class DataIntegrityChecker {
     }
 
     /* TODO(b/128526030): Remove this error reporting code upon resolving the bug. */
-    private static final boolean REQUEST_BUG_REPORT = true;
+    private static final boolean REQUEST_BUG_REPORT = false;
     private void reportException(Exception exception) {
         Log.wtf(TAG, "An irrecoverable key store error was encountered. "
                 + "KEYSTORE_FAILURE_RETURN_VALUE is set to " + KEYSTORE_FAILURE_RETURN_VALUE);
