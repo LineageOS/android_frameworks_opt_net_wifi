@@ -193,6 +193,17 @@ public class WifiP2pNativeTest {
     }
 
     /**
+     * Verifies that WPS Pin/Display starts without errors.
+     */
+    @Test
+    public void testStartWpsPinDisplay() {
+        when(mSupplicantP2pIfaceHalMock.startWpsPinDisplay(anyString(), anyString()))
+                .thenReturn(TEST_PIN);
+        assertEquals(TEST_PIN, mWifiP2pNative.startWpsPinDisplay(TEST_IFACE, TEST_BSSID));
+        verify(mSupplicantP2pIfaceHalMock).startWpsPinDisplay(eq(TEST_IFACE), eq(TEST_BSSID));
+    }
+
+    /**
      * Verifies removing a network.
      */
     @Test
