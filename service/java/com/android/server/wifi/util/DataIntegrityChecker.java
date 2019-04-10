@@ -98,8 +98,7 @@ public class DataIntegrityChecker {
      */
     public void update(byte[] data) {
         if (data == null || data.length < 1) {
-            Log.e(TAG, "No data to update.");
-            reportException(new Exception("No data to update"));
+            reportException(new Exception("No data to update"), "No data to update.");
             return;
         }
         byte[] digest = getDigest(data);
@@ -111,7 +110,8 @@ public class DataIntegrityChecker {
         if (integrityData != null) {
             writeIntegrityData(integrityData, mIntegrityFile);
         } else {
-            reportException(new Exception("integrityData null upon update"));
+            reportException(new Exception("integrityData null upon update"),
+                    "integrityData null upon update");
         }
     }
 
@@ -137,8 +137,21 @@ public class DataIntegrityChecker {
         if (currentDigest == null || currentDigest.length < 1) {
             return KEYSTORE_FAILURE_RETURN_VALUE;
         }
-        EncryptedData encryptedData = readIntegrityData(mIntegrityFile);
+
+        EncryptedData encryptedData = null;
+
+        try {
+            encryptedData = readIntegrityData(mIntegrityFile);
+        } catch (IOException e) {
+            reportException(e, "readIntegrityData had an IO exception");
+            return KEYSTORE_FAILURE_RETURN_VALUE;
+        } catch (ClassNotFoundException e) {
+            reportException(e, "readIntegrityData could not find the class EncryptedData");
+            return KEYSTORE_FAILURE_RETURN_VALUE;
+        }
+
         if (encryptedData == null) {
+            // File not found is not considered to be an error.
             throw new DigestException("No stored digest is available to compare.");
         }
         byte[] storedDigest = decrypt(encryptedData);
@@ -152,8 +165,7 @@ public class DataIntegrityChecker {
         try {
             return MessageDigest.getInstance(DIGEST_ALGORITHM).digest(data);
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "getDigest could not find algorithm: " + DIGEST_ALGORITHM);
-            reportException(e);
+            reportException(e, "getDigest could not find algorithm: " + DIGEST_ALGORITHM);
             return null;
         }
     }
@@ -167,23 +179,19 @@ public class DataIntegrityChecker {
                 cipher.init(Cipher.ENCRYPT_MODE, secretKeyReference);
                 encryptedData = new EncryptedData(cipher.doFinal(data), cipher.getIV(), keyAlias);
             } else {
-                reportException(new Exception("secretKeyReference is null."));
+                reportException(new Exception("secretKeyReference is null."),
+                        "secretKeyReference is null.");
             }
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "encrypt could not find the algorithm: " + CIPHER_ALGORITHM);
-            reportException(e);
+            reportException(e, "encrypt could not find the algorithm: " + CIPHER_ALGORITHM);
         } catch (NoSuchPaddingException e) {
-            Log.e(TAG, "encrypt had a padding exception");
-            reportException(e);
+            reportException(e, "encrypt had a padding exception");
         } catch (InvalidKeyException e) {
-            Log.e(TAG, "encrypt received an invalid key");
-            reportException(e);
+            reportException(e, "encrypt received an invalid key");
         } catch (BadPaddingException e) {
-            Log.e(TAG, "encrypt had a padding problem");
-            reportException(e);
+            reportException(e, "encrypt had a padding problem");
         } catch (IllegalBlockSizeException e) {
-            Log.e(TAG, "encrypt had an illegal block size");
-            reportException(e);
+            reportException(e, "encrypt had an illegal block size");
         }
         return encryptedData;
     }
@@ -199,23 +207,17 @@ public class DataIntegrityChecker {
                 decryptedData = cipher.doFinal(encryptedData.getEncryptedData());
             }
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "decrypt could not find cipher algorithm " + CIPHER_ALGORITHM);
-            reportException(e);
+            reportException(e, "decrypt could not find cipher algorithm " + CIPHER_ALGORITHM);
         } catch (NoSuchPaddingException e) {
-            Log.e(TAG, "decrypt could not find padding algorithm");
-            reportException(e);
+            reportException(e, "decrypt could not find padding algorithm");
         } catch (IllegalBlockSizeException e) {
-            Log.e(TAG, "decrypt had a illegal block size");
-            reportException(e);
+            reportException(e, "decrypt had a illegal block size");
         } catch (BadPaddingException e) {
-            Log.e(TAG, "decrypt had bad padding");
-            reportException(e);
+            reportException(e, "decrypt had bad padding");
         } catch (InvalidKeyException e) {
-            Log.e(TAG, "decrypt had an invalid key");
-            reportException(e);
+            reportException(e, "decrypt had an invalid key");
         } catch (InvalidAlgorithmParameterException e) {
-            Log.e(TAG, "decrypt had an invalid algorithm parameter");
-            reportException(e);
+            reportException(e, "decrypt had an invalid algorithm parameter");
         }
         return decryptedData;
     }
@@ -232,7 +234,8 @@ public class DataIntegrityChecker {
                     secretKey = secretKeyEntry.getSecretKey();
                 } else {
                     reportException(new Exception("keystore contains the alias and the secret key "
-                            + "entry was null"));
+                            + "entry was null"),
+                            "keystore contains the alias and the secret key entry was null");
                 }
             } else { // The key does not exist in key store. Create the key and store it.
                 KeyGenerator keyGenerator = KeyGenerator
@@ -248,26 +251,19 @@ public class DataIntegrityChecker {
                 secretKey = keyGenerator.generateKey();
             }
         } catch (CertificateException e) {
-            Log.e(TAG, "getOrCreateSecretKey had a certificate exception.");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey had a certificate exception.");
         } catch (InvalidAlgorithmParameterException e) {
-            Log.e(TAG, "getOrCreateSecretKey had an invalid algorithm parameter");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey had an invalid algorithm parameter");
         } catch (IOException e) {
-            Log.e(TAG, "getOrCreateSecretKey had an IO exception.");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey had an IO exception.");
         } catch (KeyStoreException e) {
-            Log.e(TAG, "getOrCreateSecretKey cannot find the keystore: " + KEY_STORE);
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey cannot find the keystore: " + KEY_STORE);
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "getOrCreateSecretKey cannot find algorithm");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey cannot find algorithm");
         } catch (NoSuchProviderException e) {
-            Log.e(TAG, "getOrCreateSecretKey cannot find crypto provider");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey cannot find crypto provider");
         } catch (UnrecoverableEntryException e) {
-            Log.e(TAG, "getOrCreateSecretKey had an unrecoverable entry exception.");
-            reportException(e);
+            reportException(e, "getOrCreateSecretKey had an unrecoverable entry exception.");
         }
         return secretKey;
     }
@@ -277,27 +273,21 @@ public class DataIntegrityChecker {
              ObjectOutputStream oos = new ObjectOutputStream(fos)) {
             oos.writeObject(encryptedData);
         } catch (FileNotFoundException e) {
-            Log.e(TAG, "writeIntegrityData could not find the integrity file");
-            reportException(e);
+            reportException(e, "writeIntegrityData could not find the integrity file");
         } catch (IOException e) {
-            Log.e(TAG, "writeIntegrityData had an IO exception");
-            reportException(e);
+            reportException(e, "writeIntegrityData had an IO exception");
         }
     }
 
-    private EncryptedData readIntegrityData(File file) {
+    private EncryptedData readIntegrityData(File file) throws IOException, ClassNotFoundException  {
         try (FileInputStream fis = new FileInputStream(file);
              ObjectInputStream ois = new ObjectInputStream(fis)) {
             return (EncryptedData) ois.readObject();
         } catch (FileNotFoundException e) {
-            Log.e(TAG, "readIntegrityData could not find integrity file");
-            reportException(e);
-        } catch (IOException e) {
-            Log.e(TAG, "readIntegrityData had an IO exception");
-            reportException(e);
-        } catch (ClassNotFoundException e) {
-            Log.e(TAG, "readIntegrityData could not find the class EncryptedData");
-            reportException(e);
+            // File not found, this is not considered to be a real error. The file will be created
+            // by the system next time the data file is written. Note that it is not possible for
+            // non system user to delete or modify the file.
+            Log.w(TAG, "readIntegrityData could not find integrity file");
         }
         return null;
     }
@@ -320,9 +310,8 @@ public class DataIntegrityChecker {
 
     /* TODO(b/128526030): Remove this error reporting code upon resolving the bug. */
     private static final boolean REQUEST_BUG_REPORT = false;
-    private void reportException(Exception exception) {
-        Log.wtf(TAG, "An irrecoverable key store error was encountered. "
-                + "KEYSTORE_FAILURE_RETURN_VALUE is set to " + KEYSTORE_FAILURE_RETURN_VALUE);
+    private void reportException(Exception exception, String error) {
+        Log.wtf(TAG, "An irrecoverable key store error was encountered: " + error);
         if (REQUEST_BUG_REPORT) {
             SystemProperties.set("dumpstate.options", "bugreportwifi");
             SystemProperties.set("ctl.start", "bugreport");
