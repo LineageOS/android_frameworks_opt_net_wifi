@@ -30,6 +30,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.WifiStateMachine;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 
 import java.io.FileDescriptor;
@@ -41,6 +42,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import vendor.nvidia.hardware.server.wifi.NvWifi;
 
 /**
  * Implementation of the WifiScanner HAL API that uses wificond to perform all scans
@@ -90,6 +93,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     // Settings for the currently running scan, null if no scan active
     private LastScanSettings mLastScanSettings = null;
 
+    private NvWifi mNvWifi;
+    private boolean mIsScanAllowed;
+
     // Pno related info.
     private WifiNative.PnoSettings mPnoSettings = null;
     private WifiNative.PnoEventHandler mPnoEventHandler;
@@ -113,6 +119,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     AlarmManager.OnAlarmListener mScanPeriodListener = new AlarmManager.OnAlarmListener() {
             public void onAlarm() {
                 synchronized (mSettingsLock) {
+                    if (mNvWifi != null) {
+                        mIsScanAllowed = mNvWifi.isScanAllowed(-3, null);
+                    }
                     handleScanPeriod();
                 }
             }
@@ -136,6 +145,9 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mEventHandler = new Handler(looper, this);
         mClock = clock;
         mHwPnoDebouncer = new HwPnoDebouncer(mWifiNative, mAlarmManager, mEventHandler, mClock);
+
+        mNvWifi = WifiStateMachine.getNvWifi();
+        mIsScanAllowed = true;
 
         // Check if the device supports HW PNO scans.
         mHwPnoScanSupported = mContext.getResources().getBoolean(
@@ -422,7 +434,8 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                 mPendingSingleScanEventHandler = null;
             }
 
-            if (newScanSettings.backgroundScanActive || newScanSettings.singleScanActive) {
+            if ((newScanSettings.backgroundScanActive || newScanSettings.singleScanActive) &&
+                mIsScanAllowed) {
                 boolean success = false;
                 Set<Integer> freqs;
                 if (!allFreqs.isEmpty()) {
@@ -449,6 +462,7 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
                     mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                             mClock.getElapsedSinceBootMillis() + SCAN_TIMEOUT_MS,
                             TIMEOUT_ALARM_TAG, mScanTimeoutListener, mEventHandler);
+                    mIsScanAllowed = true;
                 } else {
                     // indicate scan failure async
                     mEventHandler.post(new Runnable() {
@@ -725,13 +739,20 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         return mHwPnoDebouncer.startPnoScan(pnoSettings, mHwPnoDebouncerListener);
     }
 
+    public boolean isBlakeConnected() {
+        if (mNvWifi != null) {
+            return mNvWifi.isBlakeConnected();
+        }
+        return false;
+    }
+
     /**
      * Hw Pno Scan is required only for disconnected PNO when the device supports it.
      * @param isConnectedPno Whether this is connected PNO vs disconnected PNO.
      * @return true if HW PNO scan is required, false otherwise.
      */
     private boolean isHwPnoScanRequired(boolean isConnectedPno) {
-        return (!isConnectedPno & mHwPnoScanSupported);
+        return (!isConnectedPno & mHwPnoScanSupported & !isBlakeConnected());
     }
 
     private boolean isHwPnoScanRequired() {
