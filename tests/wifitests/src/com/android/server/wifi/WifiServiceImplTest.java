@@ -2623,14 +2623,41 @@ public class WifiServiceImplTest {
      */
     @Test(expected = SecurityException.class)
     public void testGetPasspointConfigurationsWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
 
-        mWifiServiceImpl.getPasspointConfigurations();
+        mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
+    }
+
+    /**
+     * Verify that getPasspointConfigurations called by apps that has invalid package will
+     * throw {@link SecurityException}.
+     */
+    @Test(expected = SecurityException.class)
+    public void testGetPasspointConfigurationWithInvalidPackage() {
+        doThrow(new SecurityException()).when(mAppOpsManager).checkPackage(anyInt(),
+                eq(TEST_PACKAGE_NAME));
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(true);
+
+        mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
+    }
+
+    /**
+     * Verify that getPasspointConfigurations called by apps targeting below Q SDK will return
+     * empty list if the caller doesn't have NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
+     */
+    @Test
+    public void testGetPasspointConfigurationForAppsTargetingBelowQSDK() {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(eq(TEST_PACKAGE_NAME),
+                eq(Build.VERSION_CODES.Q))).thenReturn(true);
+
+        List<PasspointConfiguration> result = mWifiServiceImpl.getPasspointConfigurations(
+                TEST_PACKAGE_NAME);
+        assertNotNull(result);
+        assertEquals(0, result.size());
     }
 
     /**
