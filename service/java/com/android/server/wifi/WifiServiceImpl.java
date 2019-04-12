@@ -2325,15 +2325,18 @@ public class WifiServiceImpl extends BaseWifiService {
      * Return the list of the installed Passpoint configurations.
      *
      * An empty list will be returned when no configuration is installed.
-     *
-     * @return A list of {@link PasspointConfiguration}
+     * @param packageName String name of the calling package
+     * @return A list of {@link PasspointConfiguration}.
      */
     @Override
-    public List<PasspointConfiguration> getPasspointConfigurations() {
-        if ((mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS)
-                != PERMISSION_GRANTED)
-                && (mContext.checkSelfPermission(android.Manifest.permission.NETWORK_SETUP_WIZARD)
-                != PERMISSION_GRANTED)) {
+    public List<PasspointConfiguration> getPasspointConfigurations(String packageName) {
+        final int uid = Binder.getCallingUid();
+        mAppOps.checkPackage(uid, packageName);
+        if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
+            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
+                return new ArrayList<>();
+            }
             throw new SecurityException(TAG + ": Permission denied");
         }
         if (mVerboseLoggingEnabled) {
