@@ -74,7 +74,7 @@ public class PostDevDataMessage {
                 String.join(" ", SppConstants.SUPPORTED_MO_LIST));
         addMoContainer(requestObject, DevInfoMo.URN, DevInfoMo.serializeToXml(info));
         addMoContainer(requestObject, DevDetailMo.URN,
-                DevDetailMo.serializeToXml(context, info, redirectUri, false));
+                DevDetailMo.serializeToXml(context, info, redirectUri));
         envelope.setOutputSoapObject(requestObject);
         return envelope;
     }
