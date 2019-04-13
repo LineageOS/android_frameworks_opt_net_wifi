@@ -374,6 +374,9 @@ public class PasspointProvider {
             // R2 profile, it needs to set updateIdentifier HS2.0 Indication element as PPS MO
             // ID in Association Request.
             wifiConfig.updateIdentifier = Integer.toString(mConfig.getUpdateIdentifier());
+            if (isMeteredNetwork(mConfig)) {
+                wifiConfig.meteredOverride = WifiConfiguration.METERED_OVERRIDE_METERED;
+            }
         }
         wifiConfig.providerFriendlyName = mConfig.getHomeSp().getFriendlyName();
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
@@ -535,6 +538,24 @@ public class PasspointProvider {
         }
 
         return null;
+    }
+
+    /**
+     * Determines the Passpoint network is a metered network.
+     *
+     * Expiration date -> non-metered
+     * Data limit -> metered
+     * Time usage limit -> metered
+     * @param passpointConfig instance of {@link PasspointConfiguration}
+     * @return {@code true} if the network is a metered network, {@code false} otherwise.
+     */
+    private boolean isMeteredNetwork(PasspointConfiguration passpointConfig) {
+        if (passpointConfig == null) return false;
+
+        // If DataLimit is zero, there is unlimited data usage for the account.
+        // If TimeLimit is zero, there is unlimited time usage for the account.
+        return passpointConfig.getUsageLimitDataLimit() > 0
+                || passpointConfig.getUsageLimitTimeLimitInMinutes() > 0;
     }
 
     /**
