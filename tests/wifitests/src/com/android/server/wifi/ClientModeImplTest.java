@@ -1024,8 +1024,7 @@ public class ClientModeImplTest {
         triggerConnect();
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
-                CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI);
+        when(mCarrierNetworkConfig.isSupportAnonymousIdentity()).thenReturn(true);
         when(mWifiConfigManager.getScanDetailCacheForNetwork(FRAMEWORK_NETWORK_ID))
                 .thenReturn(mScanDetailCache);
 

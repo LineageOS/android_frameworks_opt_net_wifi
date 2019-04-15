@@ -161,8 +161,7 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
 
                 // In case of a carrier supporting anonymous identity, we need
                 // to send anonymous@realm as EAP-IDENTITY response.
-                if (mCarrierNetworkConfig.getEapIdentitySequence()
-                        == CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI) {
+                if (mCarrierNetworkConfig.isSupportAnonymousIdentity()) {
                     config.enterpriseConfig.setAnonymousIdentity(
                             TelephonyUtil.getAnonymousIdentityWith3GppRealm(getTelephonyManager()));
                 }
