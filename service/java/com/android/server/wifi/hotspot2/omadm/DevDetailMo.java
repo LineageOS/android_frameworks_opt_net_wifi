@@ -119,6 +119,21 @@ public class DevDetailMo {
         sSupportedOps.add(TAG_LAUNCH_BROWSER_TO_URI);
     }
 
+    // Whether to send IMSI and IMEI information or not during OSU provisioning flow; Mandatory (as
+    // per standard) for mobile devices possessing a SIM card. However, it is unclear why this is
+    // needed. Default to false due to privacy concerns.
+    private static boolean sAllowToSendImsiImeiInfo = false;
+
+    /**
+     * Allow or disallow to send IMSI and IMEI information during OSU provisioning flow.
+     *
+     * @param allowToSendImsiImeiInfo flag to allow/disallow to send IMSI and IMEI.
+     */
+    @VisibleForTesting
+    public static void setAllowToSendImsiImeiInfo(boolean allowToSendImsiImeiInfo) {
+        sAllowToSendImsiImeiInfo = allowToSendImsiImeiInfo;
+    }
+
     /**
      * Make a format of XML based on the DDF(Data Definition Format) of DevDetail MO.
      *
@@ -127,12 +142,11 @@ public class DevDetailMo {
      * @param context {@link Context}
      * @param info {@link SystemInfo}
      * @param redirectUri redirect uri that server uses as completion of subscription.
-     * @param isHomeCarrier {@code true} if the network is the home carrier network.
      * @return the XML that has format of OMA DM DevDetail Management Object, <code>null</code> in
      * case of any failure.
      */
     public static String serializeToXml(@NonNull Context context, @NonNull SystemInfo info,
-            @NonNull String redirectUri, boolean isHomeCarrier) {
+            @NonNull String redirectUri) {
         String macAddress = info.getMacAddress(IFNAME);
         if (macAddress != null) {
             macAddress = macAddress.replace(":", "");
@@ -194,12 +208,9 @@ public class DevDetailMo {
         wifiNode.appendChild(moSerializer.createNodeForValue(doc, TAG_WIFI_MAC_ADDR, macAddress));
 
         String imsi = telephonyManager.getSubscriberId();
-        if (imsi != null) {
-            if (isHomeCarrier) {
-                // Don't provide the IMSI to an SP that did not issue the IMSI
-                wifiNode.appendChild(moSerializer.createNodeForValue(doc, TAG_IMSI, imsi));
-            }
-            // Mandatory for mobile devices possessing a SIM card.
+        if (imsi != null && sAllowToSendImsiImeiInfo) {
+            // Don't provide the IMSI to an SP that did not issue the IMSI
+            wifiNode.appendChild(moSerializer.createNodeForValue(doc, TAG_IMSI, imsi));
             wifiNode.appendChild(
                     moSerializer.createNodeForValue(doc, TAG_IMEI_MEID, info.getDeviceId()));
         }

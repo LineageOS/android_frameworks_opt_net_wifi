@@ -965,6 +965,7 @@ public class PasspointProviderTest {
         // Create provider for R2.
         PasspointConfiguration config = new PasspointConfiguration();
         config.setUpdateIdentifier(1234);
+        config.setUsageLimitDataLimit(100);
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
         homeSp.setFriendlyName(friendlyName);
@@ -998,6 +999,7 @@ public class PasspointProviderTest {
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
         assertEquals(wifiConfig.updateIdentifier, Integer.toString(config.getUpdateIdentifier()));
         assertEquals(allowedProtocols, wifiConfig.allowedProtocols);
+        assertEquals("1234", wifiConfig.updateIdentifier);
         assertFalse(wifiConfig.shared);
         assertEquals(realm, wifiEnterpriseConfig.getRealm());
         assertEquals(fqdn, wifiEnterpriseConfig.getDomainSuffixMatch());
@@ -1006,6 +1008,7 @@ public class PasspointProviderTest {
         assertEquals(WifiEnterpriseConfig.Phase2.MSCHAPV2, wifiEnterpriseConfig.getPhase2Method());
         assertEquals(username, wifiEnterpriseConfig.getIdentity());
         assertEquals(password, wifiEnterpriseConfig.getPassword());
+        assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED, wifiConfig.meteredOverride);
         assertEquals(CA_CERTIFICATE_ALIAS, wifiEnterpriseConfig.getCaCertificateAlias());
     }
 
@@ -1027,6 +1030,8 @@ public class PasspointProviderTest {
 
         // Create provider.
         PasspointConfiguration config = new PasspointConfiguration();
+        config.setUpdateIdentifier(1234);
+        config.setUsageLimitTimeLimitInMinutes(100);
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(fqdn);
         homeSp.setFriendlyName(friendlyName);
@@ -1064,7 +1069,7 @@ public class PasspointProviderTest {
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         assertTrue(wifiConfig.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X));
         assertEquals(allowedProtocols, wifiConfig.allowedProtocols);
-        assertNull(wifiConfig.updateIdentifier);
+        assertEquals("1234", wifiConfig.updateIdentifier);
         assertFalse(wifiConfig.shared);
         assertEquals(realm, wifiEnterpriseConfig.getRealm());
         assertEquals(fqdn, wifiEnterpriseConfig.getDomainSuffixMatch());
@@ -1072,6 +1077,7 @@ public class PasspointProviderTest {
         assertEquals(WifiEnterpriseConfig.Eap.TLS, wifiEnterpriseConfig.getEapMethod());
         assertEquals(CLIENT_CERTIFICATE_ALIAS, wifiEnterpriseConfig.getClientCertificateAlias());
         assertEquals(CA_CERTIFICATE_ALIAS, wifiEnterpriseConfig.getCaCertificateAlias());
+        assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED, wifiConfig.meteredOverride);
     }
 
     /**
@@ -1124,6 +1130,7 @@ public class PasspointProviderTest {
         assertEquals(fqdn, wifiEnterpriseConfig.getDomainSuffixMatch());
         assertEquals(WifiEnterpriseConfig.Eap.SIM, wifiEnterpriseConfig.getEapMethod());
         assertEquals(imsi, wifiEnterpriseConfig.getPlmn());
+        assertEquals(WifiConfiguration.METERED_OVERRIDE_NONE, wifiConfig.meteredOverride);
     }
 
     /**

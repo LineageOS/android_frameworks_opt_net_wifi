@@ -70,6 +70,7 @@ public class DevDetailMoTest {
         when(mSystemInfo.getSoftwareVersion()).thenReturn(TEST_SW_VERSION);
         when(mSystemInfo.getFirmwareVersion()).thenReturn(TEST_FW_VERSION);
         when(mTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
+        DevDetailMo.setAllowToSendImsiImeiInfo(false);
     }
 
     /**
@@ -78,14 +79,15 @@ public class DevDetailMoTest {
     @Test
     public void serializeDevDetailMoWithoutMacaddress() {
         when(mSystemInfo.getMacAddress(any(String.class))).thenReturn(null);
-        assertNull(DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL, false));
+        assertNull(DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL));
     }
 
     /**
-     * Verify the serialization will include IMSI if the HS2.0 network is a home carrier network.
+     * Verify the serialization will include IMSI and IMEI if it is allowed to send the information.
      */
     @Test
     public void serializeDevDetailMoForHomeNetworkCarrier() {
+        DevDetailMo.setAllowToSendImsiImeiInfo(true);
         String expected = String.format("<MgmtTree>"
                         + "<VerDTD>%s</VerDTD>"
                         + "<Node><NodeName>DevDetail</NodeName>"
@@ -149,16 +151,15 @@ public class DevDetailMoTest {
                 TEST_REDIRECT_URL, TEST_MAC_ADDR.replace(":", ""), TEST_IMSI, TEST_DEV_ID,
                 TEST_MANUFACTURER, TEST_FW_VERSION, TEST_SW_VERSION, TEST_HW_VERSION);
         assertEquals(expected,
-                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL, true));
+                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL));
     }
 
     /**
-     * Verify the serialization will not include IMSI if the HS2.0 network is not a home carrier
-     * network.
+     * Verify the serialization will not include IMSI and IMEI if the HS2.0 network is not a home
+     * carrier network.
      */
     @Test
     public void serializeDevDetailMoForOtherCarrier() {
-
         String expected = String.format("<MgmtTree>"
                         + "<VerDTD>%s</VerDTD>"
                         + "<Node><NodeName>DevDetail</NodeName>"
@@ -197,7 +198,6 @@ public class DevDetailMoTest {
                         + "<Node><NodeName>ClientTriggerRedirectURI</NodeName>"
                         + "<Value>%s</Value></Node>"
                         + "<Node><NodeName>Wi-FiMACAddress</NodeName><Value>%s</Value></Node>"
-                        + "<Node><NodeName>IMEI_MEID</NodeName><Value>%s</Value></Node>"
                         + "<Node><NodeName>Ops</NodeName>"
                         + "<Node><NodeName>launchBrowserToURI</NodeName><Value/></Node>"
                         + "</Node>"
@@ -217,11 +217,11 @@ public class DevDetailMoTest {
                         + "<Node><NodeName>LrgOrj</NodeName><Value>TRUE</Value></Node>"
                         + "</Node>"
                         + "</MgmtTree>",
-                MoSerializer.DM_VERSION, DevDetailMo.URN, DevDetailMo.HS20_URN,
-                TEST_REDIRECT_URL, TEST_MAC_ADDR.replace(":", ""), TEST_DEV_ID, TEST_MANUFACTURER,
+                MoSerializer.DM_VERSION, DevDetailMo.URN, DevDetailMo.HS20_URN, TEST_REDIRECT_URL,
+                TEST_MAC_ADDR.replace(":", ""), TEST_MANUFACTURER,
                 TEST_FW_VERSION, TEST_SW_VERSION, TEST_HW_VERSION);
         assertEquals(expected,
-                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL, false));
+                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL));
     }
 
     /**
@@ -229,6 +229,7 @@ public class DevDetailMoTest {
      */
     @Test
     public void serializeDevDetailMoWithoutSim() {
+        DevDetailMo.setAllowToSendImsiImeiInfo(true);
         when(mTelephonyManager.getSubscriberId()).thenReturn(null);
         String expected = String.format("<MgmtTree>"
                         + "<VerDTD>%s</VerDTD>"
@@ -291,6 +292,6 @@ public class DevDetailMoTest {
                 TEST_MAC_ADDR.replace(":", ""), TEST_MANUFACTURER,
                 TEST_FW_VERSION, TEST_SW_VERSION, TEST_HW_VERSION);
         assertEquals(expected,
-                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL, false));
+                DevDetailMo.serializeToXml(mContext, mSystemInfo, TEST_REDIRECT_URL));
     }
 }
