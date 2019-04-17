@@ -19,6 +19,7 @@ package com.android.server.wifi.hotspot2;
 import static com.android.server.wifi.hotspot2.Utils.isCarrierEapMethod;
 
 import android.annotation.NonNull;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
@@ -131,10 +132,19 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             if (!scanDetail.getNetworkDetail().isInterworking()) {
                 continue;
             }
+            ScanResult scanResult = scanDetail.getScanResult();
+
+            // If the user previously disconnects this network, don't select it.
+            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
+                    ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
+                mLocalLog.log("Ignoring disabled the SSID of Passpoint AP: "
+                        + WifiNetworkSelector.toScanId(scanResult));
+                continue;
+            }
 
             // Find the best provider for this ScanDetail.
             Pair<PasspointProvider, PasspointMatch> bestProvider =
-                    mPasspointManager.matchProvider(scanDetail.getScanResult());
+                    mPasspointManager.matchProvider(scanResult);
             if (bestProvider != null) {
                 if (bestProvider.first.isSimCredential() && !mWifiConfigManager.isSimPresent()) {
                     // Skip providers backed by SIM credential when SIM is not present.
