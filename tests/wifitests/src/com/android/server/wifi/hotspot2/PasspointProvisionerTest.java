@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -62,6 +63,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
+import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants;
@@ -191,6 +193,7 @@ public class PasspointProvisionerTest {
     @Mock PasspointConfiguration mPasspointConfiguration;
     @Mock X509Certificate mX509Certificate;
     @Mock SoapSerializationEnvelope mSoapSerializationEnvelope;
+    @Mock WifiMetrics mWifiMetrics;
 
     @Before
     public void setUp() throws Exception {
@@ -217,7 +220,7 @@ public class PasspointProvisionerTest {
         doReturn(mWifiManager).when(mContext)
                 .getSystemService(eq(Context.WIFI_SERVICE));
         mPasspointProvisioner = new PasspointProvisioner(mContext, mWifiNative, mObjectFactory,
-                mPasspointManager);
+                mPasspointManager, mWifiMetrics);
         when(mOsuNetworkConnection.connect(any(WifiSsid.class), any(), any())).thenReturn(true);
         when(mOsuServerConnection.connect(any(URL.class), any(Network.class))).thenReturn(true);
         when(mOsuServerConnection.validateProvider(any(Locale.class),
@@ -404,8 +407,22 @@ public class PasspointProvisionerTest {
                         mOsuServerCallbacks.getSessionId(), trustRootCertificates);
                 mLooper.dispatchAll();
                 verify(mCallback).onProvisioningComplete();
+                // Verify WifiMetrics for provisioning success.
+                verify(mWifiMetrics).incrementPasspointProvisionSuccess();
             }
         }
+    }
+
+    /**
+     * Verifies provisioning failure state.
+     */
+    private void verifyProvisioningFailure(int failureCode) throws RemoteException {
+        verify(mCallback).onProvisioningFailure(failureCode);
+        // Verify WifiMetrics for provisioning failure.
+        // incrementPasspointProvisionFailure() has to be called only once
+        // and with correct failureCode
+        verify(mWifiMetrics).incrementPasspointProvisionFailure(failureCode);
+        verify(mWifiMetrics).incrementPasspointProvisionFailure(anyInt());
     }
 
     /**
@@ -425,7 +442,7 @@ public class PasspointProvisionerTest {
 
         initAndStartProvisioning();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
     }
 
@@ -439,7 +456,7 @@ public class PasspointProvisionerTest {
 
         initAndStartProvisioning();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_OSU_PROVIDER_NOT_FOUND);
     }
 
@@ -514,7 +531,7 @@ public class PasspointProvisionerTest {
         assertTrue(mPasspointProvisioner.startSubscriptionProvisioning(
                 TEST_UID, mOsuProvider, mCallback2));
         mLooper.dispatchAll();
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
     }
 
@@ -539,7 +556,7 @@ public class PasspointProvisionerTest {
         mLooper.dispatchAll();
 
         // Since creating an instance of RedirectListener, directly move to FAILED_STATE
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_START_REDIRECT_LISTENER);
 
         // Failure case, no more runnable posted
@@ -556,7 +573,7 @@ public class PasspointProvisionerTest {
         initAndStartProvisioning();
 
         // Since connection attempt fails, directly move to FAILED_STATE
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
         // Failure case, no more runnables posted
         verifyNoMoreInteractions(mCallback);
     }
@@ -575,7 +592,7 @@ public class PasspointProvisionerTest {
         mOsuNetworkCallbacks.onDisconnected();
 
         // Move to failed state
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
         // Failure case, no more runnable posted
         verifyNoMoreInteractions(mCallback);
     }
@@ -591,7 +608,7 @@ public class PasspointProvisionerTest {
         mOsuNetworkCallbacks.onDisconnected();
 
         // Move to failed state
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
         // No more callbacks, Osu server validation not initiated
         verifyNoMoreInteractions(mCallback);
     }
@@ -607,7 +624,7 @@ public class PasspointProvisionerTest {
         mOsuNetworkCallbacks.onWifiDisabled();
 
         // Wifi Disable is processed first and move to failed state
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
         // OSU server connection event is not handled
         verifyNoMoreInteractions(mCallback);
     }
@@ -622,7 +639,7 @@ public class PasspointProvisionerTest {
         initAndStartProvisioning();
 
         // Attempting to connect to OSU server fails due to invalid server URL, move to failed state
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_SERVER_URL_INVALID);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
@@ -638,7 +655,7 @@ public class PasspointProvisionerTest {
         stopAfterStep(STEP_AP_CONNECT);
 
         // Connection to OSU Server fails, move to failed state
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
     }
@@ -656,7 +673,7 @@ public class PasspointProvisionerTest {
         mLooper.dispatchAll();
 
         // Server validation failure, move to failed state
-        verify(mCallback).onProvisioningFailure(ProvisioningCallback.OSU_FAILURE_SERVER_VALIDATION);
+        verifyProvisioningFailure(ProvisioningCallback.OSU_FAILURE_SERVER_VALIDATION);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
     }
@@ -721,7 +738,7 @@ public class PasspointProvisionerTest {
         mLooper.dispatchAll();
 
         // Provider validation failure is processed next, move to failed state
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
@@ -749,7 +766,7 @@ public class PasspointProvisionerTest {
 
         verify(mCallback).onProvisioningStatus(
                 ProvisioningCallback.OSU_STATUS_SERVER_CONNECTED);
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
@@ -785,7 +802,7 @@ public class PasspointProvisionerTest {
                 mSppResponseMessage);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_NO_OSU_ACTIVITY_FOUND);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
@@ -804,7 +821,7 @@ public class PasspointProvisionerTest {
         mLooper.dispatchAll();
 
         verify(mRedirectListener, atLeastOnce()).stopServer(any(Handler.class));
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER);
         // No further runnable posted
         verifyNoMoreInteractions(mCallback);
@@ -833,7 +850,7 @@ public class PasspointProvisionerTest {
                 mSppResponseMessage);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE);
     }
 
@@ -855,7 +872,7 @@ public class PasspointProvisionerTest {
                 mExchangeCompleteMessage);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED);
     }
 
@@ -883,7 +900,7 @@ public class PasspointProvisionerTest {
         when(mOsuServerConnection.retrieveTrustRootCerts(anyMap())).thenReturn(false);
         stopAfterStep(STEP_WAIT_FOR_THIRD_SOAP_RESPONSE);
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION);
     }
 
@@ -910,7 +927,7 @@ public class PasspointProvisionerTest {
                 mOsuServerCallbacks.getSessionId(), trustRootCertificates);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_ADD_PASSPOINT_CONFIGURATION);
     }
 
@@ -932,7 +949,7 @@ public class PasspointProvisionerTest {
                 mOsuServerCallbacks.getSessionId(), trustRootCertificates);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES);
     }
 
@@ -960,7 +977,7 @@ public class PasspointProvisionerTest {
                 mOsuServerCallbacks.getSessionId(), trustRootCertificates);
         mLooper.dispatchAll();
 
-        verify(mCallback).onProvisioningFailure(
+        verifyProvisioningFailure(
                 ProvisioningCallback.OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES);
     }
 

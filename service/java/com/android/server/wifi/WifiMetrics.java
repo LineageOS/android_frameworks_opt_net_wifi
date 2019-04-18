@@ -31,6 +31,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiUsabilityStatsEntry.ProbeStatus;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.ProvisioningCallback;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -62,6 +63,8 @@ import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProvisionStats;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProvisionStats.ProvisionFailureCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
@@ -401,6 +404,12 @@ public class WifiMetrics {
      * This object should not be cleared.
      */
     private final SparseIntArray mNetworkIdToNominatorId = new SparseIntArray();
+
+    /** passpoint provision success count */
+    private int mNumProvisionSuccess = 0;
+
+    /** Mapping of failure code to the respective passpoint provision failure count. */
+    private final IntCounter mPasspointProvisionFailureCounts = new IntCounter();
 
     @VisibleForTesting
     static class NetworkSelectionExperimentResults {
@@ -2533,6 +2542,11 @@ public class WifiMetrics {
                             + mInstalledPasspointProfileType.valueAt(i));
                 }
 
+                pw.println("mWifiLogProto.passpointProvisionStats.numProvisionSuccess="
+                            + mNumProvisionSuccess);
+                pw.println("mWifiLogProto.passpointProvisionStats.provisionFailureCount:"
+                            + mPasspointProvisionFailureCounts);
+
                 pw.println("mWifiLogProto.numRadioModeChangeToMcc="
                         + mWifiLogProto.numRadioModeChangeToMcc);
                 pw.println("mWifiLogProto.numRadioModeChangeToScc="
@@ -3289,6 +3303,21 @@ public class WifiMetrics {
 
             mWifiLogProto.wifiLockStats = mWifiLockStats;
             mWifiLogProto.wifiToggleStats = mWifiToggleStats;
+
+            /**
+             * Convert the SparseIntArray of passpoint provision failure code
+             * and counts to the proto's repeated IntKeyVal array.
+             */
+            mWifiLogProto.passpointProvisionStats = new PasspointProvisionStats();
+            mWifiLogProto.passpointProvisionStats.numProvisionSuccess = mNumProvisionSuccess;
+            mWifiLogProto.passpointProvisionStats.provisionFailureCount =
+                    mPasspointProvisionFailureCounts.toProto(ProvisionFailureCount.class,
+                            (key, count) -> {
+                                ProvisionFailureCount entry = new ProvisionFailureCount();
+                                entry.failureCode = key;
+                                entry.count = count;
+                                return entry;
+                            });
         }
     }
 
@@ -3471,6 +3500,8 @@ public class WifiMetrics {
             mWifiLockLowLatencyActiveSessionDurationSecHistogram.clear();
             mWifiLockStats.clear();
             mWifiToggleStats.clear();
+            mPasspointProvisionFailureCounts.clear();
+            mNumProvisionSuccess = 0;
         }
     }
 
@@ -4909,6 +4940,116 @@ public class WifiMetrics {
             } else {
                 mWifiToggleStats.numToggleOffNormal++;
             }
+        }
+    }
+
+    /**
+     * Increment number of passpoint provision failure
+     * @param failureCode indicates error condition
+     */
+    public void incrementPasspointProvisionFailure(int failureCode) {
+        int provisionFailureCode;
+        synchronized (mLock) {
+            switch (failureCode) {
+                case ProvisioningCallback.OSU_FAILURE_AP_CONNECTION:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_AP_CONNECTION;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_SERVER_URL_INVALID:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_SERVER_URL_INVALID;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_SERVER_CONNECTION:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_SERVER_CONNECTION;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_SERVER_VALIDATION:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_SERVER_VALIDATION;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_SERVICE_PROVIDER_VERIFICATION;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_PROVISIONING_ABORTED:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_PROVISIONING_ABORTED;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_PROVISIONING_NOT_AVAILABLE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_INVALID_URL_FORMAT_FOR_OSU:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_INVALID_URL_FORMAT_FOR_OSU;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_UNEXPECTED_COMMAND_TYPE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_UNEXPECTED_COMMAND_TYPE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_TYPE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_SOAP_MESSAGE_EXCHANGE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_SOAP_MESSAGE_EXCHANGE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_START_REDIRECT_LISTENER:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_START_REDIRECT_LISTENER;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_TIMED_OUT_REDIRECT_LISTENER;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_OSU_ACTIVITY_FOUND:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_NO_OSU_ACTIVITY_FOUND;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_STATUS:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_UNEXPECTED_SOAP_MESSAGE_STATUS;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_PPS_MO:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_NO_PPS_MO;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_AAA_SERVER_TRUST_ROOT_NODE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_NO_AAA_SERVER_TRUST_ROOT_NODE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_REMEDIATION_SERVER_TRUST_ROOT_NODE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_NO_REMEDIATION_SERVER_TRUST_ROOT_NODE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_POLICY_SERVER_TRUST_ROOT_NODE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_NO_POLICY_SERVER_TRUST_ROOT_NODE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_RETRIEVE_TRUST_ROOT_CERTIFICATES;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_NO_AAA_TRUST_ROOT_CERTIFICATE:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_NO_AAA_TRUST_ROOT_CERTIFICATE;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_ADD_PASSPOINT_CONFIGURATION:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_ADD_PASSPOINT_CONFIGURATION;
+                    break;
+                case ProvisioningCallback.OSU_FAILURE_OSU_PROVIDER_NOT_FOUND:
+                    provisionFailureCode = PasspointProvisionStats
+                            .OSU_FAILURE_OSU_PROVIDER_NOT_FOUND;
+                    break;
+                default:
+                    provisionFailureCode = PasspointProvisionStats.OSU_FAILURE_UNKNOWN;
+            }
+            mPasspointProvisionFailureCounts.increment(provisionFailureCode);
+        }
+    }
+
+    /**
+     * Increment number of passpoint provision success
+     */
+    public void incrementPasspointProvisionSuccess() {
+        synchronized (mLock) {
+            mNumProvisionSuccess++;
         }
     }
 }
