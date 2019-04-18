@@ -124,6 +124,19 @@ public class WifiController extends StateMachine {
             addState(mEcmState, mDefaultState);
         // CHECKSTYLE:ON IndentationCheck
 
+        setLogRecSize(100);
+        setLogOnlyTransitions(false);
+
+        // register for state updates via callbacks (vs the intents registered below)
+        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyModeCallback);
+        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
+
+        readWifiReEnableDelay();
+        readWifiRecoveryDelay();
+    }
+
+    @Override
+    public void start() {
         boolean isAirplaneModeOn = mSettingsStore.isAirplaneModeOn();
         boolean isWifiEnabled = mSettingsStore.isWifiToggleEnabled();
         boolean isScanningAlwaysAvailable = mSettingsStore.isScanAlwaysAvailable();
@@ -141,14 +154,6 @@ public class WifiController extends StateMachine {
         } else {
             setInitialState(mStaDisabledState);
         }
-
-        setLogRecSize(100);
-        setLogOnlyTransitions(false);
-
-        // register for state updates via callbacks (vs the intents registered below)
-        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyModeCallback);
-        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
-
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
@@ -180,9 +185,7 @@ public class WifiController extends StateMachine {
                     }
                 },
                 new IntentFilter(filter));
-
-        readWifiReEnableDelay();
-        readWifiRecoveryDelay();
+        super.start();
     }
 
     private boolean checkScanOnlyModeAvailable() {

@@ -125,10 +125,10 @@ public class WifiControllerTest {
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
         mWifiController.start();
         mLooper.dispatchAll();
+
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
         verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
         mBroadcastReceiver = bcastRxCaptor.getValue();
 
         ArgumentCaptor<ClientModeManager.Listener> clientModeCallbackCaptor =
@@ -237,14 +237,14 @@ public class WifiControllerTest {
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
-        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
-                BroadcastReceiver.class);
-        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
-        mBroadcastReceiver = bcastRxCaptor.getValue();
 
         mWifiController.start();
         mLooper.dispatchAll();
+
+        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
+        mBroadcastReceiver = bcastRxCaptor.getValue();
 
         verify(mActiveModeWarden).disableWifi();
 
@@ -272,14 +272,14 @@ public class WifiControllerTest {
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
-        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
-                BroadcastReceiver.class);
-        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
-        mBroadcastReceiver = bcastRxCaptor.getValue();
 
         mWifiController.start();
         mLooper.dispatchAll();
+
+        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
+        mBroadcastReceiver = bcastRxCaptor.getValue();
 
         verify(mActiveModeWarden).enterScanOnlyMode();
 
