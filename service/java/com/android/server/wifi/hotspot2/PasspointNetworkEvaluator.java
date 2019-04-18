@@ -39,6 +39,7 @@ import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This class is the WifiNetworkSelector.NetworkEvaluator implementation for
@@ -105,6 +106,19 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                     @NonNull OnConnectableListener onConnectableListener) {
         // Sweep the ANQP cache to remove any expired ANQP entries.
         mPasspointManager.sweepCache();
+        List<ScanDetail> filteredScanDetails = scanDetails.stream()
+                .filter(s -> s.getNetworkDetail().isInterworking())
+                .filter(s -> {
+                    if (!mWifiConfigManager.wasEphemeralNetworkDeleted(
+                            ScanResultUtil.createQuotedSSID(s.getScanResult().SSID))) {
+                        return true;
+                    } else {
+                        // If the user previously disconnects this network, don't select it.
+                        mLocalLog.log("Ignoring disabled the SSID of Passpoint AP: "
+                                + WifiNetworkSelector.toScanId(s.getScanResult()));
+                        return false;
+                    }
+                }).collect(Collectors.toList());
 
         // Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
         // of the current MNO carrier on the device.
@@ -114,7 +128,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                 && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
                 && !mPasspointManager.hasCarrierProvider(mTelephonyManager.getSimOperator())) {
             int eapMethod = mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
-                    scanDetails);
+                    filteredScanDetails);
             if (isCarrierEapMethod(eapMethod)) {
                 PasspointConfiguration carrierConfig =
                         mPasspointManager.createEphemeralPasspointConfigForCarrier(
@@ -127,20 +141,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
 
         // Go through each ScanDetail and find the best provider for each ScanDetail.
         List<PasspointNetworkCandidate> candidateList = new ArrayList<>();
-        for (ScanDetail scanDetail : scanDetails) {
-            // Skip non-Passpoint APs.
-            if (!scanDetail.getNetworkDetail().isInterworking()) {
-                continue;
-            }
+        for (ScanDetail scanDetail : filteredScanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
-
-            // If the user previously disconnects this network, don't select it.
-            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
-                    ScanResultUtil.createQuotedSSID(scanResult.SSID))) {
-                mLocalLog.log("Ignoring disabled the SSID of Passpoint AP: "
-                        + WifiNetworkSelector.toScanId(scanResult));
-                continue;
-            }
 
             // Find the best provider for this ScanDetail.
             Pair<PasspointProvider, PasspointMatch> bestProvider =
