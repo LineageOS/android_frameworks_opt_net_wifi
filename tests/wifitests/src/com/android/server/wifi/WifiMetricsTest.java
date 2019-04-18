@@ -59,6 +59,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.ProvisioningCallback;
 import android.net.wifi.hotspot2.pps.Credential;
 import android.os.Handler;
 import android.os.IBinder;
@@ -87,6 +88,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProvisionStats;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
 import com.android.server.wifi.nano.WifiMetricsProto.SoftApConnectedClientsEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
@@ -1258,6 +1260,40 @@ public class WifiMetricsTest {
         }
         assertEquals(null, count);
     }
+
+    /**
+     * Test the number of Passpoint provision with the failure code are collected correctly
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testPasspointProvisionMetrics() throws Exception {
+        //Increment count for provisioning success.
+        mWifiMetrics.incrementPasspointProvisionSuccess();
+
+        // Increment count for provisioning unavailable
+        mWifiMetrics.incrementPasspointProvisionFailure(
+                ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
+        mWifiMetrics.incrementPasspointProvisionFailure(
+                ProvisioningCallback.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
+
+        // Increment count for server connection failure
+        mWifiMetrics.incrementPasspointProvisionFailure(
+                ProvisioningCallback.OSU_FAILURE_AP_CONNECTION);
+
+        // Dump proto and deserialize
+        dumpProtoAndDeserialize();
+
+        assertEquals(mDecodedProto.passpointProvisionStats.numProvisionSuccess, 1);
+        assertEquals(mDecodedProto.passpointProvisionStats.provisionFailureCount.length, 2);
+        assertEquals(mDecodedProto.passpointProvisionStats.provisionFailureCount[0].failureCode,
+                PasspointProvisionStats.OSU_FAILURE_AP_CONNECTION);
+        assertEquals(mDecodedProto.passpointProvisionStats.provisionFailureCount[0].count, 1);
+        assertEquals(mDecodedProto.passpointProvisionStats.provisionFailureCount[1].failureCode,
+                PasspointProvisionStats.OSU_FAILURE_PROVISIONING_NOT_AVAILABLE);
+        assertEquals(mDecodedProto.passpointProvisionStats.provisionFailureCount[1].count, 2);
+    }
+
     /**
      * Combination of all other WifiMetrics unit tests, an internal-integration test, or functional
      * test

@@ -241,7 +241,8 @@ public class PasspointManager {
                 mKeyStore, mSimAccessor, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
                 new SharedDataSourceHandler()));
-        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative, this);
+        mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative,
+                this, wifiMetrics);
         sPasspointManager = this;
     }
 
