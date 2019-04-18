@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.util;
 
+import static com.android.server.wifi.CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -42,6 +44,7 @@ import org.mockito.MockitoSession;
 
 import java.security.PublicKey;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 
 /**
@@ -58,8 +61,11 @@ public class TelephonyUtilTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(Base64.DEFAULT);
+        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
+                IDENTITY_SEQUENCE_IMSI_V1_0);
         mTelephonyUtil = new TelephonyUtil();
     }
+
     @Test
     public void getSimIdentityEapSim() {
         TelephonyManager tm = mock(TelephonyManager.class);
@@ -119,11 +125,11 @@ public class TelephonyUtilTest {
     }
 
     /**
-     * Verify that an expected identity is returned when using the encrypted IMSI encoded by
-     * RFC4648.
+     * Verify that an expected identity is returned when using the encrypted identity for V1.0
+     * encoded by RFC4648.
      */
     @Test
-    public void getEncryptedIdentityImsiWithRfc4648() throws Exception {
+    public void getEncryptedIdentity_V_1_0_WithRfc4648() throws Exception {
         TelephonyManager tm = mock(TelephonyManager.class);
         Cipher cipher = mock(Cipher.class);
         PublicKey key = null;
@@ -149,6 +155,49 @@ public class TelephonyUtilTest {
             when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
                     .thenReturn(info);
             when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(flag);
+
+            assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
+                    WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
+                            WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that an expected identity is returned when using the encrypted identity for V1.6
+     * encoded by RFC4648.
+     */
+    @Test
+    public void getEncryptedIdentity_V_1_6_WithRfc4648() throws Exception {
+        TelephonyManager tm = mock(TelephonyManager.class);
+        Cipher cipher = mock(Cipher.class);
+        PublicKey key = null;
+        int flag = Base64.NO_WRAP;
+        String imsi = "3214561234567890";
+        String permanentIdentity = "03214561234567890@wlan.mnc456.mcc321.3gppnetwork.org";
+        String encryptedImsi = Base64.encodeToString(permanentIdentity.getBytes(), 0,
+                permanentIdentity.getBytes().length, flag);
+        String encryptedIdentity = "\0" + encryptedImsi;
+        final Pair<String, String> expectedIdentity = Pair.create(permanentIdentity,
+                encryptedIdentity);
+
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                Cipher.class).startMocking();
+        try {
+            when(Cipher.getInstance(anyString())).thenReturn(cipher);
+            when(cipher.doFinal(any(byte[].class))).thenReturn(permanentIdentity.getBytes());
+            when(tm.getSubscriberId()).thenReturn(imsi);
+            when(tm.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+            when(tm.getSimOperator()).thenReturn("321456");
+            ImsiEncryptionInfo info = new ImsiEncryptionInfo("321", "456",
+                    TelephonyManager.KEY_TYPE_WLAN, null, key, null);
+            when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
+                    .thenReturn(info);
+            when(mCarrierNetworkConfig.getBase64EncodingFlag()).thenReturn(flag);
+            when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
+                    CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6);
 
             assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
                     WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
@@ -201,24 +250,58 @@ public class TelephonyUtilTest {
     }
 
     /**
-     * Verify that a null identity will be returned when IMSI encryption failed.
+     * Verify that {@code null} will be returned when IMSI encryption failed.
      *
      * @throws Exception
      */
     @Test
     public void getEncryptedIdentityFailed() throws Exception {
         TelephonyManager tm = mock(TelephonyManager.class);
+        Cipher cipher = mock(Cipher.class);
+        String keyIdentifier = "key=testKey";
         String imsi = "3214561234567890";
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                Cipher.class).startMocking();
+        try {
+            when(Cipher.getInstance(anyString())).thenReturn(cipher);
+            when(cipher.doFinal(any(byte[].class))).thenThrow(BadPaddingException.class);
+            when(tm.getSubscriberId()).thenReturn(imsi);
+            when(tm.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+            when(tm.getSimOperator()).thenReturn("321456");
+            ImsiEncryptionInfo info = new ImsiEncryptionInfo("321", "456",
+                    TelephonyManager.KEY_TYPE_WLAN, keyIdentifier, (PublicKey) null, null);
+            when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
+                    .thenReturn(info);
+
+            assertNull(TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
+                    WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
+                            WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that {@code null} will be returned when IMSI encryption failed because
+     * the sequence of EAP identity is not valid.
+     */
+    @Test
+    public void getEncryptedIdentityFailedWithInvalidEapIdentitySequence() throws Exception {
+        TelephonyManager tm = mock(TelephonyManager.class);
         final Pair<String, String> expectedIdentity = Pair.create(
                 "03214561234567890@wlan.mnc456.mcc321.3gppnetwork.org", "");
 
         when(tm.getSubscriberId()).thenReturn("3214561234567890");
         when(tm.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(tm.getSimOperator()).thenReturn("321456");
+        ImsiEncryptionInfo info = new ImsiEncryptionInfo("321", "456",
+                TelephonyManager.KEY_TYPE_WLAN, null, (PublicKey) null, null);
         when(tm.getCarrierInfoForImsiEncryption(eq(TelephonyManager.KEY_TYPE_WLAN)))
-                .thenReturn(null);
+                .thenReturn(info);
+        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(-1);
 
-        assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
+        assertNull(TelephonyUtil.getSimIdentity(tm, mTelephonyUtil,
                 WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
                         WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
     }
