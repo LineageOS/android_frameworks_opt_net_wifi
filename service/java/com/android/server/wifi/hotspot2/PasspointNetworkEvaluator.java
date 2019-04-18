@@ -188,8 +188,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         WifiConfiguration config = networkInfo.mProvider.getWifiConfig();
         if (TelephonyUtil.isSimEapMethod(config.enterpriseConfig.getEapMethod())
                 && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
-                && (mCarrierNetworkConfig.getEapIdentitySequence()
-                == CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI)) {
+                && mCarrierNetworkConfig.isSupportAnonymousIdentity()) {
             // In case of a carrier supporting encrypted IMSI and anonymous identity, we need
             // to send anonymous@realm as EAP-IDENTITY response.
             config.enterpriseConfig.setAnonymousIdentity(
