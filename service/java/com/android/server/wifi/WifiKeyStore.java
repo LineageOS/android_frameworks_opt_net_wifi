@@ -278,22 +278,24 @@ public class WifiKeyStore {
      */
     public boolean updateNetworkKeys(WifiConfiguration config, WifiConfiguration existingConfig) {
         WifiEnterpriseConfig enterpriseConfig = config.enterpriseConfig;
-        if (needsKeyStore(enterpriseConfig)) {
-            try {
-                /* config passed may include only fields being updated.
-                 * In order to generate the key id, fetch uninitialized
-                 * fields from the currently tracked configuration
-                 */
-                String keyId = config.getKeyIdForCredentials(existingConfig);
-                if (!installKeys(existingConfig != null
-                        ? existingConfig.enterpriseConfig : null, enterpriseConfig, keyId)) {
-                    Log.e(TAG, config.SSID + ": failed to install keys");
-                    return false;
-                }
-            } catch (IllegalStateException e) {
-                Log.e(TAG, config.SSID + " invalid config for key installation: " + e.getMessage());
+        if (!needsKeyStore(enterpriseConfig)) {
+            return true;
+        }
+
+        try {
+            /* config passed may include only fields being updated.
+             * In order to generate the key id, fetch uninitialized
+             * fields from the currently tracked configuration
+             */
+            String keyId = config.getKeyIdForCredentials(existingConfig);
+            if (!installKeys(existingConfig != null
+                    ? existingConfig.enterpriseConfig : null, enterpriseConfig, keyId)) {
+                Log.e(TAG, config.SSID + ": failed to install keys");
                 return false;
             }
+        } catch (IllegalStateException e) {
+            Log.e(TAG, config.SSID + " invalid config for key installation: " + e.getMessage());
+            return false;
         }
 
         // For WPA3-Enterprise 192-bit networks, set the SuiteBCipher field based on the
