@@ -2712,6 +2712,7 @@ public class WifiMetrics {
                 for (WifiUsabilityStats stats : mWifiUsabilityStatsListGood) {
                     pw.println("\nlabel=" + stats.label);
                     pw.println("\ntrigger_type=" + stats.triggerType);
+                    pw.println("\ntime_stamp_ms=" + stats.timeStampMs);
                     for (WifiUsabilityStatsEntry entry : stats.stats) {
                         printWifiUsabilityStatsEntry(pw, entry);
                     }
@@ -2719,6 +2720,7 @@ public class WifiMetrics {
                 for (WifiUsabilityStats stats : mWifiUsabilityStatsListBad) {
                     pw.println("\nlabel=" + stats.label);
                     pw.println("\ntrigger_type=" + stats.triggerType);
+                    pw.println("\ntime_stamp_ms=" + stats.timeStampMs);
                     for (WifiUsabilityStatsEntry entry : stats.stats) {
                         printWifiUsabilityStatsEntry(pw, entry);
                     }
@@ -4444,6 +4446,7 @@ public class WifiMetrics {
         wifiUsabilityStats.label = label;
         wifiUsabilityStats.triggerType = triggerType;
         wifiUsabilityStats.firmwareAlertCode = firmwareAlertCode;
+        wifiUsabilityStats.timeStampMs = mClock.getElapsedSinceBootMillis();
         wifiUsabilityStats.stats =
                 new WifiUsabilityStatsEntry[mWifiUsabilityStatsEntriesList.size()];
         for (int i = 0; i < mWifiUsabilityStatsEntriesList.size(); i++) {

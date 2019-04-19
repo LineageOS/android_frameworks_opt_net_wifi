@@ -3259,6 +3259,8 @@ public class WifiMetricsTest {
         WifiInfo info = mock(WifiInfo.class);
         when(info.getRssi()).thenReturn(nextRandInt());
         when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        long eventTimeMs = nextRandInt();
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(eventTimeMs);
         WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
 
@@ -3274,6 +3276,7 @@ public class WifiMetricsTest {
         assertEquals(WifiUsabilityStats.LABEL_GOOD, statsList[0].label);
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, statsList[1].triggerType);
+        assertEquals(eventTimeMs, statsList[1].timeStampMs);
         assertEquals(2, statsList[1].firmwareAlertCode);
     }
 
@@ -3287,6 +3290,8 @@ public class WifiMetricsTest {
         WifiInfo info = mock(WifiInfo.class);
         when(info.getRssi()).thenReturn(nextRandInt());
         when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        long eventTimeMs = nextRandInt();
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(eventTimeMs);
         WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
 
@@ -3302,6 +3307,7 @@ public class WifiMetricsTest {
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, statsList[1].triggerType);
         assertEquals(-1, statsList[1].firmwareAlertCode);
+        assertEquals(eventTimeMs, statsList[1].timeStampMs);
     }
 
     /**
@@ -3624,6 +3630,8 @@ public class WifiMetricsTest {
         WifiInfo info = mock(WifiInfo.class);
         when(info.getRssi()).thenReturn(nextRandInt());
         when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        long eventTimeMs = nextRandInt();
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(eventTimeMs);
         WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
 
@@ -3638,6 +3646,7 @@ public class WifiMetricsTest {
         WifiUsabilityStats[] statsList = mDecodedProto.wifiUsabilityStatsList;
         assertEquals(WifiUsabilityStats.LABEL_BAD, statsList[1].label);
         assertEquals(WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, statsList[1].triggerType);
+        assertEquals(eventTimeMs, statsList[1].timeStampMs);
     }
 
     /**
