@@ -4415,8 +4415,7 @@ public class WifiConfigManagerTest {
      */
     @Test
     public void testDisableEphemeralNetwork() throws Exception {
-        WifiConfiguration ephemeralNetwork = WifiConfigurationTestUtil.createOpenNetwork();
-        ephemeralNetwork.ephemeral = true;
+        WifiConfiguration ephemeralNetwork = WifiConfigurationTestUtil.createEphemeralNetwork();
         List<WifiConfiguration> networks = new ArrayList<>();
         networks.add(ephemeralNetwork);
 
@@ -4427,21 +4426,46 @@ public class WifiConfigManagerTest {
         WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
                 networks, retrievedNetworks);
 
+        verifyExpiryOfTimeout(ephemeralNetwork);
+    }
+
+    /**
+     * Verifies the disconnection of Passpoint network using
+     * {@link WifiConfigManager#disableEphemeralNetwork(String)}.
+     */
+    @Test
+    public void testDisablePasspointNetwork() throws Exception {
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+
+        List<WifiConfiguration> networks = new ArrayList<>();
+        networks.add(passpointNetwork);
+
+        List<WifiConfiguration> retrievedNetworks =
+                mWifiConfigManager.getConfiguredNetworksWithPasswords();
+        WifiConfigurationTestUtil.assertConfigurationsEqualForConfigManagerAddOrUpdate(
+                networks, retrievedNetworks);
+
+        verifyExpiryOfTimeout(passpointNetwork);
+    }
+
+    private void verifyExpiryOfTimeout(WifiConfiguration config) {
         // Disable the ephemeral network.
         long disableTimeMs = 546643L;
         long currentTimeMs = disableTimeMs;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
-        mWifiConfigManager.disableEphemeralNetwork(ephemeralNetwork.SSID);
+        mWifiConfigManager.disableEphemeralNetwork(config.SSID);
 
         // Before the expiry of timeout.
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS - 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
-        assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(ephemeralNetwork.SSID));
+        assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
 
         // After the expiry of timeout.
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS + 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
-        assertFalse(mWifiConfigManager.wasEphemeralNetworkDeleted(ephemeralNetwork.SSID));
+        assertFalse(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
     }
 
     private NetworkUpdateResult verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(

@@ -61,7 +61,7 @@ public class CarrierNetworkConfig {
     private final Map<String, NetworkInfo> mCarrierNetworkMap;
     private boolean mIsCarrierImsiEncryptionInfoAvailable = false;
     private int mBase64EncodingMethod = Base64.DEFAULT;
-    private int mEapIdentitySequence = IDENTITY_SEQUENCE_IMSI;
+    private int mEapIdentitySequence = IDENTITY_SEQUENCE_IMSI_V1_0;
     private ImsiEncryptionInfo mLastImsiEncryptionInfo = null; // used for dumpsys only
 
     // RFC2045: adds Line Feed at each 76 chars and encode it.
@@ -70,8 +70,20 @@ public class CarrierNetworkConfig {
     // RFC4648: encodes whole data into one string.
     public static final int ENCODING_METHOD_RFC_4648 = 4648;
 
-    public static final int IDENTITY_SEQUENCE_IMSI = 1;
-    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI = 2;
+    // Send encrypted IMSI with the format of V1.0
+    // V1.0 format: "\0"|<encrypted IMSI>|@NAIRealm
+    // <encrypted IMSI>: Base64{RSA Public Key Encryption{<permanent ID>}}
+    // <permanent ID>: One char ("0" for AKA, "1" for SIM, "6" for AKA')|IMSI
+    public static final int IDENTITY_SEQUENCE_IMSI_V1_0 = 1;
+
+    // Send anonymous identity and encrypted IMSI identity with the format of V1.0
+    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0 = 2;
+
+    // Send anonymous identity and encrypted IMSI identity with the format of V1.6
+    // V1.6 format: "\0"|<encrypted identity>
+    // <encrypted identity>: Base64{RSA Public Key Encryption{<permanent ID>}}.
+    // <permanent ID>: One char ("0" for AKA, "1" for SIM, "6" for AKA')|IMSI|@NAIRealm
+    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6 = 3;
 
     /**
      * Enable/disable verbose logging.
@@ -141,6 +153,15 @@ public class CarrierNetworkConfig {
      */
     public int getEapIdentitySequence() {
         return mEapIdentitySequence;
+    }
+
+    /**
+     * @return {@code true} if current carrier wifi network supports anonymous identity, {@code
+     * false} otherwise.
+     */
+    public boolean isSupportAnonymousIdentity() {
+        return mEapIdentitySequence == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0
+                || mEapIdentitySequence == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6;
     }
 
     /**
@@ -268,9 +289,10 @@ public class CarrierNetworkConfig {
         }
 
         int sequence = carrierConfig.getInt(CarrierConfigManager.KEY_EAP_IDENTITY_SEQUENCE_INT,
-                IDENTITY_SEQUENCE_IMSI);
-        if (sequence != IDENTITY_SEQUENCE_IMSI
-                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI) {
+                IDENTITY_SEQUENCE_IMSI_V1_0);
+        if (sequence != IDENTITY_SEQUENCE_IMSI_V1_0
+                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0
+                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6) {
             Log.e(TAG, "Invalid eap identity sequence: " + sequence);
             return;
         }

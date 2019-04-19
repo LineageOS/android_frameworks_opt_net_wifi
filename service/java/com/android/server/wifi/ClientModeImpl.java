@@ -23,8 +23,6 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
-import static com.android.server.wifi.CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -4434,9 +4432,8 @@ public class ClientModeImpl extends StateMachine {
                             } else {
                                 CarrierNetworkConfig carrierNetworkConfig =
                                         mWifiInjector.getCarrierNetworkConfig();
-                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable() && (
-                                        carrierNetworkConfig.getEapIdentitySequence()
-                                                == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI)) {
+                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable()
+                                        && carrierNetworkConfig.isSupportAnonymousIdentity()) {
                                     // In case of a carrier supporting encrypted IMSI and
                                     // anonymous identity, we need to send anonymous@realm as
                                     // EAP-IDENTITY response.

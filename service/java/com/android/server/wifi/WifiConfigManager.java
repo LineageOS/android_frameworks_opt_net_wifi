@@ -2737,7 +2737,7 @@ public class WifiConfigManager {
     }
 
     /**
-     * Disable an ephemeral SSID for the purpose of network selection.
+     * Disable an ephemeral or Passpoint SSID for the purpose of network selection.
      *
      * The network will be re-enabled when:
      * a) The user creates a network for that SSID and then forgets.
@@ -2754,7 +2754,7 @@ public class WifiConfigManager {
         }
         WifiConfiguration foundConfig = null;
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (config.ephemeral && TextUtils.equals(config.SSID, ssid)) {
+            if ((config.ephemeral || config.isPasspoint()) && TextUtils.equals(config.SSID, ssid)) {
                 foundConfig = config;
                 break;
             }
@@ -2764,8 +2764,13 @@ public class WifiConfigManager {
         Log.d(TAG, "Forget ephemeral SSID " + ssid + " num="
                 + mDeletedEphemeralSsidsToTimeMap.size());
         if (foundConfig != null) {
-            Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
-                    + foundConfig.networkId);
+            if (foundConfig.ephemeral) {
+                Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
+                        + foundConfig.networkId);
+            } else if (foundConfig.isPasspoint()) {
+                Log.d(TAG, "Found Passpoint config in disableEphemeralNetwork: "
+                        + foundConfig.networkId + ", FQDN: " + foundConfig.FQDN);
+            }
         }
         return foundConfig;
     }
