@@ -553,8 +553,8 @@ public class WifiAwareServiceImplTest {
 
         mDut.sendMessage(clientId, sessionId, peerId, message, messageId, 0);
 
-        verify(mAwareStateManagerMock).sendMessage(clientId, sessionId, peerId, message, messageId,
-                0);
+        verify(mAwareStateManagerMock).sendMessage(anyInt(), eq(clientId), eq(sessionId),
+                eq(peerId), eq(message), eq(messageId), eq(0));
     }
 
     /**
@@ -570,8 +570,8 @@ public class WifiAwareServiceImplTest {
 
         mDut.sendMessage(clientId, sessionId, peerId, message, messageId, 0);
 
-        verify(mAwareStateManagerMock).sendMessage(clientId, sessionId, peerId, message, messageId,
-                0);
+        verify(mAwareStateManagerMock).sendMessage(anyInt(), eq(clientId), eq(sessionId),
+                eq(peerId), eq(message), eq(messageId), eq(0));
     }
 
     @Test
