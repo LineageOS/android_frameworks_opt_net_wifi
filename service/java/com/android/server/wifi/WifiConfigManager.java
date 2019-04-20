@@ -3099,7 +3099,13 @@ public class WifiConfigManager {
         // configurations for the current user will also being loaded.
         if (mDeferredUserUnlockRead) {
             Log.i(TAG, "Handling user unlock before loading from store.");
-            mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
+            List<WifiConfigStore.StoreFile> userStoreFiles =
+                    WifiConfigStore.createUserFiles(mCurrentUserId);
+            if (userStoreFiles == null) {
+                Log.wtf(TAG, "Failed to create user store files");
+                return false;
+            }
+            mWifiConfigStore.setUserStores(userStoreFiles);
             mDeferredUserUnlockRead = false;
         }
         try {
@@ -3130,9 +3136,15 @@ public class WifiConfigManager {
      * @param userId The identifier of the foreground user.
      * @return true on success, false otherwise.
      */
-    public boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
+    private boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
         try {
-            mWifiConfigStore.switchUserStoresAndRead(WifiConfigStore.createUserFiles(userId));
+            List<WifiConfigStore.StoreFile> userStoreFiles =
+                    WifiConfigStore.createUserFiles(userId);
+            if (userStoreFiles == null) {
+                Log.e(TAG, "Failed to create user store files");
+                return false;
+            }
+            mWifiConfigStore.switchUserStoresAndRead(userStoreFiles);
         } catch (IOException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved private networks are lost!", e);
             return false;
