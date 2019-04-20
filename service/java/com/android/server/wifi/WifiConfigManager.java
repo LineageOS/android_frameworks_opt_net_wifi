@@ -2737,7 +2737,7 @@ public class WifiConfigManager {
     }
 
     /**
-     * Disable an ephemeral SSID for the purpose of network selection.
+     * Disable an ephemeral or Passpoint SSID for the purpose of network selection.
      *
      * The network will be re-enabled when:
      * a) The user creates a network for that SSID and then forgets.
@@ -2754,7 +2754,7 @@ public class WifiConfigManager {
         }
         WifiConfiguration foundConfig = null;
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (config.ephemeral && TextUtils.equals(config.SSID, ssid)) {
+            if ((config.ephemeral || config.isPasspoint()) && TextUtils.equals(config.SSID, ssid)) {
                 foundConfig = config;
                 break;
             }
@@ -2764,8 +2764,13 @@ public class WifiConfigManager {
         Log.d(TAG, "Forget ephemeral SSID " + ssid + " num="
                 + mDeletedEphemeralSsidsToTimeMap.size());
         if (foundConfig != null) {
-            Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
-                    + foundConfig.networkId);
+            if (foundConfig.ephemeral) {
+                Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
+                        + foundConfig.networkId);
+            } else if (foundConfig.isPasspoint()) {
+                Log.d(TAG, "Found Passpoint config in disableEphemeralNetwork: "
+                        + foundConfig.networkId + ", FQDN: " + foundConfig.FQDN);
+            }
         }
         return foundConfig;
     }
@@ -3094,7 +3099,13 @@ public class WifiConfigManager {
         // configurations for the current user will also being loaded.
         if (mDeferredUserUnlockRead) {
             Log.i(TAG, "Handling user unlock before loading from store.");
-            mWifiConfigStore.setUserStores(WifiConfigStore.createUserFiles(mCurrentUserId));
+            List<WifiConfigStore.StoreFile> userStoreFiles =
+                    WifiConfigStore.createUserFiles(mCurrentUserId);
+            if (userStoreFiles == null) {
+                Log.wtf(TAG, "Failed to create user store files");
+                return false;
+            }
+            mWifiConfigStore.setUserStores(userStoreFiles);
             mDeferredUserUnlockRead = false;
         }
         try {
@@ -3125,9 +3136,15 @@ public class WifiConfigManager {
      * @param userId The identifier of the foreground user.
      * @return true on success, false otherwise.
      */
-    public boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
+    private boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
         try {
-            mWifiConfigStore.switchUserStoresAndRead(WifiConfigStore.createUserFiles(userId));
+            List<WifiConfigStore.StoreFile> userStoreFiles =
+                    WifiConfigStore.createUserFiles(userId);
+            if (userStoreFiles == null) {
+                Log.e(TAG, "Failed to create user store files");
+                return false;
+            }
+            mWifiConfigStore.switchUserStoresAndRead(userStoreFiles);
         } catch (IOException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved private networks are lost!", e);
             return false;

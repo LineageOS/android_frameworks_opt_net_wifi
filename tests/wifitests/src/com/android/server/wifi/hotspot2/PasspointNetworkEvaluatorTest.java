@@ -413,8 +413,7 @@ public class PasspointNetworkEvaluatorTest {
         when(testProvider.isSimCredential()).thenReturn(true);
         when(mWifiConfigManager.isSimPresent()).thenReturn(true);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
-                CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI);
+        when(mCarrierNetworkConfig.isSupportAnonymousIdentity()).thenReturn(true);
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
@@ -635,6 +634,31 @@ public class PasspointNetworkEvaluatorTest {
                 false, mOnConnectableListener));
         verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(WifiConfiguration.class),
                 anyInt());
+        verify(mOnConnectableListener, never()).onConnectable(any(), any(), anyInt());
+    }
+
+    /**
+     * Verify that when a network matching a home provider is found, but the network was
+     * disconnected previously by user, it returns {@code null} for candidate.
+     */
+    @Test
+    public void evaluateScanResultWithHomeMatchButPreviouslyUserDisconnected() {
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+
+        // Setup matching providers for ScanDetail with TEST_SSID1.
+        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
+                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+
+        // Return homeProvider for the first ScanDetail (TEST_SSID1).
+        when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
+        when(mWifiConfigManager.wasEphemeralNetworkDeleted("\"" + TEST_SSID1 + "\""))
+                .thenReturn(true);
+        assertEquals(null, mEvaluator.evaluateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener));
         verify(mOnConnectableListener, never()).onConnectable(any(), any(), anyInt());
     }
 }

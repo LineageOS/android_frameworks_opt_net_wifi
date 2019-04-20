@@ -159,7 +159,7 @@ public class CarrierNetworkEvaluatorTest {
         when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
-                CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI);
+                CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0);
 
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER1_SSID.replace("\"", ""))))
                 .thenReturn(true);
@@ -396,8 +396,7 @@ public class CarrierNetworkEvaluatorTest {
         int[] levels = {10};
         String expectedAnonymousIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
-                CarrierNetworkConfig.IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI);
+        when(mCarrierNetworkConfig.isSupportAnonymousIdentity()).thenReturn(true);
         List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
                 freqs, caps, levels, mClock);
         WifiConfiguration carrierConfig = configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0),

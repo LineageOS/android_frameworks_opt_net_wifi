@@ -35,6 +35,8 @@ import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants;
@@ -88,9 +90,12 @@ public class PasspointProvisioner {
     private WifiManager mWifiManager;
     private PasspointManager mPasspointManager;
     private Looper mLooper;
+    private final WifiMetrics mWifiMetrics;
 
-    PasspointProvisioner(Context context, WifiNative wifiNative,
-            PasspointObjectFactory objectFactory, PasspointManager passpointManager) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public PasspointProvisioner(Context context, WifiNative wifiNative,
+            PasspointObjectFactory objectFactory, PasspointManager passpointManager,
+            WifiMetrics wifiMetrics) {
         mContext = context;
         mOsuNetworkConnection = objectFactory.makeOsuNetworkConnection(context);
         mProvisioningStateMachine = new ProvisioningStateMachine();
@@ -100,6 +105,7 @@ public class PasspointProvisioner {
         mSystemInfo = objectFactory.getSystemInfo(context, wifiNative);
         mObjectFactory = objectFactory;
         mPasspointManager = passpointManager;
+        mWifiMetrics = wifiMetrics;
     }
 
     /**
@@ -687,6 +693,7 @@ public class PasspointProvisioner {
         }
 
         private void invokeProvisioningCompleteCallback() {
+            mWifiMetrics.incrementPasspointProvisionSuccess();
             if (mProvisioningCallback == null) {
                 Log.e(TAG, "No provisioning complete callback registered");
                 return;
@@ -950,6 +957,7 @@ public class PasspointProvisioner {
         }
 
         private void resetStateMachineForFailure(int failureCode) {
+            mWifiMetrics.incrementPasspointProvisionFailure(failureCode);
             invokeProvisioningCallback(PROVISIONING_FAILURE, failureCode);
             resetStateMachine();
         }

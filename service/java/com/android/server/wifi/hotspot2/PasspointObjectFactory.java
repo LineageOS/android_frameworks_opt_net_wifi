@@ -23,6 +23,7 @@ import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiKeyStore;
+import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
 
 import java.security.KeyStore;
@@ -122,8 +123,8 @@ public class PasspointObjectFactory{
      * @return {@link PasspointProvisioner}
      */
     public PasspointProvisioner makePasspointProvisioner(Context context, WifiNative wifiNative,
-            PasspointManager passpointManager) {
-        return new PasspointProvisioner(context, wifiNative, this, passpointManager);
+            PasspointManager passpointManager, WifiMetrics wifiMetrics) {
+        return new PasspointProvisioner(context, wifiNative, this, passpointManager, wifiMetrics);
     }
 
     /**
