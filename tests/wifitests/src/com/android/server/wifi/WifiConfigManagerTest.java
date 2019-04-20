@@ -49,6 +49,7 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.R;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -60,6 +61,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -137,6 +139,7 @@ public class WifiConfigManagerTest {
     private TestLooper mLooper = new TestLooper();
     private ContentObserver mContentObserverPnoChannelCulling;
     private ContentObserver mContentObserverPnoRecencySorting;
+    private MockitoSession mSession;
 
     /**
      * Setup the mocks and an instance of WifiConfigManager before each test.
@@ -219,6 +222,11 @@ public class WifiConfigManagerTest {
                 Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED)), eq(false),
                 observerCaptor.capture());
         mContentObserverPnoRecencySorting = observerCaptor.getValue();
+        // static mocking
+        mSession = ExtendedMockito.mockitoSession()
+                .mockStatic(WifiConfigStore.class, withSettings().lenient())
+                .startMocking();
+        when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
     }
 
     /**
@@ -227,6 +235,7 @@ public class WifiConfigManagerTest {
     @After
     public void cleanup() {
         validateMockitoUsage();
+        mSession.finishMocking();
     }
 
     /**
