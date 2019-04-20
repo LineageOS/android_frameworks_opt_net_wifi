@@ -55,6 +55,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.DigestException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -267,7 +268,7 @@ public class WifiConfigStore {
      * @param fileId Identifier for the file. See {@link StoreFileId}.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    private static StoreFile createFile(File storeBaseDir, @StoreFileId int fileId) {
+    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId) {
         File storeDir = new File(storeBaseDir, STORE_DIRECTORY_NAME);
         if (!storeDir.exists()) {
             if (!storeDir.mkdir()) {
@@ -283,7 +284,7 @@ public class WifiConfigStore {
      *
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    public static StoreFile createSharedFile() {
+    public static @Nullable StoreFile createSharedFile() {
         return createFile(Environment.getDataMiscDirectory(), STORE_FILE_SHARED_GENERAL);
     }
 
@@ -292,14 +293,19 @@ public class WifiConfigStore {
      * The user store file is inside the user's encrypted data directory.
      *
      * @param userId userId corresponding to the currently logged-in user.
-     * @return List of new instances of the store files created.
+     * @return List of new instances of the store files created or null if the directory cannot be
+     * created.
      */
-    public static List<StoreFile> createUserFiles(int userId) {
+    public static @Nullable List<StoreFile> createUserFiles(int userId) {
         List<StoreFile> storeFiles = new ArrayList<>();
-        storeFiles.add(createFile(Environment.getDataMiscCeDirectory(userId),
-                STORE_FILE_USER_GENERAL));
-        storeFiles.add(createFile(Environment.getDataMiscCeDirectory(userId),
-                STORE_FILE_USER_NETWORK_SUGGESTIONS));
+        for (int fileId : Arrays.asList(
+                STORE_FILE_USER_GENERAL, STORE_FILE_USER_NETWORK_SUGGESTIONS)) {
+            StoreFile storeFile = createFile(Environment.getDataMiscCeDirectory(userId), fileId);
+            if (storeFile == null) {
+                return null;
+            }
+            storeFiles.add(storeFile);
+        }
         return storeFiles;
     }
 
@@ -500,6 +506,7 @@ public class WifiConfigStore {
      */
     public void switchUserStoresAndRead(@NonNull List<StoreFile> userStores)
             throws XmlPullParserException, IOException {
+        Preconditions.checkNotNull(userStores);
         // Reset user store data.
         if (mUserStores != null) {
             for (StoreFile userStoreFile : mUserStores) {
