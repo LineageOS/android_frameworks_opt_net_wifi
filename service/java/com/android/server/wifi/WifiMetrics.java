@@ -60,6 +60,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificatio
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.ExperimentValues;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.ExperimentProbeCounts;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
@@ -85,6 +86,7 @@ import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.IntCounter;
 import com.android.server.wifi.util.IntHistogram;
 import com.android.server.wifi.util.MetricsUtils;
+import com.android.server.wifi.util.ObjectCounter;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import org.json.JSONArray;
@@ -318,6 +320,12 @@ public class WifiMetrics {
     private final IntHistogram mLinkProbeSuccessElapsedTimeMsHistogram = new IntHistogram(
             LINK_PROBE_ELAPSED_TIME_MS_HISTOGRAM_BUCKETS);
     private final IntCounter mLinkProbeFailureReasonCounts = new IntCounter();
+
+    /**
+     * Maps a String link probe experiment ID to the number of link probes that were sent for this
+     * experiment.
+     */
+    private final ObjectCounter<String> mLinkProbeExperimentProbeCounts = new ObjectCounter<>();
 
     private final LinkedList<WifiUsabilityStatsEntry> mWifiUsabilityStatsEntriesList =
             new LinkedList<>();
@@ -2749,6 +2757,7 @@ public class WifiMetrics {
                 pw.println("mLinkProbeSuccessElapsedTimeMsHistogram:"
                         + mLinkProbeSuccessElapsedTimeMsHistogram);
                 pw.println("mLinkProbeFailureReasonCounts:" + mLinkProbeFailureReasonCounts);
+                pw.println("mLinkProbeExperimentProbeCounts:" + mLinkProbeExperimentProbeCounts);
 
                 pw.println("mNetworkSelectionExperimentPairNumChoicesCounts:"
                         + mNetworkSelectionExperimentPairNumChoicesCounts);
@@ -2774,7 +2783,6 @@ public class WifiMetrics {
                         + mWifiLogProto.numAddOrUpdateNetworkCalls);
                 pw.println("mWifiLogProto.numEnableNetworkCalls="
                         + mWifiLogProto.numEnableNetworkCalls);
-
             }
         }
     }
@@ -3268,14 +3276,22 @@ public class WifiMetrics {
                     mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.toProto();
             linkProbeStats.successElapsedTimeMsHistogram =
                     mLinkProbeSuccessElapsedTimeMsHistogram.toProto();
-            linkProbeStats.failureReasonCounts =
-                    mLinkProbeFailureReasonCounts.toProto(LinkProbeFailureReasonCount.class,
-                            (reason, count) -> {
-                                LinkProbeFailureReasonCount c = new LinkProbeFailureReasonCount();
-                                c.failureReason = linkProbeFailureReasonToProto(reason);
-                                c.count = count;
-                                return c;
-                            });
+            linkProbeStats.failureReasonCounts = mLinkProbeFailureReasonCounts.toProto(
+                    LinkProbeFailureReasonCount.class,
+                    (reason, count) -> {
+                        LinkProbeFailureReasonCount c = new LinkProbeFailureReasonCount();
+                        c.failureReason = linkProbeFailureReasonToProto(reason);
+                        c.count = count;
+                        return c;
+                    });
+            linkProbeStats.experimentProbeCounts = mLinkProbeExperimentProbeCounts.toProto(
+                    ExperimentProbeCounts.class,
+                    (experimentId, probeCount) -> {
+                        ExperimentProbeCounts c = new ExperimentProbeCounts();
+                        c.experimentId = experimentId;
+                        c.probeCount = probeCount;
+                        return c;
+                    });
             mWifiLogProto.linkProbeStats = linkProbeStats;
 
             mWifiLogProto.networkSelectionExperimentDecisionsList =
@@ -3489,6 +3505,7 @@ public class WifiMetrics {
             mLinkProbeFailureSecondsSinceLastTxSuccessHistogram.clear();
             mLinkProbeSuccessElapsedTimeMsHistogram.clear();
             mLinkProbeFailureReasonCounts.clear();
+            mLinkProbeExperimentProbeCounts.clear();
             mNetworkSelectionExperimentPairNumChoicesCounts.clear();
             mWifiNetworkSuggestionApiLog.clear();
             mWifiNetworkSuggestionApiLog.clear();
@@ -4719,6 +4736,15 @@ public class WifiMetrics {
             event.linkProbeFailureReason = linkProbeFailureReasonToProto(reason);
             // TODO(129958996): Cap number of link probe StaEvents
             addStaEvent(event);
+        }
+    }
+
+    /**
+     * Increments the number of probes triggered by the experiment `experimentId`.
+     */
+    public void incrementLinkProbeExperimentProbeCount(String experimentId) {
+        synchronized (mLock) {
+            mLinkProbeExperimentProbeCounts.increment(experimentId);
         }
     }
 

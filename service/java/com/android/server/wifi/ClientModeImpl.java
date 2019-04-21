@@ -4896,7 +4896,7 @@ public class ClientModeImpl extends StateMachine {
         public void enter() {
             mRssiPollToken++;
             if (mEnableRssiPolling) {
-                mLinkProbeManager.reset();
+                mLinkProbeManager.resetOnNewConnection();
                 sendMessage(CMD_RSSI_POLL, mRssiPollToken, 0);
             }
             if (mNetworkAgent != null) {
@@ -5118,7 +5118,7 @@ public class ClientModeImpl extends StateMachine {
                     if (mEnableRssiPolling) {
                         // First poll
                         mLastSignalLevel = -1;
-                        mLinkProbeManager.reset();
+                        mLinkProbeManager.resetOnScreenTurnedOn();
                         fetchRssiLinkSpeedAndFrequencyNative();
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
                                 mPollRssiIntervalMsecs);

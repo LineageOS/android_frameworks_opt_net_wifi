@@ -3270,7 +3270,8 @@ public class ClientModeImplTest {
 
         connect();
         // reset() should be called when RSSI polling is enabled and entering L2ConnectedState
-        verify(mLinkProbeManager).reset();
+        verify(mLinkProbeManager).resetOnNewConnection(); // called first time here
+        verify(mLinkProbeManager, never()).resetOnScreenTurnedOn(); // not called
         verify(mLinkProbeManager).updateConnectionStats(any(), any());
 
         mCmi.enableRssiPolling(false);
@@ -3279,7 +3280,8 @@ public class ClientModeImplTest {
         // becomes enabled
         mCmi.enableRssiPolling(true);
         mLooper.dispatchAll();
-        verify(mLinkProbeManager, times(2)).reset();
+        verify(mLinkProbeManager, times(1)).resetOnNewConnection(); // verify not called again
+        verify(mLinkProbeManager).resetOnScreenTurnedOn(); // verify called here
     }
 
     /**

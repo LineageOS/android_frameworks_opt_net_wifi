@@ -16,9 +16,12 @@
 
 package com.android.server.wifi;
 
+import static junit.framework.Assert.assertEquals;
+
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -39,6 +42,8 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.HashSet;
 
 /**
  * Unit tests for LinkProbeManager
@@ -102,7 +107,7 @@ public class LinkProbeManagerTest {
      */
     @Test
     public void testLinkProbeTriggeredAndAcked() throws Exception {
-        mLinkProbeManager.reset();
+        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
@@ -111,6 +116,7 @@ public class LinkProbeManagerTest {
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         // should not probe yet
         verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+        verify(mWifiMetrics, never()).incrementLinkProbeExperimentProbeCount(any());
 
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
@@ -130,6 +136,12 @@ public class LinkProbeManagerTest {
                 ArgumentCaptor.forClass(WifiNative.SendMgmtFrameCallback.class);
         verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), callbackCaptor.capture(),
                 anyInt());
+        ArgumentCaptor<String> experimentIdCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mWifiMetrics, atLeastOnce()).incrementLinkProbeExperimentProbeCount(
+                experimentIdCaptor.capture());
+        int len = LinkProbeManager.EXPERIMENT_DELAYS_MS.length;
+        int numExperimentIds = len * len * len;
+        assertEquals(numExperimentIds, new HashSet<>(experimentIdCaptor.getAllValues()).size());
 
         callbackCaptor.getValue().onAck(TEST_ELAPSED_TIME_MS);
         verify(mWifiMetrics).logLinkProbeSuccess(TEST_TIMESTAMP_MS, timeDelta, rssi, linkSpeed,
@@ -142,7 +154,7 @@ public class LinkProbeManagerTest {
      */
     @Test
     public void testLinkProbeTriggeredAndFailed() throws Exception {
-        mLinkProbeManager.reset();
+        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
@@ -203,7 +215,7 @@ public class LinkProbeManagerTest {
      */
     @Test
     public void testLinkProbeNotTriggeredWhenTxSucceeded() throws Exception {
-        mLinkProbeManager.reset();
+        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
@@ -243,7 +255,7 @@ public class LinkProbeManagerTest {
                 eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(0);
         mContentObserver.onChange(false);
 
-        mLinkProbeManager.reset();
+        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
@@ -278,7 +290,7 @@ public class LinkProbeManagerTest {
         mResources.setBoolean(R.bool.config_wifi_link_probing_supported, false);
         initLinkProbeManager();
 
-        mLinkProbeManager.reset();
+        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
