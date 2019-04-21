@@ -63,6 +63,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkSpeedCount;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
+import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProvisionStats;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProvisionStats.ProvisionFailureCount;
 import com.android.server.wifi.nano.WifiMetricsProto.PnoScanMetrics;
@@ -276,7 +277,8 @@ public class WifiMetrics {
     private final SparseIntArray mAvailableSavedPasspointProviderBssidsInScanHistogram =
             new SparseIntArray();
 
-    private final SparseIntArray mInstalledPasspointProfileType = new SparseIntArray();
+    private final IntCounter mInstalledPasspointProfileTypeForR1 = new IntCounter();
+    private final IntCounter mInstalledPasspointProfileTypeForR2 = new IntCounter();
 
     /** Mapping of "Connect to Network" notifications to counts. */
     private final SparseIntArray mConnectToNetworkNotificationCount = new SparseIntArray();
@@ -2535,12 +2537,10 @@ public class WifiMetrics {
                 pw.println("mWifiLogProto.numPasspointProvidersSuccessfullyConnected="
                         + mWifiLogProto.numPasspointProvidersSuccessfullyConnected);
 
-                pw.println("mWifiLogProto.installedPasspointProfileType: ");
-                for (int i = 0; i < mInstalledPasspointProfileType.size(); i++) {
-                    int eapType = mInstalledPasspointProfileType.keyAt(i);
-                    pw.println("EAP_METHOD (" + eapType + "): "
-                            + mInstalledPasspointProfileType.valueAt(i));
-                }
+                pw.println("mWifiLogProto.installedPasspointProfileTypeForR1:"
+                        + mInstalledPasspointProfileTypeForR1);
+                pw.println("mWifiLogProto.installedPasspointProfileTypeForR2:"
+                        + mInstalledPasspointProfileTypeForR2);
 
                 pw.println("mWifiLogProto.passpointProvisionStats.numProvisionSuccess="
                             + mNumProvisionSuccess);
@@ -2907,7 +2907,8 @@ public class WifiMetrics {
         int eapType;
         PasspointConfiguration config;
         synchronized (mLock) {
-            mInstalledPasspointProfileType.clear();
+            mInstalledPasspointProfileTypeForR1.clear();
+            mInstalledPasspointProfileTypeForR2.clear();
             for (Map.Entry<String, PasspointProvider> entry : providers.entrySet()) {
                 config = entry.getValue().getConfig();
                 if (config.getCredential().getUserCredential() != null) {
@@ -2940,8 +2941,11 @@ public class WifiMetrics {
                         passpointType = WifiMetricsProto.PasspointProfileTypeCount.TYPE_UNKNOWN;
 
                 }
-                int count = mInstalledPasspointProfileType.get(passpointType);
-                mInstalledPasspointProfileType.put(passpointType, count + 1);
+                if (config.validateForR2()) {
+                    mInstalledPasspointProfileTypeForR2.increment(passpointType);
+                } else {
+                    mInstalledPasspointProfileTypeForR1.increment(passpointType);
+                }
             }
         }
     }
@@ -3157,21 +3161,10 @@ public class WifiMetrics {
                 notificationActionCountArray[i] = keyVal;
             }
 
-            /**
-             * Convert the SparseIntArray of saved Passpoint profile types and counts to proto's
-             * repeated IntKeyVal array.
-             */
-            int counts = mInstalledPasspointProfileType.size();
-            mWifiLogProto.installedPasspointProfileType =
-                    new WifiMetricsProto.PasspointProfileTypeCount[counts];
-            for (int i = 0; i < counts; i++) {
-                mWifiLogProto.installedPasspointProfileType[i] =
-                        new WifiMetricsProto.PasspointProfileTypeCount();
-                mWifiLogProto.installedPasspointProfileType[i].eapMethodType =
-                        mInstalledPasspointProfileType.keyAt(i);
-                mWifiLogProto.installedPasspointProfileType[i].count =
-                        mInstalledPasspointProfileType.valueAt(i);
-            }
+            mWifiLogProto.installedPasspointProfileTypeForR1 =
+                    convertPasspointProfilesToProto(mInstalledPasspointProfileTypeForR1);
+            mWifiLogProto.installedPasspointProfileTypeForR2 =
+                    convertPasspointProfilesToProto(mInstalledPasspointProfileTypeForR2);
 
             mWifiLogProto.connectToNetworkNotificationActionCount = notificationActionCountArray;
 
@@ -3458,7 +3451,8 @@ public class WifiMetrics {
             mWifiWakeMetrics.clear();
             mObserved80211mcApInScanHistogram.clear();
             mWifiIsUnusableList.clear();
-            mInstalledPasspointProfileType.clear();
+            mInstalledPasspointProfileTypeForR1.clear();
+            mInstalledPasspointProfileTypeForR2.clear();
             mWifiUsabilityStatsListGood.clear();
             mWifiUsabilityStatsListBad.clear();
             mWifiUsabilityStatsEntriesList.clear();
@@ -4528,6 +4522,22 @@ public class WifiMetrics {
                 getOrCreateDeviceMobilityStatePnoScanStats(mCurrentDeviceMobilityState);
         stats.totalDurationMs += now - mCurrentDeviceMobilityStateStartMs;
         mCurrentDeviceMobilityStateStartMs = now;
+    }
+
+    /**
+     * Convert the IntCounter of passpoint profile types and counts to proto's
+     * repeated IntKeyVal array.
+     *
+     * @param passpointProfileTypes passpoint profile types and counts.
+     */
+    private PasspointProfileTypeCount[] convertPasspointProfilesToProto(
+                IntCounter passpointProfileTypes) {
+        return passpointProfileTypes.toProto(PasspointProfileTypeCount.class, (key, count) -> {
+            PasspointProfileTypeCount entry = new PasspointProfileTypeCount();
+            entry.eapMethodType = key;
+            entry.count = count;
+            return entry;
+        });
     }
 
     /**
