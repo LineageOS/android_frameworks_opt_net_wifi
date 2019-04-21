@@ -530,12 +530,11 @@ public class WifiMetricsTest {
         return testSavedNetworks;
     }
 
-    private PasspointProvider createMockProvider(int eapType) {
+    private PasspointProvider createMockProvider(int eapType, boolean validateForR2) {
         PasspointProvider provider = mock(PasspointProvider.class);
-        PasspointConfiguration config = new PasspointConfiguration();
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
         Credential credential = new Credential();
 
-        config.setCredential(credential);
         switch (eapType) {
             case EAPConstants.EAP_TLS:
                 credential.setCertCredential(new Credential.CertificateCredential());
@@ -552,6 +551,8 @@ public class WifiMetricsTest {
                 break;
         }
         when(provider.getConfig()).thenReturn(config);
+        when(config.getCredential()).thenReturn(credential);
+        when(config.validateForR2()).thenReturn(validateForR2);
         return provider;
     }
 
@@ -567,7 +568,10 @@ public class WifiMetricsTest {
             int eapType = SAVED_PASSPOINT_PROVIDERS_TYPE.keyAt(i);
             int count = SAVED_PASSPOINT_PROVIDERS_TYPE.valueAt(i);
             for (int j = 0; j < count; j++) {
-                providers.put(Integer.toString(eapType) + j, createMockProvider(eapType));
+                providers.put(Integer.toString(eapType) + j, createMockProvider(eapType, false));
+            }
+            for (int j = count; j < count * 2; j++) {
+                providers.put(Integer.toString(eapType) + j, createMockProvider(eapType, true));
             }
         }
         mWifiMetrics.updateSavedPasspointProfilesInfo(providers);
@@ -1124,28 +1128,8 @@ public class WifiMetricsTest {
         assertEquals(NUM_CLIENT_INTERFACE_DOWN, mDecodedProto.numClientInterfaceDown);
         assertEquals(NUM_SOFTAP_INTERFACE_DOWN, mDecodedProto.numSoftApInterfaceDown);
         assertEquals(NUM_PASSPOINT_PROVIDERS, mDecodedProto.numPasspointProviders);
-        for (PasspointProfileTypeCount passpointProfileType : mDecodedProto
-                .installedPasspointProfileType) {
-            switch(passpointProfileType.eapMethodType) {
-                case PasspointProfileTypeCount.TYPE_EAP_AKA:
-                    assertEquals(NUM_EAP_AKA_TYPE, passpointProfileType.count);
-                    break;
-                case PasspointProfileTypeCount.TYPE_EAP_AKA_PRIME:
-                    assertEquals(NUM_EAP_AKA_PRIME_TYPE, passpointProfileType.count);
-                    break;
-                case PasspointProfileTypeCount.TYPE_EAP_SIM:
-                    assertEquals(NUM_EAP_SIM_TYPE, passpointProfileType.count);
-                    break;
-                case PasspointProfileTypeCount.TYPE_EAP_TLS:
-                    assertEquals(NUM_EAP_TLS_TYPE, passpointProfileType.count);
-                    break;
-                case PasspointProfileTypeCount.TYPE_EAP_TTLS:
-                    assertEquals(NUM_EAP_TTLS_TYPE, passpointProfileType.count);
-                    break;
-                default:
-                    fail("unknown type counted");
-            }
-        }
+        assertPasspointProfileTypeCount(mDecodedProto.installedPasspointProfileTypeForR1);
+        assertPasspointProfileTypeCount(mDecodedProto.installedPasspointProfileTypeForR2);
         assertEquals(NUM_PASSPOINT_PROVIDER_INSTALLATION,
                 mDecodedProto.numPasspointProviderInstallation);
         assertEquals(NUM_PASSPOINT_PROVIDER_INSTALL_SUCCESS,
@@ -3928,5 +3912,33 @@ public class WifiMetricsTest {
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats2);
         stats2 = nextRandomStats(stats2);
         return stats2;
+    }
+
+    /**
+     * Verify the counts of passpoint profile type are correct.
+     * @param profileTypes type and count of installed passpoint profiles
+     */
+    private void assertPasspointProfileTypeCount(PasspointProfileTypeCount[] profileTypes) {
+        for (PasspointProfileTypeCount passpointProfileType : profileTypes) {
+            switch(passpointProfileType.eapMethodType) {
+                case PasspointProfileTypeCount.TYPE_EAP_AKA:
+                    assertEquals(NUM_EAP_AKA_TYPE, passpointProfileType.count);
+                    break;
+                case PasspointProfileTypeCount.TYPE_EAP_AKA_PRIME:
+                    assertEquals(NUM_EAP_AKA_PRIME_TYPE, passpointProfileType.count);
+                    break;
+                case PasspointProfileTypeCount.TYPE_EAP_SIM:
+                    assertEquals(NUM_EAP_SIM_TYPE, passpointProfileType.count);
+                    break;
+                case PasspointProfileTypeCount.TYPE_EAP_TLS:
+                    assertEquals(NUM_EAP_TLS_TYPE, passpointProfileType.count);
+                    break;
+                case PasspointProfileTypeCount.TYPE_EAP_TTLS:
+                    assertEquals(NUM_EAP_TTLS_TYPE, passpointProfileType.count);
+                    break;
+                default:
+                    fail("unknown type counted");
+            }
+        }
     }
 }
