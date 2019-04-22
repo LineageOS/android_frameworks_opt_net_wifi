@@ -34,10 +34,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
 /**
@@ -81,6 +84,7 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     public static final int REPORT_REASON_USER_ACTION               = 7;
     public static final int REPORT_REASON_WIFINATIVE_FAILURE        = 8;
     public static final int REPORT_REASON_REACHABILITY_LOST         = 9;
+    public static final int REPORT_REASON_FATAL_FW_ALERT            = 10;
 
     /** number of bug reports to hold */
     public static final int MAX_BUG_REPORTS                         = 4;
@@ -116,6 +120,7 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     private final Runtime mJavaRuntime;
     private final WifiMetrics mWifiMetrics;
     private int mMaxRingBufferSizeBytes;
+    private final List<Integer> mFatalFirmwareAlertErrorCodeList;
     private WifiInjector mWifiInjector;
     private Clock mClock;
 
@@ -127,10 +132,14 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
                 R.integer.config_wifi_logger_ring_buffer_default_size_limit_kb) * 1024;
         RING_BUFFER_BYTE_LIMIT_LARGE = context.getResources().getInteger(
                 R.integer.config_wifi_logger_ring_buffer_verbose_size_limit_kb) * 1024;
+        int[] fatalFirmwareAlertErrorCodeArray = context.getResources().getIntArray(
+                R.array.config_wifi_fatal_firmware_alert_error_code_list);
 
         mBuildProperties = buildProperties;
         mIsLoggingEventHandlerRegistered = false;
         mMaxRingBufferSizeBytes = RING_BUFFER_BYTE_LIMIT_SMALL;
+        mFatalFirmwareAlertErrorCodeList = Arrays.stream(fatalFirmwareAlertErrorCodeArray)
+                .boxed().collect(Collectors.toList());
         mLog = wifiInjector.makeLog(TAG);
         mLastMileLogger = lastMileLogger;
         mJavaRuntime = wifiInjector.getJavaRuntime();
@@ -232,6 +241,10 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         BugReport report = captureBugreport(errorCode, isVerboseLoggingEnabled());
         report.alertData = alertData;
         mLastAlerts.addLast(report);
+        /* Flush HAL ring buffer when detecting data stall */
+        if (mFatalFirmwareAlertErrorCodeList.contains(errorCode)) {
+            flushDump(REPORT_REASON_FATAL_FW_ALERT);
+        }
     }
 
     @Override
