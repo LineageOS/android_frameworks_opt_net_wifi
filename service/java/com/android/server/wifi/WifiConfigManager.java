@@ -2759,19 +2759,19 @@ public class WifiConfigManager {
                 break;
             }
         }
+        if (foundConfig == null) return null;
         // Store the ssid & the wall clock time at which the network was disabled.
         mDeletedEphemeralSsidsToTimeMap.put(ssid, mClock.getWallClockMillis());
         Log.d(TAG, "Forget ephemeral SSID " + ssid + " num="
                 + mDeletedEphemeralSsidsToTimeMap.size());
-        if (foundConfig != null) {
-            if (foundConfig.ephemeral) {
-                Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
-                        + foundConfig.networkId);
-            } else if (foundConfig.isPasspoint()) {
-                Log.d(TAG, "Found Passpoint config in disableEphemeralNetwork: "
-                        + foundConfig.networkId + ", FQDN: " + foundConfig.FQDN);
-            }
+        if (foundConfig.ephemeral) {
+            Log.d(TAG, "Found ephemeral config in disableEphemeralNetwork: "
+                    + foundConfig.networkId);
+        } else if (foundConfig.isPasspoint()) {
+            Log.d(TAG, "Found Passpoint config in disableEphemeralNetwork: "
+                    + foundConfig.networkId + ", FQDN: " + foundConfig.FQDN);
         }
+        removeConnectChoiceFromAllNetworks(foundConfig.configKey());
         return foundConfig;
     }
 
