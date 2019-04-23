@@ -4459,6 +4459,37 @@ public class WifiConfigManagerTest {
         verifyExpiryOfTimeout(passpointNetwork);
     }
 
+    /**
+     * Verifies the disconnection of Passpoint network using
+     * {@link WifiConfigManager#disableEphemeralNetwork(String)} and ensures that any user choice
+     * set over other networks is removed.
+     */
+    @Test
+    public void testDisablePasspointNetworkRemovesUserChoice() throws Exception {
+        WifiConfiguration passpointNetwork = WifiConfigurationTestUtil.createPasspointNetwork();
+        WifiConfiguration savedNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+
+        verifyAddNetworkToWifiConfigManager(savedNetwork);
+        verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
+
+        // Set connect choice of passpoint network over saved network.
+        assertTrue(
+                mWifiConfigManager.setNetworkConnectChoice(
+                        savedNetwork.networkId, passpointNetwork.configKey(), 78L));
+
+        WifiConfiguration retrievedSavedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(savedNetwork.networkId);
+        assertEquals(
+                passpointNetwork.configKey(),
+                retrievedSavedNetwork.getNetworkSelectionStatus().getConnectChoice());
+
+        // Disable the passpoint network & ensure the user choice is now removed from saved network.
+        mWifiConfigManager.disableEphemeralNetwork(passpointNetwork.SSID);
+
+        retrievedSavedNetwork = mWifiConfigManager.getConfiguredNetwork(savedNetwork.networkId);
+        assertNull(retrievedSavedNetwork.getNetworkSelectionStatus().getConnectChoice());
+    }
+
     private void verifyExpiryOfTimeout(WifiConfiguration config) {
         // Disable the ephemeral network.
         long disableTimeMs = 546643L;
