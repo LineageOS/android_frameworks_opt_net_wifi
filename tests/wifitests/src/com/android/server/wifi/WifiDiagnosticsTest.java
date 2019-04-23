@@ -79,6 +79,10 @@ public class WifiDiagnosticsTest {
     private static final int BYTES_PER_KBYTE = 1024;
     private static final int ALERT_REASON_CODE = 1;
     private static final byte[] ALERT_DATA = {0 , 4, 5};
+    /** Mock resource for fatal firmware alert list */
+    private static final int[] FATAL_FW_ALART_LIST = {256, 257, 258};
+    /** Mock a non fatal firmware alert */
+    private static final int NON_FATAL_FW_ALART = 0;
 
     private WifiNative.RingBufferStatus mFakeRbs;
     /**
@@ -117,6 +121,8 @@ public class WifiDiagnosticsTest {
                 SMALL_RING_BUFFER_SIZE_KB);
         resources.setInteger(R.integer.config_wifi_logger_ring_buffer_verbose_size_limit_kb,
                 LARGE_RING_BUFFER_SIZE_KB);
+        resources.setIntArray(R.array.config_wifi_fatal_firmware_alert_error_code_list,
+                FATAL_FW_ALART_LIST);
         when(mContext.getResources()).thenReturn(resources);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getJavaRuntime()).thenReturn(mJavaRuntime);
@@ -863,5 +869,25 @@ public class WifiDiagnosticsTest {
         when(mWifiNative.flushRingBufferData()).thenReturn(true);
         mWifiDiagnostics.captureBugReportData(WifiDiagnostics.REPORT_REASON_NONE);
         verify(mWifiNative).flushRingBufferData();
+    }
+
+    /** Verifies that we flush HAL ringbuffer when detecting fatal firmware alert. */
+    @Test
+    public void captureAlertFlushRingBufferData() {
+        when(mBuildProperties.isUserBuild()).thenReturn(false);
+        when(mWifiNative.flushRingBufferData()).thenReturn(true);
+        /** captureAlertData with mock fatal firmware alert*/
+        mWifiDiagnostics.captureAlertData(FATAL_FW_ALART_LIST[0], ALERT_DATA);
+        verify(mWifiNative).flushRingBufferData();
+    }
+
+    /** Verifies that we don't flush HAL ringbuffer when detecting non fatal firmware alert. */
+    @Test
+    public void captureNonAlertFlushRingBufferData() {
+        when(mBuildProperties.isUserBuild()).thenReturn(false);
+        when(mWifiNative.flushRingBufferData()).thenReturn(true);
+        /** captureAlertData with mock non fatal firmware alert*/
+        mWifiDiagnostics.captureAlertData(NON_FATAL_FW_ALART, ALERT_DATA);
+        verify(mWifiNative, never()).flushRingBufferData();
     }
 }
