@@ -2245,10 +2245,8 @@ public class WifiMetrics {
     public void logFirmwareAlert(int errorCode) {
         incrementAlertReasonCount(errorCode);
         logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_FIRMWARE_ALERT, errorCode);
-        if (mScreenOn) {
-            addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
-                    WifiUsabilityStats.TYPE_FIRMWARE_ALERT, errorCode);
-        }
+        addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_FIRMWARE_ALERT, errorCode);
     }
 
     public static final String PROTO_DUMP_ARG = "wifiMetricsProto";
@@ -4456,7 +4454,7 @@ public class WifiMetrics {
      */
     public void addToWifiUsabilityStatsList(int label, int triggerType, int firmwareAlertCode) {
         synchronized (mLock) {
-            if (mWifiUsabilityStatsEntriesList.isEmpty()) {
+            if (mWifiUsabilityStatsEntriesList.isEmpty() || !mScreenOn) {
                 return;
             }
             if (label == WifiUsabilityStats.LABEL_GOOD) {
