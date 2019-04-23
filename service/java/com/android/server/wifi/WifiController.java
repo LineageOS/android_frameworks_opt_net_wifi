@@ -21,8 +21,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +33,7 @@ import com.android.internal.R;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 /**
  * WifiController is the class used to manage wifi state for various operating
@@ -60,19 +59,17 @@ public class WifiController extends StateMachine {
     // probably rounding errors.  add a margin to prevent problems
     private static final long DEFER_MARGIN_MS = 5;
 
-    NetworkInfo mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, "WIFI", "");
-
     /* References to values tracked in WifiService */
     private final ClientModeImpl mClientModeImpl;
     private final Looper mClientModeImplLooper;
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
+    private final FrameworkFacade mFacade;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
 
     private long mReEnableDelayMillis;
 
     private int mRecoveryDelayMillis;
-
-    private FrameworkFacade mFacade;
 
     private static final int BASE = Protocol.BASE_WIFI_CONTROLLER;
 
@@ -107,7 +104,7 @@ public class WifiController extends StateMachine {
 
     WifiController(Context context, ClientModeImpl clientModeImpl, Looper clientModeImplLooper,
                    WifiSettingsStore wss, Looper wifiServiceLooper, FrameworkFacade f,
-                   ActiveModeWarden amw) {
+                   ActiveModeWarden amw, WifiPermissionsUtil wifiPermissionsUtil) {
         super(TAG, wifiServiceLooper);
         mFacade = f;
         mContext = context;
@@ -115,6 +112,7 @@ public class WifiController extends StateMachine {
         mClientModeImplLooper = clientModeImplLooper;
         mActiveModeWarden = amw;
         mSettingsStore = wss;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
 
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
@@ -124,12 +122,23 @@ public class WifiController extends StateMachine {
             addState(mEcmState, mDefaultState);
         // CHECKSTYLE:ON IndentationCheck
 
+        setLogRecSize(100);
+        setLogOnlyTransitions(false);
+
+        // register for state updates via callbacks (vs the intents registered below)
+        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyModeCallback);
+        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
+
+        readWifiReEnableDelay();
+        readWifiRecoveryDelay();
+    }
+
+    @Override
+    public void start() {
         boolean isAirplaneModeOn = mSettingsStore.isAirplaneModeOn();
         boolean isWifiEnabled = mSettingsStore.isWifiToggleEnabled();
         boolean isScanningAlwaysAvailable = mSettingsStore.isScanAlwaysAvailable();
-        boolean isLocationModeActive =
-                mSettingsStore.getLocationModeSetting(mContext)
-                        == Settings.Secure.LOCATION_MODE_OFF;
+        boolean isLocationModeActive = mWifiPermissionsUtil.isLocationModeEnabled();
 
         log("isAirplaneModeOn = " + isAirplaneModeOn
                 + ", isWifiEnabled = " + isWifiEnabled
@@ -141,16 +150,7 @@ public class WifiController extends StateMachine {
         } else {
             setInitialState(mStaDisabledState);
         }
-
-        setLogRecSize(100);
-        setLogOnlyTransitions(false);
-
-        // register for state updates via callbacks (vs the intents registered below)
-        mActiveModeWarden.registerScanOnlyCallback(mScanOnlyModeCallback);
-        mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
-
         IntentFilter filter = new IntentFilter();
-        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(LocationManager.MODE_CHANGED_ACTION);
@@ -159,10 +159,7 @@ public class WifiController extends StateMachine {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         String action = intent.getAction();
-                        if (action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)) {
-                            mNetworkInfo = (NetworkInfo) intent.getParcelableExtra(
-                                    WifiManager.EXTRA_NETWORK_INFO);
-                        } else if (action.equals(WifiManager.WIFI_AP_STATE_CHANGED_ACTION)) {
+                        if (action.equals(WifiManager.WIFI_AP_STATE_CHANGED_ACTION)) {
                             int state = intent.getIntExtra(
                                     WifiManager.EXTRA_WIFI_AP_STATE,
                                     WifiManager.WIFI_AP_STATE_FAILED);
@@ -180,15 +177,12 @@ public class WifiController extends StateMachine {
                     }
                 },
                 new IntentFilter(filter));
-
-        readWifiReEnableDelay();
-        readWifiRecoveryDelay();
+        super.start();
     }
 
     private boolean checkScanOnlyModeAvailable() {
         // first check if Location service is disabled, if so return false
-        if (mSettingsStore.getLocationModeSetting(mContext)
-                == Settings.Secure.LOCATION_MODE_OFF) {
+        if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
             return false;
         }
         return mSettingsStore.isScanAlwaysAvailable();
