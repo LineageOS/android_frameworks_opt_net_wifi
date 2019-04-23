@@ -3941,4 +3941,32 @@ public class WifiMetricsTest {
             }
         }
     }
+
+    /**
+     * Verify that the LABEL_BAD Wifi usability stats are not saved if screen state is off.
+     * @throws Exception
+     */
+    @Test
+    public void verifyLabelBadStatsAreNotSavedIfScreenIsOff() throws Exception {
+        mWifiMetrics.setScreenState(false);
+        WifiInfo info = mock(WifiInfo.class);
+        when(info.getRssi()).thenReturn(nextRandInt());
+        when(info.getLinkSpeed()).thenReturn(nextRandInt());
+        WifiLinkLayerStats stats1 = nextRandomStats(new WifiLinkLayerStats());
+        mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
+
+        // Add 1 LABEL_GOOD
+        WifiLinkLayerStats statsGood = addGoodWifiUsabilityStats(nextRandomStats(stats1));
+        // IP reachability lost occurs
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
+        // Wifi data stall occurs
+        mWifiMetrics.addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
+                WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
+        // Firmware alert occurs
+        mWifiMetrics.logFirmwareAlert(2);
+
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.wifiUsabilityStatsList.length);
+    }
 }
