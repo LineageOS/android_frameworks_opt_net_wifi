@@ -2896,6 +2896,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setBSSID(null);
             mWifiInfo.setSSID(null);
         }
+        updateL2KeyAndGroupHint();
         // SSID might have been updated, so call updateCapabilities
         updateCapabilities();
 
@@ -2928,6 +2929,25 @@ public class ClientModeImpl extends StateMachine {
         mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         return state;
     }
+
+    /**
+     * Tells IpClient what L2Key and GroupHint to use for IpMemoryStore.
+     */
+    private void updateL2KeyAndGroupHint() {
+        if (mIpClient != null) {
+            Pair<String, String> p = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
+            if (!p.equals(mLastL2KeyAndGroupHint)) {
+                try {
+                    mIpClient.setL2KeyAndGroupHint(p.first, p.second);
+                    mLastL2KeyAndGroupHint = p;
+                } catch (RemoteException e) {
+                    loge("Failed setL2KeyAndGroupHint");
+                    mLastL2KeyAndGroupHint = null;
+                }
+            }
+        }
+    }
+    private @Nullable Pair<String, String> mLastL2KeyAndGroupHint = null;
 
     /**
      * Resets the Wi-Fi Connections by clearing any state, resetting any sockets
@@ -2980,6 +3000,7 @@ public class ClientModeImpl extends StateMachine {
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
         mWifiScoreCard.resetConnectionState();
+        updateL2KeyAndGroupHint();
     }
 
     void handlePreDhcpSetup() {
