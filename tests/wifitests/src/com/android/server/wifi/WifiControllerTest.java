@@ -37,9 +37,7 @@ import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
-import android.os.Handler;
 import android.os.test.TestLooper;
-import android.provider.Settings;
 import android.util.Log;
 
 import androidx.test.filters.SmallTest;
@@ -47,6 +45,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.R;
 import com.android.internal.util.IState;
 import com.android.internal.util.StateMachine;
+import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -88,8 +87,6 @@ public class WifiControllerTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_HIGH_ACCURACY);
     }
 
     TestLooper mLooper;
@@ -99,9 +96,9 @@ public class WifiControllerTest {
     @Mock WifiSettingsStore mSettingsStore;
     @Mock ClientModeImpl mClientModeImpl;
     @Mock ActiveModeWarden mActiveModeWarden;
+    @Mock WifiPermissionsUtil mWifiPermissionsUtil;
 
     WifiController mWifiController;
-    Handler mClientModeImplHandler;
 
     private BroadcastReceiver mBroadcastReceiver;
 
@@ -120,15 +117,17 @@ public class WifiControllerTest {
 
         when(mResources.getInteger(R.integer.config_wifi_framework_recovery_timeout_delay))
                 .thenReturn(TEST_WIFI_RECOVERY_DELAY_MS);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
+                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
+
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
         verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
         mBroadcastReceiver = bcastRxCaptor.getValue();
 
         ArgumentCaptor<ClientModeManager.Listener> clientModeCallbackCaptor =
@@ -185,7 +184,7 @@ public class WifiControllerTest {
         WifiController wifiController =
                 new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                                    mSettingsStore, mLooper.getLooper(), mFacade,
-                                   mActiveModeWarden);
+                                   mActiveModeWarden, mWifiPermissionsUtil);
 
         wifiController.start();
         mLooper.dispatchAll();
@@ -203,11 +202,11 @@ public class WifiControllerTest {
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
+                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
 
         reset(mActiveModeWarden);
         mWifiController.start();
@@ -230,26 +229,25 @@ public class WifiControllerTest {
     @Test
     public void testEnterScanModeWhenLocationModeEnabled() throws Exception {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(true);
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
 
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
-        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
-                BroadcastReceiver.class);
-        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
-        mBroadcastReceiver = bcastRxCaptor.getValue();
+                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();
 
+        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
+        mBroadcastReceiver = bcastRxCaptor.getValue();
+
         verify(mActiveModeWarden).disableWifi();
 
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         Intent intent = new Intent(LocationManager.MODE_CHANGED_ACTION);
 
         mBroadcastReceiver.onReceive(mContext, intent);
@@ -265,26 +263,24 @@ public class WifiControllerTest {
     @Test
     public void testExitScanModeWhenLocationModeDisabled() throws Exception {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(true);
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_HIGH_ACCURACY);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
-        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
-                BroadcastReceiver.class);
-        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-
-        mBroadcastReceiver = bcastRxCaptor.getValue();
-
+                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
 
+        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
+        mBroadcastReceiver = bcastRxCaptor.getValue();
+
         verify(mActiveModeWarden).enterScanOnlyMode();
 
-        when(mSettingsStore.getLocationModeSetting(eq(mContext)))
-                .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
         Intent intent = new Intent(LocationManager.MODE_CHANGED_ACTION);
 
         mBroadcastReceiver.onReceive(mContext, intent);
@@ -1016,7 +1012,8 @@ public class WifiControllerTest {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden);
+                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();
