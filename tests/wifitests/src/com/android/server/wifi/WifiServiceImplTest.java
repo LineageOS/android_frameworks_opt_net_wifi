@@ -2416,6 +2416,22 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that softap mode is stopped for tethering if we receive an update with an ip mode
+     * configuration error while LOHS clients are registered.
+     */
+    @Test
+    public void testStopSoftApWhenIpConfigFailsWithClients() throws Exception {
+        setupClientModeImplHandlerForPost();
+        registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
+        mLooper.dispatchAll();
+
+        verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
+                eq(WifiManager.IFACE_IP_MODE_TETHERED));
+    }
+
+    /**
      * Verify that if a LOHS request is active and tethering starts, callers are notified on the
      * incompatible mode and are unregistered.
      */

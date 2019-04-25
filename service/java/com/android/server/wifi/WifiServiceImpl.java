@@ -1010,16 +1010,9 @@ public class WifiServiceImpl extends BaseWifiService {
                     break;
                 case WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR:
                     Slog.d(TAG, "IP mode config error - need to clean up");
-                    if (mLocalOnlyHotspotRequests.isEmpty()) {
-                        Slog.d(TAG, "no LOHS requests, stop softap");
-                        stopSoftAp();
-                    } else {
-                        Slog.d(TAG, "we have LOHS requests, clean them up");
-                        // there was an error setting up the hotspot...  trigger onFailed for the
-                        // registered LOHS requestors
-                        sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
-                                LocalOnlyHotspotCallback.ERROR_GENERIC);
-                    }
+                    sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
+                            LocalOnlyHotspotCallback.ERROR_GENERIC);
+                    stopSoftAp();
                     updateInterfaceIpStateInternal(null, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
                     break;
                 case WifiManager.IFACE_IP_MODE_UNSPECIFIED:
