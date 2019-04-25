@@ -2816,6 +2816,9 @@ public class WifiServiceImpl extends BaseWifiService {
                 .c(Binder.getCallingUid())
                 .c(lockMode).flush();
 
+        // Check on permission to make this call
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
+
         // If no UID is provided in worksource, use the calling UID
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
@@ -2838,6 +2841,10 @@ public class WifiServiceImpl extends BaseWifiService {
     public void updateWifiLockWorkSource(IBinder binder, WorkSource ws) {
         mLog.info("updateWifiLockWorkSource uid=%").c(Binder.getCallingUid()).flush();
 
+        // Check on permission to make this call
+        mContext.enforceCallingOrSelfPermission(
+                android.Manifest.permission.UPDATE_DEVICE_STATS, null);
+
         // If no UID is provided in worksource, use the calling UID
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
@@ -2855,6 +2862,8 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean releaseWifiLock(IBinder binder) {
         mLog.info("releaseWifiLock uid=%").c(Binder.getCallingUid()).flush();
 
+        // Check on permission to make this call
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
         Mutable<Boolean> lockSuccess = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
