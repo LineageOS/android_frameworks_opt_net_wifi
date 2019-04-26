@@ -360,7 +360,7 @@ public class WifiLockManagerTest {
 
         acquireWifiLockSuccessful(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "", mBinder, mWorkSource);
 
-        mWifiLockManager.updateWifiLockWorkSource(mBinder, null);
+        mWifiLockManager.updateWifiLockWorkSource(mBinder, newWorkSource);
         InOrder inOrder = inOrder(mBatteryStats);
         inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(eq(newWorkSource));
         inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mWorkSource);

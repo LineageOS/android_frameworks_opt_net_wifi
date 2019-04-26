@@ -174,8 +174,7 @@ public class WifiLockManager {
     /**
      * Method allowing a calling app to acquire a Wifi WakeLock in the supplied mode.
      *
-     * This method verifies that the caller has permission to make the call and that the lock mode
-     * is a valid WifiLock mode.
+     * This method checks that the lock mode is a valid WifiLock mode.
      * @param lockMode int representation of the Wifi WakeLock type.
      * @param tag String passed to WifiManager.WifiLock
      * @param binder IBinder for the calling app
@@ -184,28 +183,25 @@ public class WifiLockManager {
      * @return true if the lock was successfully acquired, false if the lockMode was invalid.
      */
     public boolean acquireWifiLock(int lockMode, String tag, IBinder binder, WorkSource ws) {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
         if (!isValidLockMode(lockMode)) {
             throw new IllegalArgumentException("lockMode =" + lockMode);
         }
-        if (ws == null || ws.isEmpty()) {
-            ws = new WorkSource(Binder.getCallingUid());
-        } else {
-            mContext.enforceCallingOrSelfPermission(
-                    android.Manifest.permission.UPDATE_DEVICE_STATS, null);
-        }
-        return addLock(new WifiLock(lockMode, tag, binder, ws));
+
+        // Make a copy of the WorkSource before adding it to the WakeLock
+        // This is to make sure worksource value can not be changed by caller
+        // after function returns.
+        WorkSource newWorkSource = new WorkSource(ws);
+
+        return addLock(new WifiLock(lockMode, tag, binder, newWorkSource));
     }
 
     /**
-     * Method used by applications to release a WiFi Wake lock.  This method checks permissions for
-     * the caller and if allowed, releases the underlying WifiLock(s).
+     * Method used by applications to release a WiFi Wake lock.
      *
      * @param binder IBinder for the calling app.
      * @return true if the lock was released, false if the caller did not hold any locks
      */
     public boolean releaseWifiLock(IBinder binder) {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
         return releaseLock(binder);
     }
 
@@ -261,9 +257,6 @@ public class WifiLockManager {
      * @param ws WorkSource to add to the existing WifiLock(s).
      */
     public synchronized void updateWifiLockWorkSource(IBinder binder, WorkSource ws) {
-        // Does the caller have permission to make this call?
-        mContext.enforceCallingOrSelfPermission(
-                android.Manifest.permission.UPDATE_DEVICE_STATS, null);
 
         // Now check if there is an active lock
         WifiLock wl = findLockByBinder(binder);
@@ -271,13 +264,10 @@ public class WifiLockManager {
             throw new IllegalArgumentException("Wifi lock not active");
         }
 
-        WorkSource newWorkSource;
-        if (ws == null || ws.isEmpty()) {
-            newWorkSource = new WorkSource(Binder.getCallingUid());
-        } else {
-            // Make a copy of the WorkSource before adding it to the WakeLock
-            newWorkSource = new WorkSource(ws);
-        }
+        // Make a copy of the WorkSource before adding it to the WakeLock
+        // This is to make sure worksource value can not be changed by caller
+        // after function returns.
+        WorkSource newWorkSource = new WorkSource(ws);
 
         if (mVerboseLoggingEnabled) {
             Slog.d(TAG, "updateWifiLockWakeSource: " + wl + ", newWorkSource=" + newWorkSource);
