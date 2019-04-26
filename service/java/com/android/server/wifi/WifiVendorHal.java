@@ -2233,9 +2233,6 @@ public class WifiVendorHal {
                     for (String ssidStr : config.whitelistSsids) {
                         byte[] ssid = NativeUtil.byteArrayFromArrayList(
                                 NativeUtil.decodeSsid(ssidStr));
-                        if (ssid.length > 32) {
-                            throw new IllegalArgumentException("configureRoaming: ssid too long");
-                        }
                         roamingConfig.ssidWhitelist.add(ssid);
                     }
                 }
