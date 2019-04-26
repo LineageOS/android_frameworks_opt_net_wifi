@@ -155,6 +155,18 @@ public class WifiScoreCard {
     }
 
     /**
+     * Gets the L2Key and GroupHint associated with the connection.
+     */
+    public @NonNull Pair<String, String> getL2KeyAndGroupHint(ExtendedWifiInfo wifiInfo) {
+        PerBssid perBssid = lookupBssid(wifiInfo.getSSID(), wifiInfo.getBSSID());
+        if (perBssid == mDummyPerBssid) {
+            return new Pair<>(null, null);
+        }
+        final long groupIdHash = computeHashLong(perBssid.ssid, mDummyPerBssid.bssid);
+        return new Pair<>(perBssid.l2Key, groupHintFromLong(groupIdHash));
+    }
+
+    /**
      * Resets the connection state
      */
     public void resetConnectionState() {
@@ -609,6 +621,10 @@ public class WifiScoreCard {
 
     private static String l2KeyFromLong(long hash) {
         return "W" + Long.toHexString(hash);
+    }
+
+    private static String groupHintFromLong(long hash) {
+        return "G" + Long.toHexString(hash);
     }
 
     @VisibleForTesting
