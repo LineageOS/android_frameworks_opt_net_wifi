@@ -471,7 +471,7 @@ public class ScanRequestProxy {
             return false;
         }
         // Create a worksource using the caller's UID.
-        WorkSource workSource = new WorkSource(callingUid);
+        WorkSource workSource = new WorkSource(callingUid, packageName);
 
         // Create the scan settings.
         WifiScanner.ScanSettings settings = new WifiScanner.ScanSettings();
