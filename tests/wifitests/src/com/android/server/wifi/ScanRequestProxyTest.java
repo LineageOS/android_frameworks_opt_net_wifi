@@ -173,7 +173,8 @@ public class ScanRequestProxyTest {
         mInOrder.verify(mWifiScanner).registerScanListener(any());
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
 
-        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(new WorkSource(TEST_UID)));
+        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(
+                new WorkSource(TEST_UID, TEST_PACKAGE_NAME_1)));
         validateScanSettings(mScanSettingsArgumentCaptor.getValue(), false);
 
         verify(mWifiMetrics).incrementExternalAppOneshotScanRequestsCount();
@@ -189,7 +190,8 @@ public class ScanRequestProxyTest {
         mInOrder.verify(mWifiScanner).registerScanListener(any());
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
 
-        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(new WorkSource(TEST_UID)));
+        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(
+                new WorkSource(TEST_UID, TEST_PACKAGE_NAME_1)));
         validateScanSettings(mScanSettingsArgumentCaptor.getValue(), false, true);
     }
 
@@ -203,7 +205,8 @@ public class ScanRequestProxyTest {
         mInOrder.verify(mWifiScanner).registerScanListener(any());
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
 
-        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(new WorkSource(TEST_UID)));
+        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(
+                new WorkSource(TEST_UID, TEST_PACKAGE_NAME_1)));
         validateScanSettings(mScanSettingsArgumentCaptor.getValue(), false, true);
     }
 
@@ -221,7 +224,8 @@ public class ScanRequestProxyTest {
         mInOrder.verify(mWifiConfigManager, never()).retrieveHiddenNetworkList();
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
 
-        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(new WorkSource(TEST_UID)));
+        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(
+                new WorkSource(TEST_UID, TEST_PACKAGE_NAME_1)));
         validateScanSettings(mScanSettingsArgumentCaptor.getValue(), false);
 
         verify(mWifiMetrics).incrementExternalAppOneshotScanRequestsCount();
@@ -241,7 +245,8 @@ public class ScanRequestProxyTest {
         mInOrder.verify(mWifiConfigManager).retrieveHiddenNetworkList();
         mInOrder.verify(mWifiScanner).startScan(any(), any(), any());
 
-        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(new WorkSource(TEST_UID)));
+        assertTrue(mWorkSourceArgumentCaptor.getValue().equals(
+                new WorkSource(TEST_UID, TEST_PACKAGE_NAME_1)));
         validateScanSettings(mScanSettingsArgumentCaptor.getValue(), true);
 
         verify(mWifiMetrics).incrementExternalAppOneshotScanRequestsCount();
