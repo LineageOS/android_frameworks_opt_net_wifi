@@ -496,6 +496,7 @@ public class ClientModeImplTest {
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createOpenNetwork());
         when(mNullAsyncChannel.sendMessageSynchronously(any())).thenReturn(null);
+        when(mWifiScoreCard.getL2KeyAndGroupHint(any())).thenReturn(new Pair<>(null, null));
     }
 
     private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
@@ -2817,9 +2818,12 @@ public class ClientModeImplTest {
      */
     @Test
     public void testScoreCardNoteConnectionComplete() throws Exception {
+        Pair<String, String> l2KeyAndGroupHint = Pair.create("Wad", "Gab");
+        when(mWifiScoreCard.getL2KeyAndGroupHint(any())).thenReturn(l2KeyAndGroupHint);
         connect();
         mLooper.dispatchAll();
         verify(mWifiScoreCard).noteIpConfiguration(any());
+        verify(mIpClient).setL2KeyAndGroupHint(eq("Wad"), eq("Gab"));
     }
 
     /**

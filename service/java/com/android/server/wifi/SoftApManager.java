@@ -49,7 +49,9 @@ import com.android.server.wifi.util.ApConfigUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Locale;
 import java.util.stream.Stream;
 
@@ -96,7 +98,9 @@ public class SoftApManager implements ActiveModeManager {
 
     private final SarManager mSarManager;
 
-    private long mStartTimestamp = -1;
+    private String mStartTimestamp;
+
+    private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("MM-dd HH:mm:ss.SSS");
 
     /**
      * Listener for soft AP events.
@@ -191,7 +195,7 @@ public class SoftApManager implements ActiveModeManager {
         pw.println("mApInterfaceName: " + mApInterfaceName);
         pw.println("mIfaceIsUp: " + mIfaceIsUp);
         pw.println("mMode: " + mMode);
-        pw.println("mCountryCode: " + mCountryCode);
+        pw.println("mSoftApCountryCode: " + mCountryCode);
         if (mApConfig != null) {
             pw.println("mApConfig.SSID: " + mApConfig.SSID);
             pw.println("mApConfig.apBand: " + mApConfig.apBand);
@@ -250,6 +254,10 @@ public class SoftApManager implements ActiveModeManager {
             Log.e(TAG, "Unable to start soft AP without valid configuration");
             return ERROR_GENERIC;
         }
+
+        Log.d(TAG, "band " + config.apBand + " iface "
+                + mApInterfaceName + " country " + mCountryCode);
+
         // Setup country code
         if (TextUtils.isEmpty(mCountryCode)) {
             if (config.apBand == WifiConfiguration.AP_BAND_5GHZ) {
@@ -286,12 +294,13 @@ public class SoftApManager implements ActiveModeManager {
         if (localConfig.hiddenSSID) {
             Log.d(TAG, "SoftAP is a hidden network");
         }
+
         if (!mWifiNative.startSoftAp(mApInterfaceName, localConfig, mSoftApListener)) {
             Log.e(TAG, "Soft AP start failed");
             return ERROR_GENERIC;
         }
-        mStartTimestamp = SystemClock.elapsedRealtime();
-        Log.d(TAG, "Soft AP is started");
+        mStartTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
+        Log.d(TAG, "Soft AP is started ");
 
         return SUCCESS;
     }

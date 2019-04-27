@@ -25,6 +25,7 @@ import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
 import android.util.Base64;
+import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
@@ -121,6 +122,26 @@ public class WifiScoreCardTest {
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
         assertNotEquals(perBssid.id, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).id);
         assertNotEquals(perBssid.l2Key, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).l2Key);
+    }
+
+    /**
+     * Test identifiers.
+     */
+    @Test
+    public void testIdentifiers() throws Exception {
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        Pair<String, String> p1 = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
+        assertNotNull(p1.first);
+        assertNotNull(p1.second);
+        mWifiInfo.setBSSID(TEST_BSSID_2.toString());
+        Pair<String, String> p2 = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
+        assertNotEquals(p1.first, p2.first);
+        assertEquals(p1.second, p2.second);
+        mWifiInfo.setBSSID(null);
+        Pair<String, String> p3 = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
+        assertNull(p3.first);
+        assertNull(p3.second);
     }
 
     /**
