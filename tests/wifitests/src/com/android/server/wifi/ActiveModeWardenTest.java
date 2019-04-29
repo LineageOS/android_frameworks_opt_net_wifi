@@ -79,6 +79,7 @@ public class ActiveModeWardenTest {
     ClientModeCallback mClientModeCallback = new ClientModeCallback();
     WifiManager.SoftApCallback mSoftApManagerCallback;
     @Mock WifiManager.SoftApCallback mSoftApStateMachineCallback;
+    @Mock WifiManager.SoftApCallback mLohsStateMachineCallback;
     WifiNative.StatusListener mWifiNativeStatusListener;
     ActiveModeWarden mActiveModeWarden;
 
@@ -114,6 +115,7 @@ public class ActiveModeWardenTest {
         mWifiNativeStatusListener = mStatusListenerCaptor.getValue();
 
         mActiveModeWarden.registerSoftApCallback(mSoftApStateMachineCallback);
+        mActiveModeWarden.registerLohsCallback(mLohsStateMachineCallback);
         mActiveModeWarden.registerScanOnlyCallback(mScanOnlyCallback);
         mActiveModeWarden.registerClientModeCallback(mClientModeCallback);
     }
