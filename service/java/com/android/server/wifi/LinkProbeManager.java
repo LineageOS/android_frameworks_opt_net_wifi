@@ -30,6 +30,8 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tracks state that decides if a link probe should be performed. If so, trigger a link probe to
@@ -48,6 +50,10 @@ public class LinkProbeManager {
     @VisibleForTesting
     static final long LINK_PROBE_INTERVAL_MS = 15 * 1000;
 
+    @VisibleForTesting
+    static final int[] EXPERIMENT_DELAYS_MS = {3000, 6000, 9000, 12000, 15000};
+    private List<Experiment> mExperiments = new ArrayList<>();
+
     private final Clock mClock;
     private final WifiNative mWifiNative;
     private final WifiMetrics mWifiMetrics;
@@ -63,7 +69,7 @@ public class LinkProbeManager {
     /**
      * Tracks the last timestamp when wifiInfo.txSuccess was increased i.e. the last time a Tx was
      * successful. Link probing only occurs when at least {@link #LINK_PROBE_INTERVAL_MS} has passed
-     * since the last Tx succcess.
+     * since the last Tx success.
      * This is also reset to the current time when {@link #reset()} is called, so that a link probe
      * only occurs at least {@link #LINK_PROBE_INTERVAL_MS} after a new connection is made.
      */
@@ -79,19 +85,22 @@ public class LinkProbeManager {
         mContext = context;
         mLinkProbingSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_link_probing_supported);
-        if (!mLinkProbingSupported) return;
 
-        mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
-                new ContentObserver(new Handler(looper)) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        updateLinkProbeSetting();
-                    }
-                });
-        updateLinkProbeSetting();
+        if (mLinkProbingSupported) {
+            mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
+                    Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
+                    new ContentObserver(new Handler(looper)) {
+                        @Override
+                        public void onChange(boolean selfChange) {
+                            updateLinkProbeSetting();
+                        }
+                    });
+            updateLinkProbeSetting();
 
-        reset();
+            reset();
+        }
+
+        initExperiments();
     }
 
     private void updateLinkProbeSetting() {
@@ -117,17 +126,30 @@ public class LinkProbeManager {
         pw.println("LinkProbeManager - mLastTxSuccessCount: " + mLastTxSuccessCount);
     }
 
-    /**
-     * When connecting to a different network or when RSSI poll events are stopped and restarted,
-     * reset internal state.
-     */
-    public void reset() {
+    private void reset() {
         if (!mLinkProbingSupported) return;
 
         long now = mClock.getElapsedSinceBootMillis();
         mLastLinkProbeTimestampMs = now;
         mLastTxSuccessIncreaseTimestampMs = now;
         mLastTxSuccessCount = 0;
+    }
+
+    /**
+     * When connecting to a new network, reset internal state.
+     */
+    public void resetOnNewConnection() {
+        mExperiments.forEach(Experiment::resetOnNewConnection);
+        reset();
+    }
+
+    /**
+     * When RSSI poll events are stopped and restarted (usually screen turned off then back on),
+     * reset internal state.
+     */
+    public void resetOnScreenTurnedOn() {
+        mExperiments.forEach(Experiment::resetOnScreenTurnedOn);
+        reset();
     }
 
     /**
@@ -138,6 +160,8 @@ public class LinkProbeManager {
      * @param interfaceName the interface that the link probe should be performed on, if applicable.
      */
     public void updateConnectionStats(WifiInfo wifiInfo, String interfaceName) {
+        mExperiments.forEach(e -> e.updateConnectionStats(wifiInfo));
+
         if (!mLinkProbingSupported) return;
 
         long now = mClock.getElapsedSinceBootMillis();
@@ -208,5 +232,99 @@ public class LinkProbeManager {
         }
 
         mLastLinkProbeTimestampMs = mClock.getElapsedSinceBootMillis();
+    }
+
+    private void initExperiments() {
+        for (int screenOnDelayMs : EXPERIMENT_DELAYS_MS) {
+            for (int noTxDelayMs : EXPERIMENT_DELAYS_MS) {
+                for (int delayBetweenProbesMs : EXPERIMENT_DELAYS_MS) {
+                    Experiment experiment = new Experiment(mClock, mWifiMetrics,
+                            screenOnDelayMs, noTxDelayMs, delayBetweenProbesMs);
+                    mExperiments.add(experiment);
+                }
+            }
+        }
+    }
+
+    // TODO(b/131091030): remove once experiment is over
+    private static class Experiment {
+
+        private final Clock mClock;
+        private final WifiMetrics mWifiMetrics;
+        private final int mScreenOnDelayMs;
+        private final int mNoTxDelayMs;
+        private final int mDelayBetweenProbesMs;
+        private final String mExperimentId;
+
+        private long mLastLinkProbeTimestampMs;
+        private long mLastTxSuccessIncreaseTimestampMs;
+        private long mLastTxSuccessCount;
+
+        Experiment(Clock clock, WifiMetrics wifiMetrics,
+                int screenOnDelayMs, int noTxDelayMs, int delayBetweenProbesMs) {
+            mClock = clock;
+            mWifiMetrics = wifiMetrics;
+            mScreenOnDelayMs = screenOnDelayMs;
+            mNoTxDelayMs = noTxDelayMs;
+            mDelayBetweenProbesMs = delayBetweenProbesMs;
+
+            mExperimentId = getExperimentId();
+
+            resetOnNewConnection();
+        }
+
+        private String getExperimentId() {
+            return "[screenOnDelay=" + mScreenOnDelayMs + ','
+                    + "noTxDelay=" + mNoTxDelayMs + ','
+                    + "delayBetweenProbes=" + mDelayBetweenProbesMs + ']';
+        }
+
+        void resetOnNewConnection() {
+            long now = mClock.getElapsedSinceBootMillis();
+            mLastLinkProbeTimestampMs = now;
+            mLastTxSuccessIncreaseTimestampMs = now;
+            mLastTxSuccessCount = 0;
+        }
+
+        void resetOnScreenTurnedOn() {
+            long now = mClock.getElapsedSinceBootMillis();
+            long firstPossibleLinkProbeAfterScreenOnTimestampMs = now + mScreenOnDelayMs;
+            mLastLinkProbeTimestampMs = Math.max(mLastLinkProbeTimestampMs,
+                    firstPossibleLinkProbeAfterScreenOnTimestampMs - mDelayBetweenProbesMs);
+            // don't reset mLastTxSuccessIncreaseTimestampMs and mLastTxSuccessCount since no new
+            // connection was established
+        }
+
+        void updateConnectionStats(WifiInfo wifiInfo) {
+            long now = mClock.getElapsedSinceBootMillis();
+
+            if (mLastTxSuccessCount < wifiInfo.txSuccess) {
+                mLastTxSuccessIncreaseTimestampMs = now;
+            }
+            mLastTxSuccessCount = wifiInfo.txSuccess;
+
+            long timeSinceLastLinkProbeMs = now - mLastLinkProbeTimestampMs;
+            if (timeSinceLastLinkProbeMs < mDelayBetweenProbesMs) {
+                return;
+            }
+
+            // if tx succeeded at least once in the last LINK_PROBE_INTERVAL_MS, don't need to probe
+            long timeSinceLastTxSuccessIncreaseMs = now - mLastTxSuccessIncreaseTimestampMs;
+            if (timeSinceLastTxSuccessIncreaseMs < mNoTxDelayMs) {
+                return;
+            }
+
+            // can skip probing if RSSI is valid and high and link speed is fast
+            int rssi = wifiInfo.getRssi();
+            int linkSpeed = wifiInfo.getLinkSpeed();
+            if (rssi != WifiInfo.INVALID_RSSI && rssi > LINK_PROBE_RSSI_THRESHOLD
+                    && linkSpeed > LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS) {
+                return;
+            }
+
+            mWifiMetrics.incrementLinkProbeExperimentProbeCount(mExperimentId);
+
+            mLastLinkProbeTimestampMs = mClock.getElapsedSinceBootMillis();
+        }
     }
 }

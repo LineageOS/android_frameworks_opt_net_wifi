@@ -23,6 +23,7 @@ import android.net.wifi.WifiManager;
 import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanStats;
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.ExperimentProbeCounts;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 
@@ -225,6 +226,43 @@ public class WifiMetricsTestUtil {
                         "StaEvent[%d].linkProbeFailureReason does not match!", i),
                         expectedEvent.linkProbeFailureReason, actualEvent.linkProbeFailureReason);
             }
+        }
+    }
+
+    /**
+     * The constructor we wish ExperimentProbeCounts had.
+     */
+    public static ExperimentProbeCounts buildExperimentProbeCounts(
+            String experimentId, int probeCount) {
+        ExperimentProbeCounts counts = new ExperimentProbeCounts();
+        counts.experimentId = experimentId;
+        counts.probeCount = probeCount;
+        return counts;
+    }
+
+    /**
+     * Asserts that the two arrays are equal (ignoring order),
+     * reporting any difference between them.
+     */
+    public static void assertExperimentProbeCountsEqual(
+            ExperimentProbeCounts[] expected, ExperimentProbeCounts[] actual) {
+
+        assertEquals("Number of ExperimentProbeCounts do not match!",
+                expected.length, actual.length);
+
+        Arrays.sort(expected, Comparator.comparing(x -> x.experimentId));
+        Arrays.sort(actual, Comparator.comparing(x -> x.experimentId));
+
+        for (int i = 0; i < expected.length; i++) {
+            ExperimentProbeCounts expectedCounts = expected[i];
+            ExperimentProbeCounts actualCounts = actual[i];
+
+            assertEquals(String.format(
+                    "ExperimentProbeCounts[%d].experimentId does not match!", i),
+                    expectedCounts.experimentId, actualCounts.experimentId);
+            assertEquals(String.format(
+                    "ExperimentProbeCounts[%d].probeCount does not match!", i),
+                    expectedCounts.probeCount, actualCounts.probeCount);
         }
     }
 }

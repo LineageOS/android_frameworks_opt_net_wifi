@@ -21,11 +21,13 @@ import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_STATIONARY;
 import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_UNKNOWN;
 
 import static com.android.server.wifi.WifiMetricsTestUtil.assertDeviceMobilityStatePnoScanStatsEqual;
+import static com.android.server.wifi.WifiMetricsTestUtil.assertExperimentProbeCountsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertHistogramBucketsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertKeyCountsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeFailureReasonCountsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.assertLinkProbeStaEventsEqual;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildDeviceMobilityStatePnoScanStats;
+import static com.android.server.wifi.WifiMetricsTestUtil.buildExperimentProbeCounts;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildHistogramBucketInt32;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureReasonCount;
@@ -85,6 +87,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.DeviceMobilityStatePnoScanS
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats;
+import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.ExperimentProbeCounts;
 import com.android.server.wifi.nano.WifiMetricsProto.LinkProbeStats.LinkProbeFailureReasonCount;
 import com.android.server.wifi.nano.WifiMetricsProto.NetworkSelectionExperimentDecisions;
 import com.android.server.wifi.nano.WifiMetricsProto.PasspointProfileTypeCount;
@@ -3454,6 +3457,32 @@ public class WifiMetricsTest {
         };
         assertLinkProbeFailureReasonCountsEqual(expectedFailureReasonCount,
                 linkProbeStats.failureReasonCounts);
+    }
+
+    /**
+     * Tests counting the number of link probes triggered per day for each experiment.
+     */
+    @Test
+    public void testIncrementLinkProbeExperimentProbeCount() throws Exception {
+        String experimentId1 = "screenOnDelay=6000,noTxDelay=3000,delayBetweenProbes=9000,"
+                + "rssiThreshold=-70,linkSpeedThreshold=15,";
+        mWifiMetrics.incrementLinkProbeExperimentProbeCount(experimentId1);
+
+        String experimentId2 = "screenOnDelay=9000,noTxDelay=12000,delayBetweenProbes=15000,"
+                + "rssiThreshold=-72,linkSpeedThreshold=20,";
+        mWifiMetrics.incrementLinkProbeExperimentProbeCount(experimentId2);
+        mWifiMetrics.incrementLinkProbeExperimentProbeCount(experimentId2);
+
+        dumpProtoAndDeserialize();
+
+        ExperimentProbeCounts[] actual = mDecodedProto.linkProbeStats.experimentProbeCounts;
+
+        ExperimentProbeCounts[] expected = {
+                buildExperimentProbeCounts(experimentId1, 1),
+                buildExperimentProbeCounts(experimentId2, 2)
+        };
+
+        assertExperimentProbeCountsEqual(expected, actual);
     }
 
     /**
