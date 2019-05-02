@@ -880,12 +880,6 @@ public class WificondControlTest {
 
         pnoScanEvent.OnPnoScanFailed();
         verify(mWifiMetrics).incrementPnoScanFailedCount();
-
-        pnoScanEvent.OnPnoScanOverOffloadStarted();
-        verify(mWifiMetrics).incrementPnoScanStartedOverOffloadCount();
-
-        pnoScanEvent.OnPnoScanOverOffloadFailed(0);
-        verify(mWifiMetrics).incrementPnoScanFailedOverOffloadCount();
     }
 
     /**
