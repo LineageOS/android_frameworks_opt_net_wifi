@@ -20,11 +20,15 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
+import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -90,6 +94,7 @@ public class WifiLastResortWatchdog {
     // successfully connecting or a new network (SSID) becomes available to connect to.
     private boolean mWatchdogAllowedToTrigger = true;
     private long mTimeLastTrigger = 0;
+    private String mSsidLastTrigger = null;
 
     private WifiInjector mWifiInjector;
     private WifiMetrics mWifiMetrics;
@@ -100,6 +105,11 @@ public class WifiLastResortWatchdog {
     // If any connection failure happened after watchdog triggering restart then assume watchdog
     // did not fix the problem
     private boolean mWatchdogFixedWifi = true;
+
+    /**
+     * Local log used for debugging any WifiLastResortWatchdog issues.
+     */
+    private final LocalLog mLocalLog = new LocalLog(100);
 
     WifiLastResortWatchdog(WifiInjector wifiInjector, Clock clock, WifiMetrics wifiMetrics,
             ClientModeImpl clientModeImpl, Looper clientModeImplLooper) {
@@ -154,6 +164,7 @@ public class WifiLastResortWatchdog {
                         if (mTimeLastTrigger == 0
                                 || (mClock.getElapsedSinceBootMillis() - mTimeLastTrigger)
                                     >= LAST_TRIGGER_TIMEOUT_MILLIS) {
+                            localLog("updateAvailableNetworks: setWatchdogTriggerEnabled to true");
                             setWatchdogTriggerEnabled(true);
                         }
                     } else {
@@ -231,10 +242,13 @@ public class WifiLastResortWatchdog {
         }
         if (isRestartNeeded) {
             // Stop the watchdog from triggering until re-enabled
+            localLog("noteConnectionFailureAndTriggerIfNeeded: setWatchdogTriggerEnabled to false");
             setWatchdogTriggerEnabled(false);
             mWatchdogFixedWifi = true;
-            Log.e(TAG, "Watchdog triggering recovery");
+            loge("Watchdog triggering recovery");
+            mSsidLastTrigger = ssid;
             mTimeLastTrigger = mClock.getElapsedSinceBootMillis();
+            localLog(toString());
             mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
             incrementWifiMetricsTriggerCounts();
             clearAllFailureCounts();
@@ -248,15 +262,15 @@ public class WifiLastResortWatchdog {
      * @param isEntering true if called from ConnectedState.enter(), false for exit()
      */
     public void connectedStateTransition(boolean isEntering) {
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, "connectedStateTransition: isEntering = " + isEntering);
-        }
+        logv("connectedStateTransition: isEntering = " + isEntering);
+
         mWifiIsConnected = isEntering;
         if (!isEntering) {
             return;
         }
         if (!mWatchdogAllowedToTrigger && mWatchdogFixedWifi
-                && checkIfAtleastOneNetworkHasEverConnected()) {
+                && checkIfAtleastOneNetworkHasEverConnected()
+                && checkIfConnectedBackToSameSsid()) {
             takeBugReportWithCurrentProbability("Wifi fixed after restart");
             // WiFi has connected after a Watchdog trigger, without any new networks becoming
             // available, log a Watchdog success in wifi metrics
@@ -268,7 +282,20 @@ public class WifiLastResortWatchdog {
         clearAllFailureCounts();
         // If the watchdog trigger was disabled (it triggered), connecting means we did
         // something right, re-enable it so it can fire again.
+        localLog("connectedStateTransition: setWatchdogTriggerEnabled to true");
         setWatchdogTriggerEnabled(true);
+    }
+
+    /**
+     * Helper function to check if device connect back to same
+     * SSID after watchdog trigger
+     */
+    private boolean checkIfConnectedBackToSameSsid() {
+        if (TextUtils.equals(mSsidLastTrigger, mClientModeImpl.getWifiInfo().getSSID())) {
+            return true;
+        }
+        localLog("checkIfConnectedBackToSameSsid: different SSID be connected");
+        return false;
     }
 
     /**
@@ -294,10 +321,8 @@ public class WifiLastResortWatchdog {
      * @param reason Message id from ClientModeImpl for this failure
      */
     private void updateFailureCountForNetwork(String ssid, String bssid, int reason) {
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, "updateFailureCountForNetwork: [" + ssid + ", " + bssid + ", "
-                    + reason + "]");
-        }
+        logv("updateFailureCountForNetwork: [" + ssid + ", " + bssid + ", "
+                + reason + "]");
         if (BSSID_ANY.equals(bssid)) {
             incrementSsidFailureCount(ssid, reason);
         } else {
@@ -428,9 +453,7 @@ public class WifiLastResortWatchdog {
         // We have met the failure count for every available network.
         // Trigger restart if there exists at-least one network that we have previously connected.
         boolean atleastOneNetworkHasEverConnected = checkIfAtleastOneNetworkHasEverConnected();
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, "checkTriggerCondition: return = " + atleastOneNetworkHasEverConnected);
-        }
+        logv("checkTriggerCondition: return = " + atleastOneNetworkHasEverConnected);
         return checkIfAtleastOneNetworkHasEverConnected();
     }
 
@@ -663,5 +686,34 @@ public class WifiLastResortWatchdog {
                     + ", Dhcp: " + dhcpFailure
                     + "}";
         }
+    }
+
+    /**
+     * Helper function for logging into local log buffer.
+     */
+    private void localLog(String s) {
+        mLocalLog.log(s);
+    }
+
+    private void logv(String s) {
+        mLocalLog.log(s);
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, s);
+        }
+    }
+
+    private void loge(String s) {
+        mLocalLog.log(s);
+        Log.e(TAG, s);
+    }
+
+    /**
+     * Dump the local log buffer and other internal state of WifiLastResortWatchdog.
+     */
+    public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+        pw.println("Dump of WifiLastResortWatchdog");
+        pw.println("WifiLastResortWatchdog - Log Begin ----");
+        mLocalLog.dump(fd, pw, args);
+        pw.println("WifiLastResortWatchdog - Log End ----");
     }
 }
