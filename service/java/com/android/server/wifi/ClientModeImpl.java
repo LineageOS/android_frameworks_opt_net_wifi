@@ -2040,6 +2040,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiConnectivityManager.dump(fd, pw, args);
         mWifiInjector.getWakeupController().dump(fd, pw, args);
         mLinkProbeManager.dump(fd, pw, args);
+        mWifiInjector.getWifiLastResortWatchdog().dump(fd, pw, args);
     }
 
     /**
