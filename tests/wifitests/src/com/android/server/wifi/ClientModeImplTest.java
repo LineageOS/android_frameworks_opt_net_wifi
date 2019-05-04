@@ -1748,17 +1748,19 @@ public class ClientModeImplTest {
         homeSp.setFqdn("test.com");
         config.setHomeSp(homeSp);
 
-        when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID)).thenReturn(true);
+        when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID,
+                OP_PACKAGE_NAME)).thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mCmi.syncAddOrUpdatePasspointConfig(
-                mCmiAsyncChannel, config, MANAGED_PROFILE_UID));
+                mCmiAsyncChannel, config, MANAGED_PROFILE_UID, OP_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID)).thenReturn(false);
+        when(mPasspointManager.addOrUpdateProvider(config, MANAGED_PROFILE_UID,
+                OP_PACKAGE_NAME)).thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mCmi.syncAddOrUpdatePasspointConfig(
-                mCmiAsyncChannel, config, MANAGED_PROFILE_UID));
+                mCmiAsyncChannel, config, MANAGED_PROFILE_UID, OP_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
     }
 
