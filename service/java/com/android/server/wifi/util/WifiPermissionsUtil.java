@@ -448,6 +448,15 @@ public class WifiPermissionsUtil {
     }
 
     /**
+     * Returns true if the |uid| holds LOCAL_MAC_ADDRESS permission.
+     */
+    public boolean checkLocalMacAddressPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.LOCAL_MAC_ADDRESS, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
      * Returns true if the |uid| holds NETWORK_SETUP_WIZARD permission.
      */
     public boolean checkNetworkSetupWizardPermission(int uid) {
