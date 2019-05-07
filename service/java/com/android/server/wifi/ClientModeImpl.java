@@ -159,6 +159,9 @@ public class ClientModeImpl extends StateMachine {
     private static final String EXTRA_OSU_ICON_QUERY_BSSID = "BSSID";
     private static final String EXTRA_OSU_ICON_QUERY_FILENAME = "FILENAME";
     private static final String EXTRA_OSU_PROVIDER = "OsuProvider";
+    private static final String EXTRA_UID = "uid";
+    private static final String EXTRA_PACKAGE_NAME = "PackageName";
+    private static final String EXTRA_PASSPOINT_CONFIGURATION = "PasspointConfiguration";
     private static final int IPCLIENT_TIMEOUT_MS = 10_000;
 
     private boolean mVerboseLoggingEnabled = false;
@@ -1752,12 +1755,17 @@ public class ClientModeImpl extends StateMachine {
      *
      * @param channel Channel for communicating with the state machine
      * @param config The configuration to add or update
+     * @param packageName Package name of the app adding/updating {@code config}.
      * @return true on success
      */
     public boolean syncAddOrUpdatePasspointConfig(AsyncChannel channel,
-            PasspointConfiguration config, int uid) {
+            PasspointConfiguration config, int uid, String packageName) {
+        Bundle bundle = new Bundle();
+        bundle.putInt(EXTRA_UID, uid);
+        bundle.putString(EXTRA_PACKAGE_NAME, packageName);
+        bundle.putParcelable(EXTRA_PASSPOINT_CONFIGURATION, config);
         Message resultMsg = channel.sendMessageSynchronously(CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG,
-                uid, 0, config);
+                bundle);
         if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 == SUCCESS);
         resultMsg.recycle();
@@ -3661,8 +3669,11 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what);
                     break;
                 case CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG:
-                    int addResult = mPasspointManager.addOrUpdateProvider(
-                            (PasspointConfiguration) message.obj, message.arg1)
+                    Bundle bundle = (Bundle) message.obj;
+                    int addResult = mPasspointManager.addOrUpdateProvider(bundle.getParcelable(
+                            EXTRA_PASSPOINT_CONFIGURATION),
+                            bundle.getInt(EXTRA_UID),
+                            bundle.getString(EXTRA_PACKAGE_NAME))
                             ? SUCCESS : FAILURE;
                     replyToMessage(message, message.what, addResult);
                     break;
@@ -4502,8 +4513,12 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what, 0);
                     break;
                 case CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG:
-                    PasspointConfiguration passpointConfig = (PasspointConfiguration) message.obj;
-                    if (mPasspointManager.addOrUpdateProvider(passpointConfig, message.arg1)) {
+                    Bundle bundle = (Bundle) message.obj;
+                    PasspointConfiguration passpointConfig = bundle.getParcelable(
+                            EXTRA_PASSPOINT_CONFIGURATION);
+                    if (mPasspointManager.addOrUpdateProvider(passpointConfig,
+                            bundle.getInt(EXTRA_UID),
+                            bundle.getString(EXTRA_PACKAGE_NAME))) {
                         String fqdn = passpointConfig.getHomeSp().getFqdn();
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {

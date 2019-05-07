@@ -2295,7 +2295,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         return mClientModeImpl.syncAddOrUpdatePasspointConfig(mClientModeImplChannel, config,
-                Binder.getCallingUid());
+                Binder.getCallingUid(), packageName);
     }
 
     /**
@@ -2706,12 +2706,19 @@ public class WifiServiceImpl extends BaseWifiService {
                     }
                     String pkgName = uri.getSchemeSpecificPart();
                     mClientModeImpl.removeAppConfigs(pkgName, uid);
+
                     // Call the method in ClientModeImpl thread.
                     mWifiInjector.getClientModeImplHandler().post(() -> {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
+
                         // Remove all suggestions from the package.
                         mWifiNetworkSuggestionsManager.removeApp(pkgName);
                         mClientModeImpl.removeNetworkRequestUserApprovedAccessPointsForApp(pkgName);
+
+                        // Remove all Passpoint profiles from package.
+                        mWifiInjector.getPasspointManager().removePasspointProviderWithPackage(
+                                pkgName);
+
                     });
                 }
             }

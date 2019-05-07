@@ -108,6 +108,7 @@ import com.android.internal.os.PowerProfile;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.WifiServiceImpl.LocalOnlyRequestorCallback;
+import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -238,6 +239,7 @@ public class WifiServiceImplTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiScoreReport mWifiScoreReport;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock PasspointManager mPasspointManager;
 
     @Spy FakeWifiLog mLog;
 
@@ -362,6 +364,7 @@ public class WifiServiceImplTest {
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);
+        when(mWifiInjector.getPasspointManager()).thenReturn(mPasspointManager);
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
@@ -2476,18 +2479,20 @@ public class WifiServiceImplTest {
                 eq(Build.VERSION_CODES.Q))).thenReturn(true);
 
         when(mClientModeImpl.syncAddOrUpdatePasspointConfig(any(),
-                any(PasspointConfiguration.class), anyInt())).thenReturn(true);
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME))).thenReturn(
+                true);
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mClientModeImpl).syncAddOrUpdatePasspointConfig(any(),
-                any(PasspointConfiguration.class), anyInt());
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME));
         reset(mClientModeImpl);
 
         when(mClientModeImpl.syncAddOrUpdatePasspointConfig(any(),
-                any(PasspointConfiguration.class), anyInt())).thenReturn(false);
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME))).thenReturn(
+                false);
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
         verify(mClientModeImpl).syncAddOrUpdatePasspointConfig(any(),
-                any(PasspointConfiguration.class), anyInt());
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME));
     }
 
     /**
@@ -3077,7 +3082,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat((IntentFilter filter) ->
+                argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
 
         int uid = TEST_UID;
@@ -3094,6 +3099,7 @@ public class WifiServiceImplTest {
         verify(mScanRequestProxy).clearScanRequestTimestampsForApp(packageName, uid);
         verify(mWifiNetworkSuggestionsManager).removeApp(packageName);
         verify(mClientModeImpl).removeNetworkRequestUserApprovedAccessPointsForApp(packageName);
+        verify(mPasspointManager).removePasspointProviderWithPackage(packageName);
     }
 
     @Test
@@ -3101,7 +3107,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat((IntentFilter filter) ->
+                argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
 
         String packageName = TEST_PACKAGE_NAME;
@@ -3117,6 +3123,7 @@ public class WifiServiceImplTest {
         verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
         verify(mClientModeImpl, never()).removeNetworkRequestUserApprovedAccessPointsForApp(
                 packageName);
+        verify(mPasspointManager, never()).removePasspointProviderWithPackage(anyString());
     }
 
     @Test
@@ -3124,7 +3131,7 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getClientModeImplHandler()).thenReturn(mHandler);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat((IntentFilter filter) ->
+                argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_PACKAGE_FULLY_REMOVED)));
 
         int uid = TEST_UID;
@@ -3140,13 +3147,14 @@ public class WifiServiceImplTest {
         verify(mWifiNetworkSuggestionsManager, never()).removeApp(anyString());
         verify(mClientModeImpl, never()).removeNetworkRequestUserApprovedAccessPointsForApp(
                 anyString());
+        verify(mPasspointManager, never()).removePasspointProviderWithPackage(anyString());
     }
 
     @Test
     public void testUserRemovedBroadcastHandling() {
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat((IntentFilter filter) ->
+                argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
         int userHandle = TEST_USER_HANDLE;
@@ -3162,7 +3170,7 @@ public class WifiServiceImplTest {
     public void testUserRemovedBroadcastHandlingWithWrongIntentAction() {
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat((IntentFilter filter) ->
+                argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
 
         int userHandle = TEST_USER_HANDLE;
