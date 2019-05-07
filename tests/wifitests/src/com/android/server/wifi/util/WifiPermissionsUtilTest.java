@@ -821,6 +821,50 @@ public class WifiPermissionsUtilTest {
     }
 
     /**
+     * Verifies the helper method exposed for checking SYSTERM_ALERT_WINDOW permission.
+     */
+    @Test
+    public void testCheckSystemAlertWindowPermissionWithModeDefaultAppOps() throws Exception {
+        setupMocks();
+        WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+
+        when(mMockAppOps.noteOp(
+                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID, TEST_PACKAGE_NAME))
+                .thenReturn(AppOpsManager.MODE_DEFAULT);
+        when(mMockPermissionsWrapper.getUidPermission(
+                Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        assertFalse(wifiPermissionsUtil.checkSystemAlertWindowPermission(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        when(mMockAppOps.noteOp(
+                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID, TEST_PACKAGE_NAME))
+                .thenReturn(AppOpsManager.MODE_DEFAULT);
+        when(mMockPermissionsWrapper.getUidPermission(
+                Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
+                .thenReturn(PackageManager.PERMISSION_GRANTED);
+        assertTrue(wifiPermissionsUtil.checkSystemAlertWindowPermission(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Verifies the helper method exposed for checking SYSTERM_ALERT_WINDOW permission.
+     */
+    @Test
+    public void testCheckSystemAlertWindowPermissionWithModeAllowedAppOps() throws Exception {
+        setupMocks();
+        WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+
+        when(mMockAppOps.noteOp(
+                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID, TEST_PACKAGE_NAME))
+                .thenReturn(AppOpsManager.MODE_ALLOWED);
+        assertTrue(wifiPermissionsUtil.checkSystemAlertWindowPermission(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+    }
+
+    /**
      * Test case setting: caller does not have Location permission.
      * Expect a SecurityException
      */
