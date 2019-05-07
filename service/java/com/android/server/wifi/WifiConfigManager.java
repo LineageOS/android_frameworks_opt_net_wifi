@@ -339,10 +339,6 @@ public class WifiConfigManager {
      */
     private boolean mDeferredUserUnlockRead = false;
     /**
-     * Flag to indicate if SIM is present.
-     */
-    private boolean mSimPresent = false;
-    /**
      * This is keeping track of the next network ID to be assigned. Any new networks will be
      * assigned |mNextNetworkId| as network ID.
      */
@@ -2786,46 +2782,33 @@ public class WifiConfigManager {
     /**
      * Resets all sim networks state.
      */
-    public void resetSimNetworks(boolean simPresent) {
+    public void resetSimNetworks() {
         if (mVerboseLoggingEnabled) localLog("resetSimNetworks");
-        if (simPresent) {
-            for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-                if (TelephonyUtil.isSimConfig(config)) {
-                    Pair<String, String> currentIdentity =
-                            TelephonyUtil.getSimIdentity(mTelephonyManager,
-                                    new TelephonyUtil(), config,
-                                    mWifiInjector.getCarrierNetworkConfig());
-                    if (mVerboseLoggingEnabled) {
-                        Log.d(TAG, "New identity for config " + config + ": " + currentIdentity);
-                    }
-
-                    // Update the loaded config
-                    if (currentIdentity == null) {
-                        Log.d(TAG, "Identity is null");
-                        break;
-                    }
-                    if (config.enterpriseConfig.getEapMethod() == WifiEnterpriseConfig.Eap.PEAP) {
-                        config.enterpriseConfig.setIdentity(currentIdentity.first);
-                        // do not reset anonymous identity since it may be dependent on user-entry
-                        // (i.e. cannot re-request on every reboot/SIM re-entry)
-                    } else {
-                        // reset identity as well: supplicant will ask us for it
-                        config.enterpriseConfig.setIdentity("");
-                        config.enterpriseConfig.setAnonymousIdentity("");
-                    }
+        for (WifiConfiguration config : getInternalConfiguredNetworks()) {
+            if (!TelephonyUtil.isSimConfig(config)) {
+                continue;
+            }
+            if (config.enterpriseConfig.getEapMethod() == WifiEnterpriseConfig.Eap.PEAP) {
+                Pair<String, String> currentIdentity = TelephonyUtil.getSimIdentity(
+                        mTelephonyManager, new TelephonyUtil(), config,
+                        mWifiInjector.getCarrierNetworkConfig());
+                if (mVerboseLoggingEnabled) {
+                    Log.d(TAG, "New identity for config " + config + ": " + currentIdentity);
                 }
+                // Update the loaded config
+                if (currentIdentity == null) {
+                    Log.d(TAG, "Identity is null");
+                } else {
+                    config.enterpriseConfig.setIdentity(currentIdentity.first);
+                }
+                // do not reset anonymous identity since it may be dependent on user-entry
+                // (i.e. cannot re-request on every reboot/SIM re-entry)
+            } else {
+                // reset identity as well: supplicant will ask us for it
+                config.enterpriseConfig.setIdentity("");
+                config.enterpriseConfig.setAnonymousIdentity("");
             }
         }
-        mSimPresent = simPresent;
-    }
-
-    /**
-     * Check if SIM is present.
-     *
-     * @return True if SIM is present, otherwise false.
-     */
-    public boolean isSimPresent() {
-        return mSimPresent;
     }
 
     /**
@@ -3077,8 +3060,10 @@ public class WifiConfigManager {
         if (mConfiguredNetworks.sizeForAllUsers() == 0) {
             Log.w(TAG, "No stored networks found.");
         }
-        // resetSimNetworks may already have been called. Call it again to reset loaded SIM configs.
-        resetSimNetworks(mSimPresent);
+        // reset identity & anonymous identity for networks using SIM-based authentication
+        // on load (i.e. boot) so that if the user changed SIMs while the device was powered off,
+        // we do not reuse stale credentials that would lead to authentication failure.
+        resetSimNetworks();
         sendConfiguredNetworksChangedBroadcast();
         mPendingStoreRead = false;
     }

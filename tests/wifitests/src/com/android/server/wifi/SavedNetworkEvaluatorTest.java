@@ -27,6 +27,7 @@ import android.content.res.Resources;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.SystemClock;
+import android.telephony.SubscriptionManager;
 import android.util.LocalLog;
 
 import androidx.test.filters.SmallTest;
@@ -76,7 +77,9 @@ public class SavedNetworkEvaluatorTest {
 
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext,
                 new ScoringParams(mContext), mWifiConfigManager,
-                mClock, mLocalLog, mWifiConnectivityHelper);
+                mClock, mLocalLog, mWifiConnectivityHelper, mSubscriptionManager);
+        // SIM is absent
+        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
     }
 
     /** Cleans up test. */
@@ -92,6 +95,7 @@ public class SavedNetworkEvaluatorTest {
     @Mock private Resources mResource;
     @Mock private Clock mClock;
     @Mock private OnConnectableListener mOnConnectableListener;
+    @Mock private SubscriptionManager mSubscriptionManager;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;

@@ -4565,8 +4565,8 @@ public class ClientModeImpl extends StateMachine {
                     boolean simPresent = message.arg1 == 1;
                     if (!simPresent) {
                         mPasspointManager.removeEphemeralProviders();
+                        mWifiConfigManager.resetSimNetworks();
                     }
-                    mWifiConfigManager.resetSimNetworks(simPresent);
                     break;
                 case CMD_BLUETOOTH_ADAPTER_STATE_CHANGE:
                     mBluetoothConnectionActive = (message.arg1
@@ -5222,6 +5222,8 @@ public class ClientModeImpl extends StateMachine {
                         if (TelephonyUtil.isSimConfig(config)) {
                             mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
                                     StaEvent.DISCONNECT_RESET_SIM_NETWORKS);
+                            // TODO(b/132385576): STA may immediately connect back to the network
+                            //  that we just disconnected from
                             mWifiNative.disconnect(mInterfaceName);
                             transitionTo(mDisconnectingState);
                         }
