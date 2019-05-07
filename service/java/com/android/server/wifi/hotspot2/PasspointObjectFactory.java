@@ -54,11 +54,14 @@ public class PasspointObjectFactory{
      * @param keyStore Instance of {@link WifiKeyStore}
      * @param config Configuration for the provider
      * @param providerId Unique identifier for the provider
+     * @param packageName Package name of app adding/updating the {@code config}
      * @return {@link PasspointProvider}
      */
     public PasspointProvider makePasspointProvider(PasspointConfiguration config,
-            WifiKeyStore keyStore, SIMAccessor simAccessor, long providerId, int creatorUid) {
-        return new PasspointProvider(config, keyStore, simAccessor, providerId, creatorUid);
+            WifiKeyStore keyStore, SIMAccessor simAccessor, long providerId, int creatorUid,
+            String packageName) {
+        return new PasspointProvider(config, keyStore, simAccessor, providerId, creatorUid,
+                packageName);
     }
 
     /**

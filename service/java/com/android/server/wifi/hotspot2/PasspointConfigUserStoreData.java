@@ -62,6 +62,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
 
     private static final String XML_TAG_PROVIDER_ID = "ProviderID";
     private static final String XML_TAG_CREATOR_UID = "CreatorUID";
+    private static final String XML_TAG_PACKAGE_NAME = "PackageName";
     private static final String XML_TAG_CA_CERTIFICATE_ALIASES = "CaCertificateAliases";
     private static final String XML_TAG_CA_CERTIFICATE_ALIAS = "CaCertificateAlias";
     private static final String XML_TAG_CLIENT_CERTIFICATE_ALIAS = "ClientCertificateAlias";
@@ -189,6 +190,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER);
         XmlUtil.writeNextValue(out, XML_TAG_PROVIDER_ID, provider.getProviderId());
         XmlUtil.writeNextValue(out, XML_TAG_CREATOR_UID, provider.getCreatorUid());
+        if (provider.getPackageName() != null) {
+            XmlUtil.writeNextValue(out, XML_TAG_PACKAGE_NAME, provider.getPackageName());
+        }
         XmlUtil.writeNextValue(out, XML_TAG_CA_CERTIFICATE_ALIASES,
                 provider.getCaCertificateAliases());
         XmlUtil.writeNextValue(out, XML_TAG_CLIENT_CERTIFICATE_ALIAS,
@@ -266,6 +270,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         String clientCertificateAlias = null;
         String clientPrivateKeyAlias = null;
         String remediationCaCertificateAlias = null;
+        String packageName = null;
         boolean hasEverConnected = false;
         boolean shared = false;
         PasspointConfiguration config = null;
@@ -280,6 +285,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_CREATOR_UID:
                         creatorUid = (int) value;
+                        break;
+                    case XML_TAG_PACKAGE_NAME:
+                        packageName = (String) value;
                         break;
                     case XML_TAG_CA_CERTIFICATE_ALIASES:
                         caCertificateAliases = (List) value;
@@ -330,9 +338,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
             throw new XmlPullParserException("Missing Passpoint configuration");
         }
         return new PasspointProvider(config, mKeyStore, mSimAccessor, providerId, creatorUid,
-                caCertificateAliases, clientCertificateAlias, clientPrivateKeyAlias,
-                remediationCaCertificateAlias,
-                hasEverConnected, shared);
+                packageName, caCertificateAliases, clientCertificateAlias, clientPrivateKeyAlias,
+                remediationCaCertificateAlias, hasEverConnected, shared);
     }
 }
 

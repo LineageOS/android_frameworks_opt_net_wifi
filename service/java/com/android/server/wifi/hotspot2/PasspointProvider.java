@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.Nullable;
 import android.net.wifi.EAPConstants;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -84,6 +85,7 @@ public class PasspointProvider {
 
     private final long mProviderId;
     private final int mCreatorUid;
+    private final String mPackageName;
 
     private final IMSIParameter mImsiParameter;
     private final List<String> mMatchingSIMImsiList;
@@ -101,13 +103,13 @@ public class PasspointProvider {
     private boolean mIsEphemeral = false;
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
-            SIMAccessor simAccessor, long providerId, int creatorUid) {
-        this(config, keyStore, simAccessor, providerId, creatorUid, null, null, null, null, false,
-                false);
+            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName) {
+        this(config, keyStore, simAccessor, providerId, creatorUid, packageName, null, null, null,
+                null, false, false);
     }
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
-            SIMAccessor simAccessor, long providerId, int creatorUid,
+            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName,
             List<String> caCertificateAliases,
             String clientCertificateAlias, String clientPrivateKeyAlias,
             String remediationCaCertificateAlias,
@@ -117,6 +119,7 @@ public class PasspointProvider {
         mKeyStore = keyStore;
         mProviderId = providerId;
         mCreatorUid = creatorUid;
+        mPackageName = packageName;
         mCaCertificateAliases = caCertificateAliases;
         mClientCertificateAlias = clientCertificateAlias;
         mClientPrivateKeyAlias = clientPrivateKeyAlias;
@@ -172,6 +175,11 @@ public class PasspointProvider {
 
     public int getCreatorUid() {
         return mCreatorUid;
+    }
+
+    @Nullable
+    public String getPackageName() {
+        return mPackageName;
     }
 
     public boolean getHasEverConnected() {
@@ -505,6 +513,9 @@ public class PasspointProvider {
         StringBuilder builder = new StringBuilder();
         builder.append("ProviderId: ").append(mProviderId).append("\n");
         builder.append("CreatorUID: ").append(mCreatorUid).append("\n");
+        if (mPackageName != null) {
+            builder.append("PackageName: ").append(mPackageName).append("\n");
+        }
         builder.append("Configuration Begin ---\n");
         builder.append(mConfig);
         builder.append("Configuration End ---\n");
