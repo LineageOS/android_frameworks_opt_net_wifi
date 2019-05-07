@@ -21,6 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -68,6 +69,8 @@ public class PostDevDataMessageTest {
     private Context mContext;
     @Mock
     private TelephonyManager mTelephonyManager;
+    @Mock
+    private TelephonyManager mDataTelephonyManager;
 
     /**
      * Sets up test.
@@ -75,7 +78,8 @@ public class PostDevDataMessageTest {
     @Before
     public void setUp() throws Exception {
         initMocks(this);
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mSystemInfo.getDeviceModel()).thenReturn(TEST_MODEL);
         when(mSystemInfo.getLanguage()).thenReturn(TEST_LANGUAGE);
 
@@ -85,7 +89,7 @@ public class PostDevDataMessageTest {
         when(mSystemInfo.getMacAddress(any(String.class))).thenReturn(TEST_MAC_ADDR);
         when(mSystemInfo.getSoftwareVersion()).thenReturn(TEST_SW_VERSION);
         when(mSystemInfo.getFirmwareVersion()).thenReturn(TEST_FW_VERSION);
-        when(mTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
     }
 
     /**
