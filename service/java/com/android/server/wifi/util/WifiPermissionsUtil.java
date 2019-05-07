@@ -500,4 +500,18 @@ public class WifiPermissionsUtil {
                 android.Manifest.permission.NETWORK_CARRIER_PROVISIONING, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
+
+    /**
+     * Returns true if the |callingUid|/\callingPackage| holds SYSTEM_ALERT_WINDOW permission.
+     */
+    public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
+        final int mode = mAppOps.noteOp(
+                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, callingUid, callingPackage);
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            return mWifiPermissionsWrapper.getUidPermission(
+                    Manifest.permission.SYSTEM_ALERT_WINDOW, callingUid)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return mode == AppOpsManager.MODE_ALLOWED;
+    }
 }
