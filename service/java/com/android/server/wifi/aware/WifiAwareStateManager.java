@@ -673,8 +673,8 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      * Place a request to send a message on a discovery session on the state
      * machine queue.
      */
-    public void sendMessage(int clientId, int sessionId, int peerId, byte[] message, int messageId,
-            int retryCount) {
+    public void sendMessage(int uid, int clientId, int sessionId, int peerId, byte[] message,
+            int messageId, int retryCount) {
         Message msg = mSm.obtainMessage(MESSAGE_TYPE_COMMAND);
         msg.arg1 = COMMAND_TYPE_ENQUEUE_SEND_MESSAGE;
         msg.arg2 = clientId;
@@ -683,6 +683,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         msg.getData().putByteArray(MESSAGE_BUNDLE_KEY_MESSAGE, message);
         msg.getData().putInt(MESSAGE_BUNDLE_KEY_MESSAGE_ID, messageId);
         msg.getData().putInt(MESSAGE_BUNDLE_KEY_RETRY_COUNT, retryCount);
+        msg.getData().putInt(MESSAGE_BUNDLE_KEY_UID, uid);
         mSm.sendMessage(msg);
     }
 
@@ -1196,6 +1197,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         private short mCurrentTransactionId = TRANSACTION_ID_IGNORE;
 
         private static final long AWARE_SEND_MESSAGE_TIMEOUT = 10_000;
+        private static final int MESSAGE_QUEUE_DEPTH_PER_UID = 50;
         private int mSendArrivalSequenceCounter = 0;
         private boolean mSendQueueBlocked = false;
         private final SparseArray<Message> mHostQueuedSendMessages = new SparseArray<>();
@@ -1630,6 +1632,17 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
                         Log.v(TAG, "processCommand: ENQUEUE_SEND_MESSAGE - messageId="
                                 + msg.getData().getInt(MESSAGE_BUNDLE_KEY_MESSAGE_ID)
                                 + ", mSendArrivalSequenceCounter=" + mSendArrivalSequenceCounter);
+                    }
+                    int uid = msg.getData().getInt(MESSAGE_BUNDLE_KEY_UID);
+                    if (isUidExceededMessageQueueDepthLimit(uid)) {
+                        if (mDbg) {
+                            Log.v(TAG, "message queue limit exceeded for uid=" + uid
+                                    + " at messageId="
+                                    + msg.getData().getInt(MESSAGE_BUNDLE_KEY_MESSAGE_ID));
+                        }
+                        onMessageSendFailLocal(msg, NanStatusType.INTERNAL_FAILURE);
+                        waitForResponse = false;
+                        break;
                     }
                     Message sendMsg = obtainMessage(msg.what);
                     sendMsg.copyFrom(msg);
@@ -2099,6 +2112,24 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             updateSendMessageTimeout();
             mSendQueueBlocked = false;
             transmitNextMessage();
+        }
+
+        private boolean isUidExceededMessageQueueDepthLimit(int uid) {
+            int size = mHostQueuedSendMessages.size();
+            int numOfMessages = 0;
+            if (size < MESSAGE_QUEUE_DEPTH_PER_UID) {
+                return false;
+            }
+            for (int i = 0; i < size; ++i) {
+                if (mHostQueuedSendMessages.valueAt(i).getData()
+                        .getInt(MESSAGE_BUNDLE_KEY_UID) == uid) {
+                    numOfMessages++;
+                    if (numOfMessages >= MESSAGE_QUEUE_DEPTH_PER_UID) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override
