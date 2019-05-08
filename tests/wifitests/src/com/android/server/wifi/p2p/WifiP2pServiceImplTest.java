@@ -103,6 +103,7 @@ public class WifiP2pServiceImplTest {
     private static final long STATE_CHANGE_WAITING_TIME = 1000;
     private static final String thisDeviceMac = "11:22:33:44:55:66";
     private static final String thisDeviceName = "thisDeviceName";
+    private static final String ANONYMIZED_DEVICE_ADDRESS = "02:00:00:00:00:00";
 
     private ArgumentCaptor<HalDeviceManager.InterfaceAvailableForRequestListener>
             mAvailListenerCaptor = ArgumentCaptor.forClass(
@@ -652,7 +653,7 @@ public class WifiP2pServiceImplTest {
         assertEquals(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION, intent.getAction());
         assertEquals(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT, intent.getFlags());
         assertEquals(mTestThisDevice.deviceName, device.deviceName);
-        assertEquals(mTestThisDevice.deviceAddress, device.deviceAddress);
+        assertEquals(ANONYMIZED_DEVICE_ADDRESS, device.deviceAddress);
         assertEquals(mTestThisDevice.primaryDeviceType, device.primaryDeviceType);
         assertEquals(mTestThisDevice.secondaryDeviceType, device.secondaryDeviceType);
         assertEquals(mTestThisDevice.wpsConfigMethodsSupported, device.wpsConfigMethodsSupported);
@@ -1432,8 +1433,10 @@ public class WifiP2pServiceImplTest {
      */
     @Test
     public void testRequestGroupInfoSuccess() throws Exception {
+        mTestWifiP2pGroup.setOwner(mTestThisDevice);
         forceP2pEnabled(mClient1);
         sendGroupStartedMsg(mTestWifiP2pGroup);
+        when(mWifiPermissionsUtil.checkLocalMacAddressPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt())).thenReturn(true);
         sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
         sendRequestGroupInfoMsg(mClientMessenger);
@@ -1441,6 +1444,27 @@ public class WifiP2pServiceImplTest {
         assertEquals(WifiP2pManager.RESPONSE_GROUP_INFO, mMessageCaptor.getValue().what);
         WifiP2pGroup wifiP2pGroup = (WifiP2pGroup) mMessageCaptor.getValue().obj;
         assertEquals(mTestWifiP2pGroup.getNetworkName(), wifiP2pGroup.getNetworkName());
+        // Ensure that our own MAC address is anonymized if we're the group owner.
+        assertEquals(ANONYMIZED_DEVICE_ADDRESS, wifiP2pGroup.getOwner().deviceAddress);
+    }
+
+    /**
+     * Verify WifiP2pManager.RESPONSE_GROUP_INFO does not anonymize this device's MAC address when
+     * requested by an app with the LOCAL_MAC_ADDRESS permission.
+     */
+    @Test
+    public void testRequestGroupInfoIncludesMacForNetworkSettingsApp() throws Exception {
+        mTestWifiP2pGroup.setOwner(mTestThisDevice);
+        forceP2pEnabled(mClient1);
+        sendGroupStartedMsg(mTestWifiP2pGroup);
+        when(mWifiPermissionsUtil.checkLocalMacAddressPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt())).thenReturn(true);
+        sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
+        sendRequestGroupInfoMsg(mClientMessenger);
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        assertEquals(WifiP2pManager.RESPONSE_GROUP_INFO, mMessageCaptor.getValue().what);
+        WifiP2pGroup wifiP2pGroup = (WifiP2pGroup) mMessageCaptor.getValue().obj;
+        assertEquals(thisDeviceMac, wifiP2pGroup.getOwner().deviceAddress);
     }
 
     /**
@@ -2030,7 +2054,7 @@ public class WifiP2pServiceImplTest {
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         assertEquals(WifiP2pManager.RESPONSE_DEVICE_INFO, mMessageCaptor.getValue().what);
         WifiP2pDevice wifiP2pDevice = (WifiP2pDevice) mMessageCaptor.getValue().obj;
-        assertEquals(thisDeviceMac, wifiP2pDevice.deviceAddress);
+        assertEquals(ANONYMIZED_DEVICE_ADDRESS, wifiP2pDevice.deviceAddress);
         assertEquals(thisDeviceName, wifiP2pDevice.deviceName);
     }
 
@@ -2048,6 +2072,24 @@ public class WifiP2pServiceImplTest {
         WifiP2pDevice wifiP2pDevice = (WifiP2pDevice) mMessageCaptor.getValue().obj;
         assertEquals("", wifiP2pDevice.deviceAddress);
         assertEquals("", wifiP2pDevice.deviceName);
+    }
+
+    /**
+     * Verify WifiP2pManager.RESPONSE_DEVICE_INFO returns an object with the actual device MAC when
+     * the caller holds the LOCAL_MAC_ADDRESS permission.
+     */
+    @Test
+    public void testRequestDeviceInfoReturnsActualMacForNetworkSettingsApp() throws Exception {
+        forceP2pEnabled(mClient1);
+        when(mWifiPermissionsUtil.checkLocalMacAddressPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkCanAccessWifiDirect(anyString(), anyInt())).thenReturn(true);
+        sendChannelInfoUpdateMsg("testPkg1", mClient1, mClientMessenger);
+        sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_DEVICE_INFO);
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        assertEquals(WifiP2pManager.RESPONSE_DEVICE_INFO, mMessageCaptor.getValue().what);
+        WifiP2pDevice wifiP2pDevice = (WifiP2pDevice) mMessageCaptor.getValue().obj;
+        assertEquals(thisDeviceMac, wifiP2pDevice.deviceAddress);
+        assertEquals(thisDeviceName, wifiP2pDevice.deviceName);
     }
 
     /**
@@ -3196,6 +3238,8 @@ public class WifiP2pServiceImplTest {
      */
     @Test
     public void testRequestPersistentGroupInfoSuccess() throws Exception {
+        // Ensure our own MAC address is not anonymized in the result
+        when(mWifiPermissionsUtil.checkLocalMacAddressPermission(anyInt())).thenReturn(true);
         forceP2pEnabled(mClient1);
 
         sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO);

@@ -448,6 +448,15 @@ public class WifiPermissionsUtil {
     }
 
     /**
+     * Returns true if the |uid| holds LOCAL_MAC_ADDRESS permission.
+     */
+    public boolean checkLocalMacAddressPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.LOCAL_MAC_ADDRESS, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
      * Returns true if the |uid| holds NETWORK_SETUP_WIZARD permission.
      */
     public boolean checkNetworkSetupWizardPermission(int uid) {
@@ -490,5 +499,19 @@ public class WifiPermissionsUtil {
         return mWifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_CARRIER_PROVISIONING, uid)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Returns true if the |callingUid|/\callingPackage| holds SYSTEM_ALERT_WINDOW permission.
+     */
+    public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
+        final int mode = mAppOps.noteOp(
+                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, callingUid, callingPackage);
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            return mWifiPermissionsWrapper.getUidPermission(
+                    Manifest.permission.SYSTEM_ALERT_WINDOW, callingUid)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return mode == AppOpsManager.MODE_ALLOWED;
     }
 }
