@@ -16,7 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.shared.LinkPropertiesParcelableUtil.toStableParcelable;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
@@ -57,7 +56,7 @@ import android.net.TcpKeepalivePacketData;
 import android.net.TrafficStats;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
-import android.net.ip.IpClientUtil;
+import android.net.ip.IpClientManager;
 import android.net.shared.ProvisioningConfiguration;
 import android.net.wifi.RssiPacketCountInfo;
 import android.net.wifi.ScanResult;
@@ -395,7 +394,7 @@ public class WifiStateMachine extends StateMachine {
         return true;
     }
 
-    private volatile IIpClient mIpClient;
+    private volatile IpClientManager mIpClient;
     private IpClientCallbacksImpl mIpClientCallbacks;
 
     // Channel for sending replies.
@@ -973,11 +972,7 @@ public class WifiStateMachine extends StateMachine {
 
     private void setMulticastFilter(boolean enabled) {
         if (mIpClient != null) {
-            try {
-                mIpClient.setMulticastFilter(enabled);
-            } catch (RemoteException e) {
-                loge("Error setting multicast filter", e);
-            }
+            mIpClient.setMulticastFilter(enabled);
         }
     }
 
@@ -1006,7 +1001,7 @@ public class WifiStateMachine extends StateMachine {
 
         @Override
         public void onIpClientCreated(IIpClient ipClient) {
-            mIpClient = ipClient;
+            mIpClient = new IpClientManager(ipClient, getName());
             mWaitForCreationCv.open();
         }
 
@@ -1093,11 +1088,7 @@ public class WifiStateMachine extends StateMachine {
     private void stopIpClient() {
         /* Restore power save and suspend optimizations */
         handlePostDhcpSetup();
-        try {
-            mIpClient.stop();
-        } catch (RemoteException e) {
-            loge("Error stopping IpClient", e);
-        }
+        mIpClient.stop();
     }
 
     PendingIntent getPrivateBroadcast(String action, int requestCode) {
@@ -1911,7 +1902,8 @@ public class WifiStateMachine extends StateMachine {
 
     public void dumpIpClient(FileDescriptor fd, PrintWriter pw, String[] args) {
         if (mIpClient != null) {
-            IpClientUtil.dumpIpClient(mIpClient, fd, pw, args);
+            // All dumpIpClient does is print this log message.
+            pw.println("IpClient logs have moved to dumpsys network_stack");
         }
     }
 
@@ -3559,11 +3551,7 @@ public class WifiStateMachine extends StateMachine {
                     break;
                 case CMD_READ_PACKET_FILTER:
                     byte[] data = mWifiNative.readPacketFilter(mInterfaceName);
-                    try {
-                        mIpClient.readPacketFilterComplete(data);
-                    } catch (RemoteException e) {
-                        loge("Error notifying IpClient of packet filter read", e);
-                    }
+                    mIpClient.readPacketFilterComplete(data);
                     break;
                 case CMD_SET_FALLBACK_PACKET_FILTERING:
                     if ((boolean) message.obj) {
@@ -3781,15 +3769,10 @@ public class WifiStateMachine extends StateMachine {
         mIsRunning = false;
         updateBatteryWorkSource(null);
 
-        if (mIpClient != null) {
-            try {
-                mIpClient.shutdown();
-                // Block to make sure IpClient has really shut down, lest cleanup
-                // race with, say, bringup code over in tethering.
-                mIpClientCallbacks.awaitShutdown();
-            } catch (RemoteException e) {
-                loge("Error shutting down IpClient", e);
-            }
+        if (mIpClient != null && mIpClient.shutdown()) {
+            // Block to make sure IpClient has really shut down, lest cleanup
+            // race with, say, bringup code over in tethering.
+            mIpClientCallbacks.awaitShutdown();
         }
         mNetworkInfo.setIsAvailable(false);
         if (mNetworkAgent != null) mNetworkAgent.sendNetworkInfo(mNetworkInfo);
@@ -4017,11 +4000,7 @@ public class WifiStateMachine extends StateMachine {
                     // DNAv4/DNAv6 -style probing for on-link neighbors of
                     // interest (e.g. routers); harmless if none are configured.
                     if (state == SupplicantState.COMPLETED) {
-                        try {
-                            mIpClient.confirmConfiguration();
-                        } catch (RemoteException e) {
-                            loge("Error confirming IpClient configuration", e);
-                        }
+                        mIpClient.confirmConfiguration();
                         mWifiScoreReport.noteIpCheck();
                     }
                     break;
@@ -4302,12 +4281,8 @@ public class WifiStateMachine extends StateMachine {
                         } else {
                             if (result.hasProxyChanged()) {
                                 log("Reconfiguring proxy on connection");
-                                try {
-                                    mIpClient.setHttpProxy(toStableParcelable(
-                                            getCurrentWifiConfiguration().getHttpProxy()));
-                                } catch (RemoteException e) {
-                                    loge("Error setting IpClient proxy", e);
-                                }
+                                mIpClient.setHttpProxy(
+                                        getCurrentWifiConfiguration().getHttpProxy());
                             }
                             if (result.hasIpChanged()) {
                                 // The current connection configuration was changed
@@ -4815,11 +4790,7 @@ public class WifiStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            try {
-                mIpClient.stop();
-            } catch (RemoteException e) {
-                loge("Error stopping IpClient", e);
-            }
+            mIpClient.stop();
 
             // This is handled by receiving a NETWORK_DISCONNECTION_EVENT in ConnectModeState
             // Bug: 15347363
@@ -4850,11 +4821,7 @@ public class WifiStateMachine extends StateMachine {
                     handlePreDhcpSetup();
                     break;
                 case CMD_PRE_DHCP_ACTION_COMPLETE:
-                    try {
-                        mIpClient.completedPreDhcpAction();
-                    } catch (RemoteException e) {
-                        loge("Error completing PreDhcpAction", e);
-                    }
+                    mIpClient.completedPreDhcpAction();
                     break;
                 case CMD_POST_DHCP_ACTION:
                     handlePostDhcpSetup();
@@ -4952,11 +4919,7 @@ public class WifiStateMachine extends StateMachine {
                         mWifiScoreReport.calculateAndReportScore(
                                 mWifiInfo, mNetworkAgent, mWifiMetrics);
                         if (mWifiScoreReport.shouldCheckIpLayer()) {
-                            try {
-                                mIpClient.confirmConfiguration();
-                            } catch (RemoteException e) {
-                                loge("Error confirming IpClient configuration", e);
-                            }
+                            mIpClient.confirmConfiguration();
                             mWifiScoreReport.noteIpCheck();
                         }
                         sendMessageDelayed(obtainMessage(CMD_RSSI_POLL, mRssiPollToken, 0),
@@ -5053,31 +5016,21 @@ public class WifiStateMachine extends StateMachine {
                 case CMD_ADD_KEEPALIVE_PACKET_FILTER_TO_APF: {
                     if (mIpClient != null) {
                         final int slot = message.arg1;
-                        try {
-                            if (message.obj instanceof NattKeepalivePacketData) {
-                                final NattKeepalivePacketData pkt =
-                                        (NattKeepalivePacketData) message.obj;
-                                mIpClient.addNattKeepalivePacketFilter(slot,
-                                        pkt.toStableParcelable());
-                            } else if (message.obj instanceof TcpKeepalivePacketData) {
-                                final TcpKeepalivePacketData pkt =
-                                        (TcpKeepalivePacketData) message.obj;
-                                mIpClient.addKeepalivePacketFilter(slot,
-                                        pkt.toStableParcelable());
-                            }
-                        } catch (RemoteException e) {
-                            loge("Error adding Keepalive Packet Filter ", e);
+                        if (message.obj instanceof NattKeepalivePacketData) {
+                            final NattKeepalivePacketData pkt =
+                                    (NattKeepalivePacketData) message.obj;
+                            mIpClient.addKeepalivePacketFilter(slot, pkt);
+                        } else if (message.obj instanceof TcpKeepalivePacketData) {
+                            final TcpKeepalivePacketData pkt =
+                                    (TcpKeepalivePacketData) message.obj;
+                            mIpClient.addKeepalivePacketFilter(slot, pkt);
                         }
                     }
                     break;
                 }
                 case CMD_REMOVE_KEEPALIVE_PACKET_FILTER_FROM_APF: {
                     if (mIpClient != null) {
-                        try {
-                            mIpClient.removeKeepalivePacketFilter(message.arg1);
-                        } catch (RemoteException e) {
-                            loge("Error removing Keepalive Packet Filter ", e);
-                        }
+                        mIpClient.removeKeepalivePacketFilter(message.arg1);
                     }
                     break;
                 }
@@ -5123,17 +5076,9 @@ public class WifiStateMachine extends StateMachine {
             // CONNECTED.
             stopIpClient();
 
-            try {
-                mIpClient.setHttpProxy(toStableParcelable(currentConfig.getHttpProxy()));
-            } catch (RemoteException e) {
-                loge("Error setting IpClient proxy", e);
-            }
+            mIpClient.setHttpProxy(currentConfig.getHttpProxy());
             if (!TextUtils.isEmpty(mTcpBufferSizes)) {
-                try {
-                    mIpClient.setTcpBufferSizes(mTcpBufferSizes);
-                } catch (RemoteException e) {
-                    loge("Error setting IpClient TCP buffer sizes", e);
-                }
+                mIpClient.setTcpBufferSizes(mTcpBufferSizes);
             }
             final ProvisioningConfiguration prov;
             if (!isUsingStaticIp) {
@@ -5153,11 +5098,7 @@ public class WifiStateMachine extends StateMachine {
                             .withDisplayName(currentConfig.SSID)
                             .build();
             }
-            try {
-                mIpClient.startProvisioning(prov.toStableParcelable());
-            } catch (RemoteException e) {
-                loge("Error starting IpClient provisioning", e);
-            }
+            mIpClient.startProvisioning(prov);
             // Get Link layer stats so as we get fresh tx packet counters
             getWifiLinkLayerStats();
         }
