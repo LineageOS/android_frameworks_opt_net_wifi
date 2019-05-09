@@ -418,7 +418,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
                             + ", retryCount=" + retryCount);
         }
 
-        mStateManager.sendMessage(clientId, sessionId, peerId, message, messageId, retryCount);
+        mStateManager.sendMessage(uid, clientId, sessionId, peerId, message, messageId, retryCount);
     }
 
     @Override
