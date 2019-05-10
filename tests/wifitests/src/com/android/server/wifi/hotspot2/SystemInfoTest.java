@@ -18,6 +18,7 @@ package com.android.server.wifi.hotspot2;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -39,6 +40,7 @@ import org.mockito.Mock;
 public class SystemInfoTest {
     @Mock Context mContext;
     @Mock TelephonyManager mTelephonyManager;
+    @Mock TelephonyManager mDataTelephonyManager;
     @Mock WifiNative mWifiNative;
 
     SystemInfo mSystemInfo;
@@ -49,6 +51,7 @@ public class SystemInfoTest {
     public void setUp() throws Exception {
         initMocks(this);
         when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         mSystemInfo = new SystemInfo(mContext, mWifiNative);
     }
 
@@ -58,7 +61,7 @@ public class SystemInfoTest {
     @Test
     public void getDeviceIdWithImei() {
         String imei = "123456";
-        when(mTelephonyManager.getImei()).thenReturn(imei);
+        when(mDataTelephonyManager.getImei()).thenReturn(imei);
         assertEquals(imei, mSystemInfo.getDeviceId());
     }
 
@@ -68,8 +71,8 @@ public class SystemInfoTest {
     @Test
     public void getDeviceIdWithMeid() {
         String meid = "098763";
-        when(mTelephonyManager.getImei()).thenReturn(null);
-        when(mTelephonyManager.getMeid()).thenReturn(meid);
+        when(mDataTelephonyManager.getImei()).thenReturn(null);
+        when(mDataTelephonyManager.getMeid()).thenReturn(meid);
         assertEquals(meid, mSystemInfo.getDeviceId());
     }
 
@@ -79,8 +82,8 @@ public class SystemInfoTest {
      */
     @Test
     public void getDeviceIdWithoutSim() {
-        when(mTelephonyManager.getImei()).thenReturn(null);
-        when(mTelephonyManager.getMeid()).thenReturn(null);
+        when(mDataTelephonyManager.getImei()).thenReturn(null);
+        when(mDataTelephonyManager.getMeid()).thenReturn(null);
         assertEquals(SystemInfo.UNKNOWN_INFO, mSystemInfo.getDeviceId());
     }
 

@@ -87,6 +87,7 @@ import android.os.UserManager;
 import android.os.WorkSource;
 import android.provider.Settings;
 import android.system.OsConstants;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -4715,7 +4716,10 @@ public class ClientModeImpl extends StateMachine {
                 case WifiEnterpriseConfig.Eap.AKA:
                 case WifiEnterpriseConfig.Eap.AKA_PRIME:
                     if (errorCode == WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED) {
-                        getTelephonyManager().resetCarrierKeysForImsiEncryption();
+                        getTelephonyManager()
+                                .createForSubscriptionId(
+                                        SubscriptionManager.getDefaultDataSubscriptionId())
+                                .resetCarrierKeysForImsiEncryption();
                     }
                     break;
 
