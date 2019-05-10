@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+
 import android.annotation.NonNull;
 import android.app.AlarmManager;
 import android.net.wifi.IApInterface;
@@ -88,6 +90,7 @@ public class WificondControl implements IBinder.DeathRecipient {
     private AlarmManager mAlarmManager;
     private Handler mEventHandler;
     private Clock mClock;
+    private WifiNative mWifiNative = null;
 
     // Cached wificond binder handlers.
     private IWificond mWificond;
@@ -102,6 +105,8 @@ public class WificondControl implements IBinder.DeathRecipient {
      * Ensures that no more than one sendMgmtFrame operation runs concurrently.
      */
     private AtomicBoolean mSendMgmtFrameInProgress = new AtomicBoolean(false);
+    private boolean mIsEnhancedOpenSupportedInitialized = false;
+    private boolean mIsEnhancedOpenSupported;
 
     private class ScanEventHandler extends IScanEvent.Stub {
         private String mIfaceName;
@@ -591,7 +596,7 @@ public class WificondControl implements IBinder.DeathRecipient {
                         InformationElementUtil.parseInformationElements(result.infoElement);
                 InformationElementUtil.Capabilities capabilities =
                         new InformationElementUtil.Capabilities();
-                capabilities.from(ies, result.capability);
+                capabilities.from(ies, result.capability, isEnhancedOpenSupported());
                 String flags = capabilities.generateCapabilitiesString();
                 NetworkDetail networkDetail;
                 try {
@@ -917,5 +922,35 @@ public class WificondControl implements IBinder.DeathRecipient {
         mApInterfaces.clear();
         mApInterfaceListeners.clear();
         mSendMgmtFrameInProgress.set(false);
+    }
+
+    /**
+     * Check if OWE (Enhanced Open) is supported on the device
+     *
+     * @return true if OWE is supported
+     */
+    private boolean isEnhancedOpenSupported() {
+        if (mIsEnhancedOpenSupportedInitialized) {
+            return mIsEnhancedOpenSupported;
+        }
+
+        // WifiNative handle might be null, check this here
+        if (mWifiNative == null) {
+            mWifiNative = mWifiInjector.getWifiNative();
+            if (mWifiNative == null) {
+                return false;
+            }
+        }
+
+        String iface = mWifiNative.getClientInterfaceName();
+        if (iface == null) {
+            // Client interface might not be initialized during boot or Wi-Fi off
+            return false;
+        }
+
+        mIsEnhancedOpenSupportedInitialized = true;
+        mIsEnhancedOpenSupported = (mWifiNative.getSupportedFeatureSet(iface)
+                & WIFI_FEATURE_OWE) != 0;
+        return mIsEnhancedOpenSupported;
     }
 }
