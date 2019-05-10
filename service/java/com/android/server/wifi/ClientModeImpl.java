@@ -41,6 +41,7 @@ import android.net.KeepalivePacketData;
 import android.net.LinkProperties;
 import android.net.MacAddress;
 import android.net.MatchAllNetworkSpecifier;
+import android.net.NattKeepalivePacketData;
 import android.net.Network;
 import android.net.NetworkAgent;
 import android.net.NetworkCapabilities;
@@ -5238,9 +5239,18 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_ADD_KEEPALIVE_PACKET_FILTER_TO_APF: {
                     if (mIpClient != null) {
                         final int slot = message.arg1;
-                        final TcpKeepalivePacketData pkt = (TcpKeepalivePacketData) message.obj;
                         try {
-                            mIpClient.addKeepalivePacketFilter(slot, pkt.toStableParcelable());
+                            if (message.obj instanceof NattKeepalivePacketData) {
+                                final NattKeepalivePacketData pkt =
+                                        (NattKeepalivePacketData) message.obj;
+                                mIpClient.addNattKeepalivePacketFilter(slot,
+                                        pkt.toStableParcelable());
+                            } else if (message.obj instanceof TcpKeepalivePacketData) {
+                                final TcpKeepalivePacketData pkt =
+                                        (TcpKeepalivePacketData) message.obj;
+                                mIpClient.addKeepalivePacketFilter(slot,
+                                        pkt.toStableParcelable());
+                            }
                         } catch (RemoteException e) {
                             loge("Error adding Keepalive Packet Filter ", e);
                         }
