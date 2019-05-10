@@ -72,6 +72,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Pair;
@@ -186,6 +187,7 @@ public class PasspointManagerTest {
     @Mock ClientModeImpl mClientModeImpl;
     @Mock TelephonyManager mTelephonyManager;
     @Mock TelephonyManager mDataTelephonyManager;
+    @Mock SubscriptionManager mSubscriptionManager;
 
     Handler mHandler;
     TestLooper mLooper;
@@ -216,7 +218,7 @@ public class PasspointManagerTest {
         mHandler = new Handler(mLooper.getLooper());
         mManager = new PasspointManager(mContext, mWifiInjector, mHandler, mWifiNative,
                 mWifiKeyStore, mClock, mSimAccessor, mObjectFactory, mWifiConfigManager,
-                mWifiConfigStore, mWifiMetrics, mTelephonyManager);
+                mWifiConfigStore, mWifiMetrics, mTelephonyManager, mSubscriptionManager);
         ArgumentCaptor<PasspointEventHandler.Callbacks> callbacks =
                 ArgumentCaptor.forClass(PasspointEventHandler.Callbacks.class);
         verify(mObjectFactory).makePasspointEventHandler(any(WifiNative.class),
@@ -231,6 +233,8 @@ public class PasspointManagerTest {
         mCallbacks = callbacks.getValue();
         mSharedDataSource = sharedDataSource.getValue();
         mUserDataSource = userDataSource.getValue();
+        // SIM is absent
+        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
     }
 
     /**
@@ -1626,7 +1630,8 @@ public class PasspointManagerTest {
         when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
         PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                 mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager,
+                mSubscriptionManager);
 
         assertNull(passpointManager.createEphemeralPasspointConfigForCarrier(
                 EAPConstants.EAP_TLS));
@@ -1643,7 +1648,8 @@ public class PasspointManagerTest {
         when(mDataTelephonyManager.getSimOperatorName()).thenReturn("test");
         PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                 mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager,
+                mSubscriptionManager);
 
         PasspointConfiguration result =
                 passpointManager.createEphemeralPasspointConfigForCarrier(
@@ -1660,7 +1666,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void verifyInstallEphemeralPasspointConfigurationWithNonCarrierEapMethod() {
-        when(mWifiConfigManager.isSimPresent()).thenReturn(true);
+        // SIM is present
+        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
         PasspointConfiguration config = createTestConfigWithUserCredential("abc.com", "test");
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -1674,7 +1681,8 @@ public class PasspointManagerTest {
      */
     @Test
     public void verifyInstallEphemeralPasspointConfiguration() {
-        when(mWifiConfigManager.isSimPresent()).thenReturn(true);
+        // SIM is present
+        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
         PasspointConfiguration config = createTestConfigWithSimCredential(TEST_FQDN, TEST_IMSI,
                 TEST_REALM);
         PasspointProvider provider = createMockProvider(config);
@@ -1719,7 +1727,8 @@ public class PasspointManagerTest {
             when(mTelephonyManager.createForSubscriptionId(anyInt()))
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
-            when(mWifiConfigManager.isSimPresent()).thenReturn(true);
+            // SIM is present
+            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, TEST_HESSID,
                     TEST_ANQP_DOMAIN_ID, true));
@@ -1740,7 +1749,8 @@ public class PasspointManagerTest {
 
             PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                     mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
+                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager,
+                    mSubscriptionManager);
             assertEquals(EAPConstants.EAP_AKA,
                     passpointManager.findEapMethodFromNAIRealmMatchedWithCarrier(scanDetails));
         } finally {
@@ -1761,13 +1771,15 @@ public class PasspointManagerTest {
             when(mTelephonyManager.createForSubscriptionId(anyInt()))
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
-            when(mWifiConfigManager.isSimPresent()).thenReturn(true);
+            // SIM is present
+            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, 0, 0, false));
 
             PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                     mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
+                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager,
+                    mSubscriptionManager);
 
             assertEquals(-1,
                     passpointManager.findEapMethodFromNAIRealmMatchedWithCarrier(scanDetails));
