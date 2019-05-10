@@ -3413,7 +3413,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         verify(mPasspointManager).removeEphemeralProviders();
-        verify(mWifiConfigManager).resetSimNetworks(eq(false));
+        verify(mWifiConfigManager).resetSimNetworks();
     }
 
     /**
