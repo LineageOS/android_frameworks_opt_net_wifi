@@ -179,6 +179,7 @@ public class CarrierNetworkConfig {
      * @return True if carrier IMSI encryption info is available, False otherwise.
      */
     private boolean verifyCarrierImsiEncryptionInfoIsAvailable(Context context) {
+        // TODO(b/132188983): Inject this using WifiInjector
         TelephonyManager telephonyManager =
                 (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         if (telephonyManager == null) {
@@ -186,6 +187,7 @@ public class CarrierNetworkConfig {
         }
         try {
             mLastImsiEncryptionInfo = telephonyManager
+                    .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
                     .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN);
             if (mLastImsiEncryptionInfo == null) {
                 return false;

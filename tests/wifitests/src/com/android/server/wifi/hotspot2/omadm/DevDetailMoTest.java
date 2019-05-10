@@ -20,6 +20,7 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNull;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -56,20 +57,23 @@ public class DevDetailMoTest {
     private Context mContext;
     @Mock
     private TelephonyManager mTelephonyManager;
+    @Mock
+    private TelephonyManager mDataTelephonyManager;
     /**
      * Sets up test.
      */
     @Before
     public void setUp() throws Exception {
         initMocks(this);
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mSystemInfo.getDeviceId()).thenReturn(TEST_DEV_ID);
         when(mSystemInfo.getDeviceManufacturer()).thenReturn(TEST_MANUFACTURER);
         when(mSystemInfo.getHwVersion()).thenReturn(TEST_HW_VERSION);
         when(mSystemInfo.getMacAddress(any(String.class))).thenReturn(TEST_MAC_ADDR);
         when(mSystemInfo.getSoftwareVersion()).thenReturn(TEST_SW_VERSION);
         when(mSystemInfo.getFirmwareVersion()).thenReturn(TEST_FW_VERSION);
-        when(mTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
         DevDetailMo.setAllowToSendImsiImeiInfo(false);
     }
 
@@ -230,7 +234,7 @@ public class DevDetailMoTest {
     @Test
     public void serializeDevDetailMoWithoutSim() {
         DevDetailMo.setAllowToSendImsiImeiInfo(true);
-        when(mTelephonyManager.getSubscriberId()).thenReturn(null);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(null);
         String expected = String.format("<MgmtTree>"
                         + "<VerDTD>%s</VerDTD>"
                         + "<Node><NodeName>DevDetail</NodeName>"

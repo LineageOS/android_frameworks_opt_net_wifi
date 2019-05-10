@@ -80,6 +80,7 @@ public class CarrierNetworkEvaluatorTest {
     @Mock private WifiNetworkSelector.NetworkEvaluator.OnConnectableListener mConnectableListener;
     @Mock private WifiInjector mWifiInjector;
     @Mock private TelephonyManager mTelephonyManager;
+    @Mock private TelephonyManager mDataTelephonyManager;
 
     private ArgumentCaptor<ScanDetail> mScanDetailCaptor = ArgumentCaptor.forClass(
             ScanDetail.class);
@@ -155,8 +156,9 @@ public class CarrierNetworkEvaluatorTest {
                 mWifiInjector);
 
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
-        when(mTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
                 CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0);

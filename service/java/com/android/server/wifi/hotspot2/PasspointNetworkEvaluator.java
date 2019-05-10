@@ -23,6 +23,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.LocalLog;
@@ -120,24 +121,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                     }
                 }).collect(Collectors.toList());
 
-        // Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
-        // of the current MNO carrier on the device.
-        if ((getTelephonyManager() != null)
-                && (TelephonyUtil.getCarrierType(mTelephonyManager)
-                == TelephonyUtil.CARRIER_MNO_TYPE)
-                && mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()
-                && !mPasspointManager.hasCarrierProvider(mTelephonyManager.getSimOperator())) {
-            int eapMethod = mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(
-                    filteredScanDetails);
-            if (isCarrierEapMethod(eapMethod)) {
-                PasspointConfiguration carrierConfig =
-                        mPasspointManager.createEphemeralPasspointConfigForCarrier(
-                                eapMethod);
-                if (carrierConfig != null) {
-                    mPasspointManager.installEphemeralPasspointConfigForCarrier(carrierConfig);
-                }
-            }
-        }
+        createEphemeralProfileForMatchingAp(filteredScanDetails);
 
         // Go through each ScanDetail and find the best provider for each ScanDetail.
         List<PasspointNetworkCandidate> candidateList = new ArrayList<>();
@@ -187,6 +171,41 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             localLog("Passpoint network to connect to: " + config.SSID);
         }
         return config;
+    }
+
+    /**
+     * Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
+     * of the current MNO carrier on the device.
+     */
+    private void createEphemeralProfileForMatchingAp(List<ScanDetail> filteredScanDetails) {
+        TelephonyManager telephonyManager = getTelephonyManager();
+        if (telephonyManager == null) {
+            return;
+        }
+        if (TelephonyUtil.getCarrierType(telephonyManager) != TelephonyUtil.CARRIER_MNO_TYPE) {
+            return;
+        }
+        if (!mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {
+            return;
+        }
+        String mccMnc = telephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperator();
+        if (mPasspointManager.hasCarrierProvider(mccMnc)) {
+            return;
+        }
+        int eapMethod =
+                mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(filteredScanDetails);
+        if (!isCarrierEapMethod(eapMethod)) {
+            return;
+        }
+        PasspointConfiguration carrierConfig =
+                mPasspointManager.createEphemeralPasspointConfigForCarrier(eapMethod);
+        if (carrierConfig == null) {
+            return;
+        }
+
+        mPasspointManager.installEphemeralPasspointConfigForCarrier(carrierConfig);
     }
 
     /**
