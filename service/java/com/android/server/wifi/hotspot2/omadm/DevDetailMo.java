@@ -19,6 +19,7 @@ package com.android.server.wifi.hotspot2.omadm;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.EAPConstants;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -163,8 +164,6 @@ public class DevDetailMo {
             return null;
         }
 
-        TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(
-                Context.TELEPHONY_SERVICE);
         // Create the XML document for DevInfoMo
         Document doc = moSerializer.createNewDocument();
         Element rootElement = moSerializer.createMgmtTree(doc);
@@ -207,7 +206,11 @@ public class DevDetailMo {
                 redirectUri));
         wifiNode.appendChild(moSerializer.createNodeForValue(doc, TAG_WIFI_MAC_ADDR, macAddress));
 
-        String imsi = telephonyManager.getSubscriberId();
+        // TODO(b/132188983): Inject this using WifiInjector
+        TelephonyManager telephonyManager = context.getSystemService(TelephonyManager.class);
+        String imsi = telephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSubscriberId();
         if (imsi != null && sAllowToSendImsiImeiInfo) {
             // Don't provide the IMSI to an SP that did not issue the IMSI
             wifiNode.appendChild(moSerializer.createNodeForValue(doc, TAG_IMSI, imsi));

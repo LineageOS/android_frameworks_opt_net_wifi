@@ -123,6 +123,7 @@ public class CellularLinkLayerStatsCollector {
         if (defaultDataSubId != mCachedDefaultDataSubId
                 || mCachedDefaultDataTelephonyManager == null) {
             mCachedDefaultDataSubId = defaultDataSubId;
+            // TODO(b/132188983): Inject this using WifiInjector
             TelephonyManager defaultSubTelephonyManager = (TelephonyManager) mContext
                     .getSystemService(Context.TELEPHONY_SERVICE);
             if (defaultDataSubId == mSubManager.getDefaultSubscriptionId()) {
