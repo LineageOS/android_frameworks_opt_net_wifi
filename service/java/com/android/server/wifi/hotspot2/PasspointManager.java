@@ -49,6 +49,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -332,7 +333,7 @@ public class PasspointManager {
             WifiNative wifiNative, WifiKeyStore keyStore, Clock clock, SIMAccessor simAccessor,
             PasspointObjectFactory objectFactory, WifiConfigManager wifiConfigManager,
             WifiConfigStore wifiConfigStore,
-            WifiMetrics wifiMetrics) {
+            WifiMetrics wifiMetrics, TelephonyManager telephonyManager) {
         mPasspointEventHandler = objectFactory.makePasspointEventHandler(wifiNative,
                 new CallbackHandler(context));
         mWifiInjector = wifiInjector;
@@ -347,7 +348,7 @@ public class PasspointManager {
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
-        mTelephonyManager = TelephonyManager.from(context);
+        mTelephonyManager = telephonyManager;
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigUserStoreData(
                 mKeyStore, mSimAccessor, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
@@ -454,7 +455,9 @@ public class PasspointManager {
             return -1;
         }
 
-        String mccMnc = mTelephonyManager.getSimOperator();
+        String mccMnc = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperator();
         if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
             return -1;
         }
@@ -515,7 +518,9 @@ public class PasspointManager {
      * {@code null} otherwise.
      */
     public PasspointConfiguration createEphemeralPasspointConfigForCarrier(int eapMethod) {
-        String mccMnc = mTelephonyManager.getSimOperator();
+        String mccMnc = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperator();
         if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
             Log.e(TAG, "invalid length of mccmnc");
             return null;
@@ -534,7 +539,10 @@ public class PasspointManager {
         PasspointConfiguration config = new PasspointConfiguration();
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(domain);
-        homeSp.setFriendlyName(mTelephonyManager.getSimOperatorName());
+        String friendlyName = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperatorName();
+        homeSp.setFriendlyName(friendlyName);
         config.setHomeSp(homeSp);
 
         Credential credential = new Credential();

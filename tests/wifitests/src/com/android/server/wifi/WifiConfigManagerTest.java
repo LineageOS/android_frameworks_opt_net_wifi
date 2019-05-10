@@ -115,6 +115,7 @@ public class WifiConfigManagerTest {
     @Mock private Clock mClock;
     @Mock private UserManager mUserManager;
     @Mock private TelephonyManager mTelephonyManager;
+    @Mock private TelephonyManager mDataTelephonyManager;
     @Mock private WifiKeyStore mWifiKeyStore;
     @Mock private WifiConfigStore mWifiConfigStore;
     @Mock private PackageManager mPackageManager;
@@ -227,6 +228,7 @@ public class WifiConfigManagerTest {
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
                 .startMocking();
         when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
     }
 
     /**
@@ -4286,10 +4288,10 @@ public class WifiConfigManagerTest {
     @Test
     public void testResetSimNetworks() {
         String expectedIdentity = "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org";
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
-        when(mTelephonyManager.getSimOperator()).thenReturn("321456");
-        when(mTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
 
         WifiConfiguration network = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
@@ -4327,7 +4329,7 @@ public class WifiConfigManagerTest {
         assertFalse(retrievedPeapSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
 
         // Call resetSimNetworks with false(SIM is not present).
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567891");
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567891");
         retrievedSimNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity22");
         verifyUpdateNetworkToWifiConfigManagerWithoutIpChange(retrievedSimNetwork);
         mWifiConfigManager.resetSimNetworks(false);
@@ -4371,10 +4373,10 @@ public class WifiConfigManagerTest {
     @Test
     public void testResetSimNetworksIsCalledAgainAfterLoadFromStore() {
         String expectedIdentity = "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org";
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
-        when(mTelephonyManager.getSimOperator()).thenReturn("321456");
-        when(mTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
 
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
