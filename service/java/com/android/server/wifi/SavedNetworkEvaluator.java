@@ -21,6 +21,7 @@ import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Process;
+import android.telephony.SubscriptionManager;
 import android.util.LocalLog;
 
 import com.android.internal.R;
@@ -39,6 +40,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     private final Clock mClock;
     private final LocalLog mLocalLog;
     private final WifiConnectivityHelper mConnectivityHelper;
+    private final SubscriptionManager mSubscriptionManager;
     private final int mRssiScoreSlope;
     private final int mRssiScoreOffset;
     private final int mSameBssidAward;
@@ -57,12 +59,14 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
     SavedNetworkEvaluator(final Context context, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock,
-            LocalLog localLog, WifiConnectivityHelper connectivityHelper) {
+            LocalLog localLog, WifiConnectivityHelper connectivityHelper,
+            SubscriptionManager subscriptionManager) {
         mScoringParams = scoringParams;
         mWifiConfigManager = configManager;
         mClock = clock;
         mLocalLog = localLog;
         mConnectivityHelper = connectivityHelper;
+        mSubscriptionManager = subscriptionManager;
 
         mRssiScoreSlope = context.getResources().getInteger(
                 R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
@@ -290,7 +294,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                         + scanResult.BSSID);
                 continue;
             } else if (TelephonyUtil.isSimConfig(network)
-                    && !mWifiConfigManager.isSimPresent()) {
+                    && !TelephonyUtil.isSimPresent(mSubscriptionManager)) {
                 // Don't select if security type is EAP SIM/AKA/AKA' when SIM is not present.
                 continue;
             }

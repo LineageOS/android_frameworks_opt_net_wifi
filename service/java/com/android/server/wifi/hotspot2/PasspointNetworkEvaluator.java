@@ -55,6 +55,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiInjector mWifiInjector;
     private TelephonyManager mTelephonyManager;
+    private SubscriptionManager mSubscriptionManager;
     /**
      * Contained information for a Passpoint network candidate.
      */
@@ -72,12 +73,14 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
 
     public PasspointNetworkEvaluator(PasspointManager passpointManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
-            CarrierNetworkConfig carrierNetworkConfig, WifiInjector wifiInjector) {
+            CarrierNetworkConfig carrierNetworkConfig, WifiInjector wifiInjector,
+            SubscriptionManager subscriptionManager) {
         mPasspointManager = passpointManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
         mCarrierNetworkConfig = carrierNetworkConfig;
         mWifiInjector = wifiInjector;
+        mSubscriptionManager = subscriptionManager;
     }
 
     private TelephonyManager getTelephonyManager() {
@@ -132,7 +135,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             Pair<PasspointProvider, PasspointMatch> bestProvider =
                     mPasspointManager.matchProvider(scanResult);
             if (bestProvider != null) {
-                if (bestProvider.first.isSimCredential() && !mWifiConfigManager.isSimPresent()) {
+                if (bestProvider.first.isSimCredential()
+                        && !TelephonyUtil.isSimPresent(mSubscriptionManager)) {
                     // Skip providers backed by SIM credential when SIM is not present.
                     continue;
                 }
