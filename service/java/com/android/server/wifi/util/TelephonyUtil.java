@@ -774,4 +774,11 @@ public class TelephonyUtil {
         }
         return CARRIER_MVNO_TYPE;
     }
+
+    /**
+     * Returns true if at least one SIM is present on the device, false otherwise.
+     */
+    public static boolean isSimPresent(@Nonnull SubscriptionManager sm) {
+        return sm.getActiveSubscriptionIdList().length > 0;
+    }
 }
