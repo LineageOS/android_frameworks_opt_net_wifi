@@ -185,6 +185,7 @@ public class PasspointProvisionerTest {
     @Mock ExchangeCompleteMessage mExchangeCompleteMessage;
     @Mock SystemInfo mSystemInfo;
     @Mock TelephonyManager mTelephonyManager;
+    @Mock TelephonyManager mDataTelephonyManager;
     @Mock SppCommand mSppCommand;
     @Mock BrowserUri mBrowserUri;
     @Mock PpsMoData mPpsMoData;
@@ -230,7 +231,8 @@ public class PasspointProvisionerTest {
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         mDelegate = new TrustManagerImpl(PasspointProvisioningTestUtil.createFakeKeyStore());
         when(mObjectFactory.getTrustManagerImpl(any(KeyStore.class))).thenReturn(mDelegate);
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
+        when(mContext.getSystemService(TelephonyManager.class)).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mSystemInfo.getDeviceModel()).thenReturn(TEST_MODEL);
         when(mSystemInfo.getLanguage()).thenReturn(TEST_LANGUAGE);
         when(mSystemInfo.getDeviceId()).thenReturn(TEST_DEV_ID);
@@ -239,7 +241,7 @@ public class PasspointProvisionerTest {
         when(mSystemInfo.getMacAddress(any(String.class))).thenReturn(TEST_MAC_ADDR);
         when(mSystemInfo.getSoftwareVersion()).thenReturn(TEST_SW_VERSION);
         when(mSystemInfo.getFirmwareVersion()).thenReturn(TEST_FW_VERSION);
-        when(mTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(TEST_IMSI);
 
         when(mExchangeCompleteMessage.getMessageType()).thenReturn(
                 SppResponseMessage.MessageType.EXCHANGE_COMPLETE);

@@ -108,8 +108,8 @@ public class WifiNetworkSelector {
     private final WifiNative mWifiNative;
 
     private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
-    private boolean mIsEasyConnectSupportedInitialized = false;
-    private boolean mIsEasyConnectSupported;
+    private boolean mIsEnhancedOpenSupportedInitialized = false;
+    private boolean mIsEnhancedOpenSupported;
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -420,14 +420,14 @@ public class WifiNetworkSelector {
     }
 
     private boolean isEnhancedOpenSupported() {
-        if (mIsEasyConnectSupportedInitialized) {
-            return mIsEasyConnectSupported;
+        if (mIsEnhancedOpenSupportedInitialized) {
+            return mIsEnhancedOpenSupported;
         }
 
-        mIsEasyConnectSupportedInitialized = true;
-        mIsEasyConnectSupported = (mWifiNative.getSupportedFeatureSet(
+        mIsEnhancedOpenSupportedInitialized = true;
+        mIsEnhancedOpenSupported = (mWifiNative.getSupportedFeatureSet(
                 mWifiNative.getClientInterfaceName()) & WIFI_FEATURE_OWE) != 0;
-        return mIsEasyConnectSupported;
+        return mIsEnhancedOpenSupported;
     }
 
     /**

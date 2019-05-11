@@ -1418,6 +1418,7 @@ public class WifiAwareStateManagerTest {
         inOrder.verify(mockSessionCallback).onMatch(peerIdCaptor.capture(), eq(peerSsi.getBytes()),
                 eq(peerMatchFilter.getBytes()));
         inOrderM.verify(mAwareMetricsMock).recordMatchIndicationForRangeEnabledSubscribe(false);
+        int peerId1 = peerIdCaptor.getValue();
 
         mDut.onMatchNotification(subscribeId, requestorId, peerMac, peerSsi.getBytes(),
                 peerMatchFilter.getBytes(), EGRESS_MET_MASK, rangedDistance);
@@ -1425,6 +1426,9 @@ public class WifiAwareStateManagerTest {
         inOrder.verify(mockSessionCallback).onMatchWithDistance(peerIdCaptor.capture(),
                 eq(peerSsi.getBytes()), eq(peerMatchFilter.getBytes()), eq(rangedDistance));
         inOrderM.verify(mAwareMetricsMock).recordMatchIndicationForRangeEnabledSubscribe(true);
+        int peerId2 = peerIdCaptor.getValue();
+
+        assertEquals(peerId1, peerId2);
 
         // (3) message Rx
         mDut.onMessageReceivedNotification(subscribeId, requestorId, peerMac, peerMsg.getBytes());

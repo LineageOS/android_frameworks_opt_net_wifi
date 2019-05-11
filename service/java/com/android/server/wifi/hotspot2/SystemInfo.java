@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemProperties;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
@@ -42,6 +43,7 @@ public class SystemInfo {
 
     @VisibleForTesting
     SystemInfo(Context context, WifiNative wifiNative) {
+        // TODO(b/132188983): inject this using WifiInjector
         mTelephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         mWifiNative = wifiNative;
     }
@@ -98,14 +100,16 @@ public class SystemInfo {
      * @return String representing device ID
      */
     public String getDeviceId() {
+        TelephonyManager defaultDataTm = mTelephonyManager.createForSubscriptionId(
+                SubscriptionManager.getDefaultDataSubscriptionId());
         // IMEI will be provided for GSM SIM.
-        String imei = mTelephonyManager.getImei();
+        String imei = defaultDataTm.getImei();
         if (!TextUtils.isEmpty(imei)) {
             return imei;
         }
 
         // MEID will be provided for CMDA SIM.
-        String meid = mTelephonyManager.getMeid();
+        String meid = defaultDataTm.getMeid();
         if (!TextUtils.isEmpty(meid)) {
             return meid;
         }

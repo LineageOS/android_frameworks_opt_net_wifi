@@ -241,7 +241,7 @@ public class WifiInjector {
                 WifiConfigStore.createSharedFile());
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
-                UserManager.get(mContext), TelephonyManager.from(mContext),
+                UserManager.get(mContext), makeTelephonyManager(),
                 mWifiKeyStore, mWifiConfigStore, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, this, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
@@ -278,7 +278,7 @@ public class WifiInjector {
         mPasspointManager = new PasspointManager(mContext, this,
                 new Handler(mWifiCoreHandlerThread.getLooper()), mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics);
+                mWifiMetrics, makeTelephonyManager());
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 mCarrierNetworkConfig, this);
@@ -502,7 +502,7 @@ public class WifiInjector {
         return mWifiScoreCard;
     }
 
-    /** Gets a TelephonyManager, which moy not be available early on. */
+    /** Gets a TelephonyManager, which may not be available early on. */
     public TelephonyManager makeTelephonyManager() {
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
     }

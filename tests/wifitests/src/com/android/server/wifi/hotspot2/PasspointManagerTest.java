@@ -184,6 +184,8 @@ public class PasspointManagerTest {
     @Mock AppOpsManager mAppOpsManager;
     @Mock WifiInjector mWifiInjector;
     @Mock ClientModeImpl mClientModeImpl;
+    @Mock TelephonyManager mTelephonyManager;
+    @Mock TelephonyManager mDataTelephonyManager;
 
     Handler mHandler;
     TestLooper mLooper;
@@ -214,7 +216,7 @@ public class PasspointManagerTest {
         mHandler = new Handler(mLooper.getLooper());
         mManager = new PasspointManager(mContext, mWifiInjector, mHandler, mWifiNative,
                 mWifiKeyStore, mClock, mSimAccessor, mObjectFactory, mWifiConfigManager,
-                mWifiConfigStore, mWifiMetrics);
+                mWifiConfigStore, mWifiMetrics, mTelephonyManager);
         ArgumentCaptor<PasspointEventHandler.Callbacks> callbacks =
                 ArgumentCaptor.forClass(PasspointEventHandler.Callbacks.class);
         verify(mObjectFactory).makePasspointEventHandler(any(WifiNative.class),
@@ -1620,22 +1622,14 @@ public class PasspointManagerTest {
      */
     @Test
     public void verifyCreateEphemeralPasspointConfigurationWithNonCarrierEapMethod() {
-        // static mocking
-        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
-                TelephonyManager.class).startMocking();
-        try {
-            TelephonyManager telephonyManager = mock(TelephonyManager.class);
-            when(TelephonyManager.from(any(Context.class))).thenReturn(telephonyManager);
-            when(telephonyManager.getSimOperator()).thenReturn("123456");
-            PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
-                    mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
+        PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
+                mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
 
-            assertNull(passpointManager.createEphemeralPasspointConfigForCarrier(
-                    EAPConstants.EAP_TLS));
-        } finally {
-            session.finishMocking();
-        }
+        assertNull(passpointManager.createEphemeralPasspointConfigForCarrier(
+                EAPConstants.EAP_TLS));
     }
 
     /**
@@ -1643,30 +1637,22 @@ public class PasspointManagerTest {
      */
     @Test
     public void verifyCreateEphemeralPasspointConfigurationWithCarrierEapMethod() {
-        // static mocking
-        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
-                TelephonyManager.class).startMocking();
-        try {
-            TelephonyManager telephonyManager = mock(TelephonyManager.class);
-            String mccmnc = "123456";
-            when(TelephonyManager.from(any(Context.class))).thenReturn(telephonyManager);
-            when(telephonyManager.getSimOperator()).thenReturn(mccmnc);
-            when(telephonyManager.getSimOperatorName()).thenReturn("test");
-            PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
-                    mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
+        String mccmnc = "123456";
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn(mccmnc);
+        when(mDataTelephonyManager.getSimOperatorName()).thenReturn("test");
+        PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
+                mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
 
-            PasspointConfiguration result =
-                    passpointManager.createEphemeralPasspointConfigForCarrier(
-                            EAPConstants.EAP_AKA);
+        PasspointConfiguration result =
+                passpointManager.createEphemeralPasspointConfigForCarrier(
+                        EAPConstants.EAP_AKA);
 
-            assertNotNull(result);
-            assertTrue(result.validate());
-            assertEquals(Utils.getRealmForMccMnc(mccmnc), result.getHomeSp().getFqdn());
-            assertEquals(mccmnc + "*", result.getCredential().getSimCredential().getImsi());
-        } finally {
-            session.finishMocking();
-        }
+        assertNotNull(result);
+        assertTrue(result.validate());
+        assertEquals(Utils.getRealmForMccMnc(mccmnc), result.getHomeSp().getFqdn());
+        assertEquals(mccmnc + "*", result.getCredential().getSimCredential().getImsi());
     }
 
     /**
@@ -1726,13 +1712,13 @@ public class PasspointManagerTest {
     @Test
     public void verifyFindEapMethodFromNAIRealmMatchedWithCarrierWithMatch() {
         // static mocking
-        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
-                TelephonyManager.class).mockStatic(
-                InformationElementUtil.class).startMocking();
+        MockitoSession session = ExtendedMockito.mockitoSession()
+                .mockStatic(InformationElementUtil.class)
+                .startMocking();
         try {
-            TelephonyManager telephonyManager = mock(TelephonyManager.class);
-            when(TelephonyManager.from(any(Context.class))).thenReturn(telephonyManager);
-            when(telephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
+            when(mTelephonyManager.createForSubscriptionId(anyInt()))
+                    .thenReturn(mDataTelephonyManager);
+            when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             when(mWifiConfigManager.isSimPresent()).thenReturn(true);
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, TEST_HESSID,
@@ -1754,7 +1740,7 @@ public class PasspointManagerTest {
 
             PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                     mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
+                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
             assertEquals(EAPConstants.EAP_AKA,
                     passpointManager.findEapMethodFromNAIRealmMatchedWithCarrier(scanDetails));
         } finally {
@@ -1768,20 +1754,20 @@ public class PasspointManagerTest {
     @Test
     public void verifyFindEapMethodFromNAIRealmMatchedWithCarrierWithNoMatch() {
         // static mocking
-        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
-                TelephonyManager.class).mockStatic(
-                InformationElementUtil.class).startMocking();
+        MockitoSession session = ExtendedMockito.mockitoSession()
+                .mockStatic(InformationElementUtil.class)
+                .startMocking();
         try {
-            TelephonyManager telephonyManager = mock(TelephonyManager.class);
-            when(TelephonyManager.from(any(Context.class))).thenReturn(telephonyManager);
-            when(telephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
+            when(mTelephonyManager.createForSubscriptionId(anyInt()))
+                    .thenReturn(mDataTelephonyManager);
+            when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             when(mWifiConfigManager.isSimPresent()).thenReturn(true);
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, 0, 0, false));
 
             PasspointManager passpointManager = new PasspointManager(mContext, mWifiInjector,
                     mHandler, mWifiNative, mWifiKeyStore, mClock, mSimAccessor, mObjectFactory,
-                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
+                    mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyManager);
 
             assertEquals(-1,
                     passpointManager.findEapMethodFromNAIRealmMatchedWithCarrier(scanDetails));
