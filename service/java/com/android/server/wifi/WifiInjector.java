@@ -43,6 +43,7 @@ import android.os.SystemProperties;
 import android.os.UserManager;
 import android.provider.Settings.Secure;
 import android.security.KeyStore;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
@@ -239,9 +240,11 @@ public class WifiInjector {
         mWifiConfigStore = new WifiConfigStore(
                 mContext, clientModeImplLooper, mClock, mWifiMetrics,
                 WifiConfigStore.createSharedFile());
+        SubscriptionManager subscriptionManager =
+                mContext.getSystemService(SubscriptionManager.class);
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
-                UserManager.get(mContext), TelephonyManager.from(mContext),
+                UserManager.get(mContext), makeTelephonyManager(),
                 mWifiKeyStore, mWifiConfigStore, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, this, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
@@ -263,7 +266,8 @@ public class WifiInjector {
         mWifiNetworkSelector.registerCandidateScorer(bubbleFunScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
-                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper);
+                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper,
+                subscriptionManager);
         mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext,
                 new Handler(mWifiCoreHandlerThread.getLooper()), this,
                 mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore, mWifiMetrics);
@@ -278,10 +282,10 @@ public class WifiInjector {
         mPasspointManager = new PasspointManager(mContext, this,
                 new Handler(mWifiCoreHandlerThread.getLooper()), mWifiNative, mWifiKeyStore, mClock,
                 mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics);
+                mWifiMetrics, makeTelephonyManager(), subscriptionManager);
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
-                mCarrierNetworkConfig, this);
+                mCarrierNetworkConfig, this, subscriptionManager);
         mWifiMetrics.setPasspointManager(mPasspointManager);
         mScanRequestProxy = new ScanRequestProxy(mContext,
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
@@ -502,7 +506,6 @@ public class WifiInjector {
         return mWifiScoreCard;
     }
 
-    /** Gets a TelephonyManager, which moy not be available early on. */
     public TelephonyManager makeTelephonyManager() {
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
     }

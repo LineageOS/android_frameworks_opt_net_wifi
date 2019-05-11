@@ -49,6 +49,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -70,6 +71,7 @@ import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
 import com.android.server.wifi.hotspot2.anqp.NAIRealmElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.io.PrintWriter;
 import java.security.cert.X509Certificate;
@@ -127,6 +129,7 @@ public class PasspointManager {
     private final PasspointProvisioner mPasspointProvisioner;
     private final TelephonyManager mTelephonyManager;
     private final AppOpsManager mAppOps;
+    private final SubscriptionManager mSubscriptionManager;
 
     /**
      * Map of package name of an app to the app ops changed listener for the app.
@@ -332,7 +335,8 @@ public class PasspointManager {
             WifiNative wifiNative, WifiKeyStore keyStore, Clock clock, SIMAccessor simAccessor,
             PasspointObjectFactory objectFactory, WifiConfigManager wifiConfigManager,
             WifiConfigStore wifiConfigStore,
-            WifiMetrics wifiMetrics) {
+            WifiMetrics wifiMetrics,
+            TelephonyManager telephonyManager, SubscriptionManager subscriptionManager) {
         mPasspointEventHandler = objectFactory.makePasspointEventHandler(wifiNative,
                 new CallbackHandler(context));
         mWifiInjector = wifiInjector;
@@ -347,7 +351,8 @@ public class PasspointManager {
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
-        mTelephonyManager = TelephonyManager.from(context);
+        mTelephonyManager = telephonyManager;
+        mSubscriptionManager = subscriptionManager;
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigUserStoreData(
                 mKeyStore, mSimAccessor, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
@@ -447,14 +452,16 @@ public class PasspointManager {
      * realm is found, {@code -1} otherwise.
      */
     public int findEapMethodFromNAIRealmMatchedWithCarrier(List<ScanDetail> scanDetails) {
-        if (!mWifiConfigManager.isSimPresent()) {
+        if (!TelephonyUtil.isSimPresent(mSubscriptionManager)) {
             return -1;
         }
         if (scanDetails == null || scanDetails.isEmpty()) {
             return -1;
         }
 
-        String mccMnc = mTelephonyManager.getSimOperator();
+        String mccMnc = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperator();
         if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
             return -1;
         }
@@ -515,7 +522,9 @@ public class PasspointManager {
      * {@code null} otherwise.
      */
     public PasspointConfiguration createEphemeralPasspointConfigForCarrier(int eapMethod) {
-        String mccMnc = mTelephonyManager.getSimOperator();
+        String mccMnc = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperator();
         if (mccMnc == null || mccMnc.length() < IMSIParameter.MCC_MNC_LENGTH - 1) {
             Log.e(TAG, "invalid length of mccmnc");
             return null;
@@ -534,7 +543,10 @@ public class PasspointManager {
         PasspointConfiguration config = new PasspointConfiguration();
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(domain);
-        homeSp.setFriendlyName(mTelephonyManager.getSimOperatorName());
+        String friendlyName = mTelephonyManager
+                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
+                .getSimOperatorName();
+        homeSp.setFriendlyName(friendlyName);
         config.setHomeSp(homeSp);
 
         Credential credential = new Credential();
@@ -603,7 +615,7 @@ public class PasspointManager {
             Log.e(TAG, "PasspointConfiguration for carrier is null");
             return false;
         }
-        if (!mWifiConfigManager.isSimPresent()) {
+        if (!TelephonyUtil.isSimPresent(mSubscriptionManager)) {
             Log.e(TAG, "Sim is not presented on the device");
             return false;
         }
@@ -675,13 +687,14 @@ public class PasspointManager {
      * Remove the ephemeral providers that are created temporarily for a carrier.
      */
     public void removeEphemeralProviders() {
-        for (Map.Entry<String, PasspointProvider> entry : mProviders.entrySet()) {
+        mProviders.entrySet().removeIf(entry -> {
             PasspointProvider provider = entry.getValue();
             if (provider != null && provider.isEphemeral()) {
-                mProviders.remove(entry.getKey());
                 mWifiConfigManager.removePasspointConfiguredNetwork(entry.getKey());
+                return true;
             }
-        }
+            return false;
+        });
     }
 
     /**

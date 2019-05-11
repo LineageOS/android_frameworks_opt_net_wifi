@@ -363,6 +363,7 @@ public class ClientModeImplTest {
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock IIpClient mIpClient;
     @Mock TelephonyManager mTelephonyManager;
+    @Mock TelephonyManager mDataTelephonyManager;
     @Mock WrongPasswordNotifier mWrongPasswordNotifier;
     @Mock Clock mClock;
     @Mock ScanDetailCache mScanDetailCache;
@@ -421,6 +422,7 @@ public class ClientModeImplTest {
         when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mWifiInjector.getClock()).thenReturn(mClock);
         when(mWifiServiceHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
         when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mWifiServiceHandlerThread);
@@ -482,7 +484,7 @@ public class ClientModeImplTest {
                     throws Exception {
                 mPhoneStateListener = phoneStateListener;
             }
-        }).when(mTelephonyManager).listen(any(PhoneStateListener.class), anyInt());
+        }).when(mDataTelephonyManager).listen(any(PhoneStateListener.class), anyInt());
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
@@ -1018,8 +1020,8 @@ public class ClientModeImplTest {
     public void testSetAnonymousIdentityWhenConnectionIsEstablished() throws Exception {
         mConnectedNetwork = spy(WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE));
-        when(mTelephonyManager.getSimOperator()).thenReturn("123456");
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         String expectedAnonymousIdentity = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
                 mTelephonyManager);
         triggerConnect();
@@ -1448,7 +1450,7 @@ public class ClientModeImplTest {
                 WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED);
         mLooper.dispatchAll();
 
-        verify(mTelephonyManager).resetCarrierKeysForImsiEncryption();
+        verify(mDataTelephonyManager).resetCarrierKeysForImsiEncryption();
     }
 
     /**
@@ -1476,7 +1478,7 @@ public class ClientModeImplTest {
                 WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED);
         mLooper.dispatchAll();
 
-        verify(mTelephonyManager, never()).resetCarrierKeysForImsiEncryption();
+        verify(mDataTelephonyManager, never()).resetCarrierKeysForImsiEncryption();
     }
 
     /**
@@ -3411,7 +3413,7 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         verify(mPasspointManager).removeEphemeralProviders();
-        verify(mWifiConfigManager).resetSimNetworks(eq(false));
+        verify(mWifiConfigManager).resetSimNetworks();
     }
 
     /**

@@ -51,6 +51,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.R;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -115,6 +116,7 @@ public class WifiConfigManagerTest {
     @Mock private Clock mClock;
     @Mock private UserManager mUserManager;
     @Mock private TelephonyManager mTelephonyManager;
+    @Mock private TelephonyManager mDataTelephonyManager;
     @Mock private WifiKeyStore mWifiKeyStore;
     @Mock private WifiConfigStore mWifiConfigStore;
     @Mock private PackageManager mPackageManager;
@@ -227,6 +229,7 @@ public class WifiConfigManagerTest {
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
                 .startMocking();
         when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
+        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
     }
 
     /**
@@ -4286,10 +4289,10 @@ public class WifiConfigManagerTest {
     @Test
     public void testResetSimNetworks() {
         String expectedIdentity = "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org";
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
-        when(mTelephonyManager.getSimOperator()).thenReturn("321456");
-        when(mTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
 
         WifiConfiguration network = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
@@ -4306,75 +4309,83 @@ public class WifiConfigManagerTest {
         verifyAddNetworkToWifiConfigManager(simNetwork);
         verifyAddNetworkToWifiConfigManager(peapSimNetwork);
 
-        // Verify SIM is not present initially.
-        assertFalse(mWifiConfigManager.isSimPresent());
+        // SIM was removed, resetting SIM Networks
+        mWifiConfigManager.resetSimNetworks();
 
-        // Call resetSimNetworks with true(SIM is present).
-        mWifiConfigManager.resetSimNetworks(true);
-
-        // Verify SIM is present, SIM configs are reset and non-SIM configs are not changed.
-        assertTrue(mWifiConfigManager.isSimPresent());
+        // Verify SIM configs are reset and non-SIM configs are not changed.
         WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
                 network,
                 mWifiConfigManager.getConfiguredNetworkWithPassword(network.networkId));
         WifiConfiguration retrievedSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(simNetwork.networkId);
-        assertTrue(retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
-        assertTrue(retrievedSimNetwork.enterpriseConfig.getIdentity().isEmpty());
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getIdentity());
         WifiConfiguration retrievedPeapSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(peapSimNetwork.networkId);
         assertEquals(expectedIdentity, retrievedPeapSimNetwork.enterpriseConfig.getIdentity());
-        assertFalse(retrievedPeapSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
-
-        // Call resetSimNetworks with false(SIM is not present).
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567891");
-        retrievedSimNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity22");
-        verifyUpdateNetworkToWifiConfigManagerWithoutIpChange(retrievedSimNetwork);
-        mWifiConfigManager.resetSimNetworks(false);
-
-        // Verify SIM is not present and all configs are not changed.
-        assertFalse(mWifiConfigManager.isSimPresent());
-        WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
-                network,
-                mWifiConfigManager.getConfiguredNetworkWithPassword(network.networkId));
-        WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
-                retrievedSimNetwork,
-                mWifiConfigManager.getConfiguredNetworkWithPassword(simNetwork.networkId));
-        WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
-                retrievedPeapSimNetwork,
-                mWifiConfigManager.getConfiguredNetworkWithPassword(peapSimNetwork.networkId));
+        assertNotEquals("", retrievedPeapSimNetwork.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
-     * Verifies that the method resetSimNetworks updates SIM presence status if
-     * getSimIdentity returns null.
+     * {@link WifiConfigManager#resetSimNetworks()} should reset all non-PEAP SIM networks, no
+     * matter if {@link com.android.server.wifi.util.TelephonyUtil#getSimIdentity(TelephonyManager,
+     * TelephonyUtil, WifiConfiguration, CarrierNetworkConfig) TelephonyUtil#getSimIdentity}
+     * returns null or not.
      */
     @Test
-    public void testResetSimNetworksWithNullIdentity() {
+    public void testResetSimNetworks_getSimIdentityNull_shouldResetAllNonPeapSimIdentities() {
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        // null CarrierNetworkConfig => getSimIdentity returns null => PEAP identity unchanged
+        when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(null);
+
+        WifiConfiguration peapSimNetwork = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.SIM);
+        peapSimNetwork.enterpriseConfig.setIdentity("identity_peap");
+        peapSimNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity_peap");
+        verifyAddNetworkToWifiConfigManager(peapSimNetwork);
+
+        WifiConfiguration network = WifiConfigurationTestUtil.createEapNetwork();
+        network.enterpriseConfig.setIdentity("identity");
+        network.enterpriseConfig.setAnonymousIdentity("anonymous_identity");
+        verifyAddNetworkToWifiConfigManager(network);
+
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+        simNetwork.enterpriseConfig.setIdentity("identity_eap_sim");
+        simNetwork.enterpriseConfig.setAnonymousIdentity("anonymous_identity_eap_sim");
         verifyAddNetworkToWifiConfigManager(simNetwork);
 
-        assertFalse(mWifiConfigManager.isSimPresent());
+        // SIM was removed, resetting SIM Networks
+        mWifiConfigManager.resetSimNetworks();
 
-        mWifiConfigManager.resetSimNetworks(true);
-        assertTrue(mWifiConfigManager.isSimPresent());
-
-        mWifiConfigManager.resetSimNetworks(false);
-        assertFalse(mWifiConfigManager.isSimPresent());
+        // EAP non-SIM network should be unchanged
+        WifiConfigurationTestUtil.assertConfigurationEqualForConfigManagerAddOrUpdate(
+                network, mWifiConfigManager.getConfiguredNetworkWithPassword(network.networkId));
+        // EAP-SIM network should have identity & anonymous identity reset
+        WifiConfiguration retrievedSimNetwork =
+                mWifiConfigManager.getConfiguredNetwork(simNetwork.networkId);
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getIdentity());
+        // PEAP network should have unchanged identity & anonymous identity
+        WifiConfiguration retrievedPeapSimNetwork =
+                mWifiConfigManager.getConfiguredNetwork(peapSimNetwork.networkId);
+        assertEquals("identity_peap", retrievedPeapSimNetwork.enterpriseConfig.getIdentity());
+        assertEquals("anonymous_identity_peap",
+                retrievedPeapSimNetwork.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
-     * Verifies that SIM config is reset if store is read after the method resetSimNetworks
-     * is called.
+     * Verifies that SIM configs are reset on {@link WifiConfigManager#loadFromStore()}.
      */
     @Test
-    public void testResetSimNetworksIsCalledAgainAfterLoadFromStore() {
-        String expectedIdentity = "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org";
-        when(mTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
-        when(mTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
-        when(mTelephonyManager.getSimOperator()).thenReturn("321456");
-        when(mTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+    public void testLoadFromStoreResetsSimIdentity() {
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
 
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
@@ -4395,27 +4406,20 @@ public class WifiConfigManagerTest {
         };
         setupStoreDataForRead(sharedNetworks, new ArrayList<>(), new HashMap<>());
 
-        // 1. Call resetSimNetworks with true(SIM is present).
-        mWifiConfigManager.resetSimNetworks(true);
-
-        // Verify SIM is present.
-        assertTrue(mWifiConfigManager.isSimPresent());
-
-        // 2. Read from store now.
+        // read from store now
         assertTrue(mWifiConfigManager.loadFromStore());
 
-        // Verify SIM is present just in case and SIM config is reset.
-        assertTrue(mWifiConfigManager.isSimPresent());
-
+        // assert that the expected identities are reset
         WifiConfiguration retrievedSimNetwork =
                 mWifiConfigManager.getConfiguredNetwork(simNetwork.networkId);
-        assertTrue(retrievedSimNetwork.enterpriseConfig.getIdentity().isEmpty());
-        assertTrue(retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getIdentity());
+        assertEquals("", retrievedSimNetwork.enterpriseConfig.getAnonymousIdentity());
 
         WifiConfiguration retrievedPeapNetwork =
                 mWifiConfigManager.getConfiguredNetwork(peapSimNetwork.networkId);
-        assertEquals(retrievedPeapNetwork.enterpriseConfig.getIdentity(), "identity");
-        assertFalse(retrievedPeapNetwork.enterpriseConfig.getAnonymousIdentity().isEmpty());
+        assertEquals("identity", retrievedPeapNetwork.enterpriseConfig.getIdentity());
+        assertEquals("anonymous_identity",
+                retrievedPeapNetwork.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
@@ -4627,14 +4631,6 @@ public class WifiConfigManagerTest {
         configuration.lastUpdateName = TEST_UPDATE_NAME;
         configuration.updateTime =
                 WifiConfigManager.createDebugTimeStampString(TEST_WALLCLOCK_UPDATE_TIME_MILLIS);
-    }
-
-    private void assertNotEquals(Object expected, Object actual) {
-        if (actual != null) {
-            assertFalse(actual.equals(expected));
-        } else {
-            assertNotNull(expected);
-        }
     }
 
     /**
