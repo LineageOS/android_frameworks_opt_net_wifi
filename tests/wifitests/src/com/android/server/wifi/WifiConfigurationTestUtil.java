@@ -300,6 +300,12 @@ public class WifiConfigurationTestUtil {
         return configuration;
     }
 
+    public static WifiConfiguration createSaeNetwork(String ssid) {
+        WifiConfiguration configuration =
+                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, ssid, true, true, null,
+                        null, SECURITY_SAE);
+        return configuration;
+    }
 
     public static WifiConfiguration createPskHiddenNetwork() {
         WifiConfiguration configuration = createPskNetwork();
@@ -500,6 +506,15 @@ public class WifiConfigurationTestUtil {
     }
 
     /**
+     * Gets scan result capabilities for a WPA2/WPA3-Transition mode network configuration
+     */
+    private static String
+            getScanResultCapsForWpa2Wpa3TransitionNetwork(WifiConfiguration configuration) {
+        String caps = "[RSN-PSK+SAE-CCMP]";
+        return caps;
+    }
+
+    /**
      * Creates a scan detail corresponding to the provided network and given BSSID, etc.
      */
     public static ScanDetail createScanDetailForNetwork(
@@ -509,6 +524,19 @@ public class WifiConfigurationTestUtil {
         WifiSsid ssid = WifiSsid.createFromAsciiEncoded(configuration.getPrintableSsid());
         return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
     }
+
+    /**
+     * Creates a scan detail corresponding to the provided network and given BSSID, but sets
+     * the capabilities to WPA2/WPA3-Transition mode network.
+     */
+    public static ScanDetail createScanDetailForWpa2Wpa3TransitionModeNetwork(
+            WifiConfiguration configuration, String bssid, int level, int frequency,
+            long tsf, long seen) {
+        String caps = getScanResultCapsForWpa2Wpa3TransitionNetwork(configuration);
+        WifiSsid ssid = WifiSsid.createFromAsciiEncoded(configuration.getPrintableSsid());
+        return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
+    }
+
 
     /**
      * Asserts that the 2 WifiConfigurations are equal in the elements saved for both backup/restore

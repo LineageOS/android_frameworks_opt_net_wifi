@@ -265,7 +265,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-PSK-CCMP+TKIP]", result);
@@ -291,7 +291,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN]", result);
@@ -319,7 +319,7 @@ public class InformationElementUtilTest {
         beaconCap.set(4);
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP]", result);
@@ -343,7 +343,7 @@ public class InformationElementUtilTest {
         beaconCap.set(4);
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA]", result);
@@ -381,10 +381,216 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE, CCMP and PSK+SAE transition mode.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnPskSaeTransitionElement() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of AKMs (2)
+                (byte) 0x02, (byte) 0x00,
+                // PSK AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x02,
+                // SAE AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x08,
+                // Padding
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(4);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-PSK+SAE-CCMP]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE, CCMP and SAE+FT/SAE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnSaeFtSaeElement() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of AKMs (2)
+                (byte) 0x02, (byte) 0x00,
+                // SAE AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x08,
+                // FT/SAE AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x09,
+                // Padding
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(4);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-SAE+FT/SAE-CCMP]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE, CCMP and OWE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnOweElement() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: CCMP
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x04,
+                // Number of AKMs (1)
+                (byte) 0x01, (byte) 0x00,
+                // OWE AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x12,
+                // Padding
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(4);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-OWE-CCMP]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with OWE IE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_oweVsElementOweSupported() {
+        InformationElement ieOwe = new InformationElement();
+        ieOwe.id = InformationElement.EID_VSA;
+        ieOwe.bytes = new byte[] {
+                // OWE vendor specific
+                (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x1C,
+                // OWE IE contains BSSID, SSID and channel of other BSS, but we don't parse it.
+                (byte) 0x00, (byte) 0x000, (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieOwe };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(0);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-OWE-CCMP][ESS]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with OWE IE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_oweVsElementOweNotSupported() {
+        InformationElement ieOwe = new InformationElement();
+        ieOwe.id = InformationElement.EID_VSA;
+        ieOwe.bytes = new byte[] {
+                // OWE vendor specific
+                (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x1C,
+                // OWE IE contains BSSID, SSID and channel of other BSS, but we don't parse it.
+                (byte) 0x00, (byte) 0x000, (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieOwe };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(0);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, false);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[ESS]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with RSN IE, GCMP-256 and SUITE_B_192.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_rsnSuiteB192Element() {
+        InformationElement ieRsn = new InformationElement();
+        ieRsn.id = InformationElement.EID_RSN;
+        ieRsn.bytes = new byte[] {
+                // RSNE Version (0x0001)
+                (byte) 0x01, (byte) 0x00,
+                // Group cipher suite: GCMP-256
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x09,
+                // Number of cipher suites (1)
+                (byte) 0x01, (byte) 0x00,
+                // Cipher suite: GCMP-256
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x09,
+                // Number of AKMs (1)
+                (byte) 0x01, (byte) 0x00,
+                // SUITE_B_192 AKM
+                (byte) 0x00, (byte) 0x0F, (byte) 0xAC, (byte) 0x0C,
+                // Padding
+                (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieRsn };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(4);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, false);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-EAP_SUITE_B_192-GCMP-256]", result);
     }
 
     /**
@@ -413,7 +619,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA][RSN]", result);
@@ -447,7 +653,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                  new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP][WPS]", result);
@@ -475,7 +681,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -504,7 +710,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -532,7 +738,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -561,7 +767,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 

@@ -406,15 +406,16 @@ public class InformationElementUtil {
         private static final int WPA_AKM_EAP = 0x01f25000;
         private static final int WPA_AKM_PSK = 0x02f25000;
 
-        private static final int WPA2_AKM_EAP = 0x01ac0f00;
-        private static final int WPA2_AKM_PSK = 0x02ac0f00;
-        private static final int WPA2_AKM_FT_EAP = 0x03ac0f00;
-        private static final int WPA2_AKM_FT_PSK = 0x04ac0f00;
-        private static final int WPA2_AKM_EAP_SHA256 = 0x05ac0f00;
-        private static final int WPA2_AKM_PSK_SHA256 = 0x06ac0f00;
-        private static final int WPA2_AKM_SAE = 0x08ac0f00;
-        private static final int WPA2_AKM_OWE = 0x12ac0f00;
-        private static final int WPA2_AKM_EAP_SUITE_B_192 = 0x0cac0f00;
+        private static final int RSN_AKM_EAP = 0x01ac0f00;
+        private static final int RSN_AKM_PSK = 0x02ac0f00;
+        private static final int RSN_AKM_FT_EAP = 0x03ac0f00;
+        private static final int RSN_AKM_FT_PSK = 0x04ac0f00;
+        private static final int RSN_AKM_EAP_SHA256 = 0x05ac0f00;
+        private static final int RSN_AKM_PSK_SHA256 = 0x06ac0f00;
+        private static final int RSN_AKM_SAE = 0x08ac0f00;
+        private static final int RSN_AKM_FT_SAE = 0x09ac0f00;
+        private static final int RSN_AKM_OWE = 0x12ac0f00;
+        private static final int RSN_AKM_EAP_SUITE_B_192 = 0x0cac0f00;
 
         private static final int WPA_CIPHER_NONE = 0x00f25000;
         private static final int WPA_CIPHER_TKIP = 0x02f25000;
@@ -483,31 +484,34 @@ public class InformationElementUtil {
                 for (int i = 0; i < akmCount; i++) {
                     int akm = buf.getInt();
                     switch (akm) {
-                        case WPA2_AKM_EAP:
+                        case RSN_AKM_EAP:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_EAP);
                             break;
-                        case WPA2_AKM_PSK:
+                        case RSN_AKM_PSK:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_PSK);
                             break;
-                        case WPA2_AKM_FT_EAP:
+                        case RSN_AKM_FT_EAP:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_FT_EAP);
                             break;
-                        case WPA2_AKM_FT_PSK:
+                        case RSN_AKM_FT_PSK:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_FT_PSK);
                             break;
-                        case WPA2_AKM_EAP_SHA256:
+                        case RSN_AKM_EAP_SHA256:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_EAP_SHA256);
                             break;
-                        case WPA2_AKM_PSK_SHA256:
+                        case RSN_AKM_PSK_SHA256:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_PSK_SHA256);
                             break;
-                        case WPA2_AKM_SAE:
+                        case RSN_AKM_SAE:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_SAE);
                             break;
-                        case WPA2_AKM_OWE:
+                        case RSN_AKM_FT_SAE:
+                            rsnKeyManagement.add(ScanResult.KEY_MGMT_FT_SAE);
+                            break;
+                        case RSN_AKM_OWE:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_OWE);
                             break;
-                        case WPA2_AKM_EAP_SUITE_B_192:
+                        case RSN_AKM_EAP_SUITE_B_192:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_EAP_SUITE_B_192);
                             break;
                         default:
@@ -661,9 +665,10 @@ public class InformationElementUtil {
          *
          * @param ies -- Information Element array
          * @param beaconCap -- 16-bit Beacon Capability Information field
+         * @param isOweSupported -- Boolean flag to indicate if OWE is supported by the device
          */
 
-        public void from(InformationElement[] ies, BitSet beaconCap) {
+        public void from(InformationElement[] ies, BitSet beaconCap, boolean isOweSupported) {
             protocol = new ArrayList<Integer>();
             keyManagement = new ArrayList<ArrayList<Integer>>();
             groupCipher = new ArrayList<Integer>();
@@ -687,7 +692,7 @@ public class InformationElementUtil {
                         // TODO(b/62134557): parse WPS IE to provide finer granularity information.
                         isWPS = true;
                     }
-                    if (isOweElement(ie)) {
+                    if (isOweSupported && isOweElement(ie)) {
                         /* From RFC 8110: Once the client and AP have finished 802.11 association,
                            they then complete the Diffie-Hellman key exchange and create a Pairwise
                            Master Key (PMK) and its associated identifier, PMKID [IEEE802.11].
@@ -696,8 +701,12 @@ public class InformationElementUtil {
                            handshake generates a Key-Encrypting Key (KEK), a Key-Confirmation
                            Key (KCK), and a Message Integrity Code (MIC) to use for protection
                            of the frames that define the 4-way handshake.
-                        */
 
+                           We check if OWE is supported here because we are adding the OWE
+                           capabilities to the Open BSS. Non-supporting devices need to see this
+                           open network and ignore this element. Supporting devices need to hide
+                           the Open BSS of OWE in transition mode and connect to the Hidden one.
+                        */
                         protocol.add(ScanResult.PROTOCOL_RSN);
                         groupCipher.add(ScanResult.CIPHER_CCMP);
                         ArrayList<Integer> owePairwiseCipher = new ArrayList<>();
@@ -756,6 +765,8 @@ public class InformationElementUtil {
                     return "OWE";
                 case ScanResult.KEY_MGMT_SAE:
                     return "SAE";
+                case ScanResult.KEY_MGMT_FT_SAE:
+                    return "FT/SAE";
                 case ScanResult.KEY_MGMT_EAP_SUITE_B_192:
                     return "EAP_SUITE_B_192";
                 default:
