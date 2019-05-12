@@ -34,6 +34,10 @@ public class ScanResultMatchInfo {
      * Security Type of the network.
      */
     public @WifiConfiguration.SecurityType int networkType;
+    /**
+     * Special flag for PSK-SAE in transition mode
+     */
+    public boolean pskSaeInTransitionMode;
 
     /**
      * Fetch network type from network configuration.
@@ -101,6 +105,13 @@ public class ScanResultMatchInfo {
         // either have a hex string or quoted ASCII string SSID.
         info.networkSsid = ScanResultUtil.createQuotedSSID(scanResult.SSID);
         info.networkType = getNetworkType(scanResult);
+        if (info.networkType == WifiConfiguration.SECURITY_TYPE_SAE) {
+            // Note that scan result util will always choose the highest security protocol.
+            info.pskSaeInTransitionMode =
+                    ScanResultUtil.isScanResultForPskSaeTransitionNetwork(scanResult);
+        } else {
+            info.pskSaeInTransitionMode = false;
+        }
         return info;
     }
 
@@ -112,13 +123,25 @@ public class ScanResultMatchInfo {
             return false;
         }
         ScanResultMatchInfo other = (ScanResultMatchInfo) otherObj;
-        return Objects.equals(networkSsid, other.networkSsid)
-                && networkType == other.networkType;
+        if (!Objects.equals(networkSsid, other.networkSsid)) {
+            return false;
+        }
+        boolean networkTypeEquals;
+
+        // Detect <SSID, PSK+SAE> scan result and say it is equal to <SSID, PSK> configuration
+        if (other.pskSaeInTransitionMode && networkType == WifiConfiguration.SECURITY_TYPE_PSK
+                || (pskSaeInTransitionMode
+                && other.networkType == WifiConfiguration.SECURITY_TYPE_PSK)) {
+            networkTypeEquals = true;
+        } else {
+            networkTypeEquals = networkType == other.networkType;
+        }
+        return networkTypeEquals;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(networkSsid, networkType);
+        return Objects.hash(networkSsid);
     }
 
     @Override
