@@ -95,6 +95,14 @@ public class ScanResultUtil {
     }
 
     /**
+     * Helper method to check if the provided |scanResult| corresponds to PSK-SAE transition
+     * network. This checks if the provided capabilities string contains SAE or not.
+     */
+    public static boolean isScanResultForPskSaeTransitionNetwork(ScanResult scanResult) {
+        return scanResult.capabilities.contains("PSK+SAE");
+    }
+
+    /**
      * Helper method to check if the provided |scanResult| corresponds to an open network or not.
      * This checks if the provided capabilities string does not contain either of WEP, PSK, SAE
      * or EAP encryption types or not.
