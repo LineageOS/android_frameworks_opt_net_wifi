@@ -265,7 +265,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-PSK-CCMP+TKIP]", result);
@@ -291,7 +291,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN]", result);
@@ -319,7 +319,7 @@ public class InformationElementUtilTest {
         beaconCap.set(4);
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP]", result);
@@ -343,7 +343,7 @@ public class InformationElementUtilTest {
         beaconCap.set(4);
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA]", result);
@@ -381,7 +381,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
@@ -420,7 +420,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, true);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-PSK+SAE-CCMP]", result);
@@ -459,7 +459,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, true);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-SAE+FT/SAE-CCMP]", result);
@@ -496,10 +496,64 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, true);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-OWE-CCMP]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with OWE IE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_oweVsElementOweSupported() {
+        InformationElement ieOwe = new InformationElement();
+        ieOwe.id = InformationElement.EID_VSA;
+        ieOwe.bytes = new byte[] {
+                // OWE vendor specific
+                (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x1C,
+                // OWE IE contains BSSID, SSID and channel of other BSS, but we don't parse it.
+                (byte) 0x00, (byte) 0x000, (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieOwe };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(0);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, true);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[RSN-OWE-CCMP][ESS]", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with OWE IE.
+     * Expect the function to return a string with the proper security information.
+     */
+    @Test
+    public void buildCapabilities_oweVsElementOweNotSupported() {
+        InformationElement ieOwe = new InformationElement();
+        ieOwe.id = InformationElement.EID_VSA;
+        ieOwe.bytes = new byte[] {
+                // OWE vendor specific
+                (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x1C,
+                // OWE IE contains BSSID, SSID and channel of other BSS, but we don't parse it.
+                (byte) 0x00, (byte) 0x000, (byte) 0x00, (byte) 0x00 };
+
+        InformationElement[] ies = new InformationElement[] { ieOwe };
+
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(0);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(ies, beaconCap, false);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[ESS]", result);
     }
 
     /**
@@ -533,7 +587,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[RSN-EAP_SUITE_B_192-GCMP-256]", result);
@@ -565,7 +619,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA][RSN]", result);
@@ -599,7 +653,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                  new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
         assertEquals("[WPA-PSK-CCMP+TKIP][WPS]", result);
@@ -627,7 +681,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -656,7 +710,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -684,7 +738,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
@@ -713,7 +767,7 @@ public class InformationElementUtilTest {
 
         InformationElementUtil.Capabilities capabilities =
                 new InformationElementUtil.Capabilities();
-        capabilities.from(ies, beaconCap);
+        capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
 
