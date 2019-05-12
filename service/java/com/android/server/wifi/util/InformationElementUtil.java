@@ -665,9 +665,10 @@ public class InformationElementUtil {
          *
          * @param ies -- Information Element array
          * @param beaconCap -- 16-bit Beacon Capability Information field
+         * @param isOweSupported -- Boolean flag to indicate if OWE is supported by the device
          */
 
-        public void from(InformationElement[] ies, BitSet beaconCap) {
+        public void from(InformationElement[] ies, BitSet beaconCap, boolean isOweSupported) {
             protocol = new ArrayList<Integer>();
             keyManagement = new ArrayList<ArrayList<Integer>>();
             groupCipher = new ArrayList<Integer>();
@@ -691,7 +692,7 @@ public class InformationElementUtil {
                         // TODO(b/62134557): parse WPS IE to provide finer granularity information.
                         isWPS = true;
                     }
-                    if (isOweElement(ie)) {
+                    if (isOweSupported && isOweElement(ie)) {
                         /* From RFC 8110: Once the client and AP have finished 802.11 association,
                            they then complete the Diffie-Hellman key exchange and create a Pairwise
                            Master Key (PMK) and its associated identifier, PMKID [IEEE802.11].
@@ -700,8 +701,12 @@ public class InformationElementUtil {
                            handshake generates a Key-Encrypting Key (KEK), a Key-Confirmation
                            Key (KCK), and a Message Integrity Code (MIC) to use for protection
                            of the frames that define the 4-way handshake.
-                        */
 
+                           We check if OWE is supported here because we are adding the OWE
+                           capabilities to the Open BSS. Non-supporting devices need to see this
+                           open network and ignore this element. Supporting devices need to hide
+                           the Open BSS of OWE in transition mode and connect to the Hidden one.
+                        */
                         protocol.add(ScanResult.PROTOCOL_RSN);
                         groupCipher.add(ScanResult.CIPHER_CCMP);
                         ArrayList<Integer> owePairwiseCipher = new ArrayList<>();
