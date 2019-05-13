@@ -38,6 +38,10 @@ public class ScanResultMatchInfo {
      * Special flag for PSK-SAE in transition mode
      */
     public boolean pskSaeInTransitionMode;
+    /**
+     * Special flag for OWE in transition mode
+     */
+    public boolean oweInTransitionMode;
 
     /**
      * Fetch network type from network configuration.
@@ -105,12 +109,16 @@ public class ScanResultMatchInfo {
         // either have a hex string or quoted ASCII string SSID.
         info.networkSsid = ScanResultUtil.createQuotedSSID(scanResult.SSID);
         info.networkType = getNetworkType(scanResult);
+        info.oweInTransitionMode = false;
+        info.pskSaeInTransitionMode = false;
         if (info.networkType == WifiConfiguration.SECURITY_TYPE_SAE) {
             // Note that scan result util will always choose the highest security protocol.
             info.pskSaeInTransitionMode =
                     ScanResultUtil.isScanResultForPskSaeTransitionNetwork(scanResult);
-        } else {
-            info.pskSaeInTransitionMode = false;
+        } else  if (info.networkType == WifiConfiguration.SECURITY_TYPE_OWE) {
+            // Note that scan result util will always choose OWE.
+            info.oweInTransitionMode =
+                    ScanResultUtil.isScanResultForOweTransitionNetwork(scanResult);
         }
         return info;
     }
@@ -132,6 +140,12 @@ public class ScanResultMatchInfo {
         if (other.pskSaeInTransitionMode && networkType == WifiConfiguration.SECURITY_TYPE_PSK
                 || (pskSaeInTransitionMode
                 && other.networkType == WifiConfiguration.SECURITY_TYPE_PSK)) {
+            networkTypeEquals = true;
+        } else if ((networkType == WifiConfiguration.SECURITY_TYPE_OPEN
+                && other.oweInTransitionMode) || (oweInTransitionMode
+                && other.networkType == WifiConfiguration.SECURITY_TYPE_OPEN)) {
+            // Special case we treat Enhanced Open and Open as equals. This is done to support the
+            // case where a saved network is Open but we found an OWE in transition network.
             networkTypeEquals = true;
         } else {
             networkTypeEquals = networkType == other.networkType;
