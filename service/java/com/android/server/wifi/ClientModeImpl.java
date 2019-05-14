@@ -3513,8 +3513,6 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_INITIALIZE:
                     ok = mWifiNative.initialize();
-                    mPasspointManager.initializeProvisioner(
-                            mWifiInjector.getWifiServiceHandlerThread().getLooper());
                     replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
                     break;
                 case CMD_BOOT_COMPLETED:
@@ -3524,6 +3522,8 @@ public class ClientModeImpl extends StateMachine {
                     if (!mWifiConfigManager.loadFromStore()) {
                         Log.e(TAG, "Failed to load from config store");
                     }
+                    mPasspointManager.initializeProvisioner(
+                            mWifiInjector.getWifiServiceHandlerThread().getLooper());
                     registerNetworkFactory();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
