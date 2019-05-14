@@ -87,6 +87,14 @@ public class ScanResultUtil {
     }
 
     /**
+     * Helper method to check if the provided |scanResult| corresponds to OWE transition network.
+     * This checks if the provided capabilities string contains OWE_TRANSITION or not.
+     */
+    public static boolean isScanResultForOweTransitionNetwork(ScanResult scanResult) {
+        return scanResult.capabilities.contains("OWE_TRANSITION");
+    }
+
+    /**
      * Helper method to check if the provided |scanResult| corresponds to SAE network.
      * This checks if the provided capabilities string contains SAE or not.
      */
@@ -96,7 +104,7 @@ public class ScanResultUtil {
 
     /**
      * Helper method to check if the provided |scanResult| corresponds to PSK-SAE transition
-     * network. This checks if the provided capabilities string contains SAE or not.
+     * network. This checks if the provided capabilities string contains PSK+SAE or not.
      */
     public static boolean isScanResultForPskSaeTransitionNetwork(ScanResult scanResult) {
         return scanResult.capabilities.contains("PSK+SAE");

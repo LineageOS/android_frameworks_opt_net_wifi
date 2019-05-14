@@ -713,7 +713,7 @@ public class InformationElementUtil {
                         owePairwiseCipher.add(ScanResult.CIPHER_CCMP);
                         pairwiseCipher.add(owePairwiseCipher);
                         ArrayList<Integer> oweKeyManagement = new ArrayList<>();
-                        oweKeyManagement.add(ScanResult.KEY_MGMT_OWE);
+                        oweKeyManagement.add(ScanResult.KEY_MGMT_OWE_TRANSITION);
                         keyManagement.add(oweKeyManagement);
                     }
                 }
@@ -730,7 +730,6 @@ public class InformationElementUtil {
                 return false;
             }
         }
-
 
         private String protocolToString(int protocol) {
             switch (protocol) {
@@ -763,6 +762,8 @@ public class InformationElementUtil {
                     return "PSK-SHA256";
                 case ScanResult.KEY_MGMT_OWE:
                     return "OWE";
+                case ScanResult.KEY_MGMT_OWE_TRANSITION:
+                    return "OWE_TRANSITION";
                 case ScanResult.KEY_MGMT_SAE:
                     return "SAE";
                 case ScanResult.KEY_MGMT_FT_SAE:
