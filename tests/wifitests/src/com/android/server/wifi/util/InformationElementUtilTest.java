@@ -526,7 +526,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap, true);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[RSN-OWE-CCMP][ESS]", result);
+        assertEquals("[RSN-OWE_TRANSITION-CCMP][ESS]", result);
     }
 
     /**
