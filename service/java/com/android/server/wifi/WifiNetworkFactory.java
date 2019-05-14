@@ -749,6 +749,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         // Store the user selected network.
         mUserSelectedNetwork = networkToConnect;
 
+        // Disconnect from the current network before issuing a new connect request.
+        mWifiInjector.getClientModeImpl().disconnectCommand();
         // Trigger connection to the network.
         connectToNetwork(networkToConnect);
         // Triggered connection to network, now wait for the connection status.
