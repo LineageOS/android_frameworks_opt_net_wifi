@@ -3012,6 +3012,14 @@ public class SupplicantStaNetworkHal {
     private BitSet addSha256KeyMgmtFlags(BitSet keyManagementFlags) {
         synchronized (mLock) {
             BitSet modifiedFlags = (BitSet) keyManagementFlags.clone();
+            android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                    iSupplicantStaNetworkV12;
+            iSupplicantStaNetworkV12 = getV1_2StaNetwork();
+            if (iSupplicantStaNetworkV12 == null) {
+                // SHA256 key management requires HALv1.2 or higher
+                return modifiedFlags;
+            }
+
             if (keyManagementFlags.get(WifiConfiguration.KeyMgmt.WPA_PSK)) {
                 modifiedFlags.set(WifiConfiguration.KeyMgmt.WPA_PSK_SHA256);
             }
