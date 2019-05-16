@@ -317,10 +317,12 @@ public class WifiPermissionsUtil {
      *
      * @param pkgName package name of the application requesting access
      * @param uid The uid of the package
+     * @param needLocationModeEnabled indicates location mode must be enabled.
      *
      * @return true if caller has permission, false otherwise
      */
-    public boolean checkCanAccessWifiDirect(String pkgName, int uid) {
+    public boolean checkCanAccessWifiDirect(String pkgName, int uid,
+                                            boolean needLocationModeEnabled) {
         try {
             checkPackage(uid, pkgName);
         } catch (SecurityException se) {
@@ -333,8 +335,8 @@ public class WifiPermissionsUtil {
             return true;
         }
 
-        // Location mode must be enabled
-        if (!isLocationModeEnabled()) {
+        // Location mode must be enabled if needed.
+        if (needLocationModeEnabled && !isLocationModeEnabled()) {
             Slog.e(TAG, "Location mode is disabled for the device");
             return false;
         }
