@@ -249,9 +249,11 @@ public class CarrierNetworkConfig {
 
         // Process the carrier config for each active subscription.
         for (SubscriptionInfo subInfo : subInfoList) {
-            processNetworkConfig(
-                    carrierConfigManager.getConfigForSubId(subInfo.getSubscriptionId()),
-                    subInfo.getDisplayName().toString());
+            CharSequence displayNameCs = subInfo.getDisplayName();
+            String displayNameStr = displayNameCs == null ? "" : displayNameCs.toString();
+            PersistableBundle bundle = carrierConfigManager.getConfigForSubId(
+                    subInfo.getSubscriptionId());
+            processNetworkConfig(bundle, displayNameStr);
         }
     }
 
