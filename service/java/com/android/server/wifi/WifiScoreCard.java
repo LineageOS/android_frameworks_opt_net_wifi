@@ -789,6 +789,7 @@ public class WifiScoreCard {
      * @param obfuscate - if true, ssids and bssids are omitted (short id only)
      */
     public byte[] getNetworkListByteArray(boolean obfuscate) {
+        // These are really grouped by ssid, ignoring the security type.
         Map<String, Network.Builder> networks = new ArrayMap<>();
         for (PerBssid perBssid: mApForBssid.values()) {
             String key = perBssid.ssid;
@@ -799,15 +800,12 @@ public class WifiScoreCard {
                 if (!obfuscate) {
                     network.setSsid(perBssid.ssid);
                 }
-                if (perBssid.mSecurityType != null) {
-                    network.setSecurityType(perBssid.mSecurityType);
-                }
-                if (perBssid.mNetworkAgentId >= network.getNetworkAgentId()) {
-                    network.setNetworkAgentId(perBssid.mNetworkAgentId);
-                }
-                if (perBssid.mNetworkConfigId >= network.getNetworkConfigId()) {
-                    network.setNetworkConfigId(perBssid.mNetworkConfigId);
-                }
+            }
+            if (perBssid.mNetworkAgentId >= network.getNetworkAgentId()) {
+                network.setNetworkAgentId(perBssid.mNetworkAgentId);
+            }
+            if (perBssid.mNetworkConfigId >= network.getNetworkConfigId()) {
+                network.setNetworkConfigId(perBssid.mNetworkConfigId);
             }
             network.addAccessPoints(perBssid.toAccessPoint(obfuscate));
         }
