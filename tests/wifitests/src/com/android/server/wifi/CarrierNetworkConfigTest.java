@@ -46,6 +46,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Unit tests for {@link com.android.server.wifi.CarrierNetworkConfig}.
@@ -147,6 +148,28 @@ public class CarrierNetworkConfigTest {
         assertEquals(Base64.DEFAULT, mCarrierNetworkConfig.getBase64EncodingFlag());
         assertEquals(CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0,
                 mCarrierNetworkConfig.getEapIdentitySequence());
+    }
+
+    /**
+     * Tests that SubscriptionInfo.getDisplayName() returning null does not throw a
+     * NullPointerException in CarrierNetworkConfig.
+     */
+    @Test
+    public void getExistingCarrierNetworkInfo_nullDisplayName_shouldNotThrowNpe() {
+        when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
+                .thenReturn(generateTestConfig(TEST_SSID, TEST_STANDARD_EAP_TYPE,
+                        CarrierNetworkConfig.ENCODING_METHOD_RFC_2045,
+                        CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0));
+        SubscriptionInfo testSubscriptionInfoNullDisplayName = new SubscriptionInfo(
+                TEST_SUBSCRIPTION_ID, null, 0, null, null, 0, 0,
+                null, 0, null, "0", "0", null, false, null, null);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.singletonList(testSubscriptionInfoNullDisplayName));
+        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, mLooper.getLooper(),
+                mFrameworkFacade);
+        reset(mCarrierConfigManager);
+
+        assertEquals("", mCarrierNetworkConfig.getCarrierName(TEST_SSID));
     }
 
     /**

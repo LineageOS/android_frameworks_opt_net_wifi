@@ -842,6 +842,36 @@ public class SupplicantStaNetworkHalTest {
     }
 
     /**
+     * Tests the addition of SHA256 flags (WPA_PSK_SHA256) is ignored on HAL v1.1 or lower
+     */
+    @Test
+    public void testAddPskSha256FlagsHal1_1OrLower() throws Exception {
+        WifiConfiguration config = WifiConfigurationTestUtil.createPskNetwork();
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        // Check the supplicant variables to ensure that we have NOT added the SHA256 flags.
+        assertFalse((mSupplicantVariables.keyMgmtMask
+                & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                .WPA_PSK_SHA256) == android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.WPA_PSK_SHA256);
+    }
+
+    /**
+     * Tests the addition of SHA256 flags (WPA_EAP_SHA256) is ignored on HAL v1.1 or lower
+     */
+    @Test
+    public void testAddEapSha256FlagsHal1_1OrLower() throws Exception {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        // Check the supplicant variables to ensure that we have NOT added the SHA256 flags.
+        assertFalse((mSupplicantVariables.keyMgmtMask
+                & android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork.KeyMgmtMask
+                .WPA_EAP_SHA256) == android.hardware.wifi.supplicant.V1_2.ISupplicantStaNetwork
+                .KeyMgmtMask.WPA_EAP_SHA256);
+    }
+
+    /**
      * Tests the retrieval of WPS NFC token.
      */
     @Test
