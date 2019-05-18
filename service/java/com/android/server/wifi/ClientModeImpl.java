@@ -4626,6 +4626,9 @@ public class ClientModeImpl extends StateMachine {
 
     private NetworkCapabilities getCapabilities(WifiConfiguration currentWifiConfiguration) {
         final NetworkCapabilities result = new NetworkCapabilities(mNetworkCapabilitiesFilter);
+        // MatchAllNetworkSpecifier set in the mNetworkCapabilitiesFilter should never be set in the
+        // agent's specifier.
+        result.setNetworkSpecifier(null);
         if (currentWifiConfiguration == null) {
             return result;
         }
