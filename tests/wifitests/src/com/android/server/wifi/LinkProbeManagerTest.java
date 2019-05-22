@@ -23,6 +23,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -54,7 +55,6 @@ public class LinkProbeManagerTest {
     private static final String TEST_IFACE_NAME = "testIfaceName";
     private static final String TEST_BSSID = "6c:f3:7f:ae:8c:f3";
     private static final int TEST_ELAPSED_TIME_MS = 100;
-    private static final long TEST_TIMESTAMP_MS = 1547837434690L;
 
     private LinkProbeManager mLinkProbeManager;
 
@@ -107,8 +107,6 @@ public class LinkProbeManagerTest {
      */
     @Test
     public void testLinkProbeTriggeredAndAcked() throws Exception {
-        mLinkProbeManager.resetOnNewConnection();
-
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
         mTimeMs += 3000;
@@ -121,16 +119,15 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
         // below RSSI threshold
-        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5;
+        int rssi = LinkProbeManager.RSSI_THRESHOLD - 5;
         mWifiInfo.setRssi(rssi);
         // above link speed threshold
-        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10;
+        int linkSpeed = LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10;
         mWifiInfo.setLinkSpeed(linkSpeed);
-        // more than LINK_PROBE_INTERVAL_MS passed
-        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        // more than DELAY_AFTER_TX_SUCCESS_MS passed
+        long timeDelta = LinkProbeManager.DELAY_AFTER_TX_SUCCESS_MS + 20000;
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
-        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         ArgumentCaptor<WifiNative.SendMgmtFrameCallback> callbackCaptor =
                 ArgumentCaptor.forClass(WifiNative.SendMgmtFrameCallback.class);
@@ -139,13 +136,13 @@ public class LinkProbeManagerTest {
         ArgumentCaptor<String> experimentIdCaptor = ArgumentCaptor.forClass(String.class);
         verify(mWifiMetrics, atLeastOnce()).incrementLinkProbeExperimentProbeCount(
                 experimentIdCaptor.capture());
-        int len = LinkProbeManager.EXPERIMENT_DELAYS_MS.length;
-        int numExperimentIds = len * len * len;
+        int numExperimentIds = LinkProbeManager.EXPERIMENT_DELAYS_MS.length
+                * LinkProbeManager.EXPERIMENT_RSSIS.length
+                * LinkProbeManager.EXPERIMENT_LINK_SPEEDS.length;
         assertEquals(numExperimentIds, new HashSet<>(experimentIdCaptor.getAllValues()).size());
 
         callbackCaptor.getValue().onAck(TEST_ELAPSED_TIME_MS);
-        verify(mWifiMetrics).logLinkProbeSuccess(TEST_TIMESTAMP_MS, timeDelta, rssi, linkSpeed,
-                TEST_ELAPSED_TIME_MS);
+        verify(mWifiMetrics).logLinkProbeSuccess(timeDelta, rssi, linkSpeed, TEST_ELAPSED_TIME_MS);
     }
 
     /**
@@ -154,8 +151,6 @@ public class LinkProbeManagerTest {
      */
     @Test
     public void testLinkProbeTriggeredAndFailed() throws Exception {
-        mLinkProbeManager.resetOnNewConnection();
-
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
         mTimeMs += 3000;
@@ -167,16 +162,15 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
         // above RSSI threshold
-        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD + 5;
+        int rssi = LinkProbeManager.RSSI_THRESHOLD + 5;
         mWifiInfo.setRssi(rssi);
         // below link speed threshold
-        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS - 2;
+        int linkSpeed = LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS - 2;
         mWifiInfo.setLinkSpeed(linkSpeed);
-        // more than LINK_PROBE_INTERVAL_MS passed
-        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        // more than DELAY_BETWEEN_PROBES_MS passed
+        long timeDelta = LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
-        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         ArgumentCaptor<WifiNative.SendMgmtFrameCallback> callbackCaptor =
                 ArgumentCaptor.forClass(WifiNative.SendMgmtFrameCallback.class);
@@ -184,12 +178,12 @@ public class LinkProbeManagerTest {
                 anyInt());
 
         callbackCaptor.getValue().onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
-        verify(mWifiMetrics).logLinkProbeFailure(TEST_TIMESTAMP_MS, timeDelta, rssi, linkSpeed,
+        verify(mWifiMetrics).logLinkProbeFailure(timeDelta, rssi, linkSpeed,
                 WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
     }
 
     /**
-     * Tests that link probing is not triggered more than once every LINK_PROBE_INTERVAL_MS
+     * Tests that link probing is not triggered more than once every DELAY_BETWEEN_PROBES_MS
      */
     @Test
     public void testLinkProbeNotTriggeredTooFrequently() throws Exception {
@@ -198,11 +192,11 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
         // below RSSI threshold
-        mWifiInfo.setRssi(LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5);
+        mWifiInfo.setRssi(LinkProbeManager.RSSI_THRESHOLD - 5);
         // above link speed threshold
-        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10);
-        // *** but less than LINK_PROBE_INTERVAL_MS has passed since last probe ***
-        mTimeMs += LinkProbeManager.LINK_PROBE_INTERVAL_MS - 1000;
+        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10);
+        // *** but less than DELAY_BETWEEN_PROBES_MS has passed since last probe ***
+        mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS - 1000;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         // should not probe
@@ -211,12 +205,10 @@ public class LinkProbeManagerTest {
 
     /**
      * Tests that link probing is not triggered when Tx has succeeded within the last
-     * LINK_PROBE_INTERVAL_MS.
+     * DELAY_AFTER_TX_SUCCESS_MS.
      */
     @Test
     public void testLinkProbeNotTriggeredWhenTxSucceeded() throws Exception {
-        mLinkProbeManager.resetOnNewConnection();
-
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
         mTimeMs += 3000;
@@ -236,14 +228,64 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 55;
         // below RSSI threshold
-        mWifiInfo.setRssi(LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5);
+        mWifiInfo.setRssi(LinkProbeManager.RSSI_THRESHOLD - 5);
         // above link speed threshold
-        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10);
-        // *** but less than LINK_PROBE_INTERVAL_MS has passed since last tx success ***
-        mTimeMs += LinkProbeManager.LINK_PROBE_INTERVAL_MS - 1000;
+        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10);
+        // *** but less than DELAY_AFTER_TX_SUCCESS_MS has passed since last tx success ***
+        mTimeMs += LinkProbeManager.DELAY_AFTER_TX_SUCCESS_MS - 1000;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+    }
+
+    /**
+     * Tests that link probing is not triggered when screen was turned on within the last
+     * {@link LinkProbeManager#SCREEN_ON_DELAY_MS}.
+     */
+    @Test
+    public void testLinkProbeNotTriggeredWhenScreenJustTurnedOn() throws Exception {
+        mTimeMs += 30 * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.resetOnScreenTurnedOn();
+        // should not probe yet
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+
+        // tx success counter did not change since initialization
+        mWifiInfo.txSuccess = 0;
+        // below RSSI threshold
+        mWifiInfo.setRssi(LinkProbeManager.RSSI_THRESHOLD - 5);
+        // above link speed threshold
+        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10);
+        // *** but less than SCREEN_ON_DELAY_MS has passed since last screen on ***
+        mTimeMs += LinkProbeManager.SCREEN_ON_DELAY_MS - 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+    }
+
+    /**
+     * Tests that link probing is triggered when screen was turned on more than
+     * {@link LinkProbeManager#SCREEN_ON_DELAY_MS} ago.
+     */
+    @Test
+    public void testLinkProbeTriggeredAfterScreenTurnedOn() throws Exception {
+        mTimeMs += 30 * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.resetOnScreenTurnedOn();
+        // should not probe yet
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+
+        // tx success counter did not change since initialization
+        mWifiInfo.txSuccess = 0;
+        // below RSSI threshold
+        mWifiInfo.setRssi(LinkProbeManager.RSSI_THRESHOLD - 5);
+        // above link speed threshold
+        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10);
+        // *** more than SCREEN_ON_DELAY_MS has passed since last screen on ***
+        mTimeMs += LinkProbeManager.SCREEN_ON_DELAY_MS + 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+        verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
     }
 
     /**
@@ -254,8 +296,6 @@ public class LinkProbeManagerTest {
         when(mFrameworkFacade.getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_LINK_PROBING_ENABLED), anyInt())).thenReturn(0);
         mContentObserver.onChange(false);
-
-        mLinkProbeManager.resetOnNewConnection();
 
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
@@ -268,16 +308,15 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
         // below RSSI threshold
-        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5;
+        int rssi = LinkProbeManager.RSSI_THRESHOLD - 5;
         mWifiInfo.setRssi(rssi);
         // above link speed threshold
-        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10;
+        int linkSpeed = LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10;
         mWifiInfo.setLinkSpeed(linkSpeed);
-        // more than LINK_PROBE_INTERVAL_MS passed
-        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        // more than DELAY_AFTER_TX_SUCCESS_MS passed
+        long timeDelta = LinkProbeManager.DELAY_AFTER_TX_SUCCESS_MS + 1000;
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
-        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         verify(mWifiNative, never()).probeLink(any() , any(), any(), anyInt());
     }
@@ -290,8 +329,6 @@ public class LinkProbeManagerTest {
         mResources.setBoolean(R.bool.config_wifi_link_probing_supported, false);
         initLinkProbeManager();
 
-        mLinkProbeManager.resetOnNewConnection();
-
         // initialize tx success counter
         mWifiInfo.txSuccess = 50;
         mTimeMs += 3000;
@@ -303,17 +340,73 @@ public class LinkProbeManagerTest {
         // tx success counter did not change since last update
         mWifiInfo.txSuccess = 50;
         // below RSSI threshold
-        int rssi = LinkProbeManager.LINK_PROBE_RSSI_THRESHOLD - 5;
+        int rssi = LinkProbeManager.RSSI_THRESHOLD - 5;
         mWifiInfo.setRssi(rssi);
         // above link speed threshold
-        int linkSpeed = LinkProbeManager.LINK_PROBE_LINK_SPEED_THRESHOLD_MBPS + 10;
+        int linkSpeed = LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10;
         mWifiInfo.setLinkSpeed(linkSpeed);
-        // more than LINK_PROBE_INTERVAL_MS passed
-        long timeDelta = LinkProbeManager.LINK_PROBE_INTERVAL_MS + 1000;
+        // more than DELAY_AFTER_TX_SUCCESS_MS passed
+        long timeDelta = LinkProbeManager.DELAY_AFTER_TX_SUCCESS_MS + 1000;
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
-        when(mClock.getWallClockMillis()).thenReturn(TEST_TIMESTAMP_MS);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
         verify(mWifiNative, never()).probeLink(any() , any(), any(), anyInt());
+    }
+
+    /**
+     * Tests exhausting the daily link probe quota and verify that no more link probes are made
+     * after the limit is reached. Tests that the quota is reset upon entering a new day.
+     */
+    @Test
+    public void testLinkProbeQuotaExceeded() {
+        mTimeMs += 30 * 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+        // should not probe yet
+        verify(mWifiNative, never()).probeLink(any(), any(), any(), anyInt());
+
+        // tx success counter did not change since initialization
+        mWifiInfo.txSuccess = 0;
+        // below RSSI threshold
+        mWifiInfo.setRssi(LinkProbeManager.RSSI_THRESHOLD - 5);
+        // above link speed threshold
+        mWifiInfo.setLinkSpeed(LinkProbeManager.LINK_SPEED_THRESHOLD_MBPS + 10);
+
+        // exhaust quota
+        for (int i = 1; i <= LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD; i++) {
+            mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
+            when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+            mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+            verify(mWifiNative, times(i))
+                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
+        }
+        // verify no more quota
+        for (int i = 0; i < 10; i++) {
+            mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
+            when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+            mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+            verify(mWifiNative, times((int) LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD))
+                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
+        }
+
+        // start new period
+        mTimeMs += LinkProbeManager.PERIOD_MILLIS + 1000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+
+        // exhaust quota again
+        for (int i = 1; i <= LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD; i++) {
+            mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
+            when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+            mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+            verify(mWifiNative, times((int) (LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD + i)))
+                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
+        }
+        // verify no more quota again
+        for (int i = 0; i < 10; i++) {
+            mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
+            when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+            mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
+            verify(mWifiNative, times((int) (2 * LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD)))
+                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
+        }
     }
 }

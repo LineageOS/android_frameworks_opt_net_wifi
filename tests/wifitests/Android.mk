@@ -59,6 +59,7 @@ LOCAL_STATIC_JAVA_LIBRARIES := \
 	frameworks-base-testutils \
 	services \
 	wifi-service \
+	truth-prebuilt \
 
 LOCAL_JAVA_LIBRARIES := \
 	android.test.runner \
