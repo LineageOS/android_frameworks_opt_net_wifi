@@ -218,9 +218,9 @@ public class WifiNetworkSelectorTestUtil {
                         return null;
                     }
                 });
-        when(wifiConfigManager.getSavedNetworks(anyInt()))
+        when(wifiConfigManager.getConfiguredNetworks())
                 .then(new AnswerWithArguments() {
-                    public List<WifiConfiguration> answer(int uid) {
+                    public List<WifiConfiguration> answer() {
                         List<WifiConfiguration> savedNetworks = new ArrayList<>();
                         for (int netId = 0; netId < configs.length; netId++) {
                             savedNetworks.add(new WifiConfiguration(configs[netId]));
