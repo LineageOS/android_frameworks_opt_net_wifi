@@ -4441,11 +4441,8 @@ public class ClientModeImpl extends StateMachine {
                             } else {
                                 CarrierNetworkConfig carrierNetworkConfig =
                                         mWifiInjector.getCarrierNetworkConfig();
-                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable()
-                                        && carrierNetworkConfig.isSupportAnonymousIdentity()) {
-                                    // In case of a carrier supporting encrypted IMSI and
-                                    // anonymous identity, we need to send anonymous@realm as
-                                    // EAP-IDENTITY response.
+                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {
+                                    // Send anonymous@realm as EAP-IDENTITY response.
                                     config.enterpriseConfig.setAnonymousIdentity(
                                             TelephonyUtil.getAnonymousIdentityWith3GppRealm(
                                                     getTelephonyManager()));
