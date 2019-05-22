@@ -1817,9 +1817,9 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         boolean isTargetSdkLessThanQOrPrivileged = isTargetSdkLessThanQOrPrivileged(
                 packageName, Binder.getCallingPid(), callingUid);
-        boolean isCarrierApp =
-                mWifiInjector.makeTelephonyManager().checkCarrierPrivilegesForPackage(packageName)
-                        == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
+        boolean isCarrierApp = mWifiInjector.makeTelephonyManager()
+                .checkCarrierPrivilegesForPackageAnyPhone(packageName)
+                == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
         if (!isTargetSdkLessThanQOrPrivileged && !isCarrierApp) {
             mLog.info("getConfiguredNetworks not allowed for uid=%")
                     .c(callingUid).flush();
