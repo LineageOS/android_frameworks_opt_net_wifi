@@ -1193,7 +1193,7 @@ public class WifiServiceImplTest {
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         // no permission = target SDK=Q && not a carrier app
-        when(mTelephonyManager.checkCarrierPrivilegesForPackage(anyString())).thenReturn(
+        when(mTelephonyManager.checkCarrierPrivilegesForPackageAnyPhone(anyString())).thenReturn(
                 TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS);
 
         ParceledListSlice<WifiConfiguration> configs =
