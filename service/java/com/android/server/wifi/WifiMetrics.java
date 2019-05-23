@@ -212,6 +212,13 @@ public class WifiMetrics {
     private int mProbeMcsRateSinceLastUpdate = -1;
     private long mScoreBreachLowTimeMillis = -1;
 
+    public static final int MAX_STA_EVENTS = 768;
+    private LinkedList<StaEventWithTime> mStaEventList = new LinkedList<>();
+    private int mLastPollRssi = -127;
+    private int mLastPollLinkSpeed = -1;
+    private int mLastPollFreq = -1;
+    private int mLastScore = -1;
+
     /** Tracks if we should be logging WifiIsUnusableEvent */
     private boolean mUnusableEventLogging = false;
     /** Tracks if we should be logging LinkSpeedCounts */
@@ -328,6 +335,8 @@ public class WifiMetrics {
      * experiment.
      */
     private final ObjectCounter<String> mLinkProbeExperimentProbeCounts = new ObjectCounter<>();
+    private int mLinkProbeStaEventCount = 0;
+    @VisibleForTesting static final int MAX_LINK_PROBE_STA_EVENTS = MAX_STA_EVENTS / 4;
 
     private final LinkedList<WifiUsabilityStatsEntry> mWifiUsabilityStatsEntriesList =
             new LinkedList<>();
@@ -2761,6 +2770,7 @@ public class WifiMetrics {
 
                 pw.println("mNetworkSelectionExperimentPairNumChoicesCounts:"
                         + mNetworkSelectionExperimentPairNumChoicesCounts);
+                pw.println("mLinkProbeStaEventCount:" + mLinkProbeStaEventCount);
 
                 pw.println("mWifiNetworkRequestApiLog:\n" + mWifiNetworkRequestApiLog);
                 pw.println("mWifiNetworkRequestApiMatchSizeHistogram:\n"
@@ -3500,6 +3510,7 @@ public class WifiMetrics {
             mLinkProbeSuccessElapsedTimeMsHistogram.clear();
             mLinkProbeFailureReasonCounts.clear();
             mLinkProbeExperimentProbeCounts.clear();
+            mLinkProbeStaEventCount = 0;
             mNetworkSelectionExperimentPairNumChoicesCounts.clear();
             mWifiNetworkSuggestionApiLog.clear();
             mWifiNetworkSuggestionApiLog.clear();
@@ -3934,13 +3945,6 @@ public class WifiMetrics {
                 .append(" scan_freq=").append(info.scanFreq);
         return sb.toString();
     }
-
-    public static final int MAX_STA_EVENTS = 768;
-    private LinkedList<StaEventWithTime> mStaEventList = new LinkedList<StaEventWithTime>();
-    private int mLastPollRssi = -127;
-    private int mLastPollLinkSpeed = -1;
-    private int mLastPollFreq = -1;
-    private int mLastScore = -1;
 
     /**
      * Converts the first 31 bits of a BitSet to a little endian int
@@ -4684,7 +4688,6 @@ public class WifiMetrics {
     /**
      * Reports stats for a successful link probe.
      *
-     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
      * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
      *                                 the last Tx success (according to
      *                                 {@link WifiInfo#txSuccess}).
@@ -4695,7 +4698,7 @@ public class WifiMetrics {
      *                      probe was ACKed. Note: this number should be correlated with the number
      *                      of retries that the driver attempted before the probe was ACKed.
      */
-    public void logLinkProbeSuccess(long startTimestampMs, long timeSinceLastTxSuccessMs,
+    public void logLinkProbeSuccess(long timeSinceLastTxSuccessMs,
             int rssi, int linkSpeed, int elapsedTimeMs) {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
@@ -4708,19 +4711,20 @@ public class WifiMetrics {
             mLinkProbeSuccessLinkSpeedCounts.increment(linkSpeed);
             mLinkProbeSuccessElapsedTimeMsHistogram.increment(elapsedTimeMs);
 
-            StaEvent event = new StaEvent();
-            event.type = StaEvent.TYPE_LINK_PROBE;
-            event.linkProbeWasSuccess = true;
-            event.linkProbeSuccessElapsedTimeMs = elapsedTimeMs;
-            // TODO(129958996): Cap number of link probe StaEvents
-            addStaEvent(event);
+            if (mLinkProbeStaEventCount < MAX_LINK_PROBE_STA_EVENTS) {
+                StaEvent event = new StaEvent();
+                event.type = StaEvent.TYPE_LINK_PROBE;
+                event.linkProbeWasSuccess = true;
+                event.linkProbeSuccessElapsedTimeMs = elapsedTimeMs;
+                addStaEvent(event);
+            }
+            mLinkProbeStaEventCount++;
         }
     }
 
     /**
      * Reports stats for an unsuccessful link probe.
      *
-     * @param startTimestampMs The wall clock time when the link probe was started, in ms.
      * @param timeSinceLastTxSuccessMs At {@code startTimestampMs}, the number of milliseconds since
      *                                 the last Tx success (according to
      *                                 {@link WifiInfo#txSuccess}).
@@ -4728,7 +4732,7 @@ public class WifiMetrics {
      * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
      * @param reason The error code for the failure. See {@link WifiNative.SendMgmtFrameError}.
      */
-    public void logLinkProbeFailure(long startTimestampMs, long timeSinceLastTxSuccessMs,
+    public void logLinkProbeFailure(long timeSinceLastTxSuccessMs,
             int rssi, int linkSpeed, @WifiNative.SendMgmtFrameError int reason) {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
@@ -4741,12 +4745,14 @@ public class WifiMetrics {
             mLinkProbeFailureLinkSpeedCounts.increment(linkSpeed);
             mLinkProbeFailureReasonCounts.increment(reason);
 
-            StaEvent event = new StaEvent();
-            event.type = StaEvent.TYPE_LINK_PROBE;
-            event.linkProbeWasSuccess = false;
-            event.linkProbeFailureReason = linkProbeFailureReasonToProto(reason);
-            // TODO(129958996): Cap number of link probe StaEvents
-            addStaEvent(event);
+            if (mLinkProbeStaEventCount < MAX_LINK_PROBE_STA_EVENTS) {
+                StaEvent event = new StaEvent();
+                event.type = StaEvent.TYPE_LINK_PROBE;
+                event.linkProbeWasSuccess = false;
+                event.linkProbeFailureReason = linkProbeFailureReasonToProto(reason);
+                addStaEvent(event);
+            }
+            mLinkProbeStaEventCount++;
         }
     }
 
