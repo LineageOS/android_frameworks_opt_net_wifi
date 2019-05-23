@@ -33,6 +33,7 @@ import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureReasonCount;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeFailureStaEvent;
 import static com.android.server.wifi.WifiMetricsTestUtil.buildLinkProbeSuccessStaEvent;
+import static com.android.server.wifi.nano.WifiMetricsProto.StaEvent.TYPE_LINK_PROBE;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -115,6 +116,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
@@ -1953,6 +1955,29 @@ public class WifiMetricsTest {
     }
 
     /**
+     * Tests that link probe StaEvents do not exceed
+     * {@link WifiMetrics#MAX_LINK_PROBE_STA_EVENTS}.
+     */
+    @Test
+    public void testLinkProbeStaEventBounding() throws Exception {
+        for (int i = 0; i < WifiMetrics.MAX_LINK_PROBE_STA_EVENTS; i++) {
+            mWifiMetrics.logLinkProbeSuccess(0, 0, 0, 0);
+            mWifiMetrics.logLinkProbeFailure(0, 0, 0, 0);
+        }
+        for (int i = 0; i < 10; i++) {
+            mWifiMetrics.logStaEvent(StaEvent.TYPE_CMD_START_CONNECT);
+        }
+
+        dumpProtoAndDeserialize();
+
+        long numLinkProbeStaEvents = Arrays.stream(mDecodedProto.staEventList)
+                .filter(event -> event.type == TYPE_LINK_PROBE)
+                .count();
+        assertEquals(WifiMetrics.MAX_LINK_PROBE_STA_EVENTS, numLinkProbeStaEvents);
+        assertEquals(WifiMetrics.MAX_LINK_PROBE_STA_EVENTS + 10, mDecodedProto.staEventList.length);
+    }
+
+    /**
      * Ensure WifiMetrics doesn't cause a null pointer exception when called with null args
      */
     @Test
@@ -2803,12 +2828,11 @@ public class WifiMetricsTest {
         WifiLinkLayerStats stats2 = nextRandomStats(stats1);
         mWifiMetrics.incrementWifiScoreCount(60);
         mWifiMetrics.incrementWifiUsabilityScoreCount(2, 55, 15);
-        mWifiMetrics.logLinkProbeSuccess(nextRandInt(), nextRandInt(), nextRandInt(),
-                nextRandInt(), 12);
+        mWifiMetrics.logLinkProbeSuccess(nextRandInt(), nextRandInt(), nextRandInt(), 12);
         mWifiMetrics.updateWifiUsabilityStatsEntries(info, stats1);
         mWifiMetrics.incrementWifiScoreCount(58);
         mWifiMetrics.incrementWifiUsabilityScoreCount(3, 56, 15);
-        mWifiMetrics.logLinkProbeFailure(nextRandInt(), nextRandInt(), nextRandInt(),
+        mWifiMetrics.logLinkProbeFailure(nextRandInt(), nextRandInt(),
                 nextRandInt(), nextRandInt());
         mWifiMetrics.enterDeviceMobilityState(DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
@@ -3375,14 +3399,14 @@ public class WifiMetricsTest {
      */
     @Test
     public void testLogLinkProbeMetrics() throws Exception {
-        mWifiMetrics.logLinkProbeSuccess(1000, 10000, -75, 50, 5);
-        mWifiMetrics.logLinkProbeFailure(2000, 30000, -80, 10,
+        mWifiMetrics.logLinkProbeSuccess(10000, -75, 50, 5);
+        mWifiMetrics.logLinkProbeFailure(30000, -80, 10,
                 WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
-        mWifiMetrics.logLinkProbeSuccess(3000, 3000, -71, 160, 12);
-        mWifiMetrics.logLinkProbeFailure(4000, 40000, -80, 6,
+        mWifiMetrics.logLinkProbeSuccess(3000, -71, 160, 12);
+        mWifiMetrics.logLinkProbeFailure(40000, -80, 6,
                 WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
-        mWifiMetrics.logLinkProbeSuccess(5000, 5000, -73, 160, 10);
-        mWifiMetrics.logLinkProbeFailure(6000, 2000, -78, 6,
+        mWifiMetrics.logLinkProbeSuccess(5000, -73, 160, 10);
+        mWifiMetrics.logLinkProbeFailure(2000, -78, 6,
                 WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         dumpProtoAndDeserialize();
