@@ -357,7 +357,7 @@ public class WifiAwareStateManagerTest {
         // (1) enable usage
         mDut.enableUsage();
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
         inOrder.verify(mMockNative).getCapabilities(transactionId.capture());
         mDut.onCapabilitiesUpdateResponse(transactionId.getValue(), getCapabilities());
         mMockLooper.dispatchAll();
@@ -403,7 +403,7 @@ public class WifiAwareStateManagerTest {
         // (1) check initial state
         mDut.enableUsage();
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
         inOrder.verify(mMockNative).getCapabilities(transactionId.capture());
         mDut.onCapabilitiesUpdateResponse(transactionId.getValue(), getCapabilities());
         mMockLooper.dispatchAll();
@@ -415,7 +415,7 @@ public class WifiAwareStateManagerTest {
         collector.checkThat("usage disabled", mDut.isUsageEnabled(), equalTo(false));
         inOrder.verify(mMockNative).disable(transactionId.capture());
         mDut.onDisableResponse(transactionId.getValue(), NanStatusType.SUCCESS);
-        validateCorrectAwareStatusChangeBroadcast(inOrder, false);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         // (3) try connecting and validate that get failure callback (though app should be aware of
         // non-availability through state change broadcast and/or query API)
@@ -448,7 +448,7 @@ public class WifiAwareStateManagerTest {
         // (1) check initial state
         mDut.enableUsage();
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
         inOrderM.verify(mAwareMetricsMock).recordEnableUsage();
         inOrder.verify(mMockNative).getCapabilities(transactionId.capture());
         mDut.onCapabilitiesUpdateResponse(transactionId.getValue(), getCapabilities());
@@ -476,7 +476,7 @@ public class WifiAwareStateManagerTest {
         inOrderM.verify(mAwareMetricsMock).recordAttachSessionDuration(anyLong());
         inOrderM.verify(mAwareMetricsMock).recordDisableAware();
         inOrderM.verify(mAwareMetricsMock).recordDisableUsage();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, false);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
         validateInternalClientInfoCleanedUp(clientId);
         mDut.onDisableResponse(transactionId.getValue(), NanStatusType.SUCCESS);
         mMockLooper.dispatchAll();
@@ -498,7 +498,7 @@ public class WifiAwareStateManagerTest {
         mMockLooper.dispatchAll();
         inOrderM.verify(mAwareMetricsMock).recordEnableUsage();
         collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         // (7) connect (should be successful)
         mDut.connect(clientId, uid, pid, callingPackage, mockCallback, configRequest, false);
@@ -536,7 +536,7 @@ public class WifiAwareStateManagerTest {
         // (1) check initial state
         mDut.enableUsage();
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
         inOrder.verify(mMockNative).getCapabilities(transactionId.capture());
         mDut.onCapabilitiesUpdateResponse(transactionId.getValue(), getCapabilities());
         mMockLooper.dispatchAll();
@@ -3148,7 +3148,8 @@ public class WifiAwareStateManagerTest {
         mMockLooper.dispatchAll();
         inOrder.verify(mMockNative).disable(transactionId.capture());
         mDut.onDisableResponse(transactionId.getValue(), NanStatusType.SUCCESS);
-        validateCorrectAwareStatusChangeBroadcast(inOrder, false);
+        collector.checkThat("usage disabled", mDut.isUsageEnabled(), equalTo(false));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         // (4) power state change: SCREEN ON (but DOZE still on - fakish but expect no changes)
         simulatePowerStateChangeInteractive(false);
@@ -3167,7 +3168,8 @@ public class WifiAwareStateManagerTest {
         // (5) power state change: DOZE OFF
         simulatePowerStateChangeDoze(false);
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         verifyNoMoreInteractions(mMockNativeManager, mMockNative, mockCallback);
     }
@@ -3212,7 +3214,8 @@ public class WifiAwareStateManagerTest {
         mMockLooper.dispatchAll();
         inOrder.verify(mMockNative).disable(transactionId.capture());
         mDut.onDisableResponse(transactionId.getValue(), NanStatusType.SUCCESS);
-        validateCorrectAwareStatusChangeBroadcast(inOrder, false);
+        collector.checkThat("usage disabled", mDut.isUsageEnabled(), equalTo(false));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         // disable other gating feature -> no change
         simulatePowerStateChangeDoze(true);
@@ -3227,7 +3230,8 @@ public class WifiAwareStateManagerTest {
         // (4) location mode change: enable
         simulateLocationModeChange(true);
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         verifyNoMoreInteractions(mMockNativeManager, mMockNative, mockCallback);
     }
@@ -3272,7 +3276,8 @@ public class WifiAwareStateManagerTest {
         mMockLooper.dispatchAll();
         inOrder.verify(mMockNative).disable(transactionId.capture());
         mDut.onDisableResponse(transactionId.getValue(), NanStatusType.SUCCESS);
-        validateCorrectAwareStatusChangeBroadcast(inOrder, false);
+        collector.checkThat("usage disabled", mDut.isUsageEnabled(), equalTo(false));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         // disable other gating feature -> no change
         simulatePowerStateChangeDoze(true);
@@ -3287,9 +3292,61 @@ public class WifiAwareStateManagerTest {
         // (4) wifi state change: enable
         simulateWifiStateChange(true);
         mMockLooper.dispatchAll();
-        validateCorrectAwareStatusChangeBroadcast(inOrder, true);
+        collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
 
         verifyNoMoreInteractions(mMockNativeManager, mMockNative, mockCallback);
+    }
+
+    /**
+     * Validate aware state change when get aware down from native
+     */
+    @Test
+    public void testWifiAwareStateChangeFromNative() throws Exception {
+        final int clientId = 12314;
+        final int uid = 1000;
+        final int pid = 2000;
+        final String callingPackage = "com.google.somePackage";
+        final ConfigRequest configRequest = new ConfigRequest.Builder().build();
+
+        IWifiAwareEventCallback mockCallback = mock(IWifiAwareEventCallback.class);
+        InOrder inOrder = inOrder(mMockContext, mMockNative, mockCallback);
+        ArgumentCaptor<Short> transactionId = ArgumentCaptor.forClass(Short.class);
+
+        // (0) check initial state
+        mDut.enableUsage();
+        mMockLooper.dispatchAll();
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
+        inOrder.verify(mMockNative).getCapabilities(transactionId.capture());
+        mDut.onCapabilitiesUpdateResponse(transactionId.getValue(), getCapabilities());
+        mMockLooper.dispatchAll();
+        collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
+
+        // (1) connect client
+        mDut.connect(clientId, uid, pid, callingPackage, mockCallback, configRequest, false);
+        mMockLooper.dispatchAll();
+        inOrder.verify(mMockNative).enableAndConfigure(transactionId.capture(),
+                eq(configRequest), eq(false), eq(true), eq(true), eq(false));
+        mDut.onConfigSuccessResponse(transactionId.getValue());
+        mMockLooper.dispatchAll();
+        inOrder.verify(mockCallback).onConnectSuccess(clientId);
+
+        // (2) Aware down notification from native
+        mDut.onAwareDownNotification(NanStatusType.UNSUPPORTED_CONCURRENCY_NAN_DISABLED);
+        mMockLooper.dispatchAll();
+        collector.checkThat("usage enabled", mDut.isUsageEnabled(), equalTo(true));
+        validateCorrectAwareStatusChangeBroadcast(inOrder);
+
+        // (3) try reconnect client
+        mDut.connect(clientId, uid, pid, callingPackage, mockCallback, configRequest, false);
+        mMockLooper.dispatchAll();
+        inOrder.verify(mMockNative).enableAndConfigure(transactionId.capture(),
+                eq(configRequest), eq(false), eq(true), eq(true), eq(false));
+        mDut.onConfigSuccessResponse(transactionId.getValue());
+        mMockLooper.dispatchAll();
+        inOrder.verify(mockCallback).onConnectSuccess(clientId);
+
+        verifyNoMoreInteractions(mMockNative, mockCallback);
     }
 
     /*
@@ -3352,12 +3409,8 @@ public class WifiAwareStateManagerTest {
 
     /**
      * Validates that the broadcast sent on Aware status change is correct.
-     *
-     * @param expectedEnabled The expected change status - i.e. are we expected
-     *            to announce that Aware is enabled (true) or disabled (false).
      */
-    private void validateCorrectAwareStatusChangeBroadcast(InOrder inOrder,
-            boolean expectedEnabled) {
+    private void validateCorrectAwareStatusChangeBroadcast(InOrder inOrder) {
         ArgumentCaptor<Intent> intent = ArgumentCaptor.forClass(Intent.class);
 
         inOrder.verify(mMockContext).sendBroadcastAsUser(intent.capture(), eq(UserHandle.ALL));

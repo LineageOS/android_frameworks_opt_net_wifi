@@ -24,6 +24,7 @@ import static org.mockito.MockitoAnnotations.*;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
+import android.os.Handler;
 import android.os.test.TestLooper;
 import android.util.Pair;
 
@@ -72,6 +73,7 @@ public class WifiLastResortWatchdogTest {
         mLastResortWatchdog.setBugReportProbability(1);
         when(mClientModeImpl.getWifiInfo()).thenReturn(mWifiInfo);
         when(mWifiInfo.getSSID()).thenReturn(TEST_NETWORK_SSID);
+        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mLastResortWatchdog.getHandler());
     }
 
     private List<Pair<ScanDetail, WifiConfiguration>> createFilteredQnsCandidates(String[] ssids,
@@ -2152,4 +2154,41 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
     }
 
+    /**
+     * Verifies that when a connection takes too long (time difference between
+     * StaEvent.TYPE_CMD_START_CONNECT and StaEvent.TYPE_NETWORK_CONNECTION_EVENT) a bugreport is
+     * taken.
+     */
+    @Test
+    public void testAbnormalConnectionTimeTriggersBugreport() throws Exception {
+        // first verifies that bugreports are not taken when connection takes less than
+        // WifiLastResortWatchdog.ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(1L);
+        mLastResortWatchdog.noteStartConnectTime();
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                (long) WifiLastResortWatchdog.ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS);
+        Handler handler = mLastResortWatchdog.getHandler();
+        handler.sendMessage(
+                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
+        mLooper.dispatchAll();
+        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
+
+        // Now verify that bugreport is taken
+        mLastResortWatchdog.noteStartConnectTime();
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                (long) 2 * WifiLastResortWatchdog.ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS + 1);
+        handler.sendMessage(
+                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
+
+        // Verify additional connections (without more TYPE_CMD_START_CONNECT) don't trigger more
+        // bugreports.
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                (long) 4 * WifiLastResortWatchdog.ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS);
+        handler.sendMessage(
+                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
+        mLooper.dispatchAll();
+        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
+    }
 }
