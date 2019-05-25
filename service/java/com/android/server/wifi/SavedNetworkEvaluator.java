@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.os.Process;
 import android.telephony.SubscriptionManager;
 import android.util.LocalLog;
 
@@ -105,73 +104,10 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     }
 
     /**
-     * Update all the saved networks' selection status
-     */
-    private void updateSavedNetworkSelectionStatus() {
-        List<WifiConfiguration> savedNetworks = mWifiConfigManager.getSavedNetworks(
-                Process.WIFI_UID);
-        if (savedNetworks.size() == 0) {
-            localLog("No saved networks.");
-            return;
-        }
-
-        StringBuffer sbuf = new StringBuffer();
-        for (WifiConfiguration network : savedNetworks) {
-            /**
-             * Ignore Passpoint networks. Passpoint networks are also considered as "saved"
-             * network, but without being persisted to the storage. They are managed
-             * by {@link PasspointNetworkEvaluator}.
-             */
-            if (network.isPasspoint()) {
-                continue;
-            }
-
-            // If a configuration is temporarily disabled, re-enable it before trying
-            // to connect to it.
-            mWifiConfigManager.tryEnableNetwork(network.networkId);
-
-            //TODO(b/112196799): Enable "permanently" disabled networks if we are in DISCONNECTED
-            // state. See also 30928589
-
-            // Clear the cached candidate, score and seen.
-            mWifiConfigManager.clearNetworkCandidateScanResult(network.networkId);
-
-            // Log disabled network.
-            WifiConfiguration.NetworkSelectionStatus status = network.getNetworkSelectionStatus();
-            if (!status.isNetworkEnabled()) {
-                sbuf.append("  ").append(WifiNetworkSelector.toNetworkString(network)).append(" ");
-                for (int index = WifiConfiguration.NetworkSelectionStatus
-                            .NETWORK_SELECTION_DISABLED_STARTING_INDEX;
-                        index < WifiConfiguration.NetworkSelectionStatus
-                            .NETWORK_SELECTION_DISABLED_MAX;
-                        index++) {
-                    int count = status.getDisableReasonCounter(index);
-                    // Here we log the reason as long as its count is greater than zero. The
-                    // network may not be disabled because of this particular reason. Logging
-                    // this information anyway to help understand what happened to the network.
-                    if (count > 0) {
-                        sbuf.append("reason=")
-                                .append(WifiConfiguration.NetworkSelectionStatus
-                                        .getNetworkDisableReasonString(index))
-                                .append(", count=").append(count).append("; ");
-                    }
-                }
-                sbuf.append("\n");
-            }
-        }
-
-        if (sbuf.length() > 0) {
-            localLog("Disabled saved networks:");
-            localLog(sbuf.toString());
-        }
-    }
-
-    /**
      * Update the evaluator.
      */
-    public void update(List<ScanDetail> scanDetails) {
-        updateSavedNetworkSelectionStatus();
-    }
+    @Override
+    public void update(List<ScanDetail> scanDetails) { }
 
     private int calculateBssidScore(ScanResult scanResult, WifiConfiguration network,
                         WifiConfiguration currentNetwork, String currentBssid,
@@ -246,6 +182,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
      * @return configuration of the chosen network;
      *         null if no network in this category is available.
      */
+    @Override
     public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
