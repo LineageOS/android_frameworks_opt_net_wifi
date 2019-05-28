@@ -145,16 +145,25 @@ public class WifiAwareNativeApiTest {
      */
     @Test
     public void testEnableAndConfigPowerSettingsDefaults() throws RemoteException {
+        byte default5 = 1;
+        byte default24 = 1;
+
         Pair<NanConfigRequest, NanConfigRequestSupplemental> configs =
                 validateEnableAndConfigure((short) 10, new ConfigRequest.Builder().build(), true,
                         true, true, false, false);
 
-        collector.checkThat("validDiscoveryWindowIntervalVal-5", false,
+        collector.checkThat("validDiscoveryWindowIntervalVal-5", true,
                 equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_5GHZ]
                         .validDiscoveryWindowIntervalVal));
-        collector.checkThat("validDiscoveryWindowIntervalVal-24", false,
+        collector.checkThat("validDiscoveryWindowIntervalVal-24", true,
                 equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_24GHZ]
                         .validDiscoveryWindowIntervalVal));
+        collector.checkThat("discoveryWindowIntervalVal-5", default5,
+                equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_5GHZ]
+                        .discoveryWindowIntervalVal));
+        collector.checkThat("discoveryWindowIntervalVal-24", default24,
+                equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_24GHZ]
+                        .discoveryWindowIntervalVal));
     }
 
     /**
@@ -218,16 +227,25 @@ public class WifiAwareNativeApiTest {
      */
     @Test
     public void testEnableAndConfigPowerSettingsDefaults_1_2() throws RemoteException {
+        byte default5 = 1;
+        byte default24 = 1;
+
         Pair<NanConfigRequest, NanConfigRequestSupplemental> configs =
                 validateEnableAndConfigure((short) 10, new ConfigRequest.Builder().build(), true,
                         true, true, false, true);
 
-        collector.checkThat("validDiscoveryWindowIntervalVal-5", false,
+        collector.checkThat("validDiscoveryWindowIntervalVal-5", true,
                 equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_5GHZ]
                         .validDiscoveryWindowIntervalVal));
-        collector.checkThat("validDiscoveryWindowIntervalVal-24", false,
+        collector.checkThat("validDiscoveryWindowIntervalVal-24", true,
                 equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_24GHZ]
                         .validDiscoveryWindowIntervalVal));
+        collector.checkThat("discoveryWindowIntervalVal-5", default5,
+                equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_5GHZ]
+                        .discoveryWindowIntervalVal));
+        collector.checkThat("discoveryWindowIntervalVal-24", default24,
+                equalTo(configs.first.bandSpecificConfig[NanBandIndex.NAN_BAND_24GHZ]
+                        .discoveryWindowIntervalVal));
 
         collector.checkThat("discoveryBeaconIntervalMs", 0,
                 equalTo(configs.second.discoveryBeaconIntervalMs));
