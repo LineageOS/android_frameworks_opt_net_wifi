@@ -20,7 +20,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Message;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
@@ -75,8 +74,6 @@ public class WifiLastResortWatchdog {
     // Number of milliseconds to wait before re-enable Watchdog triger
     @VisibleForTesting
     public static final long LAST_TRIGGER_TIMEOUT_MILLIS = 2 * 3600 * 1000; // 2 hours
-    @VisibleForTesting
-    public static final int ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS = 1000 * 30; // 30 seconds
 
     /**
      * Cached WifiConfigurations of available networks seen within MAX_BSSID_AGE scan results
@@ -108,8 +105,6 @@ public class WifiLastResortWatchdog {
     // If any connection failure happened after watchdog triggering restart then assume watchdog
     // did not fix the problem
     private boolean mWatchdogFixedWifi = true;
-    private long mLastStartConnectTime = 0;
-    private Handler mHandler;
 
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
@@ -123,49 +118,6 @@ public class WifiLastResortWatchdog {
         mWifiMetrics = wifiMetrics;
         mClientModeImpl = clientModeImpl;
         mClientModeImplLooper = clientModeImplLooper;
-        mHandler = new Handler(clientModeImplLooper) {
-            public void handleMessage(Message msg) {
-                processMessage(msg);
-            }
-        };
-    }
-
-    /**
-     * Returns handler for L2 events from supplicant.
-     * @return Handler
-     */
-    public Handler getHandler() {
-        return mHandler;
-    }
-
-    /**
-     * Refreshes when the last CMD_START_CONNECT is triggered.
-     */
-    public void noteStartConnectTime() {
-        mLastStartConnectTime = mClock.getElapsedSinceBootMillis();
-    }
-
-    private void processMessage(Message msg) {
-        switch (msg.what) {
-            case WifiMonitor.NETWORK_CONNECTION_EVENT:
-                // Trigger bugreport for successful connections that take abnormally long
-                if (mLastStartConnectTime > 0) {
-                    long durationMs = mClock.getElapsedSinceBootMillis() - mLastStartConnectTime;
-                    if (durationMs > ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS) {
-                        final String bugTitle = "Wi-Fi Bugreport: Abnormal connection time";
-                        final String bugDetail = "Expected connection to take less than "
-                                + ABNORMAL_SUCCESSFUL_CONNECTION_DURATION_MS + " milliseconds. "
-                                + "Actually took " + durationMs + " milliseconds.";
-                        mWifiInjector.getClientModeImplHandler().post(() -> {
-                            mClientModeImpl.takeBugReport(bugTitle, bugDetail);
-                        });
-                    }
-                    mLastStartConnectTime = 0;
-                }
-                break;
-            default:
-                return;
-        }
     }
 
     /**
