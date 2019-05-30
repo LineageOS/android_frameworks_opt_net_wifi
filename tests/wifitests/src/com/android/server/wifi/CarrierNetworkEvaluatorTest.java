@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -116,6 +115,8 @@ public class CarrierNetworkEvaluatorTest {
             WifiConfiguration config = invocation.getArgument(0);
             Integer networkId = mConfigs.get(config.configKey());
             if (networkId == null) return null;
+
+            when(mWifiConfigManager.getConfiguredNetwork(networkId)).thenReturn(config);
 
             NetworkUpdateResult networkUpdateResult = mock(NetworkUpdateResult.class);
             when(networkUpdateResult.isSuccess()).thenReturn(true);
@@ -250,7 +251,8 @@ public class CarrierNetworkEvaluatorTest {
         assertTrue(config2.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config3 = mWifiConfigCaptor.getAllValues().get(2);
         assertEquals(CARRIER_SAVED_SSID, config3.SSID);
-        assertFalse(config3.isEphemeral());
+        // all configs returned by CarrierNetworkEvaluator are ephemeral.
+        assertTrue(config3.isEphemeral());
         assertTrue(config3.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config4 = mWifiConfigCaptor.getAllValues().get(3);
         assertEquals(CARRIER_SAVED_EPH_SSID, config4.SSID);

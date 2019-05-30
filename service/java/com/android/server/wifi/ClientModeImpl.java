@@ -4433,25 +4433,15 @@ public class ClientModeImpl extends StateMachine {
                         // We need to get the updated pseudonym from supplicant for EAP-SIM/AKA/AKA'
                         if (config.enterpriseConfig != null
                                 && TelephonyUtil.isSimEapMethod(
-                                        config.enterpriseConfig.getEapMethod())) {
+                                        config.enterpriseConfig.getEapMethod())
+                                && !TelephonyUtil.isAnonymousAtRealmIdentity(
+                                        config.enterpriseConfig.getAnonymousIdentity())) {
                             String anonymousIdentity =
                                     mWifiNative.getEapAnonymousIdentity(mInterfaceName);
-                            if (anonymousIdentity != null) {
-                                config.enterpriseConfig.setAnonymousIdentity(anonymousIdentity);
-                            } else {
-                                CarrierNetworkConfig carrierNetworkConfig =
-                                        mWifiInjector.getCarrierNetworkConfig();
-                                if (carrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {
-                                    // Send anonymous@realm as EAP-IDENTITY response.
-                                    config.enterpriseConfig.setAnonymousIdentity(
-                                            TelephonyUtil.getAnonymousIdentityWith3GppRealm(
-                                                    getTelephonyManager()));
-                                } else {
-                                    Log.d(TAG, "Failed to get updated anonymous identity"
-                                            + " from supplicant, reset it in WifiConfiguration.");
-                                    config.enterpriseConfig.setAnonymousIdentity(null);
-                                }
+                            if (mVerboseLoggingEnabled) {
+                                log("EAP Pseudonym: " + anonymousIdentity);
                             }
+                            config.enterpriseConfig.setAnonymousIdentity(anonymousIdentity);
                             mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
                         }
                         sendNetworkStateChangeBroadcast(mLastBssid);
