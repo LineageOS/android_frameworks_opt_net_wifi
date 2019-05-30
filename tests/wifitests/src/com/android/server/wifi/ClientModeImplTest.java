@@ -1024,6 +1024,9 @@ public class ClientModeImplTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         String expectedAnonymousIdentity = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
                 mTelephonyManager);
+        // we are using anonymous@<realm> as our anonymous identity before connection
+        mConnectedNetwork.enterpriseConfig.setAnonymousIdentity(expectedAnonymousIdentity);
+
         triggerConnect();
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
@@ -1038,6 +1041,10 @@ public class ClientModeImplTest {
         mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
+        // verify that WifiNative#getEapAnonymousIdentity() was never called since we are using
+        // encrypted IMSI full authentication and not using pseudonym identity.
+        verify(mWifiNative, never()).getEapAnonymousIdentity(any());
+        // check that the anonymous identity remains anonymous@<realm> for subsequent connections.
         assertEquals(expectedAnonymousIdentity,
                 mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
     }

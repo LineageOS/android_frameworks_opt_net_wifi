@@ -333,6 +333,14 @@ public class TelephonyUtil {
     }
 
     /**
+     * Returns true if {@code identity} contains an anonymous@realm identity, false otherwise.
+     */
+    public static boolean isAnonymousAtRealmIdentity(String identity) {
+        if (identity == null) return false;
+        return identity.startsWith(TelephonyUtil.ANONYMOUS_IDENTITY + "@");
+    }
+
+    /**
      * Checks if the EAP outer method is SIM related.
      *
      * @param eapMethod WifiEnterpriseConfig Eap method.
