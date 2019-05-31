@@ -121,6 +121,9 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
                 config.enterpriseConfig = new WifiEnterpriseConfig();
             }
             config.enterpriseConfig.setEapMethod(eapType);
+            // Send anonymous@realm as EAP-IDENTITY response.
+            config.enterpriseConfig.setAnonymousIdentity(
+                    TelephonyUtil.getAnonymousIdentityWith3GppRealm(getTelephonyManager()));
 
             // Check if we already have a network with the same credentials in WifiConfigManager
             // database. If yes, we should check if the network is currently blacklisted.
@@ -158,13 +161,6 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
             WifiConfiguration.NetworkSelectionStatus nss = null;
             if (config != null) {
                 nss = config.getNetworkSelectionStatus();
-
-                // In case of a carrier supporting anonymous identity, we need
-                // to send anonymous@realm as EAP-IDENTITY response.
-                if (mCarrierNetworkConfig.isSupportAnonymousIdentity()) {
-                    config.enterpriseConfig.setAnonymousIdentity(
-                            TelephonyUtil.getAnonymousIdentityWith3GppRealm(getTelephonyManager()));
-                }
             }
             if (nss == null) {
                 mLocalLog.log(TAG + ": null network selection status for: " + config);
