@@ -376,17 +376,17 @@ public class LinkProbeManagerTest {
             mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
             when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
             mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-            verify(mWifiNative, times(i))
-                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         }
+        verify(mWifiNative, times((int) LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD))
+                .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         // verify no more quota
         for (int i = 0; i < 10; i++) {
             mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
             when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
             mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-            verify(mWifiNative, times((int) LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD))
-                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         }
+        verify(mWifiNative, times((int) LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD))
+                .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
 
         // start new period
         mTimeMs += LinkProbeManager.PERIOD_MILLIS + 1000;
@@ -397,16 +397,16 @@ public class LinkProbeManagerTest {
             mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
             when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
             mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-            verify(mWifiNative, times((int) (LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD + i)))
-                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         }
+        verify(mWifiNative, times((int) (2 * LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD)))
+                .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         // verify no more quota again
         for (int i = 0; i < 10; i++) {
             mTimeMs += LinkProbeManager.DELAY_BETWEEN_PROBES_MS + 1000;
             when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
             mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-            verify(mWifiNative, times((int) (2 * LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD)))
-                    .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
         }
+        verify(mWifiNative, times((int) (2 * LinkProbeManager.MAX_PROBE_COUNT_IN_PERIOD)))
+                .probeLink(eq(TEST_IFACE_NAME), any(), any(), anyInt());
     }
 }
