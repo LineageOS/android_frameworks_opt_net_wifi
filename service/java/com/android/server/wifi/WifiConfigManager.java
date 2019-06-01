@@ -2806,7 +2806,10 @@ public class WifiConfigManager {
             } else {
                 // reset identity as well: supplicant will ask us for it
                 config.enterpriseConfig.setIdentity("");
-                config.enterpriseConfig.setAnonymousIdentity("");
+                if (!TelephonyUtil.isAnonymousAtRealmIdentity(
+                        config.enterpriseConfig.getAnonymousIdentity())) {
+                    config.enterpriseConfig.setAnonymousIdentity("");
+                }
             }
         }
     }

@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +51,7 @@ import org.mockito.stubbing.Answer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 /**
  * Unit tests for CarrierNeteworkEvaluator
@@ -116,6 +116,8 @@ public class CarrierNetworkEvaluatorTest {
             Integer networkId = mConfigs.get(config.configKey());
             if (networkId == null) return null;
 
+            when(mWifiConfigManager.getConfiguredNetwork(networkId)).thenReturn(config);
+
             NetworkUpdateResult networkUpdateResult = mock(NetworkUpdateResult.class);
             when(networkUpdateResult.isSuccess()).thenReturn(true);
             when(networkUpdateResult.getNetworkId()).thenReturn(networkId);
@@ -160,8 +162,6 @@ public class CarrierNetworkEvaluatorTest {
         when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.getEapIdentitySequence()).thenReturn(
-                CarrierNetworkConfig.IDENTITY_SEQUENCE_IMSI_V1_0);
 
         when(mCarrierNetworkConfig.isCarrierNetwork(eq(CARRIER1_SSID.replace("\"", ""))))
                 .thenReturn(true);
@@ -251,7 +251,8 @@ public class CarrierNetworkEvaluatorTest {
         assertTrue(config2.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config3 = mWifiConfigCaptor.getAllValues().get(2);
         assertEquals(CARRIER_SAVED_SSID, config3.SSID);
-        assertFalse(config3.isEphemeral());
+        // all configs returned by CarrierNetworkEvaluator are ephemeral.
+        assertTrue(config3.isEphemeral());
         assertTrue(config3.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
         WifiConfiguration config4 = mWifiConfigCaptor.getAllValues().get(3);
         assertEquals(CARRIER_SAVED_EPH_SSID, config4.SSID);
@@ -259,7 +260,8 @@ public class CarrierNetworkEvaluatorTest {
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
 
         assertEquals(config2.configKey(), selected.configKey()); // SSID2 has the highest RSSI
-        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("anonymous@wlan.mnc456.mcc123.3gppnetwork.org",
+                selected.enterpriseConfig.getAnonymousIdentity());
     }
 
     /**
@@ -398,7 +400,6 @@ public class CarrierNetworkEvaluatorTest {
         int[] levels = {10};
         String expectedAnonymousIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.isSupportAnonymousIdentity()).thenReturn(true);
         List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
                 freqs, caps, levels, mClock);
         WifiConfiguration carrierConfig = configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0),
