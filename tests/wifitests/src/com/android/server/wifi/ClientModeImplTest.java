@@ -103,7 +103,6 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
-import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -1022,15 +1021,20 @@ public class ClientModeImplTest {
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE));
         when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
-        String expectedAnonymousIdentity = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
-                mTelephonyManager);
-        triggerConnect();
+        mConnectedNetwork.enterpriseConfig.setAnonymousIdentity("");
+
+        String expectedAnonymousIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
-        when(mCarrierNetworkConfig.isSupportAnonymousIdentity()).thenReturn(true);
+
+        triggerConnect();
+
+        // CMD_START_CONNECT should have set anonymousIdentity to anonymous@<realm>
+        assertEquals(expectedAnonymousIdentity,
+                mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
+
         when(mWifiConfigManager.getScanDetailCacheForNetwork(FRAMEWORK_NETWORK_ID))
                 .thenReturn(mScanDetailCache);
-
         when(mScanDetailCache.getScanDetail(sBSSID)).thenReturn(
                 getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq));
         when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
@@ -1039,6 +1043,10 @@ public class ClientModeImplTest {
         mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
+        // verify that WifiNative#getEapAnonymousIdentity() was never called since we are using
+        // encrypted IMSI full authentication and not using pseudonym identity.
+        verify(mWifiNative, never()).getEapAnonymousIdentity(any());
+        // check that the anonymous identity remains anonymous@<realm> for subsequent connections.
         assertEquals(expectedAnonymousIdentity,
                 mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
     }
@@ -3530,5 +3538,30 @@ public class ClientModeImplTest {
     public void testSyncGetWifiConfigsForPasspointProfiles_doesNotReturnNull() {
         assertNotNull(
                 mCmi.syncGetWifiConfigsForPasspointProfiles(null, mNullAsyncChannel));
+    }
+
+    /**
+     * Tests that when {@link ClientModeImpl} receives a SUP_REQUEST_IDENTITY message, it responds
+     * to the supplicant with the SIM identity.
+     */
+    @Test
+    public void testSupRequestIdentity_setsIdentityResponse() throws Exception {
+        mConnectedNetwork = spy(WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE));
+        mConnectedNetwork.SSID = DEFAULT_TEST_SSID;
+
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn("3214561234567890");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+
+        triggerConnect();
+
+        mCmi.sendMessage(WifiMonitor.SUP_REQUEST_IDENTITY,
+                0, FRAMEWORK_NETWORK_ID, DEFAULT_TEST_SSID);
+        mLooper.dispatchAll();
+
+        verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME, FRAMEWORK_NETWORK_ID,
+                "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org", "");
     }
 }
