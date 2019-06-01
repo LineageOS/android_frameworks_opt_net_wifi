@@ -38,6 +38,7 @@ import android.util.LocalLog;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -260,8 +261,8 @@ public class CarrierNetworkEvaluatorTest {
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
 
         assertEquals(config2.configKey(), selected.configKey()); // SSID2 has the highest RSSI
-        assertEquals("anonymous@wlan.mnc456.mcc123.3gppnetwork.org",
-                selected.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
+        assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
     }
 
     /**
@@ -387,18 +388,20 @@ public class CarrierNetworkEvaluatorTest {
     }
 
     /**
-     * One carrier Wi-Fi network that is visible and supports anonymous identity.
+     * One carrier Wi-Fi network that is visible and supports encrypted IMSI.
      *
-     * Desired behavior: anonymous identity is configured.
+     * Desired behavior: selected network supports encrypted IMSI by using EAP-SIM/AKA/AKA'
+     * and has an empty anonymous identity. The anonymous identity will be populated with
+     * {@code anonymous@<realm>} by ClientModeImpl's handling of the
+     * {@link ClientModeImpl#CMD_START_CONNECT} event.
      */
     @Test
-    public void testAnonymousIdentityConfigured() {
+    public void testSupportsEncryptedImsi() {
         String[] ssids = {CARRIER1_SSID};
         String[] bssids = {"6c:f3:7f:ae:8c:f3"};
         int[] freqs = {2470};
         String[] caps = {"[WPA2-EAP-CCMP]"};
         int[] levels = {10};
-        String expectedAnonymousIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         List<ScanDetail> scanDetails = WifiNetworkSelectorTestUtil.buildScanDetails(ssids, bssids,
                 freqs, caps, levels, mClock);
@@ -409,6 +412,7 @@ public class CarrierNetworkEvaluatorTest {
                 mConnectableListener);
 
         assertEquals(carrierConfig.configKey(), selected.configKey());
-        assertEquals(expectedAnonymousIdentity, selected.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
+        assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
     }
 }
