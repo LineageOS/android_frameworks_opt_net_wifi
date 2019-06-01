@@ -60,30 +60,7 @@ public class CarrierNetworkConfig {
 
     private final Map<String, NetworkInfo> mCarrierNetworkMap;
     private boolean mIsCarrierImsiEncryptionInfoAvailable = false;
-    private int mBase64EncodingMethod = Base64.DEFAULT;
-    private int mEapIdentitySequence = IDENTITY_SEQUENCE_IMSI_V1_0;
     private ImsiEncryptionInfo mLastImsiEncryptionInfo = null; // used for dumpsys only
-
-    // RFC2045: adds Line Feed at each 76 chars and encode it.
-    public static final int ENCODING_METHOD_RFC_2045 = 2045;
-
-    // RFC4648: encodes whole data into one string.
-    public static final int ENCODING_METHOD_RFC_4648 = 4648;
-
-    // Send encrypted IMSI with the format of V1.0
-    // V1.0 format: "\0"|<encrypted IMSI>|@NAIRealm
-    // <encrypted IMSI>: Base64{RSA Public Key Encryption{<permanent ID>}}
-    // <permanent ID>: One char ("0" for AKA, "1" for SIM, "6" for AKA')|IMSI
-    public static final int IDENTITY_SEQUENCE_IMSI_V1_0 = 1;
-
-    // Send anonymous identity and encrypted IMSI identity with the format of V1.0
-    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0 = 2;
-
-    // Send anonymous identity and encrypted IMSI identity with the format of V1.6
-    // V1.6 format: "\0"|<encrypted identity>
-    // <encrypted identity>: Base64{RSA Public Key Encryption{<permanent ID>}}.
-    // <permanent ID>: One char ("0" for AKA, "1" for SIM, "6" for AKA')|IMSI|@NAIRealm
-    public static final int IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6 = 3;
 
     /**
      * Enable/disable verbose logging.
@@ -139,29 +116,6 @@ public class CarrierNetworkConfig {
     public String getCarrierName(String ssid) {
         NetworkInfo info = mCarrierNetworkMap.get(ssid);
         return info == null ? null : info.mCarrierName;
-    }
-
-    /**
-     * @return the base64 encoding flag for current carrier.
-     */
-    public int getBase64EncodingFlag() {
-        return mBase64EncodingMethod;
-    }
-
-    /**
-     * @return the sequence of sending EAP-IDENTITY during EAP SIM/AKA authentication.
-     */
-    public int getEapIdentitySequence() {
-        return mEapIdentitySequence;
-    }
-
-    /**
-     * @return {@code true} if current carrier wifi network supports anonymous identity, {@code
-     * false} otherwise.
-     */
-    public boolean isSupportAnonymousIdentity() {
-        return mEapIdentitySequence == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0
-                || mEapIdentitySequence == IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6;
     }
 
     /**
@@ -281,27 +235,6 @@ public class CarrierNetworkConfig {
             return;
         }
 
-        int encodeMethod = carrierConfig.getInt(
-                CarrierConfigManager.KEY_IMSI_ENCODING_METHOD_INT, ENCODING_METHOD_RFC_2045);
-        if (encodeMethod != ENCODING_METHOD_RFC_2045 && encodeMethod != ENCODING_METHOD_RFC_4648) {
-            Log.e(TAG, "Invalid encoding method type: " + encodeMethod);
-            return;
-        }
-        mBase64EncodingMethod = Base64.DEFAULT;
-        if (encodeMethod == ENCODING_METHOD_RFC_4648) {
-            mBase64EncodingMethod = Base64.NO_WRAP;
-        }
-
-        int sequence = carrierConfig.getInt(CarrierConfigManager.KEY_EAP_IDENTITY_SEQUENCE_INT,
-                IDENTITY_SEQUENCE_IMSI_V1_0);
-        if (sequence != IDENTITY_SEQUENCE_IMSI_V1_0
-                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_0
-                && sequence != IDENTITY_SEQUENCE_ANONYMOUS_THEN_IMSI_V1_6) {
-            Log.e(TAG, "Invalid eap identity sequence: " + sequence);
-            return;
-        }
-        mEapIdentitySequence = sequence;
-
         for (String networkConfig : networkConfigs) {
             String[] configArr = networkConfig.split(NETWORK_CONFIG_SEPARATOR);
             if (configArr.length != CONFIG_ELEMENT_SIZE) {
@@ -311,7 +244,7 @@ public class CarrierNetworkConfig {
             try {
 
                 String ssid = new String(Base64.decode(
-                        configArr[ENCODED_SSID_INDEX], mBase64EncodingMethod));
+                        configArr[ENCODED_SSID_INDEX], Base64.NO_WRAP));
                 int eapType = parseEapType(Integer.parseInt(configArr[EAP_TYPE_INDEX]));
 
                 // Verify EAP type, must be a SIM based EAP type.
@@ -355,8 +288,6 @@ public class CarrierNetworkConfig {
         pw.println("mCarrierNetworkMap=" + mCarrierNetworkMap);
         pw.println("mIsCarrierImsiEncryptionInfoAvailable="
                 + mIsCarrierImsiEncryptionInfoAvailable);
-        pw.println("mBase64EncodingMethod=" + mBase64EncodingMethod);
-        pw.println("mEapIdentitySequence=" + mEapIdentitySequence);
         pw.println("mLastImsiEncryptionInfo=" + mLastImsiEncryptionInfo);
     }
 }
