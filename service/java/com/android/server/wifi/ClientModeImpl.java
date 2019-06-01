@@ -4273,6 +4273,17 @@ public class ClientModeImpl extends StateMachine {
                     String currentMacAddress = mWifiNative.getMacAddress(mInterfaceName);
                     mWifiInfo.setMacAddress(currentMacAddress);
                     Log.i(TAG, "Connecting with " + currentMacAddress + " as the mac address");
+
+                    if (config.enterpriseConfig != null
+                            && TelephonyUtil.isSimEapMethod(config.enterpriseConfig.getEapMethod())
+                            && mWifiInjector.getCarrierNetworkConfig()
+                                    .isCarrierEncryptionInfoAvailable()
+                            && TextUtils.isEmpty(config.enterpriseConfig.getAnonymousIdentity())) {
+                        String anonAtRealm = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
+                                getTelephonyManager());
+                        config.enterpriseConfig.setAnonymousIdentity(anonAtRealm);
+                    }
+
                     if (mWifiNative.connectToNetwork(mInterfaceName, config)) {
                         mWifiMetrics.logStaEvent(StaEvent.TYPE_CMD_START_CONNECT, config);
                         mLastConnectAttemptTimestamp = mClock.getWallClockMillis();
@@ -4434,6 +4445,11 @@ public class ClientModeImpl extends StateMachine {
                         if (config.enterpriseConfig != null
                                 && TelephonyUtil.isSimEapMethod(
                                         config.enterpriseConfig.getEapMethod())
+                                // if using anonymous@<realm>, do not use pseudonym identity on
+                                // reauthentication. Instead, use full authentication using
+                                // anonymous@<realm> followed by encrypted IMSI every time.
+                                // This is because the encrypted IMSI spec does not specify its
+                                // compatibility with the pseudonym identity specified by EAP-AKA.
                                 && !TelephonyUtil.isAnonymousAtRealmIdentity(
                                         config.enterpriseConfig.getAnonymousIdentity())) {
                             String anonymousIdentity =
