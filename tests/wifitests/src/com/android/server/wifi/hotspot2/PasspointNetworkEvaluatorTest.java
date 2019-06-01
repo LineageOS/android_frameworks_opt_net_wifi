@@ -397,25 +397,22 @@ public class PasspointNetworkEvaluatorTest {
     }
 
     /**
-     * Verify that anonymous identity is configured when matching a SIM credential provider with a
-     * network that supports encryptedIMSI and anonymous identity.
-     *
-     * @throws Exception
+     * Verify that anonymous identity is empty when matching a SIM credential provider with a
+     * network that supports encrypted IMSI and anonymous identity. The anonymous identity will be
+     * populated with {@code anonymous@<realm>} by ClientModeImpl's handling of the
+     * CMD_START_CONNECT event.
      */
     @Test
-    public void evaluateSIMProviderWithNetworkSupportingEncryptedIMSIAnonymousIdentity()
-            throws Exception {
+    public void evaluateSIMProviderWithNetworkSupportingEncryptedIMSI() {
         // Setup ScanDetail and match providers.
-        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
-                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        List<ScanDetail> scanDetails = Collections.singletonList(
+                generateScanDetail(TEST_SSID1, TEST_BSSID1));
         WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
         config.networkId = TEST_NETWORK_ID;
         PasspointProvider testProvider = generateProvider(config);
         Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
                 testProvider, PasspointMatch.HomeProvider);
-        String expectedAnonymousIdentity = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
-                mTelephonyManager);
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
         when(testProvider.isSimCredential()).thenReturn(true);
         // SIM is present
@@ -428,9 +425,8 @@ public class PasspointNetworkEvaluatorTest {
         WifiConfiguration result = mEvaluator.evaluateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
 
-        assertNotNull(result);
-        assertNotNull(result.enterpriseConfig);
-        assertEquals(expectedAnonymousIdentity, result.enterpriseConfig.getAnonymousIdentity());
+        assertEquals("", result.enterpriseConfig.getAnonymousIdentity());
+        assertTrue(TelephonyUtil.isSimEapMethod(result.enterpriseConfig.getEapMethod()));
     }
 
     /**
