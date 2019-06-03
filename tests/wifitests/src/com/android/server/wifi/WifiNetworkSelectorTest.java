@@ -960,6 +960,39 @@ public class WifiNetworkSelectorTest {
     }
 
     /**
+     * New network selection is not performed if the currently connected network
+     * was recently selected.
+     */
+    @Test
+    public void networkIsSufficientWhenRecentlyUserSelected() {
+        // Approximate mClock.getElapsedSinceBootMillis value mocked by testStayOrTryToSwitch
+        long millisSinceBoot = SystemClock.elapsedRealtime()
+                + WifiNetworkSelector.MINIMUM_NETWORK_SELECTION_INTERVAL_MS + 2000;
+        when(mWifiConfigManager.getLastSelectedTimeStamp())
+                .thenReturn(millisSinceBoot
+                        - WifiNetworkSelector.LAST_USER_SELECTION_SUFFICIENT_MS
+                        + 1000);
+        setupWifiConfigManager(0); // testStayOrTryToSwitch first connects to network 0
+        // Rssi after connected.
+        when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
+        // No streaming traffic.
+        mWifiInfo.txSuccessRate = 0.0;
+        mWifiInfo.rxSuccessRate = 0.0;
+
+        testStayOrTryToSwitch(
+                // Parameters for network1:
+                mThresholdQualifiedRssi2G + 1 /* rssi before connected */,
+                false /* not a 5G network */,
+                false /* not open network */,
+                // Parameters for network2:
+                mThresholdQualifiedRssi5G + 1 /* rssi */,
+                true /* a 5G network */,
+                false /* not open network */,
+                // Should not try to switch.
+                false);
+    }
+
+    /**
      * New network selection is performed if the currently connected network
      * band is 2G with bad rssi.
      *
