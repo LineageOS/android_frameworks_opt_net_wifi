@@ -51,6 +51,7 @@ public class WifiAwareNativeManager {
     private InterfaceAvailableForRequestListener mInterfaceAvailableForRequestListener =
             new InterfaceAvailableForRequestListener();
     private int mReferenceCount = 0;
+    private volatile boolean mAwareNativeAvailable = false;
 
     WifiAwareNativeManager(WifiAwareStateManager awareStateManager,
             HalDeviceManager halDeviceManager,
@@ -98,6 +99,13 @@ public class WifiAwareNativeManager {
             mHalDeviceManager.registerInterfaceAvailableForRequestListener(
                     IfaceType.NAN, mInterfaceAvailableForRequestListener, mHandler);
         }
+    }
+
+    /**
+     * Return the Availability of WifiAware native HAL
+     */
+    public boolean isAwareNativeAvailable() {
+        return mAwareNativeAvailable;
     }
 
     /**
@@ -205,6 +213,7 @@ public class WifiAwareNativeManager {
             }
             mWifiNanIface = null;
             mReferenceCount = 0;
+            mAwareNativeAvailable = false;
             mWifiAwareStateManager.disableUsage();
         }
     }
@@ -235,8 +244,10 @@ public class WifiAwareNativeManager {
             }
             synchronized (mLock) {
                 if (isAvailable) {
+                    mAwareNativeAvailable = true;
                     mWifiAwareStateManager.enableUsage();
                 } else if (mWifiNanIface == null) { // not available could mean already have NAN
+                    mAwareNativeAvailable = false;
                     mWifiAwareStateManager.disableUsage();
                 }
             }
