@@ -56,12 +56,22 @@ public class WifiNetworkSelector {
     private static final String TAG = "WifiNetworkSelector";
 
     private static final long INVALID_TIME_STAMP = Long.MIN_VALUE;
+
     /**
      * Minimum time gap between last successful network selection and a
      * new selection attempt.
      */
     @VisibleForTesting
     public static final int MINIMUM_NETWORK_SELECTION_INTERVAL_MS = 10 * 1000;
+
+    /**
+     * For this duration after user selected it, consider the current network as sufficient.
+     *
+     * This delays network selection during the time that connectivity service may be posting
+     * a dialog about a no-internet network.
+     */
+    @VisibleForTesting
+    public static final int LAST_USER_SELECTION_SUFFICIENT_MS = 30_000;
 
     /**
      * Time that it takes for the boost given to the most recently user-selected
@@ -233,6 +243,14 @@ public class WifiNetworkSelector {
         if (network == null) {
             localLog("Current network was removed.");
             return false;
+        }
+
+        if (mWifiConfigManager.getLastSelectedNetwork() == network.networkId
+                && (mClock.getElapsedSinceBootMillis()
+                    - mWifiConfigManager.getLastSelectedTimeStamp())
+                <= LAST_USER_SELECTION_SUFFICIENT_MS) {
+            localLog("Current network is recently user-selected.");
+            return true;
         }
 
         // OSU (Online Sign Up) network for Passpoint Release 2 is sufficient network.
