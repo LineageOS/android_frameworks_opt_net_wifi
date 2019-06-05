@@ -529,6 +529,7 @@ public class ClientModeImplTest {
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
                 mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
                 mLinkProbeManager);
+        mCmi.start();
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
         registerAsyncChannel((x) -> {

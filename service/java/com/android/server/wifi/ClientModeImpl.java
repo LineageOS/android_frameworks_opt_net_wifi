@@ -906,9 +906,13 @@ public class ClientModeImpl extends StateMachine {
 
         setLogRecSize(NUM_LOG_RECS_NORMAL);
         setLogOnlyTransitions(false);
+    }
 
-        //start the state machine
-        start();
+    @Override
+    public void start() {
+        super.start();
+
+        PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
 
         // Learn the initial state of whether the screen is on.
         // We update this field when we receive broadcasts from the system.
@@ -2594,7 +2598,9 @@ public class ClientModeImpl extends StateMachine {
         mNetworkFactory.handleScreenStateChanged(screenOn);
 
         WifiLockManager wifiLockManager = mWifiInjector.getWifiLockManager();
-        if (wifiLockManager != null) {
+        if (wifiLockManager == null) {
+            Log.w(TAG, "WifiLockManager not initialized, skipping screen state notification");
+        } else {
             wifiLockManager.handleScreenStateChanged(screenOn);
         }
 
