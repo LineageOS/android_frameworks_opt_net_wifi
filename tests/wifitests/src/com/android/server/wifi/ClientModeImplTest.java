@@ -2313,7 +2313,7 @@ public class ClientModeImplTest {
         // Expects that the code calls registerNetworkAgent and provides a way for the test to
         // verify the messages sent through the NetworkAgent to ConnectivityService.
         // We cannot just use a mock object here because mWifiNetworkAgent is private to CMI.
-        // TODO: consider exposing WifiNetworkAgent and using mocks.
+        // TODO (b/134538181): consider exposing WifiNetworkAgent and using mocks.
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
         verify(mConnectivityManager).registerNetworkAgent(messengerCaptor.capture(),
                 any(NetworkInfo.class), any(LinkProperties.class), any(NetworkCapabilities.class),

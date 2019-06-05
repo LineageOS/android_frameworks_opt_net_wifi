@@ -5412,25 +5412,27 @@ public class ClientModeImpl extends StateMachine {
         // ConnectivityService of that fact so the system can treat it appropriately.
         WifiConfiguration config = getCurrentWifiConfiguration();
 
-        boolean prompt = false;
+        boolean explicitlySelected = false;
         if (shouldEvaluateWhetherToSendExplicitlySelected(config)) {
-            // If prompt is true, the network was selected by the user via Settings or
+            // If explicitlySelected is true, the network was selected by the user via Settings or
             // QuickSettings. If this network has Internet access, switch to it. Otherwise, switch
             // to it only if the user confirms that they really want to switch, or has already
             // confirmed and selected "Don't ask again".
-            prompt = mWifiPermissionsUtil.checkNetworkSettingsPermission(config.lastConnectUid);
+            explicitlySelected =
+                    mWifiPermissionsUtil.checkNetworkSettingsPermission(config.lastConnectUid);
             if (mVerboseLoggingEnabled) {
-                log("Network selected by UID " + config.lastConnectUid + " prompt=" + prompt);
+                log("Network selected by UID " + config.lastConnectUid + " explicitlySelected="
+                        + explicitlySelected);
             }
         }
 
         if (mVerboseLoggingEnabled) {
-            log("explictlySelected=" + prompt + " acceptUnvalidated="
+            log("explictlySelected=" + explicitlySelected + " acceptUnvalidated="
                     + config.noInternetAccessExpected);
         }
 
         if (mNetworkAgent != null) {
-            mNetworkAgent.explicitlySelected(prompt, config.noInternetAccessExpected);
+            mNetworkAgent.explicitlySelected(explicitlySelected, config.noInternetAccessExpected);
         }
 
         setNetworkDetailedState(DetailedState.CONNECTED);
