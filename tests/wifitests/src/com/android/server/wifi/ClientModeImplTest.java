@@ -123,6 +123,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
@@ -328,6 +329,7 @@ public class ClientModeImplTest {
     HandlerThread mP2pThread;
     HandlerThread mSyncThread;
     AsyncChannel  mCmiAsyncChannel;
+    AsyncChannel  mNetworkAgentAsyncChannel;
     TestAlarmManager mAlarmManager;
     MockWifiMonitor mWifiMonitor;
     TestLooper mLooper;
@@ -381,6 +383,8 @@ public class ClientModeImplTest {
     @Mock WifiLockManager mWifiLockManager;
     @Mock AsyncChannel mNullAsyncChannel;
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
+    @Mock Handler mNetworkAgentHandler;
+
 
     final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
             ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
@@ -500,7 +504,8 @@ public class ClientModeImplTest {
         when(mWifiScoreCard.getL2KeyAndGroupHint(any())).thenReturn(new Pair<>(null, null));
     }
 
-    private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
+    private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger,
+            Handler wrappedHandler) {
         final AsyncChannel channel = new AsyncChannel();
         Handler handler = new Handler(mLooper.getLooper()) {
             @Override
@@ -514,7 +519,15 @@ public class ClientModeImplTest {
                         }
                         break;
                     case AsyncChannel.CMD_CHANNEL_DISCONNECTED:
-                        Log.d(TAG, "Command channel disconnected" + this);
+                        Log.d(TAG, "Command channel disconnected " + this);
+                        break;
+                    case AsyncChannel.CMD_CHANNEL_FULLY_CONNECTED:
+                        Log.d(TAG, "Command channel fully connected " + this);
+                        break;
+                    default:
+                        if (wrappedHandler != null) {
+                            wrappedHandler.handleMessage(msg);
+                        }
                         break;
                 }
             }
@@ -522,6 +535,10 @@ public class ClientModeImplTest {
 
         channel.connect(mContext, handler, messenger);
         mLooper.dispatchAll();
+    }
+
+    private void registerAsyncChannel(Consumer<AsyncChannel> consumer, Messenger messenger) {
+        registerAsyncChannel(consumer, messenger, null /* wrappedHandler */);
     }
 
     private void initializeCmi() throws Exception {
@@ -561,6 +578,8 @@ public class ClientModeImplTest {
         mP2pThread = null;
         mSyncThread = null;
         mCmiAsyncChannel = null;
+        mNetworkAgentAsyncChannel = null;
+        mNetworkAgentHandler = null;
         mCmi = null;
     }
 
@@ -2237,6 +2256,20 @@ public class ClientModeImplTest {
         verify(mWifiConfigManager, never()).setRecentFailureAssociationStatus(anyInt(), anyInt());
     }
 
+    private WifiConfiguration makeLastSelectedWifiConfiguration(int lastSelectedNetworkId,
+            long timeSinceLastSelected) {
+        long lastSelectedTimestamp = 45666743454L;
+
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                lastSelectedTimestamp + timeSinceLastSelected);
+        when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
+        when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
+
+        WifiConfiguration currentConfig = new WifiConfiguration();
+        currentConfig.networkId = lastSelectedNetworkId;
+        return currentConfig;
+    }
+
     /**
      * Test that the helper method
      * {@link ClientModeImpl#shouldEvaluateWhetherToSendExplicitlySelected(WifiConfiguration)}
@@ -2245,17 +2278,8 @@ public class ClientModeImplTest {
      */
     @Test
     public void testShouldEvaluateWhetherToSendExplicitlySelected_SameNetworkNotExpired() {
-        long lastSelectedTimestamp = 45666743454L;
-        int lastSelectedNetworkId = 5;
-
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                lastSelectedTimestamp
-                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
-        when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
-        when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
-
-        WifiConfiguration currentConfig = new WifiConfiguration();
-        currentConfig.networkId = lastSelectedNetworkId;
+        WifiConfiguration currentConfig = makeLastSelectedWifiConfiguration(5,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
         assertTrue(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
     }
 
@@ -2267,17 +2291,8 @@ public class ClientModeImplTest {
      */
     @Test
     public void testShouldEvaluateWhetherToSendExplicitlySelected_SameNetworkExpired() {
-        long lastSelectedTimestamp = 45666743454L;
-        int lastSelectedNetworkId = 5;
-
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                lastSelectedTimestamp
-                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS + 1);
-        when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
-        when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
-
-        WifiConfiguration currentConfig = new WifiConfiguration();
-        currentConfig.networkId = lastSelectedNetworkId;
+        WifiConfiguration currentConfig = makeLastSelectedWifiConfiguration(5,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS + 1);
         assertFalse(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
     }
 
@@ -2288,18 +2303,88 @@ public class ClientModeImplTest {
      */
     @Test
     public void testShouldEvaluateWhetherToSendExplicitlySelected_DifferentNetwork() {
-        long lastSelectedTimestamp = 45666743454L;
-        int lastSelectedNetworkId = 5;
-
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                lastSelectedTimestamp
-                        + ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
-        when(mWifiConfigManager.getLastSelectedTimeStamp()).thenReturn(lastSelectedTimestamp);
-        when(mWifiConfigManager.getLastSelectedNetwork()).thenReturn(lastSelectedNetworkId);
-
-        WifiConfiguration currentConfig = new WifiConfiguration();
-        currentConfig.networkId = lastSelectedNetworkId - 1;
+        WifiConfiguration currentConfig = makeLastSelectedWifiConfiguration(5,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
+        currentConfig.networkId = 4;
         assertFalse(mCmi.shouldEvaluateWhetherToSendExplicitlySelected(currentConfig));
+    }
+
+    private void expectRegisterNetworkAgent() {
+        // Expects that the code calls registerNetworkAgent and provides a way for the test to
+        // verify the messages sent through the NetworkAgent to ConnectivityService.
+        // We cannot just use a mock object here because mWifiNetworkAgent is private to CMI.
+        // TODO (b/134538181): consider exposing WifiNetworkAgent and using mocks.
+        ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
+        verify(mConnectivityManager).registerNetworkAgent(messengerCaptor.capture(),
+                any(NetworkInfo.class), any(LinkProperties.class), any(NetworkCapabilities.class),
+                anyInt(), any(NetworkMisc.class), anyInt());
+
+        registerAsyncChannel((x) -> {
+            mNetworkAgentAsyncChannel = x;
+        }, messengerCaptor.getValue(), mNetworkAgentHandler);
+
+        mNetworkAgentAsyncChannel.sendMessage(AsyncChannel.CMD_CHANNEL_FULL_CONNECTION);
+        mLooper.dispatchAll();
+    }
+
+    private void expectNetworkAgentMessage(int what, int arg1, int arg2, Object obj) {
+        verify(mNetworkAgentHandler).handleMessage(argThat(msg ->
+                what == msg.what && arg1 == msg.arg1 && arg2 == msg.arg2
+                && Objects.equals(obj, msg.obj)));
+    }
+
+    /**
+     * Verify that when a network is explicitly selected, but noInternetAccessExpected is false,
+     * {@link NetworkAgent#explicitlySelected} is called with explicitlySelected=false and
+     * acceptUnvalidated=false.
+     */
+    @Test
+    public void testExplicitlySelected_ExplicitInternetExpected() throws Exception {
+        // Network is explicitly selected.
+        WifiConfiguration config = makeLastSelectedWifiConfiguration(FRAMEWORK_NETWORK_ID,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
+        mConnectedNetwork.noInternetAccessExpected = false;
+
+        connect();
+        expectRegisterNetworkAgent();
+        expectNetworkAgentMessage(NetworkAgent.EVENT_SET_EXPLICITLY_SELECTED,
+                1 /* explicitlySelected */, 0 /* acceptUnvalidated */, null);
+    }
+
+    /**
+     * Verify that when a network is not explicitly selected, but noInternetAccessExpected is true,
+     * {@link NetworkAgent#explicitlySelected} is called with explicitlySelected=false and
+     * acceptUnvalidated=true.
+     */
+    @Test
+    public void testExplicitlySelected_NotExplicitNoInternetExpected() throws Exception {
+        // Network is no longer explicitly selected.
+        WifiConfiguration config = makeLastSelectedWifiConfiguration(FRAMEWORK_NETWORK_ID,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS + 1);
+        mConnectedNetwork.noInternetAccessExpected = true;
+
+        connect();
+        expectRegisterNetworkAgent();
+        expectNetworkAgentMessage(NetworkAgent.EVENT_SET_EXPLICITLY_SELECTED,
+                0 /* explicitlySelected */, 1 /* acceptUnvalidated */, null);
+    }
+
+    /**
+     * Verify that when a network is explicitly selected, and noInternetAccessExpected is true,
+     * {@link NetworkAgent#explicitlySelected} is called with explicitlySelected=true and
+     * acceptUnvalidated=true.
+     */
+    @Test
+    public void testExplicitlySelected_ExplicitNoInternetExpected() throws Exception {
+        // Network is explicitly selected.
+        WifiConfiguration config = makeLastSelectedWifiConfiguration(FRAMEWORK_NETWORK_ID,
+                ClientModeImpl.LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS - 1);
+        mConnectedNetwork.noInternetAccessExpected = true;
+
+        connect();
+        expectRegisterNetworkAgent();
+        expectNetworkAgentMessage(NetworkAgent.EVENT_SET_EXPLICITLY_SELECTED,
+                1 /* explicitlySelected */, 1 /* acceptUnvalidated */, null);
     }
 
     /**

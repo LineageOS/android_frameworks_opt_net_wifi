@@ -673,7 +673,7 @@ public class ClientModeImpl extends StateMachine {
 
     /**
      * Time window in milliseconds for which we send
-     * {@link NetworkAgent#explicitlySelected(boolean)}
+     * {@link NetworkAgent#explicitlySelected(boolean, boolean)}
      * after connecting to the network which the user last selected.
      */
     @VisibleForTesting
@@ -5391,8 +5391,8 @@ public class ClientModeImpl extends StateMachine {
 
     /**
      * Helper function to check if we need to invoke
-     * {@link NetworkAgent#explicitlySelected(boolean)} to indicate that we connected to a network
-     * which the user just chose
+     * {@link NetworkAgent#explicitlySelected(boolean, boolean)} to indicate that we connected to a
+     * network which the user just chose
      * (i.e less than {@link #LAST_SELECTED_NETWORK_EXPIRATION_AGE_MILLIS) before).
      */
     @VisibleForTesting
@@ -5408,26 +5408,31 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void sendConnectedState() {
-        // If this network was explicitly selected by the user, evaluate whether to call
-        // explicitlySelected() so the system can treat it appropriately.
+        // If this network was explicitly selected by the user, evaluate whether to inform
+        // ConnectivityService of that fact so the system can treat it appropriately.
         WifiConfiguration config = getCurrentWifiConfiguration();
+
+        boolean explicitlySelected = false;
         if (shouldEvaluateWhetherToSendExplicitlySelected(config)) {
-            boolean prompt =
+            // If explicitlySelected is true, the network was selected by the user via Settings or
+            // QuickSettings. If this network has Internet access, switch to it. Otherwise, switch
+            // to it only if the user confirms that they really want to switch, or has already
+            // confirmed and selected "Don't ask again".
+            explicitlySelected =
                     mWifiPermissionsUtil.checkNetworkSettingsPermission(config.lastConnectUid);
             if (mVerboseLoggingEnabled) {
-                log("Network selected by UID " + config.lastConnectUid + " prompt=" + prompt);
+                log("Network selected by UID " + config.lastConnectUid + " explicitlySelected="
+                        + explicitlySelected);
             }
-            if (prompt) {
-                // Selected by the user via Settings or QuickSettings. If this network has Internet
-                // access, switch to it. Otherwise, switch to it only if the user confirms that they
-                // really want to switch, or has already confirmed and selected "Don't ask again".
-                if (mVerboseLoggingEnabled) {
-                    log("explictlySelected acceptUnvalidated=" + config.noInternetAccessExpected);
-                }
-                if (mNetworkAgent != null) {
-                    mNetworkAgent.explicitlySelected(config.noInternetAccessExpected);
-                }
-            }
+        }
+
+        if (mVerboseLoggingEnabled) {
+            log("explictlySelected=" + explicitlySelected + " acceptUnvalidated="
+                    + config.noInternetAccessExpected);
+        }
+
+        if (mNetworkAgent != null) {
+            mNetworkAgent.explicitlySelected(explicitlySelected, config.noInternetAccessExpected);
         }
 
         setNetworkDetailedState(DetailedState.CONNECTED);
