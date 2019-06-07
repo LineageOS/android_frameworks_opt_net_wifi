@@ -111,12 +111,12 @@ public class WifiAwareNativeApi implements WifiAwareShellCommand.DelegatedShellC
     /* package */ static final String POWER_PARAM_IDLE_KEY = "idle";
 
     /* package */ static final String PARAM_DW_24GHZ = "dw_24ghz";
-    private static final int PARAM_DW_24GHZ_DEFAULT = -1; // Firmware default
+    private static final int PARAM_DW_24GHZ_DEFAULT = 1; // 1 -> DW=1, latency=512ms
     private static final int PARAM_DW_24GHZ_INACTIVE = 4; // 4 -> DW=8, latency=4s
     private static final int PARAM_DW_24GHZ_IDLE = 4; // == inactive
 
     /* package */ static final String PARAM_DW_5GHZ = "dw_5ghz";
-    private static final int PARAM_DW_5GHZ_DEFAULT = -1; // Firmware default
+    private static final int PARAM_DW_5GHZ_DEFAULT = 1; // 1 -> DW=1, latency=512ms
     private static final int PARAM_DW_5GHZ_INACTIVE = 0; // 0 = disabled
     private static final int PARAM_DW_5GHZ_IDLE = 0; // == inactive
 
