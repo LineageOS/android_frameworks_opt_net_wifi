@@ -279,6 +279,24 @@ public class WifiNetworkFactoryTest {
     }
 
     /**
+     * Validates handling of acceptNetwork with a network specifier with internet capability.
+     */
+    @Test
+    public void testHandleAcceptNetworkRequestFromWithInternetCapability() throws Exception {
+        when(mActivityManager.getPackageImportance(TEST_PACKAGE_NAME_1))
+                .thenReturn(IMPORTANCE_FOREGROUND);
+
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mNetworkRequest.networkCapabilities.addCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+
+        assertFalse(mWifiNetworkFactory.acceptRequest(mNetworkRequest, 0));
+        mLooper.dispatchAll();
+        verifyUnfullfillableDispatched(mConnectivityMessenger);
+    }
+
+    /**
      * Validates handling of acceptNetwork with a network specifier from a non foreground
      * app/service.
      */
@@ -496,6 +514,21 @@ public class WifiNetworkFactoryTest {
         validateScanSettings(null);
 
         verify(mWifiMetrics).incrementNetworkRequestApiNumRequest();
+    }
+
+    /**
+     * Validates handling of new network request with network specifier with internet capability.
+     */
+    @Test
+    public void testHandleNetworkRequestWithSpecifierAndInternetCapability() throws Exception {
+        WifiNetworkSpecifier specifier = createWifiNetworkSpecifier(TEST_UID_1, false);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mNetworkRequest.networkCapabilities.addCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+        mLooper.dispatchAll();
+        verifyUnfullfillableDispatched(mConnectivityMessenger);
     }
 
     /**
