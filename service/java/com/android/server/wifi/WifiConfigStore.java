@@ -693,7 +693,7 @@ public class WifiConfigStore {
                 bytes = mAtomicFile.readFully();
                 // Check that the file has not been altered since last writeBufferedRawData()
                 if (!mDataIntegrityChecker.isOk(bytes)) {
-                    Log.e(TAG, "Data integrity problem with file: " + mFileName);
+                    Log.wtf(TAG, "Data integrity problem with file: " + mFileName);
                     return null;
                 }
             } catch (FileNotFoundException e) {

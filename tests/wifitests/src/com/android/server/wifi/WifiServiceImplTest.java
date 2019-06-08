@@ -50,7 +50,26 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyObject;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 import android.Manifest;
 import android.app.ActivityManager;
@@ -67,6 +86,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.res.Resources;
 import android.net.Uri;
+import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ISoftApCallback;
@@ -180,6 +200,7 @@ public class WifiServiceImplTest {
     private OsuProvider mOsuProvider;
     private SoftApCallback mStateMachineSoftApCallback;
     private ApplicationInfo mApplicationInfo;
+    private static final String DPP_URI = "DPP:some_dpp_uri";
 
     final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
             ArgumentCaptor.forClass(BroadcastReceiver.class);
@@ -237,6 +258,7 @@ public class WifiServiceImplTest {
     @Mock WifiScoreReport mWifiScoreReport;
     @Mock WifiScoreCard mWifiScoreCard;
     @Mock PasspointManager mPasspointManager;
+    @Mock IDppCallback mDppCallback;
 
     @Spy FakeWifiLog mLog;
 
@@ -384,6 +406,32 @@ public class WifiServiceImplTest {
         verify(mActiveModeWarden).registerSoftApCallback(softApCallbackCaptor.capture());
         mStateMachineSoftApCallback = softApCallbackCaptor.getValue();
         mWifiServiceImpl.setWifiHandlerLogForTest(mLog);
+        mDppCallback = new IDppCallback() {
+            @Override
+            public void onSuccessConfigReceived(int newNetworkId) throws RemoteException {
+
+            }
+
+            @Override
+            public void onSuccess(int status) throws RemoteException {
+
+            }
+
+            @Override
+            public void onFailure(int status) throws RemoteException {
+
+            }
+
+            @Override
+            public void onProgress(int status) throws RemoteException {
+
+            }
+
+            @Override
+            public IBinder asBinder() {
+                return null;
+            }
+        };
     }
 
     private WifiAsyncChannelTester verifyAsyncChannelHalfConnected() throws RemoteException {
@@ -2495,14 +2543,7 @@ public class WifiServiceImplTest {
      * permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testGetAllMatchingFqdnsForScanResultsWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-
+    public void testGetAllMatchingFqdnsForScanResultsWithoutPermissions() {
         mWifiServiceImpl.getAllMatchingFqdnsForScanResults(new ArrayList<>());
     }
 
@@ -2512,14 +2553,7 @@ public class WifiServiceImplTest {
      * permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testGetWifiConfigsForPasspointProfilesWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-
+    public void testGetWifiConfigsForPasspointProfilesWithoutPermissions() {
         mWifiServiceImpl.getWifiConfigsForPasspointProfiles(new ArrayList<>());
     }
 
@@ -2529,14 +2563,7 @@ public class WifiServiceImplTest {
      * permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testGetMatchingOsuProvidersWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-
+    public void testGetMatchingOsuProvidersWithoutPermissions() {
         mWifiServiceImpl.getMatchingOsuProviders(new ArrayList<>());
     }
 
@@ -2546,14 +2573,7 @@ public class WifiServiceImplTest {
      * NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
-    public void testGetMatchingPasspointConfigsForOsuProvidersWithOutPermissions() {
-        when(mContext.checkCallingOrSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETTINGS))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-        when(mContext.checkSelfPermission(
-                eq(android.Manifest.permission.NETWORK_SETUP_WIZARD))).thenReturn(
-                PackageManager.PERMISSION_DENIED);
-
+    public void testGetMatchingPasspointConfigsForOsuProvidersWithoutPermissions() {
         mWifiServiceImpl.getMatchingPasspointConfigsForOsuProviders(new ArrayList<>());
     }
 
@@ -2563,6 +2583,11 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testStartSubscriptionProvisioningWithPermission() throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+
         mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
         verify(mClientModeImpl).syncStartSubscriptionProvisioning(anyInt(),
                 eq(mOsuProvider), eq(mProvisioningCallback), any());
@@ -2574,6 +2599,10 @@ public class WifiServiceImplTest {
      */
     @Test(expected = UnsupportedOperationException.class)
     public void testStartSubscriptionProvisioniningPasspointUnsupported() throws Exception {
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mPackageManager.hasSystemFeature(
                 PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
         mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
@@ -4064,5 +4093,36 @@ public class WifiServiceImplTest {
         mLooper.dispatchAll();
         verify(mHandler, never()).handleMessage(any(Message.class));
         verify(mWifiController, never()).sendMessage(eq(CMD_SET_AP), eq(0), anyInt());
+    }
+
+    /**
+     * Verify that the call to startDppAsConfiguratorInitiator throws a security exception when the
+     * caller doesn't have NETWORK_SETTINGS permissions or NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testStartDppAsConfiguratorInitiatorWithoutPermissions() {
+        mWifiServiceImpl.startDppAsConfiguratorInitiator(mAppBinder, DPP_URI,
+                1, 1, mDppCallback);
+    }
+
+    /**
+     * Verify that the call to startDppAsEnrolleeInitiator throws a security exception when the
+     * caller doesn't have NETWORK_SETTINGS permissions or NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testStartDppAsEnrolleeInitiatorWithoutPermissions() {
+        mWifiServiceImpl.startDppAsEnrolleeInitiator(mAppBinder, DPP_URI, mDppCallback);
+    }
+
+    /**
+     * Verify that the call to stopDppSession throws a security exception when the
+     * caller doesn't have NETWORK_SETTINGS permissions or NETWORK_SETUP_WIZARD.
+     */
+    @Test(expected = SecurityException.class)
+    public void testStopDppSessionWithoutPermissions() {
+        try {
+            mWifiServiceImpl.stopDppSession();
+        } catch (RemoteException e) {
+        }
     }
 }
