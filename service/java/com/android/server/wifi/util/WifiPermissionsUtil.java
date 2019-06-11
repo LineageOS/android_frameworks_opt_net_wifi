@@ -23,6 +23,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.net.NetworkStack;
+import android.net.wifi.WifiStackClient;
 import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;
@@ -482,6 +483,15 @@ public class WifiPermissionsUtil {
     public boolean checkMainlineNetworkStackPermission(int uid) {
         return mWifiPermissionsWrapper.getUidPermission(
                 NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Returns true if the |uid| holds MAINLINE_WIFI_STACK permission.
+     */
+    public boolean checkMainlineWifiStackPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
 

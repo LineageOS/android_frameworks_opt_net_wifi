@@ -53,13 +53,16 @@ public class ConnectToNetworkNotificationBuilder {
             "com.android.server.wifi.ConnectToNetworkNotification.AVAILABLE_NETWORK_NOTIFIER_TAG";
 
     private Context mContext;
+    private WifiInjector mWifiInjector;
     private Resources mResources;
     private FrameworkFacade mFrameworkFacade;
 
     public ConnectToNetworkNotificationBuilder(
             Context context,
+            WifiInjector wifiInjector,
             FrameworkFacade framework) {
         mContext = context;
+        mWifiInjector = wifiInjector;
         mResources = context.getResources();
         mFrameworkFacade = framework;
     }
@@ -175,7 +178,8 @@ public class ConnectToNetworkNotificationBuilder {
     }
 
     private PendingIntent getPrivateBroadcast(String action, String extraData) {
-        Intent intent = new Intent(action).setPackage("android");
+        Intent intent = new Intent(action)
+                .setPackage(mWifiInjector.getWifiStackPackageName());
         int requestCode = 0;  // Makes the different kinds of notifications distinguishable
         if (extraData != null) {
             intent.putExtra(AVAILABLE_NETWORK_NOTIFIER_TAG, extraData);

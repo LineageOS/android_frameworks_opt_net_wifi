@@ -29,6 +29,7 @@ import android.net.wifi.WifiScanner.ChannelSpec;
 import android.net.wifi.WifiScanner.PnoSettings;
 import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiScanner.ScanSettings;
+import android.net.wifi.WifiStackClient;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Looper;
@@ -121,11 +122,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return b;
     }
 
-    private void enforceNetworkStack(int uid) {
+    private void enforceWifiStack(int uid) {
         mContext.enforcePermission(
-                Manifest.permission.NETWORK_STACK,
+                WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK,
                 UNKNOWN_PID, uid,
-                "NetworkStack");
+                "MainlineWifiStack");
     }
 
     // Helper method to check if the incoming message is for a privileged request.
@@ -179,7 +180,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private void enforcePermission(int uid, Message msg) throws SecurityException {
         try {
             /** Wifi stack issued requests.*/
-            enforceNetworkStack(uid);
+            enforceWifiStack(uid);
         } catch (SecurityException e) {
             /** System-app issued requests. */
             if (isPrivilegedMessage(msg.what)) {
@@ -804,9 +805,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 Log.e(TAG, "Invalid scan type " + settings.type);
                 return false;
             }
-            if (mContext.checkPermission(
-                    Manifest.permission.NETWORK_STACK, UNKNOWN_PID, ci.getUid())
-                    == PERMISSION_DENIED) {
+            if (!mWifiPermissionsUtil.checkMainlineWifiStackPermission(ci.getUid())) {
                 if (!ArrayUtils.isEmpty(settings.hiddenNetworks)) {
                     Log.e(TAG, "Failing single scan because app " + ci.getUid()
                             + " does not have permission to set hidden networks");

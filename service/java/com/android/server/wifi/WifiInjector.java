@@ -154,6 +154,7 @@ public class WifiInjector {
     private IpMemoryStore mIpMemoryStore;
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
+
     public WifiInjector(Context context) {
         if (context == null) {
             throw new IllegalStateException(
@@ -232,7 +233,7 @@ public class WifiInjector {
                 mContext.getResources()
                         .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss));
         mWifiApConfigStore = new WifiApConfigStore(
-                mContext, mWifiCoreHandlerThread.getLooper(), mBackupManagerProxy,
+                mContext, this, mWifiCoreHandlerThread.getLooper(), mBackupManagerProxy,
                 mFrameworkFacade);
 
         // WifiConfigManager/Store objects and their dependencies.
@@ -314,7 +315,7 @@ public class WifiInjector {
                 mBatteryStats);
 
         WakeupNotificationFactory wakeupNotificationFactory =
-                new WakeupNotificationFactory(mContext, mFrameworkFacade);
+                new WakeupNotificationFactory(mContext, this, mFrameworkFacade);
         WakeupOnboarding wakeupOnboarding = new WakeupOnboarding(mContext, mWifiConfigManager,
                 mWifiCoreHandlerThread.getLooper(), mFrameworkFacade,
                 wakeupNotificationFactory);
@@ -598,11 +599,11 @@ public class WifiInjector {
         mOpenNetworkNotifier = new OpenNetworkNotifier(mContext,
                 mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
                 mWifiConfigManager, mWifiConfigStore, clientModeImpl,
-                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
+                new ConnectToNetworkNotificationBuilder(mContext, this, mFrameworkFacade));
         mCarrierNetworkNotifier = new CarrierNetworkNotifier(mContext,
                 mWifiCoreHandlerThread.getLooper(), mFrameworkFacade, mClock, mWifiMetrics,
                 mWifiConfigManager, mWifiConfigStore, clientModeImpl,
-                new ConnectToNetworkNotificationBuilder(mContext, mFrameworkFacade));
+                new ConnectToNetworkNotificationBuilder(mContext, this, mFrameworkFacade));
         mWifiLastResortWatchdog = new WifiLastResortWatchdog(this, mContext, mClock,
                 mWifiMetrics, clientModeImpl, clientModeImpl.getHandler().getLooper(),
                 mDeviceConfigFacade);
@@ -750,5 +751,9 @@ public class WifiInjector {
 
     public HostapdHal getHostapdHal() {
         return mHostapdHal;
+    }
+
+    public String getWifiStackPackageName() {
+       return mContext.getPackageName();
     }
 }

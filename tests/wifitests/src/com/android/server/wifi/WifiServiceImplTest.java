@@ -101,6 +101,7 @@ import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
+import android.net.wifi.WifiStackClient;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -396,6 +397,8 @@ public class WifiServiceImplTest {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
+        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(true);
 
@@ -1014,7 +1017,6 @@ public class WifiServiceImplTest {
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
         mWifiServiceImpl.setWifiHandlerLogForTest(mLog);
 
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
 
         when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(true);
@@ -1040,7 +1042,6 @@ public class WifiServiceImplTest {
         // ap should be disabled when wifi hasn't been started
         assertEquals(WifiManager.WIFI_AP_STATE_DISABLED, mWifiServiceImpl.getWifiApEnabledState());
 
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         mLooper.dispatchAll();
@@ -1077,22 +1078,10 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Make sure we do not start wifi if System services have to be restarted to decrypt the device.
-     */
-    @Test
-    public void testWifiControllerDoesNotStartWhenDeviceTriggerResetMainAtBoot() {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
-        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
-        mWifiServiceImpl.checkAndStartWifi();
-        verify(mWifiController, never()).start();
-    }
-
-    /**
      * Make sure we do start WifiController (wifi disabled) if the device is already decrypted.
      */
     @Test
-    public void testWifiControllerStartsWhenDeviceIsDecryptedAtBootWithWifiDisabled() {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+    public void testWifiControllerStartsWhenDeviceBootsWithWifiDisabled() {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mWifiController).start();
@@ -1103,8 +1092,7 @@ public class WifiServiceImplTest {
      * Make sure we do start WifiController (wifi enabled) if the device is already decrypted.
      */
     @Test
-    public void testWifiFullyStartsWhenDeviceIsDecryptedAtBootWithWifiEnabled() {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
+    public void testWifiFullyStartsWhenDeviceBootsWithWifiEnabled() {
         when(mSettingsStore.handleWifiToggled(true)).thenReturn(true);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(true);
         when(mClientModeImpl.syncGetWifiState()).thenReturn(WIFI_STATE_DISABLED);
@@ -2048,7 +2036,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApFailureGeneric() throws Exception {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2073,7 +2060,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApFailureNoChannel() throws Exception {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2100,8 +2086,6 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApDisabling() throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2135,8 +2119,6 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApDisabled() throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2168,7 +2150,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksNotTriggeredOnSoftApStart() throws Exception {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2193,8 +2174,6 @@ public class WifiServiceImplTest {
     @Test
     public void testRegisteredCallbacksTriggeredOnlyOnceWhenSoftApDisabling() throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2229,7 +2208,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnlyOnceWhenSoftApFailsTwice() throws Exception {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2258,7 +2236,6 @@ public class WifiServiceImplTest {
      */
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApFails() throws Exception {
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2293,8 +2270,6 @@ public class WifiServiceImplTest {
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStops() throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2335,8 +2310,6 @@ public class WifiServiceImplTest {
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApStopsLOHSNotActive() throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
 
@@ -2517,8 +2490,6 @@ public class WifiServiceImplTest {
     public void testRegisterLocalOnlyHotspotRequestAfterStoppedNoOnStartedCallback()
             throws Exception {
         setupClientModeImplHandlerForPost();
-
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
@@ -3108,7 +3079,6 @@ public class WifiServiceImplTest {
     @Test
     public void testHandleDelayedScanAfterIdleMode() throws Exception {
         setupClientModeImplHandlerForRunWithScissors();
-        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(false);
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),

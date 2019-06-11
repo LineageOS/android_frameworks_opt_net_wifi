@@ -22,21 +22,20 @@ import android.os.HandlerThread;
 import android.os.ServiceManager;
 import android.util.Log;
 
-import com.android.server.SystemService;
 import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.WifiServiceBase;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 /**
  * TBD.
  */
-public class RttService extends SystemService {
+public class RttService implements WifiServiceBase {
     private static final String TAG = "RttService";
     private Context mContext;
     private RttServiceImpl mImpl;
 
     public RttService(Context context) {
-        super(context);
         mContext = context;
         mImpl = new RttServiceImpl(context);
     }
@@ -44,31 +43,25 @@ public class RttService extends SystemService {
     @Override
     public void onStart() {
         Log.i(TAG, "Registering " + Context.WIFI_RTT_RANGING_SERVICE);
-        publishBinderService(Context.WIFI_RTT_RANGING_SERVICE, mImpl);
-    }
+        ServiceManager.addService(Context.WIFI_RTT_RANGING_SERVICE, mImpl);
 
-    @Override
-    public void onBootPhase(int phase) {
-        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
-            Log.i(TAG, "Starting " + Context.WIFI_RTT_RANGING_SERVICE);
-
-            WifiInjector wifiInjector = WifiInjector.getInstance();
-            if (wifiInjector == null) {
-                Log.e(TAG, "onBootPhase(PHASE_SYSTEM_SERVICES_READY): NULL injector!");
-                return;
-            }
-
-            HalDeviceManager halDeviceManager = wifiInjector.getHalDeviceManager();
-            HandlerThread handlerThread = wifiInjector.getRttHandlerThread();
-            WifiPermissionsUtil wifiPermissionsUtil = wifiInjector.getWifiPermissionsUtil();
-            RttMetrics rttMetrics = wifiInjector.getWifiMetrics().getRttMetrics();
-
-            IWifiAwareManager awareBinder = (IWifiAwareManager) ServiceManager.getService(
-                    Context.WIFI_AWARE_SERVICE);
-
-            RttNative rttNative = new RttNative(mImpl, halDeviceManager);
-            mImpl.start(handlerThread.getLooper(), wifiInjector.getClock(), awareBinder, rttNative,
-                    rttMetrics, wifiPermissionsUtil, wifiInjector.getFrameworkFacade());
+        Log.i(TAG, "Starting " + Context.WIFI_RTT_RANGING_SERVICE);
+        WifiInjector wifiInjector = WifiInjector.getInstance();
+        if (wifiInjector == null) {
+            Log.e(TAG, "onBootPhase(PHASE_SYSTEM_SERVICES_READY): NULL injector!");
+            return;
         }
+
+        HalDeviceManager halDeviceManager = wifiInjector.getHalDeviceManager();
+        HandlerThread handlerThread = wifiInjector.getRttHandlerThread();
+        WifiPermissionsUtil wifiPermissionsUtil = wifiInjector.getWifiPermissionsUtil();
+        RttMetrics rttMetrics = wifiInjector.getWifiMetrics().getRttMetrics();
+
+        IWifiAwareManager awareBinder = (IWifiAwareManager) ServiceManager.getService(
+                Context.WIFI_AWARE_SERVICE);
+
+        RttNative rttNative = new RttNative(mImpl, halDeviceManager);
+        mImpl.start(handlerThread.getLooper(), wifiInjector.getClock(), awareBinder, rttNative,
+                rttMetrics, wifiPermissionsUtil, wifiInjector.getFrameworkFacade());
     }
 }

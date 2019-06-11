@@ -186,15 +186,6 @@ public class FrameworkFacade {
     }
 
     /**
-     * Check if the device will be restarting after decrypting during boot by calling {@link
-     * StorageManager.inCryptKeeperBounce}.
-     * @return true if the device will restart, false otherwise
-     */
-    public boolean inStorageManagerCryptKeeperBounce() {
-        return StorageManager.inCryptKeeperBounce();
-    }
-
-    /**
      * Check if the provided uid is the app in the foreground.
      * @param uid the uid to check
      * @return true if the app is in the foreground, false otherwise
