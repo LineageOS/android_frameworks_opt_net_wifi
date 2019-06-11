@@ -346,6 +346,7 @@ public class WifiInjector {
         mWifiNetworkSelector.registerNetworkEvaluator(mCarrierNetworkEvaluator);
         mWifiNetworkSelector.registerNetworkEvaluator(mScoredNetworkEvaluator);
 
+        mClientModeImpl.start();
     }
 
     /**
