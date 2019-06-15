@@ -107,7 +107,7 @@ public class HalDeviceManagerTest {
 
     private class HalDeviceManagerSpy extends HalDeviceManager {
         HalDeviceManagerSpy() {
-            super(mClock);
+            super(mClock, mTestLooper.getLooper());
         }
 
         @Override
