@@ -86,6 +86,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -108,6 +111,8 @@ public class SupplicantStaIfaceHal {
     public static final String INIT_STOP_PROPERTY = "ctl.stop";
     @VisibleForTesting
     public static final String INIT_SERVICE_NAME = "wpa_supplicant";
+    @VisibleForTesting
+    public static final long WAIT_FOR_DEATH_TIMEOUT_MS = 50L;
     /**
      * Regex pattern for extracting the wps device type bytes.
      * Matches a strings like the following: "<categ>-<OUI>-<subcateg>";
@@ -262,11 +267,12 @@ public class SupplicantStaIfaceHal {
         }
     }
 
-    private boolean linkToSupplicantDeath() {
+    private boolean linkToSupplicantDeath(
+            HwRemoteBinder.DeathRecipient deathRecipient, long cookie) {
         synchronized (mLock) {
             if (mISupplicant == null) return false;
             try {
-                if (!mISupplicant.linkToDeath(mSupplicantDeathRecipient, ++mDeathRecipientCookie)) {
+                if (!mISupplicant.linkToDeath(deathRecipient, cookie)) {
                     Log.wtf(TAG, "Error on linkToDeath on ISupplicant");
                     supplicantServiceDiedHandler(mDeathRecipientCookie);
                     return false;
@@ -294,7 +300,7 @@ public class SupplicantStaIfaceHal {
                 Log.e(TAG, "Got null ISupplicant service. Stopping supplicant HIDL startup");
                 return false;
             }
-            if (!linkToSupplicantDeath()) {
+            if (!linkToSupplicantDeath(mSupplicantDeathRecipient, ++mDeathRecipientCookie)) {
                 return false;
             }
         }
@@ -645,16 +651,34 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
-     * Terminate the supplicant daemon.
+     * Terminate the supplicant daemon & wait for it's death.
      */
     public void terminate() {
         synchronized (mLock) {
+            // Register for a new death listener to block until supplicant is dead.
+            final long waitForDeathCookie = new Random().nextLong();
+            final CountDownLatch waitForDeathLatch = new CountDownLatch(1);
+            linkToSupplicantDeath((cookie) -> {
+                Log.d(TAG, "ISupplicant died: cookie=" + cookie);
+                if (cookie != waitForDeathCookie) return;
+                waitForDeathLatch.countDown();
+            }, waitForDeathCookie);
+
             if (isV1_1()) {
                 Log.i(TAG, "Terminating supplicant using HIDL");
                 terminate_V1_1();
             } else {
                 Log.i(TAG, "Terminating supplicant using init");
                 mPropertyService.set(INIT_STOP_PROPERTY, INIT_SERVICE_NAME);
+            }
+
+            // Now wait for death listener callback to confirm that it's dead.
+            try {
+                if (!waitForDeathLatch.await(WAIT_FOR_DEATH_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    Log.w(TAG, "Timed out waiting for confirmation of supplicant death");
+                }
+            } catch (InterruptedException e) {
+                Log.w(TAG, "Failed to wait for supplicant death");
             }
         }
     }
