@@ -151,7 +151,7 @@ public class WifiInjector {
     private final DppMetrics mDppMetrics;
     private final DppManager mDppManager;
     private final LinkProbeManager mLinkProbeManager;
-    private final IpMemoryStore mIpMemoryStore;
+    private IpMemoryStore mIpMemoryStore;
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
 
     public WifiInjector(Context context) {
@@ -335,7 +335,6 @@ public class WifiInjector {
                 BatteryStatsService.getService());
         mDppManager = new DppManager(mWifiCoreHandlerThread.getLooper(), mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
-        mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
 
         // Register the various network evaluators with the network selector.
         mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
@@ -743,6 +742,9 @@ public class WifiInjector {
     }
 
     public IpMemoryStore getIpMemoryStore() {
+        if (mIpMemoryStore == null) {
+            mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
+        }
         return mIpMemoryStore;
     }
 }
