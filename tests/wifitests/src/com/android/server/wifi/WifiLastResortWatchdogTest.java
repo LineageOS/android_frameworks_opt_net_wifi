@@ -21,24 +21,16 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.*;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.IntentFilter;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
-import android.os.Handler;
 import android.os.test.TestLooper;
 import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
-import com.google.android.gsf.Gservices;
-
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 
 import java.util.ArrayList;
@@ -50,8 +42,6 @@ import java.util.List;
  */
 @SmallTest
 public class WifiLastResortWatchdogTest {
-    final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
-            ArgumentCaptor.forClass(BroadcastReceiver.class);
     WifiLastResortWatchdog mLastResortWatchdog;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiMetrics mWifiMetrics;
@@ -59,8 +49,6 @@ public class WifiLastResortWatchdogTest {
     @Mock ClientModeImpl mClientModeImpl;
     @Mock Clock mClock;
     @Mock WifiInfo mWifiInfo;
-    @Mock Context mContext;
-    @Mock GservicesFacade mGservicesFacade;
 
     private String[] mSsids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
     private String[] mBssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
@@ -73,22 +61,17 @@ public class WifiLastResortWatchdogTest {
     private boolean[] mHasEverConnected = {false, false, false, false};
     private TestLooper mLooper;
     private static final String TEST_NETWORK_SSID = "\"test_ssid\"";
-    private static final int DEFAULT_ABNORMAL_CONNECTION_DURATION_MS = 30000;
 
     @Before
     public void setUp() throws Exception {
         initMocks(this);
         mLooper = new TestLooper();
         when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
-        when(mGservicesFacade.isAbnormalConnectionBugreportEnabled()).thenReturn(true);
-        when(mGservicesFacade.getAbnormalConnectionDurationMs()).thenReturn(
-                        DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
-        mLastResortWatchdog = new WifiLastResortWatchdog(mWifiInjector, mContext, mClock,
-                mWifiMetrics, mClientModeImpl, mLooper.getLooper(), mGservicesFacade);
+        mLastResortWatchdog = new WifiLastResortWatchdog(mWifiInjector, mClock, mWifiMetrics,
+                mClientModeImpl, mLooper.getLooper());
         mLastResortWatchdog.setBugReportProbability(1);
         when(mClientModeImpl.getWifiInfo()).thenReturn(mWifiInfo);
         when(mWifiInfo.getSSID()).thenReturn(TEST_NETWORK_SSID);
-        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mLastResortWatchdog.getHandler());
     }
 
     private List<Pair<ScanDetail, WifiConfiguration>> createFilteredQnsCandidates(String[] ssids,
@@ -2169,98 +2152,4 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogSuccesses();
     }
 
-    /**
-     * Verifies that when a connection takes too long (time difference between
-     * StaEvent.TYPE_CMD_START_CONNECT and StaEvent.TYPE_NETWORK_CONNECTION_EVENT) a bugreport is
-     * taken.
-     */
-    @Test
-    public void testAbnormalConnectionTimeTriggersBugreport() throws Exception {
-        // first verifies that bugreports are not taken when connection takes less than
-        // DEFAULT_ABNORMAL_CONNECTION_DURATION_MS
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(1L);
-        mLastResortWatchdog.noteStartConnectTime();
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                (long) DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
-        Handler handler = mLastResortWatchdog.getHandler();
-        handler.sendMessage(
-                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
-        mLooper.dispatchAll();
-        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
-
-        // Now verify that bugreport is taken
-        mLastResortWatchdog.noteStartConnectTime();
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                2L * DEFAULT_ABNORMAL_CONNECTION_DURATION_MS + 1);
-        handler.sendMessage(
-                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
-        mLooper.dispatchAll();
-        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
-
-        // Verify additional connections (without more TYPE_CMD_START_CONNECT) don't trigger more
-        // bugreports.
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                4L * DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
-        handler.sendMessage(
-                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
-        mLooper.dispatchAll();
-        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
-    }
-
-    /**
-     * Changes |mAbnormalConnectionDurationMs| to a new value, and then verify that a bugreport is
-     * taken for a connection that takes longer than the new threshold.
-     * @throws Exception
-     */
-    @Test
-    public void testGServicesSetDuration() throws Exception {
-        final int testDurationMs = 10 * 1000; // 10 seconds
-        // changes the abnormal connection duration to |testDurationMs|.
-        when(mGservicesFacade.getAbnormalConnectionDurationMs()).thenReturn(testDurationMs);
-        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat(new IntentFilterMatcher()));
-        mBroadcastReceiverCaptor.getValue().onReceive(mContext, null);
-
-        // verifies that bugreport is taken for connections that take longer than |testDurationMs|.
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(1L);
-        mLastResortWatchdog.noteStartConnectTime();
-        when(mClock.getElapsedSinceBootMillis()).thenReturn((long) testDurationMs + 2);
-        Handler handler = mLastResortWatchdog.getHandler();
-        handler.sendMessage(
-                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
-        mLooper.dispatchAll();
-        verify(mClientModeImpl).takeBugReport(anyString(), anyString());
-    }
-
-    /**
-     * Verifies that bugreports are not triggered even when conditions are met after the
-     * |mAbnormalConnectionBugreportEnabled| flag is changed to false.
-     * @throws Exception
-     */
-    @Test
-    public void testGServicesFlagDisable() throws Exception {
-        // changes |mAbnormalConnectionBugreportEnabled| to false.
-        when(mGservicesFacade.isAbnormalConnectionBugreportEnabled()).thenReturn(false);
-        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
-                (IntentFilter) argThat(new IntentFilterMatcher()));
-        mBroadcastReceiverCaptor.getValue().onReceive(mContext, null);
-
-        // verifies that bugreports are not taken.
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(1L);
-        mLastResortWatchdog.noteStartConnectTime();
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(
-                (long) DEFAULT_ABNORMAL_CONNECTION_DURATION_MS + 2);
-        Handler handler = mLastResortWatchdog.getHandler();
-        handler.sendMessage(
-                handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
-        mLooper.dispatchAll();
-        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
-    }
-
-    private class IntentFilterMatcher implements ArgumentMatcher<IntentFilter> {
-        @Override
-        public boolean matches(IntentFilter filter) {
-            return filter.hasAction(Gservices.CHANGED_ACTION);
-        }
-    }
 }
