@@ -16,23 +16,16 @@
 
 package com.android.server.wifi;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Message;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
-
-import com.google.android.gsf.Gservices;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -82,10 +75,6 @@ public class WifiLastResortWatchdog {
     @VisibleForTesting
     public static final long LAST_TRIGGER_TIMEOUT_MILLIS = 2 * 3600 * 1000; // 2 hours
 
-    private int mAbnormalConnectionDurationMs;
-    private boolean mAbnormalConnectionBugreportEnabled;
-
-
     /**
      * Cached WifiConfigurations of available networks seen within MAX_BSSID_AGE scan results
      * Key:BSSID, Value:Counters of failure types
@@ -113,98 +102,22 @@ public class WifiLastResortWatchdog {
     private Looper mClientModeImplLooper;
     private double mBugReportProbability = PROB_TAKE_BUGREPORT_DEFAULT;
     private Clock mClock;
-    private Context mContext;
-    private GservicesFacade mGservicesFacade;
     // If any connection failure happened after watchdog triggering restart then assume watchdog
     // did not fix the problem
     private boolean mWatchdogFixedWifi = true;
-    private long mLastStartConnectTime = 0;
-    private Handler mHandler;
 
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
      */
     private final LocalLog mLocalLog = new LocalLog(100);
 
-    WifiLastResortWatchdog(WifiInjector wifiInjector, Context context, Clock clock,
-            WifiMetrics wifiMetrics, ClientModeImpl clientModeImpl, Looper clientModeImplLooper,
-            GservicesFacade gservicesFacade) {
+    WifiLastResortWatchdog(WifiInjector wifiInjector, Clock clock, WifiMetrics wifiMetrics,
+            ClientModeImpl clientModeImpl, Looper clientModeImplLooper) {
         mWifiInjector = wifiInjector;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
         mClientModeImpl = clientModeImpl;
         mClientModeImplLooper = clientModeImplLooper;
-        mContext = context;
-        mGservicesFacade = gservicesFacade;
-        updateGServicesFlags();
-        mHandler = new Handler(clientModeImplLooper) {
-            public void handleMessage(Message msg) {
-                processMessage(msg);
-            }
-        };
-        // Registers a broadcast receiver to change update G service flags
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        mHandler.post(() -> {
-                            updateGServicesFlags();
-                        });
-                    }
-                },
-                new IntentFilter(Gservices.CHANGED_ACTION));
-    }
-
-    private void updateGServicesFlags() {
-        mAbnormalConnectionBugreportEnabled =
-                mGservicesFacade.isAbnormalConnectionBugreportEnabled();
-        mAbnormalConnectionDurationMs =
-                mGservicesFacade.getAbnormalConnectionDurationMs();
-        logv("updateGServicesFlags: mAbnormalConnectionDurationMs = "
-                + mAbnormalConnectionDurationMs
-                + ", mAbnormalConnectionBugreportEnabled = "
-                + mAbnormalConnectionBugreportEnabled);
-    }
-
-    /**
-     * Returns handler for L2 events from supplicant.
-     * @return Handler
-     */
-    public Handler getHandler() {
-        return mHandler;
-    }
-
-    /**
-     * Refreshes when the last CMD_START_CONNECT is triggered.
-     */
-    public void noteStartConnectTime() {
-        mLastStartConnectTime = mClock.getElapsedSinceBootMillis();
-    }
-
-    private void processMessage(Message msg) {
-        switch (msg.what) {
-            case WifiMonitor.NETWORK_CONNECTION_EVENT:
-                // Trigger bugreport for successful connections that take abnormally long
-                if (mAbnormalConnectionBugreportEnabled && mLastStartConnectTime > 0) {
-                    long durationMs = mClock.getElapsedSinceBootMillis() - mLastStartConnectTime;
-                    if (durationMs > mAbnormalConnectionDurationMs) {
-                        final String bugTitle = "Wi-Fi Bugreport: Abnormal connection time";
-                        final String bugDetail = "Expected connection to take less than "
-                                + mAbnormalConnectionDurationMs + " milliseconds. "
-                                + "Actually took " + durationMs + " milliseconds.";
-                        logv("Triggering bug report for abnormal connection time.");
-                        mWifiInjector.getClientModeImplHandler().post(() -> {
-                            mClientModeImpl.takeBugReport(bugTitle, bugDetail);
-                        });
-                    }
-                }
-                // Should reset last connection time after each connection regardless if bugreport
-                // is enabled or not.
-                mLastStartConnectTime = 0;
-                break;
-            default:
-                return;
-        }
     }
 
     /**
