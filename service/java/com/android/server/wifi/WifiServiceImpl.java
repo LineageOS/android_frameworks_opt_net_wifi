@@ -780,13 +780,12 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private void enforceNetworkSettingsPermission() {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS,
-                "WifiService");
+        mContext.enforceCallingPermission(
+                android.Manifest.permission.NETWORK_SETTINGS, "WifiService");
     }
 
     private void enforceNetworkStackPermission() {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK,
-                "WifiService");
+        mContext.enforceCallingPermission(android.Manifest.permission.NETWORK_STACK, "WifiService");
     }
 
     private void enforceAccessPermission() {
@@ -1292,7 +1291,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
                 // also clear interface ip state - send null for now since we don't know what
                 // interface (and we only have one anyway)
-                updateInterfaceIpState(null, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                updateInterfaceIpStateInternal(null, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
             }
             return;
         }
