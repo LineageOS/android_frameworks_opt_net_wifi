@@ -17,9 +17,9 @@
 package com.android.server.wifi;
 
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.os.Process;
-import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
@@ -53,6 +53,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             "NetworkSuggestionPerApp";
     private static final String XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION = "NetworkSuggestion";
     private static final String XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION = "WifiConfiguration";
+    private static final String XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION =
+            "WifiEnterpriseConfiguration";
     private static final String XML_TAG_IS_APP_INTERACTION_REQUIRED = "IsAppInteractionRequired";
     private static final String XML_TAG_IS_USER_INTERACTION_REQUIRED = "IsUserInteractionRequired";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
@@ -187,6 +189,16 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
         WifiConfigurationXmlUtil.writeToXmlForConfigStore(out, suggestion.wifiConfiguration);
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
+        // Serialize enterprise configuration for enterprise networks.
+        if (suggestion.wifiConfiguration.enterpriseConfig != null
+                && suggestion.wifiConfiguration.enterpriseConfig.getEapMethod()
+                != WifiEnterpriseConfig.Eap.NONE) {
+            XmlUtil.writeNextSectionStart(
+                    out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
+            XmlUtil.WifiEnterpriseConfigXmlUtil.writeToXml(
+                    out, suggestion.wifiConfiguration.enterpriseConfig);
+            XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
+        }
 
         // Serialize other fields
         XmlUtil.writeNextValue(out, XML_TAG_IS_APP_INTERACTION_REQUIRED,
@@ -269,7 +281,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      */
     private WifiNetworkSuggestion parseNetworkSuggestion(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
-        WifiConfiguration wifiConfiguration = null;
+        Pair<String, WifiConfiguration> parsedConfig = null;
+        WifiEnterpriseConfig enterpriseConfig = null;
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
         int suggestorUid = Process.INVALID_UID;
@@ -299,16 +312,35 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                                 "Unknown value name found: " + valueName[0]);
                 }
             } else {
-                if (!TextUtils.equals(in.getName(), XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION)) {
-                    throw new XmlPullParserException("Unexpected section under configuration: "
-                            + in.getName());
+                String tagName = in.getName();
+                if (tagName == null) {
+                    throw new XmlPullParserException("Unexpected null under "
+                            + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
                 }
-                Pair<String, WifiConfiguration> parsedConfigWithConfigKey =
-                        WifiConfigurationXmlUtil.parseFromXml(in, outerTagDepth + 1);
-                wifiConfiguration = parsedConfigWithConfigKey.second;
+                switch (tagName) {
+                    case XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION:
+                        if (parsedConfig != null) {
+                            throw new XmlPullParserException("Detected duplicate tag for: "
+                                    + XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
+                        }
+                        parsedConfig = WifiConfigurationXmlUtil.parseFromXml(
+                                in, outerTagDepth + 1);
+                        break;
+                    case XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION:
+                        if (enterpriseConfig != null) {
+                            throw new XmlPullParserException("Detected duplicate tag for: "
+                                    + XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
+                        }
+                        enterpriseConfig = XmlUtil.WifiEnterpriseConfigXmlUtil.parseFromXml(
+                                in, outerTagDepth + 1);
+                        break;
+                    default:
+                        throw new XmlPullParserException("Unknown tag under "
+                                + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION + ": " + in.getName());
+                }
             }
         }
-        if (wifiConfiguration == null) {
+        if (parsedConfig == null || parsedConfig.second == null) {
             throw new XmlPullParserException("XML parsing of wifi configuration failed");
         }
         if (suggestorUid == -1) {
@@ -316,6 +348,10 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         }
         if (suggestorPackageName == null) {
             throw new XmlPullParserException("XML parsing of suggestor package name failed");
+        }
+        WifiConfiguration wifiConfiguration =  parsedConfig.second;
+        if (enterpriseConfig != null) {
+            wifiConfiguration.enterpriseConfig = enterpriseConfig;
         }
         return new WifiNetworkSuggestion(
                 wifiConfiguration, isAppInteractionRequired, isUserInteractionRequired,
