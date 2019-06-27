@@ -268,7 +268,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[RSN-PSK-CCMP+TKIP]", result);
+        assertEquals("[WPA2-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
     }
 
     /**
@@ -384,7 +384,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap, false);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[WPA-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
+        assertEquals("[WPA-PSK-CCMP+TKIP][WPA2-PSK-CCMP+TKIP][RSN-PSK-CCMP+TKIP]", result);
     }
 
     /**
@@ -423,7 +423,7 @@ public class InformationElementUtilTest {
         capabilities.from(ies, beaconCap, true);
         String result = capabilities.generateCapabilitiesString();
 
-        assertEquals("[RSN-PSK+SAE-CCMP]", result);
+        assertEquals("[WPA2-PSK-CCMP][RSN-PSK+SAE-CCMP]", result);
     }
 
     /**
