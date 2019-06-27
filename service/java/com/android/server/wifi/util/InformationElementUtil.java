@@ -400,7 +400,7 @@ public class InformationElementUtil {
         private static final int WPA_VENDOR_OUI_TYPE_ONE = 0x01f25000;
         private static final int WPS_VENDOR_OUI_TYPE = 0x04f25000;
         private static final short WPA_VENDOR_OUI_VERSION = 0x0001;
-        private static final int OWE_VENDOR_OUI_TYPE =  0x1c9a6f50;
+        private static final int OWE_VENDOR_OUI_TYPE = 0x1c9a6f50;
         private static final short RSNE_VERSION = 0x0001;
 
         private static final int WPA_AKM_EAP = 0x01f25000;
@@ -609,7 +609,7 @@ public class InformationElementUtil {
                 buf.getInt();
 
                 // version
-                if (buf.getShort() != WPA_VENDOR_OUI_VERSION)  {
+                if (buf.getShort() != WPA_VENDOR_OUI_VERSION) {
                     // incorrect version
                     return;
                 }
@@ -663,8 +663,8 @@ public class InformationElementUtil {
          * Parse the Information Element and the 16-bit Capability Information field
          * to build the InformationElemmentUtil.capabilities object.
          *
-         * @param ies -- Information Element array
-         * @param beaconCap -- 16-bit Beacon Capability Information field
+         * @param ies            -- Information Element array
+         * @param beaconCap      -- 16-bit Beacon Capability Information field
          * @param isOweSupported -- Boolean flag to indicate if OWE is supported by the device
          */
 
@@ -723,7 +723,7 @@ public class InformationElementUtil {
         private static boolean isOweElement(InformationElement ie) {
             ByteBuffer buf = ByteBuffer.wrap(ie.bytes).order(ByteOrder.LITTLE_ENDIAN);
             try {
-            // OWE OUI and type
+                // OWE OUI and type
                 return (buf.getInt() == OWE_VENDOR_OUI_TYPE);
             } catch (BufferUnderflowException e) {
                 Log.e("IE_Capabilities", "Couldn't parse VSA IE, buffer underflow");
@@ -796,39 +796,92 @@ public class InformationElementUtil {
          * @return security string that mirrors what wpa_supplicant generates
          */
         public String generateCapabilitiesString() {
-            String capabilities = "";
+            StringBuilder capabilities = new StringBuilder();
             // private Beacon without an RSNE or WPA IE, hence WEP0
             boolean isWEP = (protocol.isEmpty()) && isPrivacy;
 
             if (isWEP) {
-                capabilities += "[WEP]";
+                capabilities.append("[WEP]");
             }
             for (int i = 0; i < protocol.size(); i++) {
-                capabilities += "[" + protocolToString(protocol.get(i));
-                if (i < keyManagement.size()) {
-                    for (int j = 0; j < keyManagement.get(i).size(); j++) {
-                        capabilities += ((j == 0) ? "-" : "+")
-                                + keyManagementToString(keyManagement.get(i).get(j));
-                    }
-                }
-                if (i < pairwiseCipher.size()) {
-                    for (int j = 0; j < pairwiseCipher.get(i).size(); j++) {
-                        capabilities += ((j == 0) ? "-" : "+")
-                                + cipherToString(pairwiseCipher.get(i).get(j));
-                    }
-                }
-                capabilities += "]";
+                String capability = generateCapabilitiesStringPerProtocol(i);
+                // add duplicate capabilities for WPA2 for backward compatibility:
+                // duplicate "RSN" entries as "WPA2"
+                String capWpa2 = generateWPA2CapabilitiesString(capability, i);
+                capabilities.append(capWpa2);
+                capabilities.append(capability);
             }
             if (isESS) {
-                capabilities += "[ESS]";
+                capabilities.append("[ESS]");
             }
             if (isWPS) {
-                capabilities += "[WPS]";
+                capabilities.append("[WPS]");
             }
 
-            return capabilities;
+            return capabilities.toString();
+        }
+
+        /**
+         * Build the Capability String for one protocol
+         * @param index: index number of the protocol
+         * @return security string for one protocol
+         */
+        private String generateCapabilitiesStringPerProtocol(int index) {
+            StringBuilder capability = new StringBuilder();
+            capability.append("[").append(protocolToString(protocol.get(index)));
+
+            if (index < keyManagement.size()) {
+                for (int j = 0; j < keyManagement.get(index).size(); j++) {
+                    capability.append((j == 0) ? "-" : "+").append(
+                            keyManagementToString(keyManagement.get(index).get(j)));
+                }
+            }
+            if (index < pairwiseCipher.size()) {
+                for (int j = 0; j < pairwiseCipher.get(index).size(); j++) {
+                    capability.append((j == 0) ? "-" : "+").append(
+                            cipherToString(pairwiseCipher.get(index).get(j)));
+                }
+            }
+            capability.append("]");
+            return capability.toString();
+        }
+
+        /**
+         * Build the duplicate Capability String for WPA2
+         * @param cap: original capability String
+         * @param index: index number of the protocol
+         * @return security string for WPA2, empty String if protocol is not WPA2
+         */
+        private String generateWPA2CapabilitiesString(String cap, int index) {
+            StringBuilder capWpa2 = new StringBuilder();
+            // if not WPA2, return empty String
+            if (cap.contains("EAP_SUITE_B_192")
+                    || (!cap.contains("RSN-EAP") && !cap.contains("RSN-FT/EAP")
+                    && !cap.contains("RSN-PSK") && !cap.contains("RSN-FT/PSK"))) {
+                return "";
+            }
+            capWpa2.append("[").append("WPA2");
+            if (index < keyManagement.size()) {
+                for (int j = 0; j < keyManagement.get(index).size(); j++) {
+                    capWpa2.append((j == 0) ? "-" : "+").append(
+                            keyManagementToString(keyManagement.get(index).get(j)));
+                    // WPA3/WPA2 transition mode
+                    if (cap.contains("SAE")) {
+                        break;
+                    }
+                }
+            }
+            if (index < pairwiseCipher.size()) {
+                for (int j = 0; j < pairwiseCipher.get(index).size(); j++) {
+                    capWpa2.append((j == 0) ? "-" : "+").append(
+                            cipherToString(pairwiseCipher.get(index).get(j)));
+                }
+            }
+            capWpa2.append("]");
+            return capWpa2.toString();
         }
     }
+
 
     /**
      * Parser for the Traffic Indication Map (TIM) Information Element (EID 5). This element will
