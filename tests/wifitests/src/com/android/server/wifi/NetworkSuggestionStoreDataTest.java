@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.util.Xml;
 
@@ -150,15 +151,30 @@ public class NetworkSuggestionStoreDataTest {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
         PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_NAME_1);
-        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
+
+        WifiConfiguration configuration = WifiConfigurationTestUtil.createEapNetwork();
+        configuration.enterpriseConfig =
+                WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
+        WifiNetworkSuggestion networkSuggestion =
+                new WifiNetworkSuggestion(configuration, false, false, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
         appInfo.hasUserApproved = false;
         appInfo.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo);
 
-        assertSerializeDeserialize(networkSuggestionsMap);
+        Map<String, PerAppInfo> deserializedPerAppInfoMap =
+                assertSerializeDeserialize(networkSuggestionsMap);
+        ExtendedWifiNetworkSuggestion deserializedSuggestion =
+                deserializedPerAppInfoMap.get(TEST_PACKAGE_NAME_1).extNetworkSuggestions.stream()
+                        .findAny()
+                        .orElse(null);
+
+        WifiConfigurationTestUtil.assertConfigurationEqual(
+                configuration, deserializedSuggestion.wns.wifiConfiguration);
+        WifiConfigurationTestUtil.assertWifiEnterpriseConfigEqualForConfigStore(
+                configuration.enterpriseConfig,
+                deserializedSuggestion.wns.wifiConfiguration.enterpriseConfig);
     }
 
     /**
@@ -237,7 +253,7 @@ public class NetworkSuggestionStoreDataTest {
         deserializeData(TEST_CORRUPT_DATA_INVALID_SSID.getBytes());
     }
 
-    private void assertSerializeDeserialize(
+    private Map<String, PerAppInfo> assertSerializeDeserialize(
             Map<String, PerAppInfo> networkSuggestionsMap) throws Exception {
         // Setup the data to serialize.
         when(mDataSource.toSerialize()).thenReturn(networkSuggestionsMap);
@@ -250,5 +266,6 @@ public class NetworkSuggestionStoreDataTest {
                 ArgumentCaptor.forClass(HashMap.class);
         verify(mDataSource).fromDeserialized(deserializedNetworkSuggestionsMap.capture());
         assertEquals(networkSuggestionsMap, deserializedNetworkSuggestionsMap.getValue());
+        return deserializedNetworkSuggestionsMap.getValue();
     }
 }
