@@ -959,6 +959,8 @@ public class ClientModeImpl extends StateMachine {
                 mWifiMetrics.getHandler());
         mWifiMonitor.registerHandler(mInterfaceName, CMD_TARGET_BSSID,
                 mWifiMetrics.getHandler());
+        mWifiMonitor.registerHandler(mInterfaceName, WifiMonitor.NETWORK_CONNECTION_EVENT,
+                mWifiInjector.getWifiLastResortWatchdog().getHandler());
     }
 
     private void setMulticastFilter(boolean enabled) {
@@ -4292,6 +4294,7 @@ public class ClientModeImpl extends StateMachine {
                     }
 
                     if (mWifiNative.connectToNetwork(mInterfaceName, config)) {
+                        mWifiInjector.getWifiLastResortWatchdog().noteStartConnectTime();
                         mWifiMetrics.logStaEvent(StaEvent.TYPE_CMD_START_CONNECT, config);
                         mLastConnectAttemptTimestamp = mClock.getWallClockMillis();
                         mTargetWifiConfiguration = config;
