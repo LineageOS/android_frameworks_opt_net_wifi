@@ -63,7 +63,7 @@ public class WifiApConfigStore {
     private static final String DEFAULT_AP_CONFIG_FILE =
             Environment.getDataDirectory() + "/misc/wifi/softap.conf";
 
-    private static final int AP_CONFIG_FILE_VERSION = 2;
+    private static final int AP_CONFIG_FILE_VERSION = 3;
 
     private static final int RAND_SSID_INT_MIN = 1000;
     private static final int RAND_SSID_INT_MAX = 9999;
@@ -173,7 +173,7 @@ public class WifiApConfigStore {
      * Update the current soft access point configuration.
      * Restore to default AP configuration if null is provided.
      * This can be invoked under context of binder threads (WifiManager.setWifiApConfiguration)
-     * and WifiStateMachine thread (CMD_START_AP).
+     * and ClientModeImpl thread (CMD_START_AP).
      */
     public synchronized void setApConfiguration(WifiConfiguration config) {
         if (config == null) {
@@ -202,11 +202,15 @@ public class WifiApConfigStore {
     }
 
     private Notification createConversionNotification() {
-        CharSequence title = mContext.getText(R.string.wifi_softap_config_change);
-        CharSequence contentSummary = mContext.getText(R.string.wifi_softap_config_change_summary);
-        CharSequence content = mContext.getText(R.string.wifi_softap_config_change_detailed);
-        int color = mContext.getResources()
-                .getColor(R.color.system_notification_accent_color, mContext.getTheme());
+        CharSequence title =
+                mContext.getResources().getText(R.string.wifi_softap_config_change);
+        CharSequence contentSummary =
+                mContext.getResources().getText(R.string.wifi_softap_config_change_summary);
+        CharSequence content =
+                mContext.getResources().getText(R.string.wifi_softap_config_change_detailed);
+        int color =
+                mContext.getResources().getColor(
+                        R.color.system_notification_accent_color, mContext.getTheme());
 
         return new Notification.Builder(mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
@@ -267,7 +271,7 @@ public class WifiApConfigStore {
                     new BufferedInputStream(new FileInputStream(filename)));
 
             int version = in.readInt();
-            if ((version != 1) && (version != 2)) {
+            if (version < 1 || version > AP_CONFIG_FILE_VERSION) {
                 Log.e(TAG, "Bad version on hotspot configuration file");
                 return null;
             }
@@ -276,6 +280,10 @@ public class WifiApConfigStore {
             if (version >= 2) {
                 config.apBand = in.readInt();
                 config.apChannel = in.readInt();
+            }
+
+            if (version >= 3) {
+                config.hiddenSSID = in.readBoolean();
             }
 
             int authType = in.readInt();
@@ -309,6 +317,7 @@ public class WifiApConfigStore {
             out.writeUTF(config.SSID);
             out.writeInt(config.apBand);
             out.writeInt(config.apChannel);
+            out.writeBoolean(config.hiddenSSID);
             int authType = config.getAuthType();
             out.writeInt(authType);
             if (authType != KeyMgmt.NONE) {
@@ -346,13 +355,13 @@ public class WifiApConfigStore {
      * Generate a temporary WPA2 based configuration for use by the local only hotspot.
      * This config is not persisted and will not be stored by the WifiApConfigStore.
      */
-    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context) {
+    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand) {
         WifiConfiguration config = new WifiConfiguration();
-        // For local only hotspot we only use 2.4Ghz band.
-        config.apBand = WifiConfiguration.AP_BAND_2GHZ;
+
         config.SSID = context.getResources().getString(
               R.string.wifi_localhotspot_configure_ssid_default) + "_"
                       + getRandomIntForDefaultSsid();
+        config.apBand = apBand;
         config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
         config.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
         String randomUUID = UUID.randomUUID().toString();
@@ -373,14 +382,14 @@ public class WifiApConfigStore {
             return false;
         }
 
-        if (ssid.length() < SSID_MIN_LEN || ssid.length() > SSID_MAX_LEN) {
-            Log.d(TAG, "SSID for softap configuration string size must be at least "
-                    + SSID_MIN_LEN + " and not more than " + SSID_MAX_LEN);
-            return false;
-        }
-
         try {
-            ssid.getBytes(StandardCharsets.UTF_8);
+            byte[] ssid_bytes = ssid.getBytes(StandardCharsets.UTF_8);
+
+            if (ssid_bytes.length < SSID_MIN_LEN || ssid_bytes.length > SSID_MAX_LEN) {
+                Log.d(TAG, "softap SSID is defined as UTF-8 and it must be at least "
+                        + SSID_MIN_LEN + " byte and not more than " + SSID_MAX_LEN + " bytes");
+                return false;
+            }
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "softap config SSID verification failed: malformed string " + ssid);
             return false;

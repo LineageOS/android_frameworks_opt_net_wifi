@@ -46,7 +46,6 @@ public class ScanOnlyModeManager implements ActiveModeManager {
 
     private final WifiMetrics mWifiMetrics;
     private final Listener mListener;
-    private final ScanRequestProxy mScanRequestProxy;
     private final WakeupController mWakeupController;
     private final SarManager mSarManager;
 
@@ -58,14 +57,12 @@ public class ScanOnlyModeManager implements ActiveModeManager {
     ScanOnlyModeManager(@NonNull Context context, @NonNull Looper looper,
                         @NonNull WifiNative wifiNative, @NonNull Listener listener,
                         @NonNull WifiMetrics wifiMetrics,
-                        @NonNull ScanRequestProxy scanRequestProxy,
                         @NonNull WakeupController wakeupController,
                         @NonNull SarManager sarManager) {
         mContext = context;
         mWifiNative = wifiNative;
         mListener = listener;
         mWifiMetrics = wifiMetrics;
-        mScanRequestProxy = scanRequestProxy;
         mWakeupController = wakeupController;
         mSarManager = sarManager;
         mStateMachine = new ScanOnlyModeStateMachine(looper);
@@ -85,6 +82,10 @@ public class ScanOnlyModeManager implements ActiveModeManager {
         Log.d(TAG, " currentstate: " + getCurrentStateName());
         mExpectedStop = true;
         mStateMachine.quitNow();
+    }
+
+    public @ScanMode int getScanMode() {
+        return SCAN_WITHOUT_HIDDEN_NETWORKS;
     }
 
     /**
@@ -194,21 +195,13 @@ public class ScanOnlyModeManager implements ActiveModeManager {
             public boolean processMessage(Message message) {
                 switch (message.what) {
                     case CMD_START:
-                        mClientInterfaceName = mWifiNative.setupInterfaceForClientMode(true,
+                        mClientInterfaceName = mWifiNative.setupInterfaceForClientInScanMode(
                                 mWifiNativeInterfaceCallback);
                         if (TextUtils.isEmpty(mClientInterfaceName)) {
                             Log.e(TAG, "Failed to create ClientInterface. Sit in Idle");
                             updateWifiState(WifiManager.WIFI_STATE_UNKNOWN);
                             break;
                         }
-                        // we have a new scanning interface, make sure scanner knows we aren't
-                        // ready yet and clear out the ScanRequestProxy
-                        sendScanAvailableBroadcast(false);
-                        // explicitly disable scanning for hidden networks in case we were
-                        // previously in client mode
-                        mScanRequestProxy.enableScanningForHiddenNetworks(false);
-                        mScanRequestProxy.clearScanResults();
-
                         transitionTo(mStartedState);
                         break;
                     default:
@@ -229,7 +222,6 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                 if (isUp) {
                     Log.d(TAG, "Wifi is ready to use for scanning");
                     mWakeupController.start();
-                    sendScanAvailableBroadcast(true);
                     updateWifiState(WifiManager.WIFI_STATE_ENABLED);
                 } else {
                     // if the interface goes down we should exit and go back to idle state.
@@ -241,7 +233,6 @@ public class ScanOnlyModeManager implements ActiveModeManager {
             @Override
             public void enter() {
                 Log.d(TAG, "entering StartedState");
-                mScanRequestProxy.enableScanningForHiddenNetworks(false);
 
                 mIfaceIsUp = false;
                 onUpChanged(mWifiNative.isInterfaceUp(mClientInterfaceName));
@@ -291,9 +282,5 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                 mStateMachine.quitNow();
             }
         }
-    }
-
-    private void sendScanAvailableBroadcast(boolean available) {
-        sendScanAvailableBroadcast(mContext, available);
     }
 }

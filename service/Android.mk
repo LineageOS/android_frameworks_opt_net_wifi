@@ -33,15 +33,23 @@ LOCAL_SRC_FILES := $(call all-java-files-under, java) \
 LOCAL_JAVA_LIBRARIES := \
 	android.hidl.manager-V1.2-java \
 	error_prone_annotations \
+	libprotobuf-java-lite \
 	jsr305 \
 	services
 LOCAL_STATIC_JAVA_LIBRARIES := \
 	android.hardware.wifi-V1.0-java \
 	android.hardware.wifi-V1.1-java \
 	android.hardware.wifi-V1.2-java \
+	android.hardware.wifi-V1.3-java \
 	android.hardware.wifi.hostapd-V1.0-java \
+	android.hardware.wifi.hostapd-V1.1-java \
 	android.hardware.wifi.supplicant-V1.0-java \
-	android.hardware.wifi.supplicant-V1.1-java
+	android.hardware.wifi.supplicant-V1.1-java \
+	android.hardware.wifi.supplicant-V1.2-java \
+	wifi_service_proto \
+	ksoap2 \
+	libnanohttpd
+
 LOCAL_REQUIRED_MODULES := \
 	services \
 	libwifi-service \

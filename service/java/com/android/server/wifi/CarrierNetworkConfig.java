@@ -53,6 +53,7 @@ public class CarrierNetworkConfig {
     private static final int ENCODED_SSID_INDEX = 0;
     private static final int EAP_TYPE_INDEX = 1;
     private static final int CONFIG_ELEMENT_SIZE = 2;
+
     private static final Uri CONTENT_URI = Uri.parse("content://carrier_information/carrier");
 
     private boolean mDbg = false;
@@ -132,6 +133,7 @@ public class CarrierNetworkConfig {
      * @return True if carrier IMSI encryption info is available, False otherwise.
      */
     private boolean verifyCarrierImsiEncryptionInfoIsAvailable(Context context) {
+        // TODO(b/132188983): Inject this using WifiInjector
         TelephonyManager telephonyManager =
                 (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         if (telephonyManager == null) {
@@ -139,6 +141,7 @@ public class CarrierNetworkConfig {
         }
         try {
             mLastImsiEncryptionInfo = telephonyManager
+                    .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
                     .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN);
             if (mLastImsiEncryptionInfo == null) {
                 return false;
@@ -200,9 +203,11 @@ public class CarrierNetworkConfig {
 
         // Process the carrier config for each active subscription.
         for (SubscriptionInfo subInfo : subInfoList) {
-            processNetworkConfig(
-                    carrierConfigManager.getConfigForSubId(subInfo.getSubscriptionId()),
-                    subInfo.getDisplayName().toString());
+            CharSequence displayNameCs = subInfo.getDisplayName();
+            String displayNameStr = displayNameCs == null ? "" : displayNameCs.toString();
+            PersistableBundle bundle = carrierConfigManager.getConfigForSubId(
+                    subInfo.getSubscriptionId());
+            processNetworkConfig(bundle, displayNameStr);
         }
     }
 
@@ -237,9 +242,11 @@ public class CarrierNetworkConfig {
                 continue;
             }
             try {
+
                 String ssid = new String(Base64.decode(
-                        configArr[ENCODED_SSID_INDEX], Base64.DEFAULT));
+                        configArr[ENCODED_SSID_INDEX], Base64.NO_WRAP));
                 int eapType = parseEapType(Integer.parseInt(configArr[EAP_TYPE_INDEX]));
+
                 // Verify EAP type, must be a SIM based EAP type.
                 if (eapType == -1) {
                     Log.e(TAG, "Invalid EAP type: " + configArr[EAP_TYPE_INDEX]);

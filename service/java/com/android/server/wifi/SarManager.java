@@ -90,6 +90,7 @@ public class SarManager {
     private final SensorManager mSensorManager;
     private final Handler mHandler;
     private final Looper mLooper;
+    private final WifiMetrics mWifiMetrics;
 
     /**
      * Create new instance of SarManager.
@@ -98,13 +99,15 @@ public class SarManager {
                TelephonyManager telephonyManager,
                Looper looper,
                WifiNative wifiNative,
-               SensorManager sensorManager) {
+               SensorManager sensorManager,
+               WifiMetrics wifiMetrics) {
         mContext = context;
         mTelephonyManager = telephonyManager;
         mWifiNative = wifiNative;
         mLooper = looper;
         mHandler = new WifiHandler(TAG, looper);
         mSensorManager = sensorManager;
+        mWifiMetrics = wifiMetrics;
         mPhoneStateListener = new WifiPhoneStateListener(looper);
         mSensorListener = new SarSensorEventListener();
 
@@ -243,8 +246,8 @@ public class SarManager {
              * If this fails, we will assume worst case (near head) */
             if (!registerSensorListener()) {
                 Log.e(TAG, "Failed to register sensor listener, setting Sensor to NearHead");
-                /*TODO Need to add a metric to determine how often this happens */
                 mSarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
+                mWifiMetrics.incrementNumSarSensorRegistrationFailures();
             }
         }
     }
@@ -489,7 +492,7 @@ public class SarManager {
         /**
          * onCallStateChanged()
          * This callback is called when a SAR sensor event is received
-         * Note that this runs in the WifiStateMachineHandlerThread
+         * Note that this runs in the WifiCoreHandlerThread
          * since the corresponding Looper was passed to the WifiPhoneStateListener constructor.
          */
         @Override
@@ -547,7 +550,7 @@ public class SarManager {
         /**
          * onSensorChanged()
          * This callback is called when a SAR sensor event is received
-         * Note that this runs in the WifiStateMachineHandlerThread
+         * Note that this runs in the WifiCoreHandlerThread
          * since, the corresponding Looper was passed to the SensorManager instance.
          */
         @Override
