@@ -1817,6 +1817,10 @@ public class WifiNetworkSuggestionsManagerTest {
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
 
+        // Verify config store interactions.
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+
         reset(mNotificationManger);
         // We should not resend the notification next time the network is found in scan results.
         mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
@@ -1857,6 +1861,10 @@ public class WifiNetworkSuggestionsManagerTest {
                         TEST_PACKAGE_1, MODE_IGNORED);
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+
+        // Verify config store interactions.
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mDataSource.hasNewDataToSerialize());
 
         reset(mNotificationManger);
 

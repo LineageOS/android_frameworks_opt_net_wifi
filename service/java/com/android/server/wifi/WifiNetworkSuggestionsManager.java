@@ -714,6 +714,7 @@ public class WifiNetworkSuggestionsManager {
             Log.v(TAG, "Setting the app " + (approved ? "approved" : "not approved"));
         }
         perAppInfo.hasUserApproved = approved;
+        saveToStore();
     }
 
     /**
