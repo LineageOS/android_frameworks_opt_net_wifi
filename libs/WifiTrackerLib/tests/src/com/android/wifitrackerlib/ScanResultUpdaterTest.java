@@ -16,16 +16,19 @@
 
 package com.android.wifitrackerlib;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 import android.net.wifi.ScanResult;
-import android.os.SystemClock;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 
@@ -33,6 +36,16 @@ public class ScanResultUpdaterTest {
     private static final String BSSID_1 = "11:11:11:11:11:11";
     private static final String BSSID_2 = "22:22:22:22:22:22";
     private static final String BSSID_3 = "33:33:33:33:33:33";
+    private static final long NOW_MILLIS = 123_456_789;
+
+    @Mock private Clock mMockClock;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        when(mMockClock.millis()).thenReturn(NOW_MILLIS);
+    }
 
     private static ScanResult buildScanResult(String bssid, long timestampMs) {
         return new ScanResult(
@@ -58,20 +71,17 @@ public class ScanResultUpdaterTest {
                 BSSID_1, 20);
 
         // Add initial scan result. List should have 1 scan.
-        ScanResultUpdater sru = new ScanResultUpdater();
+        ScanResultUpdater sru = new ScanResultUpdater(mMockClock);
         sru.update(Arrays.asList(oldResult));
-        assertThat(sru.getScanResults().size(), equalTo(1));
-        assertThat(sru.getScanResults().get(0), equalTo(oldResult));
+        assertThat(sru.getScanResults()).containsExactly(oldResult);
 
         // Add new scan result. Old scan result should be replaced.
         sru.update(Arrays.asList(newResult));
-        assertThat(sru.getScanResults().size(), equalTo(1));
-        assertThat(sru.getScanResults().get(0), equalTo(newResult));
+        assertThat(sru.getScanResults()).containsExactly(newResult);
 
         // Add old scan result back. New scan result should still remain.
         sru.update(Arrays.asList(oldResult));
-        assertThat(sru.getScanResults().size(), equalTo(1));
-        assertThat(sru.getScanResults().get(0), equalTo(newResult));
+        assertThat(sru.getScanResults()).containsExactly(newResult);
     }
 
     /**
@@ -79,21 +89,17 @@ public class ScanResultUpdaterTest {
      */
     @Test
     public void testGetScanResults_filtersOldScans() {
-        long now = SystemClock.elapsedRealtime();
         long maxScanAge = 15_000;
 
-        ScanResult oldResult = buildScanResult(
-                BSSID_1, now - (maxScanAge + 1));
-        ScanResult newResult = buildScanResult(
-                BSSID_2, now);
+        ScanResult oldResult = buildScanResult(BSSID_1, NOW_MILLIS - (maxScanAge + 1));
+        ScanResult newResult = buildScanResult(BSSID_2, NOW_MILLIS);
 
         // Add a new scan result and an out-of-date scan result.
-        ScanResultUpdater sru = new ScanResultUpdater();
+        ScanResultUpdater sru = new ScanResultUpdater(mMockClock);
         sru.update(Arrays.asList(newResult, oldResult));
 
         // New scan result should remain and out-of-date scan result should not be returned.
-        assertThat(sru.getScanResults(maxScanAge).size(), equalTo(1));
-        assertThat(sru.getScanResults(maxScanAge).get(0), equalTo(newResult));
+        assertThat(sru.getScanResults(maxScanAge)).containsExactly(newResult);
     }
 
     /**
@@ -102,7 +108,7 @@ public class ScanResultUpdaterTest {
      */
     @Test
     public void testGetScanResults_invalidMaxScanAgeMillis_throwsException() {
-        ScanResultUpdater sru = new ScanResultUpdater(15_000);
+        ScanResultUpdater sru = new ScanResultUpdater(mMockClock, 15_000);
         try {
             sru.getScanResults(20_000);
             fail("Should have thrown exception for maxScanAgeMillis too large.");
@@ -116,19 +122,17 @@ public class ScanResultUpdaterTest {
      */
     @Test
     public void testConstructor_maxScanAge_filtersOldScans() {
-        ScanResultUpdater sru = new ScanResultUpdater(15_000);
-        long now = SystemClock.elapsedRealtime();
+        ScanResultUpdater sru = new ScanResultUpdater(mMockClock, 15_000);
 
-        ScanResult scan1 = buildScanResult(BSSID_1, now - 10_000);
-        ScanResult scan2 = buildScanResult(BSSID_2, now - 12_000);
-        ScanResult scan3 = buildScanResult(BSSID_3, now - 20_000);
+        ScanResult scan1 = buildScanResult(BSSID_1, NOW_MILLIS - 10_000);
+        ScanResult scan2 = buildScanResult(BSSID_2, NOW_MILLIS - 15_000);
+        ScanResult scan3 = buildScanResult(BSSID_3, NOW_MILLIS - 20_000);
 
         sru.update(Arrays.asList(scan1, scan2, scan3));
 
         List<ScanResult> scanResults = sru.getScanResults();
 
-        assertThat(scanResults.size(), equalTo(2));
-        assertThat(scanResults, contains(scan1, scan2));
+        assertThat(scanResults).containsExactly(scan1, scan2);
     }
 
     /**
@@ -137,23 +141,20 @@ public class ScanResultUpdaterTest {
      */
     @Test
     public void testGetScanResults_overridesConstructorMaxScanAge() {
-        ScanResultUpdater sru = new ScanResultUpdater(15_000);
-        long now = SystemClock.elapsedRealtime();
+        ScanResultUpdater sru = new ScanResultUpdater(mMockClock, 15_000);
 
-        ScanResult scan1 = buildScanResult(BSSID_1, now - 10_000);
-        ScanResult scan2 = buildScanResult(BSSID_2, now - 12_000);
-        ScanResult scan3 = buildScanResult(BSSID_3, now - 20_000);
+        ScanResult scan1 = buildScanResult(BSSID_1, NOW_MILLIS - 10_000);
+        ScanResult scan2 = buildScanResult(BSSID_2, NOW_MILLIS - 15_000);
+        ScanResult scan3 = buildScanResult(BSSID_3, NOW_MILLIS - 20_000);
 
         sru.update(Arrays.asList(scan1, scan2, scan3));
 
         // Aged getScanResults should override the constructor max scan age.
         List<ScanResult> scanResults = sru.getScanResults(11_000);
-        assertThat(scanResults.size(), equalTo(1));
-        assertThat(scanResults, contains(scan1));
+        assertThat(scanResults).containsExactly(scan1);
 
         // Non-aged getScanResults should revert to the constructor max scan age.
         scanResults = sru.getScanResults();
-        assertThat(scanResults.size(), equalTo(2));
-        assertThat(scanResults, contains(scan1, scan2));
+        assertThat(scanResults).containsExactly(scan1, scan2);
     }
 }
