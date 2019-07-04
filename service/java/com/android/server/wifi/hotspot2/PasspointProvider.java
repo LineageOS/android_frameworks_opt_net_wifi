@@ -418,6 +418,13 @@ public class PasspointProvider {
             enterpriseConfig.setCaCertificateAliases(new String[] {SYSTEM_CA_STORE_PATH});
         }
         wifiConfig.enterpriseConfig = enterpriseConfig;
+        // PPS MO Credential/CheckAAAServerCertStatus node contains a flag which indicates
+        // if the mobile device needs to check the AAA server certificate's revocation status
+        // during EAP authentication.
+        if (mConfig.getCredential().getCheckAaaServerCertStatus()) {
+            // Check server certificate using OCSP (Online Certificate Status Protocol).
+            wifiConfig.enterpriseConfig.setOcsp(WifiEnterpriseConfig.OCSP_REQUIRE_CERT_STATUS);
+        }
         wifiConfig.shared = mIsShared;
         return wifiConfig;
     }

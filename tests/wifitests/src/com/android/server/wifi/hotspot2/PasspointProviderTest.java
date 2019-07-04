@@ -364,6 +364,13 @@ public class PasspointProviderTest {
             } else {
                 assertEquals(CA_CERTIFICATE_ALIAS, wifiEnterpriseConfig.getCaCertificateAlias());
             }
+            if (passpointConfig.getCredential().getCheckAaaServerCertStatus()) {
+                assertEquals(wifiEnterpriseConfig.getOcsp(),
+                        WifiEnterpriseConfig.OCSP_REQUIRE_CERT_STATUS);
+            } else {
+                assertEquals(wifiEnterpriseConfig.getOcsp(),
+                        WifiEnterpriseConfig.OCSP_NONE);
+            }
         } else if (credential.getCertCredential() != null) {
             Credential.CertificateCredential certCredential = credential.getCertCredential();
             assertEquals("anonymous@" + credential.getRealm(),
@@ -390,6 +397,13 @@ public class PasspointProviderTest {
             } else {
                 assertTrue(Arrays.equals(new String[] {SYSTEM_CA_STORE_PATH},
                         wifiEnterpriseConfig.getCaCertificateAliases()));
+            }
+            if (passpointConfig.getCredential().getCheckAaaServerCertStatus()) {
+                assertEquals(wifiEnterpriseConfig.getOcsp(),
+                        WifiEnterpriseConfig.OCSP_REQUIRE_CERT_STATUS);
+            } else {
+                assertEquals(wifiEnterpriseConfig.getOcsp(),
+                        WifiEnterpriseConfig.OCSP_NONE);
             }
         } else if (credential.getSimCredential() != null) {
             Credential.SimCredential simCredential = credential.getSimCredential();
@@ -1021,6 +1035,9 @@ public class PasspointProviderTest {
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.USER, false);
         config.setAaaServerTrustedNames(TEST_TRUSTED_NAME);
+        Credential credential = config.getCredential();
+        // OCSP (Online Certificate Status Protocol) is required.
+        credential.setCheckAaaServerCertStatus(true);
         mProvider = createProvider(config);
 
         // Install certificate.

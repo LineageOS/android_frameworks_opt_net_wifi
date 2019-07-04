@@ -186,6 +186,7 @@ public class NetworkListStoreDataTest {
                     + "<int name=\"Phase2Method\" value=\"0\" />\n"
                     + "<string name=\"PLMN\"></string>\n"
                     + "<string name=\"Realm\"></string>\n"
+                    + "<int name=\"Ocsp\" value=\"0\" />\n"
                     + "</WifiEnterpriseConfiguration>\n"
                     + "</Network>\n";
 
