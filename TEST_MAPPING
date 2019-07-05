@@ -1,0 +1,13 @@
+{
+  "presubmit": [
+    {
+      "name": "CtsBackupHostTestCases",
+      "options": [
+        {
+          "include-filter": "android.cts.backup.OtherSoundsSettingsHostSideTest"
+        }
+      ]
+    }
+  ]
+}
+
