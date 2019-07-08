@@ -4054,7 +4054,8 @@ public class ClientModeImpl extends StateMachine {
                     if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD) {
                         mWifiInjector.getWifiLastResortWatchdog()
                                 .noteConnectionFailureAndTriggerIfNeeded(
-                                        getTargetSsid(), mTargetRoamBSSID,
+                                        getTargetSsid(),
+                                        (mLastBssid == null) ? mTargetRoamBSSID : mLastBssid,
                                         WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
                     }
                     break;
@@ -4420,6 +4421,8 @@ public class ClientModeImpl extends StateMachine {
                             mWifiMetrics.setConnectionScanDetail(scanDetailCache.getScanDetail(
                                     someBssid));
                         }
+                        // Update last associated BSSID
+                        mLastBssid = someBssid;
                     }
                     handleStatus = NOT_HANDLED;
                     break;
@@ -5009,7 +5012,8 @@ public class ClientModeImpl extends StateMachine {
                     handleIPv4Failure();
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
-                                    getTargetSsid(), mTargetRoamBSSID,
+                                    getTargetSsid(),
+                                    (mLastBssid == null) ? mTargetRoamBSSID : mLastBssid,
                                     WifiLastResortWatchdog.FAILURE_CODE_DHCP);
                     break;
                 }
@@ -5039,7 +5043,8 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
-                                    getTargetSsid(), mTargetRoamBSSID,
+                                    getTargetSsid(),
+                                    (mLastBssid == null) ? mTargetRoamBSSID : mLastBssid,
                                     WifiLastResortWatchdog.FAILURE_CODE_DHCP);
                     transitionTo(mDisconnectingState);
                     break;
