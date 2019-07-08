@@ -1091,7 +1091,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testStartSoftApWithoutPermissionThrowsException() throws Exception {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_STACK),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
                                                 eq("WifiService"));
         mWifiServiceImpl.startSoftAp(null);
     }
@@ -1114,7 +1114,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testStopSoftApWithoutPermissionThrowsException() throws Exception {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_STACK),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
                                                 eq("WifiService"));
         mWifiServiceImpl.stopSoftAp();
     }
@@ -1661,7 +1661,7 @@ public class WifiServiceImplTest {
     @Test
     public void registerSoftApCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                                                 eq("WifiService"));
         try {
             final int callbackIdentifier = 1;
@@ -1693,7 +1693,7 @@ public class WifiServiceImplTest {
     @Test
     public void unregisterSoftApCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                                                 eq("WifiService"));
         try {
             final int callbackIdentifier = 1;
@@ -2469,8 +2469,8 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testStartWatchLocalOnlyHotspotNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                        eq("WifiService"));
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                                                eq("WifiService"));
         mWifiServiceImpl.startWatchLocalOnlyHotspot(mAppMessenger, mAppBinder);
     }
 
@@ -2490,8 +2490,8 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testStopWatchLocalOnlyHotspotNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                        eq("WifiService"));
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                                                eq("WifiService"));
         mWifiServiceImpl.stopWatchLocalOnlyHotspot();
     }
 
@@ -2725,7 +2725,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testRestoreBackupDataNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         mWifiServiceImpl.restoreBackupData(null);
         verify(mWifiBackupRestore, never()).retrieveConfigurationsFromBackupData(any(byte[].class));
@@ -2738,7 +2738,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testRestoreSupplicantBackupDataNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         mWifiServiceImpl.restoreSupplicantBackupData(null, null);
         verify(mWifiBackupRestore, never()).retrieveConfigurationsFromSupplicantBackupData(
@@ -2752,7 +2752,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testRetrieveBackupDataNotApprovedCaller() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         mWifiServiceImpl.retrieveBackupData();
         verify(mWifiBackupRestore, never()).retrieveBackupDataFromConfigurations(any(List.class));
@@ -2765,7 +2765,7 @@ public class WifiServiceImplTest {
     @Test
     public void testEnableVerboseLoggingWithNetworkSettingsPermission() {
         doNothing().when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
         // before invocation.
@@ -2781,7 +2781,7 @@ public class WifiServiceImplTest {
     @Test(expected = SecurityException.class)
     public void testEnableVerboseLoggingWithNoNetworkSettingsPermission() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         // Vebose logging is enabled first in the constructor for WifiServiceImpl, so reset
         // before invocation.
@@ -3216,7 +3216,7 @@ public class WifiServiceImplTest {
                 .thenReturn(true);
         assertTrue(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
 
-        verify(mContext).enforceCallingPermission(
+        verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }
 
@@ -3232,7 +3232,7 @@ public class WifiServiceImplTest {
 
         assertFalse(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
 
-        verify(mContext).enforceCallingPermission(
+        verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS), eq("WifiService"));
     }
 
@@ -3243,7 +3243,7 @@ public class WifiServiceImplTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionThrowsWithoutProperPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                                                 eq("WifiService"));
 
         try {
@@ -3311,7 +3311,7 @@ public class WifiServiceImplTest {
     @Test
     public void testNotifyUserOfApBandConversionChecksNetworkSettingsPermission() {
         mWifiServiceImpl.notifyUserOfApBandConversion(TEST_PACKAGE_NAME);
-        verify(mContext).enforceCallingPermission(
+        verify(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.NETWORK_SETTINGS),
                 eq("WifiService"));
         verify(mWifiApConfigStore).notifyUserOfApBandConversion(eq(TEST_PACKAGE_NAME));
@@ -3324,7 +3324,7 @@ public class WifiServiceImplTest {
     @Test
     public void testNotifyUserOfApBandConversionThrowsExceptionWithoutNetworkSettingsPermission() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                                                 eq("WifiService"));
         try {
             mWifiServiceImpl.notifyUserOfApBandConversion(TEST_PACKAGE_NAME);
@@ -3339,7 +3339,7 @@ public class WifiServiceImplTest {
     @Test
     public void registerTrafficStateCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         try {
             mWifiServiceImpl.registerTrafficStateCallback(mAppBinder, mTrafficStateCallback,
@@ -3370,7 +3370,7 @@ public class WifiServiceImplTest {
     @Test
     public void unregisterTrafficStateCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         try {
             mWifiServiceImpl.unregisterTrafficStateCallback(TEST_TRAFFIC_STATE_CALLBACK_IDENTIFIER);
@@ -3412,7 +3412,7 @@ public class WifiServiceImplTest {
     @Test
     public void registerNetworkRequestMatchCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         try {
             mWifiServiceImpl.registerNetworkRequestMatchCallback(mAppBinder,
@@ -3445,7 +3445,7 @@ public class WifiServiceImplTest {
     @Test
     public void unregisterNetworkRequestMatchCallbackThrowsSecurityExceptionOnMissingPermissions() {
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                         eq("WifiService"));
         try {
             mWifiServiceImpl.unregisterNetworkRequestMatchCallback(
