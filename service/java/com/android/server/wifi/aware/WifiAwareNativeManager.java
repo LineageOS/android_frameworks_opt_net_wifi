@@ -202,6 +202,7 @@ public class WifiAwareNativeManager {
             mInterfaceDestroyedListener = null;
             mHalDeviceManager.removeIface(mWifiNanIface);
             mWifiNanIface = null;
+            mWifiAwareNativeCallback.resetChannelInfo();
         }
     }
 

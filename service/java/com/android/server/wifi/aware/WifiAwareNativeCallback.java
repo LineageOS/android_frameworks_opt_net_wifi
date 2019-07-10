@@ -26,13 +26,16 @@ import android.hardware.wifi.V1_0.NanMatchInd;
 import android.hardware.wifi.V1_0.NanStatusType;
 import android.hardware.wifi.V1_0.WifiNanStatus;
 import android.hardware.wifi.V1_2.IWifiNanIfaceEventCallback;
+import android.hardware.wifi.V1_2.NanDataPathChannelInfo;
 import android.hardware.wifi.V1_2.NanDataPathScheduleUpdateInd;
 import android.os.ShellCommand;
 import android.util.Log;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 
 import libcore.util.HexEncoding;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -75,13 +78,14 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
     private static final int CB_EV_DATA_PATH_SCHED_UPDATE = 11;
 
     private SparseIntArray mCallbackCounter = new SparseIntArray();
+    private SparseArray<ArrayList<NanDataPathChannelInfo>> mChannelInfoPerNdp = new SparseArray<>();
 
     private void incrementCbCount(int callbackId) {
         mCallbackCounter.put(callbackId, mCallbackCounter.get(callbackId) + 1);
     }
 
     /**
-     * Interpreter of adb shell command 'adb shell wifiaware native_cb ...'.
+     * Interpreter of adb shell command 'adb shell cmd wifiaware native_cb ...'.
      *
      * @return -1 if parameter not recognized or invalid value, 0 otherwise.
      */
@@ -121,6 +125,17 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
                 }
                 return 0;
             }
+            case  "get_channel_info": {
+                String option = parentShell.getNextOption();
+                if (VDBG) Log.v(TAG, "option='" + option + "'");
+                if (option != null) {
+                    pwe.println("Unknown option to 'get_channel_info'");
+                    return -1;
+                }
+                String channelInfoString = convertChannelInfoToJsonString();
+                pwo.println(channelInfoString);
+                return 0;
+            }
             default:
                 pwe.println("Unknown 'wifiaware native_cb <cmd>'");
         }
@@ -140,6 +155,7 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
         pw.println("  " + command);
         pw.println("    get_cb_count [--reset]: gets the number of callbacks (and optionally reset "
                 + "count)");
+        pw.println("    get_channel_info: prints out existing NDP channel info as a JSON String");
     }
 
     @Override
@@ -502,13 +518,15 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
                     + ", peerNdiMacAddr=" + String.valueOf(
                     HexEncoding.encode(event.V1_0.peerNdiMacAddr)) + ", dataPathSetupSuccess="
                     + event.V1_0.dataPathSetupSuccess + ", reason=" + event.V1_0.status.status
-                    + ", appInfo.size()=" + event.V1_0.appInfo.size());
+                    + ", appInfo.size()=" + event.V1_0.appInfo.size()
+                    + ", channelInfo" + event.channelInfo);
         }
         if (!mIsHal12OrLater) {
             Log.wtf(TAG, "eventDataPathConfirm_1_2 should not be called by a <1.2 HAL!");
             return;
         }
         incrementCbCount(CB_EV_DATA_PATH_CONFIRM);
+        mChannelInfoPerNdp.put(event.V1_0.ndpInstanceId, event.channelInfo);
 
         mWifiAwareStateManager.onDataPathConfirmNotification(event.V1_0.ndpInstanceId,
                 event.V1_0.peerNdiMacAddr, event.V1_0.dataPathSetupSuccess,
@@ -526,6 +544,9 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
             return;
         }
         incrementCbCount(CB_EV_DATA_PATH_SCHED_UPDATE);
+        for (int ndpInstanceId : event.ndpInstanceIds) {
+            mChannelInfoPerNdp.put(ndpInstanceId, event.channelInfo);
+        }
 
         mWifiAwareStateManager.onDataPathScheduleUpdateNotification(event.peerDiscoveryAddress,
                 event.ndpInstanceIds, event.channelInfo);
@@ -535,8 +556,16 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
     public void eventDataPathTerminated(int ndpInstanceId) {
         if (mDbg) Log.v(TAG, "eventDataPathTerminated: ndpInstanceId=" + ndpInstanceId);
         incrementCbCount(CB_EV_DATA_PATH_TERMINATED);
+        mChannelInfoPerNdp.remove(ndpInstanceId);
 
         mWifiAwareStateManager.onDataPathEndNotification(ndpInstanceId);
+    }
+
+    /**
+     * Reset the channel info when Aware is down.
+     */
+    /* package */ void resetChannelInfo() {
+        mChannelInfoPerNdp.clear();
     }
 
     /**
@@ -545,6 +574,7 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("WifiAwareNativeCallback:");
         pw.println("  mCallbackCounter: " + mCallbackCounter);
+        pw.println("  mChannelInfoPerNdp: " + mChannelInfoPerNdp);
     }
 
 
@@ -576,5 +606,31 @@ public class WifiAwareNativeCallback extends IWifiNanIfaceEventCallback.Stub imp
         StringBuilder sb = new StringBuilder();
         sb.append(status.status).append(" (").append(status.description).append(")");
         return sb.toString();
+    }
+
+    /**
+     * Transfer the channel Info dict into a Json String which can be decoded by Json reader.
+     * The Format is: "{ndpInstanceId: [{"channelFreq": channelFreq,
+     * "channelBandwidth": channelBandwidth, "numSpatialStreams": numSpatialStreams}]}"
+     * @return Json String.
+     */
+    private String convertChannelInfoToJsonString() {
+        JSONObject channelInfoJson = new JSONObject();
+        try {
+            for (int i = 0; i < mChannelInfoPerNdp.size(); i++) {
+                JSONArray infoJsonArray = new JSONArray();
+                for (NanDataPathChannelInfo info : mChannelInfoPerNdp.valueAt(i)) {
+                    JSONObject j = new JSONObject();
+                    j.put("channelFreq", info.channelFreq);
+                    j.put("channelBandwidth", info.channelBandwidth);
+                    j.put("numSpatialStreams", info.numSpatialStreams);
+                    infoJsonArray.put(j);
+                }
+                channelInfoJson.put(Integer.toString(mChannelInfoPerNdp.keyAt(i)), infoJsonArray);
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "onCommand: get_channel_info e=" + e);
+        }
+        return channelInfoJson.toString();
     }
 }
