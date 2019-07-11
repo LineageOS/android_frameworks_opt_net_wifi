@@ -271,6 +271,7 @@ public class WifiConfigManager {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
+    private boolean mConnectedMacRandomzationSupported;
 
     /**
      * Local log used for debugging any WifiConfigManager issues.
@@ -437,6 +438,8 @@ public class WifiConfigManager {
                     }
                 });
         updatePnoRecencySortingSetting();
+        mConnectedMacRandomzationSupported = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
                     PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
@@ -540,6 +543,9 @@ public class WifiConfigManager {
         if (targetUid != Process.WIFI_UID && targetUid != Process.SYSTEM_UID
                 && targetUid != configuration.creatorUid) {
             maskRandomizedMacAddressInWifiConfiguration(network);
+        }
+        if (!mConnectedMacRandomzationSupported) {
+            network.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
         return network;
     }
