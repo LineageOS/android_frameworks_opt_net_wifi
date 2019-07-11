@@ -30,19 +30,21 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.IWifiStackConnector;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
 import android.util.Log;
 
 import com.android.internal.R;
+import com.android.internal.annotations.GuardedBy;
 import com.android.server.wifi.aware.WifiAwareService;
 import com.android.server.wifi.p2p.WifiP2pService;
 import com.android.server.wifi.rtt.RttService;
 import com.android.server.wifi.scanner.WifiScanningService;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -52,14 +54,50 @@ public class WifiStackService extends Service {
     private static final String TAG = WifiStackService.class.getSimpleName();
     // Ordered list of wifi services. The ordering determines the order in which the events
     // are delivered to the services.
-    private final LinkedHashSet<WifiServiceBase> mServices = new LinkedHashSet<>();
+    @GuardedBy("mApiServices")
+    private final LinkedHashMap<String, WifiServiceBase> mApiServices = new LinkedHashMap<>();
     private static WifiStackConnector sConnector;
 
-    private static class WifiStackConnector extends IWifiStackConnector.Stub {
+    private class WifiStackConnector extends IWifiStackConnector.Stub {
         private final Context mContext;
 
         WifiStackConnector(Context context) {
             mContext = context;
+        }
+
+        @Override
+        public IBinder retrieveApiServiceImpl(@NonNull String serviceName) {
+            // Ensure this is being invoked from system_server only.
+            mContext.enforceCallingOrSelfPermission(
+                    android.Manifest.permission.NETWORK_STACK, "WifiStackService");
+            long ident = Binder.clearCallingIdentity();
+            try {
+                synchronized (mApiServices) {
+                    WifiServiceBase serviceBase = mApiServices.get(serviceName);
+                    if (serviceBase == null) return null;
+                    return serviceBase.retrieveImpl();
+                }
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+        }
+
+        @Override
+        public boolean startApiService(@NonNull String serviceName) {
+            // Ensure this is being invoked from system_server only.
+            mContext.enforceCallingOrSelfPermission(
+                    android.Manifest.permission.NETWORK_STACK, "WifiStackService");
+            long ident = Binder.clearCallingIdentity();
+            try {
+                synchronized (mApiServices) {
+                    WifiServiceBase serviceBase = mApiServices.get(serviceName);
+                    if (serviceBase == null) return false;
+                    serviceBase.onStart();
+                    return true;
+                }
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
         }
     }
 
@@ -76,20 +114,26 @@ public class WifiStackService extends Service {
             switch (action) {
                 case Intent.ACTION_USER_SWITCHED:
                     userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, -1);
-                    for (WifiServiceBase service : mServices) {
-                        service.onSwitchUser(userId);
+                    synchronized (mApiServices) {
+                        for (WifiServiceBase service : mApiServices.values()) {
+                            service.onSwitchUser(userId);
+                        }
                     }
                     break;
                 case Intent.ACTION_USER_STOPPED:
                     userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, -1);
-                    for (WifiServiceBase service : mServices) {
-                        service.onStopUser(userId);
+                    synchronized (mApiServices) {
+                        for (WifiServiceBase service : mApiServices.values()) {
+                            service.onStopUser(userId);
+                        }
                     }
                     break;
                 case Intent.ACTION_USER_UNLOCKED:
                     userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, -1);
-                    for (WifiServiceBase service : mServices) {
-                        service.onUnlockUser(userId);
+                    synchronized (mApiServices) {
+                        for (WifiServiceBase service : mApiServices.values()) {
+                            service.onUnlockUser(userId);
+                        }
                     }
                     break;
                 default:
@@ -138,32 +182,30 @@ public class WifiStackService extends Service {
                     + " Do not start wifi.");
             return false;
         }
-        // Top level wifi feature flag.
-        if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI)) {
-            Log.w(TAG, "Wifi not supported on the device");
-            return false;
-        }
 
-        // Ordering of wifi services.
-        // wifi service
-        mServices.add(new WifiService(this));
-        // wifiscanner service
-        mServices.add(new WifiScanningService(this));
-        // wifi-p2p service
-        if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
-            mServices.add(new WifiP2pService(this));
-        }
-        // wifi-aware service
-        if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
-            mServices.add(new WifiAwareService(this));
-        }
-        // wifirtt service
-        if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)) {
-            mServices.add(new RttService(this));
-        }
-        // Start all the services.
-        for (WifiServiceBase service : mServices) {
-            service.onStart();
+        synchronized (mApiServices) {
+            // Top level wifi feature flag.
+            if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI)) {
+                Log.w(TAG, "Wifi not supported on the device");
+                return false;
+            }
+            // Ordering of wifi services.
+            // wifi service
+            mApiServices.put(Context.WIFI_SERVICE, new WifiService(this));
+            // wifiscanner service
+            mApiServices.put(Context.WIFI_SCANNING_SERVICE, new WifiScanningService(this));
+            // wifi-p2p service
+            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
+                mApiServices.put(Context.WIFI_P2P_SERVICE, new WifiP2pService(this));
+            }
+            // wifi-aware service
+            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
+                mApiServices.put(Context.WIFI_AWARE_SERVICE, new WifiAwareService(this));
+            }
+            // wifirtt service
+            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)) {
+                mApiServices.put(Context.WIFI_RTT_RANGING_SERVICE, new RttService(this));
+            }
         }
 
         // Register broadcast receiver for system events.

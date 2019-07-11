@@ -17,7 +17,7 @@
 package com.android.server.wifi.p2p;
 
 import android.content.Context;
-import android.os.ServiceManager;
+import android.os.Binder;
 import android.util.Log;
 
 import com.android.server.wifi.WifiInjector;
@@ -39,10 +39,12 @@ public final class WifiP2pService implements WifiServiceBase {
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Registering " + Context.WIFI_P2P_SERVICE);
-        ServiceManager.addService(Context.WIFI_P2P_SERVICE, mImpl);
-
         Log.i(TAG, "Starting " + Context.WIFI_P2P_SERVICE);
         mImpl.connectivityServiceReady();
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

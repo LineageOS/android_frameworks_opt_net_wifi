@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.os.Binder;
+
 /**
  * Base class for all the wifi services. This is used to manage the lifetime of the services.
  * Each service should override the methods corresponding to the lifetime events they care about.
@@ -52,4 +54,11 @@ public interface WifiServiceBase {
      * @param userId Id for the user.
      */
     default void onStopUser(int userId) {}
+
+    /**
+     * Retrieve the underlying binder service implementation.
+     */
+    default Binder retrieveImpl() {
+        return null;
+    }
 }

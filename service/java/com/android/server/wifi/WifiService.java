@@ -17,7 +17,7 @@
 package com.android.server.wifi;
 
 import android.content.Context;
-import android.os.ServiceManager;
+import android.os.Binder;
 import android.util.Log;
 
 import com.android.server.wifi.util.WifiAsyncChannel;
@@ -36,9 +36,6 @@ public final class WifiService implements WifiServiceBase {
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Registering " + Context.WIFI_SERVICE);
-        ServiceManager.addService(Context.WIFI_SERVICE, mImpl);
-
         Log.i(TAG, "Starting " + Context.WIFI_SERVICE);
         mImpl.checkAndStartWifi();
 
@@ -59,5 +56,10 @@ public final class WifiService implements WifiServiceBase {
     @Override
     public void onStopUser(int userId) {
         mImpl.handleUserStop(userId);
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

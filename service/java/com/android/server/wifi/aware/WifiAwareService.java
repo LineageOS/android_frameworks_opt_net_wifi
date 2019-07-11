@@ -17,8 +17,8 @@
 package com.android.server.wifi.aware;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.HandlerThread;
-import android.os.ServiceManager;
 import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager;
@@ -39,9 +39,6 @@ public final class WifiAwareService implements WifiServiceBase {
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Registering " + Context.WIFI_AWARE_SERVICE);
-        ServiceManager.addService(Context.WIFI_AWARE_SERVICE, mImpl);
-
         Log.i(TAG, "Starting " + Context.WIFI_AWARE_SERVICE);
         WifiInjector wifiInjector = WifiInjector.getInstance();
         if (wifiInjector == null) {
@@ -73,5 +70,10 @@ public final class WifiAwareService implements WifiServiceBase {
         // TODO: This 2 step initialization is no longer necessary because of service ordering in
         // WifiStackService.
         mImpl.startLate();
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

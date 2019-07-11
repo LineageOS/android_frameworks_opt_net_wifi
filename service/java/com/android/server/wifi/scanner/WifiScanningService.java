@@ -17,8 +17,8 @@
 package com.android.server.wifi.scanner;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.HandlerThread;
-import android.os.ServiceManager;
 import android.util.Log;
 
 import com.android.server.am.BatteryStatsService;
@@ -45,10 +45,12 @@ public class WifiScanningService implements WifiServiceBase {
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Publishing " + Context.WIFI_SCANNING_SERVICE);
-        ServiceManager.addService(Context.WIFI_SCANNING_SERVICE, mImpl);
-
         Log.i(TAG, "Starting " + Context.WIFI_SCANNING_SERVICE);
         mImpl.startService();
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

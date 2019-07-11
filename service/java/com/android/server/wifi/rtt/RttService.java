@@ -18,6 +18,7 @@ package com.android.server.wifi.rtt;
 
 import android.content.Context;
 import android.net.wifi.aware.IWifiAwareManager;
+import android.os.Binder;
 import android.os.HandlerThread;
 import android.os.ServiceManager;
 import android.util.Log;
@@ -42,9 +43,6 @@ public class RttService implements WifiServiceBase {
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Registering " + Context.WIFI_RTT_RANGING_SERVICE);
-        ServiceManager.addService(Context.WIFI_RTT_RANGING_SERVICE, mImpl);
-
         Log.i(TAG, "Starting " + Context.WIFI_RTT_RANGING_SERVICE);
         WifiInjector wifiInjector = WifiInjector.getInstance();
         if (wifiInjector == null) {
@@ -63,5 +61,10 @@ public class RttService implements WifiServiceBase {
         RttNative rttNative = new RttNative(mImpl, halDeviceManager);
         mImpl.start(handlerThread.getLooper(), wifiInjector.getClock(), awareBinder, rttNative,
                 rttMetrics, wifiPermissionsUtil, wifiInjector.getFrameworkFacade());
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }
