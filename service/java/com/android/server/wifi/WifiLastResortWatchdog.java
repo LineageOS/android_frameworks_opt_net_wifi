@@ -213,11 +213,11 @@ public class WifiLastResortWatchdog {
      */
     public void updateAvailableNetworks(
             List<Pair<ScanDetail, WifiConfiguration>> availableNetworks) {
-        if (mVerboseLoggingEnabled) {
-            Log.v(TAG, "updateAvailableNetworks: size = " + availableNetworks.size());
-        }
         // Add new networks to mRecentAvailableNetworks
         if (availableNetworks != null) {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "updateAvailableNetworks: size = " + availableNetworks.size());
+            }
             for (Pair<ScanDetail, WifiConfiguration> pair : availableNetworks) {
                 final ScanDetail scanDetail = pair.first;
                 final WifiConfiguration config = pair.second;

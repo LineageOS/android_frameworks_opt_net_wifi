@@ -2075,8 +2075,9 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
 
         // Age out network
+        candidates = new ArrayList<>();
         for (int i = 0; i < WifiLastResortWatchdog.MAX_BSSID_AGE; i++) {
-            mLastResortWatchdog.updateAvailableNetworks(null);
+            mLastResortWatchdog.updateAvailableNetworks(candidates);
         }
         assertEquals(mLastResortWatchdog.getRecentAvailableNetworks().size(), 0);
 
