@@ -177,9 +177,8 @@ public class ActiveModeWarden {
      *
      * The supplied SoftApModeConfiguration includes the target softap WifiConfiguration (or null if
      * the persisted config is to be used) and the target operating mode (ex,
-     * {@link WifiManager.IFACE_IP_MODE_TETHERED} {@link WifiManager.IFACE_IP_MODE_LOCAL_ONLY}).
+     * {@link WifiManager#IFACE_IP_MODE_TETHERED} {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *
-     * @param wifiConfig SoftApModeConfiguration for the hostapd softap
      */
     public void enterSoftAPMode(@NonNull SoftApModeConfiguration softApModeConfiguration) {
         mHandler.post(() -> {
@@ -193,9 +192,9 @@ public class ActiveModeWarden {
      * This method will stop any active softAp mode managers.
      *
      * @param mode the operating mode of APs to bring down (ex,
-     *             {@link WifiManager.IFACE_IP_MODE_TETHERED} or
-     *             {@link WifiManager.IFACE_IP_MODE_LOCAL_ONLY}).
-     *             Use {@link WifiManager.IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
+     *             {@link WifiManager#IFACE_IP_MODE_TETHERED} or
+     *             {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
+     *             Use {@link WifiManager#IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
     public void stopSoftAPMode(int mode) {
         mHandler.post(() -> {
