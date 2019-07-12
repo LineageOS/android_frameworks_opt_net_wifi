@@ -487,15 +487,6 @@ public class WifiPermissionsUtil {
     }
 
     /**
-     * Returns true if the |uid| holds MAINLINE_WIFI_STACK permission.
-     */
-    public boolean checkMainlineWifiStackPermission(int uid) {
-        return mWifiPermissionsWrapper.getUidPermission(
-                WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK, uid)
-                == PackageManager.PERMISSION_GRANTED;
-    }
-
-    /**
      * Returns true if the |uid| holds NETWORK_MANAGED_PROVISIONING permission.
      */
     public boolean checkNetworkManagedProvisioningPermission(int uid) {

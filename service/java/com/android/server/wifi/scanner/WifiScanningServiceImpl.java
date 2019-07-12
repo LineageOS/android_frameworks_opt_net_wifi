@@ -16,10 +16,8 @@
 
 package com.android.server.wifi.scanner;
 
-import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
@@ -122,11 +120,16 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return b;
     }
 
-    private void enforceWifiStack(int uid) {
+    private void enforceWifiStackPermission(int uid) {
         mContext.enforcePermission(
                 WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK,
                 UNKNOWN_PID, uid,
                 "MainlineWifiStack");
+    }
+
+    private boolean checkWifiStackPermission(int uid) {
+        return mContext.checkPermission(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK,
+                UNKNOWN_PID, uid) == PERMISSION_GRANTED;
     }
 
     // Helper method to check if the incoming message is for a privileged request.
@@ -180,7 +183,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private void enforcePermission(int uid, Message msg) throws SecurityException {
         try {
             /** Wifi stack issued requests.*/
-            enforceWifiStack(uid);
+            enforceWifiStackPermission(uid);
         } catch (SecurityException e) {
             /** System-app issued requests. */
             if (isPrivilegedMessage(msg.what)) {
@@ -805,7 +808,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 Log.e(TAG, "Invalid scan type " + settings.type);
                 return false;
             }
-            if (!mWifiPermissionsUtil.checkMainlineWifiStackPermission(ci.getUid())) {
+            if (!checkWifiStackPermission(ci.getUid())) {
                 if (!ArrayUtils.isEmpty(settings.hiddenNetworks)) {
                     Log.e(TAG, "Failing single scan because app " + ci.getUid()
                             + " does not have permission to set hidden networks");
