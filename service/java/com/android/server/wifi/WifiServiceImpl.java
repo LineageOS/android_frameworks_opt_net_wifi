@@ -96,7 +96,6 @@ import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.MutableInt;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
@@ -199,24 +198,11 @@ public class WifiServiceImpl extends BaseWifiService {
     private WifiPermissionsUtil mWifiPermissionsUtil;
 
     /**
-     * State of tethered SoftAP
-     * One of:  {@link WifiManager#WIFI_AP_STATE_DISABLED},
-     *          {@link WifiManager#WIFI_AP_STATE_DISABLING},
-     *          {@link WifiManager#WIFI_AP_STATE_ENABLED},
-     *          {@link WifiManager#WIFI_AP_STATE_ENABLING},
-     *          {@link WifiManager#WIFI_AP_STATE_FAILED}
-     *
-     * Access/maintenance MUST be done on the wifi service thread
-     */
-    private int mTetheredSoftApState = WifiManager.WIFI_AP_STATE_DISABLED;
-    private int mTetheredSoftApNumClients = 0;
-
-    private final ExternalCallbackTracker<ISoftApCallback> mRegisteredSoftApCallbacks;
-
-    /**
      * Power profile
      */
     PowerProfile mPowerProfile;
+
+    private final TetheredSoftApTracker mTetheredSoftApTracker;
 
     private final LohsSoftApTracker mLohsSoftApTracker;
 
@@ -447,7 +433,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mCountryCode = mWifiInjector.getWifiCountryCode();
         mClientModeImpl = mWifiInjector.getClientModeImpl();
         mActiveModeWarden = mWifiInjector.getActiveModeWarden();
-        mClientModeImpl.enableRssiPolling(true);
+        mClientModeImpl.enableRssiPolling(true);                  //TODO(b/65033024) strange startup
         mScanRequestProxy = mWifiInjector.getScanRequestProxy();
         mSettingsStore = mWifiInjector.getWifiSettingsStore();
         mPowerManager = mContext.getSystemService(PowerManager.class);
@@ -467,11 +453,10 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog = mWifiInjector.makeLog(TAG);
         mFrameworkFacade = wifiInjector.getFrameworkFacade();
         enableVerboseLoggingInternal(getVerboseLoggingLevel());
-        mRegisteredSoftApCallbacks =
-                new ExternalCallbackTracker<ISoftApCallback>(mClientModeImplHandler);
-        mWifiInjector.getActiveModeWarden().registerSoftApCallback(new TetheredSoftApTracker());
+        mTetheredSoftApTracker = new TetheredSoftApTracker();
+        mActiveModeWarden.registerSoftApCallback(mTetheredSoftApTracker);
         mLohsSoftApTracker = new LohsSoftApTracker();
-        mWifiInjector.getActiveModeWarden().registerLohsCallback(mLohsSoftApTracker);
+        mActiveModeWarden.registerLohsCallback(mLohsSoftApTracker);
         mPowerProfile = mWifiInjector.getPowerProfile();
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
@@ -855,7 +840,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // If SoftAp is enabled, only privileged apps are allowed to toggle wifi
-        if (!isPrivileged && mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLED) {
+        if (!isPrivileged
+                && mTetheredSoftApTracker.getState() == WifiManager.WIFI_AP_STATE_ENABLED) {
             mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
             return false;
         }
@@ -907,13 +893,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getWifiApEnabledState uid=%").c(Binder.getCallingUid()).flush();
         }
-
-        // hand off work to our handler thread
-        MutableInt apState = new MutableInt(WifiManager.WIFI_AP_STATE_DISABLED);
-        mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-            apState.value = mTetheredSoftApState;
-        }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        return apState.value;
+        return mTetheredSoftApTracker.getState();
     }
 
     /**
@@ -953,14 +933,12 @@ public class WifiServiceImpl extends BaseWifiService {
 
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
-        // TODO(b/71714381) Reference to mTetheredSoftApState is racy!
-        if (mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLED) {
-            mLog.err("Tethering is already active.").flush();
-            return false;
+        if (mTetheredSoftApTracker.setEnablingIfAllowed()) {
+            return startSoftApInternal(wifiConfig, WifiManager.IFACE_IP_MODE_TETHERED);
         }
-        return startSoftApInternal(wifiConfig, WifiManager.IFACE_IP_MODE_TETHERED);
+        mLog.err("Tethering is already active.").flush();
+        return false;
     }
-
 
     /**
      * Internal method to start softap mode. Callers of this method should have already checked
@@ -1021,6 +999,49 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     private final class TetheredSoftApTracker implements WifiManager.SoftApCallback {
         /**
+         * State of tethered SoftAP
+         * One of:  {@link WifiManager#WIFI_AP_STATE_DISABLED},
+         *          {@link WifiManager#WIFI_AP_STATE_DISABLING},
+         *          {@link WifiManager#WIFI_AP_STATE_ENABLED},
+         *          {@link WifiManager#WIFI_AP_STATE_ENABLING},
+         *          {@link WifiManager#WIFI_AP_STATE_FAILED}
+         */
+        private final Object mLock = new Object();
+        private int mTetheredSoftApState = WifiManager.WIFI_AP_STATE_DISABLED;
+        private int mTetheredSoftApNumClients = 0;
+
+        public int getState() {
+            synchronized (mLock) {
+                return mTetheredSoftApState;
+            }
+        }
+
+        public boolean setEnablingIfAllowed() {
+            synchronized (mLock) {
+                if (mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLING) return false;
+                if (mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLED) return false;
+                mTetheredSoftApState = WifiManager.WIFI_AP_STATE_ENABLING;
+                return true;
+            }
+        }
+
+        public int getNumClients() {
+            return mTetheredSoftApNumClients;
+        }
+
+        private final ExternalCallbackTracker<ISoftApCallback> mRegisteredSoftApCallbacks =
+                new ExternalCallbackTracker<>(mClientModeImplHandler);
+
+        public boolean registerSoftApCallback(IBinder binder, ISoftApCallback callback,
+                int callbackIdentifier) {
+            return mRegisteredSoftApCallbacks.add(binder, callback, callbackIdentifier);
+        }
+
+        public void unregisterSoftApCallback(int callbackIdentifier) {
+            mRegisteredSoftApCallbacks.remove(callbackIdentifier);
+        }
+
+        /**
          * Called when soft AP state changes.
          *
          * @param state new new AP state. One of {@link #WIFI_AP_STATE_DISABLED},
@@ -1031,7 +1052,9 @@ public class WifiServiceImpl extends BaseWifiService {
          */
         @Override
         public void onStateChanged(int state, int failureReason) {
-            mTetheredSoftApState = state;
+            synchronized (mLock) {
+                mTetheredSoftApState = state;
+            }
 
             Iterator<ISoftApCallback> iterator =
                     mRegisteredSoftApCallbacks.getCallbacks().iterator();
@@ -1430,14 +1453,15 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // post operation to handler thread
         mWifiInjector.getClientModeImplHandler().post(() -> {
-            if (!mRegisteredSoftApCallbacks.add(binder, callback, callbackIdentifier)) {
+            if (!mTetheredSoftApTracker.registerSoftApCallback(binder, callback,
+                    callbackIdentifier)) {
                 Log.e(TAG, "registerSoftApCallback: Failed to add callback");
                 return;
             }
             // Update the client about the current state immediately after registering the callback
             try {
-                callback.onStateChanged(mTetheredSoftApState, 0);
-                callback.onNumClientsChanged(mTetheredSoftApNumClients);
+                callback.onStateChanged(mTetheredSoftApTracker.getState(), 0);
+                callback.onNumClientsChanged(mTetheredSoftApTracker.getNumClients());
             } catch (RemoteException e) {
                 Log.e(TAG, "registerSoftApCallback: remote exception -- " + e);
             }
@@ -1462,7 +1486,7 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // post operation to handler thread
         mWifiInjector.getClientModeImplHandler().post(() -> {
-            mRegisteredSoftApCallbacks.remove(callbackIdentifier);
+            mTetheredSoftApTracker.unregisterSoftApCallback(callbackIdentifier);
         });
     }
 

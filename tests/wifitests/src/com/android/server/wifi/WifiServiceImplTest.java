@@ -1541,9 +1541,10 @@ public class WifiServiceImplTest {
         verify(mWifiController)
                 .sendMessage(eq(CMD_SET_AP), eq(1), eq(0), mSoftApModeConfigCaptor.capture());
         assertEquals(config, mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
-
+        mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
+        assertEquals(WIFI_AP_STATE_ENABLED, mWifiServiceImpl.getWifiApEnabledState());
 
         // Start another session without a stop, that should fail.
         assertFalse(mWifiServiceImpl.startSoftAp(createValidSoftApConfiguration()));
@@ -2068,6 +2069,7 @@ public class WifiServiceImplTest {
 
         registerLOHSRequestFull();
 
+        changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
         mWifiServiceImpl.updateInterfaceIpState(mLohsInterfaceName, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
         verify(mHandler).handleMessage(mMessageCaptor.capture());
@@ -2166,7 +2168,7 @@ public class WifiServiceImplTest {
 
     /**
      * Verify that onFailed is called for all registered LOHS callers when
-     * WIFI_AP_STATE_CHANGE broadcasts are received with WIFI_AP_STATE_FAILED.
+     * callbacks are received with WIFI_AP_STATE_FAILED.
      */
     @Test
     public void testAllRegisteredCallbacksTriggeredWhenSoftApFails() throws Exception {
@@ -2301,6 +2303,7 @@ public class WifiServiceImplTest {
 
         mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
 
+        changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
 
@@ -2414,7 +2417,7 @@ public class WifiServiceImplTest {
 
         // register a request so we don't drop the LOHS interface ip update
         mWifiServiceImpl.registerLOHSForTest(TEST_PID, mRequestInfo);
-
+        changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
 
