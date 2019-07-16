@@ -1387,6 +1387,39 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mClientModeImpl).disconnectCommand();
     }
 
+    /**
+     * Verify that we will disconnect from network when App has NetworkCarrierProvisioningPermission
+     * and removed all its suggestions by remove empty list.
+     */
+    @Test
+    public void
+            testRemoveAllNetworkSuggestionsMatchingConnectionSuccessWithOneMatchCarrierProvision() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(true);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+
+        // Simulate connecting to the network.
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
+                TEST_BSSID);
+
+        // Now remove all network suggestion and ensure we did trigger a disconnect.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), TEST_UID_1,
+                        TEST_PACKAGE_1));
+        verify(mClientModeImpl).disconnectCommand();
+    }
+
 
     /**
      * Verify that we do not disconnect from the network if there are network suggestion from
