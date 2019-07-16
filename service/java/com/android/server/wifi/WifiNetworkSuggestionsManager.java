@@ -654,6 +654,10 @@ public class WifiNetworkSuggestionsManager {
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
         if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
+            // empty list is used to clear everything for the app.
+            if (extNetworkSuggestions.isEmpty()) {
+                extNetworkSuggestions = new HashSet<>(perAppInfo.extNetworkSuggestions);
+            }
             triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
         }
         removeInternal(extNetworkSuggestions, packageName, perAppInfo);
