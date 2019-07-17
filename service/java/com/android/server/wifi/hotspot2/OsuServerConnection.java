@@ -380,11 +380,25 @@ public class OsuServerConnection {
                 }
                 X509Certificate certificate = getCert(certInfo.getKey());
 
-                if (certificate == null || !ServiceProviderVerifier.verifyCertFingerprint(
+                if (certificate == null) {
+                    // In case of an invalid cert, clear all of retrieved CA certs so that
+                    // PasspointProvisioner aborts current flow. getCert already logs the error.
+                    trustRootCertificates.clear();
+                    break;
+                }
+
+                // Verify that the certificate's fingerprint matches the one provided in the PPS-MO
+                // profile, in accordance with section 7.3.1 of the HS2.0 specification.
+                if (!ServiceProviderVerifier.verifyCertFingerprint(
                         certificate, certInfo.getValue())) {
-                    // If any failure happens, clear all of retrieved CA certs so that
+                    // If fingerprint does not match, clear all of retrieved CA certs so that
                     // PasspointProvisioner aborts current flow.
                     trustRootCertificates.clear();
+                    String certName = "";
+                    if (certificate.getSubjectDN() != null) {
+                        certName = certificate.getSubjectDN().getName();
+                    }
+                    Log.e(TAG, "Fingerprint does not match the certificate " + certName);
                     break;
                 }
                 certificates.add(certificate);
