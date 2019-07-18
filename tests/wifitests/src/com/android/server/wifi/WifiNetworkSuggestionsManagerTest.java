@@ -1322,45 +1322,12 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify that we don't disconnect from the network if the only network suggestion matching the
-     * connected network is removed when App doesn't have NetworkCarrierProvisioningPermission.
-     */
-    @Test
-    public void
-            testRemoveNetworkSuggestionsMatchingConnectionSuccessWithOneMatchNoCarrierProvision() {
-        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
-                TEST_PACKAGE_1);
-        List<WifiNetworkSuggestion> networkSuggestionList =
-                new ArrayList<WifiNetworkSuggestion>() {{
-                    add(networkSuggestion);
-                }};
-        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
-                .thenReturn(false);
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
-                        TEST_PACKAGE_1));
-        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
-
-        // Simulate connecting to the network.
-        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
-                WifiMetrics.ConnectionEvent.FAILURE_NONE, networkSuggestion.wifiConfiguration,
-                TEST_BSSID);
-
-        // Now remove the network suggestion and ensure we did not trigger a disconnect.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
-                mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_UID_1,
-                        TEST_PACKAGE_1));
-        verify(mClientModeImpl, never()).disconnectCommand();
-    }
-
-    /**
      * Verify that we will disconnect from the network if the only network suggestion matching the
-     * connected network is removed when App has NetworkCarrierProvisioningPermission.
+     * connected network is removed.
      */
     @Test
     public void
-            testRemoveNetworkSuggestionsMatchingConnectionSuccessWithOneMatchCarrierProvision() {
+            testRemoveNetworkSuggestionsMatchingConnectionSuccessWithOneMatch() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1368,8 +1335,6 @@ public class WifiNetworkSuggestionsManagerTest {
                 new ArrayList<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
                 }};
-        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
-                .thenReturn(true);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
@@ -1388,12 +1353,12 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify that we will disconnect from network when App has NetworkCarrierProvisioningPermission
-     * and removed all its suggestions by remove empty list.
+     * Verify that we will disconnect from network when App removed all its suggestions by remove
+     * empty list.
      */
     @Test
     public void
-            testRemoveAllNetworkSuggestionsMatchingConnectionSuccessWithOneMatchCarrierProvision() {
+            testRemoveAllNetworkSuggestionsMatchingConnectionSuccessWithOneMatch() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1401,8 +1366,6 @@ public class WifiNetworkSuggestionsManagerTest {
                 new ArrayList<WifiNetworkSuggestion>() {{
                     add(networkSuggestion);
                 }};
-        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
-                .thenReturn(true);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
