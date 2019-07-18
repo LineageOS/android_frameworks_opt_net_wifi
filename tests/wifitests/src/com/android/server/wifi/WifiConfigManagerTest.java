@@ -1901,9 +1901,6 @@ public class WifiConfigManagerTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
 
-        MacAddress testMac = MacAddress.createRandomUnicastAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
-
         // Verify that randomized MAC address is masked when obtaining saved networks from
         // invalid UID
         List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.INVALID_UID);
@@ -1914,7 +1911,8 @@ public class WifiConfigManagerTest {
         // system UID
         configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
         assertEquals(1, configs.size());
-        assertEquals(testMac, configs.get(0).getRandomizedMacAddress());
+        String macAddress = configs.get(0).getRandomizedMacAddress().toString();
+        assertNotEquals(WifiInfo.DEFAULT_MAC_ADDRESS, macAddress);
 
         // Verify that randomized MAC address is masked when obtaining saved networks from
         // (carrier app) non-creator of the config
@@ -1926,18 +1924,18 @@ public class WifiConfigManagerTest {
         // (carrier app) creator of the config
         configs = mWifiConfigManager.getSavedNetworks(TEST_CREATOR_UID);
         assertEquals(1, configs.size());
-        assertEquals(testMac, configs.get(0).getRandomizedMacAddress());
+        assertEquals(macAddress, configs.get(0).getRandomizedMacAddress().toString());
 
         // Verify that randomized MAC address is unmasked when getting list of privileged (with
         // password) configurations
         WifiConfiguration configWithRandomizedMac = mWifiConfigManager
                 .getConfiguredNetworkWithPassword(result.getNetworkId());
-        assertEquals(testMac, configWithRandomizedMac.getRandomizedMacAddress());
+        assertEquals(macAddress, configs.get(0).getRandomizedMacAddress().toString());
 
         // Ensure that the MAC address is present when asked for config with MAC address.
         configWithRandomizedMac = mWifiConfigManager
                 .getConfiguredNetworkWithoutMasking(result.getNetworkId());
-        assertEquals(testMac, configWithRandomizedMac.getRandomizedMacAddress());
+        assertEquals(macAddress, configs.get(0).getRandomizedMacAddress().toString());
     }
 
     /**
@@ -1947,9 +1945,6 @@ public class WifiConfigManagerTest {
     public void testGetConfiguredNetworksNotMaskMacRandomizationSetting() {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
-
-        MacAddress testMac = MacAddress.createRandomUnicastAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
 
         // Verify macRandomizationSetting is not masked out when feature is supported.
         List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
@@ -1968,9 +1963,6 @@ public class WifiConfigManagerTest {
         createWifiConfigManager();
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
-
-        MacAddress testMac = MacAddress.createRandomUnicastAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
 
         // Verify macRandomizationSetting is masked out when feature is unsupported.
         List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
@@ -4295,31 +4287,6 @@ public class WifiConfigManagerTest {
 
         assertNotEquals(retrievedNetwork.BSSID, bssid);
         assertEquals(retrievedNetwork.BSSID, bssid.toLowerCase());
-    }
-
-    /**
-     * Verifies that the method setNetworkRandomizedMacAddress changes the randomized MAC
-     * address variable in the internal configuration.
-     */
-    @Test
-    public void testSetNetworkRandomizedMacAddressUpdatesInternalMacAddress() {
-        WifiConfiguration originalConfig = WifiConfigurationTestUtil.createOpenNetwork();
-        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(originalConfig);
-
-        // Verify that internal randomized MAC address does not change from
-        // from setting external randomized MAC address
-        MacAddress originalMac = originalConfig.getOrCreateRandomizedMacAddress();
-        WifiConfiguration retrievedConfig = mWifiConfigManager
-                .getConfiguredNetworkWithoutMasking(result.getNetworkId());
-        assertNotEquals(originalMac, retrievedConfig.getRandomizedMacAddress());
-
-        // Verify that changing randomized MAC address through setNetworkRandomizedMacAddress
-        // changes the internal randomized MAC address
-        MacAddress newMac = MacAddress.createRandomUnicastAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), newMac);
-        retrievedConfig = mWifiConfigManager
-                .getConfiguredNetworkWithoutMasking(result.getNetworkId());
-        assertEquals(newMac, retrievedConfig.getRandomizedMacAddress());
     }
 
     /**

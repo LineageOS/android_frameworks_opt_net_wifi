@@ -1901,22 +1901,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Set randomized MAC address for the provided network.
-     *
-     * @param networkId network ID corresponding to the network.
-     * @param macAddress Randomized MAC address to be used for network connection.
-     * @return true if the network was found, false otherwise.
-    */
-    public boolean setNetworkRandomizedMacAddress(int networkId, MacAddress macAddress) {
-        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
-        if (config == null) {
-            return false;
-        }
-        config.setRandomizedMacAddress(macAddress);
-        return true;
-    }
-
-    /**
      * Clear the {@link NetworkSelectionStatus#mCandidate},
      * {@link NetworkSelectionStatus#mCandidateScore} &
      * {@link NetworkSelectionStatus#mSeenInLastQualifiedNetworkSelection} for the provided network.

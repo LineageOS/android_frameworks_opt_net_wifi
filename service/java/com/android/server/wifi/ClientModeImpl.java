@@ -3393,8 +3393,7 @@ public class ClientModeImpl extends StateMachine {
         considerUpdateAggressiveMac();
         MacAddress currentMac = MacAddress.fromString(mWifiNative.getMacAddress(mInterfaceName));
         MacAddress newMac = mWifiConfigManager.shouldUseAggressiveMode(config) ? mAggressiveMac
-                : config.getOrCreateRandomizedMacAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(config.networkId, newMac);
+                : config.getRandomizedMacAddress();
         if (!WifiConfiguration.isValidMacAddressForRandomization(newMac)) {
             Log.wtf(TAG, "Config generated an invalid MAC address");
         } else if (currentMac.equals(newMac)) {
