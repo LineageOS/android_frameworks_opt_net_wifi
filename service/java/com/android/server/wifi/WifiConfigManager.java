@@ -465,6 +465,17 @@ public class WifiConfigManager {
     }
 
     /**
+     * Determine if the framework should perform "aggressive" MAC randomization when connecting
+     * to the SSID in the input WifiConfiguration.
+     * @param config
+     * @return
+     */
+    public boolean shouldUseAggressiveMode(WifiConfiguration config) {
+        // TODO: b/137795359 add logic for classifying network as safe for aggressive mode.
+        return false;
+    }
+
+    /**
      * Enable/disable verbose logging in WifiConfigManager & its helper classes.
      */
     public void enableVerboseLogging(int verbose) {

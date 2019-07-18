@@ -158,6 +158,8 @@ public class ClientModeImplTest {
             MacAddress.fromString("2a:53:43:c3:56:21");
     private static final MacAddress TEST_DEFAULT_MAC_ADDRESS =
             MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS);
+    private static final MacAddress TEST_AGGRESSIVE_MAC_ADDRESS =
+            MacAddress.fromString("3a:53:43:c3:56:21");
 
     // NetworkAgent creates threshold ranges with Integers
     private static final int RSSI_THRESHOLD_MAX = -30;
@@ -2596,6 +2598,27 @@ public class ClientModeImplTest {
                 ClientModeImpl.AGGRESSIVE_MAC_REFRESH_MS);
         connect();
         ExtendedMockito.verify(() -> MacAddress.createRandomUnicastAddress());
+    }
+
+    /**
+     * Verifies that
+     * 1. connected MAC randomization is on and
+     * 2. macRandomizationSetting of the WifiConfiguration is RANDOMIZATION_PERSISTENT and
+     * 3. the WifiConfiguration should use "aggressive mode"
+     * 4. ClientmodeImpl programs the aggressive MAC when connecting the network.
+     */
+    @Test
+    public void testMacRandomizationAggressiveMacIsUsed() throws Exception {
+        when(MacAddress.createRandomUnicastAddress()).thenReturn(TEST_AGGRESSIVE_MAC_ADDRESS);
+        when(mWifiConfigManager.shouldUseAggressiveMode(any())).thenReturn(true);
+        initializeAndAddNetworkAndVerifySuccess();
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
+
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                ClientModeImpl.AGGRESSIVE_MAC_REFRESH_MS + 1);
+        connect();
+        verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_AGGRESSIVE_MAC_ADDRESS);
     }
 
     /**
