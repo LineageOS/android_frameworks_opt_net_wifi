@@ -32,9 +32,11 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This Class is a Work-In-Progress, intended behavior is as follows:
@@ -93,6 +95,9 @@ public class WifiLastResortWatchdog {
      */
     private Map<String, Pair<AvailableNetworkFailureCount, Integer>> mSsidFailureCount =
             new HashMap<>();
+
+    /* List of failure BSSID */
+    private Set<String> mBssidFailureList = new HashSet<>();
 
     // Tracks: if ClientModeImpl is in ConnectedState
     private boolean mWifiIsConnected = false;
@@ -240,9 +245,9 @@ public class WifiLastResortWatchdog {
                                 1);
                         // Do not re-enable Watchdog in LAST_TRIGGER_TIMEOUT_MILLIS
                         // after last time Watchdog be triggered
-                        if (mTimeLastTrigger == 0
+                        if (!mWatchdogAllowedToTrigger && (mTimeLastTrigger == 0
                                 || (mClock.getElapsedSinceBootMillis() - mTimeLastTrigger)
-                                    >= LAST_TRIGGER_TIMEOUT_MILLIS) {
+                                    >= LAST_TRIGGER_TIMEOUT_MILLIS)) {
                             localLog("updateAvailableNetworks: setWatchdogTriggerEnabled to true");
                             setWatchdogTriggerEnabled(true);
                         }
@@ -330,7 +335,6 @@ public class WifiLastResortWatchdog {
             localLog(toString());
             mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
             incrementWifiMetricsTriggerCounts();
-            clearAllFailureCounts();
         }
         return isRestartNeeded;
     }
@@ -349,7 +353,8 @@ public class WifiLastResortWatchdog {
         }
         if (!mWatchdogAllowedToTrigger && mWatchdogFixedWifi
                 && checkIfAtleastOneNetworkHasEverConnected()
-                && checkIfConnectedBackToSameSsid()) {
+                && checkIfConnectedBackToSameSsid()
+                && checkIfConnectedBssidHasEverFailed()) {
             takeBugReportWithCurrentProbability("Wifi fixed after restart");
             // WiFi has connected after a Watchdog trigger, without any new networks becoming
             // available, log a Watchdog success in wifi metrics
@@ -357,12 +362,18 @@ public class WifiLastResortWatchdog {
             long durationMs = mClock.getElapsedSinceBootMillis() - mTimeLastTrigger;
             mWifiMetrics.setWatchdogSuccessTimeDurationMs(durationMs);
         }
-        // We connected to something! Reset failure counts for everything
-        clearAllFailureCounts();
         // If the watchdog trigger was disabled (it triggered), connecting means we did
         // something right, re-enable it so it can fire again.
         localLog("connectedStateTransition: setWatchdogTriggerEnabled to true");
         setWatchdogTriggerEnabled(true);
+    }
+
+    /**
+     * Helper function to check if device connected to BSSID
+     * which is in BSSID failure list after watchdog trigger.
+     */
+    private boolean checkIfConnectedBssidHasEverFailed() {
+        return mBssidFailureList.contains(mClientModeImpl.getWifiInfo().getBSSID());
     }
 
     /**
@@ -408,6 +419,7 @@ public class WifiLastResortWatchdog {
             // Bssid count is actually unused except for logging purposes
             // SSID count is incremented within the BSSID counting method
             incrementBssidFailureCount(ssid, bssid, reason);
+            mBssidFailureList.add(bssid);
         }
     }
 
@@ -587,7 +599,7 @@ public class WifiLastResortWatchdog {
     }
 
     /**
-     * Clear failure counts for each network in recentAvailableNetworks
+     * Clear all failure counts
      */
     public void clearAllFailureCounts() {
         if (mVerboseLoggingEnabled) Log.v(TAG, "clearAllFailureCounts.");
@@ -601,6 +613,7 @@ public class WifiLastResortWatchdog {
             final AvailableNetworkFailureCount failureCount = entry.getValue().first;
             failureCount.resetCounts();
         }
+        mBssidFailureList.clear();
     }
     /**
      * Gets the buffer of recently available networks
@@ -615,6 +628,10 @@ public class WifiLastResortWatchdog {
      */
     private void setWatchdogTriggerEnabled(boolean enable) {
         if (mVerboseLoggingEnabled) Log.v(TAG, "setWatchdogTriggerEnabled: enable = " + enable);
+        // Reset failure counts before actives watchdog
+        if (enable) {
+            clearAllFailureCounts();
+        }
         mWatchdogAllowedToTrigger = enable;
     }
 
