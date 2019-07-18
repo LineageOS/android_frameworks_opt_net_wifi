@@ -90,6 +90,7 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.R;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
@@ -114,6 +115,8 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
@@ -153,6 +156,8 @@ public class ClientModeImplTest {
             MacAddress.fromString("10:22:34:56:78:92");
     private static final MacAddress TEST_LOCAL_MAC_ADDRESS =
             MacAddress.fromString("2a:53:43:c3:56:21");
+    private static final MacAddress TEST_DEFAULT_MAC_ADDRESS =
+            MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS);
 
     // NetworkAgent creates threshold ranges with Integers
     private static final int RSSI_THRESHOLD_MAX = -30;
@@ -162,6 +167,7 @@ public class ClientModeImplTest {
     private static final byte RSSI_THRESHOLD_BREACH_MAX = -20;
 
     private long mBinderToken;
+    private MockitoSession mSession;
 
     private static <T> T mockWithInterfaces(Class<T> class1, Class<?>... interfaces) {
         return mock(class1, withSettings().extraInterfaces(interfaces));
@@ -403,7 +409,6 @@ public class ClientModeImplTest {
 
         /** uncomment this to enable logs from ClientModeImpls */
         // enableDebugLogs();
-
         mWifiMonitor = new MockWifiMonitor();
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         when(mWifiInjector.getClock()).thenReturn(new Clock());
@@ -496,6 +501,11 @@ public class ClientModeImplTest {
             mIpClientCallback.onQuit();
             return null;
         }).when(mIpClient).shutdown();
+
+        // static mocking
+        mSession = ExtendedMockito.mockitoSession().strictness(Strictness.LENIENT)
+                .spyStatic(MacAddress.class)
+                .startMocking();
         initializeCmi();
 
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
@@ -582,6 +592,7 @@ public class ClientModeImplTest {
         mNetworkAgentAsyncChannel = null;
         mNetworkAgentHandler = null;
         mCmi = null;
+        mSession.finishMocking();
     }
 
     @Test
@@ -935,7 +946,7 @@ public class ClientModeImplTest {
         loadComponentsInStaMode();
         WifiConfiguration config = mConnectedNetwork;
         config.networkId = FRAMEWORK_NETWORK_ID;
-        when(config.getOrCreateRandomizedMacAddress()).thenReturn(TEST_LOCAL_MAC_ADDRESS);
+        config.setRandomizedMacAddress(TEST_LOCAL_MAC_ADDRESS);
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
         setupAndStartConnectSequence(config);
         validateSuccessfulConnectSequence(config);
@@ -2559,6 +2570,35 @@ public class ClientModeImplTest {
     }
 
     /**
+     * Verifies that
+     * 1. aggressive MAC is generated when ClientModeImpl is created.
+     * 2. aggressive MAC is generated again during connection when the appropriate amount of time
+     * have passed.
+     * @throws Exception
+     */
+    @Test
+    public void testAggressiveMacUpdatedDuringConnection() throws Exception {
+        ExtendedMockito.verify(() -> MacAddress.createRandomUnicastAddress());
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                ClientModeImpl.AGGRESSIVE_MAC_REFRESH_MS + 1);
+        connect();
+        ExtendedMockito.verify(() -> MacAddress.createRandomUnicastAddress(), times(2));
+    }
+
+    /**
+     * Verifies that aggressive MAC is not updated due to time constraint.
+     * @throws Exception
+     */
+    @Test
+    public void testAggressiveMacNotUpdatedDueToTimeConstraint() throws Exception {
+        ExtendedMockito.verify(() -> MacAddress.createRandomUnicastAddress());
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(
+                ClientModeImpl.AGGRESSIVE_MAC_REFRESH_MS);
+        connect();
+        ExtendedMockito.verify(() -> MacAddress.createRandomUnicastAddress());
+    }
+
+    /**
      * Verifies that when
      * 1. Global feature support flag is set to false
      * 2. connected MAC randomization is on and
@@ -2735,7 +2775,7 @@ public class ClientModeImplTest {
         WifiConfiguration config = mock(WifiConfiguration.class);
         config.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_PERSISTENT;
         when(config.getOrCreateRandomizedMacAddress())
-                .thenReturn(MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS));
+                .thenReturn(TEST_DEFAULT_MAC_ADDRESS);
         when(config.getNetworkSelectionStatus())
                 .thenReturn(new WifiConfiguration.NetworkSelectionStatus());
         when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(0)).thenReturn(config);
