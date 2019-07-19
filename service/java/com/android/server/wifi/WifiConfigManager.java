@@ -313,6 +313,7 @@ public class WifiConfigManager {
     private final int mMaxNumActiveChannelsForPartialScans;
 
     private final FrameworkFacade mFrameworkFacade;
+    private final DeviceConfigFacade mDeviceConfigFacade;
 
     /**
      * Verbose logging flag. Toggled by developer options.
@@ -387,7 +388,8 @@ public class WifiConfigManager {
             NetworkListUserStoreData networkListUserStoreData,
             DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData,
             RandomizedMacStoreData randomizedMacStoreData,
-            FrameworkFacade frameworkFacade, Handler handler) {
+            FrameworkFacade frameworkFacade, Handler handler,
+            DeviceConfigFacade deviceConfigFacade) {
         mContext = context;
         mClock = clock;
         mUserManager = userManager;
@@ -439,6 +441,8 @@ public class WifiConfigManager {
         updatePnoRecencySortingSetting();
         mConnectedMacRandomzationSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
+        mDeviceConfigFacade = deviceConfigFacade;
+
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
                     PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
@@ -470,7 +474,14 @@ public class WifiConfigManager {
      * @return
      */
     public boolean shouldUseAggressiveMode(WifiConfiguration config) {
-        // TODO: b/137795359 add logic for classifying network as safe for aggressive mode.
+        if (mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled()) {
+            return isSsidOptInForAggressiveRandomization(config.SSID);
+        }
+        return false;
+    }
+
+    private boolean isSsidOptInForAggressiveRandomization(String ssid) {
+        // TODO: b/137795359 add logic to detect if SSID is in whitelist
         return false;
     }
 

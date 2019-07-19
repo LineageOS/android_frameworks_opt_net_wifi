@@ -132,6 +132,7 @@ public class WifiConfigManagerTest {
     @Mock private RandomizedMacStoreData mRandomizedMacStoreData;
     @Mock private WifiConfigManager.OnSavedNetworkUpdateListener mWcmListener;
     @Mock private FrameworkFacade mFrameworkFacade;
+    @Mock private DeviceConfigFacade mDeviceConfigFacade;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
 
     private MockResources mResources;
@@ -4572,7 +4573,7 @@ public class WifiConfigManagerTest {
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
                         mNetworkListSharedStoreData, mNetworkListUserStoreData,
                         mDeletedEphemeralSsidsStoreData, mRandomizedMacStoreData,
-                        mFrameworkFacade, new Handler(mLooper.getLooper()));
+                        mFrameworkFacade, new Handler(mLooper.getLooper()), mDeviceConfigFacade);
         mWifiConfigManager.enableVerboseLogging(1);
     }
 
