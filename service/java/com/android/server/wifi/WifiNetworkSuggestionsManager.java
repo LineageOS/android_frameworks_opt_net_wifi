@@ -607,6 +607,10 @@ public class WifiNetworkSuggestionsManager {
         mAppOps.stopWatchingMode(appOpsChangedListener);
     }
 
+    /**
+     * Remove provided list from that App active list. If provided list is empty, will remove all.
+     * Will disconnect network if current connected network is in the remove list.
+     */
     private void removeInternal(
             @NonNull Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestions,
             @NonNull String packageName,
@@ -626,6 +630,8 @@ public class WifiNetworkSuggestionsManager {
             // Stop tracking app-op changes from the app if they don't have active suggestions.
             stopTrackingAppOpsChange(packageName);
         }
+        // Disconnect suggested network if connected
+        triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
         // Clear the scan cache.
         removeFromScanResultMatchInfoMap(extNetworkSuggestions);
     }
@@ -653,13 +659,6 @@ public class WifiNetworkSuggestionsManager {
                     + ". Network suggestions not found in active network suggestions");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID;
         }
-        if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
-            // empty list is used to clear everything for the app.
-            if (extNetworkSuggestions.isEmpty()) {
-                extNetworkSuggestions = new HashSet<>(perAppInfo.extNetworkSuggestions);
-            }
-            triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
-        }
         removeInternal(extNetworkSuggestions, packageName, perAppInfo);
         saveToStore();
         mWifiMetrics.incrementNetworkSuggestionApiNumModification();
@@ -673,8 +672,6 @@ public class WifiNetworkSuggestionsManager {
     public void removeApp(@NonNull String packageName) {
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) return;
-        // Disconnect from the current network, if the only suggestion for it was removed.
-        triggerDisconnectIfServingNetworkSuggestionRemoved(perAppInfo.extNetworkSuggestions);
         removeInternal(Collections.EMPTY_LIST, packageName, perAppInfo);
         // Remove the package fully from the internal database.
         mActiveNetworkSuggestionsPerApp.remove(packageName);
@@ -688,9 +685,6 @@ public class WifiNetworkSuggestionsManager {
     public void clear() {
         Iterator<Map.Entry<String, PerAppInfo>> iter =
                 mActiveNetworkSuggestionsPerApp.entrySet().iterator();
-        // Disconnect if we're connected to one of the suggestions.
-        triggerDisconnectIfServingNetworkSuggestionRemoved(
-                mActiveNetworkSuggestionsMatchingConnection);
         while (iter.hasNext()) {
             Map.Entry<String, PerAppInfo> entry = iter.next();
             removeInternal(Collections.EMPTY_LIST, entry.getKey(), entry.getValue());
