@@ -180,6 +180,11 @@ public class WifiMetrics {
     // Maximum time that a score breaching low event stays valid.
     public static final int VALIDITY_PERIOD_OF_SCORE_BREACH_LOW_MS = 90 * 1000; // 1.5 minutes
 
+    public static final int BAND_2G_MAX_FREQ_MHZ = 2484;
+    public static final int BAND_5G_LOW_MAX_FREQ_MHZ = 5240;
+    public static final int BAND_5G_MID_MAX_FREQ_MHZ = 5720;
+    public static final int BAND_5G_HIGH_MAX_FREQ_MHZ = 5865;
+
     private Clock mClock;
     private boolean mScreenOn;
     private int mWifiState;
@@ -216,6 +221,7 @@ public class WifiMetrics {
     private LinkedList<StaEventWithTime> mStaEventList = new LinkedList<>();
     private int mLastPollRssi = -127;
     private int mLastPollLinkSpeed = -1;
+    private int mLastPollRxLinkSpeed = -1;
     private int mLastPollFreq = -1;
     private int mLastScore = -1;
 
@@ -254,6 +260,16 @@ public class WifiMetrics {
     private final SparseIntArray mRssiDeltaCounts = new SparseIntArray();
     /** Mapping of link speed values to LinkSpeedCount objects. */
     private final SparseArray<LinkSpeedCount> mLinkSpeedCounts = new SparseArray<>();
+
+    private final IntCounter mTxLinkSpeedCount2g = new IntCounter();
+    private final IntCounter mTxLinkSpeedCount5gLow = new IntCounter();
+    private final IntCounter mTxLinkSpeedCount5gMid = new IntCounter();
+    private final IntCounter mTxLinkSpeedCount5gHigh = new IntCounter();
+    private final IntCounter mRxLinkSpeedCount2g = new IntCounter();
+    private final IntCounter mRxLinkSpeedCount5gLow = new IntCounter();
+    private final IntCounter mRxLinkSpeedCount5gMid = new IntCounter();
+    private final IntCounter mRxLinkSpeedCount5gHigh = new IntCounter();
+
     /** RSSI of the scan result for the last connection event*/
     private int mScanResultRssi = 0;
     /** Boot-relative timestamp when the last candidate scanresult was received, used to calculate
@@ -1527,6 +1543,9 @@ public class WifiMetrics {
         mLastPollFreq = wifiInfo.getFrequency();
         incrementRssiPollRssiCount(mLastPollFreq, mLastPollRssi);
         incrementLinkSpeedCount(mLastPollLinkSpeed, mLastPollRssi);
+        mLastPollRxLinkSpeed = wifiInfo.getRxLinkSpeedMbps();
+        incrementTxLinkSpeedBandCount(mLastPollLinkSpeed, mLastPollFreq);
+        incrementRxLinkSpeedBandCount(mLastPollRxLinkSpeed, mLastPollFreq);
     }
 
     /**
@@ -1592,6 +1611,56 @@ public class WifiMetrics {
             linkSpeedCount.count++;
             linkSpeedCount.rssiSumDbm += Math.abs(rssi);
             linkSpeedCount.rssiSumOfSquaresDbmSq += rssi * rssi;
+        }
+    }
+
+    /**
+     * Increment occurrence count of Tx link speed for operating sub-band
+     * Ignores link speed values that are lower than MIN_LINK_SPEED_MBPS
+     * @param txLinkSpeed PHY layer Tx link speed in Mbps
+     * @param frequency Channel frequency of beacon frames in MHz
+     */
+    @VisibleForTesting
+    public void incrementTxLinkSpeedBandCount(int txLinkSpeed, int frequency) {
+        if (!(mLinkSpeedCountsLogging
+                && txLinkSpeed >= MIN_LINK_SPEED_MBPS)) {
+            return;
+        }
+        synchronized (mLock) {
+            if (frequency <= BAND_2G_MAX_FREQ_MHZ) {
+                mTxLinkSpeedCount2g.increment(txLinkSpeed);
+            } else if (frequency <= BAND_5G_LOW_MAX_FREQ_MHZ) {
+                mTxLinkSpeedCount5gLow.increment(txLinkSpeed);
+            } else if (frequency <= BAND_5G_MID_MAX_FREQ_MHZ) {
+                mTxLinkSpeedCount5gMid.increment(txLinkSpeed);
+            } else {
+                mTxLinkSpeedCount5gHigh.increment(txLinkSpeed);
+            }
+        }
+    }
+
+    /**
+     * Increment occurrence count of Rx link speed for operating sub-band
+     * Ignores link speed values that are lower than MIN_LINK_SPEED_MBPS
+     * @param rxLinkSpeed PHY layer Tx link speed in Mbps
+     * @param frequency Channel frequency of beacon frames in MHz
+     */
+    @VisibleForTesting
+    public void incrementRxLinkSpeedBandCount(int rxLinkSpeed, int frequency) {
+        if (!(mLinkSpeedCountsLogging
+                && rxLinkSpeed >= MIN_LINK_SPEED_MBPS)) {
+            return;
+        }
+        synchronized (mLock) {
+            if (frequency <= BAND_2G_MAX_FREQ_MHZ) {
+                mRxLinkSpeedCount2g.increment(rxLinkSpeed);
+            } else if (frequency <= BAND_5G_LOW_MAX_FREQ_MHZ) {
+                mRxLinkSpeedCount5gLow.increment(rxLinkSpeed);
+            } else if (frequency <= BAND_5G_MID_MAX_FREQ_MHZ) {
+                mRxLinkSpeedCount5gMid.increment(rxLinkSpeed);
+            } else {
+                mRxLinkSpeedCount5gHigh.increment(rxLinkSpeed);
+            }
         }
     }
 
@@ -2793,6 +2862,15 @@ public class WifiMetrics {
                         + mWifiLogProto.numAddOrUpdateNetworkCalls);
                 pw.println("mWifiLogProto.numEnableNetworkCalls="
                         + mWifiLogProto.numEnableNetworkCalls);
+
+                pw.println("mWifiLogProto.txLinkSpeedCount2g=" + mTxLinkSpeedCount2g);
+                pw.println("mWifiLogProto.txLinkSpeedCount5gLow=" + mTxLinkSpeedCount5gLow);
+                pw.println("mWifiLogProto.txLinkSpeedCount5gMid=" + mTxLinkSpeedCount5gMid);
+                pw.println("mWifiLogProto.txLinkSpeedCount5gHigh=" + mTxLinkSpeedCount5gHigh);
+                pw.println("mWifiLogProto.rxLinkSpeedCount2g=" + mRxLinkSpeedCount2g);
+                pw.println("mWifiLogProto.rxLinkSpeedCount5gLow=" + mRxLinkSpeedCount5gLow);
+                pw.println("mWifiLogProto.rxLinkSpeedCount5gMid=" + mRxLinkSpeedCount5gMid);
+                pw.println("mWifiLogProto.rxLinkSpeedCount5gHigh=" + mRxLinkSpeedCount5gHigh);
             }
         }
     }
@@ -3337,6 +3415,15 @@ public class WifiMetrics {
                                 entry.count = count;
                                 return entry;
                             });
+            // 'G' is due to that 1st Letter after _ becomes capital during protobuff compilation
+            mWifiLogProto.txLinkSpeedCount2G = mTxLinkSpeedCount2g.toProto();
+            mWifiLogProto.txLinkSpeedCount5GLow = mTxLinkSpeedCount5gLow.toProto();
+            mWifiLogProto.txLinkSpeedCount5GMid = mTxLinkSpeedCount5gMid.toProto();
+            mWifiLogProto.txLinkSpeedCount5GHigh = mTxLinkSpeedCount5gHigh.toProto();
+            mWifiLogProto.rxLinkSpeedCount2G = mRxLinkSpeedCount2g.toProto();
+            mWifiLogProto.rxLinkSpeedCount5GLow = mRxLinkSpeedCount5gLow.toProto();
+            mWifiLogProto.rxLinkSpeedCount5GMid = mRxLinkSpeedCount5gMid.toProto();
+            mWifiLogProto.rxLinkSpeedCount5GHigh = mRxLinkSpeedCount5gHigh.toProto();
         }
     }
 
@@ -3440,6 +3527,14 @@ public class WifiMetrics {
             mRssiPollCountsMap.clear();
             mRssiDeltaCounts.clear();
             mLinkSpeedCounts.clear();
+            mTxLinkSpeedCount2g.clear();
+            mTxLinkSpeedCount5gLow.clear();
+            mTxLinkSpeedCount5gMid.clear();
+            mTxLinkSpeedCount5gHigh.clear();
+            mRxLinkSpeedCount2g.clear();
+            mRxLinkSpeedCount5gLow.clear();
+            mRxLinkSpeedCount5gMid.clear();
+            mRxLinkSpeedCount5gHigh.clear();
             mWifiAlertReasonCounts.clear();
             mWifiScoreCounts.clear();
             mWifiUsabilityScoreCounts.clear();
@@ -3681,6 +3776,7 @@ public class WifiMetrics {
         mLastPollRssi = -127;
         mLastPollFreq = -1;
         mLastPollLinkSpeed = -1;
+        mLastPollRxLinkSpeed = -1;
         mLastScore = -1;
         mLastWifiUsabilityScore = -1;
         mLastPredictionHorizonSec = -1;
