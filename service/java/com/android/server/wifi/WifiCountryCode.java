@@ -48,6 +48,7 @@ public class WifiCountryCode {
     private String mTelephonyCountryTimestamp = null;
     private String mDriverCountryTimestamp = null;
     private String mReadyTimestamp = null;
+    private boolean mForceCountryCode = false;
 
     public WifiCountryCode(
             WifiNative wifiNative,
@@ -111,6 +112,36 @@ public class WifiCountryCode {
     }
 
     /**
+     * Enable force-country-code mode
+     * @param countryCode The forced two-letter country code
+     */
+    synchronized void enableForceCountryCode(String countryCode) {
+        if (TextUtils.isEmpty(countryCode)) {
+            Log.d(TAG, "Fail to force country code because the received country code is empty");
+            return;
+        }
+        mForceCountryCode = true;
+        mTelephonyCountryCode = countryCode.toUpperCase(Locale.US);
+        // If wpa_supplicant is ready we set the country code now, otherwise it will be
+        // set once wpa_supplicant is ready.
+        if (mReady) {
+            updateCountryCode();
+        } else {
+            Log.d(TAG, "skip update supplicant not ready yet");
+        }
+    }
+
+    /**
+     * Disable force-country-code mode
+     */
+    synchronized void disableForceCountryCode() {
+        mForceCountryCode = false;
+        // Set mTelephonyCountryCode to null so that default country code is used until
+        // next call of setCountryCode().
+        mTelephonyCountryCode = null;
+    }
+
+    /**
      * Handle country code change request.
      * @param countryCode The country code intended to set.
      * This is supposed to be from Telephony service.
@@ -118,6 +149,10 @@ public class WifiCountryCode {
      * @return Returns true if the country code passed in is acceptable.
      */
     public synchronized boolean setCountryCode(String countryCode) {
+        if (mForceCountryCode) {
+            Log.d(TAG, "Country code can't be set because it is the force-country-code mode");
+            return false;
+        }
         Log.d(TAG, "Receive set country code request: " + countryCode);
         mTelephonyCountryTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
 
