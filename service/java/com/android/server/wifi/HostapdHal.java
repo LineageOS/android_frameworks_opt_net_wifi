@@ -33,6 +33,7 @@ import android.util.Log;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.HostapdDeathEventHandler;
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.NativeUtil;
 
 import java.util.ArrayList;
@@ -64,6 +65,8 @@ public class HostapdHal {
     private final boolean mEnableIeee80211AC;
     private final List<android.hardware.wifi.hostapd.V1_1.IHostapd.AcsChannelRange>
             mAcsChannelRanges;
+    private boolean mForceApChannel = false;
+    private int mForcedApChannel;
 
     // Hostapd HAL interface objects
     private IServiceManager mIServiceManager = null;
@@ -301,6 +304,22 @@ public class HostapdHal {
     }
 
     /**
+     * Enable force-soft-AP-channel mode which takes effect when soft AP starts next time
+     * @param forcedApChannel The forced IEEE channel number
+     */
+    void enableForceSoftApChannel(int forcedApChannel) {
+        mForceApChannel = true;
+        mForcedApChannel = forcedApChannel;
+    }
+
+    /**
+     * Disable force-soft-AP-channel mode which take effect when soft AP starts next time
+     */
+    void disableForceSoftApChannel() {
+        mForceApChannel = false;
+    }
+
+    /**
      * Add and start a new access point.
      *
      * @param ifaceName Name of the interface.
@@ -322,7 +341,15 @@ public class HostapdHal {
                 Log.e(TAG, "Unrecognized apBand " + config.apBand);
                 return false;
             }
-            if (mEnableAcs) {
+            if (mForceApChannel) {
+                ifaceParams.channelParams.enableAcs = false;
+                ifaceParams.channelParams.channel = mForcedApChannel;
+                if (mForcedApChannel <= ApConfigUtil.HIGHEST_2G_AP_CHANNEL) {
+                    ifaceParams.channelParams.band = IHostapd.Band.BAND_2_4_GHZ;
+                } else {
+                    ifaceParams.channelParams.band = IHostapd.Band.BAND_5_GHZ;
+                }
+            } else if (mEnableAcs) {
                 ifaceParams.channelParams.enableAcs = true;
                 ifaceParams.channelParams.acsShouldExcludeDfs = true;
             } else {
