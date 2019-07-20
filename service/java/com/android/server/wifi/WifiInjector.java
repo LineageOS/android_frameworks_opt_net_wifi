@@ -748,4 +748,8 @@ public class WifiInjector {
     public IpMemoryStore getIpMemoryStore() {
         return mIpMemoryStore;
     }
+
+    public HostapdHal getHostapdHal() {
+        return mHostapdHal;
+    }
 }

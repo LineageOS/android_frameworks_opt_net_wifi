@@ -18,10 +18,14 @@ package com.android.server.wifi;
 
 import android.app.AppGlobals;
 import android.content.pm.IPackageManager;
+import android.net.wifi.WifiScanner;
 import android.os.Binder;
 import android.os.ShellCommand;
 
+import com.android.server.wifi.util.ApConfigUtil;
+
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +51,9 @@ public class WifiShellCommand extends ShellCommand {
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
     private final IPackageManager mPM;
+    private final WifiNative mWifiNative;
+    private final HostapdHal mHostapdHal;
+    private final WifiCountryCode mWifiCountryCode;
 
     WifiShellCommand(WifiInjector wifiInjector) {
         mClientModeImpl = wifiInjector.getClientModeImpl();
@@ -54,6 +61,9 @@ public class WifiShellCommand extends ShellCommand {
         mWifiNetworkSuggestionsManager = wifiInjector.getWifiNetworkSuggestionsManager();
         mWifiConfigManager = wifiInjector.getWifiConfigManager();
         mPM = AppGlobals.getPackageManager();
+        mHostapdHal = wifiInjector.getHostapdHal();
+        mWifiNative = wifiInjector.getWifiNative();
+        mWifiCountryCode = wifiInjector.getWifiCountryCode();
     }
 
     @Override
@@ -179,6 +189,62 @@ public class WifiShellCommand extends ShellCommand {
                 case "send-link-probe": {
                     return sendLinkProbe(pw);
                 }
+                case "force-softap-channel": {
+                    String nextArg = getNextArgRequired();
+                    if ("enabled".equals(nextArg))  {
+                        int apChannelMHz;
+                        try {
+                            apChannelMHz = Integer.parseInt(getNextArgRequired());
+                        } catch (NumberFormatException e) {
+                            pw.println("Invalid argument to 'force-softap-channel enabled' "
+                                    + "- must be a positive integer");
+                            return -1;
+                        }
+                        int apChannel = ApConfigUtil.convertFrequencyToChannel(apChannelMHz);
+                        if (apChannel == -1 || !isApChannelMHzValid(apChannelMHz)) {
+                            pw.println("Invalid argument to 'force-softap-channel enabled' "
+                                    + "- must be a valid WLAN channel");
+                            return -1;
+                        }
+                        mHostapdHal.enableForceSoftApChannel(apChannel);
+                        return 0;
+                    } else if ("disabled".equals(nextArg)) {
+                        mHostapdHal.disableForceSoftApChannel();
+                        return 0;
+                    } else {
+                        pw.println(
+                                "Invalid argument to 'force-softap-channel' - must be 'enabled'"
+                                        + " or 'disabled'");
+                        return -1;
+                    }
+                }
+                case "force-country-code": {
+                    String nextArg = getNextArgRequired();
+                    if ("enabled".equals(nextArg))  {
+                        String countryCode = getNextArgRequired();
+                        if (!(countryCode.length() == 2
+                                && countryCode.chars().allMatch(Character::isLetter))) {
+                            pw.println("Invalid argument to 'force-country-code enabled' "
+                                    + "- must be a two-letter string");
+                            return -1;
+                        }
+                        mWifiCountryCode.enableForceCountryCode(countryCode);
+                        return 0;
+                    } else if ("disabled".equals(nextArg)) {
+                        mWifiCountryCode.disableForceCountryCode();
+                        return 0;
+                    } else {
+                        pw.println(
+                                "Invalid argument to 'force-country-code' - must be 'enabled'"
+                                        + " or 'disabled'");
+                        return -1;
+                    }
+                }
+                case "get-country-code": {
+                    pw.println("Wifi Country Code = "
+                            + mWifiCountryCode.getCountryCode());
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -212,6 +278,25 @@ public class WifiShellCommand extends ShellCommand {
             pw.println(msg);
         }
         return 0;
+    }
+
+    private boolean isApChannelMHzValid(int apChannelMHz) {
+        int[] allowed2gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_24_GHZ);
+        int[] allowed5gFreq = mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ);
+        int[] allowed5gDfsFreq =
+            mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY);
+        if (allowed2gFreq == null) {
+            allowed2gFreq = new int[0];
+        }
+        if (allowed5gFreq == null) {
+            allowed5gFreq = new int[0];
+        }
+        if (allowed5gDfsFreq == null) {
+            allowed5gDfsFreq = new int[0];
+        }
+        return (Arrays.binarySearch(allowed2gFreq, apChannelMHz) >= 0
+                || Arrays.binarySearch(allowed5gFreq, apChannelMHz) >= 0
+                || Arrays.binarySearch(allowed5gDfsFreq, apChannelMHz) >= 0);
     }
 
     private void checkRootPermission() {
@@ -252,6 +337,13 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Clears the deleted ephemeral networks list.");
         pw.println("  send-link-probe");
         pw.println("    Manually triggers a link probe.");
+        pw.println("  force-softap-channel enabled <int> | disabled");
+        pw.println("    Sets whether soft AP channel is forced to <int> MHz");
+        pw.println("    or left for normal   operation.");
+        pw.println("  force-country-code enabled <two-letter code> | disabled ");
+        pw.println("    Sets country code to <two-letter code> or left for normal value");
+        pw.println("  get-country-code");
+        pw.println("    Gets country code as a two-letter string");
         pw.println();
     }
 }
