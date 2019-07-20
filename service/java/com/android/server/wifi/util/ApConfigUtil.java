@@ -33,7 +33,7 @@ public class ApConfigUtil {
 
     public static final int DEFAULT_AP_BAND = WifiConfiguration.AP_BAND_2GHZ;
     public static final int DEFAULT_AP_CHANNEL = 6;
-
+    public static final int HIGHEST_2G_AP_CHANNEL = 14;
     /* Return code for updateConfiguration. */
     public static final int SUCCESS = 0;
     public static final int ERROR_NO_CHANNEL = 1;
