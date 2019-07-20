@@ -1520,8 +1520,9 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).addCountToNumLastResortWatchdogBadDhcpNetworksTotal(3);
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggersWithBadDhcp();
 
-        // set connection to ssids[0]
+        // set connection to ssids[0]/bssids[0]
         when(mWifiInfo.getSSID()).thenReturn(ssids[0]);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
 
         // Simulate wifi connecting after triggering
         mLastResortWatchdog.connectedStateTransition(true);
@@ -1859,8 +1860,9 @@ public class WifiLastResortWatchdogTest {
         // Simulate wifi disconnecting
         mLastResortWatchdog.connectedStateTransition(false);
 
-        // set connection to ssids[0]
+        // set connection to ssids[0]/bssids[0]
         when(mWifiInfo.getSSID()).thenReturn(ssids[0]);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
 
         // Test another round, and this time successfully connect after restart trigger
         for (int i = 0; i < ssids.length; i++) {
@@ -2073,8 +2075,9 @@ public class WifiLastResortWatchdogTest {
         verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
 
         // Age out network
+        candidates = new ArrayList<>();
         for (int i = 0; i < WifiLastResortWatchdog.MAX_BSSID_AGE; i++) {
-            mLastResortWatchdog.updateAvailableNetworks(null);
+            mLastResortWatchdog.updateAvailableNetworks(candidates);
         }
         assertEquals(mLastResortWatchdog.getRecentAvailableNetworks().size(), 0);
 
@@ -2145,8 +2148,9 @@ public class WifiLastResortWatchdogTest {
         // Simulate wifi disconnecting
         mLastResortWatchdog.connectedStateTransition(false);
 
-        // set connection to ssids[0]
+        // set connection to ssids[0]/bssids[0]
         when(mWifiInfo.getSSID()).thenReturn(ssids[0]);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
 
         // Test another round, and this time successfully connect after restart trigger
         for (int i = 0; i < ssids.length; i++) {
@@ -2252,6 +2256,61 @@ public class WifiLastResortWatchdogTest {
         handler.sendMessage(
                 handler.obtainMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, null));
         mLooper.dispatchAll();
+        verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
+    }
+
+    /**
+     * Verifies that bugreports are not triggered if device connected back to a new BSSID
+     * after recovery.
+     */
+    @Test
+    public void testNotTriggerBugreportIfConnectedToNewBssid() {
+        int associationRejections = 4;
+        int authenticationFailures = 3;
+        String[] ssids = {"\"test1\"", "\"test1\"", "\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55"};
+        int[] frequencies = {2437, 5180, 5180};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-60, -86, -50};
+        boolean[] isEphemeral = {false, false, false};
+        boolean[] hasEverConnected = {true, true, true};
+        // Buffer potential candidates 1,2,& 3
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < ssids.length; i++) {
+            assertFailureCountEquals(bssids[i], 0, 0, 0);
+        }
+
+        long timeAtFailure = 100;
+        long timeAtReconnect = 5000;
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(timeAtFailure, timeAtReconnect);
+
+        //Increment failure counts
+        for (int i = 0; i < associationRejections; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(ssids[1], bssids[1],
+                    WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+        for (int i = 0; i < authenticationFailures; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(ssids[2], bssids[2],
+                    WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+        }
+
+        // Verify watchdog has triggered a restart
+        verify(mWifiMetrics, times(1)).incrementNumLastResortWatchdogTriggers();
+
+        // set connection to ssids[0]/bssids[0]
+        when(mWifiInfo.getSSID()).thenReturn(ssids[0]);
+        when(mWifiInfo.getBSSID()).thenReturn(bssids[0]);
+
+        // Simulate wifi connecting after triggering
+        mLastResortWatchdog.connectedStateTransition(true);
+
+        // Verify takeBugReport is not called
+        mLooper.dispatchAll();
+        verify(mWifiMetrics, never()).incrementNumLastResortWatchdogSuccesses();
         verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
     }
 }
