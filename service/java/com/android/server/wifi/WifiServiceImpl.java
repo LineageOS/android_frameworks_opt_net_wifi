@@ -3331,6 +3331,28 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#getNetworkSuggestions()}
+     * @param callingPackageName Package Name of the app getting the suggestions.
+     * @return a list of network suggestions suggested by this app
+     */
+    public List<WifiNetworkSuggestion> getNetworkSuggestions(String callingPackageName) {
+        mAppOps.checkPackage(Binder.getCallingUid(), callingPackageName);
+        enforceAccessPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getNetworkSuggestionList uid=%").c(Binder.getCallingUid()).flush();
+        }
+        Mutable<List<WifiNetworkSuggestion>> result = new Mutable<>();
+        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
+                () -> result.value = mWifiNetworkSuggestionsManager.get(callingPackageName),
+                RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+        if (!runWithScissorsSuccess) {
+            Log.e(TAG, "Failed to post runnable to get network suggestions");
+            return new ArrayList<>();
+        }
+        return result.value;
+    }
+
+    /**
      * Gets the factory Wi-Fi MAC addresses.
      * @throws SecurityException if the caller does not have permission.
      * @return Array of String representing Wi-Fi MAC addresses, or null if failed.
