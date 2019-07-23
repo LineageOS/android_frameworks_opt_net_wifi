@@ -5382,6 +5382,12 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+                    mWifiInjector.getWifiLastResortWatchdog()
+                            .noteConnectionFailureAndTriggerIfNeeded(
+                                    getTargetSsid(),
+                                    (message.obj == null)
+                                    ? mTargetRoamBSSID : (String) message.obj,
+                                    WifiLastResortWatchdog.FAILURE_CODE_DHCP);
                     handleStatus = NOT_HANDLED;
                     break;
                 case CMD_SET_HIGH_PERF_MODE:
