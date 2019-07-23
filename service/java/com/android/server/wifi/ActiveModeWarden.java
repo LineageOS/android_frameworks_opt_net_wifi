@@ -28,6 +28,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
@@ -42,6 +43,7 @@ import java.io.PrintWriter;
  */
 public class ActiveModeWarden {
     private static final String TAG = "WifiActiveModeWarden";
+    private static final String STATE_MACHINE_EXITED_STATE_NAME = "STATE_MACHINE_EXITED";
 
     private ModeStateMachine mModeStateMachine;
 
@@ -142,7 +144,7 @@ public class ActiveModeWarden {
         mLooper = looper;
         mHandler = new Handler(looper);
         mWifiNative = wifiNative;
-        mActiveModeManagers = new ArraySet();
+        mActiveModeManagers = new ArraySet<>();
         mDefaultModeManager = defaultModeManager;
         mBatteryStats = batteryStats;
         mSelfRecovery = mWifiInjector.getSelfRecovery();
@@ -180,10 +182,8 @@ public class ActiveModeWarden {
      * {@link WifiManager#IFACE_IP_MODE_TETHERED} {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *
      */
-    public void enterSoftAPMode(@NonNull SoftApModeConfiguration softApModeConfiguration) {
-        mHandler.post(() -> {
-            startSoftAp(softApModeConfiguration);
-        });
+    public void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
+        mHandler.post(() -> startSoftAp(softApConfig));
     }
 
     /**
@@ -259,8 +259,8 @@ public class ActiveModeWarden {
     /**
      *  Helper class to wrap the ActiveModeManager callback objects.
      */
-    private class ModeCallback {
-        ActiveModeManager mActiveManager;
+    private static class ModeCallback {
+        private ActiveModeManager mActiveManager;
 
         void setActiveModeManager(ActiveModeManager manager) {
             mActiveManager = manager;
@@ -295,7 +295,12 @@ public class ActiveModeWarden {
         }
 
         private String getCurrentMode() {
-            return getCurrentState().getName();
+            IState state = getCurrentState();
+            if (state == null) {
+                return STATE_MACHINE_EXITED_STATE_NAME;
+            } else {
+                return state.getName();
+            }
         }
 
         private boolean checkForAndHandleModeChange(Message message) {

@@ -72,11 +72,11 @@ public class ExternalCallbackTracker<T> {
          * @return an instance of {@link ExternalCallbackHolder} if there are no failures, otherwise
          * null.
          */
-        public static <T> ExternalCallbackHolder createAndLinkToDeath(
+        public static <T> ExternalCallbackHolder<T> createAndLinkToDeath(
                 @NonNull IBinder binder, @NonNull T callbackObject,
                 @NonNull DeathCallback deathCallback) {
             ExternalCallbackHolder<T> externalCallback =
-                    new ExternalCallbackHolder<T>(binder, callbackObject, deathCallback);
+                    new ExternalCallbackHolder<>(binder, callbackObject, deathCallback);
             try {
                 binder.linkToDeath(externalCallback, 0);
             } catch (RemoteException e) {

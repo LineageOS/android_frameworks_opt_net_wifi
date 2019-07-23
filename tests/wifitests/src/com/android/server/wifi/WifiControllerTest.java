@@ -542,58 +542,6 @@ public class WifiControllerTest {
     }
 
     /**
-     * Updates about call state change with an invalid state do not change modes.
-     */
-    @Test
-    public void testEnterEcmOnEmergencyCallStateChangeAndUpdateWithInvalidState() throws Exception {
-        verify(mActiveModeWarden).disableWifi();
-
-        enableWifi();
-        verify(mActiveModeWarden).enterClientMode();
-
-        reset(mActiveModeWarden);
-
-        // Test with WifiDisableInECBM turned on:
-        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
-
-        // test call state changed
-        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 1);
-        mLooper.dispatchAll();
-        verify(mActiveModeWarden).shutdownWifi();
-
-        reset(mActiveModeWarden);
-        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 2);
-        mLooper.dispatchAll();
-        verifyNoMoreInteractions(mActiveModeWarden);
-    }
-
-    /**
-     * Updates about emergency mode change with an invalid state do not change modes.
-     */
-    @Test
-    public void testEnterEcmOnEmergencyModeChangeAndUpdateWithInvalidState() throws Exception {
-        verify(mActiveModeWarden).disableWifi();
-
-        enableWifi();
-        verify(mActiveModeWarden).enterClientMode();
-
-        reset(mActiveModeWarden);
-
-        // Test with WifiDisableInECBM turned on:
-        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
-
-        // test call state changed
-        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
-        mLooper.dispatchAll();
-        verify(mActiveModeWarden).shutdownWifi();
-
-        reset(mActiveModeWarden);
-        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 2);
-        mLooper.dispatchAll();
-        verifyNoMoreInteractions(mActiveModeWarden);
-    }
-
-    /**
      * Verify when both ECM and call state changes arrive, we enter ECM mode
      */
     @Test
@@ -1050,8 +998,8 @@ public class WifiControllerTest {
         mLooper.moveTimeForward(TEST_WIFI_RECOVERY_DELAY_MS);
         mLooper.dispatchAll();
         InOrder inOrder = inOrder(mActiveModeWarden);
-        verify(mActiveModeWarden).disableWifi();
-        verify(mActiveModeWarden).enterScanOnlyMode();
+        inOrder.verify(mActiveModeWarden).disableWifi();
+        inOrder.verify(mActiveModeWarden).enterScanOnlyMode();
     }
 
     /**

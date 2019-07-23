@@ -1068,6 +1068,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     callback.onStateChanged(state, failureReason);
                 } catch (RemoteException e) {
                     Log.e(TAG, "onStateChanged: remote exception -- " + e);
+                    // TODO(b/138863863) remove does nothing, getCallbacks() returns a copy
                     iterator.remove();
                 }
             }
@@ -1094,6 +1095,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     callback.onNumClientsChanged(numClients);
                 } catch (RemoteException e) {
                     Log.e(TAG, "onNumClientsChanged: remote exception -- " + e);
+                    // TODO(b/138863863) remove does nothing, getCallbacks() returns a copy
                     iterator.remove();
                 }
             }
@@ -2648,11 +2650,13 @@ public class WifiServiceImpl extends BaseWifiService {
                         BluetoothAdapter.STATE_DISCONNECTED);
                 mClientModeImpl.sendBluetoothAdapterStateChange(state);
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
-                boolean emergencyMode = intent.getBooleanExtra("phoneinECMState", false);
-                mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0, 0);
+                boolean emergencyMode =
+                        intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
+                mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0);
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
-                boolean inCall = intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, inCall ? 1 : 0, 0);
+                boolean inCall =
+                        intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
+                mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, inCall ? 1 : 0);
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
             }
