@@ -1922,9 +1922,6 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return new HashMap<>();
-        }
         return mClientModeImpl.syncGetAllMatchingFqdnsForScanResults(scanResults,
                 mClientModeImplChannel);
     }
@@ -1944,9 +1941,6 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
         }
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return new HashMap<>();
-        }
         return mClientModeImpl.syncGetMatchingOsuProviders(scanResults, mClientModeImplChannel);
     }
 
@@ -1965,9 +1959,6 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigsForOsuProviders uid=%").c(
                     Binder.getCallingUid()).flush();
-        }
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return new HashMap<>();
         }
         if (osuProviders == null) {
             Log.e(TAG, "Attempt to retrieve Passpoint configuration with null osuProviders");
@@ -1994,9 +1985,6 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getWifiConfigsForPasspointProfiles uid=%").c(
                     Binder.getCallingUid()).flush();
-        }
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return new ArrayList<>();
         }
         if (fqdnList == null) {
             Log.e(TAG, "Attempt to retrieve WifiConfiguration with null fqdn List");
@@ -2272,10 +2260,6 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         mLog.info("addorUpdatePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return false;
-        }
         return mClientModeImpl.syncAddOrUpdatePasspointConfig(mClientModeImplChannel, config,
                 Binder.getCallingUid(), packageName);
     }
@@ -2297,9 +2281,6 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException(TAG + ": Permission denied");
         }
         mLog.info("removePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return false;
-        }
         return mClientModeImpl.syncRemovePasspointConfig(mClientModeImplChannel, fqdn);
     }
 
@@ -2324,10 +2305,6 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            return new ArrayList<>();
-        }
         return mClientModeImpl.syncGetPasspointConfigs(mClientModeImplChannel);
     }
 
@@ -2340,10 +2317,6 @@ public class WifiServiceImpl extends BaseWifiService {
     public void queryPasspointIcon(long bssid, String fileName) {
         enforceAccessPermission();
         mLog.info("queryPasspointIcon uid=%").c(Binder.getCallingUid()).flush();
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            throw new UnsupportedOperationException("Passpoint not enabled");
-        }
         mClientModeImpl.syncQueryPasspointIcon(mClientModeImplChannel, bssid, fileName);
     }
 
@@ -2952,14 +2925,11 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
 
                 // Delete all Passpoint configurations
-                if (mContext.getPackageManager().hasSystemFeature(
-                        PackageManager.FEATURE_WIFI_PASSPOINT)) {
-                    List<PasspointConfiguration> configs = mClientModeImpl.syncGetPasspointConfigs(
-                            mClientModeImplChannel);
-                    if (configs != null) {
-                        for (PasspointConfiguration config : configs) {
-                            removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
-                        }
+                List<PasspointConfiguration> configs = mClientModeImpl.syncGetPasspointConfigs(
+                        mClientModeImplChannel);
+                if (configs != null) {
+                    for (PasspointConfiguration config : configs) {
+                        removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
                     }
                 }
             }
@@ -3120,10 +3090,6 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         if (!isSettingsOrSuw(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
-        }
-        if (!mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            throw new UnsupportedOperationException("Passpoint not enabled");
         }
         final int uid = Binder.getCallingUid();
         mLog.trace("startSubscriptionProvisioning uid=%").c(uid).flush();
