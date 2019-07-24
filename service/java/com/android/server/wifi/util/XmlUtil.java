@@ -348,6 +348,7 @@ public class XmlUtil {
         public static final String XML_TAG_ROAMING_CONSORTIUM_OIS = "RoamingConsortiumOIs";
         public static final String XML_TAG_RANDOMIZED_MAC_ADDRESS = "RandomizedMacAddress";
         public static final String XML_TAG_MAC_RANDOMIZATION_SETTING = "MacRandomizationSetting";
+        public static final String XML_TAG_SAE_PASSWORD_ID_KEY = "SaePasswordId";
 
         /**
          * Write WepKeys to the XML stream.
@@ -390,6 +391,7 @@ public class XmlUtil {
             XmlUtil.writeNextValue(out, XML_TAG_SSID, configuration.SSID);
             XmlUtil.writeNextValue(out, XML_TAG_BSSID, configuration.BSSID);
             XmlUtil.writeNextValue(out, XML_TAG_PRE_SHARED_KEY, configuration.preSharedKey);
+            XmlUtil.writeNextValue(out, XML_TAG_SAE_PASSWORD_ID_KEY, configuration.saePasswordId);
             writeWepKeysToXml(out, configuration.wepKeys);
             XmlUtil.writeNextValue(out, XML_TAG_WEP_TX_KEY_INDEX, configuration.wepTxKeyIndex);
             XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, configuration.hiddenSSID);
@@ -540,6 +542,9 @@ public class XmlUtil {
                         break;
                     case XML_TAG_PRE_SHARED_KEY:
                         configuration.preSharedKey = (String) value;
+                        break;
+                    case XML_TAG_SAE_PASSWORD_ID_KEY:
+                        configuration.saePasswordId = (String) value;
                         break;
                     case XML_TAG_WEP_KEYS:
                         populateWepKeysFromXmlValue(value, configuration.wepKeys);
