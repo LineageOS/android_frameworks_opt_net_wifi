@@ -237,10 +237,11 @@ public class WifiPermissionsUtil {
         checkPackage(uid, pkgName);
 
         // Apps with NETWORK_SETTINGS, NETWORK_SETUP_WIZARD, NETWORK_MANAGED_PROVISIONING,
-        // NETWORK_STACK & MAINLINE_NETWORK_STACK are granted a bypass.
+        // NETWORK_STACK & MAINLINE_NETWORK_STACK, RADIO_SCAN_WITHOUT_LOCATION are granted a bypass.
         if (checkNetworkSettingsPermission(uid) || checkNetworkSetupWizardPermission(uid)
                 || checkNetworkManagedProvisioningPermission(uid)
-                || checkNetworkStackPermission(uid) || checkMainlineNetworkStackPermission(uid)) {
+                || checkNetworkStackPermission(uid) || checkMainlineNetworkStackPermission(uid)
+                || checkScanWithoutLocationPermission(uid)) {
             return;
         }
 
@@ -446,6 +447,15 @@ public class WifiPermissionsUtil {
     public boolean checkNetworkSettingsPermission(int uid) {
         return mWifiPermissionsWrapper.getUidPermission(
                 android.Manifest.permission.NETWORK_SETTINGS, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Returns true if the |uid| holds RADIO_SCAN_WITHOUT_LOCATION permission.
+     */
+    public boolean checkScanWithoutLocationPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.RADIO_SCAN_WITHOUT_LOCATION, uid)
                 == PackageManager.PERMISSION_GRANTED;
     }
 
