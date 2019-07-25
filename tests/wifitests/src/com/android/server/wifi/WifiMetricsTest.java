@@ -2577,6 +2577,45 @@ public class WifiMetricsTest {
     }
 
     /**
+     * Verify that Tx and Rx per-band LinkSpeedCounts are correctly logged in metrics
+     */
+    @Test
+    public void testTxRxLinkSpeedBandCounts() throws Exception {
+        when(mFacade.getIntegerSetting(eq(mContext),
+                eq(Settings.Global.WIFI_LINK_SPEED_METRICS_ENABLED), anyInt())).thenReturn(1);
+        mWifiMetrics.loadSettings();
+        for (int i = 0; i < NUM_LINK_SPEED_LEVELS_TO_INCREMENT; i++) {
+            for (int j = 0; j <= i; j++) {
+                mWifiMetrics.incrementTxLinkSpeedBandCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS + i, RSSI_POLL_FREQUENCY);
+                mWifiMetrics.incrementRxLinkSpeedBandCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS + i + 1, RSSI_POLL_FREQUENCY);
+            }
+        }
+        dumpProtoAndDeserialize();
+        assertEquals(0, mDecodedProto.txLinkSpeedCount2G.length);
+        assertEquals(0, mDecodedProto.rxLinkSpeedCount2G.length);
+        assertEquals(NUM_LINK_SPEED_LEVELS_TO_INCREMENT,
+                mDecodedProto.txLinkSpeedCount5GLow.length);
+        assertEquals(NUM_LINK_SPEED_LEVELS_TO_INCREMENT,
+                mDecodedProto.rxLinkSpeedCount5GLow.length);
+        assertEquals(0, mDecodedProto.txLinkSpeedCount5GMid.length);
+        assertEquals(0, mDecodedProto.rxLinkSpeedCount5GMid.length);
+        assertEquals(0, mDecodedProto.txLinkSpeedCount5GHigh.length);
+        assertEquals(0, mDecodedProto.rxLinkSpeedCount5GHigh.length);
+        for (int i = 0; i < NUM_LINK_SPEED_LEVELS_TO_INCREMENT; i++) {
+            assertEquals("Incorrect Tx link speed", WifiMetrics.MIN_LINK_SPEED_MBPS + i,
+                    mDecodedProto.txLinkSpeedCount5GLow[i].key);
+            assertEquals("Incorrect Rx link speed", WifiMetrics.MIN_LINK_SPEED_MBPS + i + 1,
+                    mDecodedProto.rxLinkSpeedCount5GLow[i].key);
+            assertEquals("Incorrect count of Tx link speed",
+                    i + 1, mDecodedProto.txLinkSpeedCount5GLow[i].count);
+            assertEquals("Incorrect count of Rx link speed",
+                    i + 1, mDecodedProto.rxLinkSpeedCount5GLow[i].count);
+        }
+    }
+
+    /**
      * Verify that LinkSpeedCounts is not logged when disabled in settings
      */
     @Test
@@ -2588,11 +2627,19 @@ public class WifiMetricsTest {
             for (int j = 0; j <= i; j++) {
                 mWifiMetrics.incrementLinkSpeedCount(
                         WifiMetrics.MIN_LINK_SPEED_MBPS + i, TEST_RSSI_LEVEL);
+                mWifiMetrics.incrementTxLinkSpeedBandCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS - i, RSSI_POLL_FREQUENCY);
+                mWifiMetrics.incrementRxLinkSpeedBandCount(
+                        WifiMetrics.MIN_LINK_SPEED_MBPS - i, RSSI_POLL_FREQUENCY);
             }
         }
         dumpProtoAndDeserialize();
         assertEquals("LinkSpeedCounts should not be logged when disabled in settings",
                 0, mDecodedProto.linkSpeedCounts.length);
+        assertEquals("Tx LinkSpeedCounts should not be logged when disabled in settings",
+                0, mDecodedProto.txLinkSpeedCount5GLow.length);
+        assertEquals("Rx LinkSpeedCounts should not be logged when disabled in settings",
+                0, mDecodedProto.rxLinkSpeedCount5GLow.length);
     }
 
     /**
@@ -2608,6 +2655,10 @@ public class WifiMetricsTest {
         for (int i = 1; i < NUM_OUT_OF_BOUND_ENTRIES; i++) {
             mWifiMetrics.incrementLinkSpeedCount(
                     WifiMetrics.MIN_LINK_SPEED_MBPS - i, MIN_RSSI_LEVEL);
+            mWifiMetrics.incrementTxLinkSpeedBandCount(
+                    WifiMetrics.MIN_LINK_SPEED_MBPS - i, RSSI_POLL_FREQUENCY);
+            mWifiMetrics.incrementRxLinkSpeedBandCount(
+                    WifiMetrics.MIN_LINK_SPEED_MBPS - i, RSSI_POLL_FREQUENCY);
         }
         for (int i = 1; i < NUM_OUT_OF_BOUND_ENTRIES; i++) {
             mWifiMetrics.incrementLinkSpeedCount(
@@ -2620,6 +2671,10 @@ public class WifiMetricsTest {
         dumpProtoAndDeserialize();
         assertEquals("LinkSpeedCounts should not be logged for out of bound values",
                 0, mDecodedProto.linkSpeedCounts.length);
+        assertEquals("Tx LinkSpeedCounts should not be logged for out of bound values",
+                0, mDecodedProto.txLinkSpeedCount5GLow.length);
+        assertEquals("Rx LinkSpeedCounts should not be logged for out of bound values",
+                0, mDecodedProto.rxLinkSpeedCount5GLow.length);
     }
 
     private int nextRandInt() {
