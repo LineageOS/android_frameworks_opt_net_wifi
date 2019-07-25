@@ -99,6 +99,8 @@ public class SoftApManager implements ActiveModeManager {
 
     private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("MM-dd HH:mm:ss.SSS");
 
+    private BaseWifiDiagnostics mWifiDiagnostics;
+
     /**
      * Listener for soft AP events.
      */
@@ -131,7 +133,8 @@ public class SoftApManager implements ActiveModeManager {
                          @NonNull WifiApConfigStore wifiApConfigStore,
                          @NonNull SoftApModeConfiguration apConfig,
                          @NonNull WifiMetrics wifiMetrics,
-                         @NonNull SarManager sarManager) {
+                         @NonNull SarManager sarManager,
+                         @NonNull BaseWifiDiagnostics wifiDiagnostics) {
         mContext = context;
         mFrameworkFacade = framework;
         mWifiNative = wifiNative;
@@ -147,6 +150,7 @@ public class SoftApManager implements ActiveModeManager {
         }
         mWifiMetrics = wifiMetrics;
         mSarManager = sarManager;
+        mWifiDiagnostics = wifiDiagnostics;
         mStateMachine = new SoftApStateMachine(looper);
     }
 
@@ -296,6 +300,7 @@ public class SoftApManager implements ActiveModeManager {
             Log.e(TAG, "Soft AP start failed");
             return ERROR_GENERIC;
         }
+        mWifiDiagnostics.startLogging(mApInterfaceName);
         mStartTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
         Log.d(TAG, "Soft AP is started ");
 
@@ -306,6 +311,7 @@ public class SoftApManager implements ActiveModeManager {
      * Teardown soft AP and teardown the interface.
      */
     private void stopSoftAp() {
+        mWifiDiagnostics.stopLogging(mApInterfaceName);
         mWifiNative.teardownInterface(mApInterfaceName);
         Log.d(TAG, "Soft AP is stopped");
     }

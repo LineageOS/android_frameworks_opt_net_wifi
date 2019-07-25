@@ -522,7 +522,7 @@ public class WifiInjector {
                                            @NonNull SoftApModeConfiguration config) {
         return new SoftApManager(mContext, mWifiHandlerThread.getLooper(),
                 mFrameworkFacade, mWifiNative, mCountryCode.getCountryCode(), callback,
-                mWifiApConfigStore, config, mWifiMetrics, mSarManager);
+                mWifiApConfigStore, config, mWifiMetrics, mSarManager, mWifiDiagnostics);
     }
 
     /**
