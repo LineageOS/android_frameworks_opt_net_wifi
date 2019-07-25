@@ -18,7 +18,9 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.util.ArraySet;
 import android.util.Base64;
+import android.util.Log;
 import android.util.SparseLongArray;
 
 import com.android.internal.R;
@@ -40,6 +42,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
@@ -124,6 +127,9 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     private WifiInjector mWifiInjector;
     private Clock mClock;
 
+    /** Interfaces started logging */
+    private final Set<String> mActiveInterfaces = new ArraySet<>();
+
     public WifiDiagnostics(Context context, WifiInjector wifiInjector,
                            WifiNative wifiNative, BuildProperties buildProperties,
                            LastMileLogger lastMileLogger, Clock clock) {
@@ -148,40 +154,35 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         mClock = clock;
     }
 
+    /**
+     * Start wifi HAL dependent logging features.
+     * This method should be called only after the interface has
+     * been set up.
+     *
+     * @param ifaceName the interface requesting to start logging.
+     */
     @Override
-    public synchronized void startLogging(boolean verboseEnabled) {
-        mFirmwareVersion = mWifiNative.getFirmwareVersion();
-        mDriverVersion = mWifiNative.getDriverVersion();
-        mSupportedFeatureSet = mWifiNative.getSupportedLoggerFeatureSet();
+    public synchronized void startLogging(@NonNull String ifaceName) {
+        if (mActiveInterfaces.contains(ifaceName)) {
+            Log.w(TAG, "Interface: " + ifaceName + " had already started logging");
+            return;
+        }
+        if (mActiveInterfaces.isEmpty()) {
+            mFirmwareVersion = mWifiNative.getFirmwareVersion();
+            mDriverVersion = mWifiNative.getDriverVersion();
+            mSupportedFeatureSet = mWifiNative.getSupportedLoggerFeatureSet();
 
-        if (!mIsLoggingEventHandlerRegistered) {
-            mIsLoggingEventHandlerRegistered = mWifiNative.setLoggingEventHandler(mHandler);
+            if (!mIsLoggingEventHandlerRegistered) {
+                mIsLoggingEventHandlerRegistered = mWifiNative.setLoggingEventHandler(mHandler);
+            }
+
+            startLoggingRingBuffers();
         }
 
-        if (verboseEnabled) {
-            mLogLevel = VERBOSE_LOG_WITH_WAKEUP;
-            mMaxRingBufferSizeBytes = RING_BUFFER_BYTE_LIMIT_LARGE;
-        } else {
-            mLogLevel = VERBOSE_NORMAL_LOG;
-            mMaxRingBufferSizeBytes = enableVerboseLoggingForDogfood()
-                    ? RING_BUFFER_BYTE_LIMIT_LARGE : RING_BUFFER_BYTE_LIMIT_SMALL;
-            clearVerboseLogs();
-        }
+        mActiveInterfaces.add(ifaceName);
 
-        if (mRingBuffers == null) {
-            fetchRingBuffers();
-        }
-
-        if (mRingBuffers != null) {
-            /* log level may have changed, so restart logging with new levels */
-            stopLoggingAllBuffers();
-            resizeRingBuffers();
-            startLoggingAllExceptPerPacketBuffers();
-        }
-
-        if (!mWifiNative.startPktFateMonitoring(mWifiNative.getClientInterfaceName())) {
-            mLog.wC("Failed to start packet fate monitoring");
-        }
+        Log.d(TAG, "startLogging() iface list is " + mActiveInterfaces
+                + " after adding " + ifaceName);
     }
 
     @Override
@@ -202,8 +203,28 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         }
     }
 
+    /**
+     * Stop wifi HAL dependent logging features.
+     * This method should be called before the interface has been
+     * torn down.
+     *
+     * @param ifaceName the interface requesting to stop logging.
+     */
     @Override
-    public synchronized void stopLogging() {
+    public synchronized void stopLogging(@NonNull String ifaceName) {
+        if (!mActiveInterfaces.contains(ifaceName)) {
+            Log.w(TAG, "ifaceName: " + ifaceName + " is not in the start log user list");
+            return;
+        }
+
+        mActiveInterfaces.remove(ifaceName);
+
+        Log.d(TAG, "stopLogging() iface list is " + mActiveInterfaces
+                + " after removing " + ifaceName);
+
+        if (!mActiveInterfaces.isEmpty()) {
+            return;
+        }
         if (mIsLoggingEventHandlerRegistered) {
             if (!mWifiNative.resetLogHandler()) {
                 mLog.wC("Fail to reset log handler");
@@ -217,7 +238,6 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         if (mLogLevel != VERBOSE_NO_LOG) {
             stopLoggingAllBuffers();
             mRingBuffers = null;
-            mLogLevel = VERBOSE_NO_LOG;
         }
     }
 
@@ -442,6 +462,28 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         mWifiMetrics.logFirmwareAlert(errorCode);
     }
 
+    /**
+     * Enables or disables verbose logging
+     *
+     * @param verbose - with the obvious interpretation
+     */
+    @Override
+    public synchronized void enableVerboseLogging(boolean verboseEnabled) {
+        if (verboseEnabled) {
+            mLogLevel = VERBOSE_LOG_WITH_WAKEUP;
+            mMaxRingBufferSizeBytes = RING_BUFFER_BYTE_LIMIT_LARGE;
+        } else {
+            mLogLevel = VERBOSE_NORMAL_LOG;
+            mMaxRingBufferSizeBytes = enableVerboseLoggingForDogfood()
+                    ? RING_BUFFER_BYTE_LIMIT_LARGE : RING_BUFFER_BYTE_LIMIT_SMALL;
+        }
+
+        if (!mActiveInterfaces.isEmpty()) {
+            mLog.wC("verbosity changed: restart logging");
+            startLoggingRingBuffers();
+        }
+    }
+
     private boolean isVerboseLoggingEnabled() {
         return mLogLevel > VERBOSE_NORMAL_LOG;
     }
@@ -482,6 +524,21 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     private void resizeRingBuffers() {
         for (ByteArrayRingBuffer byteArrayRingBuffer : mRingBufferData.values()) {
             byteArrayRingBuffer.resize(mMaxRingBufferSizeBytes);
+        }
+    }
+
+    private void startLoggingRingBuffers() {
+        if (!isVerboseLoggingEnabled()) {
+            clearVerboseLogs();
+        }
+        if (mRingBuffers == null) {
+            fetchRingBuffers();
+        }
+        if (mRingBuffers != null) {
+            // Log level may have changed, so restart logging with new levels.
+            stopLoggingAllBuffers();
+            resizeRingBuffers();
+            startLoggingAllExceptPerPacketBuffers();
         }
     }
 
@@ -741,5 +798,17 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
         }
 
         pw.println("--------------------------------------------------------------------");
+    }
+
+    /**
+     * Enable packet fate monitoring.
+     *
+     * @param ifaceName Name of the interface.
+     */
+    @Override
+    public void startPktFateMonitoring(@NonNull String ifaceName) {
+        if (!mWifiNative.startPktFateMonitoring(ifaceName)) {
+            mLog.wC("Failed to start packet fate monitoring");
+        }
     }
 }
