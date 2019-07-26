@@ -29,7 +29,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -88,9 +87,9 @@ public class DppManager {
         }
     };
 
-    DppManager(Looper looper, WifiNative wifiNative, WifiConfigManager wifiConfigManager,
+    DppManager(Handler handler, WifiNative wifiNative, WifiConfigManager wifiConfigManager,
             Context context, DppMetrics dppMetrics) {
-        mHandler = new Handler(looper);
+        mHandler = handler;
         mWifiNative = wifiNative;
         mWifiConfigManager = wifiConfigManager;
         mWifiNative.registerDppEventCallback(mDppEventCallback);

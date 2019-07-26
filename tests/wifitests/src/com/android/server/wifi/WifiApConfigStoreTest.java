@@ -34,6 +34,7 @@ import android.content.pm.ApplicationInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Build;
+import android.os.Handler;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
@@ -82,7 +83,7 @@ public class WifiApConfigStoreTest {
 
     @Mock private Context mContext;
     @Mock private WifiInjector mWifiInjector;
-    private TestLooper mLooper;
+    private Handler mHandler;
     @Mock private BackupManagerProxy mBackupManagerProxy;
     @Mock private FrameworkFacade mFrameworkFacade;
     private File mApConfigFile;
@@ -95,7 +96,7 @@ public class WifiApConfigStoreTest {
 
     @Before
     public void setUp() throws Exception {
-        mLooper = new TestLooper();
+        mHandler = new Handler(new TestLooper().getLooper());
         MockitoAnnotations.initMocks(this);
         when(mContext.getSystemService(Context.NOTIFICATION_SERVICE))
                 .thenReturn(mNotificationManager);
@@ -140,7 +141,7 @@ public class WifiApConfigStoreTest {
      */
     private WifiApConfigStore createWifiApConfigStore() {
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
 
         ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
@@ -213,7 +214,7 @@ public class WifiApConfigStoreTest {
     @Test
     public void initWithDefaultConfiguration() throws Exception {
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
     }
@@ -233,7 +234,7 @@ public class WifiApConfigStoreTest {
                 true               /* Hidden SSID */);
         writeApConfigFile(expectedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(expectedConfig, store.getApConfiguration());
     }
@@ -255,7 +256,7 @@ public class WifiApConfigStoreTest {
                 true               /* Hidden SSID */);
         writeApConfigFile(expectedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(expectedConfig, store.getApConfiguration());
 
@@ -271,7 +272,7 @@ public class WifiApConfigStoreTest {
     public void updateApConfiguration() throws Exception {
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
 
@@ -297,7 +298,7 @@ public class WifiApConfigStoreTest {
     public void convertSingleModeDeviceAnyTo5Ghz() throws Exception {
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
 
@@ -331,7 +332,7 @@ public class WifiApConfigStoreTest {
     public void singleModeDevice5GhzNotConverted() throws Exception {
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
 
@@ -358,7 +359,7 @@ public class WifiApConfigStoreTest {
 
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
 
@@ -394,7 +395,7 @@ public class WifiApConfigStoreTest {
 
         /* Initialize WifiApConfigStore with default configuration. */
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyDefaultApConfig(store.getApConfiguration(), TEST_DEFAULT_AP_SSID);
 
@@ -435,7 +436,7 @@ public class WifiApConfigStoreTest {
                 false                                  /* Hidden SSID */);
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(expectedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy).notifyDataChanged();
@@ -458,7 +459,7 @@ public class WifiApConfigStoreTest {
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(persistedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy, never()).notifyDataChanged();
@@ -490,7 +491,7 @@ public class WifiApConfigStoreTest {
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(expectedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy).notifyDataChanged();
@@ -515,7 +516,7 @@ public class WifiApConfigStoreTest {
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         verifyApConfig(persistedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy, never()).notifyDataChanged();
@@ -527,7 +528,7 @@ public class WifiApConfigStoreTest {
     @Test
     public void getDefaultApConfigurationIsValid() {
         WifiApConfigStore store = new WifiApConfigStore(
-                mContext, mWifiInjector, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
+                mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
                 mApConfigFile.getPath());
         WifiConfiguration config = store.getApConfiguration();
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));

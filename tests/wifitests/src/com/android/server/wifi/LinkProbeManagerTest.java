@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.database.ContentObserver;
 import android.net.wifi.WifiInfo;
+import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.Settings;
 
@@ -98,7 +99,7 @@ public class LinkProbeManagerTest {
 
     private void initLinkProbeManager() {
         mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
-                mFrameworkFacade, mLooper.getLooper(), mContext);
+                mFrameworkFacade, new Handler(mLooper.getLooper()), mContext);
     }
 
     /**

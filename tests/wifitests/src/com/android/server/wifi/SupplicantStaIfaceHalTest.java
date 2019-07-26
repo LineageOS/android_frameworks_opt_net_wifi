@@ -63,6 +63,7 @@ import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
+import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
@@ -155,7 +156,7 @@ public class SupplicantStaIfaceHalTest {
 
     private class SupplicantStaIfaceHalSpy extends SupplicantStaIfaceHal {
         SupplicantStaIfaceHalSpy() {
-            super(mContext, mWifiMonitor, mPropertyService, mLooper.getLooper());
+            super(mContext, mWifiMonitor, mPropertyService, new Handler(mLooper.getLooper()));
         }
 
         @Override

@@ -27,6 +27,7 @@ import android.database.ContentObserver;
 import android.net.Uri;
 import android.net.wifi.EAPConstants;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.os.Handler;
 import android.os.PersistableBundle;
 import android.os.test.TestLooper;
 import android.telephony.CarrierConfigManager;
@@ -108,11 +109,11 @@ public class CarrierNetworkConfigTest {
         when(mCarrierConfigManager.getConfigForSubId(TEST_SUBSCRIPTION_ID))
                 .thenReturn(generateTestConfig(TEST_SSID, TEST_STANDARD_EAP_TYPE));
         when(mSubscriptionManager.getActiveSubscriptionInfoList())
-                .thenReturn(Arrays.asList(new SubscriptionInfo[] {TEST_SUBSCRIPTION_INFO}));
+                .thenReturn(Arrays.asList(TEST_SUBSCRIPTION_INFO));
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
                 .thenReturn(mImsiEncryptionInfo);
         mLooper = new TestLooper();
-        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, mLooper.getLooper(),
+        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, new Handler(mLooper.getLooper()),
                 mFrameworkFacade);
         ArgumentCaptor<BroadcastReceiver> receiver =
                 ArgumentCaptor.forClass(BroadcastReceiver.class);
@@ -153,7 +154,7 @@ public class CarrierNetworkConfigTest {
                 null, 0, null, "0", "0", null, false, null, null);
         when(mSubscriptionManager.getActiveSubscriptionInfoList())
                 .thenReturn(Collections.singletonList(testSubscriptionInfoNullDisplayName));
-        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, mLooper.getLooper(),
+        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, new Handler(mLooper.getLooper()),
                 mFrameworkFacade);
         reset(mCarrierConfigManager);
 

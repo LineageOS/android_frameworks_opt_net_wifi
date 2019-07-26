@@ -16,9 +16,7 @@
 
 package com.android.server.wifi;
 
-import android.annotation.NonNull;
 import android.content.Context;
-import android.os.Looper;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -55,7 +53,7 @@ public class DefaultModeManager implements ActiveModeManager {
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) { }
 
-    DefaultModeManager(Context context, @NonNull Looper looper) {
+    DefaultModeManager(Context context) {
         mContext = context;
     }
 }

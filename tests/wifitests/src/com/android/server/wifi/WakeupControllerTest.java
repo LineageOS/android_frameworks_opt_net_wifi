@@ -32,6 +32,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.Settings;
 
@@ -126,7 +127,7 @@ public class WakeupControllerTest {
                 Settings.Global.WIFI_WAKEUP_ENABLED, 0)).thenReturn(settingsValue);
         when(mWakeupOnboarding.isOnboarded()).thenReturn(true);
         mWakeupController = new WakeupController(mContext,
-                mLooper.getLooper(),
+                new Handler(mLooper.getLooper()),
                 mWakeupLock,
                 mWakeupEvaluator,
                 mWakeupOnboarding,

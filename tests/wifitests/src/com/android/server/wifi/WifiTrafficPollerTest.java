@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
@@ -63,7 +64,7 @@ public class WifiTrafficPollerTest {
         mLooper = new TestLooper();
         MockitoAnnotations.initMocks(this);
 
-        mWifiTrafficPoller = new WifiTrafficPoller(mLooper.getLooper());
+        mWifiTrafficPoller = new WifiTrafficPoller(new Handler(mLooper.getLooper()));
 
         // Set the current mTxPkts and mRxPkts to DEFAULT_PACKET_COUNT
         mWifiTrafficPoller.notifyOnDataActivity(DEFAULT_PACKET_COUNT, DEFAULT_PACKET_COUNT);

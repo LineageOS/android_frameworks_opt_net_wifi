@@ -27,14 +27,12 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
 
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -57,7 +55,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     private boolean mNetworkRecommendationsEnabled;
     private WifiNetworkScoreCache mScoreCache;
 
-    ScoredNetworkEvaluator(final Context context, Looper looper,
+    ScoredNetworkEvaluator(final Context context, Handler handler,
             final FrameworkFacade frameworkFacade, NetworkScoreManager networkScoreManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
             WifiNetworkScoreCache wifiNetworkScoreCache,
@@ -67,7 +65,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
         mNetworkScoreManager = networkScoreManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
-        mContentObserver = new ContentObserver(new Handler(looper)) {
+        mContentObserver = new ContentObserver(handler) {
             @Override
             public void onChange(boolean selfChange) {
                 mNetworkRecommendationsEnabled = frameworkFacade.getIntegerSetting(context,

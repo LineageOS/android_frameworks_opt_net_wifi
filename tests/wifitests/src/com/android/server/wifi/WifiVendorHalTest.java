@@ -87,7 +87,6 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.system.OsConstants;
@@ -128,15 +127,15 @@ public class WifiVendorHalTest {
     private static final int[] TEST_FREQUENCIES =
             {2412, 2417, 2422, 2427, 2432, 2437};
 
-    WifiVendorHal mWifiVendorHal;
+    private WifiVendorHal mWifiVendorHal;
     private WifiStatus mWifiStatusSuccess;
     private WifiStatus mWifiStatusFailure;
     private WifiStatus mWifiStatusBusy;
-    WifiLog mWifiLog;
+    private WifiLog mWifiLog;
+    private TestLooper mLooper;
+    private Handler mHandler;
     @Mock
     private HalDeviceManager mHalDeviceManager;
-    @Mock
-    private TestLooper mLooper;
     @Mock
     private WifiVendorHal.HalDeviceManagerStatusListener mHalDeviceManagerStatusCallbacks;
     @Mock
@@ -168,8 +167,8 @@ public class WifiVendorHalTest {
      * device.
      */
     private class WifiVendorHalSpyV1_1 extends WifiVendorHal {
-        WifiVendorHalSpyV1_1(HalDeviceManager halDeviceManager, Looper looper) {
-            super(halDeviceManager, looper);
+        WifiVendorHalSpyV1_1(HalDeviceManager halDeviceManager, Handler handler) {
+            super(halDeviceManager, handler);
         }
 
         @Override
@@ -205,8 +204,8 @@ public class WifiVendorHalTest {
      * the 1.2 HAL running on the device.
      */
     private class WifiVendorHalSpyV1_2 extends WifiVendorHal {
-        WifiVendorHalSpyV1_2(HalDeviceManager halDeviceManager, Looper looper) {
-            super(halDeviceManager, looper);
+        WifiVendorHalSpyV1_2(HalDeviceManager halDeviceManager, Handler handler) {
+            super(halDeviceManager, handler);
         }
 
         @Override
@@ -242,8 +241,8 @@ public class WifiVendorHalTest {
      * the 1.3 HAL running on the device.
      */
     private class WifiVendorHalSpyV1_3 extends WifiVendorHal {
-        WifiVendorHalSpyV1_3(HalDeviceManager halDeviceManager, Looper looper) {
-            super(halDeviceManager, looper);
+        WifiVendorHalSpyV1_3(HalDeviceManager halDeviceManager, Handler handler) {
+            super(halDeviceManager, handler);
         }
 
         @Override
@@ -289,6 +288,7 @@ public class WifiVendorHalTest {
         MockitoAnnotations.initMocks(this);
         mWifiLog = new FakeWifiLog();
         mLooper = new TestLooper();
+        mHandler = new Handler(mLooper.getLooper());
         mWifiStatusSuccess = new WifiStatus();
         mWifiStatusSuccess.code = WifiStatusCode.SUCCESS;
         mWifiStatusFailure = new WifiStatus();
@@ -364,7 +364,7 @@ public class WifiVendorHalTest {
         }).when(mIWifiApIface).getName(any(IWifiIface.getNameCallback.class));
 
         // Create the vendor HAL object under test.
-        mWifiVendorHal = new WifiVendorHal(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHal(mHalDeviceManager, mHandler);
 
         // Initialize the vendor HAL to capture the registered callback.
         mWifiVendorHal.initialize(mVendorHalDeathHandler);
@@ -832,7 +832,7 @@ public class WifiVendorHalTest {
             }
         }).when(mIWifiStaIfaceV13).getFactoryMacAddress(any(
                 android.hardware.wifi.V1_3.IWifiStaIface.getFactoryMacAddressCallback.class));
-        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mHandler);
         assertEquals(MacAddress.BROADCAST_ADDRESS.toString(),
                 mWifiVendorHal.getFactoryMacAddress(TEST_IFACE_NAME).toString());
         verify(mIWifiStaIfaceV13).getFactoryMacAddress(any());
@@ -868,7 +868,7 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testLinkLayerStatsCorrectVersionWithHalV1_3() throws Exception {
-        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mHandler);
         mWifiVendorHal.getWifiLinkLayerStats(TEST_IFACE_NAME);
         verify(mIWifiStaIfaceV13).getLinkLayerStats_1_3(any());
     }
@@ -1308,7 +1308,7 @@ public class WifiVendorHalTest {
     @Test
     public void testReadApf() throws Exception {
         // Expose the 1.2 IWifiStaIface.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
 
         byte[] program = new byte[] {65, 66, 67};
         ArrayList<Byte> expected = new ArrayList<>(3);
@@ -1473,7 +1473,7 @@ public class WifiVendorHalTest {
      */
     @Test
     public void testFlushRingBufferToFile() throws Exception {
-        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mHandler);
         when(mIWifiChipV13.flushRingBufferToFile()).thenReturn(mWifiStatusSuccess);
 
         assertFalse(mWifiVendorHal.flushRingBufferData());
@@ -2376,7 +2376,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = true;
 
         // Now expose the 1.1 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mHandler);
         when(mIWifiChipV11.selectTxPowerScenario(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2402,7 +2402,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = true;
 
         // Now expose the 1.2 IWifiChip
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2442,7 +2442,7 @@ public class WifiVendorHalTest {
         sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.1 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mHandler);
         when(mIWifiChipV11.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2468,7 +2468,7 @@ public class WifiVendorHalTest {
         sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.1 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mHandler);
         when(mIWifiChipV11.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2500,7 +2500,7 @@ public class WifiVendorHalTest {
         sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2526,7 +2526,7 @@ public class WifiVendorHalTest {
         sarInfo.sarSensorSupported = false;
 
         // Now expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2562,7 +2562,7 @@ public class WifiVendorHalTest {
         sarInfo.isWifiSapEnabled = true;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         // ON_BODY_CELL_ON
@@ -2591,7 +2591,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = true;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         // ON_HEAD_CELL_ON
@@ -2620,7 +2620,7 @@ public class WifiVendorHalTest {
         sarInfo.isEarPieceActive = true;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         // ON_HEAD_CELL_ON
@@ -2647,7 +2647,7 @@ public class WifiVendorHalTest {
         sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         // ON_HEAD_CELL_OFF
@@ -2677,7 +2677,7 @@ public class WifiVendorHalTest {
         sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Now expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2713,7 +2713,7 @@ public class WifiVendorHalTest {
         sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HAND;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2748,7 +2748,7 @@ public class WifiVendorHalTest {
         sarInfo.sensorState = SarInfo.SAR_SENSOR_NEAR_HEAD;
 
         // Expose the 1.1 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_1(mHalDeviceManager, mHandler);
         when(mIWifiChipV11.selectTxPowerScenario(anyInt())).thenReturn(mWifiStatusSuccess);
         when(mIWifiChipV11.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
@@ -2783,7 +2783,7 @@ public class WifiVendorHalTest {
         sarInfo.sensorState = SAR_SENSOR_INVALID_STATE;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
         assertFalse(mWifiVendorHal.selectTxPowerScenario(sarInfo));
@@ -2813,7 +2813,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2845,7 +2845,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = true;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.selectTxPowerScenario_1_2(anyInt())).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2877,7 +2877,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2907,7 +2907,7 @@ public class WifiVendorHalTest {
         sarInfo.isVoiceCall = false;
 
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         when(mIWifiChipV12.resetTxPowerScenario()).thenReturn(mWifiStatusSuccess);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
@@ -2925,7 +2925,7 @@ public class WifiVendorHalTest {
     @Test
     public void testSetLowLatencyMode_1_2() throws RemoteException {
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         assertFalse(mWifiVendorHal.setLowLatencyMode(true));
         assertFalse(mWifiVendorHal.setLowLatencyMode(false));
     }
@@ -2938,7 +2938,7 @@ public class WifiVendorHalTest {
         int mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.LOW;
 
         // Expose the 1.3 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mHandler);
         when(mIWifiChipV13.setLatencyMode(anyInt())).thenReturn(mWifiStatusSuccess);
         assertTrue(mWifiVendorHal.setLowLatencyMode(true));
         verify(mIWifiChipV13).setLatencyMode(eq(mode));
@@ -2952,7 +2952,7 @@ public class WifiVendorHalTest {
         int mode = android.hardware.wifi.V1_3.IWifiChip.LatencyMode.NORMAL;
 
         // Expose the 1.3 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_3(mHalDeviceManager, mHandler);
         when(mIWifiChipV13.setLatencyMode(anyInt())).thenReturn(mWifiStatusSuccess);
         assertTrue(mWifiVendorHal.setLowLatencyMode(false));
         verify(mIWifiChipV13).setLatencyMode(eq(mode));
@@ -3024,7 +3024,7 @@ public class WifiVendorHalTest {
     @Test
     public void testAlertCallbackUsing_1_2_EventCallback() throws Exception {
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
 
         assertTrue(mWifiVendorHal.startVendorHalSta());
         assertNotNull(mIWifiChipEventCallbackV12);
@@ -3038,7 +3038,7 @@ public class WifiVendorHalTest {
     @Test
     public void testSetMacAddressSuccess() throws Exception {
         // Expose the 1.2 IWifiStaIface.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
         when(mIWifiStaIfaceV12.setMacAddress(macByteArray)).thenReturn(mWifiStatusSuccess);
 
@@ -3052,7 +3052,7 @@ public class WifiVendorHalTest {
     @Test
     public void testSetMacAddressFailDueToStatusFailure() throws Exception {
         // Expose the 1.2 IWifiStaIface.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
         when(mIWifiStaIfaceV12.setMacAddress(macByteArray)).thenReturn(mWifiStatusFailure);
 
@@ -3066,7 +3066,7 @@ public class WifiVendorHalTest {
     @Test
     public void testSetMacAddressFailDueToRemoteException() throws Exception {
         // Expose the 1.2 IWifiStaIface.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
         doThrow(new RemoteException()).when(mIWifiStaIfaceV12).setMacAddress(macByteArray);
 
@@ -3237,7 +3237,7 @@ public class WifiVendorHalTest {
 
     private void startHalInStaModeAndRegisterRadioModeChangeCallback() {
         // Expose the 1.2 IWifiChip.
-        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mLooper.getLooper());
+        mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         mWifiVendorHal.registerRadioModeChangeHandler(mVendorHalRadioModeChangeHandler);
         assertTrue(mWifiVendorHal.startVendorHalSta());
         assertNotNull(mIWifiChipEventCallbackV12);

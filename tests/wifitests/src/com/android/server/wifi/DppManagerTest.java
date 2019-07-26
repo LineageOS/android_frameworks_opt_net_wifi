@@ -54,6 +54,7 @@ import android.content.Context;
 import android.net.wifi.EasyConnectStatusCallback;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.WifiConfiguration;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -133,8 +134,8 @@ public class DppManagerTest {
     }
 
     private DppManager createDppManager() {
-        DppManager dppManger = new DppManager(mLooper.getLooper(), mWifiNative, mWifiConfigManager,
-                mContext, mDppMetrics);
+        DppManager dppManger = new DppManager(new Handler(mLooper.getLooper()), mWifiNative,
+                mWifiConfigManager, mContext, mDppMetrics);
         dppManger.mDppTimeoutMessage = mWakeupMessage;
         dppManger.enableVerboseLogging(1);
         return dppManger;

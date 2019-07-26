@@ -46,7 +46,7 @@ public class WifiController extends StateMachine {
 
     /* References to values tracked in WifiService */
     private final ClientModeImpl mClientModeImpl;
-    private final Looper mClientModeImplLooper;
+    private final Handler mHandler;
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
     private final FrameworkFacade mFacade;
@@ -88,7 +88,7 @@ public class WifiController extends StateMachine {
         mFacade = f;
         mContext = context;
         mClientModeImpl = clientModeImpl;
-        mClientModeImplLooper = looper;
+        mHandler = new Handler(looper);
         mActiveModeWarden = amw;
         mSettingsStore = wss;
         mWifiPermissionsUtil = wifiPermissionsUtil;
@@ -364,8 +364,7 @@ public class WifiController extends StateMachine {
                         bugTitle = "Wi-Fi BugReport";
                     }
                     if (msg.arg1 != SelfRecovery.REASON_LAST_RESORT_WATCHDOG) {
-                        new Handler(mClientModeImplLooper)
-                                .post(() -> mClientModeImpl.takeBugReport(bugTitle, bugDetail));
+                        mHandler.post(() -> mClientModeImpl.takeBugReport(bugTitle, bugDetail));
                     }
                     // after the bug report trigger, more handling needs to be done
                     return NOT_HANDLED;

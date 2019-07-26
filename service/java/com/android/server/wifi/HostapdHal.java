@@ -26,7 +26,6 @@ import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
 import android.os.Handler;
 import android.os.HwRemoteBinder;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -119,8 +118,8 @@ public class HostapdHal {
         }
     }
 
-    public HostapdHal(Context context, Looper looper) {
-        mEventHandler = new Handler(looper);
+    public HostapdHal(Context context, Handler handler) {
+        mEventHandler = handler;
         mEnableAcs = context.getResources().getBoolean(R.bool.config_wifi_softap_acs_supported);
         mEnableIeee80211AC =
                 context.getResources().getBoolean(R.bool.config_wifi_softap_ieee80211ac_supported);
