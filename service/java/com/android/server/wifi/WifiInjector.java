@@ -21,7 +21,6 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.hardware.SystemSensorManager;
 import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
@@ -341,9 +340,7 @@ public class WifiInjector {
         // Register the various network evaluators with the network selector.
         mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
         mWifiNetworkSelector.registerNetworkEvaluator(mNetworkSuggestionEvaluator);
-        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)) {
-            mWifiNetworkSelector.registerNetworkEvaluator(mPasspointNetworkEvaluator);
-        }
+        mWifiNetworkSelector.registerNetworkEvaluator(mPasspointNetworkEvaluator);
         mWifiNetworkSelector.registerNetworkEvaluator(mCarrierNetworkEvaluator);
         mWifiNetworkSelector.registerNetworkEvaluator(mScoredNetworkEvaluator);
 

@@ -385,8 +385,6 @@ public class WifiServiceImplTest {
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
-        when(mPackageManager.hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(true);
         // Create an OSU provider that can be provisioned via an open OSU AP
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
         when(mContext.getOpPackageName()).thenReturn(TEST_PACKAGE_NAME);
@@ -2514,7 +2512,6 @@ public class WifiServiceImplTest {
         config.enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
 
         PackageManager pm = mock(PackageManager.class);
-        when(pm.hasSystemFeature(PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(true);
         when(mContext.getPackageManager()).thenReturn(pm);
         when(pm.getApplicationInfo(any(), anyInt())).thenReturn(mApplicationInfo);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
@@ -2591,21 +2588,6 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
         verify(mClientModeImpl).syncStartSubscriptionProvisioning(anyInt(),
                 eq(mOsuProvider), eq(mProvisioningCallback), any());
-    }
-
-    /**
-     * Verify that the call to startSubscriptionProvisioning is not directed to the Passpoint
-     * specific API startSubscriptionProvisioning when the feature is not supported.
-     */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testStartSubscriptionProvisioniningPasspointUnsupported() throws Exception {
-        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
-        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETUP_WIZARD),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
-        when(mPackageManager.hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
-        mWifiServiceImpl.startSubscriptionProvisioning(mOsuProvider, mProvisioningCallback);
     }
 
     /**
@@ -3518,29 +3500,6 @@ public class WifiServiceImplTest {
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
         verify(mWifiScoreCard).clear();
-    }
-
-    /**
-     * Verify that Passpoint configuration is not removed in factoryReset if Passpoint feature
-     * is not supported.
-     */
-    @Test
-    public void testFactoryResetWithoutPasspointSupport() throws Exception {
-        setupClientModeImplHandlerForPost();
-
-        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
-        when(mPackageManager.hasSystemFeature(
-                PackageManager.FEATURE_WIFI_PASSPOINT)).thenReturn(false);
-
-        mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
-        mLooper.dispatchAll();
-
-        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
-        verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
-        verify(mClientModeImpl, never()).syncRemovePasspointConfig(any(), anyString());
-        verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
-        verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
-        verify(mWifiNetworkSuggestionsManager).clear();
     }
 
     /**

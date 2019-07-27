@@ -3705,4 +3705,39 @@ public class ClientModeImplTest {
         verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME, FRAMEWORK_NETWORK_ID,
                 "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org", "");
     }
+
+    /**
+     * Verifies that WifiLastResortWatchdog is notified of DHCP failures when recevied
+     * NETWORK_DISCONNECTION_EVENT while in ObtainingIpState.
+     */
+    @Test
+    public void testDhcpFailureUpdatesWatchdog_WhenDisconnectedWhileObtainingIpAddr()
+            throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+
+        verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
+
+        mLooper.startAutoDispatch();
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
+        mLooper.stopAutoDispatch();
+
+        verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
+
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
+        mLooper.dispatchAll();
+
+        assertEquals("ObtainingIpState", getCurrentState().getName());
+
+        // Verifies that WifiLastResortWatchdog be notified.
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectedState", getCurrentState().getName());
+        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+                sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+    }
 }
