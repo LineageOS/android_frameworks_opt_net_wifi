@@ -617,6 +617,20 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that wifi is not enabled when wificontroller is not started.
+     */
+    @Test
+    public void testSetWifiEnabledFailureWhenInCryptDebounce() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+        verifyZeroInteractions(mWifiController);
+    }
+
+    /**
      * Verify that wifi cannot be enabled by the apps targeting Q SDK.
      */
     @Test
@@ -826,6 +840,20 @@ public class WifiServiceImplTest {
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
 
         verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi is not disabled when wificontroller is not started.
+     */
+    @Test
+    public void testSetWifiDisabledFailureWhenInCryptDebounce() throws Exception {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
+        when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(false);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertFalse(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+        verifyZeroInteractions(mWifiController);
     }
 
     /**
@@ -1085,6 +1113,19 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify does not start softap when wificontroller is not started.
+     */
+    @Test
+    public void testStartSoftApWhenInCryptDebounce() {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
+
+        WifiConfiguration config = createValidSoftApConfiguration();
+        boolean result = mWifiServiceImpl.startSoftAp(config);
+        assertFalse(result);
+        verifyZeroInteractions(mWifiController);
+    }
+
+    /**
      * Verify a SecurityException is thrown when a caller without the correct permission attempts to
      * start softap.
      */
@@ -1105,6 +1146,18 @@ public class WifiServiceImplTest {
         assertTrue(result);
         verify(mWifiController).sendMessage(eq(CMD_SET_AP), eq(0),
                 eq(WifiManager.IFACE_IP_MODE_TETHERED));
+    }
+
+    /**
+     * Verify does not stop softap when wificontroller is not started.
+     */
+    @Test
+    public void testStopSoftApWhenInCryptDebounce() {
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
+
+        boolean result = mWifiServiceImpl.stopSoftAp();
+        assertFalse(result);
+        verifyZeroInteractions(mWifiController);
     }
 
     /**
@@ -1462,6 +1515,19 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Only start LocalOnlyHotspot if device is in crypt debounce mode.
+     */
+    @Test
+    public void testStartLocalOnlyHotspotFailsIfInCryptDebounce() throws Exception {
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
+        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
+        when(mFrameworkFacade.inStorageManagerCryptKeeperBounce()).thenReturn(true);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
+                TEST_PACKAGE_NAME);
+        assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
+    }
+
+    /**
      * Only start LocalOnlyHotspot if we are not tethering.
      */
     @Test
@@ -1479,7 +1545,6 @@ public class WifiServiceImplTest {
 
         // Start another session without a stop, that should fail.
         assertFalse(mWifiServiceImpl.startSoftAp(createValidSoftApConfiguration()));
-
         verifyNoMoreInteractions(mWifiController);
     }
 
