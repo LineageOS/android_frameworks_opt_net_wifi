@@ -1972,6 +1972,55 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify get network suggestion return the right result
+     * 1. App never suggested, should return empty list.
+     * 2. App has network suggestions, return all its suggestion.
+     * 3. App suggested and remove them all, should return empty list.
+     */
+    @Test
+    public void testGetNetworkSuggestions() {
+        // test App never suggested.
+        List<WifiNetworkSuggestion> storedNetworkSuggestionListPerApp =
+                mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1);
+        assertEquals(storedNetworkSuggestionListPerApp.size(), 0);
+
+        // App add network suggestions then get stored suggestions.
+        WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOweNetwork(), false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createSaeNetwork(), false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion networkSuggestion4 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskNetwork(), false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion1);
+        networkSuggestionList.add(networkSuggestion2);
+        networkSuggestionList.add(networkSuggestion3);
+        networkSuggestionList.add(networkSuggestion4);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        storedNetworkSuggestionListPerApp =
+                mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1);
+        assertEquals(new HashSet<>(networkSuggestionList),
+                new HashSet<>(storedNetworkSuggestionListPerApp));
+
+        // App remove all network suggestions, expect empty list.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), TEST_UID_1,
+                        TEST_PACKAGE_1));
+        storedNetworkSuggestionListPerApp =
+                mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1);
+        assertEquals(storedNetworkSuggestionListPerApp.size(), 0);
+    }
+
+    /**
      * Creates a scan detail corresponding to the provided network values.
      */
     private ScanDetail createScanDetailForNetwork(WifiConfiguration configuration) {
