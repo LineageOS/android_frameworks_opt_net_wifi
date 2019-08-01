@@ -31,6 +31,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.WifiConfigStore.StoreData;
 import com.android.server.wifi.WifiConfigStore.StoreFile;
+import com.android.server.wifi.util.DataIntegrityChecker;
 import com.android.server.wifi.util.XmlUtil;
 
 import org.junit.After;
@@ -147,6 +148,7 @@ public class WifiConfigStoreTest {
     private TestLooper mLooper;
     @Mock private Clock mClock;
     @Mock private WifiMetrics mWifiMetrics;
+    @Mock private DataIntegrityChecker mDataIntegrityChecker;
     private MockStoreFile mSharedStore;
     private MockStoreFile mUserStore;
     private MockStoreFile mUserNetworkSuggestionsStore;
@@ -353,6 +355,48 @@ public class WifiConfigStoreTest {
      */
     @Test
     public void testReadAfterWrite() throws Exception {
+        // Register data container.
+        mWifiConfigStore.registerStoreData(mSharedStoreData);
+        mWifiConfigStore.registerStoreData(mUserStoreData);
+
+        // Read both share and user config store.
+        mWifiConfigStore.switchUserStoresAndRead(mUserStores);
+
+        // Verify no data is read.
+        assertNull(mUserStoreData.getData());
+        assertNull(mSharedStoreData.getData());
+
+        // Write share and user data.
+        mUserStoreData.setData(TEST_USER_DATA);
+        mSharedStoreData.setData(TEST_SHARE_DATA);
+        mWifiConfigStore.write(true);
+
+        // Read and verify the data content in the data container.
+        mWifiConfigStore.read();
+        assertEquals(TEST_USER_DATA, mUserStoreData.getData());
+        assertEquals(TEST_SHARE_DATA, mSharedStoreData.getData());
+
+        verify(mWifiMetrics, times(2)).noteWifiConfigStoreReadDuration(anyInt());
+        verify(mWifiMetrics).noteWifiConfigStoreWriteDuration(anyInt());
+    }
+
+    /**
+     * Tests the read API behaviour after a write to the store files (with no integrity checks).
+     * Expected behaviour: The read should return the same data that was last written.
+     */
+    @Test
+    public void testReadAfterWriteWithNoIntegrityCheck() throws Exception {
+        // Recreate the mock store files with no data integrity checking.
+        mUserStores.clear();
+        mSharedStore = new MockStoreFile(WifiConfigStore.STORE_FILE_SHARED_GENERAL, null);
+        mUserStore = new MockStoreFile(WifiConfigStore.STORE_FILE_USER_GENERAL, null);
+        mUserNetworkSuggestionsStore =
+                new MockStoreFile(WifiConfigStore.STORE_FILE_USER_NETWORK_SUGGESTIONS, null);
+        mUserStores.add(mUserStore);
+        mUserStores.add(mUserNetworkSuggestionsStore);
+        mWifiConfigStore = new WifiConfigStore(mContext, mLooper.getLooper(), mClock, mWifiMetrics,
+                mSharedStore);
+
         // Register data container.
         mWifiConfigStore.registerStoreData(mSharedStoreData);
         mWifiConfigStore.registerStoreData(mUserStoreData);
@@ -761,7 +805,12 @@ public class WifiConfigStoreTest {
         private boolean mStoreWritten;
 
         MockStoreFile(@WifiConfigStore.StoreFileId int fileId) {
-            super(new File("MockStoreFile"), fileId);
+            super(new File("MockStoreFile"), fileId, mDataIntegrityChecker);
+        }
+
+        MockStoreFile(@WifiConfigStore.StoreFileId int fileId,
+                      DataIntegrityChecker dataIntegrityChecker) {
+            super(new File("MockStoreFile"), fileId, dataIntegrityChecker);
         }
 
         @Override
