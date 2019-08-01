@@ -99,6 +99,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
+import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
@@ -3769,6 +3770,24 @@ public class WifiServiceImplTest {
 
         verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), anyInt(),
                 eq(TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Ensure that we invoke {@link WifiNetworkSuggestionsManager} to get network
+     * suggestions.
+     */
+    @Test
+    public void testGetNetworkSuggestions() {
+        setupClientModeImplHandlerForRunWithScissors();
+        List<WifiNetworkSuggestion> testList = new ArrayList<>();
+        when(mWifiNetworkSuggestionsManager.get(anyString())).thenReturn(testList);
+        assertEquals(testList, mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME));
+
+        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
+                .runWithScissors(any(), anyLong());
+        assertEquals(testList, mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME));
+
+        verify(mWifiNetworkSuggestionsManager, times(1)).get(eq(TEST_PACKAGE_NAME));
     }
 
     /**

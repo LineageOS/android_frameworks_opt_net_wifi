@@ -51,6 +51,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -678,6 +679,22 @@ public class WifiNetworkSuggestionsManager {
         saveToStore();
         Log.i(TAG, "Removed " + packageName);
     }
+
+    /**
+     * Get all network suggestion for target App
+     * @return List of WifiNetworkSuggestions
+     */
+    public @NonNull List<WifiNetworkSuggestion> get(@NonNull String packageName) {
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
+        // if App never suggested return empty list.
+        if (perAppInfo == null) return networkSuggestionList;
+        for (ExtendedWifiNetworkSuggestion extendedSuggestion : perAppInfo.extNetworkSuggestions) {
+            networkSuggestionList.add(extendedSuggestion.wns);
+        }
+        return networkSuggestionList;
+    }
+
 
     /**
      * Clear all internal state (for network settings reset).
