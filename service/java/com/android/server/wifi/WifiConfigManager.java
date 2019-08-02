@@ -3104,7 +3104,7 @@ public class WifiConfigManager {
         }
         try {
             mWifiConfigStore.read();
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved networks are lost!", e);
             return false;
         } catch (XmlPullParserException e) {
@@ -3139,7 +3139,7 @@ public class WifiConfigManager {
                 return false;
             }
             mWifiConfigStore.switchUserStoresAndRead(userStoreFiles);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved private networks are lost!", e);
             return false;
         } catch (XmlPullParserException e) {
@@ -3214,7 +3214,7 @@ public class WifiConfigManager {
 
         try {
             mWifiConfigStore.write(forceWrite);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Writing to store failed. Saved networks maybe lost!", e);
             return false;
         } catch (XmlPullParserException e) {
