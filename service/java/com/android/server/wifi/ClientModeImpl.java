@@ -216,6 +216,8 @@ public class ClientModeImpl extends StateMachine {
     private final PasspointManager mPasspointManager;
     private final WifiDataStall mWifiDataStall;
     private final LinkProbeManager mLinkProbeManager;
+    @VisibleForTesting
+    protected static final long AGGRESSIVE_MAC_REFRESH_MS = 10 * 60 * 1000; //10 minutes
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
 
@@ -765,6 +767,8 @@ public class ClientModeImpl extends StateMachine {
     private final WrongPasswordNotifier mWrongPasswordNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private boolean mConnectedMacRandomzationSupported;
+    private MacAddress mAggressiveMac;
+    private long mLastAggressiveMacUpdateSinceBootInMs = -1;
 
     public ClientModeImpl(Context context, FrameworkFacade facade, Looper looper,
                             UserManager userManager, WifiInjector wifiInjector,
@@ -906,6 +910,7 @@ public class ClientModeImpl extends StateMachine {
 
         setLogRecSize(NUM_LOG_RECS_NORMAL);
         setLogOnlyTransitions(false);
+        considerUpdateAggressiveMac();
     }
 
     @Override
@@ -1142,6 +1147,16 @@ public class ClientModeImpl extends StateMachine {
 
         logd("Setting OUI to " + oui);
         return mWifiNative.setScanningMacOui(mInterfaceName, ouiBytes);
+    }
+
+    private void considerUpdateAggressiveMac() {
+        boolean shouldUpdateMac = mLastAggressiveMacUpdateSinceBootInMs == -1
+                || mLastAggressiveMacUpdateSinceBootInMs + AGGRESSIVE_MAC_REFRESH_MS
+                < mClock.getElapsedSinceBootMillis();
+        if (shouldUpdateMac) {
+            mAggressiveMac = MacAddress.createRandomUnicastAddress();
+            mLastAggressiveMacUpdateSinceBootInMs = mClock.getElapsedSinceBootMillis();
+        }
     }
 
     /**
@@ -3375,9 +3390,10 @@ public class ClientModeImpl extends StateMachine {
             Log.e(TAG, "No config to change MAC address to");
             return;
         }
+        considerUpdateAggressiveMac();
         MacAddress currentMac = MacAddress.fromString(mWifiNative.getMacAddress(mInterfaceName));
-        MacAddress newMac = config.getOrCreateRandomizedMacAddress();
-        mWifiConfigManager.setNetworkRandomizedMacAddress(config.networkId, newMac);
+        MacAddress newMac = mWifiConfigManager.shouldUseAggressiveMode(config) ? mAggressiveMac
+                : config.getRandomizedMacAddress();
         if (!WifiConfiguration.isValidMacAddressForRandomization(newMac)) {
             Log.wtf(TAG, "Config generated an invalid MAC address");
         } else if (currentMac.equals(newMac)) {
