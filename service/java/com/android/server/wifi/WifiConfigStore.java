@@ -36,6 +36,7 @@ import com.android.internal.os.AtomicFile;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.util.DataIntegrityChecker;
+import com.android.server.wifi.util.EncryptedData;
 import com.android.server.wifi.util.XmlUtil;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -52,8 +53,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.DigestException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -99,15 +100,23 @@ public class WifiConfigStore {
 
     private static final String XML_TAG_DOCUMENT_HEADER = "WifiConfigStoreData";
     private static final String XML_TAG_VERSION = "Version";
+    private static final String XML_TAG_HEADER_INTEGRITY = "Integrity";
+    private static final String XML_TAG_INTEGRITY_ENCRYPTED_DATA = "EncryptedData";
+    private static final String XML_TAG_INTEGRITY_IV = "IV";
     /**
      * Current config store data version. This will be incremented for any additions.
      */
-    private static final int CURRENT_CONFIG_STORE_DATA_VERSION = 1;
+    private static final int CURRENT_CONFIG_STORE_DATA_VERSION = 2;
     /** This list of older versions will be used to restore data from older config store. */
     /**
      * First version of the config store data format.
      */
     private static final int INITIAL_CONFIG_STORE_DATA_VERSION = 1;
+    /**
+     * Second version of the config store data format, introduced:
+     *  - Integrity info.
+     */
+    private static final int INTEGRITY_CONFIG_STORE_DATA_VERSION = 2;
 
     /**
      * Alarm tag to use for starting alarms for buffering file writes.
@@ -149,6 +158,11 @@ public class WifiConfigStore {
                 put(STORE_FILE_USER_NETWORK_SUGGESTIONS, STORE_FILE_NAME_USER_NETWORK_SUGGESTIONS);
             }};
 
+    @VisibleForTesting
+    public static final EncryptedData ZEROED_ENCRYPTED_DATA =
+            new EncryptedData(
+                    new byte[EncryptedData.ENCRYPTED_DATA_LENGTH],
+                    new byte[EncryptedData.IV_LENGTH]);
     /**
      * Handler instance to post alarm timeouts to
      */
@@ -276,7 +290,9 @@ public class WifiConfigStore {
                 return null;
             }
         }
-        return new StoreFile(new File(storeDir, STORE_ID_TO_FILE_NAME.get(fileId)), fileId);
+        File file = new File(storeDir, STORE_ID_TO_FILE_NAME.get(fileId));
+        DataIntegrityChecker dataIntegrityChecker = new DataIntegrityChecker(file.getName());
+        return new StoreFile(file, fileId, dataIntegrityChecker);
     }
 
     /**
@@ -395,6 +411,9 @@ public class WifiConfigStore {
      * Serialize all the data from all the {@link StoreData} clients registered for the provided
      * {@link StoreFile}.
      *
+     * This method also computes the integrity of the data being written and serializes the computed
+     * {@link EncryptedData} to the output.
+     *
      * @param storeFile StoreFile that we want to write to.
      * @return byte[] of serialized bytes
      * @throws XmlPullParserException
@@ -408,8 +427,9 @@ public class WifiConfigStore {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
 
-        XmlUtil.writeDocumentStart(out, XML_TAG_DOCUMENT_HEADER);
-        XmlUtil.writeNextValue(out, XML_TAG_VERSION, CURRENT_CONFIG_STORE_DATA_VERSION);
+        // To compute integrity, write zeroes in the integrity fields. Once the integrity is
+        // computed, go back and modfiy the XML fields in place with the computed values.
+        writeDocumentMetadata(out, ZEROED_ENCRYPTED_DATA);
         for (StoreData storeData : storeDataList) {
             String tag = storeData.getName();
             XmlUtil.writeNextSectionStart(out, tag);
@@ -418,7 +438,77 @@ public class WifiConfigStore {
         }
         XmlUtil.writeDocumentEnd(out, XML_TAG_DOCUMENT_HEADER);
 
-        return outputStream.toByteArray();
+        byte[] outBytes = outputStream.toByteArray();
+        EncryptedData encryptedData = storeFile.computeIntegrity(outBytes);
+        if (encryptedData == null) {
+            // should never happen, this is a fatal failure. Abort file write.
+            Log.wtf(TAG, "Failed to compute integrity, failing write");
+            return null;
+        }
+        return rewriteDocumentMetadataRawBytes(outBytes, encryptedData);
+    }
+
+    /**
+     * Helper method to write the metadata at the start of every config store file.
+     * The metadata consists of:
+     * a) Version
+     * b) Integrity data computed on the data contents.
+     */
+    private void writeDocumentMetadata(XmlSerializer out, EncryptedData encryptedData)
+            throws XmlPullParserException, IOException {
+        // First XML header.
+        XmlUtil.writeDocumentStart(out, XML_TAG_DOCUMENT_HEADER);
+        // Next version.
+        XmlUtil.writeNextValue(out, XML_TAG_VERSION, CURRENT_CONFIG_STORE_DATA_VERSION);
+
+        // Next integrity data.
+        XmlUtil.writeNextSectionStart(out, XML_TAG_HEADER_INTEGRITY);
+        XmlUtil.writeNextValue(out, XML_TAG_INTEGRITY_ENCRYPTED_DATA,
+                encryptedData.getEncryptedData());
+        XmlUtil.writeNextValue(out, XML_TAG_INTEGRITY_IV, encryptedData.getIv());
+        XmlUtil.writeNextSectionEnd(out, XML_TAG_HEADER_INTEGRITY);
+    }
+
+    /**
+     * Helper method to generate the raw bytes containing the the metadata at the start of every
+     * config store file.
+     *
+     * NOTE: This does not create a fully formed XML document (the start tag is not closed for
+     * example). This only creates the top portion of the XML which contains the modified
+     * integrity data & version along with the XML prolog (metadata):
+     * <?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+     * <WifiConfigStoreData>
+     * <int name="Version" value="2" />
+     * <Integrity>
+     * <byte-array name="EncryptedData" num="48">!EncryptedData!</byte-array>
+     * <byte-array name="IV" num="12">!IV!</byte-array>
+     * </Integrity>
+     */
+    private byte[] generateDocumentMetadataRawBytes(EncryptedData encryptedData)
+            throws XmlPullParserException, IOException {
+        final XmlSerializer outXml = new FastXmlSerializer();
+        final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        outXml.setOutput(outStream, StandardCharsets.UTF_8.name());
+        writeDocumentMetadata(outXml, encryptedData);
+        outXml.endDocument();
+        return outStream.toByteArray();
+    }
+
+    /**
+     * Helper method to rewrite the existing document metadata in the incoming raw bytes in
+     * |inBytes| with the new document metadata created with the provided |encryptedData|.
+     *
+     * NOTE: This assumes that the metadata in existing XML inside |inBytes| aligns exactly
+     * with the new metadata created. So, a simple in place rewrite of the first few bytes (
+     * corresponding to metadata section of the document) from |inBytes| will preserve the overall
+     * document structure.
+     */
+    private byte[] rewriteDocumentMetadataRawBytes(byte[] inBytes, EncryptedData encryptedData)
+            throws XmlPullParserException, IOException {
+        byte[] replaceMetadataBytes = generateDocumentMetadataRawBytes(encryptedData);
+        ByteBuffer outByteBuffer = ByteBuffer.wrap(inBytes);
+        outByteBuffer.put(replaceMetadataBytes);
+        return outByteBuffer.array();
     }
 
     /**
@@ -549,6 +639,10 @@ public class WifiConfigStore {
     /**
      * Deserialize data from a {@link StoreFile} for all {@link StoreData} instances registered.
      *
+     * This method also computes the integrity of the incoming |dataBytes| and compare with
+     * {@link EncryptedData} parsed from |dataBytes|. If the integrity check fails, the data
+     * is discarded.
+     *
      * @param dataBytes The data to parse
      * @param storeFile StoreFile that we read from. Will be used to retrieve the list of clients
      *                  who have data to deserialize from this file.
@@ -569,7 +663,24 @@ public class WifiConfigStore {
 
         // Start parsing the XML stream.
         int rootTagDepth = in.getDepth() + 1;
-        parseDocumentStartAndVersionFromXml(in);
+        XmlUtil.gotoDocumentStart(in, XML_TAG_DOCUMENT_HEADER);
+
+        int version = parseVersionFromXml(in);
+        // Version 2 onwards contains integrity data, so check the integrity of the file.
+        if (version >= INTEGRITY_CONFIG_STORE_DATA_VERSION) {
+            EncryptedData integrityData = parseIntegrityDataFromXml(in, rootTagDepth);
+            // To compute integrity, write zeroes in the integrity fields.
+            dataBytes = rewriteDocumentMetadataRawBytes(dataBytes, ZEROED_ENCRYPTED_DATA);
+            if (!storeFile.checkIntegrity(dataBytes, integrityData)) {
+                Log.wtf(TAG, "Integrity mismatch, discarding data from " + storeFile.mFileName);
+                return;
+            }
+        } else {
+            // When integrity checking is introduced. The existing data will have no related
+            // integrity file for validation. Thus, we will assume the existing data is correct.
+            // Integrity will be computed for the next write.
+            Log.d(TAG, "No integrity data to check; thus vacously true");
+        }
 
         String[] headerName = new String[1];
         Set<StoreData> storeDatasInvoked = new HashSet<>();
@@ -595,21 +706,39 @@ public class WifiConfigStore {
     }
 
     /**
-     * Parse the document start and version from the XML stream.
+     * Parse the version from the XML stream.
      * This is used for both the shared and user config store data.
      *
      * @param in XmlPullParser instance pointing to the XML stream.
      * @return version number retrieved from the Xml stream.
      */
-    private static int parseDocumentStartAndVersionFromXml(XmlPullParser in)
+    private static int parseVersionFromXml(XmlPullParser in)
             throws XmlPullParserException, IOException {
-        XmlUtil.gotoDocumentStart(in, XML_TAG_DOCUMENT_HEADER);
         int version = (int) XmlUtil.readNextValueWithName(in, XML_TAG_VERSION);
         if (version < INITIAL_CONFIG_STORE_DATA_VERSION
                 || version > CURRENT_CONFIG_STORE_DATA_VERSION) {
             throw new XmlPullParserException("Invalid version of data: " + version);
         }
         return version;
+    }
+
+    /**
+     * Parse the integrity data structure from the XML stream.
+     * This is used for both the shared and user config store data.
+     *
+     * @param in XmlPullParser instance pointing to the XML stream.
+     * @param outerTagDepth Outer tag depth.
+     * @return Instance of {@link EncryptedData} retrieved from the Xml stream.
+     */
+    private static @NonNull EncryptedData parseIntegrityDataFromXml(
+            XmlPullParser in, int outerTagDepth)
+            throws XmlPullParserException, IOException {
+        XmlUtil.gotoNextSectionWithName(in, XML_TAG_HEADER_INTEGRITY, outerTagDepth);
+        byte[] encryptedData =
+                (byte[]) XmlUtil.readNextValueWithName(in, XML_TAG_INTEGRITY_ENCRYPTED_DATA);
+        byte[] iv =
+                (byte[]) XmlUtil.readNextValueWithName(in, XML_TAG_INTEGRITY_IV);
+        return new EncryptedData(encryptedData, iv);
     }
 
     /**
@@ -653,21 +782,22 @@ public class WifiConfigStore {
         /**
          * Store the file name for setting the file permissions/logging purposes.
          */
-        private String mFileName;
-        /**
-         * The integrity file storing integrity checking data for the store file.
-         */
-        private DataIntegrityChecker mDataIntegrityChecker;
+        private final String mFileName;
         /**
          * {@link StoreFileId} Type of store file.
          */
-        private @StoreFileId int mFileId;
+        private final @StoreFileId int mFileId;
+        /**
+         * Integrity checking for the store file.
+         */
+        private final DataIntegrityChecker mDataIntegrityChecker;
 
-        public StoreFile(File file, @StoreFileId int fileId) {
+        public StoreFile(File file, @StoreFileId int fileId,
+                         @NonNull DataIntegrityChecker dataIntegrityChecker) {
             mAtomicFile = new AtomicFile(file);
-            mFileName = mAtomicFile.getBaseFile().getAbsolutePath();
-            mDataIntegrityChecker = new DataIntegrityChecker(mFileName);
+            mFileName = file.getAbsolutePath();
             mFileId = fileId;
+            mDataIntegrityChecker = dataIntegrityChecker;
         }
 
         /**
@@ -691,20 +821,8 @@ public class WifiConfigStore {
             byte[] bytes = null;
             try {
                 bytes = mAtomicFile.readFully();
-                // Check that the file has not been altered since last writeBufferedRawData()
-                if (!mDataIntegrityChecker.isOk(bytes)) {
-                    Log.wtf(TAG, "Data integrity problem with file: " + mFileName);
-                    return null;
-                }
             } catch (FileNotFoundException e) {
                 return null;
-            } catch (DigestException e) {
-                // When integrity checking is introduced. The existing data will have no related
-                // integrity file for validation. Thus, we will assume the existing data is correct
-                // and immediately create the integrity file.
-                Log.i(TAG, "isOK() had no integrity data to check; thus vacuously "
-                        + "true. Running update now.");
-                mDataIntegrityChecker.update(bytes);
             }
             return bytes;
         }
@@ -741,10 +859,35 @@ public class WifiConfigStore {
                 }
                 throw e;
             }
-            // There was a legitimate change and update the integrity checker.
-            mDataIntegrityChecker.update(mWriteData);
             // Reset the pending write data after write.
             mWriteData = null;
+        }
+
+        /**
+         * Compute integrity of |dataWithZeroedIntegrityFields| to be written to the file.
+         *
+         * @param dataWithZeroedIntegrityFields raw data to be written to the file with the
+         *                                      integrity fields zeroed out for integrity
+         *                                      calculation.
+         * @return Instance of {@link EncryptedData} holding the encrypted integrity data for the
+         * raw data to be written to the file.
+         */
+        public EncryptedData computeIntegrity(byte[] dataWithZeroedIntegrityFields) {
+            return mDataIntegrityChecker.compute(dataWithZeroedIntegrityFields);
+        }
+
+        /**
+         * Check integrity of |dataWithZeroedIntegrityFields| read from the file with the integrity
+         * data parsed from the file.
+         * @param dataWithZeroedIntegrityFields raw data read from the file with the integrity
+         *                                      fields zeroed out for integrity calculation.
+         * @param parsedEncryptedData Instance of {@link EncryptedData} parsed from the integrity
+         *                            fields in the raw data.
+         * @return true if the integrity matches, false otherwise.
+         */
+        public boolean checkIntegrity(byte[] dataWithZeroedIntegrityFields,
+                                      EncryptedData parsedEncryptedData) {
+            return mDataIntegrityChecker.isOk(dataWithZeroedIntegrityFields, parsedEncryptedData);
         }
     }
 

@@ -22,7 +22,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
-import java.security.DigestException;
 
 /**
  * Unit tests for {@link com.android.server.wifi.util.DataIntegrityChecker}.
@@ -45,8 +44,8 @@ public class DataIntegrityCheckerTest {
                 ".tmp");
         DataIntegrityChecker dataIntegrityChecker = new DataIntegrityChecker(
                 integrityFile.getParent());
-        dataIntegrityChecker.update(sGoodData);
-        assertTrue(dataIntegrityChecker.isOk(sGoodData));
+        EncryptedData encryptedData = dataIntegrityChecker.compute(sGoodData);
+        assertTrue(dataIntegrityChecker.isOk(sGoodData, encryptedData));
     }
 
     /**
@@ -64,25 +63,7 @@ public class DataIntegrityCheckerTest {
                 ".tmp");
         DataIntegrityChecker dataIntegrityChecker = new DataIntegrityChecker(
                 integrityFile.getParent());
-        dataIntegrityChecker.update(sGoodData);
-        assertFalse(dataIntegrityChecker.isOk(sBadData));
-    }
-
-    /**
-     * Verify a corner case where integrity of data that has never been
-     * updated passes and adds the token to the keystore.
-     *
-     * @throws Exception
-     */
-    @Test(expected = DigestException.class)
-    @Ignore
-    public void testIntegrityWithoutUpdate() throws Exception {
-        File tmpFile = File.createTempFile("testIntegrityWithoutUpdate", ".tmp");
-
-        DataIntegrityChecker dataIntegrityChecker = new DataIntegrityChecker(
-                tmpFile.getAbsolutePath());
-
-        // the integrity data is not known, so isOk throws a DigestException
-        assertTrue(dataIntegrityChecker.isOk(sGoodData));
+        EncryptedData encryptedData = dataIntegrityChecker.compute(sGoodData);
+        assertFalse(dataIntegrityChecker.isOk(sBadData, encryptedData));
     }
 }
