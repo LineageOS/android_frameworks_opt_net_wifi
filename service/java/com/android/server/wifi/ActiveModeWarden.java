@@ -558,7 +558,7 @@ public class ActiveModeWarden {
     private class SoftApCallbackImpl extends ModeCallback implements WifiManager.SoftApCallback {
         private final int mMode;
 
-        private SoftApCallbackImpl(int mode) {
+        SoftApCallbackImpl(int mode) {
             Preconditions.checkArgument(mode == WifiManager.IFACE_IP_MODE_TETHERED
                     || mode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
             mMode = mode;

@@ -1530,7 +1530,7 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Only start LocalOnlyHotspot if we are not tethering.
+     * Only start tethering if we are not tethering.
      */
     @Test
     public void testTetheringDoesNotStartWhenAlreadyTetheringActive() throws Exception {
@@ -1545,6 +1545,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
         assertEquals(WIFI_AP_STATE_ENABLED, mWifiServiceImpl.getWifiApEnabledState());
+        reset(mWifiController);
 
         // Start another session without a stop, that should fail.
         assertFalse(mWifiServiceImpl.startSoftAp(createValidSoftApConfiguration()));
@@ -1559,9 +1560,13 @@ public class WifiServiceImplTest {
     public void testHotspotDoesNotStartWhenAlreadyTethering() throws Exception {
         setupClientModeImplHandlerForPost();
 
+        WifiConfiguration config = createValidSoftApConfiguration();
+        assertTrue(mWifiServiceImpl.startSoftAp(config));
+        mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
+
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
-        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
                 mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
@@ -2014,8 +2019,7 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that onFailed is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
-     * broadcast is received.
+     * Verify that onFailed is called for registered LOHS callers on SAP_START_FAILURE_GENERAL.
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApFailureGeneric() throws Exception {
@@ -2035,8 +2039,7 @@ public class WifiServiceImplTest {
     }
 
     /**
-     * Verify that onFailed is called for registered LOHS callers when a WIFI_AP_STATE_CHANGE
-     * broadcast is received with the SAP_START_FAILURE_NO_CHANNEL error.
+     * Verify that onFailed is called for registered LOHS callers on SAP_START_FAILURE_NO_CHANNEL.
      */
     @Test
     public void testRegisteredCallbacksTriggeredOnSoftApFailureNoChannel() throws Exception {
@@ -2314,8 +2317,6 @@ public class WifiServiceImplTest {
         verify(mHandler).handleMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(HOTSPOT_STARTED, message.what);
-        // since the first request was registered out of band, the config will be null
-        assertNull((WifiConfiguration) message.obj);
     }
 
     /**
@@ -2373,6 +2374,12 @@ public class WifiServiceImplTest {
         setupClientModeImplHandlerForPost();
 
         registerLOHSRequestFull();
+
+        mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
+        mLooper.dispatchAll();
+        verify(mHandler).handleMessage(mMessageCaptor.capture());
+        assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
+        reset(mHandler);
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();

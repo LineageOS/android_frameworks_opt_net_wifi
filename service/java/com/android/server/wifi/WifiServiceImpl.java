@@ -23,6 +23,8 @@ import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_NO_CHA
 import static android.net.wifi.WifiManager.SAP_START_FAILURE_NO_CHANNEL;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
+import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
@@ -132,7 +134,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * WifiService handles remote WiFi operation requests by implementing
@@ -840,9 +841,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // If SoftAp is enabled, only privileged apps are allowed to toggle wifi
-        if (!isPrivileged
-                && mTetheredSoftApTracker.getState() == WifiManager.WIFI_AP_STATE_ENABLED) {
-            mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
+        if (!isPrivileged && mTetheredSoftApTracker.getState() == WIFI_AP_STATE_ENABLED) {
+            mLog.err("setWifiEnabled with SoftAp enabled: only Settings can toggle wifi").flush();
             return false;
         }
 
@@ -934,6 +934,10 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
         if (mTetheredSoftApTracker.setEnablingIfAllowed()) {
+            if (!isConcurrentLohsAndTetheringSupported()) {
+                // Take down LOHS if it is up.
+                mLohsSoftApTracker.stopAll();
+            }
             return startSoftApInternal(wifiConfig, WifiManager.IFACE_IP_MODE_TETHERED);
         }
         mLog.err("Tethering is already active.").flush();
@@ -973,7 +977,8 @@ public class WifiServiceImpl extends BaseWifiService {
 
         mLog.info("stopSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
-        return stopSoftApInternal(WifiManager.IFACE_IP_MODE_TETHERED);
+        stopSoftApInternal(WifiManager.IFACE_IP_MODE_TETHERED);
+        return true;
     }
 
     /**
@@ -987,11 +992,10 @@ public class WifiServiceImpl extends BaseWifiService {
      *             {@link WifiManager.IFACE_IP_MODE_LOCAL_ONLY}).
      *             Use {@link WifiManager.IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    private boolean stopSoftApInternal(int mode) {
+    private void stopSoftApInternal(int mode) {
         mLog.trace("stopSoftApInternal uid=% mode=%").c(Binder.getCallingUid()).c(mode).flush();
 
         mWifiController.sendMessage(CMD_SET_AP, 0, mode);
-        return true;
     }
 
     /**
@@ -1007,7 +1011,7 @@ public class WifiServiceImpl extends BaseWifiService {
          *          {@link WifiManager#WIFI_AP_STATE_FAILED}
          */
         private final Object mLock = new Object();
-        private int mTetheredSoftApState = WifiManager.WIFI_AP_STATE_DISABLED;
+        private int mTetheredSoftApState = WIFI_AP_STATE_DISABLED;
         private int mTetheredSoftApNumClients = 0;
 
         public int getState() {
@@ -1018,9 +1022,9 @@ public class WifiServiceImpl extends BaseWifiService {
 
         public boolean setEnablingIfAllowed() {
             synchronized (mLock) {
-                if (mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLING) return false;
-                if (mTetheredSoftApState == WifiManager.WIFI_AP_STATE_ENABLED) return false;
-                mTetheredSoftApState = WifiManager.WIFI_AP_STATE_ENABLING;
+                if (mTetheredSoftApState == WIFI_AP_STATE_ENABLING) return false;
+                if (mTetheredSoftApState == WIFI_AP_STATE_ENABLED) return false;
+                mTetheredSoftApState = WIFI_AP_STATE_ENABLING;
                 return true;
             }
         }
@@ -1068,7 +1072,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
             }
             // Notify WifiController so it has a chance to turn wifi back on
-            if (state == WIFI_AP_STATE_DISABLED) {
+            if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
                 mWifiController.sendMessage(WifiController.CMD_AP_STOPPED);
             }
         }
@@ -1103,11 +1107,10 @@ public class WifiServiceImpl extends BaseWifiService {
         @GuardedBy("mLocalOnlyHotspotRequests")
         private final HashMap<Integer, LocalOnlyHotspotRequestInfo>
                 mLocalOnlyHotspotRequests = new HashMap<>();
+
         @GuardedBy("mLocalOnlyHotspotRequests")
         private WifiConfiguration mLocalOnlyHotspotConfig = null;
-        @GuardedBy("mLocalOnlyHotspotRequests")
-        private final ConcurrentHashMap<String, Integer>
-                mIfaceIpModes = new ConcurrentHashMap<>();
+
         @GuardedBy("mLocalOnlyHotspotRequests")
         private String mLohsInterfaceName;
 
@@ -1120,79 +1123,20 @@ public class WifiServiceImpl extends BaseWifiService {
          *          {@link WifiManager#WIFI_AP_STATE_FAILED}
          */
         @GuardedBy("mLocalOnlyHotspotRequests")
-        private int mLohsState = WifiManager.WIFI_AP_STATE_DISABLED;
+        private int mLohsState = WIFI_AP_STATE_DISABLED;
 
-        /**
-         * Private method to handle LOHS state changes
-         *
-         * <p> MUST be called from the ClientModeImpl thread.
-         */
-        private void handleLohsStateChange(
-                int currentState, int previousState, int errorCode) {
-            String ifaceName = mLohsInterfaceName;
-            // The AP state update from ClientModeImpl for softap
-            Slog.d(TAG, "handleLohsStateChange: currentState=" + currentState
-                    + " previousState=" + previousState + " errorCode= " + errorCode
-                    + " ifaceName=" + ifaceName);
-
-            // check if we have a failure - since it is possible (worst case scenario where
-            // WifiController and ClientModeImpl are out of sync wrt modes) to get two FAILED
-            // notifications in a row, we need to handle this first.
-            if (currentState == WIFI_AP_STATE_FAILED) {
-                // update registered LOHS callbacks if we see a failure
-                synchronized (mLocalOnlyHotspotRequests) {
-                    int errorToReport = ERROR_GENERIC;
-                    if (errorCode == SAP_START_FAILURE_NO_CHANNEL) {
-                        errorToReport = ERROR_NO_CHANNEL;
-                    }
-                    // holding the required lock: send message to requestors and clear the list
-                    sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
-                            errorToReport);
-                    // also need to clear interface ip state
-                    updateInterfaceIpState(ifaceName, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                }
-                return;
-            }
-
-            if (currentState == WIFI_AP_STATE_DISABLING || currentState == WIFI_AP_STATE_DISABLED) {
-                // softap is shutting down or is down...  let requestors know via the onStopped call
-                synchronized (mLocalOnlyHotspotRequests) {
-                    // if we are currently in hotspot mode, then trigger onStopped for registered
-                    // requestors, otherwise something odd happened and we should clear state
-                    if (ifaceName != null
-                            && mIfaceIpModes.getOrDefault(ifaceName,
-                            WifiManager.IFACE_IP_MODE_UNSPECIFIED)
-                            == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
-                        // holding the required lock: send message to requestors and clear the list
-                        sendHotspotStoppedMessageToAllLOHSRequestInfoEntriesLocked();
-                    } else if (!isConcurrentLohsAndTetheringSupported()) {
-                        // LOHS not active: report an error (still holding the required lock)
-                        sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(ERROR_GENERIC);
-                    }
-                    // also clear interface ip state
-                    updateInterfaceIpState(ifaceName, WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                }
-                return;
-            }
-
-            // remaining states are enabling or enabled...  those are not used for the callbacks
-        }
+        @GuardedBy("mLocalOnlyHotspotRequests")
+        private int mLohsInterfaceMode = WifiManager.IFACE_IP_MODE_UNSPECIFIED;
 
         public void updateInterfaceIpState(String ifaceName, int mode) {
-            // update interface IP state related to tethering and hotspot
+            // update interface IP state related to local-only hotspot
             synchronized (mLocalOnlyHotspotRequests) {
-                // update the mode tracker here - we clear out state below
-                int previousMode = WifiManager.IFACE_IP_MODE_UNSPECIFIED;
-                if (ifaceName != null) {
-                    Integer old = mIfaceIpModes.put(ifaceName, mode);
-                    if (old != null) previousMode = old;
-                }
                 Slog.d(TAG, "updateInterfaceIpState: ifaceName=" + ifaceName + " mode=" + mode
-                        + " previous mode= " + previousMode);
+                        + " previous LOHS mode= " + mLohsInterfaceMode);
 
                 switch (mode) {
                     case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
-                        // first make sure we have registered requests..
+                        // first make sure we have registered requests.
                         if (mLocalOnlyHotspotRequests.isEmpty()) {
                             // we don't have requests...  stop the hotspot
                             Log.wtf(TAG, "Starting LOHS without any requests?");
@@ -1201,50 +1145,48 @@ public class WifiServiceImpl extends BaseWifiService {
                         }
                         // LOHS is ready to go!  Call our registered requestors!
                         mLohsInterfaceName = ifaceName;
+                        mLohsInterfaceMode = mode;
                         sendHotspotStartedMessageToAllLOHSRequestInfoEntriesLocked();
                         break;
                     case WifiManager.IFACE_IP_MODE_TETHERED:
-                        // mTetheredInterfaceName = ifaceName;
-                        if (!isConcurrentLohsAndTetheringSupported()) {
-                            /* We have tethered an interface. We don't really act on this now
-                             * other than if we have LOHS requests, and this is an issue.
-                             * Return incompatible mode
-                             * for onFailed for the registered requestors since this can result
-                             * from a
-                             * race between a tether request and a hotspot request (tethering
-                             * wins). */
+                        if (mLohsInterfaceName != null
+                                && mLohsInterfaceName.equals(ifaceName)) {
+                            /* This shouldn't happen except in a race, but if it does, tear down
+                             * the LOHS and let tethering win.
+                             *
+                             * If concurrent SAPs are allowed, the interface names will differ,
+                             * so we don't have to check the config here.
+                             */
+                            Slog.e(TAG, "Unexpected IP mode change on " + ifaceName);
+                            mLohsInterfaceName = null;
+                            mLohsInterfaceMode = WifiManager.IFACE_IP_MODE_UNSPECIFIED;
                             sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
                                     LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE);
                         }
                         break;
                     case WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR:
-                        Slog.d(TAG, "IP mode config error - need to clean up");
-                        if (previousMode == WifiManager.IFACE_IP_MODE_TETHERED) {
-                            stopSoftApInternal(WifiManager.IFACE_IP_MODE_TETHERED);
-                            break; // Leave LOHS state intact
-                        }
-                        sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
-                                LocalOnlyHotspotCallback.ERROR_GENERIC);
-
                         if (ifaceName == null) {
+                            // All softAps
+                            mLohsInterfaceName = null;
+                            mLohsInterfaceMode = mode;
+                            sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
+                                    LocalOnlyHotspotCallback.ERROR_GENERIC);
                             stopSoftApInternal(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                            mIfaceIpModes.clear();
-                        } else if (previousMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
+                        } else if (ifaceName.equals(mLohsInterfaceName)) {
+                            mLohsInterfaceName = null;
+                            mLohsInterfaceMode = mode;
+                            sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
+                                    LocalOnlyHotspotCallback.ERROR_GENERIC);
                             stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
                         } else {
-                            Log.wtf(TAG, "Unhandled IP mode config error");
-                            stopSoftApInternal(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                            mIfaceIpModes.clear();
+                            // Not for LOHS. This is the wrong place to do this, but...
+                            stopSoftApInternal(WifiManager.IFACE_IP_MODE_TETHERED);
                         }
                         break;
                     case WifiManager.IFACE_IP_MODE_UNSPECIFIED:
-                        if (ifaceName == null) {
-                            // interface name is null, this is due to softap teardown.  clear all
-                            // entries for now.
-                            // TODO: Deal with individual interfaces
-                            //  when we receive updates for them
-                            // XXX - this is probably not right
-                            mIfaceIpModes.clear();
+                        if (ifaceName == null || ifaceName.equals(mLohsInterfaceName)) {
+                            mLohsInterfaceName = null;
+                            mLohsInterfaceMode = mode;
                         }
                         break;
                     default:
@@ -1253,7 +1195,6 @@ public class WifiServiceImpl extends BaseWifiService {
             }
         }
 
-
         /**
          * Helper method to send a HOTSPOT_FAILED message to all registered LocalOnlyHotspotRequest
          * callers and clear the registrations.
@@ -1261,10 +1202,10 @@ public class WifiServiceImpl extends BaseWifiService {
          * Callers should already hold the mLocalOnlyHotspotRequests lock.
          */
         @GuardedBy("mLocalOnlyHotspotRequests")
-        private void sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(int arg1) {
+        private void sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(int reason) {
             for (LocalOnlyHotspotRequestInfo requestor : mLocalOnlyHotspotRequests.values()) {
                 try {
-                    requestor.sendHotspotFailedMessage(arg1);
+                    requestor.sendHotspotFailedMessage(reason);
                     requestor.unlinkDeathRecipient();
                 } catch (RemoteException e) {
                     // This will be cleaned up by binder death handling
@@ -1299,18 +1240,8 @@ public class WifiServiceImpl extends BaseWifiService {
         /**
          * Add a new LOHS client
          */
-        public int startLocalOnlyHotspot(int pid, LocalOnlyHotspotRequestInfo request) {
+        private int start(int pid, LocalOnlyHotspotRequestInfo request) {
             synchronized (mLocalOnlyHotspotRequests) {
-                // check if we are currently tethering
-                // TODO(b/123227116): handle all interface combinations just by changing the HAL.
-                if (!isConcurrentLohsAndTetheringSupported()
-                        && mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_TETHERED)) {
-                    // Tethering is enabled, cannot start LocalOnlyHotspot
-                    mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.")
-                            .flush();
-                    return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
-                }
-
                 // does this caller already have a request?
                 if (mLocalOnlyHotspotRequests.get(pid) != null) {
                     mLog.trace("caller already has an active request").flush();
@@ -1319,7 +1250,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
 
                 // check current operating state and take action if needed
-                if (mIfaceIpModes.contains(WifiManager.IFACE_IP_MODE_LOCAL_ONLY)) {
+                if (mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
                     // LOHS is already active, send out what is running
                     try {
                         mLog.trace("LOHS already up, trigger onStarted callback").flush();
@@ -1348,14 +1279,19 @@ public class WifiServiceImpl extends BaseWifiService {
             }
         }
 
-
         /**
          * Requests that any local-only hotspot be stopped.
          */
         public void stopAll() {
             synchronized (mLocalOnlyHotspotRequests) {
                 if (!mLocalOnlyHotspotRequests.isEmpty()) {
-                    stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
+                    // This is used to take down LOHS when tethering starts, and in that
+                    // case we send failed instead of stopped.
+                    // TODO check if that is right. Calling onFailed instead of onStopped when the
+                    // hotspot is already started does not seem to match the documentation
+                    sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
+                            LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE);
+                    stopIfEmptyLocked();
                 }
             }
         }
@@ -1365,13 +1301,11 @@ public class WifiServiceImpl extends BaseWifiService {
          */
         public void stopByPid(int pid) {
             synchronized (mLocalOnlyHotspotRequests) {
-                LocalOnlyHotspotRequestInfo requestInfo = mLocalOnlyHotspotRequests.get(pid);
-                if (requestInfo == null) {
-                    return;
-                }
+                LocalOnlyHotspotRequestInfo requestInfo = mLocalOnlyHotspotRequests.remove(pid);
+                if (requestInfo == null) return;
                 requestInfo.unlinkDeathRecipient();
-                stopByRequest(requestInfo);
-            } // end synchronized
+                stopIfEmptyLocked();
+            }
         }
 
         /**
@@ -1384,13 +1318,17 @@ public class WifiServiceImpl extends BaseWifiService {
                     mLog.trace("LocalOnlyHotspotRequestInfo not found to remove").flush();
                     return;
                 }
+                stopIfEmptyLocked();
+            }
+        }
 
-                if (mLocalOnlyHotspotRequests.isEmpty()) {
-                    mLocalOnlyHotspotConfig = null;
-                    updateInterfaceIpState(mLohsInterfaceName,
-                            WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                    stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
-                }
+        @GuardedBy("mLocalOnlyHotspotRequests")
+        private void stopIfEmptyLocked() {
+            if (mLocalOnlyHotspotRequests.isEmpty()) {
+                mLocalOnlyHotspotConfig = null;
+                mLohsInterfaceName = null;
+                mLohsInterfaceMode = WifiManager.IFACE_IP_MODE_UNSPECIFIED;
+                stopSoftApInternal(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
             }
         }
 
@@ -1414,12 +1352,50 @@ public class WifiServiceImpl extends BaseWifiService {
 
         @Override
         public void onStateChanged(int state, int failureReason) {
-            handleLohsStateChange(state, mLohsState, failureReason);
-            mLohsState = state;
+            // The AP state update from ClientModeImpl for softap
+            synchronized (mLocalOnlyHotspotRequests) {
+                Slog.d(TAG, "lohs.onStateChanged: currentState=" + state
+                        + " previousState=" + mLohsState + " errorCode= " + failureReason
+                        + " ifaceName=" + mLohsInterfaceName);
+
+                // check if we have a failure - since it is possible (worst case scenario where
+                // WifiController and ClientModeImpl are out of sync wrt modes) to get two FAILED
+                // notifications in a row, we need to handle this first.
+                if (state == WIFI_AP_STATE_FAILED) {
+                    // update registered LOHS callbacks if we see a failure
+                    int errorToReport = ERROR_GENERIC;
+                    if (failureReason == SAP_START_FAILURE_NO_CHANNEL) {
+                        errorToReport = ERROR_NO_CHANNEL;
+                    }
+                    // holding the required lock: send message to requestors and clear the list
+                    sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(errorToReport);
+                    // also need to clear interface ip state
+                    updateInterfaceIpState(mLohsInterfaceName,
+                            WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                } else if (state == WIFI_AP_STATE_DISABLING || state == WIFI_AP_STATE_DISABLED) {
+                    // softap is shutting down or is down...  let requestors know via the
+                    // onStopped call
+                    // if we are currently in hotspot mode, then trigger onStopped for registered
+                    // requestors, otherwise something odd happened and we should clear state
+                    if (mLohsInterfaceName != null
+                            && mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
+                        // holding the required lock: send message to requestors and clear the list
+                        sendHotspotStoppedMessageToAllLOHSRequestInfoEntriesLocked();
+                    } else if (!isConcurrentLohsAndTetheringSupported()) {
+                        // LOHS not active: report an error (still holding the required lock)
+                        sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(ERROR_GENERIC);
+                    }
+                    // also clear interface ip state
+                    updateInterfaceIpState(mLohsInterfaceName,
+                            WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                }
+                // For enabling and enabled, just record the new state
+                mLohsState = state;
+            }
         }
         @Override
         public void onNumClientsChanged(int numClients) {
-            // XXX
+            // Nothing to do
         }
     }
 
@@ -1491,13 +1467,13 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Temporary method used for testing while startLocalOnlyHotspot is not fully implemented.  This
+     * Temporary method used for testing while start is not fully implemented.  This
      * method allows unit tests to register callbacks directly for testing mechanisms triggered by
      * softap mode changes.
      */
     @VisibleForTesting
     void registerLOHSForTest(int pid, LocalOnlyHotspotRequestInfo request) {
-        mLohsSoftApTracker.startLocalOnlyHotspot(pid, request);
+        mLohsSoftApTracker.start(pid, request);
     }
 
     /**
@@ -1528,6 +1504,8 @@ public class WifiServiceImpl extends BaseWifiService {
         final int uid = Binder.getCallingUid();
         final int pid = Binder.getCallingPid();
 
+        mLog.info("start uid=% pid=%").c(uid).c(pid).flush();
+
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return LocalOnlyHotspotCallback.ERROR_GENERIC;
         }
@@ -1552,13 +1530,21 @@ public class WifiServiceImpl extends BaseWifiService {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 
-        mLog.info("startLocalOnlyHotspot uid=% pid=%").c(uid).c(pid).flush();
+        // check if we are currently tethering
+        // TODO(b/123227116): handle all interface combinations just by changing the HAL.
+        if (!isConcurrentLohsAndTetheringSupported()
+                && mTetheredSoftApTracker.getState() == WIFI_AP_STATE_ENABLED) {
+            // Tethering is enabled, cannot start LocalOnlyHotspot
+            mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.")
+                    .flush();
+            return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+        }
 
         // now create the new LOHS request info object
         LocalOnlyHotspotRequestInfo request = new LocalOnlyHotspotRequestInfo(binder, messenger,
                 new LocalOnlyRequestorCallback());
 
-        return mLohsSoftApTracker.startLocalOnlyHotspot(pid, request);
+        return mLohsSoftApTracker.start(pid, request);
     }
 
     /**
@@ -1629,7 +1615,10 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException("App not allowed to read or update stored WiFi Ap config "
                     + "(uid = " + uid + ")");
         }
-        mLog.info("getWifiApConfiguration uid=%").c(uid).flush();
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getWifiApConfiguration uid=%").c(uid).flush();
+        }
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
