@@ -81,7 +81,8 @@ import javax.net.ssl.X509TrustManager;
  */
 @SmallTest
 public class OsuServerConnectionTest {
-    private static final String TEST_VALID_URL = "http://www.google.com";
+    private static final String TEST_VALID_URL = "https://www.google.com";
+    private static final String TEST_INVALID_URL = "http://www.google.com";
     private static final String AUTH_TYPE = "ECDHE_RSA";
     private static final String PROVIDER_NAME_VALID = "Boingo";
     private static final String PROVIDER_NAME_INVALID = "Boingo1";
@@ -90,11 +91,10 @@ public class OsuServerConnectionTest {
 
     private TestLooper mLooper = new TestLooper();
     private OsuServerConnection mOsuServerConnection;
-    private URL mValidServerUrl;
+    private URL mServerUrl;
     private List<Pair<Locale, String>> mProviderIdentities = new ArrayList<>();
     private ArgumentCaptor<TrustManager[]> mTrustManagerCaptor =
             ArgumentCaptor.forClass(TrustManager[].class);
-
     private Map<Integer, Map<String, byte[]>> mTrustCertsInfo = new HashMap<>();
 
     @Mock PasspointProvisioner.OsuServerCallbacks mOsuServerCallbacks;
@@ -114,7 +114,7 @@ public class OsuServerConnectionTest {
         mOsuServerConnection = new OsuServerConnection(mLooper.getLooper());
         mOsuServerConnection.enableVerboseLogging(ENABLE_VERBOSE_LOGGING);
         mProviderIdentities.add(Pair.create(Locale.US, PROVIDER_NAME_VALID));
-        mValidServerUrl = new URL(TEST_VALID_URL);
+        mServerUrl = new URL(TEST_VALID_URL);
         when(mWfaKeyStore.get()).thenReturn(mKeyStore);
         when(mOsuServerCallbacks.getSessionId()).thenReturn(TEST_SESSION_ID);
         when(mNetwork.openConnection(any(URL.class))).thenReturn(mUrlConnection);
@@ -185,7 +185,7 @@ public class OsuServerConnectionTest {
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
 
         assertTrue(mOsuServerConnection.canValidateServer());
-        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        assertTrue(mOsuServerConnection.connect(mServerUrl, mNetwork));
 
         mLooper.dispatchAll();
 
@@ -203,7 +203,7 @@ public class OsuServerConnectionTest {
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
 
         assertTrue(mOsuServerConnection.canValidateServer());
-        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        assertTrue(mOsuServerConnection.connect(mServerUrl, mNetwork));
 
         mLooper.dispatchAll();
 
@@ -216,13 +216,16 @@ public class OsuServerConnectionTest {
     @Test
     public void verifyInitAndConnectCertValidationFailure() throws Exception {
         establishServerConnection();
+        List<X509Certificate> certificateList = PasspointProvisioningTestUtil.getOsuCertsForTest();
+        X509Certificate[] certificates = new X509Certificate[1];
+        certificates[0] = certificateList.get(0);
         TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
         X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
         doThrow(new CertificateException()).when(mDelegate)
                 .getTrustedChainForServer(any(X509Certificate[].class), anyString(),
                         (Socket) isNull());
 
-        trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
+        trustManager.checkServerTrusted(certificates, AUTH_TYPE);
 
         verify(mOsuServerCallbacks).onServerValidationStatus(anyInt(), eq(false));
     }
@@ -475,13 +478,26 @@ public class OsuServerConnectionTest {
         }
     }
 
+    /**
+     * Verifies initialization and opening URL connection failure for an HTTP URL (not HTTPS)
+     */
+    @Test
+    public void verifyInitAndNetworkOpenURLConnectionFailedWithHttpUrl() throws Exception {
+        mServerUrl = new URL(TEST_INVALID_URL);
+        mOsuServerConnection.init(mTlsContext, mDelegate);
+        mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
+
+        assertTrue(mOsuServerConnection.canValidateServer());
+        assertFalse(mOsuServerConnection.connect(mServerUrl, mNetwork));
+    }
+
     private void establishServerConnection() throws Exception {
         mOsuServerConnection.init(mTlsContext, mDelegate);
         mOsuServerConnection.setEventCallback(mOsuServerCallbacks);
         verify(mTlsContext).init(isNull(), mTrustManagerCaptor.capture(), isNull());
 
         assertTrue(mOsuServerConnection.canValidateServer());
-        assertTrue(mOsuServerConnection.connect(mValidServerUrl, mNetwork));
+        assertTrue(mOsuServerConnection.connect(mServerUrl, mNetwork));
         mLooper.dispatchAll();
 
         verify(mOsuServerCallbacks).onServerConnectionStatus(anyInt(), eq(true));
