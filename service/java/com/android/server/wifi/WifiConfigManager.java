@@ -465,6 +465,17 @@ public class WifiConfigManager {
     }
 
     /**
+     * Determine if the framework should perform "aggressive" MAC randomization when connecting
+     * to the SSID in the input WifiConfiguration.
+     * @param config
+     * @return
+     */
+    public boolean shouldUseAggressiveMode(WifiConfiguration config) {
+        // TODO: b/137795359 add logic for classifying network as safe for aggressive mode.
+        return false;
+    }
+
+    /**
      * Enable/disable verbose logging in WifiConfigManager & its helper classes.
      */
     public void enableVerboseLogging(int verbose) {
@@ -1890,22 +1901,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Set randomized MAC address for the provided network.
-     *
-     * @param networkId network ID corresponding to the network.
-     * @param macAddress Randomized MAC address to be used for network connection.
-     * @return true if the network was found, false otherwise.
-    */
-    public boolean setNetworkRandomizedMacAddress(int networkId, MacAddress macAddress) {
-        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
-        if (config == null) {
-            return false;
-        }
-        config.setRandomizedMacAddress(macAddress);
-        return true;
-    }
-
-    /**
      * Clear the {@link NetworkSelectionStatus#mCandidate},
      * {@link NetworkSelectionStatus#mCandidateScore} &
      * {@link NetworkSelectionStatus#mSeenInLastQualifiedNetworkSelection} for the provided network.
@@ -3094,7 +3089,7 @@ public class WifiConfigManager {
         if (mDeferredUserUnlockRead) {
             Log.i(TAG, "Handling user unlock before loading from store.");
             List<WifiConfigStore.StoreFile> userStoreFiles =
-                    WifiConfigStore.createUserFiles(mCurrentUserId);
+                    WifiConfigStore.createUserFiles(mCurrentUserId, UserManager.get(mContext));
             if (userStoreFiles == null) {
                 Log.wtf(TAG, "Failed to create user store files");
                 return false;
@@ -3133,7 +3128,7 @@ public class WifiConfigManager {
     private boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
         try {
             List<WifiConfigStore.StoreFile> userStoreFiles =
-                    WifiConfigStore.createUserFiles(userId);
+                    WifiConfigStore.createUserFiles(userId, UserManager.get(mContext));
             if (userStoreFiles == null) {
                 Log.e(TAG, "Failed to create user store files");
                 return false;
