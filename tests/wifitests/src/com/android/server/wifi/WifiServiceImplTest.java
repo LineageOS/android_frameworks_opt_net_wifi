@@ -599,6 +599,26 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that wifi can be enabled by the DO apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiEnabledSuccessForDOAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
+                Process.myUid(), DeviceAdminInfo.USES_POLICY_DEVICE_OWNER))
+                .thenReturn(true);
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
      * Verify that wifi can be enabled by the apps targeting pre-Q SDK.
      */
     @Test
@@ -807,6 +827,26 @@ public class WifiServiceImplTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
+     * Verify that wifi can be disabled by the PO apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiDisabledSuccessForPOAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
+                Process.myUid(), DeviceAdminInfo.USES_POLICY_PROFILE_OWNER))
+                .thenReturn(true);
+
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+
         verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
     }
 

@@ -874,7 +874,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
-        if (!isPrivileged
+        if (!isPrivileged && !isDeviceOrProfileOwner(Binder.getCallingUid())
                 && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
