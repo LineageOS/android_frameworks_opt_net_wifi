@@ -2685,7 +2685,7 @@ public class WifiConfigManager {
     }
 
     /**
-     * Retrieves a list of all the saved hidden networks for scans.
+     * Retrieves a list of all the saved hidden networks for scans
      *
      * Hidden network list sent to the firmware has limited size. If there are a lot of saved
      * networks, this list will be truncated and we might end up not sending the networks
@@ -2698,19 +2698,12 @@ public class WifiConfigManager {
     public List<WifiScanner.ScanSettings.HiddenNetwork> retrieveHiddenNetworkList() {
         List<WifiScanner.ScanSettings.HiddenNetwork> hiddenList = new ArrayList<>();
         List<WifiConfiguration> networks = new ArrayList<>(getInternalConfiguredNetworks());
-        // Remove any permanently disabled networks or non hidden networks.
-        Iterator<WifiConfiguration> iter = networks.iterator();
-        while (iter.hasNext()) {
-            WifiConfiguration config = iter.next();
-            if (!config.hiddenSSID) {
-                iter.remove();
-            }
-        }
-        Collections.sort(networks, sScanListComparator);
+        // Remove any non hidden networks.
+        networks.removeIf(config -> !config.hiddenSSID);
+        networks.sort(sScanListComparator);
         // The most frequently connected network has the highest priority now.
         for (WifiConfiguration config : networks) {
-            hiddenList.add(
-                    new WifiScanner.ScanSettings.HiddenNetwork(config.SSID));
+            hiddenList.add(new WifiScanner.ScanSettings.HiddenNetwork(config.SSID));
         }
         return hiddenList;
     }

@@ -37,6 +37,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.text.TextUtils;
@@ -51,6 +52,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -90,6 +92,10 @@ public class WifiNetworkSuggestionsManager {
     @VisibleForTesting
     public static final String EXTRA_UID =
             "com.android.server.wifi.extra.NetworkSuggestion.UID";
+    /**
+     * Limit number of hidden networks attach to scan
+     */
+    private static final int NUMBER_OF_HIDDEN_NETWORK_FOR_ONE_SCAN = 100;
 
     private final Context mContext;
     private final Resources mResources;
@@ -919,6 +925,28 @@ public class WifiNetworkSuggestionsManager {
                     + "[" + wifiConfiguration.allowedKeyManagement + "]");
         }
         return approvedExtNetworkSuggestions;
+    }
+
+    /**
+     * Get hidden network from active network suggestions.
+     * Todo(): Now limit by a fixed number, maybe we can try rotation?
+     * @return set of WifiConfigurations
+     */
+    public List<WifiScanner.ScanSettings.HiddenNetwork> retrieveHiddenNetworkList() {
+        List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworks = new ArrayList<>();
+        for (PerAppInfo appInfo : mActiveNetworkSuggestionsPerApp.values()) {
+            if (!appInfo.hasUserApproved) continue;
+            for (ExtendedWifiNetworkSuggestion ewns : appInfo.extNetworkSuggestions) {
+                if (!ewns.wns.wifiConfiguration.hiddenSSID) continue;
+                hiddenNetworks.add(
+                        new WifiScanner.ScanSettings.HiddenNetwork(
+                                ewns.wns.wifiConfiguration.SSID));
+                if (hiddenNetworks.size() >= NUMBER_OF_HIDDEN_NETWORK_FOR_ONE_SCAN) {
+                    return hiddenNetworks;
+                }
+            }
+        }
+        return hiddenNetworks;
     }
 
     /**
