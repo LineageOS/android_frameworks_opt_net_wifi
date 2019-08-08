@@ -893,6 +893,11 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
 
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
+            return false;
+        }
+
         mLog.info("setWifiEnabled package=% uid=% enable=%").c(packageName)
                 .c(Binder.getCallingUid()).c(enable).flush();
         long ident = Binder.clearCallingIdentity();
@@ -1045,6 +1050,10 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean startSoftAp(WifiConfiguration wifiConfig) {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
+            return false;
+        }
 
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
@@ -1091,6 +1100,10 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean stopSoftAp() {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
+            return false;
+        }
 
         // only permitted callers are allowed to this point - they must have gone through
         // connectivity service since this method is protected with the NETWORK_STACK PERMISSION
@@ -1418,6 +1431,10 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // the app should be in the foreground
         if (!mFrameworkFacade.isAppForeground(uid)) {
+            return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+        }
+
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 
