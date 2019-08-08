@@ -30,6 +30,7 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 
+import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiKeyStore;
@@ -68,6 +69,8 @@ public class PasspointProvider {
      */
     private static final String ALIAS_HS_TYPE = "HS2_";
     private static final String ALIAS_ALIAS_REMEDIATION_TYPE = "REMEDIATION_";
+
+    private static final String SYSTEM_CA_STORE_PATH = "/system/etc/security/cacerts";
 
     private final PasspointConfiguration mConfig;
     private final WifiKeyStore mKeyStore;
@@ -407,6 +410,13 @@ public class PasspointProvider {
             buildEnterpriseConfigForSimCredential(enterpriseConfig,
                     mConfig.getCredential().getSimCredential());
         }
+        // If AAA server trusted names are specified, use it to replace HOME SP FQDN
+        // and use system CA regardless of provisioned CA certificate.
+        if (!ArrayUtils.isEmpty(mConfig.getAaaServerTrustedNames())) {
+            enterpriseConfig.setDomainSuffixMatch(
+                    String.join(";", mConfig.getAaaServerTrustedNames()));
+            enterpriseConfig.setCaCertificateAliases(new String[] {SYSTEM_CA_STORE_PATH});
+        }
         wifiConfig.enterpriseConfig = enterpriseConfig;
         wifiConfig.shared = mIsShared;
         return wifiConfig;
@@ -519,6 +529,9 @@ public class PasspointProvider {
         builder.append("Configuration Begin ---\n");
         builder.append(mConfig);
         builder.append("Configuration End ---\n");
+        builder.append("WifiConfiguration Begin ---\n");
+        builder.append(getWifiConfig());
+        builder.append("WifiConfiguration End ---\n");
         return builder.toString();
     }
 
@@ -622,7 +635,11 @@ public class PasspointProvider {
         config.setEapMethod(WifiEnterpriseConfig.Eap.TTLS);
         config.setIdentity(credential.getUsername());
         config.setPassword(decodedPassword);
-        config.setCaCertificateAliases(mCaCertificateAliases.toArray(new String[0]));
+        if (!ArrayUtils.isEmpty(mCaCertificateAliases)) {
+            config.setCaCertificateAliases(mCaCertificateAliases.toArray(new String[0]));
+        } else {
+            config.setCaCertificateAliases(new String[] {SYSTEM_CA_STORE_PATH});
+        }
         int phase2Method = WifiEnterpriseConfig.Phase2.NONE;
         switch (credential.getNonEapInnerMethod()) {
             case Credential.UserCredential.AUTH_METHOD_PAP:
@@ -651,7 +668,11 @@ public class PasspointProvider {
     private void buildEnterpriseConfigForCertCredential(WifiEnterpriseConfig config) {
         config.setEapMethod(WifiEnterpriseConfig.Eap.TLS);
         config.setClientCertificateAlias(mClientCertificateAlias);
-        config.setCaCertificateAliases(mCaCertificateAliases.toArray(new String[0]));
+        if (!ArrayUtils.isEmpty(mCaCertificateAliases)) {
+            config.setCaCertificateAliases(mCaCertificateAliases.toArray(new String[0]));
+        } else {
+            config.setCaCertificateAliases(new String[] {SYSTEM_CA_STORE_PATH});
+        }
     }
 
     /**
