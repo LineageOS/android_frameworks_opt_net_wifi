@@ -311,8 +311,8 @@ public class ActiveModeWardenTest {
     }
 
     /**
-     * Thest that we can switch from ScanOnlyActiveMode to another mode.
-     * Expectation: When switching out of ScanOlyModeActivState we stop the ScanOnlyModeManager.
+     * Test that we can switch from ScanOnlyActiveMode to another mode.
+     * Expectation: When switching out of ScanOnlyModeActivState we stop the ScanOnlyModeManager.
      */
     @Test
     public void testSwitchModeWhenScanOnlyModeActiveState() throws Exception {
@@ -323,6 +323,18 @@ public class ActiveModeWardenTest {
         mLooper.dispatchAll();
         verify(mScanOnlyModeManager).stop();
         assertEquals(CLIENT_MODE_STATE_STRING, mActiveModeWarden.getCurrentMode());
+    }
+
+    /**
+     * Reentering ClientModeActiveState should be a NOP.
+     */
+    @Test
+    public void testReenterClientModeActiveStateIsNop() throws Exception {
+        enterClientModeActiveState();
+        reset(mClientModeManager);
+        mActiveModeWarden.enterClientMode();
+        mLooper.dispatchAll();
+        verify(mClientModeManager, never()).start();
     }
 
     /**
