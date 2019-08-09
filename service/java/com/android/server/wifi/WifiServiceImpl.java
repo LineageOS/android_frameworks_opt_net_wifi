@@ -425,11 +425,11 @@ public class WifiServiceImpl extends BaseWifiService {
         mAppOps = (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE);
         mWifiLockManager = mWifiInjector.getWifiLockManager();
         mWifiMulticastLockManager = mWifiInjector.getWifiMulticastLockManager();
-        HandlerThread wifiServiceHandlerThread = mWifiInjector.getWifiServiceHandlerThread();
+        HandlerThread asyncChannelHandlerThread = mWifiInjector.getAsyncChannelHandlerThread();
         mAsyncChannelExternalClientHandler =
-                new AsyncChannelExternalClientHandler(TAG, wifiServiceHandlerThread.getLooper());
+                new AsyncChannelExternalClientHandler(TAG, asyncChannelHandlerThread.getLooper());
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
-                wifiServiceHandlerThread.getLooper(), asyncChannel);
+                asyncChannelHandlerThread.getLooper(), asyncChannel);
         mWifiController = mWifiInjector.getWifiController();
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
