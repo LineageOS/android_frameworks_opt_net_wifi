@@ -48,6 +48,7 @@ import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
@@ -2018,6 +2019,44 @@ public class WifiNetworkSuggestionsManagerTest {
         storedNetworkSuggestionListPerApp =
                 mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1);
         assertEquals(storedNetworkSuggestionListPerApp.size(), 0);
+    }
+
+    /**
+     * Verify get hidden networks from All user approve network suggestions
+     */
+    @Test
+    public void testGetHiddenNetworks() {
+
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion hiddenNetworkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskHiddenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion hiddenNetworkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskHiddenNetwork(), true, false, TEST_UID_2,
+                TEST_PACKAGE_2);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                    add(hiddenNetworkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(hiddenNetworkSuggestion2);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_UID_2,
+                        TEST_PACKAGE_2));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(false, TEST_PACKAGE_2);
+        List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworks =
+                mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList();
+        assertEquals(1, hiddenNetworks.size());
+        assertEquals(hiddenNetworkSuggestion1.wifiConfiguration.SSID, hiddenNetworks.get(0).ssid);
     }
 
     /**
