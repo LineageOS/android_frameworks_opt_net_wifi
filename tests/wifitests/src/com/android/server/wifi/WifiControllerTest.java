@@ -120,8 +120,7 @@ public class WifiControllerTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
 
@@ -181,10 +180,9 @@ public class WifiControllerTest {
         // reset to avoid the default behavior
         reset(mActiveModeWarden);
 
-        WifiController wifiController =
-                new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                                   mSettingsStore, mLooper.getLooper(), mFacade,
-                                   mActiveModeWarden, mWifiPermissionsUtil);
+        WifiController wifiController = new WifiController(mContext, mClientModeImpl,
+                mLooper.getLooper(), mSettingsStore, mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
 
         wifiController.start();
         mLooper.dispatchAll();
@@ -205,8 +203,7 @@ public class WifiControllerTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         reset(mActiveModeWarden);
         mWifiController.start();
@@ -234,8 +231,7 @@ public class WifiControllerTest {
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();
@@ -268,8 +264,7 @@ public class WifiControllerTest {
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
 
@@ -960,8 +955,7 @@ public class WifiControllerTest {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();

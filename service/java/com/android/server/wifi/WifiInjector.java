@@ -329,8 +329,7 @@ public class WifiInjector {
                 mClientModeImpl, mFrameworkFacade, new Handler(wifiLooper), mWifiNative,
                 mClock, mWifiMetrics);
         mWifiController = new WifiController(mContext, mClientModeImpl, wifiLooper,
-                mSettingsStore, mAsyncChannelHandlerThread.getLooper(), mFrameworkFacade,
-                mActiveModeWarden, mWifiPermissionsUtil);
+                mSettingsStore, mFrameworkFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mSelfRecovery = new SelfRecovery(mWifiController, mClock);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),

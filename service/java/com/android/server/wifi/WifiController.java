@@ -81,14 +81,14 @@ public class WifiController extends StateMachine {
             new StaDisabledWithScanState();
     private final EcmState mEcmState = new EcmState();
 
-    WifiController(Context context, ClientModeImpl clientModeImpl, Looper clientModeImplLooper,
-                   WifiSettingsStore wss, Looper wifiServiceLooper, FrameworkFacade f,
+    WifiController(Context context, ClientModeImpl clientModeImpl, Looper looper,
+                   WifiSettingsStore wss, FrameworkFacade f,
                    ActiveModeWarden amw, WifiPermissionsUtil wifiPermissionsUtil) {
-        super(TAG, wifiServiceLooper);
+        super(TAG, looper);
         mFacade = f;
         mContext = context;
         mClientModeImpl = clientModeImpl;
-        mClientModeImplLooper = clientModeImplLooper;
+        mClientModeImplLooper = looper;
         mActiveModeWarden = amw;
         mSettingsStore = wss;
         mWifiPermissionsUtil = wifiPermissionsUtil;

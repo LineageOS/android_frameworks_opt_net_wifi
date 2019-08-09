@@ -380,7 +380,7 @@ public class ClientModeImplTest {
     @Mock BaseWifiDiagnostics mWifiDiagnostics;
     @Mock ConnectivityManager mConnectivityManager;
     @Mock IProvisioningCallback mProvisioningCallback;
-    @Mock HandlerThread mAsyncChannelHandlerThread;
+    @Mock HandlerThread mWifiHandlerThread;
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
     @Mock WakeupController mWakeupController;
     @Mock WifiDataStall mWifiDataStall;
@@ -435,8 +435,8 @@ public class ClientModeImplTest {
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mWifiInjector.getClock()).thenReturn(mClock);
-        when(mAsyncChannelHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
-        when(mWifiInjector.getAsyncChannelHandlerThread()).thenReturn(mAsyncChannelHandlerThread);
+        when(mWifiHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
+        when(mWifiInjector.getWifiHandlerThread()).thenReturn(mWifiHandlerThread);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());
