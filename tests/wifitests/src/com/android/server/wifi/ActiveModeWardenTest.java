@@ -96,8 +96,6 @@ public class ActiveModeWardenTest {
         MockitoAnnotations.initMocks(this);
         mLooper = new TestLooper();
 
-        when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
-        when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getScanRequestProxy()).thenReturn(mScanRequestProxy);
         when(mClientModeManager.getScanMode()).thenReturn(SCAN_WITH_HIDDEN_NETWORKS);
         when(mContext.getResources()).thenReturn(mResources);
@@ -121,12 +119,16 @@ public class ActiveModeWardenTest {
     }
 
     private ActiveModeWarden createActiveModeWarden() {
-        return new ActiveModeWarden(mWifiInjector,
-                                    mContext,
+        ActiveModeWarden warden = new ActiveModeWarden(mWifiInjector,
                                     mLooper.getLooper(),
                                     mWifiNative,
                                     mDefaultModeManager,
-                                    mBatteryStats);
+                                    mBatteryStats,
+                                    mWifiDiagnostics);
+        // SelfRecovery is created in WifiInjector after ActiveModeWarden, so getSelfRecovery()
+        // returns null when constructing ActiveModeWarden.
+        when(mWifiInjector.getSelfRecovery()).thenReturn(mSelfRecovery);
+        return warden;
     }
 
     /**

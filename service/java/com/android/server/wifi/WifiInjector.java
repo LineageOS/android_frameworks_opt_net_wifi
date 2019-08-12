@@ -303,8 +303,8 @@ public class WifiInjector {
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager);
-        mActiveModeWarden = new ActiveModeWarden(this, mContext, wifiLooper,
-                mWifiNative, new DefaultModeManager(mContext), mBatteryStats);
+        mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
+                mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics);
 
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, this, mFrameworkFacade);

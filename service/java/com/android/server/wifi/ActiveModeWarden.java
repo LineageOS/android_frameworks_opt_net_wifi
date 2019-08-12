@@ -17,7 +17,6 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
-import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
 import android.os.Handler;
@@ -33,7 +32,6 @@ import com.android.internal.util.Preconditions;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
-import com.android.server.wifi.WifiNative.StatusListener;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -45,21 +43,17 @@ public class ActiveModeWarden {
     private static final String TAG = "WifiActiveModeWarden";
     private static final String STATE_MACHINE_EXITED_STATE_NAME = "STATE_MACHINE_EXITED";
 
-    private ModeStateMachine mModeStateMachine;
+    private final ModeStateMachine mModeStateMachine;
 
     // Holder for active mode managers
     private final ArraySet<ActiveModeManager> mActiveModeManagers;
     // DefaultModeManager used to service API calls when there are not active mode managers.
-    private DefaultModeManager mDefaultModeManager;
+    private final DefaultModeManager mDefaultModeManager;
 
     private final WifiInjector mWifiInjector;
-    private final Context mContext;
     private final Looper mLooper;
     private final Handler mHandler;
-    private final WifiNative mWifiNative;
     private final IBatteryStats mBatteryStats;
-    private final SelfRecovery mSelfRecovery;
-    private BaseWifiDiagnostics mWifiDiagnostics;
     private final ScanRequestProxy mScanRequestProxy;
 
     // The base for wifi message types
@@ -97,8 +91,6 @@ public class ActiveModeWarden {
     // Client mode failed
     static final int CMD_CLIENT_MODE_FAILED                             = BASE + 304;
 
-    private StatusListener mWifiNativeStatusListener;
-
     private WifiManager.SoftApCallback mSoftApCallback;
     private WifiManager.SoftApCallback mLohsCallback;
     private ScanOnlyModeManager.Listener mScanOnlyCallback;
@@ -134,25 +126,36 @@ public class ActiveModeWarden {
     }
 
     ActiveModeWarden(WifiInjector wifiInjector,
-                     Context context,
                      Looper looper,
                      WifiNative wifiNative,
                      DefaultModeManager defaultModeManager,
-                     IBatteryStats batteryStats) {
+                     IBatteryStats batteryStats,
+                     BaseWifiDiagnostics wifiDiagnostics) {
         mWifiInjector = wifiInjector;
-        mContext = context;
         mLooper = looper;
         mHandler = new Handler(looper);
-        mWifiNative = wifiNative;
         mActiveModeManagers = new ArraySet<>();
         mDefaultModeManager = defaultModeManager;
         mBatteryStats = batteryStats;
-        mSelfRecovery = mWifiInjector.getSelfRecovery();
-        mWifiDiagnostics = mWifiInjector.getWifiDiagnostics();
-        mScanRequestProxy = mWifiInjector.getScanRequestProxy();
+        mScanRequestProxy = wifiInjector.getScanRequestProxy();
         mModeStateMachine = new ModeStateMachine();
-        mWifiNativeStatusListener = new WifiNativeStatusListener();
-        mWifiNative.registerStatusListener(mWifiNativeStatusListener);
+
+        wifiNative.registerStatusListener(isReady -> {
+            if (!isReady) {
+                mHandler.post(() -> {
+                    Log.e(TAG, "One of the native daemons died. Triggering recovery");
+                    wifiDiagnostics.captureBugReportData(
+                            WifiDiagnostics.REPORT_REASON_WIFINATIVE_FAILURE);
+
+                    // immediately trigger SelfRecovery if we receive a notice about an
+                    // underlying daemon failure
+                    // Note: SelfRecovery has a circular dependency with ActiveModeWarden and is
+                    // instantiated after ActiveModeWarden, so use WifiInjector to get the instance
+                    // instead of directly passing in SelfRecovery in the constructor.
+                    mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
+                });
+            }
+        });
     }
 
     /**
@@ -181,9 +184,20 @@ public class ActiveModeWarden {
      * the persisted config is to be used) and the target operating mode (ex,
      * {@link WifiManager#IFACE_IP_MODE_TETHERED} {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *
+     * @param softApConfig SoftApModeConfiguration for the hostapd softap
      */
     public void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
-        mHandler.post(() -> startSoftAp(softApConfig));
+        mHandler.post(() -> {
+            Log.d(TAG, "Starting SoftApModeManager config = "
+                    + softApConfig.getWifiConfiguration());
+
+            SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
+            ActiveModeManager manager = mWifiInjector.makeSoftApManager(callback, softApConfig);
+            callback.setActiveModeManager(manager);
+            manager.start();
+            mActiveModeManagers.add(manager);
+            updateBatteryStatsWifiState(true);
+        });
     }
 
     /**
@@ -240,7 +254,6 @@ public class ActiveModeWarden {
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of " + TAG);
-
         pw.println("Current wifi mode: " + getCurrentMode());
         pw.println("NumActiveModeManagers: " + mActiveModeManagers.size());
         for (ActiveModeManager manager : mActiveModeManagers) {
@@ -324,7 +337,7 @@ public class ActiveModeWarden {
         }
 
         class ModeActiveState extends State {
-            ActiveModeManager mManager;
+            protected ActiveModeManager mManager;
             @Override
             public boolean processMessage(Message message) {
                 // handle messages for changing modes here
@@ -393,11 +406,11 @@ public class ActiveModeWarden {
             public void exit() {
                 // do not have an active mode manager...  nothing to clean up
             }
-
         }
 
         class ClientModeActiveState extends ModeActiveState {
-            ClientListener mListener;
+            private ClientListener mListener;
+
             private class ClientListener implements ClientModeManager.Listener {
                 @Override
                 public void onStateChanged(int state) {
@@ -454,6 +467,7 @@ public class ActiveModeWarden {
                             Log.d(TAG, "Client mode state change from previous manager");
                             return HANDLED;
                         }
+
                         Log.d(TAG, "ClientMode failed, return to WifiDisabledState.");
                         // notify WifiController that ClientMode failed
                         mClientModeCallback.onStateChanged(WifiManager.WIFI_STATE_UNKNOWN);
@@ -478,7 +492,7 @@ public class ActiveModeWarden {
         }
 
         class ScanOnlyModeActiveState extends ModeActiveState {
-            ScanOnlyListener mListener;
+            private ScanOnlyListener mListener;
             private class ScanOnlyListener implements ScanOnlyModeManager.Listener {
                 @Override
                 public void onStateChanged(int state) {
@@ -601,18 +615,6 @@ public class ActiveModeWarden {
         }
     }
 
-    private void startSoftAp(SoftApModeConfiguration softapConfig) {
-        Log.d(TAG, "Starting SoftApModeManager config = "
-                + softapConfig.getWifiConfiguration());
-
-        SoftApCallbackImpl callback = new SoftApCallbackImpl(softapConfig.getTargetMode());
-        ActiveModeManager manager = mWifiInjector.makeSoftApManager(callback, softapConfig);
-        callback.setActiveModeManager(manager);
-        manager.start();
-        mActiveModeManagers.add(manager);
-        updateBatteryStatsWifiState(true);
-    }
-
     /**
      *  Helper method to report wifi state as on/off (doesn't matter which mode).
      *
@@ -643,23 +645,4 @@ public class ActiveModeWarden {
             Log.e(TAG, "Failed to note battery stats in wifi");
         }
     }
-
-    // callback used to receive callbacks about underlying native failures
-    private final class WifiNativeStatusListener implements StatusListener {
-
-        @Override
-        public void onStatusChanged(boolean isReady) {
-            if (!isReady) {
-                mHandler.post(() -> {
-                    Log.e(TAG, "One of the native daemons died. Triggering recovery");
-                    mWifiDiagnostics.captureBugReportData(
-                            WifiDiagnostics.REPORT_REASON_WIFINATIVE_FAILURE);
-
-                    // immediately trigger SelfRecovery if we receive a notice about an
-                    // underlying daemon failure
-                    mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-                });
-            }
-        }
-    };
 }
