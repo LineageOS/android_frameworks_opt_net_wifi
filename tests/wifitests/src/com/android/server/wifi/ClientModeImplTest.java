@@ -294,7 +294,8 @@ public class ClientModeImplTest {
         ScanDetail detail = new ScanDetail(nd, sWifiSsid, bssid, "", rssi, freq,
                 Long.MAX_VALUE, /* needed so that scan results aren't rejected because
                                    there older than scan start */
-                ie, new ArrayList<String>());
+                ie, new ArrayList<String>(), ScanResults.generateIERawDatafromScanResultIE(ie));
+
         return detail;
     }
 
