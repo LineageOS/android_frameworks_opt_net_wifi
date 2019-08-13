@@ -570,6 +570,8 @@ public class WifiNetworkSuggestionsManager {
             if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
                 Log.i(TAG, "Setting the carrier provisioning app approved");
                 perAppInfo.hasUserApproved = true;
+            } else {
+                sendUserApprovalNotification(packageName, uid);
             }
         }
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
