@@ -227,6 +227,9 @@ public class WifiConfigManager {
     private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 1; // 0 = disabled
     private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 1; // 0 = disabled:
 
+    @VisibleForTesting
+    protected static final long AGGRESSIVE_MAC_REFRESH_MS = 10 * 60 * 1000; //10 minutes
+
     /**
      * Expiration timeout for deleted ephemeral ssids. (1 day)
      */
@@ -301,6 +304,9 @@ public class WifiConfigManager {
      * will get used.
      */
     private final Map<String, String> mRandomizedMacAddressMapping;
+
+    private final Set<String> mAggressiveMacRandomizationWhitelist;
+    private final Set<String> mAggressiveMacRandomizationBlacklist;
 
     /**
      * Flag to indicate if only networks with the same psk should be linked.
@@ -442,6 +448,8 @@ public class WifiConfigManager {
         mConnectedMacRandomzationSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mDeviceConfigFacade = deviceConfigFacade;
+        mAggressiveMacRandomizationWhitelist = new ArraySet<String>();
+        mAggressiveMacRandomizationBlacklist = new ArraySet<String>();
 
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
@@ -473,7 +481,7 @@ public class WifiConfigManager {
      * @param config
      * @return
      */
-    public boolean shouldUseAggressiveMode(WifiConfiguration config) {
+    private boolean shouldUseAggressiveRandomization(WifiConfiguration config) {
         if (mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled()) {
             return isSsidOptInForAggressiveRandomization(config.SSID);
         }
@@ -481,8 +489,84 @@ public class WifiConfigManager {
     }
 
     private boolean isSsidOptInForAggressiveRandomization(String ssid) {
-        // TODO: b/137795359 add logic to detect if SSID is in whitelist
-        return false;
+        if (mAggressiveMacRandomizationBlacklist.contains(ssid)) {
+            return false;
+        }
+        return mAggressiveMacRandomizationWhitelist.contains(ssid);
+    }
+
+    /**
+     * Sets the list of SSIDs that the framework should perform aggressive MAC randomization on.
+     * @param whitelist
+     */
+    public void setAggressiveMacRandomizationWhitelist(Set<String> whitelist) {
+        // TODO: b/137795359 persist this with WifiConfigStore
+        mAggressiveMacRandomizationWhitelist.clear();
+        mAggressiveMacRandomizationWhitelist.addAll(whitelist);
+    }
+
+    /**
+     * Sets the list of SSIDs that the framework will never perform aggressive MAC randomization
+     * on.
+     * @param blacklist
+     */
+    public void setAggressiveMacRandomizationBlacklist(Set<String> blacklist) {
+        mAggressiveMacRandomizationBlacklist.clear();
+        mAggressiveMacRandomizationBlacklist.addAll(blacklist);
+    }
+
+    /**
+     * Read the persistent MAC address from internal database and set it as the randomized
+     * MAC address.
+     * @param config the WifiConfiguration to make the update
+     * @return the persistent MacAddress
+     */
+    private MacAddress setRandomizedMacToPersistentMac(WifiConfiguration config) {
+        String persistentMac = mRandomizedMacAddressMapping.get(
+                config.getSsidAndSecurityTypeString());
+        if (persistentMac.equals(config.getRandomizedMacAddress().toString())) {
+            return config.getRandomizedMacAddress();
+        }
+        WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
+        internalConfig.setRandomizedMacAddress(MacAddress.fromString(persistentMac));
+        internalConfig.randomizedMacLastModifiedTimeMs = mClock.getWallClockMillis();
+        return internalConfig.getRandomizedMacAddress();
+    }
+
+    /**
+     * Re-randomizes the randomized MAC address if needed.
+     * @param config the WifiConfiguration to make the update
+     * @return the updated MacAddress
+     */
+    private MacAddress updateRandomizedMacIfNeeded(WifiConfiguration config) {
+        boolean shouldUpdateMac = config.randomizedMacLastModifiedTimeMs
+                + AGGRESSIVE_MAC_REFRESH_MS
+                < mClock.getWallClockMillis();
+        if (!shouldUpdateMac) {
+            return config.getRandomizedMacAddress();
+        }
+        WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
+        internalConfig.setRandomizedMacAddress(MacAddress.createRandomUnicastAddress());
+        internalConfig.randomizedMacLastModifiedTimeMs = mClock.getWallClockMillis();
+        return internalConfig.getRandomizedMacAddress();
+    }
+
+    /**
+     * Returns the randomized MAC address that should be used for this WifiConfiguration.
+     * This API may return a randomized MAC different from the persistent randomized MAC if
+     * the WifiConfiguration is configured for aggressive MAC randomization.
+     * @param config
+     * @return MacAddress
+     */
+    public MacAddress getRandomizedMacAndUpdateIfNeeded(WifiConfiguration config) {
+        MacAddress mac;
+        if (!config.getNetworkSelectionStatus().getHasEverConnected()
+                || !shouldUseAggressiveRandomization(config)) {
+            mac = setRandomizedMacToPersistentMac(config);
+        } else {
+            mac = updateRandomizedMacIfNeeded(config);
+        }
+        return mac;
     }
 
     /**
@@ -1087,16 +1171,18 @@ public class WifiConfigManager {
         // If the key is not found in the current store, then it means this network has never been
         // seen before. So add it to store.
         if (!mRandomizedMacAddressMapping.containsKey(key)) {
-            mRandomizedMacAddressMapping.put(key,
-                    config.getOrCreateRandomizedMacAddress().toString());
+            MacAddress mac = MacAddress.createRandomUnicastAddress();
+            config.setRandomizedMacAddress(mac);
+            mRandomizedMacAddressMapping.put(key, mac.toString());
         } else { // Otherwise read from the store and set the WifiConfiguration
             try {
                 config.setRandomizedMacAddress(
                         MacAddress.fromString(mRandomizedMacAddressMapping.get(key)));
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error creating randomized MAC address from stored value.");
-                mRandomizedMacAddressMapping.put(key,
-                        config.getOrCreateRandomizedMacAddress().toString());
+                MacAddress mac = MacAddress.createRandomUnicastAddress();
+                config.setRandomizedMacAddress(mac);
+                mRandomizedMacAddressMapping.put(key, mac.toString());
             }
         }
     }
@@ -3031,12 +3117,18 @@ public class WifiConfigManager {
     }
 
     /**
-     * Generate randomized MAC addresses for configured networks and persist mapping to storage.
+     * Generate randomized MAC addresses for configured networks and persist mapping to storage
+     * if such a mapping doesn't already exist. (This is needed to generate persistent randomized
+     * MAC address for existing networks when a device updates to Q+ for the first time)
      */
     private void generateRandomizedMacAddresses() {
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            mRandomizedMacAddressMapping.put(config.getSsidAndSecurityTypeString(),
-                    config.getOrCreateRandomizedMacAddress().toString());
+            String key = config.getSsidAndSecurityTypeString();
+            if (!mRandomizedMacAddressMapping.containsKey(key)) {
+                MacAddress mac = MacAddress.createRandomUnicastAddress();
+                config.setRandomizedMacAddress(mac);
+                mRandomizedMacAddressMapping.put(key, mac.toString());
+            }
         }
     }
 
