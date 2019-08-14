@@ -31,7 +31,8 @@ import org.mockito.Mock;
 @SmallTest
 public class SelfRecoveryTest {
     SelfRecovery mSelfRecovery;
-    @Mock WifiController mWifiController;
+    @Mock
+    ActiveModeWarden.WifiController mWifiController;
     @Mock Clock mClock;
 
     @Before
@@ -42,24 +43,24 @@ public class SelfRecoveryTest {
 
     /**
      * Verifies that invocations of {@link SelfRecovery#trigger(int)} with valid reasons will send
-     * the restart message to {@link WifiController}.
+     * the restart message to {@link ActiveModeWarden.WifiController}.
      */
     @Test
     public void testValidTriggerReasonsSendMessageToWifiController() {
         mSelfRecovery.trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
         reset(mWifiController);
 
         when(mClock.getElapsedSinceBootMillis())
                 .thenReturn(SelfRecovery.MAX_RESTARTS_TIME_WINDOW_MILLIS + 1);
         mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
         reset(mWifiController);
     }
 
     /**
      * Verifies that invocations of {@link SelfRecovery#trigger(int)} with invalid reasons will not
-     * send the restart message to {@link WifiController}.
+     * send the restart message to {@link ActiveModeWarden.WifiController}.
      */
     @Test
     public void testInvalidTriggerReasonsDoesNotSendMessageToWifiController() {
@@ -76,7 +77,7 @@ public class SelfRecoveryTest {
     @Test
     public void testStaIfaceDownDisablesWifi() {
         mSelfRecovery.trigger(SelfRecovery.REASON_STA_IFACE_DOWN);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_DISABLE_WIFI));
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI));
     }
 
     /**
@@ -91,57 +92,57 @@ public class SelfRecoveryTest {
         // aren't ignored
         for (int i = 0; i < SelfRecovery.MAX_RESTARTS_IN_TIME_WINDOW / 2; i++) {
             mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-            verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+            verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                                                 anyInt());
             reset(mWifiController);
 
             mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-            verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+            verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                                                 anyInt());
             reset(mWifiController);
         }
         if ((SelfRecovery.MAX_RESTARTS_IN_TIME_WINDOW % 2) == 1) {
             mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-            verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+            verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                                                 anyInt());
             reset(mWifiController);
         }
 
         // Verify that further attempts to trigger restarts disable wifi
         mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-        verify(mWifiController, never()).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+        verify(mWifiController, never()).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                 anyString());
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_DISABLE_WIFI));
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI));
         reset(mWifiController);
 
         mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-        verify(mWifiController, never()).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+        verify(mWifiController, never()).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                 anyString());
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_DISABLE_WIFI));
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI));
         reset(mWifiController);
 
         // Verify L.R.Watchdog can still restart things (It has its own complex limiter)
         mSelfRecovery.trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                                             anyInt());
         reset(mWifiController);
 
         // Verify Sta Interface Down will still disable wifi
         mSelfRecovery.trigger(SelfRecovery.REASON_STA_IFACE_DOWN);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_DISABLE_WIFI));
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI));
         reset(mWifiController);
 
         // now TRAVEL FORWARDS IN TIME and ensure that more restarts can occur
         when(mClock.getElapsedSinceBootMillis())
                 .thenReturn(SelfRecovery.MAX_RESTARTS_TIME_WINDOW_MILLIS + 1);
         mSelfRecovery.trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
         reset(mWifiController);
 
         when(mClock.getElapsedSinceBootMillis())
                 .thenReturn(SelfRecovery.MAX_RESTARTS_TIME_WINDOW_MILLIS + 1);
         mSelfRecovery.trigger(SelfRecovery.REASON_WIFINATIVE_FAILURE);
-        verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
+        verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
         reset(mWifiController);
     }
 
@@ -156,7 +157,7 @@ public class SelfRecoveryTest {
         for (int i = 0; i < SelfRecovery.MAX_RESTARTS_IN_TIME_WINDOW * 2; i++) {
             // Verify L.R.Watchdog can still restart things (It has it's own complex limiter)
             mSelfRecovery.trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-            verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI),
+            verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI),
                                                 anyInt());
             reset(mWifiController);
         }
@@ -172,9 +173,9 @@ public class SelfRecoveryTest {
     public void testTimeWindowLimiting_staIfaceDown_noEffect() {
         for (int i = 0; i < SelfRecovery.MAX_RESTARTS_IN_TIME_WINDOW * 2; i++) {
             mSelfRecovery.trigger(SelfRecovery.REASON_STA_IFACE_DOWN);
-            verify(mWifiController).sendMessage(eq(WifiController.CMD_RECOVERY_DISABLE_WIFI));
+            verify(mWifiController).sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI));
             verify(mWifiController, never())
-                    .sendMessage(eq(WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
+                    .sendMessage(eq(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI), anyInt());
             reset(mWifiController);
         }
     }

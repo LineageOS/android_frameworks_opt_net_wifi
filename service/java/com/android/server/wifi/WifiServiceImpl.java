@@ -28,12 +28,12 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
-import static com.android.server.wifi.WifiController.CMD_AIRPLANE_TOGGLED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_AIRPLANE_TOGGLED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_MODE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SET_AP;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_WIFI_TOGGLED;
 
 import android.annotation.CheckResult;
 import android.app.AppOpsManager;
@@ -398,7 +398,7 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private final ClientModeImplHandler mClientModeImplHandler;
-    private final WifiController mWifiController;
+    private final ActiveModeWarden.WifiController mWifiController;
     private final WifiLockManager mWifiLockManager;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final DppManager mDppManager;
@@ -1045,7 +1045,7 @@ public class WifiServiceImpl extends BaseWifiService {
             }
             // Notify WifiController so it has a chance to turn wifi back on
             if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
-                mWifiController.sendMessage(WifiController.CMD_AP_STOPPED);
+                mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_AP_STOPPED);
             }
         }
 

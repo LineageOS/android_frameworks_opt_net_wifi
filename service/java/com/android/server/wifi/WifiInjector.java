@@ -104,7 +104,7 @@ public class WifiInjector {
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiLockManager mLockManager;
-    private final WifiController mWifiController;
+    private final ActiveModeWarden.WifiController mWifiController;
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
@@ -317,7 +317,7 @@ public class WifiInjector {
                 this, mFrameworkFacade, mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
                 mClientModeImpl, mFrameworkFacade, wifiHandler, mWifiNative, mClock, mWifiMetrics);
-        mWifiController = new WifiController(mContext, mClientModeImpl, wifiLooper,
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, wifiLooper,
                 mSettingsStore, mFrameworkFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mSelfRecovery = new SelfRecovery(mWifiController, mClock);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
@@ -434,7 +434,7 @@ public class WifiInjector {
         return mLockManager;
     }
 
-    public WifiController getWifiController() {
+    public ActiveModeWarden.WifiController getWifiController() {
         return mWifiController;
     }
 

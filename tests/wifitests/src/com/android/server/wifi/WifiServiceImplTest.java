@@ -37,8 +37,8 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
-import static com.android.server.wifi.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SET_AP;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_WIFI_TOGGLED;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -219,7 +219,8 @@ public class WifiServiceImplTest {
     @Mock WifiInjector mWifiInjector;
     @Mock WifiCountryCode mWifiCountryCode;
     @Mock Clock mClock;
-    @Mock WifiController mWifiController;
+    @Mock
+    ActiveModeWarden.WifiController mWifiController;
     @Mock WifiTrafficPoller mWifiTrafficPoller;
     @Mock ClientModeImpl mClientModeImpl;
     @Mock ActiveModeWarden mActiveModeWarden;

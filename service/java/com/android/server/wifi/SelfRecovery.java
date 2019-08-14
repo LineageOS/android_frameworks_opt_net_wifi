@@ -24,7 +24,7 @@ import java.util.LinkedList;
 /**
  * This class is used to recover the wifi stack from a fatal failure. The recovery mechanism
  * involves triggering a stack restart (essentially simulating an airplane mode toggle) using
- * {@link WifiController}.
+ * {@link ActiveModeWarden.WifiController}.
  * The current triggers for:
  * 1. Last resort watchdog bite.
  * 2. HAL/wificond crashes during normal operation.
@@ -47,11 +47,11 @@ public class SelfRecovery {
             "Sta Interface Down"     // REASON_STA_IFACE_DOWN
     };
 
-    private final WifiController mWifiController;
+    private final ActiveModeWarden.WifiController mWifiController;
     private final Clock mClock;
     // Time since boot (in millis) that restart occurred
     private final LinkedList<Long> mPastRestartTimes;
-    public SelfRecovery(WifiController wifiController, Clock clock) {
+    public SelfRecovery(ActiveModeWarden.WifiController wifiController, Clock clock) {
         mWifiController = wifiController;
         mClock = clock;
         mPastRestartTimes = new LinkedList<Long>();
@@ -63,9 +63,9 @@ public class SelfRecovery {
      * This method does the following:
      * 1. Checks reason code used to trigger recovery
      * 2. Checks for sta iface down triggers and disables wifi by sending {@link
-     * WifiController#CMD_RECOVERY_DISABLE_WIFI} to {@link WifiController} to disable wifi.
+     * ActiveModeWarden.WifiController#CMD_RECOVERY_DISABLE_WIFI} to {@link ActiveModeWarden.WifiController} to disable wifi.
      * 3. Throttles restart calls for underlying native failures
-     * 4. Sends {@link WifiController#CMD_RECOVERY_RESTART_WIFI} to {@link WifiController} to
+     * 4. Sends {@link ActiveModeWarden.WifiController#CMD_RECOVERY_RESTART_WIFI} to {@link ActiveModeWarden.WifiController} to
      * initiate the stack restart.
      * @param reason One of the above |REASON_*| codes.
      */
@@ -77,7 +77,7 @@ public class SelfRecovery {
         }
         if (reason == REASON_STA_IFACE_DOWN) {
             Log.e(TAG, "STA interface down, disable wifi");
-            mWifiController.sendMessage(WifiController.CMD_RECOVERY_DISABLE_WIFI);
+            mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI);
             return;
         }
 
@@ -88,12 +88,12 @@ public class SelfRecovery {
             if (mPastRestartTimes.size() >= MAX_RESTARTS_IN_TIME_WINDOW) {
                 Log.e(TAG, "Already restarted wifi (" + MAX_RESTARTS_IN_TIME_WINDOW + ") times in"
                         + " last (" + MAX_RESTARTS_TIME_WINDOW_MILLIS + "ms ). Disabling wifi");
-                mWifiController.sendMessage(WifiController.CMD_RECOVERY_DISABLE_WIFI);
+                mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI);
                 return;
             }
             mPastRestartTimes.add(mClock.getElapsedSinceBootMillis());
         }
-        mWifiController.sendMessage(WifiController.CMD_RECOVERY_RESTART_WIFI, reason);
+        mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI, reason);
     }
 
     /**

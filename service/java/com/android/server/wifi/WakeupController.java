@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_WIFI_TOGGLED;
 
 import android.content.Context;
 import android.database.ContentObserver;
@@ -403,7 +403,7 @@ public class WakeupController {
     /**
      * Enables wifi.
      *
-     * <p>This method ignores all checks and assumes that {@link WifiController} is currently
+     * <p>This method ignores all checks and assumes that {@link ActiveModeWarden.WifiController} is currently
      * in ScanModeState.
      */
     private void enableWifi() {

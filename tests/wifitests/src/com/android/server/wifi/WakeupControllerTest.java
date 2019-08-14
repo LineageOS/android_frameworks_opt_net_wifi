@@ -78,7 +78,7 @@ public class WakeupControllerTest {
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private WifiSettingsStore mWifiSettingsStore;
     @Mock private WifiWakeMetrics mWifiWakeMetrics;
-    @Mock private WifiController mWifiController;
+    @Mock private ActiveModeWarden.WifiController mWifiController;
     @Mock private WifiNative mWifiNative;
     @Mock private Clock mClock;
 

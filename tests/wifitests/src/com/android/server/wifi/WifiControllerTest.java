@@ -16,16 +16,16 @@
 
 package com.android.server.wifi;
 
-import static com.android.server.wifi.WifiController.CMD_AP_STOPPED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_RECOVERY_DISABLE_WIFI;
-import static com.android.server.wifi.WifiController.CMD_RECOVERY_RESTART_WIFI;
-import static com.android.server.wifi.WifiController.CMD_SCANNING_STOPPED;
-import static com.android.server.wifi.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.WifiController.CMD_STA_STOPPED;
-import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_AP_STOPPED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_MODE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_RECOVERY_DISABLE_WIFI;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_RECOVERY_RESTART_WIFI;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SCANNING_STOPPED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SET_AP;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_STA_STOPPED;
+import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_WIFI_TOGGLED;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -98,7 +98,7 @@ public class WifiControllerTest {
     @Mock ActiveModeWarden mActiveModeWarden;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
 
-    WifiController mWifiController;
+    ActiveModeWarden.WifiController mWifiController;
 
     private BroadcastReceiver mBroadcastReceiver;
 
@@ -119,7 +119,7 @@ public class WifiControllerTest {
                 .thenReturn(TEST_WIFI_RECOVERY_DELAY_MS);
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
-        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
@@ -180,7 +180,7 @@ public class WifiControllerTest {
         // reset to avoid the default behavior
         reset(mActiveModeWarden);
 
-        WifiController wifiController = new WifiController(mContext, mClientModeImpl,
+        ActiveModeWarden.WifiController wifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl,
                 mLooper.getLooper(), mSettingsStore, mFacade, mActiveModeWarden,
                 mWifiPermissionsUtil);
 
@@ -202,7 +202,7 @@ public class WifiControllerTest {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
 
-        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         reset(mActiveModeWarden);
@@ -230,7 +230,7 @@ public class WifiControllerTest {
 
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
-        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
@@ -263,7 +263,7 @@ public class WifiControllerTest {
 
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
-        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
@@ -954,7 +954,7 @@ public class WifiControllerTest {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
 
-        mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
+        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
