@@ -673,7 +673,7 @@ public class ActiveModeWarden {
                             transitionTo(mStaEnabledState);
                         } else if (checkScanOnlyModeAvailable()) {
                             // only go to scan mode if we aren't in airplane mode
-                            if (mSettingsStore.isAirplaneModeOn()) {
+                            if (!mSettingsStore.isAirplaneModeOn()) {
                                 transitionTo(mStaDisabledWithScanState);
                             }
                         }

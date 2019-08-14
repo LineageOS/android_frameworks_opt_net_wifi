@@ -1877,4 +1877,44 @@ public class ActiveModeWardenTest {
             mLooper.dispatchAll();
         });
     }
+
+    /**
+     * Tests that when Wifi is already disabled and another Wifi toggle command arrives, but we're
+     * in airplane mode, don't enter scan mode.
+     */
+    @Test
+    public void staDisabled_toggleWifiOff_scanAvailable_airplaneModeOn_dontGoToScanMode() {
+        assertInStaDisabledState();
+
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
+        when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(true);
+
+        mActiveModeWarden.wifiToggled();
+        mLooper.dispatchAll();
+
+        assertInStaDisabledState();
+        verify(mScanOnlyModeManager, never()).start();
+    }
+
+    /**
+     * Tests that when Wifi is already disabled and another Wifi toggle command arrives, but we're
+     * not in airplane mode, enter scan mode.
+     */
+    @Test
+    public void staDisabled_toggleWifiOff_scanAvailable_airplaneModeOff_goToScanMode() {
+        assertInStaDisabledState();
+
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
+        when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+
+        mActiveModeWarden.wifiToggled();
+        mLooper.dispatchAll();
+
+        assertInScanOnlyState();
+        verify(mScanOnlyModeManager).start();
+    }
 }
