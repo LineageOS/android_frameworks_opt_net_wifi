@@ -75,6 +75,7 @@ import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
+import android.net.wifi.WifiStackClient;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -509,12 +510,6 @@ public class WifiServiceImpl extends BaseWifiService {
      * This function is used only at boot time.
      */
     public void checkAndStartWifi() {
-        // First check if we will end up restarting WifiService
-        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
-            Log.d(TAG, "Device still encrypted. Need to restart SystemServer.  Do not start wifi.");
-            return;
-        }
-
         // Check if wi-fi needs to be enabled
         boolean wifiEnabled = mSettingsStore.isWifiToggleEnabled();
         Slog.i(TAG, "WifiService starting up with Wi-Fi " +
@@ -733,6 +728,11 @@ public class WifiServiceImpl extends BaseWifiService {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean checkMainlineWifiStackPermission(int pid, int uid) {
+        return mContext.checkPermission(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK, pid, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private boolean checkNetworkManagedProvisioningPermission(int pid, int uid) {
         return mContext.checkPermission(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING,
                 pid, uid) == PackageManager.PERMISSION_GRANTED;
@@ -744,7 +744,8 @@ public class WifiServiceImpl extends BaseWifiService {
         return checkNetworkSettingsPermission(pid, uid)
                 || checkNetworkSetupWizardPermission(pid, uid)
                 || checkNetworkStackPermission(pid, uid)
-                || checkNetworkManagedProvisioningPermission(pid, uid);
+                || checkNetworkManagedProvisioningPermission(pid, uid)
+                || checkMainlineWifiStackPermission(pid, uid);
     }
 
     // Helper method to check if the entity initiating the binder call has setup wizard or settings
@@ -891,11 +892,6 @@ public class WifiServiceImpl extends BaseWifiService {
         boolean apEnabled = mWifiApState == WifiManager.WIFI_AP_STATE_ENABLED;
         if (apEnabled && !isPrivileged) {
             mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
-            return false;
-        }
-
-        // If we're in crypt debounce, ignore any wifi state change APIs.
-        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
             return false;
         }
 
@@ -1051,10 +1047,6 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean startSoftAp(WifiConfiguration wifiConfig) {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
-        // If we're in crypt debounce, ignore any wifi state change APIs.
-        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
-            return false;
-        }
 
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
@@ -1101,10 +1093,6 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean stopSoftAp() {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
-        // If we're in crypt debounce, ignore any wifi state change APIs.
-        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
-            return false;
-        }
 
         // only permitted callers are allowed to this point - they must have gone through
         // connectivity service since this method is protected with the NETWORK_STACK PERMISSION
@@ -1432,10 +1420,6 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // the app should be in the foreground
         if (!mFrameworkFacade.isAppForeground(uid)) {
-            return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
-        }
-
-        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 

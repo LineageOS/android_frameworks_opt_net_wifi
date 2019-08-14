@@ -17,40 +17,40 @@
 package com.android.server.wifi.scanner;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.HandlerThread;
 import android.util.Log;
 
-import com.android.server.SystemService;
 import com.android.server.am.BatteryStatsService;
 import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.WifiServiceBase;
 
-public class WifiScanningService extends SystemService {
+/**
+ * Manages the wifi scanner service instance.
+ */
+public class WifiScanningService implements WifiServiceBase {
 
     static final String TAG = "WifiScanningService";
     private final WifiScanningServiceImpl mImpl;
     private final HandlerThread mHandlerThread;
 
     public WifiScanningService(Context context) {
-        super(context);
         Log.i(TAG, "Creating " + Context.WIFI_SCANNING_SERVICE);
         mHandlerThread = new HandlerThread("WifiScanningService");
         mHandlerThread.start();
-        mImpl = new WifiScanningServiceImpl(getContext(), mHandlerThread.getLooper(),
+        mImpl = new WifiScanningServiceImpl(context, mHandlerThread.getLooper(),
                 WifiScannerImpl.DEFAULT_FACTORY, BatteryStatsService.getService(),
                 WifiInjector.getInstance());
     }
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Publishing " + Context.WIFI_SCANNING_SERVICE);
-        publishBinderService(Context.WIFI_SCANNING_SERVICE, mImpl);
+        Log.i(TAG, "Starting " + Context.WIFI_SCANNING_SERVICE);
+        mImpl.startService();
     }
 
     @Override
-    public void onBootPhase(int phase) {
-        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
-            Log.i(TAG, "Starting " + Context.WIFI_SCANNING_SERVICE);
-            mImpl.startService();
-        }
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

@@ -23,6 +23,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.net.NetworkStack;
+import android.net.wifi.WifiStackClient;
 import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+# Below are for kernel tracing related stuff.
 on fs
    setprop sys.wifitracing.started 0
 
@@ -49,7 +50,7 @@ on property:sys.boot_completed=1 && property:sys.wifitracing.started=0
    write /sys/kernel/debug/tracing/instances/wifi/events/net/netif_rx/enable 1
    write /sys/kernel/debug/tracing/instances/wifi/events/net/netif_receive_skb/enable 1
 
-   # Set DAC to allow system_server to enable/disable, and read wifi trace
+   # Set DAC to allow system to enable/disable, and read wifi trace
    # events.
    chown system /sys/kernel/debug/tracing/instances/wifi/tracing_on
    chown system /sys/kernel/debug/tracing/instances/wifi/free_buffer

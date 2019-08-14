@@ -85,23 +85,27 @@ public class WifiApConfigStore {
     private ArrayList<Integer> mAllowed2GChannel = null;
 
     private final Context mContext;
+    private final WifiInjector mWifiInjector;
     private final Handler mHandler;
     private final String mApConfigFile;
     private final BackupManagerProxy mBackupManagerProxy;
     private final FrameworkFacade mFrameworkFacade;
     private boolean mRequiresApBandConversion = false;
 
-    WifiApConfigStore(Context context, Looper looper,
+    WifiApConfigStore(Context context, WifiInjector wifiInjector, Looper looper,
             BackupManagerProxy backupManagerProxy, FrameworkFacade frameworkFacade) {
-        this(context, looper, backupManagerProxy, frameworkFacade, DEFAULT_AP_CONFIG_FILE);
+        this(context, wifiInjector, looper, backupManagerProxy, frameworkFacade,
+                DEFAULT_AP_CONFIG_FILE);
     }
 
     WifiApConfigStore(Context context,
+                      WifiInjector wifiInjector,
                       Looper looper,
                       BackupManagerProxy backupManagerProxy,
                       FrameworkFacade frameworkFacade,
                       String apConfigFile) {
         mContext = context;
+        mWifiInjector = wifiInjector;
         mHandler = new Handler(looper);
         mBackupManagerProxy = backupManagerProxy;
         mFrameworkFacade = frameworkFacade;
@@ -496,7 +500,8 @@ public class WifiApConfigStore {
     }
 
     private PendingIntent getPrivateBroadcast(String action) {
-        Intent intent = new Intent(action).setPackage("android");
+        Intent intent = new Intent(action)
+                .setPackage(mWifiInjector.getWifiStackPackageName());
         return mFrameworkFacade.getBroadcast(
                 mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }

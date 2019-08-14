@@ -3261,8 +3261,8 @@ public class WifiNative {
      ********************************************************/
     /* Register native functions */
     static {
-        /* Native functions are defined in libwifi-service.so */
-        System.loadLibrary("wifi-service");
+        /* Native functions are defined in libwifi-jni.so */
+        System.loadLibrary("wifi-jni");
         registerNatives();
     }
 
