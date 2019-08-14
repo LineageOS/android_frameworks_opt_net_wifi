@@ -104,7 +104,6 @@ public class WifiInjector {
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiLockManager mLockManager;
-    private final ActiveModeWarden.WifiController mWifiController;
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
@@ -304,7 +303,8 @@ public class WifiInjector {
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager);
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
-                mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics);
+                mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
+                mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);
 
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, this, mFrameworkFacade);
@@ -317,8 +317,6 @@ public class WifiInjector {
                 this, mFrameworkFacade, mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
                 mClientModeImpl, mFrameworkFacade, wifiHandler, mWifiNative, mClock, mWifiMetrics);
-        mWifiController = new ActiveModeWarden.WifiController(mContext, mClientModeImpl, wifiLooper,
-                mSettingsStore, mFrameworkFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mSelfRecovery = new SelfRecovery(mWifiController, mClock);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
@@ -432,10 +430,6 @@ public class WifiInjector {
 
     public WifiLockManager getWifiLockManager() {
         return mLockManager;
-    }
-
-    public ActiveModeWarden.WifiController getWifiController() {
-        return mWifiController;
     }
 
     public WifiLastResortWatchdog getWifiLastResortWatchdog() {

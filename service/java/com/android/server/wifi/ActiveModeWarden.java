@@ -31,6 +31,7 @@ import android.os.RemoteException;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.internal.R;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
@@ -59,8 +60,14 @@ public class ActiveModeWarden {
     private final WifiInjector mWifiInjector;
     private final Looper mLooper;
     private final Handler mHandler;
+    private final Context mContext;
+    private final ClientModeImpl mClientModeImpl;
+    private final WifiSettingsStore mSettingsStore;
+    private final FrameworkFacade mFacade;
+    private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final IBatteryStats mBatteryStats;
     private final ScanRequestProxy mScanRequestProxy;
+    private final WifiController mWifiController;
 
     // The base for wifi message types
     static final int BASE = Protocol.BASE_WIFI;
@@ -99,8 +106,6 @@ public class ActiveModeWarden {
 
     private WifiManager.SoftApCallback mSoftApCallback;
     private WifiManager.SoftApCallback mLohsCallback;
-    private ScanOnlyModeManager.Listener mScanOnlyCallback;
-    private ClientModeManager.Listener mClientModeCallback;
 
     /**
      * Called from WifiServiceImpl to register a callback for notifications from SoftApManager
@@ -117,34 +122,31 @@ public class ActiveModeWarden {
         mLohsCallback = callback;
     }
 
-    /**
-     * Called from WifiController to register a callback for notifications from ScanOnlyModeManager
-     */
-    public void registerScanOnlyCallback(@NonNull ScanOnlyModeManager.Listener callback) {
-        mScanOnlyCallback = callback;
-    }
-
-    /**
-     * Called from WifiController to register a callback for notifications from ClientModeManager
-     */
-    public void registerClientModeCallback(@NonNull ClientModeManager.Listener callback) {
-        mClientModeCallback = callback;
-    }
-
     ActiveModeWarden(WifiInjector wifiInjector,
                      Looper looper,
                      WifiNative wifiNative,
                      DefaultModeManager defaultModeManager,
                      IBatteryStats batteryStats,
-                     BaseWifiDiagnostics wifiDiagnostics) {
+                     BaseWifiDiagnostics wifiDiagnostics,
+                     Context context,
+                     ClientModeImpl clientModeImpl,
+                     WifiSettingsStore settingsStore,
+                     FrameworkFacade facade,
+                     WifiPermissionsUtil wifiPermissionsUtil) {
         mWifiInjector = wifiInjector;
         mLooper = looper;
         mHandler = new Handler(looper);
+        mContext = context;
+        mClientModeImpl = clientModeImpl;
+        mSettingsStore = settingsStore;
+        mFacade = facade;
+        mWifiPermissionsUtil = wifiPermissionsUtil;
         mActiveModeManagers = new ArraySet<>();
         mDefaultModeManager = defaultModeManager;
         mBatteryStats = batteryStats;
         mScanRequestProxy = wifiInjector.getScanRequestProxy();
         mModeStateMachine = new ModeStateMachine();
+        mWifiController = new WifiController();
 
         wifiNative.registerStatusListener(isReady -> {
             if (!isReady) {
@@ -162,25 +164,6 @@ public class ActiveModeWarden {
                 });
             }
         });
-    }
-
-    /**
-     * Method to switch wifi into client mode where connections to configured networks will be
-     * attempted.
-     */
-    public void enterClientMode() {
-        changeMode(ModeStateMachine.CMD_START_CLIENT_MODE);
-    }
-
-    /**
-     * Method to switch wifi into scan only mode where network connection attempts will not be made.
-     *
-     * This mode is utilized by location scans.  If wifi is disabled by a user, but they have
-     * previously configured their device to perform location scans, this mode allows wifi to
-     * fulfill the location scan requests but will not be used for connectivity.
-     */
-    public void enterScanOnlyMode() {
-        changeMode(ModeStateMachine.CMD_START_SCAN_ONLY_MODE);
     }
 
     /**
@@ -233,15 +216,6 @@ public class ActiveModeWarden {
     }
 
     /**
-     * Method to disable wifi in sta/client mode scenarios.
-     *
-     * This mode will stop any client/scan modes and will not perform any network scans.
-     */
-    public void disableWifi() {
-        changeMode(ModeStateMachine.CMD_DISABLE_WIFI);
-    }
-
-    /**
      * Method to stop all active modes, for example, when toggling airplane mode.
      */
     public void shutdownWifi() {
@@ -273,21 +247,6 @@ public class ActiveModeWarden {
 
     private void changeMode(int newMode) {
         mModeStateMachine.sendMessage(newMode);
-    }
-
-    /**
-     *  Helper class to wrap the ActiveModeManager callback objects.
-     */
-    private static class ModeCallback {
-        private ActiveModeManager mActiveManager;
-
-        void setActiveModeManager(ActiveModeManager manager) {
-            mActiveManager = manager;
-        }
-
-        ActiveModeManager getActiveModeManager() {
-            return mActiveManager;
-        }
     }
 
     private class ModeStateMachine extends StateMachine {
@@ -475,8 +434,7 @@ public class ActiveModeWarden {
                         }
 
                         Log.d(TAG, "ClientMode failed, return to WifiDisabledState.");
-                        // notify WifiController that ClientMode failed
-                        mClientModeCallback.onStateChanged(WifiManager.WIFI_STATE_UNKNOWN);
+                        mWifiController.sendMessage(WifiController.CMD_STA_START_FAILURE);
                         mModeStateMachine.transitionTo(mWifiDisabledState);
                         break;
                     case CMD_CLIENT_MODE_STOPPED:
@@ -486,8 +444,7 @@ public class ActiveModeWarden {
                         }
 
                         Log.d(TAG, "ClientMode stopped, return to WifiDisabledState.");
-                        // notify WifiController that ClientMode stopped
-                        mClientModeCallback.onStateChanged(WifiManager.WIFI_STATE_DISABLED);
+                        mWifiController.sendMessage(WifiController.CMD_STA_STOPPED);
                         mModeStateMachine.transitionTo(mWifiDisabledState);
                         break;
                     default:
@@ -557,8 +514,6 @@ public class ActiveModeWarden {
                         }
 
                         Log.d(TAG, "ScanOnlyMode failed, return to WifiDisabledState.");
-                        // notify WifiController that ScanOnlyMode failed
-                        mScanOnlyCallback.onStateChanged(WifiManager.WIFI_STATE_UNKNOWN);
                         mModeStateMachine.transitionTo(mWifiDisabledState);
                         break;
                     case CMD_SCAN_ONLY_MODE_STOPPED:
@@ -568,8 +523,7 @@ public class ActiveModeWarden {
                         }
 
                         Log.d(TAG, "ScanOnlyMode stopped, return to WifiDisabledState.");
-                        // notify WifiController that ScanOnlyMode stopped
-                        mScanOnlyCallback.onStateChanged(WifiManager.WIFI_STATE_DISABLED);
+                        mWifiController.sendMessage(WifiController.CMD_SCANNING_STOPPED);
                         mModeStateMachine.transitionTo(mWifiDisabledState);
                         break;
                     default:
@@ -579,6 +533,21 @@ public class ActiveModeWarden {
             }
         }
     }  // class ModeStateMachine
+
+    /**
+     *  Helper class to wrap the ActiveModeManager callback objects.
+     */
+    private static class ModeCallback {
+        private ActiveModeManager mActiveManager;
+
+        void setActiveModeManager(ActiveModeManager manager) {
+            mActiveManager = manager;
+        }
+
+        ActiveModeManager getActiveModeManager() {
+            return mActiveManager;
+        }
+    }
 
     private class SoftApCallbackImpl extends ModeCallback implements WifiManager.SoftApCallback {
         private final int mMode;
@@ -656,20 +625,11 @@ public class ActiveModeWarden {
      * WifiController is the class used to manage wifi state for various operating
      * modes (normal, airplane, wifi hotspot, etc.).
      */
-    public static class WifiController extends StateMachine {
+    private class WifiController extends StateMachine {
         private static final String TAG = "WifiController";
-        private final Context mContext;
 
         // Maximum limit to use for timeout delay if the value from overlay setting is too large.
         private static final int MAX_RECOVERY_TIMEOUT_DELAY_MS = 4000;
-
-        /* References to values tracked in WifiService */
-        private final ClientModeImpl mClientModeImpl;
-        private final Handler mHandler;
-        private final ActiveModeWarden mActiveModeWarden;
-        private final WifiSettingsStore mSettingsStore;
-        private final FrameworkFacade mFacade;
-        private final WifiPermissionsUtil mWifiPermissionsUtil;
 
         private final int mRecoveryDelayMillis;
 
@@ -700,17 +660,8 @@ public class ActiveModeWarden {
                 new StaDisabledWithScanState();
         private final EcmState mEcmState = new EcmState();
 
-        WifiController(Context context, ClientModeImpl clientModeImpl, Looper looper,
-                       WifiSettingsStore wss, FrameworkFacade f,
-                       ActiveModeWarden amw, WifiPermissionsUtil wifiPermissionsUtil) {
-            super(TAG, looper);
-            mFacade = f;
-            mContext = context;
-            mClientModeImpl = clientModeImpl;
-            mHandler = new Handler(looper);
-            mActiveModeWarden = amw;
-            mSettingsStore = wss;
-            mWifiPermissionsUtil = wifiPermissionsUtil;
+        WifiController() {
+            super(TAG, mLooper);
 
             addState(mDefaultState); {
                 addState(mStaDisabledState, mDefaultState);
@@ -721,35 +672,6 @@ public class ActiveModeWarden {
 
             setLogRecSize(100);
             setLogOnlyTransitions(false);
-
-            // register for state updates via callbacks (vs the intents registered below)
-            mActiveModeWarden.registerScanOnlyCallback(state -> {
-                if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                    Log.d(TAG, "ScanOnlyMode unexpected failure: state unknown");
-                } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                    Log.d(TAG, "ScanOnlyMode stopped");
-                    sendMessage(CMD_SCANNING_STOPPED);
-                } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                    // scan mode is ready to go
-                    Log.d(TAG, "scan mode active");
-                } else {
-                    Log.d(TAG, "unexpected state update: " + state);
-                }
-            });
-            mActiveModeWarden.registerClientModeCallback(state -> {
-                if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                    logd("ClientMode unexpected failure: state unknown");
-                    sendMessage(CMD_STA_START_FAILURE);
-                } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                    logd("ClientMode stopped");
-                    sendMessage(CMD_STA_STOPPED);
-                } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                    // scan mode is ready to go
-                    logd("client mode active");
-                } else {
-                    logd("unexpected state update: " + state);
-                }
-            });
 
             mRecoveryDelayMillis = readWifiRecoveryDelay();
         }
@@ -818,26 +740,26 @@ public class ActiveModeWarden {
                         break;
                     case CMD_RECOVERY_DISABLE_WIFI:
                         log("Recovery has been throttled, disable wifi");
-                        mActiveModeWarden.shutdownWifi();
+                        shutdownWifi();
                         transitionTo(mStaDisabledState);
                         break;
                     case CMD_RECOVERY_RESTART_WIFI:
                         deferMessage(obtainMessage(CMD_DEFERRED_RECOVERY_RESTART_WIFI));
-                        mActiveModeWarden.shutdownWifi();
+                        shutdownWifi();
                         transitionTo(mStaDisabledState);
                         break;
                     case CMD_SET_AP:
                         // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
                         if (msg.arg1 == 1) {
-                            mActiveModeWarden.enterSoftAPMode((SoftApModeConfiguration) msg.obj);
+                            enterSoftAPMode((SoftApModeConfiguration) msg.obj);
                         } else {
-                            mActiveModeWarden.stopSoftAPMode(msg.arg2);
+                            stopSoftAPMode(msg.arg2);
                         }
                         break;
                     case CMD_AIRPLANE_TOGGLED:
                         if (mSettingsStore.isAirplaneModeOn()) {
                             log("Airplane mode toggled, shutdown all modes");
-                            mActiveModeWarden.shutdownWifi();
+                            shutdownWifi();
                             transitionTo(mStaDisabledState);
                         } else {
                             log("Airplane mode disabled, determine next state");
@@ -874,7 +796,7 @@ public class ActiveModeWarden {
         class StaDisabledState extends State {
             @Override
             public void enter() {
-                mActiveModeWarden.disableWifi();
+                changeMode(ModeStateMachine.CMD_DISABLE_WIFI);
             }
 
             @Override
@@ -927,7 +849,7 @@ public class ActiveModeWarden {
             @Override
             public void enter() {
                 log("StaEnabledState.enter()");
-                mActiveModeWarden.enterClientMode();
+                changeMode(ModeStateMachine.CMD_START_CLIENT_MODE);
             }
 
             @Override
@@ -997,8 +919,7 @@ public class ActiveModeWarden {
         class StaDisabledWithScanState extends State {
             @Override
             public void enter() {
-                // now trigger the actual mode switch in ActiveModeWarden
-                mActiveModeWarden.enterScanOnlyMode();
+                changeMode(ModeStateMachine.CMD_START_SCAN_ONLY_MODE);
             }
 
             @Override
@@ -1047,13 +968,13 @@ public class ActiveModeWarden {
 
             @Override
             public void enter() {
-                mActiveModeWarden.stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
                 boolean configWiFiDisableInECBM =
                         mFacade.getConfigWiFiDisableInECBM(mContext);
                 log("WifiController msg getConfigWiFiDisableInECBM "
                         + configWiFiDisableInECBM);
                 if (configWiFiDisableInECBM) {
-                    mActiveModeWarden.shutdownWifi();
+                    shutdownWifi();
                 }
                 mEcmEntryCount = 1;
             }
