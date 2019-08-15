@@ -1,4 +1,5 @@
-// Copyright (C) 2011 The Android Open Source Project
+//
+// Copyright (C) 2018 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,11 +12,32 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+java_defaults {
+    name: "WifiStackCommon",
+    min_sdk_version: "29",
+    platform_apis: true,
+    privileged: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    errorprone: {
+        javacflags: ["-Xep:CheckReturnValue:ERROR"],
+    },
+    product_variables: {
+        pdk: {
+            enabled: false,
+        },
+    },
+    resource_dirs: [
+        "res",
+    ],
+}
 
 // Make the JNI part
 // ============================================================
 cc_library_shared {
-    name: "libwifi-service",
+    name: "libwifi-jni",
 
     cflags: [
         "-Wall",
@@ -48,3 +70,98 @@ cc_library_shared {
         },
     },
 }
+
+// Build the wifi-service static library
+// ============================================================
+java_library {
+    name: "WifiStackBase",
+    installable: true,
+    defaults: ["WifiStackCommon"],
+    aidl: {
+        include_dirs: ["system/connectivity/wificond/aidl"],
+        local_include_dirs: ["java"],
+    },
+    srcs: [
+	":libwificond_ipc_aidl",
+        "java/**/*.java",
+        "java/**/I*.aidl",
+        "java/**/*.logtags",
+    ],
+
+    libs: [
+	"error_prone_annotations",
+	"libprotobuf-java-lite",
+	"jsr305",
+        "services",
+    ],
+
+    static_libs: [
+        "android.hardware.wifi-V1.0-java",
+        "android.hardware.wifi-V1.1-java",
+        "android.hardware.wifi-V1.2-java",
+        "android.hardware.wifi-V1.3-java",
+        "android.hardware.wifi.hostapd-V1.0-java",
+        "android.hardware.wifi.hostapd-V1.1-java",
+        "android.hardware.wifi.supplicant-V1.0-java",
+        "android.hardware.wifi.supplicant-V1.1-java",
+        "android.hardware.wifi.supplicant-V1.2-java",
+        "android.hidl.manager-V1.2-java",
+	"androidx.annotation_annotation",
+        "wifi_service_proto",
+        "ksoap2",
+        "libnanohttpd",
+	"services.core",
+	"services.net",
+	"services.wifi"
+    ],
+
+    required: [
+	"libwifi-jni",
+	"services",
+        "cacerts_wfa",
+    ],
+}
+
+java_defaults {
+    name: "WifiStackAppCommon",
+    defaults: ["WifiStackCommon"],
+    static_libs: [
+        "WifiStackBase",
+    ],
+    jni_libs: [
+        "libwifi-jni",
+    ],
+    // Resources already included in WifiStackBase
+    resource_dirs: [],
+    jarjar_rules: "jarjar-rules-shared.txt",
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
+}
+
+// Updatable stack packaged as an application
+android_app {
+    name: "WifiStack",
+    defaults: ["WifiStackAppCommon"],
+    certificate: "networkstack",
+    manifest: "AndroidManifest.xml",
+    use_embedded_native_libs: true,
+    // The permission configuration *must* be included to ensure security of the device
+    required: ["WifiStackPermissionConfig"],
+    init_rc: ["wifi.rc"],
+}
+
+// Non-updatable wifi stack running in the system server process for devices not using the module
+// TODO (b/135753701): Test this path.
+android_app {
+    name: "InProcessWifiStack",
+    defaults: ["WifiStackAppCommon"],
+    certificate: "platform",
+    manifest: "AndroidManifest_InProcess.xml",
+    // InProcessWifiStack is a replacement for WifiStack
+    overrides: ["WifiStack"],
+    // The permission configuration *must* be included to ensure security of the device
+   required: ["PlatformWifiStackPermissionConfig"],
+   init_rc: ["wifi_inprocess.rc"],
+}
+

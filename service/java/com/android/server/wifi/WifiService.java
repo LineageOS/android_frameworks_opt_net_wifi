@@ -17,34 +17,30 @@
 package com.android.server.wifi;
 
 import android.content.Context;
+import android.os.Binder;
 import android.util.Log;
 
-import com.android.server.SystemService;
 import com.android.server.wifi.util.WifiAsyncChannel;
 
-public final class WifiService extends SystemService {
+/**
+ * Manages the wifi service instance.
+ */
+public final class WifiService implements WifiServiceBase {
 
     private static final String TAG = "WifiService";
     final WifiServiceImpl mImpl;
 
     public WifiService(Context context) {
-        super(context);
         mImpl = new WifiServiceImpl(context, new WifiInjector(context), new WifiAsyncChannel(TAG));
     }
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Registering " + Context.WIFI_SERVICE);
-        publishBinderService(Context.WIFI_SERVICE, mImpl);
-    }
+        Log.i(TAG, "Starting " + Context.WIFI_SERVICE);
+        mImpl.checkAndStartWifi();
 
-    @Override
-    public void onBootPhase(int phase) {
-        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
-            mImpl.checkAndStartWifi();
-        } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
-            mImpl.handleBootCompleted();
-        }
+        // Trigger all the necessary boot completed actions, since we are starting late now.
+        mImpl.handleBootCompleted();
     }
 
     @Override
@@ -60,5 +56,10 @@ public final class WifiService extends SystemService {
     @Override
     public void onStopUser(int userId) {
         mImpl.handleUserStop(userId);
+    }
+
+    @Override
+    public Binder retrieveImpl() {
+        return mImpl;
     }
 }

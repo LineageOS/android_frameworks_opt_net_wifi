@@ -1,0 +1,96 @@
+// Copyright (C) 2015 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Make test APK
+// ============================================================
+android_test {
+    // TODO(rpius): Rename once all google3 config files are changed
+    // name: "WifiStackTests",
+    name: "FrameworksWifiTests",
+
+    srcs: ["**/*.java"],
+
+    dxflags: ["--multi-dex"],
+
+    // wifi-service and services must be included here so that the latest changes
+    // will be used when tests. Otherwise the tests would run against the installed
+    // system.
+    // TODO figure out if this is the correct thing to do, this seems to not be right
+    // since neither is declared a static java library.
+    static_libs: [
+        "androidx.test.rules",
+        "hamcrest-library",
+        "mockito-target-extended-minus-junit4",
+        "frameworks-base-testutils",
+        "services",
+        "WifiStackBase",
+        "truth-prebuilt",
+    ],
+
+    libs: [
+        "android.test.runner",
+        "android.hidl.manager-V1.2-java",
+        "android.test.base",
+        "android.test.mock",
+    ],
+
+    // These must be explicitly included because they are not normally accessible
+    // from apps.
+    jni_libs: [
+        "libcrypto",
+        "libwifi-jni",
+        "libEGL",
+        "libGLESv2",
+        "libaudioutils",
+        "libbacktrace",
+        "libbase",
+        "libbinder",
+        "libbinderthreadstate",
+        "libc++",
+        "ld-android",
+        "libdl_android",
+        "libcamera_client",
+        "libcamera_metadata",
+        "libcgrouprc",
+        "libcutils",
+        "libexpat",
+        "libgui",
+        "libhardware",
+        "libandroidicu",
+        "libjsoncpp",
+        "liblzma",
+        "libmedia",
+        "libnativehelper",
+        "libnbaio",
+        "libnetutils",
+        "libnl",
+        "libpowermanager",
+        "libprocessgroup",
+        "libsonivox",
+        "libstagefright_foundation",
+        "libstdc++",
+        "libsync",
+        "libwifi-system",
+        "libui",
+        "libunwindstack",
+        "libutils",
+        "libvndksupport",
+        "libdexmakerjvmtiagent",
+        "libstaticjvmtiagent",
+    ],
+    min_sdk_version: "29",
+    platform_apis: true,
+    privileged: true,
+    test_suites: ["device-tests"],
+}

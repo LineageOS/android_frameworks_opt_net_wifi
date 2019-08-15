@@ -42,10 +42,13 @@ public class WakeupNotificationFactory {
     public static final int ONBOARD_ID = SystemMessage.NOTE_WIFI_WAKE_ONBOARD;
 
     private final Context mContext;
+    private final WifiInjector mWifiInjector;
     private final FrameworkFacade mFrameworkFacade;
 
-    WakeupNotificationFactory(Context context, FrameworkFacade frameworkFacade) {
+    WakeupNotificationFactory(Context context, WifiInjector wifiInjector,
+                              FrameworkFacade frameworkFacade) {
         mContext = context;
+        mWifiInjector = wifiInjector;
         mFrameworkFacade = frameworkFacade;
     }
 
@@ -80,7 +83,8 @@ public class WakeupNotificationFactory {
 
 
     private PendingIntent getPrivateBroadcast(String action) {
-        Intent intent = new Intent(action).setPackage("android");
+        Intent intent = new Intent(action)
+                .setPackage(mWifiInjector.getWifiStackPackageName());
         return mFrameworkFacade.getBroadcast(
                 mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }

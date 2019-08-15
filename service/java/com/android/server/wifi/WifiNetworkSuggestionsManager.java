@@ -764,7 +764,7 @@ public class WifiNetworkSuggestionsManager {
     private PendingIntent getPrivateBroadcast(@NonNull String action, @NonNull String packageName,
                                               int uid) {
         Intent intent = new Intent(action)
-                .setPackage("android")
+                .setPackage(mWifiInjector.getWifiStackPackageName())
                 .putExtra(EXTRA_PACKAGE_NAME, packageName)
                 .putExtra(EXTRA_UID, uid);
         return mFrameworkFacade.getBroadcast(mContext, 0, intent,
