@@ -403,8 +403,8 @@ public class WifiServiceImpl extends BaseWifiService {
     private final WifiLockManager mWifiLockManager;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final DppManager mDppManager;
-
     private final WifiApConfigStore mWifiApConfigStore;
+    private final WifiThreadRunner mWifiThreadRunner;
 
     public WifiServiceImpl(Context context, WifiInjector wifiInjector, AsyncChannel asyncChannel) {
         mContext = context;
@@ -444,6 +444,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mPowerProfile = mWifiInjector.getPowerProfile();
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
+        mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
     }
 
     /**

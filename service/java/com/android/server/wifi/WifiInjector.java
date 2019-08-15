@@ -152,7 +152,7 @@ public class WifiInjector {
     private final LinkProbeManager mLinkProbeManager;
     private IpMemoryStore mIpMemoryStore;
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
-
+    private final WifiThreadRunner mWifiThreadRunner;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -189,6 +189,7 @@ public class WifiInjector {
         mWifiHandlerThread.start();
         Looper wifiLooper = mWifiHandlerThread.getLooper();
         Handler wifiHandler = mWifiHandlerThread.getThreadHandler();
+        mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
         mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, wifiHandler, mFrameworkFacade);
@@ -737,5 +738,9 @@ public class WifiInjector {
 
     public String getWifiStackPackageName() {
        return mContext.getPackageName();
+    }
+
+    public WifiThreadRunner getWifiThreadRunner() {
+        return mWifiThreadRunner;
     }
 }
