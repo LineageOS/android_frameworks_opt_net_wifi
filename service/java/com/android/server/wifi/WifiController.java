@@ -41,7 +41,6 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
  */
 public class WifiController extends StateMachine {
     private static final String TAG = "WifiController";
-    private static final boolean DBG = false;
     private Context mContext;
     private boolean mFirstUserSignOnSeen = false;
 
@@ -79,7 +78,6 @@ public class WifiController extends StateMachine {
     static final int CMD_AIRPLANE_TOGGLED                       = BASE + 9;
     static final int CMD_SET_AP                                 = BASE + 10;
     static final int CMD_DEFERRED_TOGGLE                        = BASE + 11;
-    static final int CMD_AP_START_FAILURE                       = BASE + 13;
     static final int CMD_EMERGENCY_CALL_STATE_CHANGED           = BASE + 14;
     static final int CMD_AP_STOPPED                             = BASE + 15;
     static final int CMD_STA_START_FAILURE                      = BASE + 16;
@@ -151,25 +149,13 @@ public class WifiController extends StateMachine {
             setInitialState(mStaDisabledState);
         }
         IntentFilter filter = new IntentFilter();
-        filter.addAction(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
-        filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(LocationManager.MODE_CHANGED_ACTION);
         mContext.registerReceiver(
                 new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         String action = intent.getAction();
-                        if (action.equals(WifiManager.WIFI_AP_STATE_CHANGED_ACTION)) {
-                            int state = intent.getIntExtra(
-                                    WifiManager.EXTRA_WIFI_AP_STATE,
-                                    WifiManager.WIFI_AP_STATE_FAILED);
-                            if (state == WifiManager.WIFI_AP_STATE_FAILED) {
-                                Log.e(TAG, "SoftAP start failed");
-                                sendMessage(CMD_AP_START_FAILURE);
-                            } else if (state == WifiManager.WIFI_AP_STATE_DISABLED) {
-                                sendMessage(CMD_AP_STOPPED);
-                            }
-                        } else if (action.equals(LocationManager.MODE_CHANGED_ACTION)) {
+                        if (action.equals(LocationManager.MODE_CHANGED_ACTION)) {
                             // Location mode has been toggled...  trigger with the scan change
                             // update to make sure we are in the correct mode
                             sendMessage(CMD_SCAN_ALWAYS_MODE_CHANGED);
@@ -250,7 +236,6 @@ public class WifiController extends StateMachine {
             switch (msg.what) {
                 case CMD_SCAN_ALWAYS_MODE_CHANGED:
                 case CMD_WIFI_TOGGLED:
-                case CMD_AP_START_FAILURE:
                 case CMD_SCANNING_STOPPED:
                 case CMD_STA_STOPPED:
                 case CMD_STA_START_FAILURE:
@@ -452,7 +437,6 @@ public class WifiController extends StateMachine {
                         mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_ENABLED);
                     }
                     return NOT_HANDLED;
-                case CMD_AP_START_FAILURE:
                 case CMD_AP_STOPPED:
                     // already in a wifi mode, no need to check where we should go with softap
                     // stopped
@@ -538,7 +522,6 @@ public class WifiController extends StateMachine {
                     logd("DEFERRED_TOGGLE handled");
                     sendMessage((Message)(msg.obj));
                     break;
-                case CMD_AP_START_FAILURE:
                 case CMD_AP_STOPPED:
                     // already in a wifi mode, no need to check where we should go with softap
                     // stopped
@@ -571,22 +554,6 @@ public class WifiController extends StateMachine {
             return true;
         }
 
-    }
-
-    /**
-     * Determine the next state based on the current settings (e.g. saved
-     * wifi state).
-     */
-    private State getNextWifiState() {
-        if (mSettingsStore.getWifiSavedState() == WifiSettingsStore.WIFI_ENABLED) {
-            return mStaEnabledState;
-        }
-
-        if (checkScanOnlyModeAvailable()) {
-            return mStaDisabledWithScanState;
-        }
-
-        return mStaDisabledState;
     }
 
     class EcmState extends State {
