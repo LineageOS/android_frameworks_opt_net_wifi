@@ -28,13 +28,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_AIRPLANE_TOGGLED;
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_EMERGENCY_MODE_CHANGED;
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.ActiveModeWarden.WifiController.CMD_WIFI_TOGGLED;
-
 import android.annotation.CheckResult;
 import android.app.AppOpsManager;
 import android.app.admin.DeviceAdminInfo;
@@ -398,7 +391,6 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private final ClientModeImplHandler mClientModeImplHandler;
-    private final ActiveModeWarden.WifiController mWifiController;
     private final WifiLockManager mWifiLockManager;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final DppManager mDppManager;
@@ -429,7 +421,6 @@ public class WifiServiceImpl extends BaseWifiService {
                 new AsyncChannelExternalClientHandler(TAG, asyncChannelHandlerThread.getLooper());
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
                 asyncChannelHandlerThread.getLooper(), asyncChannel);
-        mWifiController = mWifiInjector.getWifiController();
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
@@ -475,7 +466,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         if (mSettingsStore.handleAirplaneModeToggled()) {
-                            mWifiController.sendMessage(CMD_AIRPLANE_TOGGLED);
+                            mActiveModeWarden.airplaneModeToggled();
                         }
                         if (mSettingsStore.isAirplaneModeOn()) {
                             Log.d(TAG, "resetting country code because Airplane mode is ON");
@@ -510,7 +501,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (!mClientModeImpl.syncInitialize(mClientModeImplChannel)) {
             Log.wtf(TAG, "Failed to initialize ClientModeImpl");
         }
-        mWifiController.start();
+        mActiveModeWarden.start();
 
         // If we are already disabled (could be due to airplane mode), avoid changing persist
         // state here
@@ -831,7 +822,7 @@ public class WifiServiceImpl extends BaseWifiService {
             Binder.restoreCallingIdentity(ident);
         }
         mWifiMetrics.incrementNumWifiToggles(isPrivileged, enable);
-        mWifiController.sendMessage(CMD_WIFI_TOGGLED);
+        mActiveModeWarden.wifiToggled();
         return true;
     }
 
@@ -926,7 +917,7 @@ public class WifiServiceImpl extends BaseWifiService {
         // null wifiConfig is a meaningful input for CMD_SET_AP
         if (wifiConfig == null || WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
             SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(mode, wifiConfig);
-            mWifiController.sendMessage(CMD_SET_AP, 1, 0, softApConfig);
+            mActiveModeWarden.startSoftAp(softApConfig);
             return true;
         }
         Slog.e(TAG, "Invalid WifiConfiguration");
@@ -966,7 +957,7 @@ public class WifiServiceImpl extends BaseWifiService {
     private void stopSoftApInternal(int mode) {
         mLog.trace("stopSoftApInternal uid=% mode=%").c(Binder.getCallingUid()).c(mode).flush();
 
-        mWifiController.sendMessage(CMD_SET_AP, 0, mode);
+        mActiveModeWarden.stopSoftAp(mode);
     }
 
     /**
@@ -1045,7 +1036,7 @@ public class WifiServiceImpl extends BaseWifiService {
             }
             // Notify WifiController so it has a chance to turn wifi back on
             if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
-                mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_AP_STOPPED);
+                mActiveModeWarden.softApStopped();
             }
         }
 
@@ -2597,11 +2588,11 @@ public class WifiServiceImpl extends BaseWifiService {
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
                 boolean emergencyMode =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0);
+                mActiveModeWarden.emergencyCallbackModeChanged(emergencyMode);
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
                 boolean inCall =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, inCall ? 1 : 0);
+                mActiveModeWarden.emergencyCallStateChanged(inCall);
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
             }
@@ -2616,7 +2607,7 @@ public class WifiServiceImpl extends BaseWifiService {
             @Override
             public void onChange(boolean selfChange) {
                 mSettingsStore.handleWifiScanAlwaysAvailableToggled();
-                mWifiController.sendMessage(CMD_SCAN_ALWAYS_MODE_CHANGED);
+                mActiveModeWarden.scanAlwaysModeChanged();
             }
         };
         mFrameworkFacade.registerContentObserver(mContext,
@@ -2717,7 +2708,6 @@ public class WifiServiceImpl extends BaseWifiService {
                             Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0));
             pw.println("mInIdleMode " + mInIdleMode);
             pw.println("mScanPending " + mScanPending);
-            mWifiController.dump(fd, pw, args);
             mSettingsStore.dump(fd, pw, args);
             mWifiTrafficPoller.dump(fd, pw, args);
             pw.println();

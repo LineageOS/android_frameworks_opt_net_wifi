@@ -127,6 +127,66 @@ public class ActiveModeWarden {
         });
     }
 
+    /** Begin listening to broadcasts and start the internal state machine. */
+    public void start() {
+        mWifiController.start();
+    }
+
+    /** Disable Wifi for recovery purposes. */
+    public void recoveryDisableWifi() {
+        mWifiController.sendMessage(WifiController.CMD_RECOVERY_DISABLE_WIFI);
+    }
+
+    /**
+     * Restart Wifi for recovery purposes.
+     * @param reason One of {@link SelfRecovery.RecoveryReason}
+     */
+    public void recoveryRestartWifi(@SelfRecovery.RecoveryReason int reason) {
+        mWifiController.sendMessage(WifiController.CMD_RECOVERY_RESTART_WIFI, reason);
+    }
+
+    /** Wifi has been toggled. */
+    public void wifiToggled() {
+        mWifiController.sendMessage(WifiController.CMD_WIFI_TOGGLED);
+    }
+
+    /** Airplane Mode has been toggled. */
+    public void airplaneModeToggled() {
+        mWifiController.sendMessage(WifiController.CMD_AIRPLANE_TOGGLED);
+    }
+
+    /** Starts SoftAp. */
+    public void startSoftAp(SoftApModeConfiguration softApConfig) {
+        mWifiController.sendMessage(WifiController.CMD_SET_AP, 1, 0, softApConfig);
+    }
+
+    /** Stop SoftAp. */
+    public void stopSoftAp(int mode) {
+        mWifiController.sendMessage(WifiController.CMD_SET_AP, 0, mode);
+    }
+
+    /** Emergency Callback Mode has changed. */
+    public void emergencyCallbackModeChanged(boolean isInEmergencyCallbackMode) {
+        mWifiController.sendMessage(
+                WifiController.CMD_EMERGENCY_MODE_CHANGED, isInEmergencyCallbackMode ? 1 : 0);
+    }
+
+    /** Emergency Call state has changed. */
+    public void emergencyCallStateChanged(boolean isInEmergencyCall) {
+        mWifiController.sendMessage(
+                WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED, isInEmergencyCall ? 1 : 0);
+    }
+
+    /** Scan always mode has changed. */
+    public void scanAlwaysModeChanged() {
+        mWifiController.sendMessage(WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED);
+    }
+
+    /** When SoftAp has stopped. */
+    public void softApStopped() {
+        mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_AP_STOPPED);
+    }
+
     /**
      * Method to enable soft ap for wifi hotspot.
      *
@@ -136,7 +196,7 @@ public class ActiveModeWarden {
      *
      * @param softApConfig SoftApModeConfiguration for the hostapd softap
      */
-    public void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
+    private void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
         mHandler.post(() -> {
             Log.d(TAG, "Starting SoftApModeManager config = "
                     + softApConfig.getWifiConfiguration());
@@ -160,7 +220,7 @@ public class ActiveModeWarden {
      *             {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *             Use {@link WifiManager#IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    public void stopSoftAPMode(int mode) {
+    private void stopSoftAPMode(int mode) {
         mHandler.post(() -> {
             for (ActiveModeManager manager : mActiveModeManagers) {
                 if (!(manager instanceof SoftApManager)) continue;
@@ -179,7 +239,7 @@ public class ActiveModeWarden {
     /**
      * Method to stop all active modes, for example, when toggling airplane mode.
      */
-    public void shutdownWifi() {
+    private void shutdownWifi() {
         mHandler.post(() -> {
             for (ActiveModeManager manager : mActiveModeManagers) {
                 manager.stop();
@@ -200,6 +260,7 @@ public class ActiveModeWarden {
         for (ActiveModeManager manager : mActiveModeManagers) {
             manager.dump(fd, pw, args);
         }
+        mWifiController.dump(fd, pw, args);
     }
 
     /**
@@ -316,7 +377,8 @@ public class ActiveModeWarden {
         static final int CMD_RECOVERY_RESTART_WIFI                  = BASE + 17;
         // Internal command used to complete wifi stack restart
         private static final int CMD_RECOVERY_RESTART_WIFI_CONTINUE = BASE + 18;
-        // Command to disable wifi when SelfRecovery is throttled or otherwise not doing full recovery
+        // Command to disable wifi when SelfRecovery is throttled or otherwise not doing full
+        // recovery
         static final int CMD_RECOVERY_DISABLE_WIFI                  = BASE + 19;
         static final int CMD_STA_STOPPED                            = BASE + 20;
         static final int CMD_SCANNING_STOPPED                       = BASE + 21;
@@ -346,7 +408,7 @@ public class ActiveModeWarden {
             mRecoveryDelayMillis = readWifiRecoveryDelay();
         }
 
-        private String getCurrentMode() {
+        String getCurrentMode() {
             IState state = getCurrentState();
             return state == null ? STATE_MACHINE_EXITED_STATE_NAME : state.getName();
         }
@@ -368,21 +430,14 @@ public class ActiveModeWarden {
             } else {
                 setInitialState(mStaDisabledState);
             }
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(LocationManager.MODE_CHANGED_ACTION);
-            mContext.registerReceiver(
-                    new BroadcastReceiver() {
-                        @Override
-                        public void onReceive(Context context, Intent intent) {
-                            String action = intent.getAction();
-                            if (action.equals(LocationManager.MODE_CHANGED_ACTION)) {
-                                // Location mode has been toggled...  trigger with the scan change
-                                // update to make sure we are in the correct mode
-                                sendMessage(CMD_SCAN_ALWAYS_MODE_CHANGED);
-                            }
-                        }
-                    },
-                    new IntentFilter(filter));
+            mContext.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    // Location mode has been toggled...  trigger with the scan change
+                    // update to make sure we are in the correct mode
+                    scanAlwaysModeChanged();
+                }
+            }, new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
             super.start();
         }
 
@@ -535,13 +590,15 @@ public class ActiveModeWarden {
                         break;
                     case CMD_SET_AP:
                         if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start softap
+                            // remember that we were disabled, but pass the command up to start
+                            // softap
                             mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
                         }
                         return NOT_HANDLED;
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         // wait mRecoveryDelayMillis for letting driver clean reset.
-                        sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE, mRecoveryDelayMillis);
+                        sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE,
+                                mRecoveryDelayMillis);
                         break;
                     case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
                         if (mSettingsStore.isWifiToggleEnabled()) {
@@ -589,7 +646,6 @@ public class ActiveModeWarden {
                 }
             }
             private ClientListener mListener;
-
 
             @Override
             public void enter() {
@@ -644,7 +700,8 @@ public class ActiveModeWarden {
                         break;
                     case CMD_SET_AP:
                         if (msg.arg1 == 1) {
-                            // remember that we were enabled, but pass the command up to start softap
+                            // remember that we were enabled, but pass the command up to start
+                            // softap
                             mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_ENABLED);
                         }
                         return NOT_HANDLED;
@@ -751,7 +808,8 @@ public class ActiveModeWarden {
                         break;
                     case CMD_SET_AP:
                         if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start softap
+                            // remember that we were disabled, but pass the command up to start
+                            // softap
                             mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
                         }
                         return NOT_HANDLED;
