@@ -31,6 +31,7 @@ import android.hardware.wifi.hostapd.V1_1.IHostapdCallback;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
+import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
@@ -88,7 +89,7 @@ public class HostapdHalTest {
 
     private class HostapdHalSpy extends HostapdHal {
         HostapdHalSpy() {
-            super(mContext, mLooper.getLooper());
+            super(mContext, new Handler(mLooper.getLooper()));
         }
 
         @Override

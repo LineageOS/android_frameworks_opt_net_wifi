@@ -26,7 +26,6 @@ import android.net.Uri;
 import android.net.wifi.EAPConstants;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.ImsiEncryptionInfo;
@@ -69,7 +68,7 @@ public class CarrierNetworkConfig {
         mDbg = verbose > 0;
     }
 
-    public CarrierNetworkConfig(@NonNull Context context, @NonNull Looper looper,
+    public CarrierNetworkConfig(@NonNull Context context, @NonNull Handler handler,
             @NonNull FrameworkFacade framework) {
         mCarrierNetworkMap = new HashMap<>();
         updateNetworkConfig(context);
@@ -85,7 +84,7 @@ public class CarrierNetworkConfig {
         }, filter);
 
         framework.registerContentObserver(context, CONTENT_URI, false,
-                new ContentObserver(new Handler(looper)) {
+                new ContentObserver(handler) {
                 @Override
                 public void onChange(boolean selfChange) {
                     updateNetworkConfig(context);

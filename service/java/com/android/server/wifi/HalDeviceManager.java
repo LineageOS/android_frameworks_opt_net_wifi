@@ -37,7 +37,6 @@ import android.hidl.manager.V1_2.IServiceManager;
 import android.os.Handler;
 import android.os.HidlSupport.Mutable;
 import android.os.HwRemoteBinder;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.LongSparseArray;
@@ -82,9 +81,9 @@ public class HalDeviceManager {
     private boolean mIsVendorHalSupported = false;
 
     // public API
-    public HalDeviceManager(Clock clock, Looper looper) {
+    public HalDeviceManager(Clock clock, Handler handler) {
         mClock = clock;
-        mEventHandler = new Handler(looper);
+        mEventHandler = handler;
         mIWifiDeathRecipient = new WifiDeathRecipient();
         mServiceManagerDeathRecipient = new ServiceManagerDeathRecipient();
 

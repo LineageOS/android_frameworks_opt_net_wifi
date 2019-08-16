@@ -27,6 +27,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
+import android.os.Handler;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
@@ -218,8 +219,8 @@ public class WifiConfigStoreTest {
     public void setUp() throws Exception {
         setupMocks();
 
-        mWifiConfigStore = new WifiConfigStore(mContext, mLooper.getLooper(), mClock, mWifiMetrics,
-                mSharedStore);
+        mWifiConfigStore = new WifiConfigStore(mContext, new Handler(mLooper.getLooper()), mClock,
+                mWifiMetrics, mSharedStore);
         // Enable verbose logging before tests.
         mWifiConfigStore.enableVerboseLogging(true);
     }

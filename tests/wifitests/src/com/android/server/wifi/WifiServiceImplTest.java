@@ -346,7 +346,7 @@ public class WifiServiceImplTest {
         when(mClientModeImpl.syncInitialize(any())).thenReturn(true);
         when(mClientModeImpl.getHandler()).thenReturn(new Handler());
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
-        when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mHandlerThread);
+        when(mWifiInjector.getAsyncChannelHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
         when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
         when(mContext.getResources()).thenReturn(mResources);

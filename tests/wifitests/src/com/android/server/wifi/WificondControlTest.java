@@ -221,7 +221,7 @@ public class WificondControlTest {
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         mLooper = new TestLooper();
         mWificondControl = new WificondControl(mWifiInjector, mWifiMonitor, mCarrierNetworkConfig,
-                mAlarmManager, mLooper.getLooper(), mClock);
+                mAlarmManager, new Handler(mLooper.getLooper()), mClock);
         assertEquals(mClientInterface, mWificondControl.setupInterfaceForClientMode(
                 TEST_INTERFACE_NAME));
         verify(mWifiInjector).makeWificond();

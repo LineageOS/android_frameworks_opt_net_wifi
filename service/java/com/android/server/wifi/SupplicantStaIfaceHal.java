@@ -55,7 +55,6 @@ import android.net.wifi.WifiSsid;
 import android.os.Handler;
 import android.os.HidlSupport.Mutable;
 import android.os.HwRemoteBinder;
-import android.os.Looper;
 import android.os.Process;
 import android.os.RemoteException;
 import android.text.TextUtils;
@@ -184,11 +183,11 @@ public class SupplicantStaIfaceHal {
     }
 
     public SupplicantStaIfaceHal(Context context, WifiMonitor monitor,
-                                 PropertyService propertyService, Looper looper) {
+                                 PropertyService propertyService, Handler handler) {
         mContext = context;
         mWifiMonitor = monitor;
         mPropertyService = propertyService;
-        mEventHandler = new Handler(looper);
+        mEventHandler = handler;
 
         mServiceManagerDeathRecipient = new ServiceManagerDeathRecipient();
         mSupplicantDeathRecipient = new SupplicantDeathRecipient();
