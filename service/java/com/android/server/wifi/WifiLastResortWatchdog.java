@@ -116,7 +116,7 @@ public class WifiLastResortWatchdog {
     // did not fix the problem
     private boolean mWatchdogFixedWifi = true;
     private long mLastStartConnectTime = 0;
-    private Handler mHandler;
+    private final Handler mHandler;
     private final WifiThreadRunner mWifiThreadRunner;
 
     private boolean mWatchdogFeatureEnabled = true;

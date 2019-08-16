@@ -150,6 +150,11 @@ public class ClientModeImpl extends StateMachine {
     @VisibleForTesting public static final short NUM_LOG_RECS_NORMAL = 100;
     @VisibleForTesting public static final short NUM_LOG_RECS_VERBOSE_LOW_MEMORY = 200;
     @VisibleForTesting public static final short NUM_LOG_RECS_VERBOSE = 3000;
+
+    // Association rejection reason codes
+    @VisibleForTesting
+    protected static final int REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA = 17;
+
     private static final String TAG = "WifiClientModeImpl";
 
     private static final int ONE_HOUR_MILLI = 1000 * 60 * 60;
@@ -196,6 +201,7 @@ public class ClientModeImpl extends StateMachine {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiConfigManager mWifiConfigManager;
     private final WifiConnectivityManager mWifiConnectivityManager;
+    private final BssidBlocklistMonitor mBssidBlocklistMonitor;
     private ConnectivityManager mCm;
     private BaseWifiDiagnostics mWifiDiagnostics;
     private final boolean mP2pSupported;
@@ -741,7 +747,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiInfo = new ExtendedWifiInfo();
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
-
+        mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
 
         mLinkProperties = new LinkProperties();
         mMcastLockManagerFilterController = new McastLockManagerFilterController();
@@ -2710,6 +2716,17 @@ public class ClientModeImpl extends StateMachine {
         if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
             mWifiScoreCard.noteConnectionFailure(mWifiInfo,
                     level2FailureCode, connectivityFailureCode);
+            String bssid = mLastBssid == null ? mTargetRoamBSSID : mLastBssid;
+            String ssid = mWifiInfo.getSSID();
+            if (WifiSsid.NONE.equals(ssid)) {
+                ssid = getTargetSsid();
+            }
+            int bssidBlocklistMonitorReason = convertToBssidBlocklistMonitorFailureReason(
+                    level2FailureCode, level2FailureReason);
+            if (bssidBlocklistMonitorReason != -1) {
+                mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid,
+                        bssidBlocklistMonitorReason);
+            }
         }
         // if connected, this should be non-null.
         WifiConfiguration configuration = getCurrentWifiConfiguration();
@@ -2726,6 +2743,32 @@ public class ClientModeImpl extends StateMachine {
                     level2FailureCode, configuration, getCurrentBSSID());
         }
         handleConnectionAttemptEndForDiagnostics(level2FailureCode);
+    }
+
+    private int convertToBssidBlocklistMonitorFailureReason(
+            int level2FailureCode, int failureReason) {
+        switch (level2FailureCode) {
+            case WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT:
+                return BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT;
+            case WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION:
+                if (failureReason == WifiMetricsProto.ConnectionEvent
+                        .ASSOCIATION_REJECTION_AP_UNABLE_TO_HANDLE_NEW_STA) {
+                    return BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA;
+                }
+                return BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION;
+            case WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE:
+                if (failureReason == WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD) {
+                    return BssidBlocklistMonitor.REASON_WRONG_PASSWORD;
+                } else if (failureReason == WifiMetricsProto.ConnectionEvent
+                        .AUTH_FAILURE_EAP_FAILURE) {
+                    return BssidBlocklistMonitor.REASON_EAP_FAILURE;
+                }
+                return BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE;
+            case WifiMetrics.ConnectionEvent.FAILURE_DHCP:
+                return BssidBlocklistMonitor.REASON_DHCP_FAILURE;
+            default:
+                return -1;
+        }
     }
 
     private void handleIPv4Success(DhcpResults dhcpResults) {
@@ -2757,6 +2800,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setTrusted(config.trusted);
             mWifiConfigManager.updateRandomizedMacExpireTime(config,
                     dhcpResults.getLeaseDuration());
+            mBssidBlocklistMonitor.handleDhcpProvisioningSuccess(mLastBssid);
         }
 
         // Set meteredHint if DHCP result says network is metered
@@ -3424,6 +3468,8 @@ public class ClientModeImpl extends StateMachine {
             boolean handleStatus = HANDLED;
             int callbackIdentifier = -1;
 
+            int level2FailureReason =
+                    WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN;
             switch (message.what) {
                 case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
                     mWifiDiagnostics.captureBugReportData(
@@ -3438,23 +3484,23 @@ public class ClientModeImpl extends StateMachine {
                         // If BSSID is null, use the target roam BSSID
                         bssid = mTargetRoamBSSID;
                     }
-                    if (bssid != null) {
-                        // If we have a BSSID, tell configStore to black list it
-                        mDidBlackListBSSID = mWifiConnectivityManager.trackBssid(bssid, false,
-                            reasonCode);
-                    }
                     mWifiConfigManager.updateNetworkSelectionStatus(mTargetNetworkId,
                             WifiConfiguration.NetworkSelectionStatus
                             .DISABLED_ASSOCIATION_REJECTION);
                     mWifiConfigManager.setRecentFailureAssociationStatus(mTargetNetworkId,
                             reasonCode);
+
+                    if (reasonCode == REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA) {
+                        level2FailureReason = WifiMetricsProto.ConnectionEvent
+                                .ASSOCIATION_REJECTION_AP_UNABLE_TO_HANDLE_NEW_STA;
+                    }
                     // If rejection occurred while Metrics is tracking a ConnnectionEvent, end it.
                     reportConnectionAttemptEnd(
                             timedOut
                                     ? WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT
                                     : WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
-                            WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+                            level2FailureReason);
                     mWifiInjector.getWifiLastResortWatchdog()
                             .noteConnectionFailureAndTriggerIfNeeded(
                                     getTargetSsid(), bssid,
@@ -3489,7 +3535,6 @@ public class ClientModeImpl extends StateMachine {
                     mWifiConfigManager.clearRecentFailureReason(mTargetNetworkId);
 
                     //If failure occurred while Metrics is tracking a ConnnectionEvent, end it.
-                    int level2FailureReason;
                     switch (reasonCode) {
                         case WifiManager.ERROR_AUTH_FAILURE_NONE:
                             level2FailureReason =
@@ -3663,6 +3708,7 @@ public class ClientModeImpl extends StateMachine {
                     mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
+                    mBssidBlocklistMonitor.updateFirmwareRoamingConfiguration(config.SSID);
 
                     reportConnectionAttemptStart(config, mTargetRoamBSSID,
                             WifiMetricsProto.ConnectionEvent.ROAM_UNRELATED);
@@ -3802,7 +3848,6 @@ public class ClientModeImpl extends StateMachine {
                                 mWifiInfo.setFrequency(scanResult.frequency);
                             }
                         }
-                        mWifiConnectivityManager.trackBssid(mLastBssid, true, reasonCode);
 
                         // We need to get the updated pseudonym from supplicant for EAP-SIM/AKA/AKA'
                         if (config.enterpriseConfig != null
@@ -4209,6 +4254,7 @@ public class ClientModeImpl extends StateMachine {
             mCountryCode.setReadyForChange(false);
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
             mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, mNetworkAgent.netId);
+            mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid);
         }
 
         @Override
@@ -4795,10 +4841,10 @@ public class ClientModeImpl extends StateMachine {
                         mWifiInfo.setBSSID(mLastBssid);
                         mWifiInfo.setNetworkId(mLastNetworkId);
                         int reasonCode = message.arg2;
-                        mWifiConnectivityManager.trackBssid(mLastBssid, true, reasonCode);
                         sendNetworkStateChangeBroadcast(mLastBssid);
 
                         // Successful framework roam! (probably)
+                        mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid);
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
                                 WifiMetricsProto.ConnectionEvent.HLF_NONE,
@@ -4929,6 +4975,10 @@ public class ClientModeImpl extends StateMachine {
                                             config.networkId,
                                             DISABLED_NO_INTERNET_TEMPORARY);
                                 }
+                                mBssidBlocklistMonitor.handleBssidConnectionFailure(
+                                        mLastBssid, config.SSID,
+                                        BssidBlocklistMonitor
+                                                .REASON_NETWORK_VALIDATION_FAILURE);
                             }
                         }
                     }
@@ -4940,6 +4990,7 @@ public class ClientModeImpl extends StateMachine {
                         mWifiDiagnostics.reportConnectionEvent(
                                 WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                         mWifiScoreCard.noteValidationSuccess(mWifiInfo);
+                        mBssidBlocklistMonitor.handleNetworkValidationSuccess(mLastBssid);
                         config = getCurrentWifiConfiguration();
                         if (config != null) {
                             // re-enable autojoin

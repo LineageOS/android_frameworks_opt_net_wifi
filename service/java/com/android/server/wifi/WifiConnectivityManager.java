@@ -43,12 +43,10 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -147,6 +145,7 @@ public class WifiConnectivityManager {
     private final ScoringParams mScoringParams;
     private final LocalLog mLocalLog;
     private final LinkedList<Long> mConnectionAttemptTimeStamps;
+    private final BssidBlocklistMonitor mBssidBlocklistMonitor;
     private WifiScanner mScanner;
 
     private boolean mDbg = false;
@@ -181,24 +180,6 @@ public class WifiConnectivityManager {
     private int mRssiScoreOffset;
     private int mRssiScoreSlope;
     private int mPnoScanIntervalMs;
-
-    // BSSID blacklist
-    @VisibleForTesting
-    public static final int BSSID_BLACKLIST_THRESHOLD = 3;
-    @VisibleForTesting
-    public static final int BSSID_BLACKLIST_EXPIRE_TIME_MS = 5 * 60 * 1000;
-    private static class BssidBlacklistStatus {
-        // Number of times this BSSID has been rejected for association.
-        public int counter;
-        public boolean isBlacklisted;
-        public long blacklistedTimeStamp = RESET_TIME_STAMP;
-    }
-    private Map<String, BssidBlacklistStatus> mBssidBlacklist =
-            new HashMap<>();
-
-    // Association failure reason codes
-    @VisibleForTesting
-    public static final int REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA = 17;
 
     // A helper to log debugging information in the local log buffer, which can
     // be retrieved in bugreport.
@@ -257,8 +238,9 @@ public class WifiConnectivityManager {
      *         false - if no candidate is selected by WifiNetworkSelector
      */
     private boolean handleScanResults(List<ScanDetail> scanDetails, String listenerName) {
-        // Check if any blacklisted BSSIDs can be freed.
-        refreshBssidBlacklist();
+        // Check if any blocklisted BSSIDs can be freed.
+        HashSet<String> bssidBlocklist =
+                new HashSet<>(mBssidBlocklistMonitor.updateAndGetBssidBlocklist());
 
         if (mStateMachine.isSupplicantTransientState()) {
             localLog(listenerName
@@ -270,7 +252,7 @@ public class WifiConnectivityManager {
         localLog(listenerName + " onResults: start network selection");
 
         WifiConfiguration candidate =
-                mNetworkSelector.selectNetwork(scanDetails, buildBssidBlacklist(), mWifiInfo,
+                mNetworkSelector.selectNetwork(scanDetails, bssidBlocklist, mWifiInfo,
                 mStateMachine.isConnected(), mStateMachine.isDisconnected(),
                 mUntrustedConnectionAllowed);
         mWifiLastResortWatchdog.updateAvailableNetworks(
@@ -626,6 +608,7 @@ public class WifiConnectivityManager {
 
         // Listen to WifiConfigManager network update events
         mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
+        mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */
@@ -1237,10 +1220,14 @@ public class WifiConnectivityManager {
      * Handler to prepare for connection to a user or app specified network
      */
     public void prepareForForcedConnection(int netId) {
-        localLog("prepareForForcedConnection: netId=" + netId);
+        WifiConfiguration config = mConfigManager.getConfiguredNetwork(netId);
+        if (config == null) {
+            return;
+        }
+        localLog("prepareForForcedConnection: SSID=" + config.SSID);
 
         clearConnectionAttemptTimeStamps();
-        clearBssidBlacklist();
+        mBssidBlocklistMonitor.clearBssidBlocklistForSsid(config.SSID);
     }
 
     /**
@@ -1251,175 +1238,6 @@ public class WifiConnectivityManager {
 
         mWaitForFullBandScanResults = true;
         startSingleScan(true, workSource);
-    }
-
-    /**
-     * Update the BSSID blacklist when a BSSID is enabled or disabled
-     *
-     * @param bssid the bssid to be enabled/disabled
-     * @param enable -- true enable the bssid
-     *               -- false disable the bssid
-     * @param reasonCode enable/disable reason code
-     * @return true if blacklist is updated; false otherwise
-     */
-    private boolean updateBssidBlacklist(String bssid, boolean enable, int reasonCode) {
-        // Remove the bssid from blacklist when it is enabled.
-        if (enable) {
-            return mBssidBlacklist.remove(bssid) != null;
-        }
-
-        // Do not update BSSID blacklist with information if this is the only
-        // BSSID for its SSID. By ignoring it we will cause additional failures
-        // which will trigger Watchdog.
-        if (mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid)) {
-            localLog("Ignore update Bssid Blacklist since Watchdog trigger is activated");
-            return false;
-        }
-
-        // Update the bssid's blacklist status when it is disabled because of
-        // association rejection.
-        BssidBlacklistStatus status = mBssidBlacklist.get(bssid);
-        if (status == null) {
-            // First time for this BSSID
-            status = new BssidBlacklistStatus();
-            mBssidBlacklist.put(bssid, status);
-        }
-
-        status.blacklistedTimeStamp = mClock.getElapsedSinceBootMillis();
-        status.counter++;
-        if (!status.isBlacklisted) {
-            if (status.counter >= BSSID_BLACKLIST_THRESHOLD
-                    || reasonCode == REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA) {
-                status.isBlacklisted = true;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Track whether a BSSID should be enabled or disabled for WifiNetworkSelector
-     *
-     * @param bssid the bssid to be enabled/disabled
-     * @param enable -- true enable the bssid
-     *               -- false disable the bssid
-     * @param reasonCode enable/disable reason code
-     * @return true if blacklist is updated; false otherwise
-     */
-    public boolean trackBssid(String bssid, boolean enable, int reasonCode) {
-        localLog("trackBssid: " + (enable ? "enable " : "disable ") + bssid + " reason code "
-                + reasonCode);
-
-        if (bssid == null) {
-            return false;
-        }
-
-        if (!updateBssidBlacklist(bssid, enable, reasonCode)) {
-            return false;
-        }
-
-        // Blacklist was updated, so update firmware roaming configuration.
-        updateFirmwareRoamingConfiguration();
-
-        if (!enable) {
-            // Disabling a BSSID can happen when connection to the AP was rejected.
-            // We start another scan immediately so that WifiNetworkSelector can
-            // give us another candidate to connect to.
-            startConnectivityScan(SCAN_IMMEDIATELY);
-        }
-
-        return true;
-    }
-
-    /**
-     * Check whether a bssid is disabled
-     */
-    @VisibleForTesting
-    public boolean isBssidDisabled(String bssid) {
-        BssidBlacklistStatus status = mBssidBlacklist.get(bssid);
-        return status == null ? false : status.isBlacklisted;
-    }
-
-    /**
-     * Compile and return a hashset of the blacklisted BSSIDs
-     */
-    private HashSet<String> buildBssidBlacklist() {
-        HashSet<String> blacklistedBssids = new HashSet<String>();
-        for (String bssid : mBssidBlacklist.keySet()) {
-            if (isBssidDisabled(bssid)) {
-                blacklistedBssids.add(bssid);
-            }
-        }
-
-        return blacklistedBssids;
-    }
-
-    /**
-     * Update firmware roaming configuration if the firmware roaming feature is supported.
-     * Compile and write the BSSID blacklist only. TODO(b/36488259): SSID whitelist is always
-     * empty for now.
-     */
-    private void updateFirmwareRoamingConfiguration() {
-        if (!mConnectivityHelper.isFirmwareRoamingSupported()) {
-            return;
-        }
-
-        int maxBlacklistSize = mConnectivityHelper.getMaxNumBlacklistBssid();
-        if (maxBlacklistSize < 0) {
-            Log.wtf(TAG, "Invalid max BSSID blacklist size:  " + maxBlacklistSize);
-            return;
-        } else if (maxBlacklistSize == 0) {
-            Log.d(TAG, "Skip setting firmware roaming configuration" +
-                    " since max BSSID blacklist size is zero");
-            return;
-        }
-
-        ArrayList<String> blacklistedBssids = new ArrayList<String>(buildBssidBlacklist());
-        int blacklistSize = blacklistedBssids.size();
-
-        if (blacklistSize > maxBlacklistSize) {
-            Log.wtf(TAG, "Attempt to write " + blacklistSize + " blacklisted BSSIDs, max size is "
-                    + maxBlacklistSize);
-
-            blacklistedBssids = new ArrayList<String>(blacklistedBssids.subList(0,
-                    maxBlacklistSize));
-            localLog("Trim down BSSID blacklist size from " + blacklistSize + " to "
-                    + blacklistedBssids.size());
-        }
-
-        if (!mConnectivityHelper.setFirmwareRoamingConfiguration(blacklistedBssids,
-                new ArrayList<String>())) {  // TODO(b/36488259): SSID whitelist management.
-            localLog("Failed to set firmware roaming configuration.");
-        }
-    }
-
-    /**
-     * Refresh the BSSID blacklist
-     *
-     * Go through the BSSID blacklist and check if a BSSID has been blacklisted for
-     * BSSID_BLACKLIST_EXPIRE_TIME_MS. If yes, re-enable it.
-     */
-    private void refreshBssidBlacklist() {
-        if (mBssidBlacklist.isEmpty()) {
-            return;
-        }
-
-        boolean updated = false;
-        Iterator<BssidBlacklistStatus> iter = mBssidBlacklist.values().iterator();
-        Long currentTimeStamp = mClock.getElapsedSinceBootMillis();
-
-        while (iter.hasNext()) {
-            BssidBlacklistStatus status = iter.next();
-            if (status.isBlacklisted && ((currentTimeStamp - status.blacklistedTimeStamp)
-                    >= BSSID_BLACKLIST_EXPIRE_TIME_MS)) {
-                iter.remove();
-                updated = true;
-            }
-        }
-
-        if (updated) {
-            updateFirmwareRoamingConfiguration();
-        }
     }
 
     /**
@@ -1434,15 +1252,6 @@ public class WifiConnectivityManager {
         mScanner.registerScanListener(mAllSingleScanListener);
     }
 
-
-    /**
-     * Clear the BSSID blacklist
-     */
-    private void clearBssidBlacklist() {
-        mBssidBlacklist.clear();
-        updateFirmwareRoamingConfiguration();
-    }
-
     /**
      * Start WifiConnectivityManager
      */
@@ -1450,7 +1259,7 @@ public class WifiConnectivityManager {
         if (mRunning) return;
         retrieveWifiScanner();
         mConnectivityHelper.getFirmwareRoamingInfo();
-        clearBssidBlacklist();
+        mBssidBlocklistMonitor.clearBssidBlocklist();
         mRunning = true;
     }
 
@@ -1461,7 +1270,7 @@ public class WifiConnectivityManager {
         if (!mRunning) return;
         mRunning = false;
         stopConnectivityScan();
-        clearBssidBlacklist();
+        mBssidBlocklistMonitor.clearBssidBlocklist();
         resetLastPeriodicSingleScanTimeStamp();
         mOpenNetworkNotifier.clearPendingNotification(true /* resetRepeatDelay */);
         mLastConnectionAttemptBssid = null;
@@ -1524,5 +1333,6 @@ public class WifiConnectivityManager {
         pw.println("WifiConnectivityManager - Log End ----");
         mOpenNetworkNotifier.dump(fd, pw, args);
         mCarrierNetworkConfig.dump(fd, pw, args);
+        mBssidBlocklistMonitor.dump(fd, pw, args);
     }
 }
