@@ -236,7 +236,7 @@ public class ActiveModeWarden {
     /**
      * Dump current state for active mode managers.
      *
-     * Must be called from ClientModeImpl thread.
+     * Must be called from the main Wifi thread.
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of " + TAG);

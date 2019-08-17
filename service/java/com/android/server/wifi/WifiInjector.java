@@ -422,10 +422,6 @@ public class WifiInjector {
         return mClientModeImpl;
     }
 
-    public Handler getClientModeImplHandler() {
-        return mClientModeImpl.getHandler();
-    }
-
     public ActiveModeWarden getActiveModeWarden() {
         return mActiveModeWarden;
     }
@@ -589,7 +585,8 @@ public class WifiInjector {
                 mWifiConfigManager, mWifiConfigStore, clientModeImpl,
                 new ConnectToNetworkNotificationBuilder(mContext, this, mFrameworkFacade));
         mWifiLastResortWatchdog = new WifiLastResortWatchdog(this, mContext, mClock,
-                mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade);
+                mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade,
+                mWifiThreadRunner);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),

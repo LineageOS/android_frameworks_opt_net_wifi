@@ -176,7 +176,7 @@ public class ClientModeManager implements ActiveModeManager {
 
                     // we must immediately clean up state in ClientModeImpl to unregister
                     // all client mode related objects
-                    // Note: onDestroyed is only called from the ClientModeImpl thread
+                    // Note: onDestroyed is only called from the main Wifi thread
                     mClientModeImpl.handleIfaceDestroyed();
 
                     sendMessage(CMD_INTERFACE_DESTROYED);

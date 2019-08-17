@@ -51,7 +51,14 @@ public class WifiThreadRunner {
      * BEWARE OF DEADLOCKS!!!
      *
      * @param <T> the return type
-     * @return value retrieved from Wifi thread
+     * @param supplier the lambda that should be run on the main Wifi thread
+     *                 e.g. wifiThreadRunner.call(() -> mWifiApConfigStore.getApConfiguration())
+     *                 or wifiThreadRunner.call(mWifiApConfigStore::getApConfiguration)
+     * @return value retrieved from Wifi thread, or null if the call failed.
+     *         Beware of NullPointerExceptions when expecting a primitive (e.g. int, long) return
+     *         type, it may still return null and throw a NullPointerException when auto-unboxing!
+     *         Recommend capturing the return value in an Integer or Long instead and explicitly
+     *         handling nulls.
      */
     @Nullable
     public <T> T call(@NonNull Supplier<T> supplier) {
