@@ -25,7 +25,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 import android.provider.Settings;
 import android.util.Log;
@@ -128,7 +127,7 @@ public class WakeupController {
 
     public WakeupController(
             Context context,
-            Looper looper,
+            Handler handler,
             WakeupLock wakeupLock,
             WakeupEvaluator wakeupEvaluator,
             WakeupOnboarding wakeupOnboarding,
@@ -140,7 +139,7 @@ public class WakeupController {
             FrameworkFacade frameworkFacade,
             Clock clock) {
         mContext = context;
-        mHandler = new Handler(looper);
+        mHandler = handler;
         mWakeupLock = wakeupLock;
         mWakeupEvaluator = wakeupEvaluator;
         mWakeupOnboarding = wakeupOnboarding;

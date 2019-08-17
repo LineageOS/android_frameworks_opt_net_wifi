@@ -38,6 +38,7 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
+import android.os.Handler;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -4571,7 +4572,7 @@ public class WifiConfigManagerTest {
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
                         mNetworkListSharedStoreData, mNetworkListUserStoreData,
                         mDeletedEphemeralSsidsStoreData, mRandomizedMacStoreData,
-                        mFrameworkFacade, mLooper.getLooper());
+                        mFrameworkFacade, new Handler(mLooper.getLooper()));
         mWifiConfigManager.enableVerboseLogging(1);
     }
 

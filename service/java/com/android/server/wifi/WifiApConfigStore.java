@@ -28,7 +28,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -92,21 +91,21 @@ public class WifiApConfigStore {
     private final FrameworkFacade mFrameworkFacade;
     private boolean mRequiresApBandConversion = false;
 
-    WifiApConfigStore(Context context, WifiInjector wifiInjector, Looper looper,
+    WifiApConfigStore(Context context, WifiInjector wifiInjector, Handler handler,
             BackupManagerProxy backupManagerProxy, FrameworkFacade frameworkFacade) {
-        this(context, wifiInjector, looper, backupManagerProxy, frameworkFacade,
+        this(context, wifiInjector, handler, backupManagerProxy, frameworkFacade,
                 DEFAULT_AP_CONFIG_FILE);
     }
 
     WifiApConfigStore(Context context,
                       WifiInjector wifiInjector,
-                      Looper looper,
+                      Handler handler,
                       BackupManagerProxy backupManagerProxy,
                       FrameworkFacade frameworkFacade,
                       String apConfigFile) {
         mContext = context;
         mWifiInjector = wifiInjector;
-        mHandler = new Handler(looper);
+        mHandler = handler;
         mBackupManagerProxy = backupManagerProxy;
         mFrameworkFacade = frameworkFacade;
         mApConfigFile = apConfigFile;

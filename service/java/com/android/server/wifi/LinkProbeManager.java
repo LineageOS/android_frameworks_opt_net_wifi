@@ -21,7 +21,6 @@ import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.os.Handler;
-import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -105,7 +104,7 @@ public class LinkProbeManager {
     private final TimedQuotaManager mTimedQuotaManager;
 
     public LinkProbeManager(Clock clock, WifiNative wifiNative, WifiMetrics wifiMetrics,
-            FrameworkFacade frameworkFacade, Looper looper, Context context) {
+            FrameworkFacade frameworkFacade, Handler handler, Context context) {
         mClock = clock;
         mWifiNative = wifiNative;
         mWifiMetrics = wifiMetrics;
@@ -118,7 +117,7 @@ public class LinkProbeManager {
         if (mLinkProbingSupported) {
             mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                     Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
-                    new ContentObserver(new Handler(looper)) {
+                    new ContentObserver(handler) {
                         @Override
                         public void onChange(boolean selfChange) {
                             updateLinkProbeSetting();

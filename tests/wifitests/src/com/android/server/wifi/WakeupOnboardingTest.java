@@ -78,8 +78,8 @@ public class WakeupOnboardingTest {
                 .thenReturn(mNotificationManager);
 
         mLooper = new TestLooper();
-        mWakeupOnboarding = new WakeupOnboarding(mContext, mWifiConfigManager, mLooper.getLooper(),
-                mFrameworkFacade, mWakeupNotificationFactory);
+        mWakeupOnboarding = new WakeupOnboarding(mContext, mWifiConfigManager,
+                new Handler(mLooper.getLooper()), mFrameworkFacade, mWakeupNotificationFactory);
     }
 
     /**

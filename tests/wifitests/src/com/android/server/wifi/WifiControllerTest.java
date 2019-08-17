@@ -120,8 +120,7 @@ public class WifiControllerTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
 
@@ -181,10 +180,9 @@ public class WifiControllerTest {
         // reset to avoid the default behavior
         reset(mActiveModeWarden);
 
-        WifiController wifiController =
-                new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                                   mSettingsStore, mLooper.getLooper(), mFacade,
-                                   mActiveModeWarden, mWifiPermissionsUtil);
+        WifiController wifiController = new WifiController(mContext, mClientModeImpl,
+                mLooper.getLooper(), mSettingsStore, mFacade, mActiveModeWarden,
+                mWifiPermissionsUtil);
 
         wifiController.start();
         mLooper.dispatchAll();
@@ -205,8 +203,7 @@ public class WifiControllerTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         reset(mActiveModeWarden);
         mWifiController.start();
@@ -234,8 +231,7 @@ public class WifiControllerTest {
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();
@@ -268,8 +264,7 @@ public class WifiControllerTest {
         reset(mContext, mActiveModeWarden);
         when(mContext.getResources()).thenReturn(mResources);
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
 
@@ -539,58 +534,6 @@ public class WifiControllerTest {
         mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 0);
         mLooper.dispatchAll();
         verify(mActiveModeWarden).enterClientMode();
-    }
-
-    /**
-     * Updates about call state change with an invalid state do not change modes.
-     */
-    @Test
-    public void testEnterEcmOnEmergencyCallStateChangeAndUpdateWithInvalidState() throws Exception {
-        verify(mActiveModeWarden).disableWifi();
-
-        enableWifi();
-        verify(mActiveModeWarden).enterClientMode();
-
-        reset(mActiveModeWarden);
-
-        // Test with WifiDisableInECBM turned on:
-        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
-
-        // test call state changed
-        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 1);
-        mLooper.dispatchAll();
-        verify(mActiveModeWarden).shutdownWifi();
-
-        reset(mActiveModeWarden);
-        mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, 2);
-        mLooper.dispatchAll();
-        verifyNoMoreInteractions(mActiveModeWarden);
-    }
-
-    /**
-     * Updates about emergency mode change with an invalid state do not change modes.
-     */
-    @Test
-    public void testEnterEcmOnEmergencyModeChangeAndUpdateWithInvalidState() throws Exception {
-        verify(mActiveModeWarden).disableWifi();
-
-        enableWifi();
-        verify(mActiveModeWarden).enterClientMode();
-
-        reset(mActiveModeWarden);
-
-        // Test with WifiDisableInECBM turned on:
-        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
-
-        // test call state changed
-        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 1);
-        mLooper.dispatchAll();
-        verify(mActiveModeWarden).shutdownWifi();
-
-        reset(mActiveModeWarden);
-        mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, 2);
-        mLooper.dispatchAll();
-        verifyNoMoreInteractions(mActiveModeWarden);
     }
 
     /**
@@ -1012,8 +955,7 @@ public class WifiControllerTest {
         when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(false);
 
         mWifiController = new WifiController(mContext, mClientModeImpl, mLooper.getLooper(),
-                mSettingsStore, mLooper.getLooper(), mFacade, mActiveModeWarden,
-                mWifiPermissionsUtil);
+                mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
 
         mWifiController.start();
         mLooper.dispatchAll();
@@ -1050,8 +992,8 @@ public class WifiControllerTest {
         mLooper.moveTimeForward(TEST_WIFI_RECOVERY_DELAY_MS);
         mLooper.dispatchAll();
         InOrder inOrder = inOrder(mActiveModeWarden);
-        verify(mActiveModeWarden).disableWifi();
-        verify(mActiveModeWarden).enterScanOnlyMode();
+        inOrder.verify(mActiveModeWarden).disableWifi();
+        inOrder.verify(mActiveModeWarden).enterScanOnlyMode();
     }
 
     /**

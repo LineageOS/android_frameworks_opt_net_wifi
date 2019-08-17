@@ -26,7 +26,6 @@ import android.content.Context;
 import android.os.Environment;
 import android.os.FileUtils;
 import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.Xml;
@@ -218,17 +217,17 @@ public class WifiConfigStore {
      * Note: The store file instances have been made inputs to this class to ease unit-testing.
      *
      * @param context     context to use for retrieving the alarm manager.
-     * @param looper      looper instance to post alarm timeouts to.
+     * @param handler     handler instance to post alarm timeouts to.
      * @param clock       clock instance to retrieve timestamps for alarms.
      * @param wifiMetrics Metrics instance.
      * @param sharedStore StoreFile instance pointing to the shared store file. This should
      *                    be retrieved using {@link #createSharedFile()} method.
      */
-    public WifiConfigStore(Context context, Looper looper, Clock clock, WifiMetrics wifiMetrics,
+    public WifiConfigStore(Context context, Handler handler, Clock clock, WifiMetrics wifiMetrics,
             StoreFile sharedStore) {
 
         mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        mEventHandler = new Handler(looper);
+        mEventHandler = handler;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
         mStoreDataList = new ArrayList<>();

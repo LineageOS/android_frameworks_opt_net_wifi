@@ -34,7 +34,6 @@ import android.net.wifi.WifiSsid;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -129,13 +128,13 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor,
-            CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Looper looper,
+            CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Handler handler,
             Clock clock) {
         mWifiInjector = wifiInjector;
         mWifiMonitor = wifiMonitor;
         mCarrierNetworkConfig = carrierNetworkConfig;
         mAlarmManager = alarmManager;
-        mEventHandler = new Handler(looper);
+        mEventHandler = handler;
         mClock = clock;
     }
 
@@ -595,7 +594,8 @@ public class WificondControl implements IBinder.DeathRecipient {
                 }
 
                 ScanDetail scanDetail = new ScanDetail(networkDetail, wifiSsid, bssid, flags,
-                        result.signalMbm / 100, result.frequency, result.tsf, ies, null);
+                        result.signalMbm / 100, result.frequency, result.tsf, ies, null,
+                        result.infoElement);
                 ScanResult scanResult = scanDetail.getScanResult();
                 // Update carrier network info if this AP's SSID is associated with a carrier Wi-Fi
                 // network and it uses EAP.

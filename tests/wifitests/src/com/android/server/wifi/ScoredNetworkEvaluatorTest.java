@@ -32,6 +32,7 @@ import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkScoreCache;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
@@ -95,7 +96,7 @@ public class ScoredNetworkEvaluatorTest {
                 ArgumentCaptor.forClass(ContentObserver.class);
         mScoreCache = new WifiNetworkScoreCache(mContext);
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext,
-                Looper.getMainLooper(), mFrameworkFacade, mNetworkScoreManager,
+                new Handler(Looper.getMainLooper()), mFrameworkFacade, mNetworkScoreManager,
                 mWifiConfigManager, new LocalLog(0), mScoreCache, mWifiPermissionsUtil);
         verify(mFrameworkFacade).registerContentObserver(eq(mContext), any(Uri.class), eq(false),
                 observerCaptor.capture());

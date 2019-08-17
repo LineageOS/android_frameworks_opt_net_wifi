@@ -302,7 +302,8 @@ public class ClientModeImplTest {
         ScanDetail detail = new ScanDetail(nd, sWifiSsid, bssid, "", rssi, freq,
                 Long.MAX_VALUE, /* needed so that scan results aren't rejected because
                                    there older than scan start */
-                ie, new ArrayList<String>());
+                ie, new ArrayList<String>(), ScanResults.generateIERawDatafromScanResultIE(ie));
+
         return detail;
     }
 
@@ -379,7 +380,7 @@ public class ClientModeImplTest {
     @Mock BaseWifiDiagnostics mWifiDiagnostics;
     @Mock ConnectivityManager mConnectivityManager;
     @Mock IProvisioningCallback mProvisioningCallback;
-    @Mock HandlerThread mWifiServiceHandlerThread;
+    @Mock HandlerThread mWifiHandlerThread;
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
     @Mock WakeupController mWakeupController;
     @Mock WifiDataStall mWifiDataStall;
@@ -434,8 +435,8 @@ public class ClientModeImplTest {
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(mWifiInjector.getClock()).thenReturn(mClock);
-        when(mWifiServiceHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
-        when(mWifiInjector.getWifiServiceHandlerThread()).thenReturn(mWifiServiceHandlerThread);
+        when(mWifiHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
+        when(mWifiInjector.getWifiHandlerThread()).thenReturn(mWifiHandlerThread);
         when(mWifiInjector.getWifiPermissionsWrapper()).thenReturn(mWifiPermissionsWrapper);
         when(mWifiInjector.getWakeupController()).thenReturn(mWakeupController);
         when(mWifiInjector.getScoringParams()).thenReturn(new ScoringParams());

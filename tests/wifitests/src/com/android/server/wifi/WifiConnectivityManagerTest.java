@@ -45,6 +45,7 @@ import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiScanner.ScanListener;
 import android.net.wifi.WifiScanner.ScanSettings;
 import android.net.wifi.WifiSsid;
+import android.os.Handler;
 import android.os.Process;
 import android.os.SystemClock;
 import android.os.WorkSource;
@@ -327,7 +328,8 @@ public class WifiConnectivityManagerTest {
                 mClientModeImpl, mWifiInjector,
                 mWifiConfigManager, mWifiInfo, mWifiNS, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier, mCarrierNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, mLooper.getLooper(), mClock, mLocalLog);
+                mCarrierNetworkConfig, mWifiMetrics, new Handler(mLooper.getLooper()), mClock,
+                mLocalLog);
     }
 
     /**

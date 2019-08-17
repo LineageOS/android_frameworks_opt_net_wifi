@@ -34,7 +34,6 @@ import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.PnoSettings;
 import android.net.wifi.WifiScanner.ScanSettings;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 import android.os.WorkSource;
 import android.util.LocalLog;
@@ -593,7 +592,7 @@ public class WifiConnectivityManager {
             WifiNetworkSelector networkSelector, WifiConnectivityHelper connectivityHelper,
             WifiLastResortWatchdog wifiLastResortWatchdog, OpenNetworkNotifier openNetworkNotifier,
             CarrierNetworkNotifier carrierNetworkNotifier,
-            CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Looper looper,
+            CarrierNetworkConfig carrierNetworkConfig, WifiMetrics wifiMetrics, Handler handler,
             Clock clock, LocalLog localLog) {
         mStateMachine = stateMachine;
         mWifiInjector = injector;
@@ -608,7 +607,7 @@ public class WifiConnectivityManager {
         mCarrierNetworkConfig = carrierNetworkConfig;
         mWifiMetrics = wifiMetrics;
         mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        mEventHandler = new Handler(looper);
+        mEventHandler = handler;
         mClock = clock;
         mScoringParams = scoringParams;
         mConnectionAttemptTimeStamps = new LinkedList<>();

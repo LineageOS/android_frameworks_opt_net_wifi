@@ -53,7 +53,6 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -248,14 +247,11 @@ public class WifiVendorHal {
     // Being final fields, they can be accessed without synchronization under
     // some reasonable assumptions. See
     // https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.5
-    private final Looper mLooper;
     private final Handler mHalEventHandler;
 
-    public WifiVendorHal(HalDeviceManager halDeviceManager,
-                         Looper looper) {
+    public WifiVendorHal(HalDeviceManager halDeviceManager, Handler handler) {
         mHalDeviceManager = halDeviceManager;
-        mLooper = looper;
-        mHalEventHandler = new Handler(looper);
+        mHalEventHandler = handler;
         mHalDeviceManagerStatusCallbacks = new HalDeviceManagerStatusListener();
         mIWifiStaIfaceEventCallback = new StaIfaceEventCallback();
         mIWifiChipEventCallback = new ChipEventCallback();

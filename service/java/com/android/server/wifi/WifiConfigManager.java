@@ -38,7 +38,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -388,7 +387,7 @@ public class WifiConfigManager {
             NetworkListUserStoreData networkListUserStoreData,
             DeletedEphemeralSsidsStoreData deletedEphemeralSsidsStoreData,
             RandomizedMacStoreData randomizedMacStoreData,
-            FrameworkFacade frameworkFacade, Looper looper) {
+            FrameworkFacade frameworkFacade, Handler handler) {
         mContext = context;
         mClock = clock;
         mUserManager = userManager;
@@ -422,7 +421,7 @@ public class WifiConfigManager {
         mFrameworkFacade = frameworkFacade;
         mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                 Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED), false,
-                new ContentObserver(new Handler(looper)) {
+                new ContentObserver(handler) {
                     @Override
                     public void onChange(boolean selfChange) {
                         updatePnoFrequencyCullingSetting();
@@ -431,7 +430,7 @@ public class WifiConfigManager {
         updatePnoFrequencyCullingSetting();
         mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                 Settings.Global.WIFI_PNO_RECENCY_SORTING_ENABLED), false,
-                new ContentObserver(new Handler(looper)) {
+                new ContentObserver(handler) {
                     @Override
                     public void onChange(boolean selfChange) {
                         updatePnoRecencySortingSetting();
