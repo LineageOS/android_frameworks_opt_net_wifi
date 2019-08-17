@@ -27,7 +27,6 @@ import android.os.Environment;
 import android.os.FileUtils;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.UserManager;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.Xml;
@@ -209,7 +208,7 @@ public class WifiConfigStore {
      * @param clock       clock instance to retrieve timestamps for alarms.
      * @param wifiMetrics Metrics instance.
      * @param sharedStore StoreFile instance pointing to the shared store file. This should
-     *                    be retrieved using {@link #createSharedFile(UserManager)} method.
+     *                    be retrieved using {@link #createSharedFile()} method.
      */
     public WifiConfigStore(Context context, Looper looper, Clock clock, WifiMetrics wifiMetrics,
             StoreFile sharedStore) {
@@ -230,8 +229,7 @@ public class WifiConfigStore {
     /**
      * Set the user store files.
      * (Useful for mocking in unit tests).
-     * @param userStores List of {@link StoreFile} created using {@link #createUserFiles(int,
-     * UserManager)}.
+     * @param userStores List of {@link StoreFile} created using {@link #createUserFiles(int)}.
      */
     public void setUserStores(@NonNull List<StoreFile> userStores) {
         Preconditions.checkNotNull(userStores);
@@ -268,11 +266,9 @@ public class WifiConfigStore {
      * @param storeBaseDir Base directory under which the store file is to be stored. The store file
      *                     will be at <storeBaseDir>/wifi/WifiConfigStore.xml.
      * @param fileId Identifier for the file. See {@link StoreFileId}.
-     * @param userManager Instance of UserManager to check if the device is in single user mode.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId,
-                                                  UserManager userManager) {
+    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId) {
         File storeDir = new File(storeBaseDir, STORE_DIRECTORY_NAME);
         if (!storeDir.exists()) {
             if (!storeDir.mkdir()) {
@@ -280,24 +276,16 @@ public class WifiConfigStore {
                 return null;
             }
         }
-        File file = new File(storeDir, STORE_ID_TO_FILE_NAME.get(fileId));
-        DataIntegrityChecker dataIntegrityChecker = null;
-        // Turn on integrity checking only for single user mode devices.
-        if (userManager.hasUserRestriction(UserManager.DISALLOW_ADD_USER)) {
-            dataIntegrityChecker = new DataIntegrityChecker(file.getAbsolutePath());
-        }
-        return new StoreFile(file, fileId, dataIntegrityChecker);
+        return new StoreFile(new File(storeDir, STORE_ID_TO_FILE_NAME.get(fileId)), fileId);
     }
 
     /**
      * Create a new instance of the shared store file.
      *
-     * @param userManager Instance of UserManager to check if the device is in single user mode.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    public static @Nullable StoreFile createSharedFile(UserManager userManager) {
-        return createFile(
-                Environment.getDataMiscDirectory(), STORE_FILE_SHARED_GENERAL, userManager);
+    public static @Nullable StoreFile createSharedFile() {
+        return createFile(Environment.getDataMiscDirectory(), STORE_FILE_SHARED_GENERAL);
     }
 
     /**
@@ -305,16 +293,14 @@ public class WifiConfigStore {
      * The user store file is inside the user's encrypted data directory.
      *
      * @param userId userId corresponding to the currently logged-in user.
-     * @param userManager Instance of UserManager to check if the device is in single user mode.
      * @return List of new instances of the store files created or null if the directory cannot be
      * created.
      */
-    public static @Nullable List<StoreFile> createUserFiles(int userId, UserManager userManager) {
+    public static @Nullable List<StoreFile> createUserFiles(int userId) {
         List<StoreFile> storeFiles = new ArrayList<>();
         for (int fileId : Arrays.asList(
                 STORE_FILE_USER_GENERAL, STORE_FILE_USER_NETWORK_SUGGESTIONS)) {
-            StoreFile storeFile =
-                    createFile(Environment.getDataMiscCeDirectory(userId), fileId, userManager);
+            StoreFile storeFile = createFile(Environment.getDataMiscCeDirectory(userId), fileId);
             if (storeFile == null) {
                 return null;
             }
@@ -516,8 +502,7 @@ public class WifiConfigStore {
      * Handles a user switch. This method changes the user specific store files and reads from the
      * new user's store files.
      *
-     * @param userStores List of {@link StoreFile} created using {@link #createUserFiles(int,
-     * UserManager)}.
+     * @param userStores List of {@link StoreFile} created using {@link #createUserFiles(int)}.
      */
     public void switchUserStoresAndRead(@NonNull List<StoreFile> userStores)
             throws XmlPullParserException, IOException {
@@ -670,21 +655,19 @@ public class WifiConfigStore {
          */
         private String mFileName;
         /**
+         * The integrity file storing integrity checking data for the store file.
+         */
+        private DataIntegrityChecker mDataIntegrityChecker;
+        /**
          * {@link StoreFileId} Type of store file.
          */
         private @StoreFileId int mFileId;
-        /**
-         * The integrity file storing integrity checking data for the store file.
-         * Note: This is only turned on for single user devices.
-         */
-        private @Nullable DataIntegrityChecker mDataIntegrityChecker;
 
-        public StoreFile(File file, @StoreFileId int fileId,
-                         @Nullable DataIntegrityChecker dataIntegrityChecker) {
+        public StoreFile(File file, @StoreFileId int fileId) {
             mAtomicFile = new AtomicFile(file);
             mFileName = mAtomicFile.getBaseFile().getAbsolutePath();
+            mDataIntegrityChecker = new DataIntegrityChecker(mFileName);
             mFileId = fileId;
-            mDataIntegrityChecker = dataIntegrityChecker;
         }
 
         /**
@@ -695,7 +678,6 @@ public class WifiConfigStore {
         public boolean exists() {
             return mAtomicFile.exists();
         }
-
 
         /**
          * Read the entire raw data from the store file and return in a byte array.
@@ -709,24 +691,20 @@ public class WifiConfigStore {
             byte[] bytes = null;
             try {
                 bytes = mAtomicFile.readFully();
+                // Check that the file has not been altered since last writeBufferedRawData()
+                if (!mDataIntegrityChecker.isOk(bytes)) {
+                    Log.wtf(TAG, "Data integrity problem with file: " + mFileName);
+                    return null;
+                }
             } catch (FileNotFoundException e) {
                 return null;
-            }
-            if (mDataIntegrityChecker != null) {
-                // Check that the file has not been altered since last writeBufferedRawData()
-                try {
-                    if (!mDataIntegrityChecker.isOk(bytes)) {
-                        Log.wtf(TAG, "Data integrity problem with file: " + mFileName);
-                        return null;
-                    }
-                } catch (DigestException e) {
-                    // When integrity checking is introduced. The existing data will have no
-                    // related integrity file for validation. Thus, we will assume the existing
-                    // data is correct and immediately create the integrity file.
-                    Log.i(TAG, "isOK() had no integrity data to check; thus vacuously "
-                            + "true. Running update now.");
-                    mDataIntegrityChecker.update(bytes);
-                }
+            } catch (DigestException e) {
+                // When integrity checking is introduced. The existing data will have no related
+                // integrity file for validation. Thus, we will assume the existing data is correct
+                // and immediately create the integrity file.
+                Log.i(TAG, "isOK() had no integrity data to check; thus vacuously "
+                        + "true. Running update now.");
+                mDataIntegrityChecker.update(bytes);
             }
             return bytes;
         }
@@ -763,10 +741,8 @@ public class WifiConfigStore {
                 }
                 throw e;
             }
-            if (mDataIntegrityChecker != null) {
-                // There was a legitimate change and update the integrity checker.
-                mDataIntegrityChecker.update(mWriteData);
-            }
+            // There was a legitimate change and update the integrity checker.
+            mDataIntegrityChecker.update(mWriteData);
             // Reset the pending write data after write.
             mWriteData = null;
         }
