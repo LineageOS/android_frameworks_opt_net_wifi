@@ -1178,16 +1178,11 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                                 "ResponderLocation: lci/lcr parser failed exception -- " + e);
                     }
                     // Clear LCI and LCR data if the location data should not be retransmitted,
-                    // has a retention expiration time, contains no useful data, or did not parse.
-                    if (responderLocation == null) {
+                    // has a retention expiration time, contains no useful data, or did not parse,
+                    // or the caller is not in a privileged context.
+                    if (responderLocation == null || !isCalledFromPrivilegedContext) {
                         lci = null;
                         lcr = null;
-                    } else if (!isCalledFromPrivilegedContext) {
-                        // clear the raw lci and lcr buffers and civic location data if the
-                        // caller is not in a privileged context.
-                        lci = null;
-                        lcr = null;
-                        responderLocation.setCivicLocationSubelementDefaults();
                     }
                     if (resultForRequest.successNumber <= 1
                             && resultForRequest.distanceSdInMm != 0) {
