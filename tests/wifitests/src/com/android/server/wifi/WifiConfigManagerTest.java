@@ -4572,6 +4572,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(mock(SubscriptionInfo.class));
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subList);
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{DATA_SUBID});
 
         WifiConfiguration network = WifiConfigurationTestUtil.createEapNetwork();
         WifiConfiguration simNetwork = WifiConfigurationTestUtil.createEapNetwork(
@@ -4628,6 +4630,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 add(mock(SubscriptionInfo.class));
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subList);
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{DATA_SUBID});
 
         WifiConfiguration peapSimNetwork = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.SIM);

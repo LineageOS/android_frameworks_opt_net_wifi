@@ -501,6 +501,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 add(mock(SubscriptionInfo.class));
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subList);
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{DATA_SUBID});
 
         TelephonyUtil tu = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
         mTelephonyUtil = spy(tu);
@@ -1029,7 +1031,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
     /**
      * When the SIM card was removed, if the current wifi connection is using it, the connection
-     * should be disconnected.
+     * should be disconnected, otherwise, the connection shouldn't be impacted.
      */
     @Test
     public void testResetSimWhenConnectedSimRemoved() throws Exception {

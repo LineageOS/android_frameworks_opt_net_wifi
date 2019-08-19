@@ -25,13 +25,14 @@ import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.Credential.SimCredential;
 import android.net.wifi.hotspot2.pps.Credential.UserCredential;
 import android.net.wifi.hotspot2.pps.HomeSp;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import android.util.Pair;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.IMSIParameter;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType;
@@ -42,6 +43,7 @@ import com.android.server.wifi.hotspot2.anqp.ThreeGPPNetworkElement;
 import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
 import com.android.server.wifi.hotspot2.anqp.eap.NonEAPInnerAuth;
 import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -91,24 +93,26 @@ public class PasspointProvider {
     private final String mPackageName;
 
     private final IMSIParameter mImsiParameter;
-    private final List<String> mMatchingSIMImsiList;
 
     private final int mEAPMethodID;
     private final AuthParam mAuthParam;
+    private final TelephonyUtil mTelephonyUtil;
 
+    private int mBestGuessCarrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
     private boolean mHasEverConnected;
     private boolean mIsShared;
     private boolean mIsFromSuggestion;
 
+
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
-            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName,
+            TelephonyUtil telephonyUtil, long providerId, int creatorUid, String packageName,
             boolean isFromSuggestion) {
-        this(config, keyStore, simAccessor, providerId, creatorUid, packageName, isFromSuggestion,
+        this(config, keyStore, telephonyUtil, providerId, creatorUid, packageName, isFromSuggestion,
                 null, null, null, false, false);
     }
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
-            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName,
+            TelephonyUtil telephonyUtil, long providerId, int creatorUid, String packageName,
             boolean isFromSuggestion, List<String> caCertificateAliases,
             String clientPrivateKeyAndCertificateAlias,
             String remediationCaCertificateAlias,
@@ -125,6 +129,7 @@ public class PasspointProvider {
         mHasEverConnected = hasEverConnected;
         mIsShared = isShared;
         mIsFromSuggestion = isFromSuggestion;
+        mTelephonyUtil = telephonyUtil;
 
         // Setup EAP method and authentication parameter based on the credential.
         if (mConfig.getCredential().getUserCredential() != null) {
@@ -132,18 +137,15 @@ public class PasspointProvider {
             mAuthParam = new NonEAPInnerAuth(NonEAPInnerAuth.getAuthTypeID(
                     mConfig.getCredential().getUserCredential().getNonEapInnerMethod()));
             mImsiParameter = null;
-            mMatchingSIMImsiList = null;
         } else if (mConfig.getCredential().getCertCredential() != null) {
             mEAPMethodID = EAPConstants.EAP_TLS;
             mAuthParam = null;
             mImsiParameter = null;
-            mMatchingSIMImsiList = null;
         } else {
             mEAPMethodID = mConfig.getCredential().getSimCredential().getEapType();
             mAuthParam = null;
             mImsiParameter = IMSIParameter.build(
                     mConfig.getCredential().getSimCredential().getImsi());
-            mMatchingSIMImsiList = simAccessor.getMatchingImsis(mImsiParameter);
         }
     }
 
@@ -288,6 +290,34 @@ public class PasspointProvider {
     }
 
     /**
+     * Try to update the carrier ID according to the IMSI parameter of passpoint configuration.
+     *
+     * @return true if the carrier ID is updated, otherwise false.
+     */
+    public boolean tryUpdateCarrierId() {
+        return mTelephonyUtil.tryUpdateCarrierIdForPasspoint(mConfig);
+    }
+
+    private @Nullable String getMatchingSimImsi() {
+        String matchingSIMImsi = null;
+        if (mConfig.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID) {
+            matchingSIMImsi = mTelephonyUtil
+                    .getMatchingImsi(mConfig.getCarrierId());
+        } else {
+            // Get the IMSI and carrier ID of SIM card which match with the IMSI prefix from
+            // passpoint profile
+            Pair<String, Integer> imsiCarrierIdPair = mTelephonyUtil.getMatchingImsiCarrierId(
+                    mConfig.getCredential().getSimCredential().getImsi());
+            if (imsiCarrierIdPair != null) {
+                matchingSIMImsi = imsiCarrierIdPair.first;
+                mBestGuessCarrierId = imsiCarrierIdPair.second;
+            }
+        }
+
+        return matchingSIMImsi;
+    }
+
+    /**
      * Return the matching status with the given AP, based on the ANQP elements from the AP.
      *
      * @param anqpElements ANQP elements from the AP
@@ -296,12 +326,23 @@ public class PasspointProvider {
      */
     public PasspointMatch match(Map<ANQPElementType, ANQPElement> anqpElements,
             RoamingConsortium roamingConsortium) {
-        PasspointMatch providerMatch = matchProviderExceptFor3GPP(anqpElements, roamingConsortium);
+
+        String matchingSimImsi = null;
+        if (mConfig.getCredential().getSimCredential() != null) {
+            matchingSimImsi = getMatchingSimImsi();
+            if (TextUtils.isEmpty(matchingSimImsi)) {
+                Log.d(TAG, "No SIM card for this profile with SIM credential.");
+                return PasspointMatch.None;
+            }
+        }
+
+        PasspointMatch providerMatch = matchProviderExceptFor3GPP(
+                anqpElements, roamingConsortium, matchingSimImsi);
 
         // 3GPP Network matching.
         if (providerMatch == PasspointMatch.None && ANQPMatcher.matchThreeGPPNetwork(
                 (ThreeGPPNetworkElement) anqpElements.get(ANQPElementType.ANQP3GPPNetwork),
-                mImsiParameter, mMatchingSIMImsiList)) {
+                mImsiParameter, matchingSimImsi)) {
             return PasspointMatch.RoamingProvider;
         }
 
@@ -353,6 +394,11 @@ public class PasspointProvider {
         wifiConfig.providerFriendlyName = mConfig.getHomeSp().getFriendlyName();
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
         wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+        int carrierId = mConfig.getCarrierId();
+        if (carrierId == TelephonyManager.UNKNOWN_CARRIER_ID) {
+            carrierId = mBestGuessCarrierId;
+        }
+        wifiConfig.carrierId = carrierId;
 
         // Set RSN only to tell wpa_supplicant that this network is for Passpoint.
         wifiConfig.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
@@ -425,6 +471,7 @@ public class PasspointProvider {
                     wifiConfig.roamingConsortiumIds, wifiConfig.roamingConsortiumIds.length));
         }
         passpointConfig.setHomeSp(homeSp);
+        passpointConfig.setCarrierId(wifiConfig.carrierId);
 
         // Setup Credential.
         Credential credential = new Credential();
@@ -563,11 +610,11 @@ public class PasspointProvider {
      */
     private PasspointMatch matchProviderExceptFor3GPP(
             Map<ANQPElementType, ANQPElement> anqpElements,
-            RoamingConsortium roamingConsortium) {
+            RoamingConsortium roamingConsortium, String matchingSIMImsi) {
         // Domain name matching.
         if (ANQPMatcher.matchDomainName(
                 (DomainNameElement) anqpElements.get(ANQPElementType.ANQPDomName),
-                mConfig.getHomeSp().getFqdn(), mImsiParameter, mMatchingSIMImsiList)) {
+                mConfig.getHomeSp().getFqdn(), mImsiParameter, matchingSIMImsi)) {
             return PasspointMatch.HomeProvider;
         }
 

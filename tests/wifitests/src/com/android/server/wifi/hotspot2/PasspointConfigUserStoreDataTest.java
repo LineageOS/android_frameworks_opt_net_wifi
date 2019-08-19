@@ -29,10 +29,10 @@ import android.util.Xml;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FastXmlSerializer;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
 import org.junit.Before;
@@ -71,7 +71,7 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
     private static final boolean TEST_SHARED = false;
 
     @Mock WifiKeyStore mKeyStore;
-    @Mock SIMAccessor mSimAccessor;
+    @Mock TelephonyUtil mTelephonyUtil;
     @Mock PasspointConfigUserStoreData.DataSource mDataSource;
     PasspointConfigUserStoreData mConfigStoreData;
 
@@ -79,7 +79,7 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mConfigStoreData = new PasspointConfigUserStoreData(mKeyStore, mSimAccessor, mDataSource);
+        mConfigStoreData = new PasspointConfigUserStoreData(mKeyStore, mTelephonyUtil, mDataSource);
     }
 
     /**
@@ -245,12 +245,12 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
         // Setup expected data.
         List<PasspointProvider> providerList = new ArrayList<>();
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
-                mKeyStore, mSimAccessor, TEST_PROVIDER_ID, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
+                mKeyStore, mTelephonyUtil, TEST_PROVIDER_ID, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
                 false, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS),
                 TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, null,
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED));
-        providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
-                mKeyStore, mSimAccessor, TEST_PROVIDER_ID_2, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
+        providerList.add(new PasspointProvider(createFullPasspointConfiguration(), mKeyStore,
+                mTelephonyUtil, TEST_PROVIDER_ID_2, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
                 true, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
                 TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, TEST_REMEDIATION_CA_CERTIFICATE_ALIAS,
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED));

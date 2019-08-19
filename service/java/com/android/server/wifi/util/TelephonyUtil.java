@@ -19,6 +19,8 @@ package com.android.server.wifi.util;
 import android.annotation.NonNull;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -29,6 +31,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.WifiNative;
 
 import java.security.InvalidKeyException;
@@ -37,7 +40,7 @@ import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -99,23 +102,24 @@ public class TelephonyUtil {
      * @param config the instance of {@link WifiConfiguration}
      * @return the best match SubscriptionId
      */
-    public int getBestMatchSubscriptionId(WifiConfiguration config) {
+    public int getBestMatchSubscriptionId(@NonNull WifiConfiguration config) {
+        if (config.isPasspoint()) {
+            return getMatchingSubId(config.carrierId);
+        } else {
+            return getBestMatchSubscriptionIdForEnterprise(config);
+        }
+    }
+
+    private int getMatchingSubId(int carrierId) {
         List<SubscriptionInfo> subInfoList = mSubscriptionManager.getActiveSubscriptionInfoList();
         if (subInfoList == null || subInfoList.isEmpty()) {
             return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-        }
-        // Legacy WifiConfiguration without carrier ID
-        if (config.carrierId == TelephonyManager.UNKNOWN_CARRIER_ID
-                && config.enterpriseConfig != null
-                && config.enterpriseConfig.requireSimCredential()) {
-            Log.d(TAG, "carrierId is not assigned, using the default data sub.");
-            return SubscriptionManager.getDefaultDataSubscriptionId();
         }
 
         int dataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
         int matchSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         for (SubscriptionInfo subInfo : subInfoList) {
-            if (subInfo.getCarrierId() == config.carrierId) {
+            if (subInfo.getCarrierId() == carrierId) {
                 matchSubId = subInfo.getSubscriptionId();
                 if (matchSubId == dataSubId) {
                     // Priority of Data sub is higher than non data sub.
@@ -123,8 +127,27 @@ public class TelephonyUtil {
                 }
             }
         }
-        Log.d(TAG, "best match subscription id: " + matchSubId);
+        Log.d(TAG, "matching subId is " + matchSubId);
         return matchSubId;
+    }
+
+    private int getBestMatchSubscriptionIdForEnterprise(WifiConfiguration config) {
+        if (config.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+            return getMatchingSubId(config.carrierId);
+        }
+        // Legacy WifiConfiguration without carrier ID
+        if (config.enterpriseConfig == null
+                 || !config.enterpriseConfig.requireSimCredential()) {
+            Log.w(TAG, "The legacy config is not using EAP-SIM.");
+            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        }
+        int dataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
+        if (isSimPresent(dataSubId)) {
+            Log.d(TAG, "carrierId is not assigned, using the default data sub.");
+            return dataSubId;
+        }
+        Log.d(TAG, "data sim is not present.");
+        return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
     /**
@@ -751,33 +774,25 @@ public class TelephonyUtil {
     /**
      * Get the carrier type of current SIM.
      *
-     * @param tm {@link TelephonyManager} instance
+     * @param subId the subscription ID of SIM card.
      * @return carrier type of current active sim, {{@link #CARRIER_INVALID_TYPE}} if sim is not
-     * ready or {@code tm} is {@code null}
+     * ready.
      */
-    public static int getCarrierType(@NonNull TelephonyManager tm) {
-        if (tm == null) {
+    private int getCarrierType(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             return CARRIER_INVALID_TYPE;
         }
-        TelephonyManager defaultDataTm = tm.createForSubscriptionId(
-                SubscriptionManager.getDefaultDataSubscriptionId());
+        TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(subId);
 
-        if (defaultDataTm.getSimState() != TelephonyManager.SIM_STATE_READY) {
+        if (specifiedTm.getSimState() != TelephonyManager.SIM_STATE_READY) {
             return CARRIER_INVALID_TYPE;
         }
 
         // If two APIs return the same carrier ID, then is considered as MNO, otherwise MVNO
-        if (defaultDataTm.getCarrierIdFromSimMccMnc() == defaultDataTm.getSimCarrierId()) {
+        if (specifiedTm.getCarrierIdFromSimMccMnc() == specifiedTm.getSimCarrierId()) {
             return CARRIER_MNO_TYPE;
         }
         return CARRIER_MVNO_TYPE;
-    }
-
-    /**
-     * Returns true if at least one SIM is present on the device, false otherwise.
-     */
-    public static boolean isSimPresent(@Nonnull SubscriptionManager sm) {
-        return !sm.getActiveSubscriptionInfoList().isEmpty();
     }
 
     /**
@@ -831,5 +846,128 @@ public class TelephonyUtil {
         }
         TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(subId);
         specifiedTm.resetCarrierKeysForImsiEncryption();
+    }
+
+    /**
+     * Updates the carrier ID for passpoint configuration with SIM credential.
+     *
+     * @param config The instance of PasspointConfiguration.
+     * @return true if the carrier ID is updated, false otherwise
+     */
+    public boolean tryUpdateCarrierIdForPasspoint(PasspointConfiguration config) {
+        if (config.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID) {
+            return false;
+        }
+
+        Credential.SimCredential simCredential = config.getCredential().getSimCredential();
+        if (simCredential == null) {
+            // carrier ID is not required.
+            return false;
+        }
+
+        IMSIParameter imsiParameter = IMSIParameter.build(simCredential.getImsi());
+        // If the IMSI is not full, the carrier ID can not be matched for sure, so it should
+        // be ignored.
+        if (imsiParameter == null || !imsiParameter.isFullImsi()) {
+            Log.d(TAG, "IMSI is not available or not full");
+            return false;
+        }
+        List<SubscriptionInfo> infos = mSubscriptionManager.getActiveSubscriptionInfoList();
+        if (infos == null) {
+            return false;
+        }
+        // Find the active matching SIM card with the full IMSI from passpoint profile.
+        for (SubscriptionInfo subInfo : infos) {
+            TelephonyManager specifiedTm =
+                    mTelephonyManager.createForSubscriptionId(subInfo.getSubscriptionId());
+            String imsi = specifiedTm.getSubscriberId();
+            if (imsiParameter.matchesImsi(imsi)) {
+                config.setCarrierId(subInfo.getCarrierId());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get the IMSI and carrier ID of the SIM card which is matched with the given carrier ID.
+     *
+     * @param carrierId The carrier ID see {@link TelephonyManager.getSimCarrierId}
+     * @return null if there is no matching SIM card, otherwise the IMSI and carrier ID of the
+     * matching SIM card
+     */
+    public @Nullable String getMatchingImsi(int carrierId) {
+        int subId = getMatchingSubId(carrierId);
+        if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return mTelephonyManager.getSubscriberId(subId);
+        }
+
+        Log.d(TAG, "no active SIM card to match the carrier ID.");
+        return null;
+    }
+
+    /**
+     * Get the IMSI and carrier ID of the SIM card which is matched with the given IMSI
+     * (only prefix of IMSI - mccmnc*) from passpoint profile.
+     *
+     * @param imsiPrefix The IMSI parameter from passpoint profile.
+     * @return null if there is no matching SIM card, otherwise the IMSI and carrier ID of the
+     * matching SIM card
+     */
+    public @Nullable Pair<String, Integer> getMatchingImsiCarrierId(
+            String imsiPrefix) {
+        IMSIParameter imsiParameter = IMSIParameter.build(imsiPrefix);
+        if (imsiParameter == null) {
+            return null;
+        }
+        List<SubscriptionInfo> infos = mSubscriptionManager.getActiveSubscriptionInfoList();
+        if (infos == null) {
+            return null;
+        }
+        int dataSubId = SubscriptionManager.getDefaultDataSubscriptionId();
+        //Pair<IMSI, carrier ID> the IMSI and carrier ID of matched SIM card
+        Pair<String, Integer> matchedPair = null;
+        // matchedDataPair check if the data SIM is matched.
+        Pair<String, Integer> matchedDataPair = null;
+        // matchedMnoPair check if any matched SIM card is MNO.
+        Pair<String, Integer> matchedMnoPair = null;
+
+        // Find the active matched SIM card with the priority order of Data MNO SIM,
+        // Nondata MNO SIM, Data MVNO SIM, Nondata MVNO SIM.
+        for (SubscriptionInfo subInfo : infos) {
+            TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(
+                    subInfo.getSubscriptionId());
+            String operatorNumeric = specifiedTm.getSimOperatorNumeric();
+            if (operatorNumeric != null && imsiParameter.matchesMccMnc(operatorNumeric)) {
+                String curImsi = specifiedTm.getSubscriberId();
+                if (TextUtils.isEmpty(curImsi)) {
+                    continue;
+                }
+                matchedPair = new Pair<>(curImsi, subInfo.getCarrierId());
+                if (subInfo.getSubscriptionId() == dataSubId) {
+                    matchedDataPair = matchedPair;
+                    if (getCarrierType(subInfo.getSubscriptionId()) == CARRIER_MNO_TYPE) {
+                        Log.d(TAG, "MNO data is matched via IMSI.");
+                        return matchedDataPair;
+                    }
+                }
+                if (getCarrierType(subInfo.getSubscriptionId()) == CARRIER_MNO_TYPE) {
+                    matchedMnoPair = matchedPair;
+                }
+            }
+        }
+
+        if (matchedMnoPair != null) {
+            Log.d(TAG, "MNO sub is matched via IMSI.");
+            return matchedMnoPair;
+        }
+
+        if (matchedDataPair != null) {
+            Log.d(TAG, "MVNO data sub is matched via IMSI.");
+            return matchedDataPair;
+        }
+
+        return matchedPair;
     }
 }

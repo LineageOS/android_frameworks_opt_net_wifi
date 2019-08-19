@@ -117,6 +117,15 @@ public class IMSIParameter {
         return mImsi.regionMatches(false, 0, mccMnc, 0, checkLength);
     }
 
+    /**
+     * If the IMSI is full length.
+     *
+     * @return true If the length of IMSI is full, false otherwise.
+     */
+    public boolean isFullImsi() {
+        return !mPrefix;
+    }
+
     @Override
     public boolean equals(Object thatObject) {
         if (this == thatObject) {

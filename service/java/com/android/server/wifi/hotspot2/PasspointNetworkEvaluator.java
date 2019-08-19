@@ -31,7 +31,6 @@ import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiNetworkSelector;
 import com.android.server.wifi.util.ScanResultUtil;
-import com.android.server.wifi.util.TelephonyUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,11 +117,6 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             Pair<PasspointProvider, PasspointMatch> bestProvider =
                     mPasspointManager.matchProvider(scanResult);
             if (bestProvider != null) {
-                if (bestProvider.first.isSimCredential()
-                        && !TelephonyUtil.isSimPresent(mSubscriptionManager)) {
-                    // Skip providers backed by SIM credential when SIM is not present.
-                    continue;
-                }
                 candidateList.add(new PasspointNetworkCandidate(
                         bestProvider.first, bestProvider.second, scanDetail));
             }
