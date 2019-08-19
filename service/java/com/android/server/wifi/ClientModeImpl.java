@@ -89,7 +89,6 @@ import android.os.WorkSource;
 import android.provider.Settings;
 import android.system.OsConstants;
 import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
@@ -233,6 +232,8 @@ public class ClientModeImpl extends StateMachine {
     private int mLastSignalLevel = -1;
     private String mLastBssid;
     private int mLastNetworkId; // The network Id we successfully joined
+    // The subId used by WifiConfiguration with SIM credential which was connected successfully
+    private int mLastSubId;
 
     private boolean mIpReachabilityDisconnectEnabled = true;
 
@@ -676,15 +677,9 @@ public class ClientModeImpl extends StateMachine {
      */
     public static final WorkSource WIFI_WORK_SOURCE = new WorkSource(Process.WIFI_UID);
 
-    private TelephonyManager mTelephonyManager;
-    private TelephonyManager getTelephonyManager() {
-        if (mTelephonyManager == null) {
-            mTelephonyManager = mWifiInjector.makeTelephonyManager();
-        }
-        return mTelephonyManager;
-    }
-
     private final BatteryStatsManager mBatteryStatsManager;
+
+    private final TelephonyUtil mTelephonyUtil;
 
     private final String mTcpBufferSizes;
 
@@ -711,7 +706,8 @@ public class ClientModeImpl extends StateMachine {
                             LinkProbeManager linkProbeManager,
                             BatteryStatsManager batteryStatsManager,
                             SupplicantStateTracker supplicantStateTracker,
-                            MboOceController mboOceController) {
+                            MboOceController mboOceController,
+                            TelephonyUtil telephonyUtil) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -728,6 +724,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiTrafficPoller = wifiTrafficPoller;
         mLinkProbeManager = linkProbeManager;
         mMboOceController = mboOceController;
+        mTelephonyUtil = telephonyUtil;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStatsManager = batteryStatsManager;
@@ -759,6 +756,7 @@ public class ClientModeImpl extends StateMachine {
         mNetworkInfo.setIsAvailable(false);
         mLastBssid = null;
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+        mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         mLastSignalLevel = -1;
 
         mCountryCode = countryCode;
@@ -1726,6 +1724,7 @@ public class ClientModeImpl extends StateMachine {
         pw.println("mLastSignalLevel " + mLastSignalLevel);
         pw.println("mLastBssid " + mLastBssid);
         pw.println("mLastNetworkId " + mLastNetworkId);
+        pw.println("mLastSubId " + mLastSubId);
         pw.println("mOperationalMode " + mOperationalMode);
         pw.println("mUserWantsSuspendOpt " + mUserWantsSuspendOpt);
         pw.println("mSuspendOptNeedsDisabled " + mSuspendOptNeedsDisabled);
@@ -2597,6 +2596,7 @@ public class ClientModeImpl extends StateMachine {
         mLastLinkLayerStats = null;
         registerDisconnected();
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+        mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         mWifiScoreCard.resetConnectionState();
         updateL2KeyAndGroupHint();
     }
@@ -3294,6 +3294,7 @@ public class ClientModeImpl extends StateMachine {
         // Initialize data structures
         mLastBssid = null;
         mLastNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
+        mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         mLastSignalLevel = -1;
         mWifiInfo.setMacAddress(mWifiNative.getMacAddress(mInterfaceName));
         // TODO: b/79504296 This broadcast has been deprecated and should be removed
@@ -3635,12 +3636,12 @@ public class ClientModeImpl extends StateMachine {
                     // For SIM & AKA/AKA' EAP method Only, get identity from ICC
                     if (mTargetWifiConfiguration != null
                             && mTargetWifiConfiguration.networkId == netId
-                            && TelephonyUtil.isSimConfig(mTargetWifiConfiguration)) {
+                            && mTargetWifiConfiguration.enterpriseConfig != null
+                            && mTargetWifiConfiguration.enterpriseConfig
+                                    .requireSimCredential()) {
                         // Pair<identity, encrypted identity>
-                        Pair<String, String> identityPair =
-                                TelephonyUtil.getSimIdentity(getTelephonyManager(),
-                                        new TelephonyUtil(), mTargetWifiConfiguration,
-                                        mWifiInjector.getCarrierNetworkConfig());
+                        Pair<String, String> identityPair = mTelephonyUtil
+                                .getSimIdentity(mTargetWifiConfiguration);
                         Log.i(TAG, "SUP_REQUEST_IDENTITY: identityPair=" + identityPair);
                         if (identityPair != null && identityPair.first != null) {
                             mWifiNative.simIdentityResponse(mInterfaceName, identityPair.first,
@@ -3747,12 +3748,12 @@ public class ClientModeImpl extends StateMachine {
                     Log.i(TAG, "Connecting with " + currentMacAddress + " as the mac address");
 
                     if (config.enterpriseConfig != null
-                            && TelephonyUtil.isSimEapMethod(config.enterpriseConfig.getEapMethod())
+                            && config.enterpriseConfig.requireSimCredential()
                             && mWifiInjector.getCarrierNetworkConfig()
                                     .isCarrierEncryptionInfoAvailable()
                             && TextUtils.isEmpty(config.enterpriseConfig.getAnonymousIdentity())) {
-                        String anonAtRealm = TelephonyUtil.getAnonymousIdentityWith3GppRealm(
-                                getTelephonyManager());
+                        String anonAtRealm = mTelephonyUtil
+                                .getAnonymousIdentityWith3GppRealm(config);
                         // Use anonymous@<realm> when pseudonym is not available
                         config.enterpriseConfig.setAnonymousIdentity(anonAtRealm);
                     }
@@ -3873,15 +3874,15 @@ public class ClientModeImpl extends StateMachine {
 
                         // We need to get the updated pseudonym from supplicant for EAP-SIM/AKA/AKA'
                         if (config.enterpriseConfig != null
-                                && TelephonyUtil.isSimEapMethod(
-                                        config.enterpriseConfig.getEapMethod())) {
+                                && config.enterpriseConfig.requireSimCredential()) {
+                            mLastSubId = mTelephonyUtil.getBestMatchSubscriptionId(config);
                             String anonymousIdentity =
                                     mWifiNative.getEapAnonymousIdentity(mInterfaceName);
                             if (!TextUtils.isEmpty(anonymousIdentity)
                                     && !TelephonyUtil
                                     .isAnonymousAtRealmIdentity(anonymousIdentity)) {
-                                String decoratedPseudonym = TelephonyUtil
-                                        .decoratePseudonymWith3GppRealm(getTelephonyManager(),
+                                String decoratedPseudonym = mTelephonyUtil
+                                        .decoratePseudonymWith3GppRealm(config,
                                                 anonymousIdentity);
                                 if (decoratedPseudonym != null) {
                                     anonymousIdentity = decoratedPseudonym;
@@ -4098,10 +4099,7 @@ public class ClientModeImpl extends StateMachine {
                 case WifiEnterpriseConfig.Eap.AKA:
                 case WifiEnterpriseConfig.Eap.AKA_PRIME:
                     if (errorCode == WifiNative.EAP_SIM_VENDOR_SPECIFIC_CERT_EXPIRED) {
-                        getTelephonyManager()
-                                .createForSubscriptionId(
-                                        SubscriptionManager.getDefaultDataSubscriptionId())
-                                .resetCarrierKeysForImsiEncryption();
+                        mTelephonyUtil.resetCarrierKeysForImsiEncryption(targetedNetwork);
                     }
                     break;
 
@@ -4527,11 +4525,14 @@ public class ClientModeImpl extends StateMachine {
                             && mLastNetworkId != WifiConfiguration.INVALID_NETWORK_ID) {
                         WifiConfiguration config =
                                 mWifiConfigManager.getConfiguredNetwork(mLastNetworkId);
-                        if (TelephonyUtil.isSimConfig(config)) {
+                        if (config.enterpriseConfig != null
+                                && config.enterpriseConfig.requireSimCredential()
+                                && !mTelephonyUtil.isSimPresent(mLastSubId)) {
+                            // check if the removed sim card is associated with current config
                             mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
                                     StaEvent.DISCONNECT_RESET_SIM_NETWORKS);
-                            // TODO(b/132385576): STA may immediately connect back to the network
-                            //  that we just disconnected from
+                            // TODO(b/132385576): STA may immediately connect back to the
+                            // network that we just disconnected from
                             mWifiNative.disconnect(mInterfaceName);
                             transitionTo(mDisconnectingState);
                         }
@@ -5358,8 +5359,8 @@ public class ClientModeImpl extends StateMachine {
     }
 
     void handleGsmAuthRequest(SimAuthRequestData requestData) {
-        if (mTargetWifiConfiguration == null
-                || mTargetWifiConfiguration.networkId
+        if (mTargetWifiConfiguration != null
+                && mTargetWifiConfiguration.networkId
                 == requestData.networkId) {
             logd("id matches targetWifiConfiguration");
         } else {
@@ -5379,16 +5380,16 @@ public class ClientModeImpl extends StateMachine {
          * 3. 3GPP TS 11.11  2G_authentication [RAND]
          *                            [SRES][Cipher Key Kc]
          */
-        String response =
-                TelephonyUtil.getGsmSimAuthResponse(requestData.data, getTelephonyManager());
+        String response = mTelephonyUtil
+                .getGsmSimAuthResponse(requestData.data, mTargetWifiConfiguration);
         if (response == null) {
             // In case of failure, issue may be due to sim type, retry as No.2 case
-            response = TelephonyUtil.getGsmSimpleSimAuthResponse(requestData.data,
-                    getTelephonyManager());
+            response = mTelephonyUtil
+                    .getGsmSimpleSimAuthResponse(requestData.data, mTargetWifiConfiguration);
             if (response == null) {
                 // In case of failure, issue may be due to sim type, retry as No.3 case
-                response = TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(requestData.data,
-                        getTelephonyManager());
+                response = mTelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(
+                                requestData.data, mTargetWifiConfiguration);
             }
         }
         if (response == null || response.length() == 0) {
@@ -5401,8 +5402,8 @@ public class ClientModeImpl extends StateMachine {
     }
 
     void handle3GAuthRequest(SimAuthRequestData requestData) {
-        if (mTargetWifiConfiguration == null
-                || mTargetWifiConfiguration.networkId
+        if (mTargetWifiConfiguration != null
+                && mTargetWifiConfiguration.networkId
                 == requestData.networkId) {
             logd("id matches targetWifiConfiguration");
         } else {
@@ -5410,8 +5411,8 @@ public class ClientModeImpl extends StateMachine {
             return;
         }
 
-        SimAuthResponseData response =
-                TelephonyUtil.get3GAuthResponse(requestData, getTelephonyManager());
+        SimAuthResponseData response = mTelephonyUtil
+                .get3GAuthResponse(requestData, mTargetWifiConfiguration);
         if (response != null) {
             mWifiNative.simAuthResponse(
                     mInterfaceName, response.type, response.response);

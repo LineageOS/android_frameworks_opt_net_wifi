@@ -29,6 +29,7 @@ import android.net.WifiKey;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiSsid;
 import android.text.TextUtils;
@@ -38,8 +39,10 @@ import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Helper for WifiNetworkSelector unit tests.
@@ -86,6 +89,47 @@ public class WifiNetworkSelectorTestUtil {
                 WifiConfigManager wifiConfigManager, Clock clock) {
         List<ScanDetail> scanDetails = buildScanDetails(ssids, bssids, freqs, caps, levels, clock);
         WifiConfiguration[] savedConfigs = generateWifiConfigurations(ssids, securities);
+        checkConsistencyOfScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
+        prepareConfigStore(wifiConfigManager, savedConfigs);
+        scanResultLinkConfiguration(wifiConfigManager, savedConfigs, scanDetails);
+
+        return new ScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
+    }
+
+    /**
+     * Build a list of ScanDetail based on the caller supplied network SSID, BSSID,
+     * frequency and RSSI level information. Create the EAP-SIM authticated
+     * WifiConfiguration for these networks and set up the mocked WifiConfigManager.
+     *
+     * @param ssids an array of SSIDs
+     * @param bssids an array of BSSIDs
+     * @param freqs an array of the network's frequency
+     * @param levels an array of the network's RSSI levels
+     * @param wifiConfigManager the mocked WifiConfigManager
+     * @return the constructed ScanDetail list and WifiConfiguration array
+     */
+    public static ScanDetailsAndWifiConfigs setupScanDetailsAndConfigForEapSimNetwork(
+            String[] ssids,
+            String[] bssids, int[] freqs, int[] levels,
+            WifiConfigManager wifiConfigManager, Clock clock) {
+        assertNotNull(ssids);
+        String[] caps = new String[ssids.length];
+        for (int i = 0; i < ssids.length; i++) {
+            caps[i] = "[EAP][ESS]";
+        }
+        List<ScanDetail> scanDetails = buildScanDetails(ssids, bssids, freqs, caps, levels, clock);
+        WifiConfiguration[] savedConfigs = new WifiConfiguration[ssids.length];
+        Set<String> ssidSet = new HashSet<>();
+        for (int i = 0; i < ssids.length; i++) {
+            // do not allow duplicated ssid
+            assertFalse(ssidSet.contains(ssids[i]));
+            ssidSet.add(ssids[i]);
+            savedConfigs[i] = WifiConfigurationTestUtil.createEapNetwork(
+                    WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+            savedConfigs[i].SSID = ssids[i];
+            savedConfigs[i].networkId = i;
+        }
+
         checkConsistencyOfScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
         prepareConfigStore(wifiConfigManager, savedConfigs);
         scanResultLinkConfiguration(wifiConfigManager, savedConfigs, scanDetails);

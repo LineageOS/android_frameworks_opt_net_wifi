@@ -16,12 +16,17 @@
 
 package com.android.server.wifi.util;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.telephony.ImsiEncryptionInfo;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Pair;
@@ -29,19 +34,23 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -53,18 +62,63 @@ import javax.crypto.Cipher;
 public class TelephonyUtilTest extends WifiBaseTest {
     private TelephonyUtil mTelephonyUtil;
 
-    @Mock
-    CarrierNetworkConfig mCarrierNetworkConfig;
+    private static final int DATA_SUBID = 1;
+    private static final int NON_DATA_SUBID = 2;
+    private static final int INVALID_SUBID = -1;
+    private static final int DATA_CARRIER_ID = 10;
+    private static final int NON_DATA_CARRIER_ID = 20;
+    private static final int DEACTIVE_CARRIER_ID = 30;
+
+    private List<SubscriptionInfo> mSubInfoList;
+
+    MockitoSession mMockingSession = null;
+
     @Mock
     TelephonyManager mTelephonyManager;
     @Mock
     TelephonyManager mDataTelephonyManager;
+    @Mock
+    TelephonyManager mNonDataTelephonyManager;
+    @Mock
+    SubscriptionManager mSubscriptionManager;
+    @Mock
+    SubscriptionInfo mDataSubscriptionInfo;
+    @Mock
+    SubscriptionInfo mNonDataSubscriptionInfo;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mTelephonyUtil = new TelephonyUtil();
-        when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
+        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
+        mSubInfoList = new ArrayList<>();
+        mSubInfoList.add(mDataSubscriptionInfo);
+        mSubInfoList.add(mNonDataSubscriptionInfo);
+        when(mTelephonyManager.createForSubscriptionId(eq(DATA_SUBID)))
+                .thenReturn(mDataTelephonyManager);
+        when(mTelephonyManager.createForSubscriptionId(eq(NON_DATA_SUBID)))
+                .thenReturn(mNonDataTelephonyManager);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(mSubInfoList);
+        mMockingSession = ExtendedMockito.mockitoSession().strictness(Strictness.LENIENT)
+                .mockStatic(SubscriptionManager.class).startMocking();
+
+        doReturn(DATA_SUBID).when(
+                () -> SubscriptionManager.getDefaultDataSubscriptionId());
+        doReturn(true).when(
+                () -> SubscriptionManager.isValidSubscriptionId(DATA_SUBID));
+        doReturn(true).when(
+                () -> SubscriptionManager.isValidSubscriptionId(NON_DATA_SUBID));
+
+        when(mDataSubscriptionInfo.getCarrierId()).thenReturn(DATA_CARRIER_ID);
+        when(mDataSubscriptionInfo.getSubscriptionId()).thenReturn(DATA_SUBID);
+        when(mNonDataSubscriptionInfo.getCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataSubscriptionInfo.getSubscriptionId()).thenReturn(NON_DATA_SUBID);
+    }
+
+    @After
+    public void cleanUp() throws Exception {
+        if (mMockingSession != null) {
+            mMockingSession.finishMocking();
+        }
     }
 
     @Test
@@ -76,15 +130,19 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
-
-        assertEquals(expectedIdentity, TelephonyUtil.getSimIdentity(mTelephonyManager,
-                mTelephonyUtil,
+        WifiConfiguration simConfig =
                 WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
-                        WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
-                                WifiEnterpriseConfig.Phase2.SIM), mCarrierNetworkConfig));
+                        WifiEnterpriseConfig.Phase2.NONE);
+        simConfig.carrierId = DATA_CARRIER_ID;
+
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(simConfig));
+
+        WifiConfiguration peapSimConfig =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
+                        WifiEnterpriseConfig.Phase2.SIM);
+        peapSimConfig.carrierId = DATA_CARRIER_ID;
+
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(peapSimConfig));
     }
 
     @Test
@@ -96,15 +154,19 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        WifiConfiguration akaConfig =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        akaConfig.carrierId = DATA_CARRIER_ID;
 
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
-                                WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
-                                WifiEnterpriseConfig.Phase2.AKA), mCarrierNetworkConfig));
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(akaConfig));
+
+        WifiConfiguration peapAkaConfig =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
+                        WifiEnterpriseConfig.Phase2.AKA);
+        peapAkaConfig.carrierId = DATA_CARRIER_ID;
+
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(peapAkaConfig));
     }
 
     @Test
@@ -116,16 +178,19 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn("321456");
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        WifiConfiguration akaPConfig =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA_PRIME,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        akaPConfig.carrierId = DATA_CARRIER_ID;
 
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(
-                                WifiEnterpriseConfig.Eap.AKA_PRIME,
-                                WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
-                                WifiEnterpriseConfig.Phase2.AKA_PRIME), mCarrierNetworkConfig));
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(akaPConfig));
+
+        WifiConfiguration peapAkaPConfig =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.PEAP,
+                        WifiEnterpriseConfig.Phase2.AKA_PRIME);
+        peapAkaPConfig.carrierId = DATA_CARRIER_ID;
+
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(peapAkaPConfig));
     }
 
     /**
@@ -158,11 +223,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
             when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(
                     eq(TelephonyManager.KEY_TYPE_WLAN)))
                     .thenReturn(info);
+            WifiConfiguration config =
+                    WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
+                            WifiEnterpriseConfig.Phase2.NONE);
+            config.carrierId = DATA_CARRIER_ID;
 
-            assertEquals(expectedIdentity,
-                    TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                            WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
-                                    WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
+            assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(config));
         } finally {
             session.finishMocking();
         }
@@ -193,9 +259,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
                     eq(TelephonyManager.KEY_TYPE_WLAN)))
                     .thenReturn(info);
 
-            assertNull(TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
+            WifiConfiguration config =
                     WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.AKA,
-                            WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
+                            WifiEnterpriseConfig.Phase2.NONE);
+            config.carrierId = DATA_CARRIER_ID;
+
+            assertNull(mTelephonyUtil.getSimIdentity(config));
         } finally {
             session.finishMocking();
         }
@@ -210,11 +279,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn("32156");
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = DATA_CARRIER_ID;
 
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
-                                WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(config));
     }
 
     @Test
@@ -226,19 +296,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_UNKNOWN);
         when(mDataTelephonyManager.getSimOperator()).thenReturn(null);
         when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(anyInt())).thenReturn(null);
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = DATA_CARRIER_ID;
 
-        assertEquals(expectedIdentity,
-                TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                        WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
-                                WifiEnterpriseConfig.Phase2.NONE), mCarrierNetworkConfig));
-    }
-
-    @Test
-    public void getSimIdentityWithNoTelephonyManager() {
-        assertEquals(null, TelephonyUtil.getSimIdentity(null, null,
-                WifiConfigurationTestUtil.createEapNetwork(
-                        WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE),
-                mCarrierNetworkConfig));
+        assertEquals(expectedIdentity, mTelephonyUtil.getSimIdentity(config));
     }
 
     @Test
@@ -246,47 +309,18 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getSubscriberId()).thenReturn("321560123456789");
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn("32156");
-        assertEquals(null, TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                WifiConfigurationTestUtil.createEapNetwork(
-                        WifiEnterpriseConfig.Eap.TTLS, WifiEnterpriseConfig.Phase2.SIM),
-                mCarrierNetworkConfig));
-        assertEquals(null, TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                WifiConfigurationTestUtil.createEapNetwork(
-                        WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.MSCHAPV2),
-                mCarrierNetworkConfig));
-        assertEquals(null, TelephonyUtil.getSimIdentity(mTelephonyManager, mTelephonyUtil,
-                WifiConfigurationTestUtil.createEapNetwork(
-                        WifiEnterpriseConfig.Eap.TLS, WifiEnterpriseConfig.Phase2.NONE),
-                mCarrierNetworkConfig));
-        assertEquals(null, TelephonyUtil.getSimIdentity(
-                mTelephonyManager, mTelephonyUtil, new WifiConfiguration(), mCarrierNetworkConfig));
-    }
 
-    @Test
-    public void isSimConfig() {
-        assertFalse(TelephonyUtil.isSimConfig(null));
-        assertFalse(TelephonyUtil.isSimConfig(new WifiConfiguration()));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createOpenNetwork()));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createWepNetwork()));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createPskNetwork()));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.TTLS, WifiEnterpriseConfig.Phase2.SIM)));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.TLS, WifiEnterpriseConfig.Phase2.NONE)));
-        assertFalse(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.MSCHAPV2)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.AKA_PRIME, WifiEnterpriseConfig.Phase2.NONE)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.SIM)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.AKA)));
-        assertTrue(TelephonyUtil.isSimConfig(WifiConfigurationTestUtil.createEapNetwork(
-                WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.AKA_PRIME)));
+        assertEquals(null,
+                mTelephonyUtil.getSimIdentity(WifiConfigurationTestUtil.createEapNetwork(
+                        WifiEnterpriseConfig.Eap.TTLS, WifiEnterpriseConfig.Phase2.SIM)));
+        assertEquals(null,
+                mTelephonyUtil.getSimIdentity(WifiConfigurationTestUtil.createEapNetwork(
+                        WifiEnterpriseConfig.Eap.PEAP, WifiEnterpriseConfig.Phase2.MSCHAPV2)));
+        assertEquals(null,
+                mTelephonyUtil.getSimIdentity(WifiConfigurationTestUtil.createEapNetwork(
+                        WifiEnterpriseConfig.Eap.TLS, WifiEnterpriseConfig.Phase2.NONE)));
+        assertEquals(null,
+                mTelephonyUtil.getSimIdentity(new WifiConfiguration()));
     }
 
     /**
@@ -345,7 +379,10 @@ public class TelephonyUtilTest extends WifiBaseTest {
     @Test
     public void getGsmSimAuthResponseInvalidRequest() {
         final String[] invalidRequests = { null, "", "XXXX" };
-        assertEquals("", TelephonyUtil.getGsmSimAuthResponse(invalidRequests, mTelephonyManager));
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+
+        assertEquals("", mTelephonyUtil.getGsmSimAuthResponse(invalidRequests, config));
     }
 
     @Test
@@ -353,8 +390,10 @@ public class TelephonyUtilTest extends WifiBaseTest {
         final String[] failedRequests = { "5E5F" };
         when(mDataTelephonyManager.getIccAuthentication(anyInt(), anyInt(),
                 eq(createSimChallengeRequest(new byte[] { 0x5e, 0x5f })))).thenReturn(null);
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
-        assertEquals(null, TelephonyUtil.getGsmSimAuthResponse(failedRequests, mTelephonyManager));
+        assertEquals(null, mTelephonyUtil.getGsmSimAuthResponse(failedRequests, config));
     }
 
     @Test
@@ -369,16 +408,21 @@ public class TelephonyUtilTest extends WifiBaseTest {
                         createSimChallengeRequest(new byte[] { 0x01, 0x22 })))
                 .thenReturn(createGsmSimAuthResponse(new byte[] { 0x11, 0x11 },
                                 new byte[] { 0x12, 0x34 }));
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
-        assertEquals(":3b4a:1d2c:1234:1111", TelephonyUtil.getGsmSimAuthResponse(
-                        new String[] { "1B2B", "0122" }, mTelephonyManager));
+        assertEquals(":3b4a:1d2c:1234:1111", mTelephonyUtil.getGsmSimAuthResponse(
+                        new String[] { "1B2B", "0122" }, config));
     }
 
     @Test
     public void getGsmSimpleSimAuthResponseInvalidRequest() {
         final String[] invalidRequests = { null, "", "XXXX" };
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+
         assertEquals("",
-                TelephonyUtil.getGsmSimpleSimAuthResponse(invalidRequests, mTelephonyManager));
+                mTelephonyUtil.getGsmSimpleSimAuthResponse(invalidRequests, config));
     }
 
     @Test
@@ -386,9 +430,11 @@ public class TelephonyUtilTest extends WifiBaseTest {
         final String[] failedRequests = { "5E5F" };
         when(mDataTelephonyManager.getIccAuthentication(anyInt(), anyInt(),
                 eq(createSimChallengeRequest(new byte[] { 0x5e, 0x5f })))).thenReturn(null);
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
         assertEquals(null,
-                TelephonyUtil.getGsmSimpleSimAuthResponse(failedRequests, mTelephonyManager));
+                mTelephonyUtil.getGsmSimpleSimAuthResponse(failedRequests, config));
     }
 
     @Test
@@ -403,16 +449,21 @@ public class TelephonyUtilTest extends WifiBaseTest {
                         createSimChallengeRequest(new byte[] { 0x01, 0x23 })))
                 .thenReturn(createGsmSimAuthResponse(new byte[] { 0x33, 0x22 },
                                 new byte[] { 0x11, 0x00 }));
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
-        assertEquals(":3b4a:1d2c:1100:3322", TelephonyUtil.getGsmSimpleSimAuthResponse(
-                        new String[] { "1A2B", "0123" }, mTelephonyManager));
+        assertEquals(":3b4a:1d2c:1100:3322", mTelephonyUtil.getGsmSimpleSimAuthResponse(
+                        new String[] { "1A2B", "0123" }, config));
     }
 
     @Test
     public void getGsmSimpleSimNoLengthAuthResponseInvalidRequest() {
         final String[] invalidRequests = { null, "", "XXXX" };
-        assertEquals("", TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(invalidRequests,
-                mTelephonyManager));
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+
+        assertEquals("", mTelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(invalidRequests,
+                config));
     }
 
     @Test
@@ -420,9 +471,11 @@ public class TelephonyUtilTest extends WifiBaseTest {
         final String[] failedRequests = { "5E5F" };
         when(mDataTelephonyManager.getIccAuthentication(anyInt(), anyInt(),
                 eq(create2gUsimChallengeRequest(new byte[] { 0x5e, 0x5f })))).thenReturn(null);
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
-        assertEquals(null, TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(failedRequests,
-                mTelephonyManager));
+        assertEquals(null, mTelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(failedRequests,
+                config));
     }
 
     @Test
@@ -437,10 +490,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
                         create2gUsimChallengeRequest(new byte[] { 0x01, 0x23 })))
                 .thenReturn(create2gUsimAuthResponse(new byte[] { 0x12, 0x34, 0x56, 0x78 },
                                 new byte[] { 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78 }));
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
 
         assertEquals(":1a2b3c4d5e6f7a1a:1a2b3c4d:1234567812345678:12345678",
-                TelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(
-                        new String[] { "1A2B", "0123" }, mTelephonyManager));
+                mTelephonyUtil.getGsmSimpleSimNoLengthAuthResponse(
+                        new String[] { "1A2B", "0123" }, config));
     }
 
     /**
@@ -479,11 +534,14 @@ public class TelephonyUtilTest extends WifiBaseTest {
 
     @Test
     public void get3GAuthResponseInvalidRequest() {
-        assertEquals(null, TelephonyUtil.get3GAuthResponse(
-                new SimAuthRequestData(0, 0, "SSID", new String[]{"0123"}), mTelephonyManager));
-        assertEquals(null, TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+
+        assertEquals(null, mTelephonyUtil.get3GAuthResponse(
+                new SimAuthRequestData(0, 0, "SSID", new String[]{"0123"}), config));
+        assertEquals(null, mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"xyz2", "1234"}),
-                mTelephonyManager));
+                config));
         verifyNoMoreInteractions(mDataTelephonyManager);
     }
 
@@ -491,10 +549,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
     public void get3GAuthResponseNullIccAuthentication() {
         when(mDataTelephonyManager.getIccAuthentication(TelephonyManager.APPTYPE_USIM,
                         TelephonyManager.AUTHTYPE_EAP_AKA, "AgEjAkVn")).thenReturn(null);
-
-        SimAuthResponseData response = TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        SimAuthResponseData response = mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"0123", "4567"}),
-                mTelephonyManager);
+                config);
+
         assertNull(response);
     }
 
@@ -503,10 +563,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getIccAuthentication(TelephonyManager.APPTYPE_USIM,
                         TelephonyManager.AUTHTYPE_EAP_AKA, "AgEjAkVn"))
                 .thenReturn(Base64.encodeToString(new byte[] {(byte) 0xdc}, Base64.NO_WRAP));
-
-        SimAuthResponseData response = TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        SimAuthResponseData response = mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"0123", "4567"}),
-                mTelephonyManager);
+                config);
+
         assertNull(response);
     }
 
@@ -516,10 +578,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
                         TelephonyManager.AUTHTYPE_EAP_AKA, "AgEjAkVn"))
                 .thenReturn(Base64.encodeToString(new byte[] {0x31, 0x1, 0x2, 0x3, 0x4},
                                 Base64.NO_WRAP));
-
-        SimAuthResponseData response = TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        SimAuthResponseData response = mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"0123", "4567"}),
-                mTelephonyManager);
+                config);
+
         assertNull(response);
     }
 
@@ -529,10 +593,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
                         TelephonyManager.AUTHTYPE_EAP_AKA, "AgEjAkVn"))
                 .thenReturn(create3GSimAuthUmtsAuthResponse(new byte[] {0x11, 0x12},
                                 new byte[] {0x21, 0x22, 0x23}, new byte[] {0x31}));
-
-        SimAuthResponseData response = TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        SimAuthResponseData response = mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"0123", "4567"}),
-                mTelephonyManager);
+                config);
+
         assertNotNull(response);
         assertEquals("UMTS-AUTH", response.type);
         assertEquals(":31:212223:1112", response.response);
@@ -543,10 +609,11 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getIccAuthentication(TelephonyManager.APPTYPE_USIM,
                         TelephonyManager.AUTHTYPE_EAP_AKA, "AgEjAkVn"))
                 .thenReturn(create3GSimAuthUmtsAutsResponse(new byte[] {0x22, 0x33}));
-
-        SimAuthResponseData response = TelephonyUtil.get3GAuthResponse(
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        SimAuthResponseData response = mTelephonyUtil.get3GAuthResponse(
                 new SimAuthRequestData(0, 0, "SSID", new String[]{"0123", "4567"}),
-                mTelephonyManager);
+                config);
         assertNotNull(response);
         assertEquals("UMTS-AUTS", response.type);
         assertEquals(":2233", response.response);
@@ -561,9 +628,11 @@ public class TelephonyUtilTest extends WifiBaseTest {
         String expectedIdentity = "anonymous@wlan.mnc456.mcc123.3gppnetwork.org";
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mDataTelephonyManager.getSimOperator()).thenReturn(mccmnc);
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
 
         assertEquals(expectedIdentity,
-                TelephonyUtil.getAnonymousIdentityWith3GppRealm(mTelephonyManager));
+                mTelephonyUtil.getAnonymousIdentityWith3GppRealm(config));
     }
 
     /**
@@ -572,7 +641,104 @@ public class TelephonyUtilTest extends WifiBaseTest {
     @Test
     public void getAnonymousIdentityWithoutSim() {
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_ABSENT);
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
 
-        assertNull(TelephonyUtil.getAnonymousIdentityWith3GppRealm(mTelephonyManager));
+        assertNull(mTelephonyUtil.getAnonymousIdentityWith3GppRealm(config));
+    }
+
+    /**
+     * Verify SIM is present.
+     */
+    @Test
+    public void isSimPresentWithValidSubscriptionIdList() {
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[] {DATA_SUBID, NON_DATA_SUBID});
+
+        assertTrue(mTelephonyUtil.isSimPresent(DATA_SUBID));
+    }
+
+    /**
+     * Verify SIM is not present.
+     */
+    @Test
+    public void isSimPresentWithInvalidOrEmptySubscriptionIdList() {
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{});
+
+        assertFalse(mTelephonyUtil.isSimPresent(DATA_SUBID));
+
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{NON_DATA_SUBID});
+
+        assertFalse(mTelephonyUtil.isSimPresent(DATA_SUBID));
+    }
+
+    /**
+     * The active SubscriptionInfo List may be null or empty from Telephony.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdWithEmptyActiveSubscriptionInfoList() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+
+        assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
+
+        assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * The matched Subscription ID should be that of data SIM when carrier ID is not specified.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdWithoutCarrierIdFieldForSimConfig() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+
+        assertEquals(DATA_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * The matched Subscription ID should be invalid if the configuration does not require
+     * SIM card and the carrier ID is not specified.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdWithoutCarrierIdFieldForNonSimConfig() {
+        WifiConfiguration config = new WifiConfiguration();
+
+        assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * If the carrier ID is specifed for EAP-SIM configuration, the corresponding Subscription ID
+     * should be returned.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdWithNonDataCarrierId() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = NON_DATA_CARRIER_ID;
+
+        assertEquals(NON_DATA_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+
+        config.carrierId = DATA_CARRIER_ID;
+        assertEquals(DATA_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * The matched Subscription ID should be invalid if the SIM card for the specified carrier ID
+     * is absent.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdWithDeactiveCarrierId() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = DEACTIVE_CARRIER_ID;
+
+        assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
     }
 }
