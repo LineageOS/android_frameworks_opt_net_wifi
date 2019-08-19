@@ -91,6 +91,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final String TEST_FQDN = "FQDN";
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
+    private static final int VALID_CARRIER_ID = 1;
 
     private @Mock Context mContext;
     private @Mock Resources mResources;
@@ -1137,7 +1138,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
-        verify(mWifiPermissionsUtil).checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         assertFalse(mWifiNetworkSuggestionsManager.hasUserApprovedForApp(TEST_PACKAGE_1));
 
         WifiConfiguration connectNetwork =
@@ -1176,7 +1176,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
-        verify(mWifiPermissionsUtil).checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
 
         WifiConfiguration connectNetwork =
@@ -1215,7 +1214,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
-        verify(mWifiPermissionsUtil).checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
 
         doThrow(new SecurityException())
@@ -2399,5 +2397,60 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 .putExtra(WifiNetworkSuggestionsManager.EXTRA_UID, uid);
         assertNotNull(mBroadcastReceiverCaptor.getValue());
         mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
+    }
+
+    @Test
+    public void testAddSuggestionWithValidCarrierIdWithCarrierProvisionPermission() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        config.carrierId = VALID_CARRIER_ID;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(true);
+
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_APP_NAME_1);
+
+        assertEquals(status, WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+
+    }
+
+    @Test
+    public void testAddSuggestionWithValidCarrierIdWithoutCarrierProvisionPermission() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        config.carrierId = VALID_CARRIER_ID;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_APP_NAME_1);
+
+        assertEquals(status,
+                WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED);
+    }
+
+    @Test
+    public void testAddSuggestionWithDefaultCarrierIdWithoutCarrierProvisionPermission() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_APP_NAME_1);
+
+        assertEquals(status, WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
     }
 }
