@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Base class for all network notifiers (e.g. OpenNetworkNotifier, CarrierNetworkNotifier).
+ * Base class for all network notifiers (e.g. OpenNetworkNotifier).
  *
  * NOTE: These API's are not thread safe and should only be used from WifiCoreThread.
  */

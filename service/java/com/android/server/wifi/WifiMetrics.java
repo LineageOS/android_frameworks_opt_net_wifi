@@ -2248,10 +2248,6 @@ public class WifiMetrics {
         }
     }
 
-    /**
-     * TODO: (b/72443859) Use notifierTag param to separate metrics for OpenNetworkNotifier and
-     * CarrierNetworkNotifier, for this method and all other related metrics.
-     */
     /** Increments the occurence of a "Connect to Network" notification. */
     public void incrementConnectToNetworkNotification(String notifierTag, int notificationType) {
         synchronized (mLock) {

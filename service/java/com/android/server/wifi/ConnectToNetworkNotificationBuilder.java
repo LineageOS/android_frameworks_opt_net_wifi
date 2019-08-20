@@ -84,9 +84,6 @@ public class ConnectToNetworkNotificationBuilder {
             case OpenNetworkNotifier.TAG:
                 title = mContext.getText(R.string.wifi_available_title);
                 break;
-            case CarrierNetworkNotifier.TAG:
-                title = mContext.getText(R.string.wifi_available_carrier_network_title);
-                break;
             default:
                 Log.wtf("ConnectToNetworkNotificationBuilder", "Unknown network notifier."
                         + notifierTag);
@@ -156,8 +153,6 @@ public class ConnectToNetworkNotificationBuilder {
         switch (notifierTag) {
             case OpenNetworkNotifier.TAG:
                 return 1;
-            case CarrierNetworkNotifier.TAG:
-                return 2;
         }
         return 0;
     }
