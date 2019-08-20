@@ -16,7 +16,11 @@
 
 package com.android.wifitrackerlib;
 
+import android.os.Handler;
+
+import androidx.annotation.AnyThread;
 import androidx.annotation.IntDef;
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 
 import java.lang.annotation.Retention;
@@ -120,7 +124,12 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int FREQUENCY_UNKNOWN = -1;
 
     // Callback associated with this WifiEntry. Subclasses should call its methods appropriately.
-    protected WifiEntryCallback mListener;
+    private WifiEntryCallback mListener;
+    private Handler mCallbackHandler;
+
+    WifiEntry(@NonNull Handler callbackHandler) throws IllegalArgumentException {
+        mCallbackHandler = callbackHandler;
+    }
 
     // Info available for all WifiEntries //
 
@@ -299,6 +308,7 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
 
     /**
      * Listener for changes to the state of the WifiEntry or the result of actions on the WifiEntry.
+     * These callbacks will be invoked on the main thread.
      */
     public interface WifiEntryCallback {
         @Retention(RetentionPolicy.SOURCE)
@@ -340,21 +350,25 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
          * Indicates the state of the WifiEntry has changed and clients may retrieve updates through
          * the WifiEntry getter methods.
          */
+        @MainThread
         void onUpdated();
 
         /**
          * Result of the connect request indicated by the CONNECT_STATUS constants.
          */
+        @MainThread
         void onConnectResult(@ConnectStatus int status);
 
         /**
          * Result of the disconnect request indicated by the DISCONNECT_STATUS constants.
          */
+        @MainThread
         void onDisconnectResult(@DisconnectStatus int status);
 
         /**
          * Result of the forget request indicated by the FORGET_STATUS constants.
          */
+        @MainThread
         void onForgetResult(@ForgetStatus int status);
     }
 
@@ -371,5 +385,48 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public boolean equals(Object other) {
         if (!(other instanceof WifiEntry)) return false;
         return getKey().equals(((WifiEntry) other).getKey());
+    }
+
+    @Override
+    public String toString() {
+        return new StringBuilder()
+                .append(getKey())
+                .append(",title:")
+                .append(getTitle())
+                .append(",summary:")
+                .append(getSummary())
+                .append(",level:")
+                .append(getLevel())
+                .append(",security:")
+                .append(getSecurity())
+                .toString();
+    }
+
+    @AnyThread
+    protected void notifyOnUpdated() {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onUpdated());
+        }
+    }
+
+    @AnyThread
+    protected void notifyOnConnectResult(int status) {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onConnectResult(status));
+        }
+    }
+
+    @AnyThread
+    protected void notifyOnDisconnectResult(int status) {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onDisconnectResult(status));
+        }
+    }
+
+    @AnyThread
+    protected void notifyOnForgetResult(int status) {
+        if (mListener != null) {
+            mCallbackHandler.post(() -> mListener.onForgetResult(status));
+        }
     }
 }
