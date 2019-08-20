@@ -39,6 +39,7 @@ import android.net.NetworkRequest;
 import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
@@ -167,16 +168,6 @@ public class OsuNetworkConnectionTest extends WifiBaseTest {
         when(mWifiManager.isWifiEnabled()).thenReturn(false);
         mNetworkConnection.init(mHandler);
         assertEquals(false, mNetworkConnection.connect(TEST_SSID, TEST_NAI, TEST_PROVIDER_NAME));
-    }
-
-    /**
-     * Verifies that connect() API returns false when OSU AP is a part of an OSEN
-     */
-    @Test
-    public void verifyOSENUnsupported() {
-        mNetworkConnection.init(mHandler);
-        assertEquals(false,
-                mNetworkConnection.connect(TEST_SSID, TEST_NAI_OSEN, TEST_PROVIDER_NAME));
     }
 
     /**
@@ -321,6 +312,39 @@ public class OsuNetworkConnectionTest extends WifiBaseTest {
         assertTrue(wifiConfiguration.isEphemeral());
         assertTrue(wifiConfiguration.osu);
 
+        ArgumentCaptor<NetworkRequest> networkRequestCaptor = ArgumentCaptor.forClass(
+                NetworkRequest.class);
+        verify(mConnectivityManager, times(1)).requestNetwork(networkRequestCaptor.capture(),
+                any(ConnectivityManager.NetworkCallback.class), any(Handler.class), anyInt());
+        assertFalse(networkRequestCaptor.getValue().hasCapability(NET_CAPABILITY_TRUSTED));
+
+    }
+
+    /**
+     * Verifies that {@link WifiConfiguration} has been created properly for OSEN OSU network.
+     * It is supposed to create a network as ephemeral network with OSEN protocol and key management
+     * and suppress no internet access notification.
+     */
+    @Test
+    public void verifyWifiConfigurationForOsenOsuNetwork() {
+        mNetworkConnection.init(mHandler);
+
+        assertEquals(true, mNetworkConnection.connect(TEST_SSID, TEST_NAI_OSEN,
+                TEST_PROVIDER_NAME));
+
+        ArgumentCaptor<WifiConfiguration> wifiConfigurationCaptor = ArgumentCaptor.forClass(
+                WifiConfiguration.class);
+        verify(mWifiManager, times(1)).addNetwork(wifiConfigurationCaptor.capture());
+        WifiConfiguration wifiConfiguration = wifiConfigurationCaptor.getValue();
+        assertTrue(wifiConfiguration.isNoInternetAccessExpected());
+        assertTrue(wifiConfiguration.isEphemeral());
+        assertTrue(wifiConfiguration.osu);
+        assertTrue(wifiConfiguration.allowedProtocols.get(WifiConfiguration.Protocol.OSEN));
+        assertTrue(wifiConfiguration.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OSEN));
+        assertEquals(wifiConfiguration.enterpriseConfig.getEapMethod(),
+                WifiEnterpriseConfig.Eap.UNAUTH_TLS);
+        assertEquals(wifiConfiguration.enterpriseConfig.getCaPath(),
+                WfaKeyStore.DEFAULT_WFA_CERT_DIR);
         ArgumentCaptor<NetworkRequest> networkRequestCaptor = ArgumentCaptor.forClass(
                 NetworkRequest.class);
         verify(mConnectivityManager, times(1)).requestNetwork(networkRequestCaptor.capture(),
