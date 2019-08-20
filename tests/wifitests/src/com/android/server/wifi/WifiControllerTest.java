@@ -69,14 +69,6 @@ public class WifiControllerTest {
 
     private static final int TEST_WIFI_RECOVERY_DELAY_MS = 2000;
 
-    private void dumpState() {
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        PrintWriter writer = new PrintWriter(stream);
-        mWifiController.dump(null, writer, null);
-        writer.flush();
-        Log.d(TAG, "ClientModeImpl state -" + stream.toString());
-    }
-
     private IState getCurrentState() throws Exception {
         Method method = StateMachine.class.getDeclaredMethod("getCurrentState");
         method.setAccessible(true);
@@ -100,11 +92,6 @@ public class WifiControllerTest {
 
     ActiveModeWarden.WifiController mWifiController;
 
-    private BroadcastReceiver mBroadcastReceiver;
-
-    private ClientModeManager.Listener mClientModeCallback;
-    private ScanOnlyModeManager.Listener mScanOnlyModeCallback;
-
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
@@ -123,22 +110,6 @@ public class WifiControllerTest {
                 mSettingsStore, mFacade, mActiveModeWarden, mWifiPermissionsUtil);
         mWifiController.start();
         mLooper.dispatchAll();
-
-        ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
-                BroadcastReceiver.class);
-        verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-        mBroadcastReceiver = bcastRxCaptor.getValue();
-
-        ArgumentCaptor<ClientModeManager.Listener> clientModeCallbackCaptor =
-                ArgumentCaptor.forClass(ClientModeManager.Listener.class);
-        verify(mActiveModeWarden).registerClientModeCallback(clientModeCallbackCaptor.capture());
-        mClientModeCallback = clientModeCallbackCaptor.getValue();
-
-        ArgumentCaptor<ScanOnlyModeManager.Listener> scanOnlyModeCallbackCaptor =
-                ArgumentCaptor.forClass(ScanOnlyModeManager.Listener.class);
-        verify(mActiveModeWarden).registerScanOnlyCallback(scanOnlyModeCallbackCaptor.capture());
-        mScanOnlyModeCallback = scanOnlyModeCallbackCaptor.getValue();
-
     }
 
     @After
@@ -239,14 +210,14 @@ public class WifiControllerTest {
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
         verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-        mBroadcastReceiver = bcastRxCaptor.getValue();
+        BroadcastReceiver broadcastReceiver = bcastRxCaptor.getValue();
 
         verify(mActiveModeWarden).disableWifi();
 
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         Intent intent = new Intent(LocationManager.MODE_CHANGED_ACTION);
 
-        mBroadcastReceiver.onReceive(mContext, intent);
+        broadcastReceiver.onReceive(mContext, intent);
         mLooper.dispatchAll();
         verify(mActiveModeWarden).enterScanOnlyMode();
     }
@@ -271,14 +242,14 @@ public class WifiControllerTest {
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
                 BroadcastReceiver.class);
         verify(mContext).registerReceiver(bcastRxCaptor.capture(), any(IntentFilter.class));
-        mBroadcastReceiver = bcastRxCaptor.getValue();
+        BroadcastReceiver broadcastReceiver = bcastRxCaptor.getValue();
 
         verify(mActiveModeWarden).enterScanOnlyMode();
 
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
         Intent intent = new Intent(LocationManager.MODE_CHANGED_ACTION);
 
-        mBroadcastReceiver.onReceive(mContext, intent);
+        broadcastReceiver.onReceive(mContext, intent);
         mLooper.dispatchAll();
         verify(mActiveModeWarden).disableWifi();
     }

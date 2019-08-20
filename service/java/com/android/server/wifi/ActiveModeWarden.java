@@ -32,6 +32,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.R;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
@@ -42,12 +43,14 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Collection;
 
 /**
  * This class provides the implementation for different WiFi operating modes.
  */
 public class ActiveModeWarden {
     private static final String TAG = "WifiActiveModeWarden";
+    private static final String STATE_MACHINE_EXITED_STATE_NAME = "STATE_MACHINE_EXITED";
 
     // Holder for active mode managers
     private final ArraySet<ActiveModeManager> mActiveModeManagers;
@@ -255,12 +258,18 @@ public class ActiveModeWarden {
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of " + TAG);
-        pw.println("Current wifi mode: " + mWifiController.getCurrentMode());
+        pw.println("Current wifi mode: " + getCurrentMode());
         pw.println("NumActiveModeManagers: " + mActiveModeManagers.size());
         for (ActiveModeManager manager : mActiveModeManagers) {
             manager.dump(fd, pw, args);
         }
         mWifiController.dump(fd, pw, args);
+    }
+
+    @VisibleForTesting
+    String getCurrentMode() {
+        IState state = mWifiController.getCurrentState();
+        return state == null ? STATE_MACHINE_EXITED_STATE_NAME : state.getName();
     }
 
     /**
@@ -350,13 +359,17 @@ public class ActiveModeWarden {
         }
     }
 
+    @VisibleForTesting
+    Collection<ActiveModeManager> getActiveModeManagers() {
+        return new ArraySet<>(mActiveModeManagers);
+    }
+
     /**
      * WifiController is the class used to manage wifi state for various operating
      * modes (normal, airplane, wifi hotspot, etc.).
      */
     private class WifiController extends StateMachine {
         private static final String TAG = "WifiController";
-        private static final String STATE_MACHINE_EXITED_STATE_NAME = "STATE_MACHINE_EXITED";
 
         // Maximum limit to use for timeout delay if the value from overlay setting is too large.
         private static final int MAX_RECOVERY_TIMEOUT_DELAY_MS = 4000;
@@ -404,11 +417,6 @@ public class ActiveModeWarden {
             setLogOnlyTransitions(false);
 
             mRecoveryDelayMillis = readWifiRecoveryDelay();
-        }
-
-        String getCurrentMode() {
-            IState state = getCurrentState();
-            return state == null ? STATE_MACHINE_EXITED_STATE_NAME : state.getName();
         }
 
         @Override
