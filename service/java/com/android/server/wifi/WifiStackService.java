@@ -21,6 +21,7 @@ import static com.android.internal.notification.SystemNotificationChannels.NETWO
 import static com.android.internal.notification.SystemNotificationChannels.NETWORK_STATUS;
 
 import android.annotation.NonNull;
+import android.app.ActivityManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
@@ -93,6 +94,13 @@ public class WifiStackService extends Service {
                     WifiServiceBase serviceBase = mApiServices.get(serviceName);
                     if (serviceBase == null) return false;
                     serviceBase.onStart();
+                    // The current active user might have switched before the wifi services
+                    // started up. So, send a onSwitchUser callback just after onStart callback is
+                    // invoked.
+                    int currentUser = ActivityManager.getCurrentUser();
+                    if (currentUser != UserHandle.USER_SYSTEM) {
+                        serviceBase.onSwitchUser(currentUser);
+                    }
                     return true;
                 }
             } finally {
