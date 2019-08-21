@@ -272,6 +272,17 @@ public class ActiveModeWarden {
         return state == null ? STATE_MACHINE_EXITED_STATE_NAME : state.getName();
     }
 
+    @VisibleForTesting
+    Collection<ActiveModeManager> getActiveModeManagers() {
+        return new ArraySet<>(mActiveModeManagers);
+    }
+
+    @VisibleForTesting
+    boolean isInEmergencyMode() {
+        IState state = mWifiController.getCurrentState();
+        return ((WifiController.BaseState) state).isInEmergencyMode();
+    }
+
     /**
      *  Helper class to wrap the ActiveModeManager callback objects.
      */
@@ -357,11 +368,6 @@ public class ActiveModeWarden {
         } catch (RemoteException e) {
             Log.e(TAG, "Failed to note battery stats in wifi");
         }
-    }
-
-    @VisibleForTesting
-    Collection<ActiveModeManager> getActiveModeManagers() {
-        return new ArraySet<>(mActiveModeManagers);
     }
 
     /**
@@ -478,7 +484,8 @@ public class ActiveModeWarden {
                 mWasWifiDisabled = false;
             }
 
-            private boolean isInEmergencyMode() {
+            @VisibleForTesting
+            boolean isInEmergencyMode() {
                 return mIsInEmergencyCall || mIsInEmergencyCallbackMode;
             }
 
@@ -495,6 +502,8 @@ public class ActiveModeWarden {
                 boolean configWiFiDisableInECBM = mFacade.getConfigWiFiDisableInECBM(mContext);
                 log("WifiController msg getConfigWiFiDisableInECBM " + configWiFiDisableInECBM);
                 if (configWiFiDisableInECBM) {
+                    // TODO: this will shut down Soft AP twice in conjunction with stopSoftAPMode()
+                    //  above, is this a problem?
                     shutdownWifi();
                     mWasWifiDisabled = true;
                 }
