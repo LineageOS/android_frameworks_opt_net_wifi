@@ -385,21 +385,19 @@ public class ActiveModeWarden {
         static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
         static final int CMD_SCANNING_START_FAILURE                 = BASE + 23;
 
-        private final DefaultState mDefaultState = new DefaultState();
         private final StaEnabledState mStaEnabledState = new StaEnabledState();
         private final StaDisabledState mStaDisabledState = new StaDisabledState();
         private final StaDisabledWithScanState mStaDisabledWithScanState =
                 new StaDisabledWithScanState();
-        private final EcmState mEcmState = new EcmState();
 
         WifiController() {
             super(TAG, mLooper);
 
-            addState(mDefaultState); {
-                addState(mStaDisabledState, mDefaultState);
-                addState(mStaEnabledState, mDefaultState);
-                addState(mStaDisabledWithScanState, mDefaultState);
-                addState(mEcmState, mDefaultState);
+            DefaultState defaultState = new DefaultState();
+            addState(defaultState); {
+                addState(mStaDisabledState, defaultState);
+                addState(mStaEnabledState, defaultState);
+                addState(mStaDisabledWithScanState, defaultState);
             }
 
             setLogRecSize(100);
@@ -456,6 +454,91 @@ public class ActiveModeWarden {
             return recoveryDelayMillis;
         }
 
+        abstract class BaseState extends State {
+            private boolean mIsInEmergencyCall;
+            private boolean mIsInEmergencyCallbackMode;
+
+            private boolean mWasWifiDisabled;
+
+            @Override
+            public void enter() {
+                super.enter();
+                // Not allowed to change state when ECM is enabled!
+                // Thus reset to false when changing states just to be safe.
+                mIsInEmergencyCall = false;
+                mIsInEmergencyCallbackMode = false;
+                mWasWifiDisabled = false;
+            }
+
+            private boolean isInEmergencyMode() {
+                return mIsInEmergencyCall || mIsInEmergencyCallbackMode;
+            }
+
+            private void updateEmergencyMode(Message msg) {
+                if (msg.what == CMD_EMERGENCY_CALL_STATE_CHANGED) {
+                    mIsInEmergencyCall = msg.arg1 == 1;
+                } else if (msg.what == CMD_EMERGENCY_MODE_CHANGED) {
+                    mIsInEmergencyCallbackMode = msg.arg1 == 1;
+                }
+            }
+
+            private void enterEmergencyMode() {
+                stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                boolean configWiFiDisableInECBM = mFacade.getConfigWiFiDisableInECBM(mContext);
+                log("WifiController msg getConfigWiFiDisableInECBM " + configWiFiDisableInECBM);
+                if (configWiFiDisableInECBM) {
+                    shutdownWifi();
+                    mWasWifiDisabled = true;
+                }
+            }
+
+            private void exitEmergencyMode() {
+                State stateToTransitionTo;
+                if (mSettingsStore.isWifiToggleEnabled()) {
+                    stateToTransitionTo = mStaEnabledState;
+                } else if (checkScanOnlyModeAvailable()) {
+                    stateToTransitionTo = mStaDisabledWithScanState;
+                } else {
+                    stateToTransitionTo = mStaDisabledState;
+                }
+
+                if (stateToTransitionTo == this) {
+                    // stay in same state
+                    if (mWasWifiDisabled) {
+                        // if Wifi was shutdown, restart the current state
+                        this.enter();
+                    }
+                } else {
+                    transitionTo(stateToTransitionTo);
+                }
+            }
+
+            @Override
+            public final boolean processMessage(Message msg) {
+                // potentially enter emergency mode
+                if (msg.what == CMD_EMERGENCY_CALL_STATE_CHANGED
+                        || msg.what == CMD_EMERGENCY_MODE_CHANGED) {
+                    boolean wasInEmergencyMode = isInEmergencyMode();
+                    updateEmergencyMode(msg);
+                    boolean isInEmergencyMode = isInEmergencyMode();
+                    if (!wasInEmergencyMode && isInEmergencyMode) {
+                        enterEmergencyMode();
+                    } else if (wasInEmergencyMode && !isInEmergencyMode) {
+                        exitEmergencyMode();
+                    }
+                    return HANDLED;
+                }
+                // already in emergency mode, drop all messages
+                if (isInEmergencyMode()) {
+                    return HANDLED;
+                }
+                // not in emergency mode, process messages normally
+                return processMessageFiltered(msg);
+            }
+
+            protected abstract boolean processMessageFiltered(Message msg);
+        }
+
         class DefaultState extends State {
             @Override
             public boolean processMessage(Message msg) {
@@ -501,12 +584,6 @@ public class ActiveModeWarden {
                             // wifi should remain disabled, do not need to transition
                         }
                         break;
-                    case CMD_EMERGENCY_CALL_STATE_CHANGED:
-                    case CMD_EMERGENCY_MODE_CHANGED:
-                        if (msg.arg1 == 1) {
-                            transitionTo(mEcmState);
-                        }
-                        break;
                     case CMD_AP_STOPPED:
                         log("SoftAp mode disabled, determine next state");
                         if (mSettingsStore.isWifiToggleEnabled()) {
@@ -523,7 +600,7 @@ public class ActiveModeWarden {
             }
         }
 
-        class ModeActiveState extends State {
+        abstract class ModeActiveState extends BaseState {
             protected ActiveModeManager mManager;
 
             @Override
@@ -537,6 +614,7 @@ public class ActiveModeWarden {
                     updateScanMode();
                 }
                 updateBatteryStatsWifiState(false);
+                super.exit();
             }
 
             // Hook to be used by sub-classes of ModeActiveState to indicate the completion of
@@ -569,9 +647,9 @@ public class ActiveModeWarden {
             }
         }
 
-        class StaDisabledState extends State {
+        class StaDisabledState extends BaseState {
             @Override
-            public boolean processMessage(Message msg) {
+            public boolean processMessageFiltered(Message msg) {
                 switch (msg.what) {
                     case CMD_WIFI_TOGGLED:
                         if (mSettingsStore.isWifiToggleEnabled()) {
@@ -649,6 +727,7 @@ public class ActiveModeWarden {
 
             @Override
             public void enter() {
+                super.enter();
                 log("StaEnabledState.enter()");
 
                 mListener = new ClientListener();
@@ -661,12 +740,12 @@ public class ActiveModeWarden {
 
             @Override
             public void exit() {
-                super.exit();
                 mListener = null;
+                super.exit();
             }
 
             @Override
-            public boolean processMessage(Message msg) {
+            public boolean processMessageFiltered(Message msg) {
                 switch (msg.what) {
                     case CMD_WIFI_TOGGLED:
                         if (! mSettingsStore.isWifiToggleEnabled()) {
@@ -775,6 +854,7 @@ public class ActiveModeWarden {
 
             @Override
             public void enter() {
+                super.enter();
                 log("StaDisabledWithScanState.enter()");
 
                 mListener = new ScanOnlyListener();
@@ -788,12 +868,12 @@ public class ActiveModeWarden {
 
             @Override
             public void exit() {
-                super.exit();
                 mListener = null;
+                super.exit();
             }
 
             @Override
-            public boolean processMessage(Message msg) {
+            public boolean processMessageFiltered(Message msg) {
                 switch (msg.what) {
                     case CMD_WIFI_TOGGLED:
                         if (mSettingsStore.isWifiToggleEnabled()) {
@@ -833,68 +913,6 @@ public class ActiveModeWarden {
                         return NOT_HANDLED;
                 }
                 return HANDLED;
-            }
-        }
-
-        class EcmState extends ModeActiveState {
-            /**
-             * we can enter EcmState either because an emergency call started or because
-             * emergency callback mode started. This count keeps track of how many such
-             * events happened; so we can exit after all are undone
-             */
-            private int mEcmEntryCount;
-
-            @Override
-            public void enter() {
-                stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
-                boolean configWiFiDisableInECBM =
-                        mFacade.getConfigWiFiDisableInECBM(mContext);
-                log("WifiController msg getConfigWiFiDisableInECBM "
-                        + configWiFiDisableInECBM);
-                if (configWiFiDisableInECBM) {
-                    shutdownWifi();
-                }
-                mEcmEntryCount = 1;
-            }
-
-            /**
-             * Handles messages received while in EcmMode.
-             */
-            @Override
-            public boolean processMessage(Message msg) {
-                switch (msg.what) {
-                    case CMD_EMERGENCY_CALL_STATE_CHANGED:
-                    case CMD_EMERGENCY_MODE_CHANGED:
-                        if (msg.arg1 == 1) {
-                            mEcmEntryCount++;
-                        } else {
-                            mEcmEntryCount--;
-                        }
-                        if (mEcmEntryCount <= 0) {
-                            if (mSettingsStore.isWifiToggleEnabled()) {
-                                transitionTo(mStaEnabledState);
-                            } else if (checkScanOnlyModeAvailable()) {
-                                transitionTo(mStaDisabledWithScanState);
-                            } else {
-                                transitionTo(mStaDisabledState);
-                            }
-                        }
-                        return HANDLED;
-                    case CMD_RECOVERY_RESTART_WIFI:
-                    case CMD_RECOVERY_DISABLE_WIFI:
-                        // do not want to restart wifi if we are in emergency mode
-                        return HANDLED;
-                    case CMD_AP_STOPPED:
-                    case CMD_SCANNING_STOPPED:
-                    case CMD_STA_STOPPED:
-                        // do not want to trigger a mode switch if we are in emergency mode
-                        return HANDLED;
-                    case CMD_SET_AP:
-                        // do not want to start softap if we are in emergency mode
-                        return HANDLED;
-                    default:
-                        return NOT_HANDLED;
-                }
             }
         }
     }
