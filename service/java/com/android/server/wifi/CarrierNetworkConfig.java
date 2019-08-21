@@ -83,13 +83,17 @@ public class CarrierNetworkConfig {
             }
         }, filter);
 
-        framework.registerContentObserver(context, CONTENT_URI, false,
-                new ContentObserver(handler) {
-                @Override
-                public void onChange(boolean selfChange) {
-                    updateNetworkConfig(context);
-                }
-            });
+        try {
+            framework.registerContentObserver(context, CONTENT_URI, false,
+                    new ContentObserver(handler) {
+                        @Override
+                        public void onChange(boolean selfChange) {
+                            updateNetworkConfig(context);
+                        }
+                    });
+        } catch (SecurityException e) {
+            Log.e(TAG, "Failed to register content observer", e);
+        }
     }
 
     /**
