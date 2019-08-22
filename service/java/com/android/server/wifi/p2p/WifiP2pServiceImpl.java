@@ -35,6 +35,7 @@ import android.net.InetAddresses;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.NetworkInfo;
+import android.net.NetworkStack;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientUtil;
@@ -498,29 +499,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 "WifiP2pService");
     }
 
-    private void enforceConnectivityInternalPermission() {
-        mContext.enforceCallingOrSelfPermission(
-                android.Manifest.permission.CONNECTIVITY_INTERNAL,
-                "WifiP2pService");
-    }
-
-    private int checkConnectivityInternalPermission() {
-        return mContext.checkCallingOrSelfPermission(
-                android.Manifest.permission.CONNECTIVITY_INTERNAL);
-    }
-
-    private int checkLocationHardwarePermission() {
-        return mContext.checkCallingOrSelfPermission(
-                android.Manifest.permission.LOCATION_HARDWARE);
-    }
-
-    private void enforceConnectivityInternalOrLocationHardwarePermission() {
-        if (checkConnectivityInternalPermission() != PackageManager.PERMISSION_GRANTED
-                && checkLocationHardwarePermission() != PackageManager.PERMISSION_GRANTED) {
-            enforceConnectivityInternalPermission();
-        }
-    }
-
     private void stopIpClient() {
         // Invalidate all previous start requests
         mIpClientStartIndex++;
@@ -637,7 +615,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
      */
     @Override
     public Messenger getP2pStateMachineMessenger() {
-        enforceConnectivityInternalOrLocationHardwarePermission();
+        NetworkStack.checkNetworkStackPermissionOr(mContext,
+                android.Manifest.permission.LOCATION_HARDWARE);
         enforceAccessPermission();
         enforceChangePermission();
         return new Messenger(mP2pStateMachine.getHandler());
@@ -691,7 +670,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
      */
     @Override
     public void setMiracastMode(int mode) {
-        enforceConnectivityInternalPermission();
         checkConfigureWifiDisplayPermission();
         mP2pStateMachine.sendMessage(SET_MIRACAST_MODE, mode);
     }
