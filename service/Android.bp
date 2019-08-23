@@ -74,7 +74,7 @@ cc_library_shared {
 // Build the wifi-service static library
 // ============================================================
 java_library {
-    name: "WifiStackBase",
+    name: "wifi-service",
     installable: true,
     defaults: ["WifiStackCommon"],
     aidl: {
@@ -126,12 +126,12 @@ java_defaults {
     name: "WifiStackAppCommon",
     defaults: ["WifiStackCommon"],
     static_libs: [
-        "WifiStackBase",
+        "wifi-service",
     ],
     jni_libs: [
         "libwifi-jni",
     ],
-    // Resources already included in WifiStackBase
+    // Resources already included in wifi-service
     resource_dirs: [],
     jarjar_rules: "jarjar-rules-shared.txt",
     optimize: {
