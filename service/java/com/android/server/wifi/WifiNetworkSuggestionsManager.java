@@ -793,7 +793,8 @@ public class WifiNetworkSuggestionsManager {
                 .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
                 .setTicker(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))
-                .setContentText(mResources.getString(R.string.wifi_suggestion_content, appName))
+                .setStyle(new Notification.BigTextStyle()
+                        .bigText(mResources.getString(R.string.wifi_suggestion_content, appName)))
                 .setDeleteIntent(getPrivateBroadcast(NOTIFICATION_USER_DISMISSED_INTENT_ACTION,
                         packageName, uid))
                 .setShowWhen(false)
