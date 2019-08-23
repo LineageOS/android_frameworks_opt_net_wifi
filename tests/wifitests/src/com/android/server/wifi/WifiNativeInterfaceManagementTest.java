@@ -1277,6 +1277,62 @@ public class WifiNativeInterfaceManagementTest {
         mInOrder.verify(mWifiMetrics).incrementNumRadioModeChangeToDbs();
     }
 
+    /**
+     * Verifies the switch of existing client interface in connectivity mode to scan mode.
+     */
+    @Test
+    public void testSwitchClientInterfaceToScanMode() throws Exception {
+        executeAndValidateSetupClientInterface(
+                false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
+                mNetworkObserverCaptor0);
+        assertTrue(mWifiNative.switchClientInterfaceToScanMode(IFACE_NAME_0));
+
+        mInOrder.verify(mSupplicantStaIfaceHal).teardownIface(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).deregisterDeathHandler();
+        mInOrder.verify(mSupplicantStaIfaceHal).terminate();
+    }
+
+    /**
+     * Verifies that a switch to scan mode when already in scan mode is rejected.
+     */
+    @Test
+    public void testSwitchClientInterfaceToScanModeFailsWhenAlreadyInScanMode() throws Exception {
+        executeAndValidateSetupClientInterfaceForScan(
+                false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
+                mNetworkObserverCaptor0);
+        assertTrue(mWifiNative.switchClientInterfaceToScanMode(IFACE_NAME_0));
+    }
+
+    /**
+     * Verifies the switch of existing client interface in scan mode to connectivity mode.
+     */
+    @Test
+    public void testSwitchClientInterfaceToConnectivityMode() throws Exception {
+        executeAndValidateSetupClientInterfaceForScan(
+                false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
+                mNetworkObserverCaptor0);
+        assertTrue(mWifiNative.switchClientInterfaceToConnectivityMode(IFACE_NAME_0));
+
+        mInOrder.verify(mSupplicantStaIfaceHal).isInitializationStarted();
+        mInOrder.verify(mSupplicantStaIfaceHal).initialize();
+        mInOrder.verify(mSupplicantStaIfaceHal).startDaemon();
+        mInOrder.verify(mSupplicantStaIfaceHal).isInitializationComplete();
+        mInOrder.verify(mSupplicantStaIfaceHal).registerDeathHandler(any());
+        mInOrder.verify(mSupplicantStaIfaceHal).setupIface(IFACE_NAME_0);
+    }
+
+    /**
+     * Verifies that a switch to connectivity mode when already in connectivity mode is rejected.
+     */
+    @Test
+    public void testSwitchClientInterfaceToConnectivityModeFailsWhenAlreadyInConnectivityMode()
+            throws Exception {
+        executeAndValidateSetupClientInterface(
+                false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
+                mNetworkObserverCaptor0);
+        assertTrue(mWifiNative.switchClientInterfaceToConnectivityMode(IFACE_NAME_0));
+    }
+
     private void executeAndValidateSetupClientInterface(
             boolean existingStaIface, boolean existingApIface,
             String ifaceName, @Mock WifiNative.InterfaceCallback callback,
@@ -1382,7 +1438,7 @@ public class WifiNativeInterfaceManagementTest {
             mInOrder.verify(mWifiVendorHal).startVendorHal();
         }
         mInOrder.verify(mWifiVendorHal).isVendorHalSupported();
-        mInOrder.verify(mWifiVendorHal).createStaIface(eq(true),
+        mInOrder.verify(mWifiVendorHal).createStaIface(eq(false),
                 destroyedListenerCaptor.capture());
         mInOrder.verify(mWificondControl).setupInterfaceForClientMode(ifaceName);
         mInOrder.verify(mNwManagementService).registerObserver(networkObserverCaptor.capture());
