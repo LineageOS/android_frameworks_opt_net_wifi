@@ -20,7 +20,7 @@ import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
 import static android.app.AppOpsManager.OP_CHANGE_WIFI_STATE;
-import static android.app.Notification.EXTRA_TEXT;
+import static android.app.Notification.EXTRA_BIG_TEXT;
 
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION;
@@ -2208,7 +2208,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
     private boolean checkUserApprovalNotificationParams(
             Notification notification, String expectedAppName) {
-        if (!notification.extras.getString(EXTRA_TEXT).contains(expectedAppName)) return false;
+        if (!notification.extras.getString(EXTRA_BIG_TEXT).contains(expectedAppName)) return false;
         return true;
     }
 
