@@ -1917,4 +1917,31 @@ public class ActiveModeWardenTest {
         assertInScanOnlyState();
         verify(mScanOnlyModeManager).start();
     }
+
+    /**
+     * Tests that if the carrier config to disable Wifi is enabled during ECM, Wifi is shut down
+     * when entering ECM and turned back on when exiting ECM.
+     */
+    @Test
+    public void ecmDisablesWifi_exitEcm_restartWifi() throws Exception {
+        enterClientModeActiveState();
+
+        verify(mClientModeManager).start();
+
+        when(mFacade.getConfigWiFiDisableInECBM(mContext)).thenReturn(true);
+        assertEnteredEcmMode(() -> {
+            mActiveModeWarden.emergencyCallbackModeChanged(true);
+            mLooper.dispatchAll();
+        });
+        assertInClientState();
+        verify(mClientModeManager).stop();
+
+        mActiveModeWarden.emergencyCallbackModeChanged(false);
+        mLooper.dispatchAll();
+
+        assertThat(mActiveModeWarden.isInEmergencyMode()).isFalse();
+        // client mode restarted
+        verify(mClientModeManager, times(2)).start();
+        assertInClientState();
+    }
 }
