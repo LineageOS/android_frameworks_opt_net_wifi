@@ -16,42 +16,77 @@
 
 package com.android.server.wifi;
 
+import android.content.Context;
+import android.os.Handler;
 import android.provider.DeviceConfig;
 
-import java.util.concurrent.Executor;
+import com.android.internal.R;
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.concurrent.TimeUnit;
 
 /**
  * This class allows getting all configurable flags from DeviceConfig.
  */
 public class DeviceConfigFacade {
-    private static final int DEFAULT_ABNORMAL_CONNECTION_DURATION_MS =
-            (int) TimeUnit.SECONDS.toMillis(30);
+    private Context mContext;
+
     private static final String NAMESPACE = "wifi";
+
+    // Default values of fields
+    @VisibleForTesting
+    protected static final int DEFAULT_ABNORMAL_CONNECTION_DURATION_MS =
+            (int) TimeUnit.SECONDS.toMillis(30);
+    private boolean mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled;
+
+    // Cached values of fields updated via updateDeviceConfigFlags()
+    private boolean mIsAbnormalConnectionBugreportEnabled;
+    private int mAbnormalConnectionDurationMs;
+    private boolean mIsAggressiveMacRandomizationSsidWhitelistEnabled;
+
+    public DeviceConfigFacade(Context context, Handler handler) {
+        mContext = context;
+        mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_aggressive_randomization_ssid_whitelist_enabled);
+
+        updateDeviceConfigFlags();
+        DeviceConfig.addOnPropertiesChangedListener(
+                NAMESPACE,
+                command -> handler.post(command),
+                properties -> {
+                    updateDeviceConfigFlags();
+                });
+    }
+
+    private void updateDeviceConfigFlags() {
+        mIsAbnormalConnectionBugreportEnabled = DeviceConfig.getBoolean(NAMESPACE,
+                "abnormal_connection_bugreport_enabled", false);
+        mAbnormalConnectionDurationMs = DeviceConfig.getInt(NAMESPACE,
+                "abnormal_connection_duration_ms",
+                DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
+        mIsAggressiveMacRandomizationSsidWhitelistEnabled = DeviceConfig.getBoolean(NAMESPACE,
+                "aggressive_randomization_ssid_whitelist_enabled",
+                mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled);
+    }
 
     /**
      * Gets the feature flag for reporting abnormally long connections.
      */
     public boolean isAbnormalConnectionBugreportEnabled() {
-        return DeviceConfig.getBoolean(NAMESPACE, "abnormal_connection_bugreport_enabled", false);
+        return mIsAbnormalConnectionBugreportEnabled;
     }
 
     /**
      * Gets the threshold for classifying abnormally long connections.
      */
     public int getAbnormalConnectionDurationMs() {
-        return DeviceConfig.getInt(NAMESPACE, "abnormal_connection_duration_ms",
-                DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
+        return mAbnormalConnectionDurationMs;
     }
 
     /**
-     * Adds a listener that will be run on the specified executor.
-     * @param executor
-     * @param onPropertiesChangedListener
+     * Gets the feature flag for aggressive MAC randomization per-SSID opt-in.
      */
-    public void addOnPropertiesChangedListener(Executor executor,
-            DeviceConfig.OnPropertiesChangedListener onPropertiesChangedListener) {
-        DeviceConfig.addOnPropertiesChangedListener(NAMESPACE, executor,
-                onPropertiesChangedListener);
+    public boolean isAggressiveMacRandomizationSsidWhitelistEnabled() {
+        return mIsAggressiveMacRandomizationSsidWhitelistEnabled;
     }
 }
