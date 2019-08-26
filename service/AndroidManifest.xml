@@ -71,7 +71,6 @@
          This is not possible currently because hidden API access is denied when run on network
          stack process -->
     <application
-        android:extractNativeLibs="false"
         android:persistent="true"
         android:directBootAware="true"
         android:label="@string/wifiAppLabel">
