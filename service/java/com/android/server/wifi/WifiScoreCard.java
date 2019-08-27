@@ -46,6 +46,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,6 +67,8 @@ public class WifiScoreCard {
 
     private static final String TAG = "WifiScoreCard";
     private static final boolean DBG = false;
+
+    private static final int TARGET_IN_MEMORY_ENTRIES = 50;
 
     private final Clock mClock;
     private final String mL2KeySeed;
@@ -251,6 +254,7 @@ public class WifiScoreCard {
         if (mValidated) return; // Only once per connection
         update(Event.VALIDATION_SUCCESS, wifiInfo);
         mValidated = true;
+        doWrites();
     }
 
     /**
@@ -369,6 +373,8 @@ public class WifiScoreCard {
         public final String ssid;
         public final MacAddress bssid;
         public boolean changed;
+        public boolean referenced;
+
         private SecurityType mSecurityType = null;
         private int mNetworkAgentId = Integer.MIN_VALUE;
         private int mNetworkConfigId = Integer.MIN_VALUE;
@@ -381,6 +387,7 @@ public class WifiScoreCard {
             this.l2Key = l2KeyFromLong(hash);
             this.id = idFromLong(hash);
             this.changed = false;
+            this.referenced = false;
         }
         void updateEventStats(Event event, int frequency, int rssi, int linkspeed) {
             PerSignal perSignal = lookupSignal(event, frequency);
@@ -513,6 +520,8 @@ public class WifiScoreCard {
     private final PerBssid mDummyPerBssid;
 
     private final Map<MacAddress, PerBssid> mApForBssid = new ArrayMap<>();
+    private int mApForBssidTargetSize = TARGET_IN_MEMORY_ENTRIES;
+    private int mApForBssidReferenced = 0;
 
     // TODO should be private, but WifiCandidates needs it
     @NonNull PerBssid lookupBssid(String ssid, String bssid) {
@@ -531,8 +540,14 @@ public class WifiScoreCard {
             PerBssid old = mApForBssid.put(mac, ans);
             if (old != null) {
                 Log.i(TAG, "Discarding stats for score card (ssid changed) ID: " + old.id);
+                if (old.referenced) mApForBssidReferenced--;
             }
             requestReadForPerBssid(ans);
+        }
+        if (!ans.referenced) {
+            ans.referenced = true;
+            mApForBssidReferenced++;
+            clean();
         }
         return ans;
     }
@@ -578,6 +593,34 @@ public class WifiScoreCard {
             Log.v(TAG, "Write count: " + count + ", bytes: " + bytes);
         }
         return count;
+    }
+
+    /**
+     * Evicts older entries from memory.
+     *
+     * This uses an approximate least-recently-used method. When the number of
+     * referenced entries exceeds the target value, any items that have not been
+     * referenced since the last round are evicted, and the remaining entries
+     * are marked as unreferenced. The total count varies between the target
+     * value and twice the target value.
+     */
+    private void clean() {
+        if (mMemoryStore == null) return;
+        if (mApForBssidReferenced >= mApForBssidTargetSize) {
+            doWrites(); // Do not want to evict changed items
+            // Evict the unreferenced ones, and clear all the referenced bits for the next round.
+            Iterator<Map.Entry<MacAddress, PerBssid>> it = mApForBssid.entrySet().iterator();
+            while (it.hasNext()) {
+                PerBssid perBssid = it.next().getValue();
+                if (perBssid.referenced) {
+                    perBssid.referenced = false;
+                } else {
+                    it.remove();
+                    if (DBG) Log.v(TAG, "Evict " + perBssid.id);
+                }
+            }
+            mApForBssidReferenced = 0;
+        }
     }
 
     private long computeHashLong(String ssid, MacAddress mac) {
