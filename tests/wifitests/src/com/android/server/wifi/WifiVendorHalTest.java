@@ -3110,6 +3110,7 @@ public class WifiVendorHalTest {
         radioModeInfos.add(radioModeInfo1);
 
         mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfos);
+        mLooper.dispatchAll();
         verify(mVendorHalRadioModeChangeHandler).onDbs();
 
         verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);
@@ -3142,6 +3143,7 @@ public class WifiVendorHalTest {
         radioModeInfos.add(radioModeInfo1);
 
         mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfos);
+        mLooper.dispatchAll();
         verify(mVendorHalRadioModeChangeHandler).onSbs(WifiScanner.WIFI_BAND_5_GHZ);
 
         verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);
@@ -3171,6 +3173,7 @@ public class WifiVendorHalTest {
         radioModeInfos.add(radioModeInfo0);
 
         mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfos);
+        mLooper.dispatchAll();
         verify(mVendorHalRadioModeChangeHandler).onScc(WifiScanner.WIFI_BAND_5_GHZ);
 
         verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);
@@ -3200,6 +3203,7 @@ public class WifiVendorHalTest {
         radioModeInfos.add(radioModeInfo0);
 
         mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfos);
+        mLooper.dispatchAll();
         verify(mVendorHalRadioModeChangeHandler).onMcc(WifiScanner.WIFI_BAND_BOTH);
 
         verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);
@@ -3230,6 +3234,7 @@ public class WifiVendorHalTest {
         radioModeInfos.add(radioModeInfo1);
 
         mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfos);
+        mLooper.dispatchAll();
         // Ignored....
 
         verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);

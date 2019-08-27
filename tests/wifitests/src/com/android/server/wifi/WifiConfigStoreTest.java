@@ -746,13 +746,10 @@ public class WifiConfigStoreTest {
     }
 
     /**
-     * Verify that a XmlPullParserException will be thrown when reading an user store file
-     * containing unknown data.
-     *
-     * @throws Exception
+     * Verify that we gracefully skip unknown section when reading an user store file.
      */
-    @Test(expected = XmlPullParserException.class)
-    public void testReadUserStoreContainedUnknownData() throws Exception {
+    @Test
+    public void testReadUserStoreContainedUnknownSection() throws Exception {
         String storeFileData =
                 "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                         + "<WifiConfigStoreData>\n"
@@ -765,13 +762,10 @@ public class WifiConfigStoreTest {
     }
 
     /**
-     * Verify that a XmlPullParserException will be thrown when reading the share store file
-     * containing unknown data.
-     *
-     * @throws Exception
+     * Verify that we gracefully skip unknown section when reading a shared store file.
      */
-    @Test(expected = XmlPullParserException.class)
-    public void testReadShareStoreContainedUnknownData() throws Exception {
+    @Test
+    public void testReadShareStoreContainedUnknownSection() throws Exception {
         String storeFileData =
                 "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                         + "<WifiConfigStoreData>\n"

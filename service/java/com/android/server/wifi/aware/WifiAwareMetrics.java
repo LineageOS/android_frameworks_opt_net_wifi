@@ -234,7 +234,7 @@ public class WifiAwareMetrics {
      */
     public void recordAttachStatus(int status) {
         synchronized (mLock) {
-            mAttachStatusData.put(status, mAttachStatusData.get(status) + 1);
+            addNanHalStatusToHistogram(status, mAttachStatusData);
         }
     }
 
@@ -354,9 +354,9 @@ public class WifiAwareMetrics {
     public void recordDiscoveryStatus(int uid, int status, boolean isPublish) {
         synchronized (mLock) {
             if (isPublish) {
-                mPublishStatusData.put(status, mPublishStatusData.get(status) + 1);
+                addNanHalStatusToHistogram(status, mPublishStatusData);
             } else {
-                mSubscribeStatusData.put(status, mSubscribeStatusData.get(status) + 1);
+                addNanHalStatusToHistogram(status, mSubscribeStatusData);
             }
 
             if (status == NanStatusType.NO_RESOURCES_AVAILABLE) {
@@ -463,9 +463,9 @@ public class WifiAwareMetrics {
     public void recordNdpStatus(int status, boolean isOutOfBand, long startTimestamp) {
         synchronized (mLock) {
             if (isOutOfBand) {
-                mOutOfBandNdpStatusData.put(status, mOutOfBandNdpStatusData.get(status) + 1);
+                addNanHalStatusToHistogram(status, mOutOfBandNdpStatusData);
             } else {
-                mInBandNdpStatusData.put(status, mOutOfBandNdpStatusData.get(status) + 1);
+                addNanHalStatusToHistogram(status, mInBandNdpStatusData);
             }
 
             if (status == NanStatusType.SUCCESS) {

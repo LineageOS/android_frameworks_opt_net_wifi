@@ -291,6 +291,15 @@ public class WifiAwareMetricsTest {
                 log.maxConcurrentAttachSessionsInApp, equalTo(2));
         collector.checkThat("histogramAttachSessionStatus.length",
                 log.histogramAttachSessionStatus.length, equalTo(3)); // 3 buckets
+        validateNanStatusProtoHistBucket("Bucket[SUCCESS]",
+                log.histogramAttachSessionStatus[0],
+                WifiMetricsProto.WifiAwareLog.SUCCESS, 5);
+        validateNanStatusProtoHistBucket("Bucket[INTERNAL_FAILURE]",
+                log.histogramAttachSessionStatus[1],
+                WifiMetricsProto.WifiAwareLog.INTERNAL_FAILURE, 2);
+        validateNanStatusProtoHistBucket("Bucket[UNKNOWN_HAL_STATUS]",
+                log.histogramAttachSessionStatus[2],
+                WifiMetricsProto.WifiAwareLog.UNKNOWN_HAL_STATUS, 1);
         collector.checkThat("histogramAttachDurationMs.length",
                 log.histogramAttachDurationMs.length, equalTo(2));
         validateProtoHistBucket("Duration[0]", log.histogramAttachDurationMs[0], 5, 6, 1);
@@ -403,8 +412,23 @@ public class WifiAwareMetricsTest {
                 log.maxConcurrentDiscoverySessionsInSystem, equalTo(8));
         collector.checkThat("histogramPublishStatus.length",
                 log.histogramPublishStatus.length, equalTo(2)); // 2 buckets
+        validateNanStatusProtoHistBucket("Bucket[SUCCESS]",
+                log.histogramPublishStatus[0],
+                WifiMetricsProto.WifiAwareLog.SUCCESS, 3);
+        validateNanStatusProtoHistBucket("Bucket[INTERNAL_FAILURE]",
+                log.histogramPublishStatus[1],
+                WifiMetricsProto.WifiAwareLog.INTERNAL_FAILURE, 1);
         collector.checkThat("histogramSubscribeStatus.length",
                 log.histogramSubscribeStatus.length, equalTo(3)); // 3 buckets
+        validateNanStatusProtoHistBucket("Bucket[SUCCESS]",
+                log.histogramSubscribeStatus[0],
+                WifiMetricsProto.WifiAwareLog.SUCCESS, 5);
+        validateNanStatusProtoHistBucket("Bucket[INTERNAL_FAILURE]",
+                log.histogramSubscribeStatus[1],
+                WifiMetricsProto.WifiAwareLog.INTERNAL_FAILURE, 1);
+        validateNanStatusProtoHistBucket("Bucket[NO_RESOURCES_AVAILABLE]",
+                log.histogramSubscribeStatus[2],
+                WifiMetricsProto.WifiAwareLog.NO_RESOURCES_AVAILABLE, 1);
         collector.checkThat("numAppsWithDiscoverySessionFailureOutOfResources",
                 log.numAppsWithDiscoverySessionFailureOutOfResources, equalTo(1));
         validateProtoHistBucket("Publish Duration[0]", log.histogramPublishSessionDurationMs[0], 5,
@@ -510,8 +534,20 @@ public class WifiAwareMetricsTest {
         collector.checkThat("maxConcurrentNdpPerNdi", log.maxConcurrentNdpPerNdi, equalTo(3));
         collector.checkThat("histogramRequestNdpStatus.length",
                 log.histogramRequestNdpStatus.length, equalTo(3));
+        validateNanStatusProtoHistBucket("Bucket[SUCCESS]",
+                log.histogramRequestNdpStatus[0],
+                WifiMetricsProto.WifiAwareLog.SUCCESS, 3);
+        validateNanStatusProtoHistBucket("Bucket[INTERNAL_FAILURE]",
+                log.histogramRequestNdpStatus[1],
+                WifiMetricsProto.WifiAwareLog.INTERNAL_FAILURE, 2);
+        validateNanStatusProtoHistBucket("Bucket[UNKNOWN_HAL_STATUS]",
+                log.histogramRequestNdpStatus[2],
+                WifiMetricsProto.WifiAwareLog.NO_RESOURCES_AVAILABLE, 1);
         collector.checkThat("histogramRequestNdpOobStatus.length",
                 log.histogramRequestNdpOobStatus.length, equalTo(1));
+        validateNanStatusProtoHistBucket("Bucket[SUCCESS]",
+                log.histogramRequestNdpOobStatus[0],
+                WifiMetricsProto.WifiAwareLog.SUCCESS, 2);
 
         collector.checkThat("ndpCreationTimeMsMin", log.ndpCreationTimeMsMin, equalTo(1L));
         collector.checkThat("ndpCreationTimeMsMax", log.ndpCreationTimeMsMax, equalTo(15L));

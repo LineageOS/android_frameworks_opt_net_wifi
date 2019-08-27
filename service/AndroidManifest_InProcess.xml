@@ -18,9 +18,17 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.android.server.wifistack.inprocess"
-          android:sharedUserId="android.uid.system">
+          coreApp="true"
+          android:sharedUserId="android.uid.system"
+          android:versionCode="220000000"
+          android:versionName="30 system image">
+
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="29" />
-    <application>
+
+    <application
+        android:persistent="true"
+        android:directBootAware="true"
+        android:label="@string/wifiAppLabel">
         <service
             android:name="com.android.server.wifi.WifiStackService"
             android:directBootAware="true"
