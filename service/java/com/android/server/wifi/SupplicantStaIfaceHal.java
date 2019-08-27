@@ -47,7 +47,6 @@ import android.hardware.wifi.supplicant.V1_2.DppAkm;
 import android.hardware.wifi.supplicant.V1_2.DppFailureCode;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
-import android.net.IpConfiguration;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
@@ -62,7 +61,6 @@ import android.util.Log;
 import android.util.MutableBoolean;
 import android.util.MutableInt;
 import android.util.Pair;
-import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.DppEventCallback;
@@ -81,7 +79,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -925,61 +922,6 @@ public class SupplicantStaIfaceHal {
             if (!reassociate(ifaceName)) {
                 loge("Failed to trigger reassociate");
                 return false;
-            }
-            return true;
-        }
-    }
-
-    /**
-     * Load all the configured networks from wpa_supplicant.
-     *
-     * @param ifaceName     Name of the interface.
-     * @param configs       Map of configuration key to configuration objects corresponding to all
-     *                      the networks.
-     * @param networkExtras Map of extra configuration parameters stored in wpa_supplicant.conf
-     * @return true if succeeds, false otherwise.
-     */
-    public boolean loadNetworks(@NonNull String ifaceName, Map<String, WifiConfiguration> configs,
-                                SparseArray<Map<String, String>> networkExtras) {
-        synchronized (mLock) {
-            List<Integer> networkIds = listNetworks(ifaceName);
-            if (networkIds == null) {
-                Log.e(TAG, "Failed to list networks");
-                return false;
-            }
-            for (Integer networkId : networkIds) {
-                SupplicantStaNetworkHal network = getNetwork(ifaceName, networkId);
-                if (network == null) {
-                    Log.e(TAG, "Failed to get network with ID: " + networkId);
-                    return false;
-                }
-                WifiConfiguration config = new WifiConfiguration();
-                Map<String, String> networkExtra = new HashMap<>();
-                boolean loadSuccess = false;
-                try {
-                    loadSuccess = network.loadWifiConfiguration(config, networkExtra);
-                } catch (IllegalArgumentException e) {
-                    Log.wtf(TAG, "Exception while loading config params: " + config, e);
-                }
-                if (!loadSuccess) {
-                    Log.e(TAG, "Failed to load wifi configuration for network with ID: " + networkId
-                            + ". Skipping...");
-                    continue;
-                }
-                // Set the default IP assignments.
-                config.setIpAssignment(IpConfiguration.IpAssignment.DHCP);
-                config.setProxySettings(IpConfiguration.ProxySettings.NONE);
-
-                networkExtras.put(networkId, networkExtra);
-                String configKey =
-                        networkExtra.get(SupplicantStaNetworkHal.ID_STRING_KEY_CONFIG_KEY);
-                final WifiConfiguration duplicateConfig = configs.put(configKey, config);
-                if (duplicateConfig != null) {
-                    // The network is already known. Overwrite the duplicate entry.
-                    Log.i(TAG, "Replacing duplicate network: " + duplicateConfig.networkId);
-                    removeNetwork(ifaceName, duplicateConfig.networkId);
-                    networkExtras.remove(duplicateConfig.networkId);
-                }
             }
             return true;
         }

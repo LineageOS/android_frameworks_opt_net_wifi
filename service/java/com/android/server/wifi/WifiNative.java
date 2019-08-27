@@ -31,7 +31,6 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.SparseArray;
 
 import com.android.internal.annotations.Immutable;
 import com.android.internal.util.HexDump;
@@ -2086,21 +2085,6 @@ public class WifiNative {
      */
     public boolean enableStaAutoReconnect(@NonNull String ifaceName, boolean enable) {
         return mSupplicantStaIfaceHal.enableAutoReconnect(ifaceName, enable);
-    }
-
-    /**
-     * Migrate all the configured networks from wpa_supplicant.
-     *
-     * @param ifaceName Name of the interface.
-     * @param configs       Map of configuration key to configuration objects corresponding to all
-     *                      the networks.
-     * @param networkExtras Map of extra configuration parameters stored in wpa_supplicant.conf
-     * @return Max priority of all the configs.
-     */
-    public boolean migrateNetworksFromSupplicant(
-            @NonNull String ifaceName, Map<String, WifiConfiguration> configs,
-            SparseArray<Map<String, String>> networkExtras) {
-        return mSupplicantStaIfaceHal.loadNetworks(ifaceName, configs, networkExtras);
     }
 
     /**

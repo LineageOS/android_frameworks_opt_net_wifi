@@ -159,6 +159,7 @@ public class SupplicantStaNetworkHal {
      * @return true if succeeds, false otherwise.
      * @throws IllegalArgumentException on malformed configuration params.
      */
+    @VisibleForTesting
     public boolean loadWifiConfiguration(WifiConfiguration config,
             Map<String, String> networkExtras) {
         synchronized (mLock) {
