@@ -19,7 +19,15 @@ android_test {
     static_libs: [
         "android-support-test",
         "androidx.test.rules",
+        "frameworks-base-testutils",
+        "mockito-target-minus-junit4",
+        "truth-prebuilt",
         "WifiTrackerLib",
+    ],
+
+    libs: [
+        "android.test.mock",
+        "Robolectric_all-target",
     ],
 
     platform_apis: true,

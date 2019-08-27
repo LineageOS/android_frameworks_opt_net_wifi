@@ -17,8 +17,8 @@
 package com.android.wifitrackerlib;
 
 import android.net.wifi.ScanResult;
-import android.os.SystemClock;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,22 +30,26 @@ import java.util.List;
  */
 public class ScanResultUpdater {
     private HashMap<String, ScanResult> mScanResultsByBssid = new HashMap<>();
-    private long mMaxScanAgeMillis;
-    private Object mLock = new Object();
+    private final long mMaxScanAgeMillis;
+    private final Object mLock = new Object();
+    private final Clock mClock;
 
     /**
      * Creates a ScanResultUpdater with no max scan age.
+     *
+     * @param clock Elapsed real time Clock to compare with ScanResult timestamps.
      */
-    public ScanResultUpdater() {
-        this(Long.MAX_VALUE);
+    public ScanResultUpdater(Clock clock) {
+        this(clock, Long.MAX_VALUE);
     }
 
     /**
      * Creates a ScanResultUpdater with a max scan age in milliseconds. Scans older than this limit
      * will be pruned upon update/retrieval to keep the size of the scan list down.
      */
-    public ScanResultUpdater(long maxScanAgeMillis) {
+    public ScanResultUpdater(Clock clock, long maxScanAgeMillis) {
         mMaxScanAgeMillis = maxScanAgeMillis;
+        mClock = clock;
     }
 
     /**
@@ -83,7 +87,7 @@ public class ScanResultUpdater {
         synchronized (mLock) {
             List<ScanResult> ageFilteredResults = new ArrayList<>();
             for (ScanResult result : mScanResultsByBssid.values()) {
-                if (SystemClock.elapsedRealtime() - result.timestamp <= maxScanAgeMillis) {
+                if (mClock.millis() - result.timestamp <= maxScanAgeMillis) {
                     ageFilteredResults.add(result);
                 }
             }
@@ -94,7 +98,7 @@ public class ScanResultUpdater {
     private void evictOldScans() {
         synchronized (mLock) {
             mScanResultsByBssid.entrySet().removeIf((entry) ->
-                    SystemClock.elapsedRealtime() - entry.getValue().timestamp > mMaxScanAgeMillis);
+                    mClock.millis() - entry.getValue().timestamp > mMaxScanAgeMillis);
         }
     }
 }
