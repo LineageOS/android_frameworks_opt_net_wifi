@@ -129,7 +129,7 @@ public class WifiNative {
         /** Identifier allocated for the interface */
         public final int id;
         /** Type of the iface: STA (for Connectivity or Scan) or AP */
-        public final @IfaceType int type;
+        public @IfaceType int type;
         /** Name of the interface */
         public String name;
         /** Is the interface up? This is used to mask up/down notifications to external clients. */
@@ -998,7 +998,7 @@ public class WifiNative {
                 return null;
             }
             iface.externalListener = interfaceCallback;
-            iface.name = createStaIface(iface, /* lowPrioritySta */ true);
+            iface.name = createStaIface(iface, /* lowPrioritySta */ false);
             if (TextUtils.isEmpty(iface.name)) {
                 Log.e(TAG, "Failed to create iface in vendor HAL");
                 mIfaceMgr.removeIface(iface.id);
@@ -1081,6 +1081,77 @@ public class WifiNative {
 
             iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             return iface.name;
+        }
+    }
+
+    /**
+     * Switches an existing Client mode interface from connectivity
+     * {@link Iface#IFACE_TYPE_STA_FOR_CONNECTIVITY} to scan mode
+     * {@link Iface#IFACE_TYPE_STA_FOR_SCAN}.
+     *
+     * @param ifaceName Name of the interface.
+     * @return true if the operation succeeded, false if there is an error or the iface is already
+     * in scan mode.
+     */
+    public boolean switchClientInterfaceToScanMode(@NonNull String ifaceName) {
+        synchronized (mLock) {
+            final Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null) {
+                Log.e(TAG, "Trying to switch to scan mode on an invalid iface=" + ifaceName);
+                return false;
+            }
+            if (iface.type == Iface.IFACE_TYPE_STA_FOR_SCAN) {
+                Log.e(TAG, "Already in scan mode on iface=" + ifaceName);
+                return true;
+            }
+            if (!mSupplicantStaIfaceHal.teardownIface(iface.name)) {
+                Log.e(TAG, "Failed to teardown iface in supplicant on " + iface);
+                teardownInterface(iface.name);
+                return false;
+            }
+            iface.type = Iface.IFACE_TYPE_STA_FOR_SCAN;
+            stopSupplicantIfNecessary();
+            Log.i(TAG, "Successfully switched to scan mode on iface=" + iface);
+            return true;
+        }
+    }
+
+    /**
+     * Switches an existing Client mode interface from scan mode
+     * {@link Iface#IFACE_TYPE_STA_FOR_SCAN} to connectivity mode
+     * {@link Iface#IFACE_TYPE_STA_FOR_CONNECTIVITY}.
+     *
+     * @param ifaceName Name of the interface.
+     * @return true if the operation succeeded, false if there is an error or the iface is already
+     * in scan mode.
+     */
+    public boolean switchClientInterfaceToConnectivityMode(@NonNull String ifaceName) {
+        synchronized (mLock) {
+            final Iface iface = mIfaceMgr.getIface(ifaceName);
+            if (iface == null) {
+                Log.e(TAG, "Trying to switch to connectivity mode on an invalid iface="
+                        + ifaceName);
+                return false;
+            }
+            if (iface.type == Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY) {
+                Log.e(TAG, "Already in connectivity mode on iface=" + ifaceName);
+                return true;
+            }
+            if (!startSupplicant()) {
+                Log.e(TAG, "Failed to start supplicant");
+                teardownInterface(iface.name);
+                mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToSupplicant();
+                return false;
+            }
+            if (!mSupplicantStaIfaceHal.setupIface(iface.name)) {
+                Log.e(TAG, "Failed to setup iface in supplicant on " + iface);
+                teardownInterface(iface.name);
+                mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToSupplicant();
+                return false;
+            }
+            iface.type = Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY;
+            Log.i(TAG, "Successfully switched to connectivity mode on iface=" + iface);
+            return true;
         }
     }
 
