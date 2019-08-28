@@ -188,27 +188,25 @@ public class OsuServerConnection {
      * Validates the service provider by comparing its identities found in OSU Server cert
      * to the friendlyName obtained from ANQP exchange that is displayed to the user.
      *
-     * @param locale       a {@link Locale} object used for matching the friendly name in
-     *                     subjectAltName section of the certificate along with
-     *                     {@param friendlyName}.
-     * @param friendlyName a string of the friendly name used for finding the same name in
-     *                     subjectAltName section of the certificate.
+     * @param friendlyNames the friendly names used for finding the same name in
+     *                     subjectAltName section of the certificate, which is a map of language
+     *                     codes from ISO-639 and names.
      * @return boolean true if friendlyName shows up as one of the identities in the cert
      */
-    public boolean validateProvider(Locale locale,
-            String friendlyName) {
+    public boolean validateProvider(
+            Map<String, String> friendlyNames) {
 
-        if (locale == null || TextUtils.isEmpty(friendlyName)) {
+        if (friendlyNames.size() == 0) {
             return false;
         }
 
         for (Pair<Locale, String> identity : ServiceProviderVerifier.getProviderNames(
                 mTrustManager.getProviderCert())) {
-            if (identity.first == null) continue;
+            if (identity.first == null || TextUtils.isEmpty(identity.second)) continue;
 
             // Compare the language code for ISO-639.
-            if (identity.first.getISO3Language().equals(locale.getISO3Language()) &&
-                    TextUtils.equals(identity.second, friendlyName)) {
+            if (TextUtils.equals(identity.second,
+                    friendlyNames.get(identity.first.getISO3Language()))) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "OSU certificate is valid for "
                             + identity.first.getISO3Language() + "/" + identity.second);
