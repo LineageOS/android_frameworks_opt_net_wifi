@@ -45,13 +45,12 @@ public class ScanOnlyModeManager implements ActiveModeManager {
     private final WifiNative mWifiNative;
 
     private final WifiMetrics mWifiMetrics;
-    private final Listener mListener;
+    private final Listener mModeListener;
     private final WakeupController mWakeupController;
     private final SarManager mSarManager;
 
     private String mClientInterfaceName;
     private boolean mIfaceIsUp = false;
-
     private boolean mExpectedStop = false;
 
     ScanOnlyModeManager(@NonNull Context context, @NonNull Looper looper,
@@ -61,7 +60,7 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                         @NonNull SarManager sarManager) {
         mContext = context;
         mWifiNative = wifiNative;
-        mListener = listener;
+        mModeListener = listener;
         mWifiMetrics = wifiMetrics;
         mWakeupController = wakeupController;
         mSarManager = sarManager;
@@ -97,17 +96,7 @@ public class ScanOnlyModeManager implements ActiveModeManager {
         pw.println("current StateMachine mode: " + getCurrentStateName());
         pw.println("mClientInterfaceName: " + mClientInterfaceName);
         pw.println("mIfaceIsUp: " + mIfaceIsUp);
-    }
-
-    /**
-     * Listener for ScanOnlyMode state changes.
-     */
-    public interface Listener {
-        /**
-         * Invoke when wifi state changes.
-         * @param state new wifi state
-         */
-        void onStateChanged(int state);
+        mStateMachine.dump(fd, pw, args);
     }
 
     private String getCurrentStateName() {
@@ -118,26 +107,6 @@ public class ScanOnlyModeManager implements ActiveModeManager {
         }
 
         return "StateMachine not active";
-    }
-
-    /**
-     * Update Wifi state.
-     * @param state new Wifi state
-     */
-    private void updateWifiState(int state) {
-        if (mExpectedStop) {
-            Log.d(TAG, "expected stop, not triggering callbacks: state = " + state);
-            return;
-        }
-
-        // Once we report the mode has stopped/failed any other stop signals are redundant
-        // note: this can happen in failure modes where we get multiple callbacks as underlying
-        // components/interface stops or the underlying interface is destroyed in cleanup
-        if (state == WifiManager.WIFI_STATE_UNKNOWN || state == WifiManager.WIFI_STATE_DISABLED) {
-            mExpectedStop = true;
-        }
-
-        mListener.onStateChanged(state);
     }
 
     private class ScanOnlyModeStateMachine extends StateMachine {
@@ -199,7 +168,7 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                                 mWifiNativeInterfaceCallback);
                         if (TextUtils.isEmpty(mClientInterfaceName)) {
                             Log.e(TAG, "Failed to create ClientInterface. Sit in Idle");
-                            updateWifiState(WifiManager.WIFI_STATE_UNKNOWN);
+                            mModeListener.onStartFailure();
                             break;
                         }
                         transitionTo(mStartedState);
@@ -222,7 +191,7 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                 if (isUp) {
                     Log.d(TAG, "Wifi is ready to use for scanning");
                     mWakeupController.start();
-                    updateWifiState(WifiManager.WIFI_STATE_ENABLED);
+                    mModeListener.onStarted();
                 } else {
                     // if the interface goes down we should exit and go back to idle state.
                     Log.d(TAG, "interface down - stop scan mode");
@@ -256,7 +225,6 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                         break;
                     case CMD_INTERFACE_DOWN:
                         Log.d(TAG, "interface down!  stop mode");
-                        updateWifiState(WifiManager.WIFI_STATE_UNKNOWN);
                         transitionTo(mIdleState);
                         break;
                     default:
@@ -275,11 +243,13 @@ public class ScanOnlyModeManager implements ActiveModeManager {
                     mWifiNative.teardownInterface(mClientInterfaceName);
                     mClientInterfaceName = null;
                 }
-                updateWifiState(WifiManager.WIFI_STATE_DISABLED);
                 mSarManager.setScanOnlyWifiState(WifiManager.WIFI_STATE_DISABLED);
 
-                // once we leave started, nothing else to do...  stop the state machine
-                mStateMachine.quitNow();
+                if (!mExpectedStop) {
+                    // once we leave started, nothing else to do...  stop the state machine
+                    mStateMachine.quitNow();
+                    mModeListener.onStopped();
+                }
             }
         }
     }

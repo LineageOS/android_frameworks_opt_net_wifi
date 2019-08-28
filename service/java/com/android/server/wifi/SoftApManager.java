@@ -74,7 +74,8 @@ public class SoftApManager implements ActiveModeManager {
 
     private final SoftApStateMachine mStateMachine;
 
-    private final WifiManager.SoftApCallback mCallback;
+    private final Listener mModeListener;
+    private final WifiManager.SoftApCallback mSoftApCallback;
 
     private String mApInterfaceName;
     private boolean mIfaceIsUp;
@@ -129,6 +130,7 @@ public class SoftApManager implements ActiveModeManager {
                          @NonNull FrameworkFacade framework,
                          @NonNull WifiNative wifiNative,
                          String countryCode,
+                         @NonNull Listener listener,
                          @NonNull WifiManager.SoftApCallback callback,
                          @NonNull WifiApConfigStore wifiApConfigStore,
                          @NonNull SoftApModeConfiguration apConfig,
@@ -139,7 +141,8 @@ public class SoftApManager implements ActiveModeManager {
         mFrameworkFacade = framework;
         mWifiNative = wifiNative;
         mCountryCode = countryCode;
-        mCallback = callback;
+        mModeListener = listener;
+        mSoftApCallback = callback;
         mWifiApConfigStore = wifiApConfigStore;
         mApConfig = apConfig;
         if (mApConfig.getWifiConfiguration() == null) {
@@ -204,6 +207,7 @@ public class SoftApManager implements ActiveModeManager {
         pw.println("mReportedFrequency: " + mReportedFrequency);
         pw.println("mReportedBandwidth: " + mReportedBandwidth);
         pw.println("mStartTimestamp: " + mStartTimestamp);
+        mStateMachine.dump(fd, pw, args);
     }
 
     private String getCurrentStateName() {
@@ -223,7 +227,7 @@ public class SoftApManager implements ActiveModeManager {
      * @param reason Failure reason if the new AP state is in failure state
      */
     private void updateApState(int newState, int currentState, int reason) {
-        mCallback.onStateChanged(newState, reason);
+        mSoftApCallback.onStateChanged(newState, reason);
 
         //send the AP state change broadcast
         final Intent intent = new Intent(WifiManager.WIFI_AP_STATE_CHANGED_ACTION);
@@ -390,6 +394,7 @@ public class SoftApManager implements ActiveModeManager {
                                     WifiManager.SAP_START_FAILURE_GENERAL);
                             mWifiMetrics.incrementSoftApStartResult(
                                     false, WifiManager.SAP_START_FAILURE_GENERAL);
+                            mModeListener.onStartFailure();
                             break;
                         }
                         updateApState(WifiManager.WIFI_AP_STATE_ENABLING,
@@ -405,6 +410,7 @@ public class SoftApManager implements ActiveModeManager {
                                           failureReason);
                             stopSoftAp();
                             mWifiMetrics.incrementSoftApStartResult(false, failureReason);
+                            mModeListener.onStartFailure();
                             break;
                         }
                         transitionTo(mStartedState);
@@ -491,8 +497,8 @@ public class SoftApManager implements ActiveModeManager {
                 mNumAssociatedStations = numStations;
                 Log.d(TAG, "Number of associated stations changed: " + mNumAssociatedStations);
 
-                if (mCallback != null) {
-                    mCallback.onNumClientsChanged(mNumAssociatedStations);
+                if (mSoftApCallback != null) {
+                    mSoftApCallback.onNumClientsChanged(mNumAssociatedStations);
                 } else {
                     Log.e(TAG, "SoftApCallback is null. Dropping NumClientsChanged event.");
                 }
@@ -515,9 +521,10 @@ public class SoftApManager implements ActiveModeManager {
                     Log.d(TAG, "SoftAp is ready for use");
                     updateApState(WifiManager.WIFI_AP_STATE_ENABLED,
                             WifiManager.WIFI_AP_STATE_ENABLING, 0);
+                    mModeListener.onStarted();
                     mWifiMetrics.incrementSoftApStartResult(true, 0);
-                    if (mCallback != null) {
-                        mCallback.onNumClientsChanged(mNumAssociatedStations);
+                    if (mSoftApCallback != null) {
+                        mSoftApCallback.onNumClientsChanged(mNumAssociatedStations);
                     }
                 } else {
                     // the interface was up, but goes down
@@ -573,6 +580,7 @@ public class SoftApManager implements ActiveModeManager {
                 mIfaceIsUp = false;
                 mIfaceIsDestroyed = false;
                 mStateMachine.quitNow();
+                mModeListener.onStopped();
             }
 
             private void updateUserBandPreferenceViolationMetricsIfNeeded() {

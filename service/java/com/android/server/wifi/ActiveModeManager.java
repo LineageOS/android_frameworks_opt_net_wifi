@@ -30,6 +30,24 @@ import java.lang.annotation.RetentionPolicy;
  */
 public interface ActiveModeManager {
     /**
+     * Listener for ActiveModeManager state changes.
+     */
+    interface Listener {
+        /**
+         * Invoked when mode manager completes start.
+         */
+        void onStarted();
+        /**
+         * Invoked when mode manager completes stop.
+         */
+        void onStopped();
+        /**
+         * Invoked when mode manager encountered a failure on start.
+         */
+        void onStartFailure();
+    }
+
+    /**
      * Method used to start the Manager for a given Wifi operational mode.
      */
     void start();

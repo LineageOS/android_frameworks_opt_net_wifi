@@ -205,8 +205,10 @@ public class ActiveModeWarden {
                     + softApConfig.getWifiConfiguration());
 
             SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
-            ActiveModeManager manager = mWifiInjector.makeSoftApManager(callback, softApConfig);
-            callback.setActiveModeManager(manager);
+            SoftApListener listener = new SoftApListener();
+            ActiveModeManager manager =
+                    mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
+            listener.setActiveModeManager(manager);
             manager.start();
             mActiveModeManagers.add(manager);
             updateBatteryStatsWifiState(true);
@@ -298,7 +300,7 @@ public class ActiveModeWarden {
         }
     }
 
-    private class SoftApCallbackImpl extends ModeCallback implements WifiManager.SoftApCallback {
+    private class SoftApCallbackImpl implements WifiManager.SoftApCallback {
         private final int mMode;
 
         SoftApCallbackImpl(int mode) {
@@ -309,13 +311,6 @@ public class ActiveModeWarden {
 
         @Override
         public void onStateChanged(int state, int reason) {
-            if (state == WifiManager.WIFI_AP_STATE_DISABLED) {
-                mActiveModeManagers.remove(getActiveModeManager());
-                updateBatteryStatsWifiState(false);
-            } else if (state == WifiManager.WIFI_AP_STATE_FAILED) {
-                mActiveModeManagers.remove(getActiveModeManager());
-                updateBatteryStatsWifiState(false);
-            }
             switch (mMode) {
                 case WifiManager.IFACE_IP_MODE_TETHERED:
                     if (mSoftApCallback != null) mSoftApCallback.onStateChanged(state, reason);
@@ -336,6 +331,23 @@ public class ActiveModeWarden {
                     if (mLohsCallback != null) mLohsCallback.onNumClientsChanged(numClients);
                     break;
             }
+        }
+    }
+
+    private class SoftApListener extends ModeCallback implements ActiveModeManager.Listener {
+        @Override
+        public void onStarted() { }
+
+        @Override
+        public void onStopped() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateBatteryStatsWifiState(false);
+        }
+
+        @Override
+        public void onStartFailure() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateBatteryStatsWifiState(false);
         }
     }
 
@@ -716,30 +728,38 @@ public class ActiveModeWarden {
         }
 
         class StaEnabledState extends ModeActiveState {
-            private class ClientListener implements ClientModeManager.Listener {
+            private class ClientListener implements ActiveModeManager.Listener {
                 @Override
-                public void onStateChanged(int state) {
+                public void onStarted() {
                     // make sure this listener is still active
                     if (this != mListener) {
-                        log("Client mode state change from previous manager");
+                        log("Client mode callback from previous manager");
                         return;
                     }
+                    log("client mode active");
+                    onModeActivationComplete();
+                }
 
-                    log("State changed from client mode. state = " + state);
-
-                    if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                        // error while setting up client mode or an unexpected failure.
-                        sendMessage(CMD_STA_START_FAILURE, this);
-                    } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                        // client mode stopped
-                        sendMessage(CMD_STA_STOPPED, this);
-                    } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                        // client mode is ready to go
-                        log("client mode active");
-                        onModeActivationComplete();
-                    } else {
-                        // only care if client mode stopped or started, dropping
+                @Override
+                public void onStopped() {
+                    // make sure this listener is still active
+                    if (this != mListener) {
+                        log("Client mode callback from previous manager");
+                        return;
                     }
+                    log("client mode stopped");
+                    sendMessage(CMD_STA_STOPPED, this);
+                }
+
+                @Override
+                public void onStartFailure() {
+                    // make sure this listener is still active
+                    if (this != mListener) {
+                        log("Client mode callback from previous manager");
+                        return;
+                    }
+                    log("client mode failure");
+                    sendMessage(CMD_STA_START_FAILURE, this);
                 }
             }
             private ClientListener mListener;
@@ -844,29 +864,40 @@ public class ActiveModeWarden {
         }
 
         class StaDisabledWithScanState extends ModeActiveState {
-            private class ScanOnlyListener implements ScanOnlyModeManager.Listener {
+            private class ScanOnlyListener implements ActiveModeManager.Listener {
                 @Override
-                public void onStateChanged(int state) {
+                public void onStarted() {
+                    // make sure this listener is still active
                     if (this != mListener) {
-                        log("ScanOnly mode state change from previous manager");
+                        log("Scanonly mode callback from previous manager");
                         return;
                     }
+                    log("Scanonly mode active");
+                    onModeActivationComplete();
+                }
 
-                    if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                        log("StaDisabledWithScanState mode failed");
-                        // error while setting up scan mode or an unexpected failure.
-                        sendMessage(CMD_SCANNING_START_FAILURE, this);
-                    } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                        log("StaDisabledWithScanState stopped");
-                        //scan only mode stopped
-                        sendMessage(CMD_SCANNING_STOPPED, this);
-                    } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                        // scan mode is ready to go
-                        log("scan mode active");
-                        onModeActivationComplete();
-                    } else {
-                        log("unexpected state update: " + state);
+                @Override
+                public void onStopped() {
+                    // make sure this listener is still active
+                    if (this != mListener) {
+                        log("Scanonly mode callback from previous manager");
+                        return;
                     }
+                    // client mode is ready to go
+                    log("Scanonly mode stopped");
+                    // client mode stopped
+                    sendMessage(CMD_SCANNING_STOPPED, this);
+                }
+
+                @Override
+                public void onStartFailure() {
+                    // make sure this listener is still active
+                    if (this != mListener) {
+                        log("Scanonly mode callback from previous manager");
+                        return;
+                    }
+                    log("Scanonly mode failure");
+                    sendMessage(CMD_SCANNING_START_FAILURE, this);
                 }
             }
             private ScanOnlyListener mListener;

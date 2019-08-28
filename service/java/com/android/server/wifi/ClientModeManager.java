@@ -46,19 +46,17 @@ public class ClientModeManager implements ActiveModeManager {
     private final WifiNative mWifiNative;
 
     private final WifiMetrics mWifiMetrics;
-    private final Listener mListener;
+    private final Listener mModeListener;
     private final ClientModeImpl mClientModeImpl;
 
     private String mClientInterfaceName;
     private boolean mIfaceIsUp = false;
 
-    private boolean mExpectedStop = false;
-
     ClientModeManager(Context context, @NonNull Looper looper, WifiNative wifiNative,
             Listener listener, WifiMetrics wifiMetrics, ClientModeImpl clientModeImpl) {
         mContext = context;
         mWifiNative = wifiNative;
-        mListener = listener;
+        mModeListener = listener;
         mWifiMetrics = wifiMetrics;
         mClientModeImpl = clientModeImpl;
         mStateMachine = new ClientModeStateMachine(looper);
@@ -76,7 +74,6 @@ public class ClientModeManager implements ActiveModeManager {
      */
     public void stop() {
         Log.d(TAG, " currentstate: " + getCurrentStateName());
-        mExpectedStop = true;
         if (mClientInterfaceName != null) {
             if (mIfaceIsUp) {
                 updateWifiState(WifiManager.WIFI_STATE_DISABLING,
@@ -102,17 +99,7 @@ public class ClientModeManager implements ActiveModeManager {
         pw.println("current StateMachine mode: " + getCurrentStateName());
         pw.println("mClientInterfaceName: " + mClientInterfaceName);
         pw.println("mIfaceIsUp: " + mIfaceIsUp);
-    }
-
-    /**
-     * Listener for ClientMode state changes.
-     */
-    public interface Listener {
-        /**
-         * Invoke when wifi state changes.
-         * @param state new wifi state
-         */
-        void onStateChanged(int state);
+        mStateMachine.dump(fd, pw, args);
     }
 
     private String getCurrentStateName() {
@@ -131,20 +118,6 @@ public class ClientModeManager implements ActiveModeManager {
      * @param currentState current wifi state
      */
     private void updateWifiState(int newState, int currentState) {
-        if (!mExpectedStop) {
-            mListener.onStateChanged(newState);
-        } else {
-            Log.d(TAG, "expected stop, not triggering callbacks: newState = " + newState);
-        }
-
-        // Once we report the mode has stopped/failed any other stop signals are redundant
-        // note: this can happen in failure modes where we get multiple callbacks as underlying
-        // components/interface stops or the underlying interface is destroyed in cleanup
-        if (newState == WifiManager.WIFI_STATE_UNKNOWN
-                || newState == WifiManager.WIFI_STATE_DISABLED) {
-            mExpectedStop = true;
-        }
-
         if (newState == WifiManager.WIFI_STATE_UNKNOWN) {
             // do not need to broadcast failure to system
             return;
@@ -233,6 +206,7 @@ public class ClientModeManager implements ActiveModeManager {
                                             WifiManager.WIFI_STATE_ENABLING);
                             updateWifiState(WifiManager.WIFI_STATE_DISABLED,
                                             WifiManager.WIFI_STATE_UNKNOWN);
+                            mModeListener.onStartFailure();
                             break;
                         }
                         transitionTo(mStartedState);
@@ -258,6 +232,7 @@ public class ClientModeManager implements ActiveModeManager {
                                                        mClientInterfaceName);
                     updateWifiState(WifiManager.WIFI_STATE_ENABLED,
                                     WifiManager.WIFI_STATE_ENABLING);
+                    mModeListener.onStarted();
                 } else {
                     if (mClientModeImpl.isConnectedMacRandomizationEnabled()) {
                         // Handle the error case where our underlying interface went down if we
@@ -329,6 +304,7 @@ public class ClientModeManager implements ActiveModeManager {
 
                 // once we leave started, nothing else to do...  stop the state machine
                 mStateMachine.quitNow();
+                mModeListener.onStopped();
             }
         }
     }
