@@ -320,42 +320,6 @@ public class SupplicantStaNetworkHalTest {
     }
 
     /**
-     * Tests the loading of network ID.
-     */
-    @Test
-    public void testNetworkIdLoad() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.networkId = 5;
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        assertTrue(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-        assertEquals(mSupplicantVariables.networkId, loadConfig.networkId);
-    }
-
-    /**
-     * Tests the failure to load ssid aborts the loading of network variables.
-     */
-    @Test
-    public void testSsidLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        doAnswer(new AnswerWithArguments() {
-            public void answer(ISupplicantStaNetwork.getSsidCallback cb) throws RemoteException {
-                cb.onValues(mStatusFailure, mSupplicantVariables.ssid);
-            }
-        }).when(mISupplicantStaNetworkMock)
-                .getSsid(any(ISupplicantStaNetwork.getSsidCallback.class));
-
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        assertFalse(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-    }
-
-    /**
      * Tests the failure to save ssid.
      */
     @Test
@@ -388,27 +352,6 @@ public class SupplicantStaNetworkHalTest {
     }
 
     /**
-     * Tests the failure to load invalid key mgmt (unknown bit set in the
-     * supplicant network key_mgmt variable read).
-     */
-    @Test
-    public void testInvalidKeyMgmtLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.keyMgmtMask = 0xFFFFF;
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        try {
-            assertFalse(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-        } catch (IllegalArgumentException e) {
-            return;
-        }
-        assertTrue(false);
-    }
-
-    /**
      * Tests the failure to save invalid bssid (less than 6 bytes in the
      * {@link WifiConfiguration#BSSID} being saved).
      */
@@ -422,81 +365,6 @@ public class SupplicantStaNetworkHalTest {
             return;
         }
         assertTrue(false);
-    }
-
-    /**
-     * Tests the failure to load invalid bssid (less than 6 bytes in the supplicant bssid variable
-     * read).
-     */
-    @Test
-    public void testInvalidBssidLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.bssid = new byte[3];
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        try {
-            assertFalse(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-        } catch (IllegalArgumentException e) {
-            return;
-        }
-        assertTrue(false);
-    }
-
-    /**
-     * Tests the loading of invalid ssid from wpa_supplicant.
-     */
-    @Test
-    public void testInvalidSsidLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createWepHiddenNetwork();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.ssid = null;
-
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        assertFalse(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-    }
-
-    /**
-     * Tests the loading of invalid eap method from wpa_supplicant.
-     * Invalid eap method is assumed to be a non enterprise network. So, the loading should
-     * succeed as a non-enterprise network.
-     */
-    @Test
-    public void testInvalidEapMethodLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
-        config.enterpriseConfig =
-                WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.eapMethod = -1;
-
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        assertTrue(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
-    }
-
-    /**
-     * Tests the loading of invalid eap phase2 method from wpa_supplicant.
-     */
-    @Test
-    public void testInvalidEapPhase2MethodLoadFailure() throws Exception {
-        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
-        config.enterpriseConfig =
-                WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
-        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
-
-        // Modify the supplicant variable directly.
-        mSupplicantVariables.eapPhase2Method = -1;
-
-        WifiConfiguration loadConfig = new WifiConfiguration();
-        Map<String, String> networkExtras = new HashMap<>();
-        assertFalse(mSupplicantNetwork.loadWifiConfiguration(loadConfig, networkExtras));
     }
 
     /**
