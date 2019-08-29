@@ -86,6 +86,7 @@ public class OsuServerConnectionTest {
     private static final String AUTH_TYPE = "ECDHE_RSA";
     private static final String PROVIDER_NAME_VALID = "Boingo";
     private static final String PROVIDER_NAME_INVALID = "Boingo1";
+    private static final String TEST_PROVIDER_CHINESE_NAME = "宝音阁";
     private static final int ENABLE_VERBOSE_LOGGING = 1;
     private static final int TEST_SESSION_ID = 1;
 
@@ -144,7 +145,85 @@ public class OsuServerConnectionTest {
             trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
 
             verify(mOsuServerCallbacks).onServerValidationStatus(anyInt(), eq(true));
-            assertTrue(mOsuServerConnection.validateProvider(Locale.US, PROVIDER_NAME_VALID));
+            Map<String, String> providerNames = new HashMap<>();
+            providerNames.put(Locale.US.getISO3Language(), PROVIDER_NAME_VALID);
+            assertTrue(mOsuServerConnection.validateProvider(providerNames));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verifies multiple languages of OsuProvider names are matched with cert
+     */
+    @Test
+    public void verifyValidateProviderWithMultipleProviderLangs() throws Exception {
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                ServiceProviderVerifier.class).startMocking();
+        try {
+            when(ServiceProviderVerifier.getProviderNames(any(X509Certificate.class))).thenReturn(
+                    mProviderIdentities);
+            establishServerConnection();
+            TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
+            X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
+            trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
+            Map<String, String> friendlyNames = new HashMap<>();
+            friendlyNames.put(
+                    Locale.SIMPLIFIED_CHINESE.getISO3Language(), TEST_PROVIDER_CHINESE_NAME);
+            friendlyNames.put(Locale.US.getISO3Language(), PROVIDER_NAME_VALID);
+
+            assertTrue(mOsuServerConnection.validateProvider(friendlyNames));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verifies wrong language of OsuProvider name is mismatched with cert
+     */
+    @Test
+    public void verifyValidateProviderWithMismatchedProviderLang() throws Exception {
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                ServiceProviderVerifier.class).startMocking();
+        try {
+            when(ServiceProviderVerifier.getProviderNames(any(X509Certificate.class))).thenReturn(
+                    mProviderIdentities);
+            establishServerConnection();
+            TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
+            X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
+            trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
+            Map<String, String> friendlyNames = new HashMap<>();
+            friendlyNames.put(
+                    Locale.SIMPLIFIED_CHINESE.getISO3Language(), TEST_PROVIDER_CHINESE_NAME);
+
+            assertFalse(mOsuServerConnection.validateProvider(friendlyNames));
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verifies same language from different regions.
+     */
+    @Test
+    public void verifyValidateProviderWithSameLangButDifferentRegion() throws Exception {
+        // static mocking
+        MockitoSession session = ExtendedMockito.mockitoSession().mockStatic(
+                ServiceProviderVerifier.class).startMocking();
+        try {
+            when(ServiceProviderVerifier.getProviderNames(any(X509Certificate.class))).thenReturn(
+                    mProviderIdentities);
+            establishServerConnection();
+            TrustManager[] trustManagers = mTrustManagerCaptor.getValue();
+            X509TrustManager trustManager = (X509TrustManager) trustManagers[0];
+            trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
+            Map<String, String> friendlyNames = new HashMap<>();
+            friendlyNames.put(
+                    Locale.CANADA.getISO3Language(), PROVIDER_NAME_VALID);
+
+            assertTrue(mOsuServerConnection.validateProvider(friendlyNames));
         } finally {
             session.finishMocking();
         }
@@ -250,7 +329,9 @@ public class OsuServerConnectionTest {
             trustManager.checkServerTrusted(new X509Certificate[1], AUTH_TYPE);
 
             verify(mOsuServerCallbacks).onServerValidationStatus(anyInt(), eq(true));
-            assertFalse(mOsuServerConnection.validateProvider(Locale.US, PROVIDER_NAME_INVALID));
+            Map<String, String> providerNames = new HashMap<>();
+            providerNames.put(Locale.US.getISO3Language(), PROVIDER_NAME_INVALID);
+            assertFalse(mOsuServerConnection.validateProvider(providerNames));
         } finally {
             session.finishMocking();
         }
