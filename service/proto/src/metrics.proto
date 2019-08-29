@@ -633,6 +633,9 @@ message RouterFingerPrint {
 
     // When the channel is not one of the above.
     ROUTER_TECH_OTHER = 6;
+
+    // Router Channel AX.
+    ROUTER_TECH_AX = 7;
   }
 
   optional RoamType roam_type = 1;

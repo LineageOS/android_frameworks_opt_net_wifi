@@ -1147,6 +1147,9 @@ public class WifiMetrics {
             case InformationElementUtil.WifiMode.MODE_11AC  :
                 connectionWifiMode = WifiMetricsProto.RouterFingerPrint.ROUTER_TECH_AC;
                 break;
+            case InformationElementUtil.WifiMode.MODE_11AX  :
+                connectionWifiMode = WifiMetricsProto.RouterFingerPrint.ROUTER_TECH_AX;
+                break;
             default:
                 connectionWifiMode = WifiMetricsProto.RouterFingerPrint.ROUTER_TECH_OTHER;
                 break;
