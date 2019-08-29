@@ -114,12 +114,6 @@ java_library {
 	"services.net",
 	"services.wifi"
     ],
-
-    required: [
-	"libwifi-jni",
-	"services",
-        "cacerts_wfa",
-    ],
 }
 
 java_defaults {
@@ -137,6 +131,12 @@ java_defaults {
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
+
+    required: [
+	"libwifi-jni",
+	"services",
+        "cacerts_wfa",
+    ],
 }
 
 // Updatable stack packaged as an application
