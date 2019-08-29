@@ -632,6 +632,8 @@ public class WificondControl implements IBinder.DeathRecipient {
                         result.signalMbm / 100, result.frequency, result.tsf, ies, null,
                         result.infoElement);
                 ScanResult scanResult = scanDetail.getScanResult();
+                scanResult.setWifiStandard(networkDetail.getWifiMode());
+
                 // Update carrier network info if this AP's SSID is associated with a carrier Wi-Fi
                 // network and it uses EAP.
                 if (ScanResultUtil.isScanResultForEapNetwork(scanDetail.getScanResult())
