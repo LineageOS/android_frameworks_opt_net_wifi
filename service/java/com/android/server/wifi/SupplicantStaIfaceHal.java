@@ -79,6 +79,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -109,6 +110,8 @@ public class SupplicantStaIfaceHal {
     public static final String INIT_SERVICE_NAME = "wpa_supplicant";
     @VisibleForTesting
     public static final long WAIT_FOR_DEATH_TIMEOUT_MS = 50L;
+    @VisibleForTesting
+    static final String PMK_CACHE_EXPIRATION_ALARM_TAG = "PMK_CACHE_EXPIRATION_TIMER";
     /**
      * Regex pattern for extracting the wps device type bytes.
      * Matches a strings like the following: "<categ>-<OUI>-<subcateg>";
@@ -127,6 +130,8 @@ public class SupplicantStaIfaceHal {
             new HashMap<>();
     private HashMap<String, SupplicantStaNetworkHal> mCurrentNetworkRemoteHandles = new HashMap<>();
     private HashMap<String, WifiConfiguration> mCurrentNetworkLocalConfigs = new HashMap<>();
+    @VisibleForTesting
+    HashMap<Integer, PmkCacheStoreData> mPmkCacheEntries = new HashMap<>();
     private SupplicantDeathEventHandler mDeathEventHandler;
     private ServiceManagerDeathRecipient mServiceManagerDeathRecipient;
     private SupplicantDeathRecipient mSupplicantDeathRecipient;
@@ -137,6 +142,7 @@ public class SupplicantStaIfaceHal {
     private final PropertyService mPropertyService;
     private final Handler mEventHandler;
     private DppEventCallback mDppCallback = null;
+    private final Clock mClock;
 
     private final IServiceNotification mServiceNotificationCallback =
             new IServiceNotification.Stub() {
@@ -179,12 +185,25 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    @VisibleForTesting
+    static class PmkCacheStoreData {
+        public long expirationTimeInSec;
+        public ArrayList<Byte> data;
+
+        PmkCacheStoreData(long timeInSec, ArrayList<Byte> serializedData) {
+            expirationTimeInSec = timeInSec;
+            data = serializedData;
+        }
+    }
+
     public SupplicantStaIfaceHal(Context context, WifiMonitor monitor,
-                                 PropertyService propertyService, Handler handler) {
+                                 PropertyService propertyService, Handler handler,
+                                 Clock clock) {
         mContext = context;
         mWifiMonitor = monitor;
         mPropertyService = propertyService;
         mEventHandler = handler;
+        mClock = clock;
 
         mServiceManagerDeathRecipient = new ServiceManagerDeathRecipient();
         mSupplicantDeathRecipient = new SupplicantDeathRecipient();
@@ -313,6 +332,94 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    private boolean trySetupStaIfaceV1_3(@NonNull String ifaceName,
+            @NonNull ISupplicantStaIface iface)  throws RemoteException {
+        if (!isV1_3()) return false;
+
+        SupplicantStaIfaceHalCallbackV1_3 callbackV13 =
+                new SupplicantStaIfaceHalCallbackV1_3(ifaceName);
+        if (!registerCallbackV1_3(getStaIfaceMockableV1_3(iface), callbackV13)) {
+            throw new RemoteException("Init StaIface V1_3 failed.");
+        }
+        /* keep this in a store to avoid recycling by garbage collector. */
+        mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV13);
+        return true;
+    }
+
+    private boolean trySetupStaIfaceV1_2(@NonNull String ifaceName,
+            @NonNull ISupplicantStaIface iface) throws RemoteException {
+        if (!isV1_2()) return false;
+
+        /* try newer version fist. */
+        if (trySetupStaIfaceV1_3(ifaceName, iface)) {
+            logd("Newer HAL is found, skip V1_2 remaining init flow.");
+            return true;
+        }
+
+        SupplicantStaIfaceHalCallbackV1_2 callbackV12 =
+                new SupplicantStaIfaceHalCallbackV1_2(ifaceName);
+        if (!registerCallbackV1_2(getStaIfaceMockableV1_2(iface), callbackV12)) {
+            throw new RemoteException("Init StaIface V1_2 failed.");
+        }
+        /* keep this in a store to avoid recycling by garbage collector. */
+        mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV12);
+        return true;
+    }
+
+    private boolean trySetupStaIfaceV1_1(@NonNull String ifaceName,
+            @NonNull ISupplicantStaIface iface) throws RemoteException {
+        if (!isV1_1()) return false;
+
+        /* try newer version fist. */
+        if (trySetupStaIfaceV1_2(ifaceName, iface)) {
+            logd("Newer HAL is found, skip V1_1 remaining init flow.");
+            return true;
+        }
+
+        SupplicantStaIfaceHalCallbackV1_1 callbackV11 =
+                new SupplicantStaIfaceHalCallbackV1_1(ifaceName);
+        if (!registerCallbackV1_1(getStaIfaceMockableV1_1(iface), callbackV11)) {
+            throw new RemoteException("Init StaIface V1_1 failed.");
+        }
+        /* keep this in a store to avoid recycling by garbage collector. */
+        mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV11);
+        return true;
+    }
+
+    /**
+     * Helper function to set up StaIface with different HAL version.
+     *
+     * This helper function would try newer version recursively.
+     * Once the latest version is found, it would register the callback
+     * of the latest version and skip unnecessary older HAL init flow.
+     *
+     * New version callback will be extended from the older one, as a result,
+     * older callback is always created regardless of the latest version.
+     *
+     * Uprev steps:
+     * 1. add new helper function trySetupStaIfaceV1_Y.
+     * 2. call newly added function in trySetupStaIfaceV1_X (X should be Y-1).
+     */
+    private ISupplicantStaIface setupStaIface(@NonNull String ifaceName,
+            @NonNull ISupplicantIface ifaceHwBinder) throws RemoteException {
+        /* Prepare base type for later cast. */
+        ISupplicantStaIface iface = getStaIfaceMockable(ifaceHwBinder);
+
+        /* try newer version first. */
+        if (trySetupStaIfaceV1_1(ifaceName, iface)) {
+            logd("Newer HAL is found, skip V1_0 remaining init flow.");
+            return iface;
+        }
+
+        SupplicantStaIfaceHalCallback callback = new SupplicantStaIfaceHalCallback(ifaceName);
+        if (!registerCallback(iface, callback)) {
+            throw new RemoteException("Init StaIface V1_0 failed.");
+        }
+        /* keep this in a store to avoid recycling by garbage collector. */
+        mISupplicantStaIfaceCallbacks.put(ifaceName, callback);
+        return iface;
+    }
+
     /**
      * Setup a STA interface for the specified iface name.
      *
@@ -333,43 +440,15 @@ public class SupplicantStaIfaceHal {
             Log.e(TAG, "setupIface got null iface");
             return false;
         }
-        SupplicantStaIfaceHalCallback callback = new SupplicantStaIfaceHalCallback(ifaceName);
 
-        if (isV1_2()) {
-            android.hardware.wifi.supplicant.V1_2.ISupplicantStaIface iface =
-                    getStaIfaceMockableV1_2(ifaceHwBinder);
-
-            SupplicantStaIfaceHalCallbackV1_1 callbackV11 =
-                    new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
-
-            SupplicantStaIfaceHalCallbackV1_2 callbackV12 =
-                    new SupplicantStaIfaceHalCallbackV1_2(callbackV11);
-
-            if (!registerCallbackV1_2(iface, callbackV12)) {
-                return false;
-            }
+        try {
+            ISupplicantStaIface iface = setupStaIface(ifaceName, ifaceHwBinder);
             mISupplicantStaIfaces.put(ifaceName, iface);
-            mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV11);
-        } else if (isV1_1()) {
-            android.hardware.wifi.supplicant.V1_1.ISupplicantStaIface iface =
-                    getStaIfaceMockableV1_1(ifaceHwBinder);
-            SupplicantStaIfaceHalCallbackV1_1 callbackV1_1 =
-                    new SupplicantStaIfaceHalCallbackV1_1(ifaceName, callback);
-
-            if (!registerCallbackV1_1(iface, callbackV1_1)) {
-                return false;
-            }
-            mISupplicantStaIfaces.put(ifaceName, iface);
-            mISupplicantStaIfaceCallbacks.put(ifaceName, callbackV1_1);
-        } else {
-            ISupplicantStaIface iface = getStaIfaceMockable(ifaceHwBinder);
-
-            if (!registerCallback(iface, callback)) {
-                return false;
-            }
-            mISupplicantStaIfaces.put(ifaceName, iface);
-            mISupplicantStaIfaceCallbacks.put(ifaceName, callback);
+        } catch (RemoteException e) {
+            loge("setup StaIface failed: " + e.toString());
+            return false;
         }
+
         return true;
     }
 
@@ -732,6 +811,14 @@ public class SupplicantStaIfaceHal {
         }
     }
 
+    protected android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
+            getStaIfaceMockableV1_3(ISupplicantIface iface) {
+        synchronized (mLock) {
+            return android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
+                    .asInterface(iface.asBinder());
+        }
+    }
+
     /**
      * Uses the IServiceManager to check if the device is running V1_1 of the HAL from the VINTF for
      * the device.
@@ -750,6 +837,16 @@ public class SupplicantStaIfaceHal {
     private boolean isV1_2() {
         return checkHalVersionByInterfaceName(
                 android.hardware.wifi.supplicant.V1_2.ISupplicant.kInterfaceName);
+    }
+
+    /**
+     * Uses the IServiceManager to check if the device is running V1_3 of the HAL from the VINTF for
+     * the device.
+     * @return true if supported, false otherwise.
+     */
+    private boolean isV1_3() {
+        return checkHalVersionByInterfaceName(
+                android.hardware.wifi.supplicant.V1_3.ISupplicant.kInterfaceName);
     }
 
     private boolean checkHalVersionByInterfaceName(String interfaceName) {
@@ -882,7 +979,22 @@ public class SupplicantStaIfaceHal {
             }
             SupplicantStaNetworkHal networkHandle =
                     checkSupplicantStaNetworkAndLogFailure(ifaceName, "connectToNetwork");
-            if (networkHandle == null || !networkHandle.select()) {
+            if (networkHandle == null) {
+                loge("No valid remote network handle for network configuration: "
+                        + config.configKey());
+                return false;
+            }
+
+            PmkCacheStoreData pmkData = mPmkCacheEntries.get(config.networkId);
+            if (pmkData != null
+                    && pmkData.expirationTimeInSec > mClock.getElapsedSinceBootMillis() / 1000) {
+                logi("Set PMK cache for config id " + config.networkId);
+                if (!networkHandle.setPmkCache(pmkData.data)) {
+                    loge("Set PMK cache failed.");
+                }
+            }
+
+            if (!networkHandle.select()) {
                 loge("Failed to select network configuration: " + config.configKey());
                 return false;
             }
@@ -939,6 +1051,20 @@ public class SupplicantStaIfaceHal {
             if (getCurrentNetworkId(ifaceName) == networkId) {
                 // Currently we only save 1 network in supplicant.
                 removeAllNetworks(ifaceName);
+            }
+        }
+    }
+
+    /**
+     * Clean HAL cached data for |networkId| in the framework.
+     *
+     * @param networkId network id of the network to be removed from supplicant.
+     */
+    public void removeNetworkCachedData(int networkId) {
+        synchronized (mLock) {
+            logd("Remove cached HAL data for config id " + networkId);
+            if (mPmkCacheEntries.remove(networkId) != null) {
+                updatePmkCacheExpiration();
             }
         }
     }
@@ -1265,6 +1391,23 @@ public class SupplicantStaIfaceHal {
             if (iface == null) return false;
             try {
                 SupplicantStatus status =  iface.registerCallback_1_2(callback);
+                return checkStatusAndLogFailure(status, methodStr);
+            } catch (RemoteException e) {
+                handleRemoteException(e, methodStr);
+                return false;
+            }
+        }
+    }
+
+    private boolean registerCallbackV1_3(
+            android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface iface,
+            android.hardware.wifi.supplicant.V1_3.ISupplicantStaIfaceCallback callback) {
+        synchronized (mLock) {
+            String methodStr = "registerCallback_1_3";
+
+            if (iface == null) return false;
+            try {
+                SupplicantStatus status =  iface.registerCallback_1_3(callback);
                 return checkStatusAndLogFailure(status, methodStr);
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
@@ -2703,10 +2846,11 @@ public class SupplicantStaIfaceHal {
         private String mIfaceName;
         private SupplicantStaIfaceHalCallback mCallbackV1_0;
 
-        SupplicantStaIfaceHalCallbackV1_1(@NonNull String ifaceName,
-                @NonNull SupplicantStaIfaceHalCallback callback) {
+        SupplicantStaIfaceHalCallbackV1_1(@NonNull String ifaceName) {
             mIfaceName = ifaceName;
-            mCallbackV1_0 = callback;
+            // Create an older callback for function delegation,
+            // and it would cascadingly create older one.
+            mCallbackV1_0 = new SupplicantStaIfaceHalCallback(mIfaceName);
         }
 
         @Override
@@ -2814,11 +2958,14 @@ public class SupplicantStaIfaceHal {
 
     private class SupplicantStaIfaceHalCallbackV1_2 extends
             android.hardware.wifi.supplicant.V1_2.ISupplicantStaIfaceCallback.Stub {
+        private String mIfaceName;
         private SupplicantStaIfaceHalCallbackV1_1 mCallbackV1_1;
 
-        SupplicantStaIfaceHalCallbackV1_2(
-                @NonNull SupplicantStaIfaceHalCallbackV1_1 callback) {
-            mCallbackV1_1 = callback;
+        SupplicantStaIfaceHalCallbackV1_2(@NonNull String ifaceName) {
+            mIfaceName = ifaceName;
+            // Create an older callback for function delegation,
+            // and it would cascadingly create older one.
+            mCallbackV1_1 = new SupplicantStaIfaceHalCallbackV1_1(mIfaceName);
         }
 
         @Override
@@ -2990,6 +3137,189 @@ public class SupplicantStaIfaceHal {
             } else {
                 loge("onDppFailure callback is null");
             }
+        }
+    }
+
+    private class SupplicantStaIfaceHalCallbackV1_3 extends
+            android.hardware.wifi.supplicant.V1_3.ISupplicantStaIfaceCallback.Stub {
+        private String mIfaceName;
+        private SupplicantStaIfaceHalCallbackV1_2 mCallbackV12;
+
+        SupplicantStaIfaceHalCallbackV1_3(@NonNull String ifaceName) {
+            mIfaceName = ifaceName;
+            // Create an older callback for function delegation,
+            // and it would cascadingly create older one.
+            mCallbackV12 = new SupplicantStaIfaceHalCallbackV1_2(mIfaceName);
+        }
+
+        @Override
+        public void onNetworkAdded(int id) {
+            mCallbackV12.onNetworkAdded(id);
+        }
+
+        @Override
+        public void onNetworkRemoved(int id) {
+            mCallbackV12.onNetworkRemoved(id);
+        }
+
+        @Override
+        public void onStateChanged(int newState, byte[/* 6 */] bssid, int id,
+                ArrayList<Byte> ssid) {
+            mCallbackV12.onStateChanged(newState, bssid, id, ssid);
+        }
+
+        @Override
+        public void onAnqpQueryDone(byte[/* 6 */] bssid,
+                ISupplicantStaIfaceCallback.AnqpData data,
+                ISupplicantStaIfaceCallback.Hs20AnqpData hs20Data) {
+            mCallbackV12.onAnqpQueryDone(bssid, data, hs20Data);
+        }
+
+        @Override
+        public void onHs20IconQueryDone(byte[/* 6 */] bssid, String fileName,
+                ArrayList<Byte> data) {
+            mCallbackV12.onHs20IconQueryDone(bssid, fileName, data);
+        }
+
+        @Override
+        public void onHs20SubscriptionRemediation(byte[/* 6 */] bssid,
+                byte osuMethod, String url) {
+            mCallbackV12.onHs20SubscriptionRemediation(bssid, osuMethod, url);
+        }
+
+        @Override
+        public void onHs20DeauthImminentNotice(byte[/* 6 */] bssid, int reasonCode,
+                int reAuthDelayInSec, String url) {
+            mCallbackV12.onHs20DeauthImminentNotice(bssid, reasonCode, reAuthDelayInSec, url);
+        }
+
+        @Override
+        public void onDisconnected(byte[/* 6 */] bssid, boolean locallyGenerated,
+                int reasonCode) {
+            mCallbackV12.onDisconnected(bssid, locallyGenerated, reasonCode);
+        }
+
+        @Override
+        public void onAssociationRejected(byte[/* 6 */] bssid, int statusCode,
+                boolean timedOut) {
+            mCallbackV12.onAssociationRejected(bssid, statusCode, timedOut);
+        }
+
+        @Override
+        public void onAuthenticationTimeout(byte[/* 6 */] bssid) {
+            mCallbackV12.onAuthenticationTimeout(bssid);
+        }
+
+        @Override
+        public void onBssidChanged(byte reason, byte[/* 6 */] bssid) {
+            mCallbackV12.onBssidChanged(reason, bssid);
+        }
+
+        @Override
+        public void onEapFailure() {
+            mCallbackV12.onEapFailure();
+        }
+
+        @Override
+        public void onEapFailure_1_1(int code) {
+            mCallbackV12.onEapFailure_1_1(code);
+        }
+
+        @Override
+        public void onWpsEventSuccess() {
+            mCallbackV12.onWpsEventSuccess();
+        }
+
+        @Override
+        public void onWpsEventFail(byte[/* 6 */] bssid, short configError, short errorInd) {
+            mCallbackV12.onWpsEventFail(bssid, configError, errorInd);
+        }
+
+        @Override
+        public void onWpsEventPbcOverlap() {
+            mCallbackV12.onWpsEventPbcOverlap();
+        }
+
+        @Override
+        public void onExtRadioWorkStart(int id) {
+            mCallbackV12.onExtRadioWorkStart(id);
+        }
+
+        @Override
+        public void onExtRadioWorkTimeout(int id) {
+            mCallbackV12.onExtRadioWorkTimeout(id);
+        }
+
+        @Override
+        public void onDppSuccessConfigReceived(ArrayList<Byte> ssid, String password,
+                byte[] psk, int securityAkm) {
+            mCallbackV12.onDppSuccessConfigReceived(
+                    ssid, password, psk, securityAkm);
+        }
+
+        @Override
+        public void onDppSuccessConfigSent() {
+            mCallbackV12.onDppSuccessConfigSent();
+        }
+
+        @Override
+        public void onDppProgress(int code) {
+            mCallbackV12.onDppProgress(code);
+        }
+
+        @Override
+        public void onDppFailure(int code) {
+            mCallbackV12.onDppFailure(code);
+        }
+
+        @Override
+        public void onPmkCacheAdded(long expirationTimeInSec, ArrayList<Byte> serializedEntry) {
+            WifiConfiguration curConfig = getCurrentNetworkLocalConfig(mIfaceName);
+            mPmkCacheEntries.put(
+                    curConfig.networkId,
+                    new PmkCacheStoreData(expirationTimeInSec, serializedEntry));
+            logCallback("onPmkCacheAdded: update pmk cache for config id " + curConfig.networkId);
+
+            updatePmkCacheExpiration();
+        }
+    }
+
+    private void updatePmkCacheExpiration() {
+        synchronized (mLock) {
+            mEventHandler.removeCallbacksAndMessages(PMK_CACHE_EXPIRATION_ALARM_TAG);
+
+            long elapseTimeInSecond = mClock.getElapsedSinceBootMillis() / 1000;
+            long nextUpdateTimeInSecond = Long.MAX_VALUE;
+            logd("Update PMK cache expiration at " + elapseTimeInSecond);
+
+            Iterator<Map.Entry<Integer, PmkCacheStoreData>> iter =
+                    mPmkCacheEntries.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<Integer, PmkCacheStoreData> entry = iter.next();
+                if (entry.getValue().expirationTimeInSec <= elapseTimeInSecond) {
+                    logd("Config " + entry.getKey() + " PMK is expired.");
+                    iter.remove();
+                } else if (entry.getValue().expirationTimeInSec <= 0) {
+                    logd("Config " + entry.getKey() + " PMK expiration time is invalid.");
+                    iter.remove();
+                } else if (nextUpdateTimeInSecond > entry.getValue().expirationTimeInSec) {
+                    nextUpdateTimeInSecond = entry.getValue().expirationTimeInSec;
+                }
+            }
+
+            // No need to arrange next update since there is no valid PMK in the cache.
+            if (nextUpdateTimeInSecond == Long.MAX_VALUE) {
+                return;
+            }
+
+            logd("PMK cache next expiration time: " + nextUpdateTimeInSecond);
+            long delayedTimeInMs = (nextUpdateTimeInSecond - elapseTimeInSecond) * 1000;
+            mEventHandler.postDelayed(
+                    () -> {
+                        updatePmkCacheExpiration();
+                    },
+                    PMK_CACHE_EXPIRATION_ALARM_TAG,
+                    (delayedTimeInMs > 0) ? delayedTimeInMs : 0);
         }
     }
 

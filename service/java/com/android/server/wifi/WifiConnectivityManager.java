@@ -544,6 +544,7 @@ public class WifiConnectivityManager {
         }
         @Override
         public void onNetworkRemoved(WifiConfiguration config) {
+            mConnectivityHelper.removeNetworkCachedData(config.networkId);
             updatePnoScan();
         }
         @Override
