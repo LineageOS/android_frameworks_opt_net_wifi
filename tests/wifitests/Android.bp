@@ -24,22 +24,9 @@ android_test {
     // For coverage
     jacoco: {
         include_filter: [
-            "com.android.server.wifi.*",
-            "com.android.server.wifi.aware.*",
-            "com.android.server.wifi.hotspot2.*",
-            "com.android.server.wifi.hotspot2.anqp.*",
-            "com.android.server.wifi.hotspot2.anqp.eap.*",
-            "com.android.server.wifi.hotspot2.omadm.*",
-            "com.android.server.wifi.hotspot2.soap.*",
-            "com.android.server.wifi.hotspot2.soap.command.*",
-            "com.android.server.wifi.p2p.*",
-            "com.android.server.wifi.rtt.*",
-            "com.android.server.wifi.scanner.*",
-            "com.android.server.wifi.util.*",
-            "com.android.server.wifi.wificond.*",
+            "com.android.server.wifi.**",
         ],
         exclude_filter: [
-            "com.android.server.wifi.ClientModeImplTest",
         ],
     },
 
