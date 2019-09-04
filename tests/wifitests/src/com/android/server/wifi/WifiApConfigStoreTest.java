@@ -35,7 +35,8 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Build;
 import android.os.test.TestLooper;
-import android.support.test.filters.SmallTest;
+
+import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
@@ -74,6 +75,10 @@ public class WifiApConfigStoreTest {
     private static final int RAND_SSID_INT_MIN = 1000;
     private static final int RAND_SSID_INT_MAX = 9999;
     private static final String TEST_CHAR_SET_AS_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String TEST_STRING_UTF8_WITH_30_BYTES = "智者務其實愚者爭虛名";
+    private static final String TEST_STRING_UTF8_WITH_32_BYTES = "ΣωκράτηςΣωκράτης";
+    private static final String TEST_STRING_UTF8_WITH_33_BYTES = "一片汪洋大海中的一條魚";
+    private static final String TEST_STRING_UTF8_WITH_34_BYTES = "Ευπροσηγοροςγινου";
 
     @Mock private Context mContext;
     private TestLooper mLooper;
@@ -149,13 +154,15 @@ public class WifiApConfigStoreTest {
      * Generate a WifiConfiguration based on the specified parameters.
      */
     private WifiConfiguration setupApConfig(
-            String ssid, String preSharedKey, int keyManagement, int band, int channel) {
+            String ssid, String preSharedKey, int keyManagement, int band, int channel,
+            boolean hiddenSSID) {
         WifiConfiguration config = new WifiConfiguration();
         config.SSID = ssid;
         config.preSharedKey = preSharedKey;
         config.allowedKeyManagement.set(keyManagement);
         config.apBand = band;
         config.apChannel = channel;
+        config.hiddenSSID = hiddenSSID;
         return config;
     }
 
@@ -172,6 +179,7 @@ public class WifiApConfigStoreTest {
         assertEquals(config1.getAuthType(), config2.getAuthType());
         assertEquals(config1.apBand, config2.apBand);
         assertEquals(config1.apChannel, config2.apChannel);
+        assertEquals(config1.hiddenSSID, config2.hiddenSSID);
     }
 
     private void verifyDefaultApConfig(WifiConfiguration config, String expectedSsid) {
@@ -179,16 +187,18 @@ public class WifiApConfigStoreTest {
         assertEquals(2, splitSsid.length);
         assertEquals(expectedSsid, splitSsid[0]);
         assertEquals(WifiConfiguration.AP_BAND_2GHZ, config.apBand);
+        assertFalse(config.hiddenSSID);
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
     }
 
-    private void verifyDefaultLocalOnlyApConfig(WifiConfiguration config, String expectedSsid) {
+    private void verifyDefaultLocalOnlyApConfig(WifiConfiguration config, String expectedSsid,
+            int expectedApBand) {
         String[] splitSsid = config.SSID.split("_");
         assertEquals(2, splitSsid.length);
         assertEquals(expectedSsid, splitSsid[0]);
-        assertEquals(WifiConfiguration.AP_BAND_2GHZ, config.apBand);
+        assertEquals(expectedApBand, config.apBand);
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
@@ -218,7 +228,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",       /* preshared key */
                 KeyMgmt.WPA_EAP,   /* key management */
                 1,                 /* AP band (5GHz) */
-                40                 /* AP channel */);
+                40,                /* AP channel */
+                true               /* Hidden SSID */);
         writeApConfigFile(expectedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
                 mContext, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
@@ -239,7 +250,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",       /* preshared key */
                 KeyMgmt.WPA_EAP,   /* key management */
                 1,                 /* AP band (5GHz) */
-                40                 /* AP channel */);
+                40,                /* AP channel */
+                true               /* Hidden SSID */);
         writeApConfigFile(expectedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
                 mContext, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
@@ -268,7 +280,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",                      /* preshared key */
                 KeyMgmt.WPA_EAP,                  /* key management */
                 WifiConfiguration.AP_BAND_2GHZ,   /* AP band */
-                40                                /* AP channel */);
+                40,                               /* AP channel */
+                true                              /* Hidden SSID */);
         store.setApConfiguration(expectedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy).notifyDataChanged();
@@ -293,14 +306,16 @@ public class WifiApConfigStoreTest {
                 "randomKey",                   /* preshared key */
                 KeyMgmt.WPA_EAP,               /* key management */
                 WifiConfiguration.AP_BAND_ANY, /* AP band (ANY) */
-                40                             /* AP channel */);
+                40,                            /* AP channel */
+                false                          /* Hidden SSID */);
 
         WifiConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",                       /* SSID */
                 "randomKey",                          /* preshared key */
                 KeyMgmt.WPA_EAP,                      /* key management */
                 WifiConfiguration.AP_BAND_5GHZ,       /* AP band (5GHz) */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT  /* AP channel */);
+                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                false                                 /* Hidden SSID */);
         store.setApConfiguration(providedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy).notifyDataChanged();
@@ -325,7 +340,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",                    /* preshared key */
                 KeyMgmt.WPA_EAP,                /* key management */
                 WifiConfiguration.AP_BAND_5GHZ, /* AP band */
-                40                              /* AP channel */);
+                40,                             /* AP channel */
+                false                           /* Hidden SSID */);
         store.setApConfiguration(expectedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
     }
@@ -351,14 +367,16 @@ public class WifiApConfigStoreTest {
                 "randomKey",                    /* preshared key */
                 KeyMgmt.WPA_EAP,                /* key management */
                 WifiConfiguration.AP_BAND_5GHZ, /* AP band */
-                40                              /* AP channel */);
+                40,                             /* AP channel */
+                false                           /* Hidden SSID */);
 
         WifiConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",                       /* SSID */
                 "randomKey",                          /* preshared key */
                 KeyMgmt.WPA_EAP,                      /* key management */
                 WifiConfiguration.AP_BAND_ANY,        /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT  /* AP channel */);
+                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                false                                 /* Hidden SSID */);
         store.setApConfiguration(providedConfig);
         verifyApConfig(expectedConfig, store.getApConfiguration());
         verify(mBackupManagerProxy).notifyDataChanged();
@@ -385,7 +403,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",                    /* preshared key */
                 KeyMgmt.WPA_EAP,                /* key management */
                 WifiConfiguration.AP_BAND_ANY,  /* AP band */
-                40                              /* AP channel */);
+                40,                             /* AP channel */
+                false                           /* Hidden SSID */);
         store.setApConfiguration(expectedConfig);
         verify(mBackupManagerProxy).notifyDataChanged();
         verifyApConfig(expectedConfig, store.getApConfiguration());
@@ -404,14 +423,15 @@ public class WifiApConfigStoreTest {
                 "randomKey",                    /* preshared key */
                 KeyMgmt.WPA_EAP,                /* key management */
                 WifiConfiguration.AP_BAND_ANY,  /* AP band */
-                40                              /* AP channel */);
+                40,                             /* AP channel */
+                false                           /* Hidden SSID */);
         WifiConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",                        /* SSID */
                 "randomKey",                           /* preshared key */
                 KeyMgmt.WPA_EAP,                       /* key management */
                 WifiConfiguration.AP_BAND_5GHZ,        /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT   /* AP channel */);
-
+                WifiApConfigStore.AP_CHANNEL_DEFAULT,  /* AP channel */
+                false                                  /* Hidden SSID */);
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
                 mContext, mLooper.getLooper(), mBackupManagerProxy, mFrameworkFacade,
@@ -432,7 +452,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",                     /* preshared key */
                 KeyMgmt.WPA_EAP,                 /* key management */
                 WifiConfiguration.AP_BAND_5GHZ,  /* AP band */
-                40                               /* AP channel */);
+                40,                              /* AP channel */
+                false                            /* Hidden SSID */);
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
@@ -456,13 +477,15 @@ public class WifiApConfigStoreTest {
                 "randomKey",                     /* preshared key */
                 KeyMgmt.WPA_EAP,                 /* key management */
                 WifiConfiguration.AP_BAND_5GHZ,  /* AP band */
-                40                               /* AP channel */);
+                40,                              /* AP channel */
+                false                            /* Hidden SSID */);
         WifiConfiguration expectedConfig = setupApConfig(
                 "ConfiguredAP",                       /* SSID */
                 "randomKey",                          /* preshared key */
                 KeyMgmt.WPA_EAP,                      /* key management */
                 WifiConfiguration.AP_BAND_ANY,        /* AP band */
-                WifiApConfigStore.AP_CHANNEL_DEFAULT  /* AP channel */);
+                WifiApConfigStore.AP_CHANNEL_DEFAULT, /* AP channel */
+                false                                 /* Hidden SSID */);
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
@@ -486,7 +509,8 @@ public class WifiApConfigStoreTest {
                 "randomKey",                    /* preshared key */
                 KeyMgmt.WPA_EAP,                /* key management */
                 WifiConfiguration.AP_BAND_ANY,  /* AP band */
-                40                              /* AP channel */);
+                40,                             /* AP channel */
+                false                           /* Hidden SSID */);
 
         writeApConfigFile(persistedConfig);
         WifiApConfigStore store = new WifiApConfigStore(
@@ -514,8 +538,26 @@ public class WifiApConfigStoreTest {
      */
     @Test
     public void generateLocalOnlyHotspotConfigIsValid() {
-        WifiConfiguration config = WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext);
-        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID);
+        WifiConfiguration config = WifiApConfigStore
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_2GHZ);
+        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
+                WifiConfiguration.AP_BAND_2GHZ);
+        // The LOHS config should also have a specific network id set - check that as well.
+        assertEquals(WifiConfiguration.LOCAL_ONLY_NETWORK_ID, config.networkId);
+
+        // verify that the config passes the validateApWifiConfiguration check
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+    }
+
+    /**
+     * Verify a proper local only hotspot config is generated for 5Ghz band.
+     */
+    @Test
+    public void generateLocalOnlyHotspotConfigIsValid5G() {
+        WifiConfiguration config = WifiApConfigStore
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_5GHZ);
+        verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
+                WifiConfiguration.AP_BAND_5GHZ);
         // The LOHS config should also have a specific network id set - check that as well.
         assertEquals(WifiConfiguration.LOCAL_ONLY_NETWORK_ID, config.networkId);
 
@@ -559,14 +601,28 @@ public class WifiApConfigStoreTest {
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
         config.SSID = "";
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
-        // check a string that is too large
+        // check a string if it's larger than 32 bytes with UTF-8 encode
+        // Case 1 : one byte per character (use english words and Arabic numerals)
         config.SSID = generateRandomString(WifiApConfigStore.SSID_MAX_LEN + 1);
         assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 2 : two bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_34_BYTES;
+        assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 3 : three bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_33_BYTES;
+        assertFalse(WifiApConfigStore.validateApWifiConfiguration(config));
 
-        // now check a valid SSID with a random length
+        // now check a valid SSID within 32 bytes
+        // Case 1 :  one byte per character with random length
         int validLength = WifiApConfigStore.SSID_MAX_LEN - WifiApConfigStore.SSID_MIN_LEN;
         config.SSID = generateRandomString(
                 mRandom.nextInt(validLength) + WifiApConfigStore.SSID_MIN_LEN);
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 2 : two bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_32_BYTES;
+        assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+        // Case 3 : three bytes per character
+        config.SSID = TEST_STRING_UTF8_WITH_30_BYTES;
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
     }
 

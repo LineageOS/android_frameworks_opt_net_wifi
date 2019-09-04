@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import android.app.ActivityManager;
+import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -37,6 +37,7 @@ import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
 
 import com.android.internal.app.IBatteryStats;
+import com.android.server.LocalServices;
 import com.android.server.wifi.util.WifiAsyncChannel;
 
 /**
@@ -44,6 +45,8 @@ import com.android.server.wifi.util.WifiAsyncChannel;
  */
 public class FrameworkFacade {
     public static final String TAG = "FrameworkFacade";
+
+    private ActivityManagerInternal mActivityManagerInternal;
 
     public boolean setIntegerSetting(Context context, String name, int def) {
         return Settings.Global.putInt(context.getContentResolver(), name, def);
@@ -70,6 +73,13 @@ public class FrameworkFacade {
      */
     public int getSecureIntegerSetting(Context context, String name, int def) {
         return Settings.Secure.getInt(context.getContentResolver(), name, def);
+    }
+
+    /**
+     * Mockable facade to Settings.Secure.getString(.).
+     */
+    public String getSecureStringSetting(Context context, String name) {
+        return Settings.Secure.getString(context.getContentResolver(), name);
     }
 
     /**
@@ -127,14 +137,14 @@ public class FrameworkFacade {
     }
 
     public boolean getConfigWiFiDisableInECBM(Context context) {
-       CarrierConfigManager configManager = (CarrierConfigManager) context
-               .getSystemService(Context.CARRIER_CONFIG_SERVICE);
-       if (configManager != null) {
-           return configManager.getConfig().getBoolean(
-               CarrierConfigManager.KEY_CONFIG_WIFI_DISABLE_IN_ECBM);
-       }
-       /* Default to TRUE */
-       return true;
+        CarrierConfigManager configManager = (CarrierConfigManager) context
+                .getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        if (configManager != null) {
+            return configManager.getConfig().getBoolean(
+                    CarrierConfigManager.KEY_CONFIG_WIFI_DISABLE_IN_ECBM);
+        }
+        /* Default to TRUE */
+        return true;
     }
 
     public long getTxPackets(String iface) {
@@ -188,10 +198,12 @@ public class FrameworkFacade {
      * Check if the provided uid is the app in the foreground.
      * @param uid the uid to check
      * @return true if the app is in the foreground, false otherwise
-     * @throws RemoteException
      */
-    public boolean isAppForeground(int uid) throws RemoteException {
-        return ActivityManager.getService().isAppForeground(uid);
+    public boolean isAppForeground(int uid) {
+        if (mActivityManagerInternal == null) {
+            mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
+        }
+        return mActivityManagerInternal.isAppForeground(uid);
     }
 
     /**
