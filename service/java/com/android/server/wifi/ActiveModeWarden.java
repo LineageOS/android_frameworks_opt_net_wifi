@@ -697,13 +697,6 @@ public class ActiveModeWarden {
                             transitionTo(mStaDisabledWithScanState);
                         }
                         break;
-                    case CMD_SET_AP:
-                        if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
-                        }
-                        return NOT_HANDLED;
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         // wait mRecoveryDelayMillis for letting driver clean reset.
                         sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE,
@@ -816,13 +809,6 @@ public class ActiveModeWarden {
                             transitionTo(mStaDisabledWithScanState);
                         }
                         break;
-                    case CMD_SET_AP:
-                        if (msg.arg1 == 1) {
-                            // remember that we were enabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_ENABLED);
-                        }
-                        return NOT_HANDLED;
                     case CMD_AP_STOPPED:
                         // already in a wifi mode, no need to check where we should go with softap
                         // stopped
@@ -936,13 +922,6 @@ public class ActiveModeWarden {
                             transitionTo(mStaDisabledState);
                         }
                         break;
-                    case CMD_SET_AP:
-                        if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
-                        }
-                        return NOT_HANDLED;
                     case CMD_AP_STOPPED:
                         // already in a wifi mode, no need to check where we should go with softap
                         // stopped
