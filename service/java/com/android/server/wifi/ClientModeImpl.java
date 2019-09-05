@@ -3523,7 +3523,7 @@ public class ClientModeImpl extends StateMachine {
                         Log.e(TAG, "Failed to load from config store");
                     }
                     mPasspointManager.initializeProvisioner(
-                            mWifiInjector.getWifiHandlerThread().getLooper());
+                            mWifiInjector.getPasspointProvisionerHandlerThread().getLooper());
                     registerNetworkFactory();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
