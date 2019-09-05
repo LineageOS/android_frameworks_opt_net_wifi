@@ -525,19 +525,6 @@ public class WifiInjector {
     }
 
     /**
-     * Create a ScanOnlyModeManager
-     *
-     * @param listener listener for ScanOnlyModeManager state changes
-     * @return a new instance of ScanOnlyModeManager
-     */
-    public ScanOnlyModeManager makeScanOnlyModeManager(
-            @NonNull ScanOnlyModeManager.Listener listener) {
-        return new ScanOnlyModeManager(mContext, mWifiHandlerThread.getLooper(),
-                mWifiNative, listener, mWifiMetrics, mWakeupController,
-                mSarManager);
-    }
-
-    /**
      * Create a ClientModeManager
      *
      * @param listener listener for ClientModeManager state changes

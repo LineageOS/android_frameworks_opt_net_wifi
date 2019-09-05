@@ -412,9 +412,7 @@ public class ActiveModeWarden {
         // recovery
         static final int CMD_RECOVERY_DISABLE_WIFI                  = BASE + 19;
         static final int CMD_STA_STOPPED                            = BASE + 20;
-        static final int CMD_SCANNING_STOPPED                       = BASE + 21;
         static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
-        static final int CMD_SCANNING_START_FAILURE                 = BASE + 23;
 
         private final StaEnabledState mStaEnabledState = new StaEnabledState();
         private final StaDisabledState mStaDisabledState = new StaDisabledState();
@@ -571,7 +569,6 @@ public class ActiveModeWarden {
                 switch (msg.what) {
                     case CMD_SCAN_ALWAYS_MODE_CHANGED:
                     case CMD_WIFI_TOGGLED:
-                    case CMD_SCANNING_STOPPED:
                     case CMD_STA_STOPPED:
                     case CMD_STA_START_FAILURE:
                     case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
@@ -656,7 +653,7 @@ public class ActiveModeWarden {
         }
 
         class StaEnabledState extends BaseState {
-            private ActiveModeManager mManager;
+            private ClientModeManager mManager;
             private ActiveModeManager.Listener mListener;
 
             @Override
@@ -664,6 +661,10 @@ public class ActiveModeWarden {
                 super.enter();
                 log("StaEnabledState.enter()");
 
+                mListener = new ClientListener();
+                mManager = mWifiInjector.makeClientModeManager(mListener);
+                mManager.start();
+                mActiveModeManagers.add(mManager);
                 if (!switchModeIfNecessary()) {
                     transitionTo(mStaDisabledState);
                     return;
@@ -701,29 +702,13 @@ public class ActiveModeWarden {
             }
 
             private void switchToScanOnlyMode() {
-                if (mManager != null) {
-                    if (mManager instanceof ScanOnlyModeManager) return;
-                    mManager.stop();
-                    mActiveModeManagers.remove(mManager);
-                }
-
-                mListener = new ClientListener();
-                mManager = mWifiInjector.makeScanOnlyModeManager(mListener);
-                mManager.start();
-                mActiveModeManagers.add(mManager);
+                if (mManager == null) return;
+                mManager.switchToScanOnlyMode();
             }
 
             private void switchToConnectMode() {
-                if (mManager != null) {
-                    if (mManager instanceof ClientModeManager) return;
-                    mManager.stop();
-                    mActiveModeManagers.remove(mManager);
-                }
-
-                mListener = new ClientListener();
-                mManager = mWifiInjector.makeClientModeManager(mListener);
-                mManager.start();
-                mActiveModeManagers.add(mManager);
+                if (mManager == null) return;
+                mManager.switchToConnectMode();
             }
 
             private class ClientListener implements ActiveModeManager.Listener {
@@ -734,8 +719,8 @@ public class ActiveModeWarden {
                         log("Mode callback from previous manager");
                         return;
                     }
-                    log("Mode active");
-                    onModeActivationComplete();
+                    log("client Mode active");
+                    updateScanMode();
                 }
 
                 @Override
@@ -745,13 +730,8 @@ public class ActiveModeWarden {
                         log("Mode callback from previous manager");
                         return;
                     }
-                    if (mManager instanceof ClientModeManager) {
-                        log("client mode stopped");
-                        sendMessage(CMD_STA_STOPPED, this);
-                    } else if (mManager instanceof ScanOnlyModeManager) {
-                        log("Scanonly mode stopped");
-                        sendMessage(CMD_SCANNING_STOPPED, this);
-                    }
+                    log("client mode stopped");
+                    sendMessage(CMD_STA_STOPPED, this);
                 }
 
                 @Override
@@ -761,20 +741,9 @@ public class ActiveModeWarden {
                         log("Mode callback from previous manager");
                         return;
                     }
-                    if (mManager instanceof ClientModeManager) {
-                        log("client mode failure");
-                        sendMessage(CMD_STA_START_FAILURE, this);
-                    } else if (mManager instanceof ScanOnlyModeManager) {
-                        log("Scanonly mode failure");
-                        sendMessage(CMD_SCANNING_START_FAILURE, this);
-                    }
+                    log("client mode failure");
+                    sendMessage(CMD_STA_START_FAILURE, this);
                 }
-            }
-
-            // Hook to be used by sub-classes of ModeActiveState to indicate the completion of
-            // bringup of the corresponding mode.
-            protected void onModeActivationComplete() {
-                updateScanMode();
             }
 
             // Update the scan state based on all active mode managers.
@@ -825,13 +794,6 @@ public class ActiveModeWarden {
                         // already in a wifi mode, no need to check where we should go with softap
                         // stopped
                         break;
-                    case CMD_SCANNING_START_FAILURE:
-                        if (mListener != msg.obj) {
-                            log("StaEnabledState change from previous manager");
-                            break;
-                        }
-                        transitionTo(mStaDisabledState);
-                        break;
                     case CMD_STA_START_FAILURE:
                         if (mListener != msg.obj) {
                             log("StaEnabledState change from previous manager");
@@ -841,7 +803,6 @@ public class ActiveModeWarden {
                         transitionTo(mStaDisabledState);
                         break;
                     case CMD_STA_STOPPED:
-                    case CMD_SCANNING_STOPPED:
                         if (mListener != msg.obj) {
                             log("StaEnabledState change from previous manager");
                             break;

@@ -34,7 +34,7 @@ public interface ActiveModeManager {
      */
     interface Listener {
         /**
-         * Invoked when mode manager completes start.
+         * Invoked when mode manager completes start or on mode switch.
          */
         void onStarted();
         /**
@@ -42,7 +42,7 @@ public interface ActiveModeManager {
          */
         void onStopped();
         /**
-         * Invoked when mode manager encountered a failure on start.
+         * Invoked when mode manager encountered a failure on start or on mode switch.
          */
         void onStartFailure();
     }
