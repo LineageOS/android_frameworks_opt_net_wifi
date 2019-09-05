@@ -4866,47 +4866,6 @@ public class ClientModeImpl extends StateMachine {
         sendMessage(CMD_NETWORK_STATUS, status);
     }
 
-    // rfc4186 & rfc4187:
-    // create Permanent Identity base on IMSI,
-    // identity = usernam@realm
-    // with username = prefix | IMSI
-    // and realm is derived MMC/MNC tuple according 3GGP spec(TS23.003)
-    private String buildIdentity(int eapMethod, String imsi, String mccMnc) {
-        String mcc;
-        String mnc;
-        String prefix;
-
-        if (imsi == null || imsi.isEmpty()) {
-            return "";
-        }
-
-        if (eapMethod == WifiEnterpriseConfig.Eap.SIM) {
-            prefix = "1";
-        } else if (eapMethod == WifiEnterpriseConfig.Eap.AKA) {
-            prefix = "0";
-        } else if (eapMethod == WifiEnterpriseConfig.Eap.AKA_PRIME) {
-            prefix = "6";
-        } else {
-            // not a valid EapMethod
-            return "";
-        }
-
-        /* extract mcc & mnc from mccMnc */
-        if (mccMnc != null && !mccMnc.isEmpty()) {
-            mcc = mccMnc.substring(0, 3);
-            mnc = mccMnc.substring(3);
-            if (mnc.length() == 2) {
-                mnc = "0" + mnc;
-            }
-        } else {
-            // extract mcc & mnc from IMSI, assume mnc size is 3
-            mcc = imsi.substring(0, 3);
-            mnc = imsi.substring(3, 6);
-        }
-
-        return prefix + imsi + "@wlan.mnc" + mnc + ".mcc" + mcc + ".3gppnetwork.org";
-    }
-
     class L2ConnectedState extends State {
         class RssiEventHandler implements WifiNative.WifiRssiEventHandler {
             @Override
