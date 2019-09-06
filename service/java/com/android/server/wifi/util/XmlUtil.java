@@ -1022,6 +1022,7 @@ public class XmlUtil {
         public static final String XML_TAG_PHASE2_METHOD = "Phase2Method";
         public static final String XML_TAG_PLMN = "PLMN";
         public static final String XML_TAG_REALM = "Realm";
+        public static final String XML_TAG_OCSP = "Ocsp";
 
         /**
          * Write the WifiEnterpriseConfig data elements from the provided config to the XML
@@ -1060,6 +1061,7 @@ public class XmlUtil {
             XmlUtil.writeNextValue(out, XML_TAG_PHASE2_METHOD, enterpriseConfig.getPhase2Method());
             XmlUtil.writeNextValue(out, XML_TAG_PLMN, enterpriseConfig.getPlmn());
             XmlUtil.writeNextValue(out, XML_TAG_REALM, enterpriseConfig.getRealm());
+            XmlUtil.writeNextValue(out, XML_TAG_OCSP, enterpriseConfig.getOcsp());
         }
 
         /**
@@ -1128,6 +1130,9 @@ public class XmlUtil {
                     case XML_TAG_CA_PATH:
                         enterpriseConfig.setFieldValue(
                                 WifiEnterpriseConfig.CA_PATH_KEY, (String) value);
+                        break;
+                    case XML_TAG_OCSP:
+                        enterpriseConfig.setOcsp((int) value);
                         break;
                     case XML_TAG_EAP_METHOD:
                         enterpriseConfig.setEapMethod((int) value);
