@@ -37,8 +37,6 @@ import static org.mockito.Mockito.when;
 
 import android.app.test.MockAnswerUtil;
 import android.net.InterfaceConfiguration;
-import android.net.wifi.IApInterface;
-import android.net.wifi.IClientInterface;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
@@ -53,6 +51,8 @@ import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
 import com.android.server.wifi.WifiNative.SupplicantDeathEventHandler;
 import com.android.server.wifi.WifiNative.VendorHalDeathEventHandler;
 import com.android.server.wifi.WifiNative.WificondDeathEventHandler;
+import com.android.server.wifi.wificond.IApInterface;
+import com.android.server.wifi.wificond.IClientInterface;
 
 import org.junit.After;
 import org.junit.Before;

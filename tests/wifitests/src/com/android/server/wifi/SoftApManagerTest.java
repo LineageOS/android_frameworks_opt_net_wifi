@@ -39,7 +39,6 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.Uri;
-import android.net.wifi.IApInterfaceEventCallback;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.UserHandle;
@@ -50,6 +49,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.internal.util.WakeupMessage;
+import com.android.server.wifi.wificond.IApInterfaceEventCallback;
 
 import org.junit.Before;
 import org.junit.Test;
