@@ -502,11 +502,13 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
             pw.println("Latest native scan results IEs:");
             if (mNativeScanResults != null) {
                 for (ScanDetail detail : mNativeScanResults) {
-                    pw.println(NativeUtil.hexStringFromByteArray(
-                            detail.getInformationElementRawData()));
+                    if (detail.getInformationElementRawData() != null) {
+                        pw.println(NativeUtil.hexStringFromByteArray(
+                                detail.getInformationElementRawData()));
+                    }
                 }
-                pw.println("");
             }
+            pw.println("");
         }
     }
 
