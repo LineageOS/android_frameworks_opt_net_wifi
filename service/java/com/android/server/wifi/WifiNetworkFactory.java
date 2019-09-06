@@ -33,19 +33,18 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
+import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.INetworkRequestUserSelectionCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.SecurityType;
-import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.Message;
-import android.os.Messenger;
 import android.os.PatternMatcher;
 import android.os.Process;
 import android.os.RemoteException;
@@ -119,7 +118,6 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final PeriodicScanAlarmListener mPeriodicScanTimerListener;
     private final ConnectionTimeoutAlarmListener mConnectionTimeoutAlarmListener;
     private final ExternalCallbackTracker<INetworkRequestMatchCallback> mRegisteredCallbacks;
-    private final Messenger mSrcMessenger;
     // Store all user approved access points for apps.
     @VisibleForTesting
     public final Map<String, LinkedHashSet<AccessPoint>> mUserApprovedAccessPointMap;
@@ -324,23 +322,20 @@ public class WifiNetworkFactory extends NetworkFactory {
         }
     }
 
-    private final Handler.Callback mNetworkConnectionTriggerCallback = (Message msg) -> {
-        switch (msg.what) {
-            // Success here means that an attempt to connect to the network has been initiated.
-            case WifiManager.CONNECT_NETWORK_SUCCEEDED:
-                if (mVerboseLoggingEnabled) {
-                    Log.v(TAG, "Triggered network connection");
-                }
-                break;
-            case WifiManager.CONNECT_NETWORK_FAILED:
-                Log.e(TAG, "Failed to trigger network connection");
-                handleNetworkConnectionFailure(mUserSelectedNetwork);
-                break;
-            default:
-                Log.e(TAG, "Unknown message " + msg.what);
+    private final class ConnectActionListener extends IActionListener.Stub {
+        @Override
+        public void onSuccess() {
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Triggered network connection");
+            }
         }
-        return true;
-    };
+
+        @Override
+        public void onFailure(int reason) {
+            Log.e(TAG, "Failed to trigger network connection");
+            handleNetworkConnectionFailure(mUserSelectedNetwork);
+        }
+    }
 
     /**
      * Module to interact with the wifi config store.
@@ -401,7 +396,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         mPeriodicScanTimerListener = new PeriodicScanAlarmListener();
         mConnectionTimeoutAlarmListener = new ConnectionTimeoutAlarmListener();
         mRegisteredCallbacks = new ExternalCallbackTracker<INetworkRequestMatchCallback>(mHandler);
-        mSrcMessenger = new Messenger(new Handler(looper, mNetworkConnectionTriggerCallback));
         mUserApprovedAccessPointMap = new HashMap<>();
 
         // register the data store for serializing/deserializing data.
@@ -741,11 +735,10 @@ public class WifiNetworkFactory extends NetworkFactory {
 
         // Send the connect request to ClientModeImpl.
         // TODO(b/117601161): Refactor this.
-        Message msg = Message.obtain();
-        msg.what = WifiManager.CONNECT_NETWORK;
-        msg.arg1 = networkId;
-        msg.replyTo = mSrcMessenger;
-        mWifiInjector.getClientModeImpl().sendMessage(msg);
+        ConnectActionListener connectActionListener = new ConnectActionListener();
+        mWifiInjector.getClientModeImpl().connect(null, networkId, new Binder(),
+                connectActionListener, connectActionListener.hashCode(),
+                mActiveSpecificNetworkRequestSpecifier.requestorUid);
 
         // Post an alarm to handle connection timeout.
         scheduleConnectionTimeout();

@@ -29,6 +29,8 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
 import android.annotation.CheckResult;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.AppOpsManager;
 import android.app.admin.DeviceAdminInfo;
 import android.app.admin.DevicePolicyManagerInternal;
@@ -47,11 +49,13 @@ import android.net.Network;
 import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClientUtil;
+import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
+import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiConfiguration;
@@ -71,7 +75,6 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -202,155 +205,6 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Handles client connections
-     */
-    private class AsyncChannelExternalClientHandler extends WifiHandler {
-
-        AsyncChannelExternalClientHandler(String tag, Looper looper) {
-            super(tag, looper);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            switch (msg.what) {
-                case AsyncChannel.CMD_CHANNEL_FULL_CONNECTION: {
-                    AsyncChannel ac = mFrameworkFacade.makeWifiAsyncChannel(TAG);
-                    ac.connect(mContext, this, msg.replyTo);
-                    break;
-                }
-                case WifiManager.CONNECT_NETWORK: {
-                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
-                            msg, WifiManager.CONNECT_NETWORK_FAILED)) {
-                        WifiConfiguration config = (WifiConfiguration) msg.obj;
-                        int networkId = msg.arg1;
-                        Slog.d(TAG, "CONNECT "
-                                + " nid=" + networkId
-                                + " config=" + config
-                                + " uid=" + msg.sendingUid
-                                + " name="
-                                + mContext.getPackageManager().getNameForUid(msg.sendingUid));
-                        if (config != null) {
-                            /* Command is forwarded to state machine */
-                            mClientModeImpl.sendMessage(Message.obtain(msg));
-                        } else if (networkId != WifiConfiguration.INVALID_NETWORK_ID) {
-                            mClientModeImpl.sendMessage(Message.obtain(msg));
-                        } else {
-                            Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
-                                    + "ignoring invalid msg=" + msg);
-                            replyFailed(msg, WifiManager.CONNECT_NETWORK_FAILED,
-                                    WifiManager.INVALID_ARGS);
-                        }
-                    }
-                    break;
-                }
-                case WifiManager.SAVE_NETWORK: {
-                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
-                            msg, WifiManager.SAVE_NETWORK_FAILED)) {
-                        WifiConfiguration config = (WifiConfiguration) msg.obj;
-                        int networkId = msg.arg1;
-                        Slog.d(TAG, "SAVE"
-                                + " nid=" + networkId
-                                + " config=" + config
-                                + " uid=" + msg.sendingUid
-                                + " name="
-                                + mContext.getPackageManager().getNameForUid(msg.sendingUid));
-                        if (config != null) {
-                            /* Command is forwarded to state machine */
-                            mClientModeImpl.sendMessage(Message.obtain(msg));
-                        } else {
-                            Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
-                                    + "ignoring invalid msg=" + msg);
-                            replyFailed(msg, WifiManager.SAVE_NETWORK_FAILED,
-                                    WifiManager.INVALID_ARGS);
-                        }
-                    }
-                    break;
-                }
-                case WifiManager.FORGET_NETWORK:
-                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
-                            msg, WifiManager.FORGET_NETWORK_FAILED)) {
-                        mClientModeImpl.sendMessage(Message.obtain(msg));
-                    }
-                    break;
-                case WifiManager.DISABLE_NETWORK:
-                    if (checkPrivilegedPermissionsAndReplyIfNotAuthorized(
-                            msg, WifiManager.DISABLE_NETWORK_FAILED)) {
-                        mClientModeImpl.sendMessage(Message.obtain(msg));
-                    }
-                    break;
-                case WifiManager.RSSI_PKTCNT_FETCH: {
-                    if (checkChangePermissionAndReplyIfNotAuthorized(
-                            msg, WifiManager.RSSI_PKTCNT_FETCH_FAILED)) {
-                        mClientModeImpl.sendMessage(Message.obtain(msg));
-                    }
-                    break;
-                }
-                default: {
-                    Slog.d(TAG, "AsyncChannelExternalClientHandler.handleMessage "
-                            + "ignoring msg=" + msg);
-                    break;
-                }
-            }
-        }
-
-        /**
-         * Helper method to check if the sender of the message holds the
-         * {@link Manifest.permission#CHANGE_WIFI_STATE} permission, and reply with a failure if it
-         * doesn't
-         *
-         * @param msg Incoming message.
-         * @param replyWhat Param to be filled in the {@link Message#what} field of the failure
-         *                  reply.
-         * @return true if the sender holds the permission, false otherwise.
-         */
-        private boolean checkChangePermissionAndReplyIfNotAuthorized(Message msg, int replyWhat) {
-            if (!mWifiPermissionsUtil.checkChangePermission(msg.sendingUid)) {
-                Slog.e(TAG, "AsyncChannelExternalClientHandler.handleMessage "
-                        + "ignoring unauthorized msg=" + msg);
-                replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
-                return false;
-            }
-            return true;
-        }
-
-        /**
-         * Helper method to check if the sender of the message holds one of
-         * {@link Manifest.permission#NETWORK_SETTINGS},
-         * {@link Manifest.permission#NETWORK_SETUP_WIZARD} or
-         * {@link Manifest.permission#NETWORK_STACK} permission, and reply with a failure if it
-         * doesn't
-         *
-         * @param msg Incoming message.
-         * @param replyWhat Param to be filled in the {@link Message#what} field of the failure
-         *                  reply.
-         * @return true if the sender holds the permission, false otherwise.
-         */
-        private boolean checkPrivilegedPermissionsAndReplyIfNotAuthorized(
-                Message msg, int replyWhat) {
-            if (!isPrivileged(-1, msg.sendingUid)) {
-                Slog.e(TAG, "ClientHandler.handleMessage ignoring unauthorized msg=" + msg);
-                replyFailed(msg, replyWhat, WifiManager.NOT_AUTHORIZED);
-                return false;
-            }
-            return true;
-        }
-
-        private void replyFailed(Message msg, int what, int why) {
-            if (msg.replyTo == null) return;
-            Message reply = Message.obtain();
-            reply.what = what;
-            reply.arg1 = why;
-            try {
-                msg.replyTo.send(reply);
-            } catch (RemoteException e) {
-                // There's not much we can do if reply can't be sent!
-            }
-        }
-    }
-    private final AsyncChannelExternalClientHandler mAsyncChannelExternalClientHandler;
-
-    /**
      * Handles interaction with ClientModeImpl
      */
     private class ClientModeImplHandler extends WifiHandler {
@@ -416,11 +270,8 @@ public class WifiServiceImpl extends BaseWifiService {
         mAppOps = (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE);
         mWifiLockManager = mWifiInjector.getWifiLockManager();
         mWifiMulticastLockManager = mWifiInjector.getWifiMulticastLockManager();
-        HandlerThread asyncChannelHandlerThread = mWifiInjector.getAsyncChannelHandlerThread();
-        mAsyncChannelExternalClientHandler =
-                new AsyncChannelExternalClientHandler(TAG, asyncChannelHandlerThread.getLooper());
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
-                asyncChannelHandlerThread.getLooper(), asyncChannel);
+                mWifiInjector.getAsyncChannelHandlerThread().getLooper(), asyncChannel);
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
@@ -435,15 +286,6 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
         mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
-    }
-
-    /**
-     * Provide a way for unit tests to set valid log object in the WifiHandler
-     * @param log WifiLog object to assign to the clientHandler
-     */
-    @VisibleForTesting
-    public void setWifiHandlerLogForTest(WifiLog log) {
-        mAsyncChannelExternalClientHandler.setWifiLog(log);
     }
 
     /**
@@ -2544,22 +2386,6 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * Get a reference to handler. This is used by a client to establish
-     * an AsyncChannel communication with WifiService
-     */
-    @Override
-    public Messenger getWifiServiceMessenger(String packageName) {
-        enforceAccessPermission();
-        if (enforceChangePermission(packageName) != MODE_ALLOWED) {
-            // We don't have a good way of creating a fake Messenger, and returning null would
-            // immediately break callers.
-            throw new SecurityException("Could not create wifi service messenger");
-        }
-        mLog.info("getWifiServiceMessenger uid=%").c(Binder.getCallingUid()).flush();
-        return new Messenger(mAsyncChannelExternalClientHandler);
-    }
-
-    /**
      * Disable an ephemeral network, i.e. network that is created thru a WiFi Scorer
      */
     @Override
@@ -3485,5 +3311,87 @@ public class WifiServiceImpl extends BaseWifiService {
         // Post operation to handler thread
         mWifiThreadRunner.post(() ->
                 mClientModeImpl.updateWifiUsabilityScore(seqNum, score, predictionHorizonSec));
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#connect(int, WifiManager.ActionListener)}
+     */
+    @Override
+    public void connect(WifiConfiguration config, int netId, IBinder binder,
+            @Nullable IActionListener callback, int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+        if (mVerboseLoggingEnabled) {
+            mLog.info("connect uid=%").c(Binder.getCallingUid()).flush();
+        }
+        mClientModeImpl.connect(
+                config, netId, binder, callback, callbackIdentifier, Binder.getCallingUid());
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#save(WifiConfiguration,
+     * WifiManager.ActionListener)}
+     */
+    @Override
+    public void save(WifiConfiguration config, IBinder binder, @Nullable IActionListener callback,
+            int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+        if (mVerboseLoggingEnabled) {
+            mLog.info("connect uid=%").c(Binder.getCallingUid()).flush();
+        }
+        mClientModeImpl.save(
+                config, binder, callback, callbackIdentifier, Binder.getCallingUid());
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#forget(int, WifiManager.ActionListener)}
+     */
+    @Override
+    public void forget(int netId, IBinder binder, @Nullable IActionListener callback,
+            int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
+            throw new SecurityException(TAG + ": Permission denied");
+        }
+        if (mVerboseLoggingEnabled) {
+            mLog.info("connect uid=%").c(Binder.getCallingUid()).flush();
+        }
+        mClientModeImpl.forget(
+                netId, binder, callback, callbackIdentifier, Binder.getCallingUid());
+    }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#getTxPacketCount(WifiManager.TxPacketCountListener)}
+     */
+    @Override
+    public void getTxPacketCount(String packageName, IBinder binder,
+            @NonNull ITxPacketCountListener callback, int callbackIdentifier) {
+        // verify arguments
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback must not be null");
+        }
+        enforceChangePermission(packageName);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("connect uid=%").c(Binder.getCallingUid()).flush();
+        }
+        mClientModeImpl.getTxPacketCount(
+                binder, callback, callbackIdentifier, Binder.getCallingUid());
     }
 }

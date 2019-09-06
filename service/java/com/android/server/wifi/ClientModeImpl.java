@@ -57,8 +57,9 @@ import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
 import android.net.shared.ProvisioningConfiguration;
+import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
-import android.net.wifi.RssiPacketCountInfo;
+import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
@@ -114,6 +115,7 @@ import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
@@ -422,6 +424,11 @@ public class ClientModeImpl extends StateMachine {
     // Provide packet filter capabilities to ConnectivityService.
     private final NetworkMisc mNetworkMisc = new NetworkMisc();
 
+    @GuardedBy("mProcessingActionListeners")
+    private final ExternalCallbackTracker<IActionListener> mProcessingActionListeners;
+    @GuardedBy("mProcessingTxPacketCountListeners")
+    private final ExternalCallbackTracker<ITxPacketCountListener> mProcessingTxPacketCountListeners;
+
     /* The base for wifi message types */
     static final int BASE = Protocol.BASE_WIFI;
 
@@ -434,6 +441,8 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_REMOVE_NETWORK                                 = BASE + 53;
     /* Enable a network. The device will attempt a connection to the given network. */
     static final int CMD_ENABLE_NETWORK                                 = BASE + 54;
+    /* Disable a network. */
+    static final int CMD_DISABLE_NETWORK                                = BASE + 55;
     /* Get configured networks */
     static final int CMD_GET_CONFIGURED_NETWORKS                        = BASE + 59;
     /* Get adaptors */
@@ -634,6 +643,11 @@ public class ClientModeImpl extends StateMachine {
     static final int CMD_PRE_DHCP_ACTION                                = BASE + 255;
     private static final int CMD_PRE_DHCP_ACTION_COMPLETE               = BASE + 256;
     private static final int CMD_POST_DHCP_ACTION                       = BASE + 257;
+
+    private static final int CMD_CONNECT_NETWORK                            = BASE + 258;
+    private static final int CMD_SAVE_NETWORK                               = BASE + 259;
+    private static final int CMD_FORGET_NETWORK                             = BASE + 260;
+    private static final int CMD_PKT_CNT_FETCH                              = BASE + 261;
 
     // For message logging.
     private static final Class[] sMessageClasses = {
@@ -841,6 +855,8 @@ public class ClientModeImpl extends StateMachine {
                 mNetworkCapabilitiesFilter, mWifiConnectivityManager);
 
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
+        mProcessingActionListeners = new ExternalCallbackTracker<>(getHandler());
+        mProcessingTxPacketCountListeners = new ExternalCallbackTracker<>(getHandler());
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -1891,9 +1907,9 @@ public class ClientModeImpl extends StateMachine {
      * @return {@code true} if the operation succeeds, {@code false} otherwise
      */
     public boolean syncDisableNetwork(AsyncChannel channel, int netId) {
-        Message resultMsg = channel.sendMessageSynchronously(WifiManager.DISABLE_NETWORK, netId);
-        boolean result = (resultMsg.what != WifiManager.DISABLE_NETWORK_FAILED);
+        Message resultMsg = channel.sendMessageSynchronously(CMD_DISABLE_NETWORK, netId);
         if (messageIsNull(resultMsg)) return false;
+        boolean result = (resultMsg.arg1 != FAILURE);
         resultMsg.recycle();
         return result;
     }
@@ -2136,7 +2152,7 @@ public class ClientModeImpl extends StateMachine {
                     sb.append(stateChangeResult.toString());
                 }
                 break;
-            case WifiManager.SAVE_NETWORK:
+            case CMD_SAVE_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -2162,7 +2178,7 @@ public class ClientModeImpl extends StateMachine {
                     sb.append(" suid=").append(config.lastUpdateUid);
                 }
                 break;
-            case WifiManager.FORGET_NETWORK:
+            case CMD_FORGET_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -2250,7 +2266,7 @@ public class ClientModeImpl extends StateMachine {
             case CMD_RSSI_POLL:
             case CMD_ONESHOT_RSSI_POLL:
             case CMD_UNWANTED_NETWORK:
-            case WifiManager.RSSI_PKTCNT_FETCH:
+            case CMD_PKT_CNT_FETCH:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -2279,7 +2295,7 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(String.format(" score=%d", mWifiInfo.score));
                 break;
             case CMD_START_CONNECT:
-            case WifiManager.CONNECT_NETWORK:
+            case CMD_CONNECT_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -2346,7 +2362,6 @@ public class ClientModeImpl extends StateMachine {
                     }
                 }
                 break;
-            case WifiManager.DISABLE_NETWORK:
             case CMD_ENABLE_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
@@ -2496,17 +2511,14 @@ public class ClientModeImpl extends StateMachine {
             case AsyncChannel.CMD_CHANNEL_DISCONNECTED:
                 s = "CMD_CHANNEL_DISCONNECTED";
                 break;
-            case WifiManager.DISABLE_NETWORK:
-                s = "DISABLE_NETWORK";
+            case CMD_CONNECT_NETWORK:
+                s = "CMD_CONNECT_NETWORK";
                 break;
-            case WifiManager.CONNECT_NETWORK:
-                s = "CONNECT_NETWORK";
+            case CMD_SAVE_NETWORK:
+                s = "CMD_SAVE_NETWORK";
                 break;
-            case WifiManager.SAVE_NETWORK:
-                s = "SAVE_NETWORK";
-                break;
-            case WifiManager.FORGET_NETWORK:
-                s = "FORGET_NETWORK";
+            case CMD_FORGET_NETWORK:
+                s = "CMD_FORGET_NETWORK";
                 break;
             case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                 s = "SUPPLICANT_STATE_CHANGE_EVENT";
@@ -2559,8 +2571,8 @@ public class ClientModeImpl extends StateMachine {
             case WifiP2pServiceImpl.BLOCK_DISCOVERY:
                 s = "BLOCK_DISCOVERY";
                 break;
-            case WifiManager.RSSI_PKTCNT_FETCH:
-                s = "RSSI_PKTCNT_FETCH";
+            case CMD_PKT_CNT_FETCH:
+                s = "CMD_PKT_CNT_FETCH";
                 break;
             default:
                 s = "what:" + Integer.toString(what);
@@ -3441,6 +3453,9 @@ public class ClientModeImpl extends StateMachine {
         @Override
         public boolean processMessage(Message message) {
             boolean handleStatus = HANDLED;
+            int callbackIdentifier = -1;
+            int netId;
+            boolean ok;
 
             switch (message.what) {
                 case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED: {
@@ -3474,9 +3489,18 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_ENABLE_NETWORK:
                     boolean disableOthers = message.arg2 == 1;
-                    int netId = message.arg1;
-                    boolean ok = mWifiConfigManager.enableNetwork(
+                    netId = message.arg1;
+                    ok = mWifiConfigManager.enableNetwork(
                             netId, disableOthers, message.sendingUid);
+                    if (!ok) {
+                        mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
+                    }
+                    replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
+                    break;
+                case CMD_DISABLE_NETWORK:
+                    netId = message.arg1;
+                    ok = mWifiConfigManager.disableNetwork(
+                            netId, message.sendingUid);
                     if (!ok) {
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
                     }
@@ -3492,7 +3516,7 @@ public class ClientModeImpl extends StateMachine {
                     replyToMessage(message, message.what, result.getNetworkId());
                     break;
                 case CMD_REMOVE_NETWORK:
-                    deleteNetworkConfigAndSendReply(message, false);
+                    removeNetworkConfigAndSendReply(message);
                     break;
                 case CMD_GET_CONFIGURED_NETWORKS:
                     replyToMessage(message, message.what,
@@ -3569,23 +3593,19 @@ public class ClientModeImpl extends StateMachine {
                         setSuspendOptimizations(SUSPEND_DUE_TO_SCREEN, false);
                     }
                     break;
-                case WifiManager.CONNECT_NETWORK:
-                    replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
-                            WifiManager.BUSY);
+                case CMD_CONNECT_NETWORK:
+                    callbackIdentifier = message.arg2;
+                    sendActionListenerFailure(callbackIdentifier, WifiManager.BUSY);
                     break;
-                case WifiManager.FORGET_NETWORK:
-                    deleteNetworkConfigAndSendReply(message, true);
+                case CMD_FORGET_NETWORK:
+                    forgetNetworkConfigAndInvokeCb(message);
                     break;
-                case WifiManager.SAVE_NETWORK:
-                    saveNetworkConfigAndSendReply(message);
+                case CMD_SAVE_NETWORK:
+                    saveNetworkConfigAndInvokeCb(message);
                     break;
-                case WifiManager.DISABLE_NETWORK:
-                    replyToMessage(message, WifiManager.DISABLE_NETWORK_FAILED,
-                            WifiManager.BUSY);
-                    break;
-                case WifiManager.RSSI_PKTCNT_FETCH:
-                    replyToMessage(message, WifiManager.RSSI_PKTCNT_FETCH_FAILED,
-                            WifiManager.BUSY);
+                case CMD_PKT_CNT_FETCH:
+                    callbackIdentifier = message.arg2;
+                    sendTxPacketCountListenerFailure(callbackIdentifier, WifiManager.BUSY);
                     break;
                 case CMD_GET_SUPPORTED_FEATURES:
                     long featureSet = (mWifiNative.getSupportedFeatureSet(mInterfaceName));
@@ -3958,6 +3978,7 @@ public class ClientModeImpl extends StateMachine {
             int reasonCode;
             boolean timedOut;
             boolean handleStatus = HANDLED;
+            int callbackIdentifier = -1;
 
             switch (message.what) {
                 case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
@@ -4098,7 +4119,7 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_REMOVE_NETWORK:
-                    if (!deleteNetworkConfigAndSendReply(message, false)) {
+                    if (!removeNetworkConfigAndSendReply(message)) {
                         // failed to remove the config and caller was notified
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
                         break;
@@ -4125,10 +4146,10 @@ public class ClientModeImpl extends StateMachine {
                     }
                     replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
                     break;
-                case WifiManager.DISABLE_NETWORK:
+                case CMD_DISABLE_NETWORK:
                     netId = message.arg1;
-                    if (mWifiConfigManager.disableNetwork(netId, message.sendingUid)) {
-                        replyToMessage(message, WifiManager.DISABLE_NETWORK_SUCCEEDED);
+                    ok = mWifiConfigManager.disableNetwork(netId, message.sendingUid);
+                    if (ok) {
                         if (netId == mTargetNetworkId || netId == mLastNetworkId) {
                             // Disconnect and let autojoin reselect a new network
                             sendMessage(CMD_DISCONNECT);
@@ -4136,9 +4157,8 @@ public class ClientModeImpl extends StateMachine {
                     } else {
                         loge("Failed to disable network");
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                        replyToMessage(message, WifiManager.DISABLE_NETWORK_FAILED,
-                                WifiManager.ERROR);
                     }
+                    replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
                     break;
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
                     config = mWifiConfigManager.disableEphemeralNetwork((String) message.obj);
@@ -4308,8 +4328,6 @@ public class ClientModeImpl extends StateMachine {
                                 WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED,
                                 WifiMetricsProto.ConnectionEvent.HLF_NONE,
                                 WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
-                        replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
-                                WifiManager.ERROR);
                         break;
                     }
                     break;
@@ -4331,7 +4349,7 @@ public class ClientModeImpl extends StateMachine {
                         sendMessage(CMD_DISCONNECT);
                     }
                     break;
-                case WifiManager.CONNECT_NETWORK:
+                case CMD_CONNECT_NETWORK:
                     /**
                      * The connect message can contain a network id passed as arg1 on message or
                      * or a config passed as obj on message.
@@ -4340,15 +4358,16 @@ public class ClientModeImpl extends StateMachine {
                      */
                     netId = message.arg1;
                     config = (WifiConfiguration) message.obj;
+                    callbackIdentifier = message.arg2;
                     boolean hasCredentialChanged = false;
                     // New network addition.
                     if (config != null) {
                         result = mWifiConfigManager.addOrUpdateNetwork(config, message.sendingUid);
                         if (!result.isSuccess()) {
-                            loge("CONNECT_NETWORK adding/updating config=" + config + " failed");
+                            loge("CMD_CONNECT_NETWORK adding/updating config=" + config
+                                    + " failed");
                             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                            replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
-                                    WifiManager.ERROR);
+                            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
                             break;
                         }
                         netId = result.getNetworkId();
@@ -4357,24 +4376,23 @@ public class ClientModeImpl extends StateMachine {
                     if (!connectToUserSelectNetwork(
                             netId, message.sendingUid, hasCredentialChanged)) {
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                        replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
-                                WifiManager.NOT_AUTHORIZED);
+                        sendActionListenerFailure(callbackIdentifier, WifiManager.NOT_AUTHORIZED);
                         break;
                     }
                     mWifiMetrics.logStaEvent(StaEvent.TYPE_CONNECT_NETWORK, config);
                     broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
-                    replyToMessage(message, WifiManager.CONNECT_NETWORK_SUCCEEDED);
+                    sendActionListenerSuccess(callbackIdentifier);
                     break;
-                case WifiManager.SAVE_NETWORK:
-                    result = saveNetworkConfigAndSendReply(message);
+                case CMD_SAVE_NETWORK:
+                    result = saveNetworkConfigAndInvokeCb(message);
                     netId = result.getNetworkId();
                     if (result.isSuccess() && mWifiInfo.getNetworkId() == netId) {
                         if (result.hasCredentialChanged()) {
                             config = (WifiConfiguration) message.obj;
                             // The network credentials changed and we're connected to this network,
                             // start a new connection with the updated credentials.
-                            logi("SAVE_NETWORK credential changed for config=" + config.configKey()
-                                    + ", Reconnecting.");
+                            logi("CMD_SAVE_NETWORK credential changed for config="
+                                    + config.configKey() + ", Reconnecting.");
                             startConnectToNetwork(netId, message.sendingUid, SUPPLICANT_BSSID_ANY);
                         } else {
                             if (result.hasProxyChanged()) {
@@ -4394,8 +4412,8 @@ public class ClientModeImpl extends StateMachine {
                         }
                     }
                     break;
-                case WifiManager.FORGET_NETWORK:
-                    if (!deleteNetworkConfigAndSendReply(message, true)) {
+                case CMD_FORGET_NETWORK:
+                    if (!forgetNetworkConfigAndInvokeCb(message)) {
                         // Caller was notified of failure, nothing else to do
                         break;
                     }
@@ -4939,6 +4957,7 @@ public class ClientModeImpl extends StateMachine {
         @Override
         public boolean processMessage(Message message) {
             boolean handleStatus = HANDLED;
+            int callbackIdentifier = -1;
 
             switch (message.what) {
                 case CMD_PRE_DHCP_ACTION:
@@ -5035,10 +5054,11 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                     /* Ignore connection to same network */
-                case WifiManager.CONNECT_NETWORK:
+                case CMD_CONNECT_NETWORK:
                     int netId = message.arg1;
+                    callbackIdentifier = message.arg2;
                     if (mWifiInfo.getNetworkId() == netId) {
-                        replyToMessage(message, WifiManager.CONNECT_NETWORK_SUCCEEDED);
+                        sendActionListenerSuccess(callbackIdentifier);
                         break;
                     }
                     handleStatus = NOT_HANDLED;
@@ -5101,19 +5121,15 @@ public class ClientModeImpl extends StateMachine {
                                 mPollRssiIntervalMsecs);
                     }
                     break;
-                case WifiManager.RSSI_PKTCNT_FETCH:
-                    RssiPacketCountInfo info = new RssiPacketCountInfo();
-                    fetchRssiLinkSpeedAndFrequencyNative();
-                    info.rssi = mWifiInfo.getRssi();
+                case CMD_PKT_CNT_FETCH:
+                    callbackIdentifier = message.arg2;
                     WifiNative.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
-                        info.txgood = counters.txSucceeded;
-                        info.txbad = counters.txFailed;
-                        replyToMessage(message, WifiManager.RSSI_PKTCNT_FETCH_SUCCEEDED, info);
+                        sendTxPacketCountListenerSuccess(
+                                callbackIdentifier, counters.txSucceeded + counters.txFailed);
                     } else {
-                        replyToMessage(message,
-                                WifiManager.RSSI_PKTCNT_FETCH_FAILED, WifiManager.ERROR);
+                        sendTxPacketCountListenerSuccess(callbackIdentifier, WifiManager.ERROR);
                     }
                     break;
                 case WifiMonitor.ASSOCIATED_BSSID_EVENT:
@@ -5327,7 +5343,7 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_START_ROAM:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
-                case WifiManager.CONNECT_NETWORK:
+                case CMD_CONNECT_NETWORK:
                     // TODO(b/117601161) do all connect-network processing in one place
                     // Do not disconnect if we try to connect to the same network
                     int netId = message.arg1;
@@ -5346,7 +5362,7 @@ public class ClientModeImpl extends StateMachine {
                     mWifiNative.disconnect(mInterfaceName);
                     transitionTo(mDisconnectingState);
                     break;
-                case WifiManager.SAVE_NETWORK:
+                case CMD_SAVE_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     break;
@@ -5754,8 +5770,6 @@ public class ClientModeImpl extends StateMachine {
                                 WifiMetrics.ConnectionEvent.FAILURE_CONNECT_NETWORK_FAILED,
                                 WifiMetricsProto.ConnectionEvent.HLF_NONE,
                                 WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
-                        replyToMessage(message, WifiManager.CONNECT_NETWORK_FAILED,
-                                WifiManager.ERROR);
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
                         break;
                     }
@@ -5809,7 +5823,7 @@ public class ClientModeImpl extends StateMachine {
             boolean handleStatus = HANDLED;
 
             switch (message.what) {
-                case WifiManager.CONNECT_NETWORK:
+                case CMD_CONNECT_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     break;
@@ -6140,65 +6154,72 @@ public class ClientModeImpl extends StateMachine {
      * now in this helper method.  TODO: b/35257965 is filed to track the possibility of merging
      * the two call paths.
      */
-    private boolean deleteNetworkConfigAndSendReply(Message message, boolean calledFromForget) {
+    private boolean removeNetworkConfigAndSendReply(Message message) {
         boolean success = mWifiConfigManager.removeNetwork(message.arg1, message.sendingUid);
-        if (!success) {
-            loge("Failed to remove network");
+        // Remaining calls are from the removeNetwork path
+        if (success) {
+            replyToMessage(message, message.what, SUCCESS);
+            return true;
         }
+        loge("Failed to remove network");
+        mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
+        replyToMessage(message, message.what, FAILURE);
+        return false;
+    }
 
-        if (calledFromForget) {
-            if (success) {
-                replyToMessage(message, WifiManager.FORGET_NETWORK_SUCCEEDED);
-                broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_FORGOT,
-                                               (WifiConfiguration) message.obj);
-                return true;
-            }
-            replyToMessage(message, WifiManager.FORGET_NETWORK_FAILED, WifiManager.ERROR);
-            return false;
-        } else {
-            // Remaining calls are from the removeNetwork path
-            if (success) {
-                replyToMessage(message, message.what, SUCCESS);
-                return true;
-            }
-            mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            replyToMessage(message, message.what, FAILURE);
-            return false;
+
+    /**
+     * Private method to handle calling WifiConfigManager to forget network configs and invoke
+     * corresponding callback from the sender of the outcome.
+     */
+    private boolean forgetNetworkConfigAndInvokeCb(Message message) {
+        boolean success = mWifiConfigManager.removeNetwork(message.arg1, message.sendingUid);
+        int callbackIdentifier = message.arg2;
+        if (success) {
+            sendActionListenerSuccess(callbackIdentifier);
+            broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_FORGOT,
+                    (WifiConfiguration) message.obj);
+            return true;
         }
+        loge("Failed to remove network");
+        sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+        return false;
     }
 
     /**
-     * Private method to handle calling WifiConfigManager to add & enable network configs and reply
-     * to the message from the sender of the outcome.
+     * Private method to handle calling WifiConfigManager to add & enable network configs and invoke
+     * corresponding callback from the sender of the outcome.
      *
      * @return NetworkUpdateResult with networkId of the added/updated configuration. Will return
      * {@link WifiConfiguration#INVALID_NETWORK_ID} in case of error.
      */
-    private NetworkUpdateResult saveNetworkConfigAndSendReply(Message message) {
+    private NetworkUpdateResult saveNetworkConfigAndInvokeCb(Message message) {
         WifiConfiguration config = (WifiConfiguration) message.obj;
+        int callbackIdentifier = message.arg2;
         if (config == null) {
-            loge("SAVE_NETWORK with null configuration my state " + getCurrentState().getName());
+            loge("CMD_SAVE_NETWORK with null configuration my state "
+                    + getCurrentState().getName());
             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            replyToMessage(message, WifiManager.SAVE_NETWORK_FAILED, WifiManager.ERROR);
+            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
         NetworkUpdateResult result =
                 mWifiConfigManager.addOrUpdateNetwork(config, message.sendingUid);
         if (!result.isSuccess()) {
-            loge("SAVE_NETWORK adding/updating config=" + config + " failed");
+            loge("CMD_SAVE_NETWORK adding/updating config=" + config + " failed");
             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            replyToMessage(message, WifiManager.SAVE_NETWORK_FAILED, WifiManager.ERROR);
+            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
             return result;
         }
         if (!mWifiConfigManager.enableNetwork(
                 result.getNetworkId(), false, message.sendingUid)) {
-            loge("SAVE_NETWORK enabling config=" + config + " failed");
+            loge("CMD_SAVE_NETWORK enabling config=" + config + " failed");
             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            replyToMessage(message, WifiManager.SAVE_NETWORK_FAILED, WifiManager.ERROR);
+            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
             return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
         }
         broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
-        replyToMessage(message, WifiManager.SAVE_NETWORK_SUCCEEDED);
+        sendActionListenerSuccess(callbackIdentifier);
         return result;
     }
 
@@ -6368,5 +6389,119 @@ public class ClientModeImpl extends StateMachine {
     public void probeLink(WifiNative.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
+    }
+
+    private void sendActionListenerFailure(int callbackIdentifier, int reason) {
+        IActionListener actionListener;
+        synchronized (mProcessingActionListeners) {
+            actionListener = mProcessingActionListeners.remove(callbackIdentifier);
+        }
+        if (actionListener != null) {
+            try {
+                actionListener.onFailure(reason);
+            } catch (RemoteException e) {
+                // no-op (client may be dead, nothing to be done)
+            }
+        }
+    }
+
+    private void sendActionListenerSuccess(int callbackIdentifier) {
+        IActionListener actionListener;
+        synchronized (mProcessingTxPacketCountListeners) {
+            actionListener = mProcessingActionListeners.remove(callbackIdentifier);
+        }
+        if (actionListener != null) {
+            try {
+                actionListener.onSuccess();
+            } catch (RemoteException e) {
+                // no-op (client may be dead, nothing to be done)
+            }
+        }
+    }
+
+    private void sendTxPacketCountListenerFailure(int callbackIdentifier, int reason) {
+        ITxPacketCountListener txPacketCountListener;
+        synchronized (mProcessingTxPacketCountListeners) {
+            txPacketCountListener = mProcessingTxPacketCountListeners.remove(callbackIdentifier);
+        }
+        if (txPacketCountListener != null) {
+            try {
+                txPacketCountListener.onFailure(reason);
+            } catch (RemoteException e) {
+                // no-op (client may be dead, nothing to be done)
+            }
+        }
+    }
+
+    private void sendTxPacketCountListenerSuccess(int callbackIdentifier, int count) {
+        ITxPacketCountListener txPacketCountListener;
+        synchronized (mProcessingActionListeners) {
+            txPacketCountListener = mProcessingTxPacketCountListeners.remove(callbackIdentifier);
+        }
+        if (txPacketCountListener != null) {
+            try {
+                txPacketCountListener.onSuccess(count);
+            } catch (RemoteException e) {
+                // no-op (client may be dead, nothing to be done)
+            }
+        }
+    }
+
+    /**
+     * Trigger network connection and provide status via the provided callback.
+     */
+    public void connect(WifiConfiguration config, int netId, IBinder binder,
+            @Nullable IActionListener callback, int callbackIdentifier, int callingUid) {
+        if (callback != null) {
+            synchronized (mProcessingActionListeners) {
+                mProcessingActionListeners.add(binder, callback, callbackIdentifier);
+            }
+        }
+        Message message = obtainMessage(CMD_CONNECT_NETWORK, netId, callbackIdentifier, config);
+        message.sendingUid = callingUid;
+        sendMessage(message);
+    }
+
+    /**
+     * Trigger network save and provide status via the provided callback.
+     */
+    public void save(WifiConfiguration config, IBinder binder, @Nullable IActionListener callback,
+            int callbackIdentifier, int callingUid) {
+        if (callback != null) {
+            synchronized (mProcessingActionListeners) {
+                mProcessingActionListeners.add(binder, callback, callbackIdentifier);
+            }
+        }
+        Message message = obtainMessage(CMD_SAVE_NETWORK, -1, callbackIdentifier, config);
+        message.sendingUid = callingUid;
+        sendMessage(message);
+    }
+
+    /**
+     * Trigger network forget and provide status via the provided callback.
+     */
+    public void forget(int netId, IBinder binder, @Nullable IActionListener callback,
+            int callbackIdentifier, int callingUid) {
+        if (callback != null) {
+            synchronized (mProcessingActionListeners) {
+                mProcessingActionListeners.add(binder, callback, callbackIdentifier);
+            }
+        }
+        Message message = obtainMessage(CMD_FORGET_NETWORK, netId, callbackIdentifier, null);
+        message.sendingUid = callingUid;
+        sendMessage(message);
+    }
+
+    /**
+     * Retrieve tx packet count and provide status via the provided callback.
+     */
+    public void getTxPacketCount(IBinder binder, @NonNull ITxPacketCountListener callback,
+            int callbackIdentifier, int callingUid) {
+        synchronized (mProcessingTxPacketCountListeners) {
+            mProcessingTxPacketCountListeners.add(binder, callback, callbackIdentifier);
+        }
+        Message message = obtainMessage(CMD_PKT_CNT_FETCH, -1, callbackIdentifier, null);
+        message.sendingUid = callingUid;
+        sendMessage(message);
     }
 }
