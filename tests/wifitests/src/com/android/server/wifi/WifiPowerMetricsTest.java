@@ -109,16 +109,52 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
     @Test
     public void testBuildProto() throws Exception {
         final long monitoredRailEnergyConsumedMaMs = 12000;
+        final long numBytesTx = 65000;
+        final long numBytesRx = 4560000;
+        final long numPacketsTx = 3456;
+        final long numPacketsRx = 5436456;
+        final long txTimeMs = 2300;
+        final long rxTimeMs = 343258;
+        final long idleTimeMs = 32322233;
+        final long scanTimeMs = 345566;
+        final long sleepTimeMs = 323270343;
         final double monitoredRailEnergyConsumedMah = monitoredRailEnergyConsumedMaMs
                 / ((double) DateUtils.HOUR_IN_MILLIS);
         WifiBatteryStats wifiBatteryStats = new WifiBatteryStats();
         wifiBatteryStats.setEnergyConsumedMaMillis(monitoredRailEnergyConsumedMaMs);
+        wifiBatteryStats.setNumBytesTx(numBytesTx);
+        wifiBatteryStats.setNumBytesRx(numBytesRx);
+        wifiBatteryStats.setNumPacketsTx(numPacketsTx);
+        wifiBatteryStats.setNumPacketsRx(numPacketsRx);
+        wifiBatteryStats.setTxTimeMillis(txTimeMs);
+        wifiBatteryStats.setRxTimeMillis(rxTimeMs);
+        wifiBatteryStats.setIdleTimeMillis(idleTimeMs);
+        wifiBatteryStats.setScanTimeMillis(scanTimeMs);
+        wifiBatteryStats.setSleepTimeMillis(sleepTimeMs);
         when(mBatteryStats.getWifiBatteryStats()).thenReturn(wifiBatteryStats);
         WifiPowerStats wifiPowerStats = mWifiPowerMetrics.buildProto();
         verify(mBatteryStats).getWifiBatteryStats();
         assertEquals("monitoredRailEnergyConsumedMah must match with field from WifiPowerStats",
                 monitoredRailEnergyConsumedMah, wifiPowerStats.monitoredRailEnergyConsumedMah,
                 0.01);
+        assertEquals("numBytesTx must match with field from WifiBatteryStats",
+                numBytesTx, wifiPowerStats.numBytesTx);
+        assertEquals("numBytesRx must match with field from WifiBatteryStats",
+                numBytesRx, wifiPowerStats.numBytesRx);
+        assertEquals("numPacketsTx must match with field from WifiBatteryStats",
+                numPacketsTx, wifiPowerStats.numPacketsTx);
+        assertEquals("numPacketsRx must match with field from WifiBatteryStats",
+                numPacketsRx, wifiPowerStats.numPacketsRx);
+        assertEquals("txTimeMs must match with field from WifiBatteryStats",
+                txTimeMs, wifiPowerStats.txTimeMs);
+        assertEquals("rxTimeMs must match with field from WifiBatteryStats",
+                rxTimeMs, wifiPowerStats.rxTimeMs);
+        assertEquals("idleTimeMs must match with field from WifiBatteryStats",
+                idleTimeMs, wifiPowerStats.idleTimeMs);
+        assertEquals("scanTimeMs must match with field from WifiBatteryStats",
+                scanTimeMs, wifiPowerStats.scanTimeMs);
+        assertEquals("sleepTimeMs must match with field from WifiBatteryStats",
+                sleepTimeMs, wifiPowerStats.sleepTimeMs);
     }
 
     /**

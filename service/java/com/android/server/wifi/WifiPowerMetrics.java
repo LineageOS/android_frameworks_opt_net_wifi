@@ -61,7 +61,7 @@ public class WifiPowerMetrics {
             m.numPacketsTx = stats.getNumPacketsTx();
             m.numBytesTx = stats.getNumBytesTx();
             m.numPacketsRx = stats.getNumPacketsRx();
-            m.numBytesRx = stats.getNumPacketsRx();
+            m.numBytesRx = stats.getNumBytesRx();
             m.sleepTimeMs = stats.getSleepTimeMillis();
             m.scanTimeMs = stats.getScanTimeMillis();
             m.monitoredRailEnergyConsumedMah = stats.getMonitoredRailChargeConsumedMaMillis()
