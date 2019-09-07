@@ -1,4 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
+
+# A shell script to generate a coverage report for opt/net/wifi
 
 if [[ ! ($# == 1) ]]; then
   echo "$0: usage: coverage.sh OUTPUT_DIR"
@@ -12,8 +14,14 @@ fi
 
 cd "$(dirname $0)" #cd to directory containing this script
 
-
 REPORTER_JAR=$ANDROID_HOST_OUT/framework/jacoco-cli.jar
+if [ -f $REPORTER_JAR ]; then
+  echo "jacoco-cli.jar found, skipping uninstrumented build"
+else
+  echo "Building jacoco cli and adb"
+  $ANDROID_BUILD_TOP/build/soong/soong_ui.bash --make-mode \
+      MODULES-IN-system-core MODULES-IN-external-jacoco || exit 1
+fi
 
 OUTPUT_DIR=$1
 
@@ -26,18 +34,12 @@ COVERAGE_OUTPUT_FILE=$OUTPUT_DIR/wifi_coverage.ec
 set -e # fail early
 set -x # print commands
 
-# build this module so we can run its tests, and
-# build system/core so we can invoke `adb`, and
-# build jacoco-cli.jar so we can generate the report
 $ANDROID_BUILD_TOP/build/soong/soong_ui.bash --make-mode \
   EMMA_INSTRUMENT=true \
   EMMA_INSTRUMENT_FRAMEWORK=false \
   EMMA_INSTRUMENT_STATIC=true \
   ANDROID_COMPILE_WITH_JACK=false \
   SKIP_BOOT_JARS_CHECK=true \
-  MODULES-IN-frameworks-opt-net-wifi-tests \
-  MODULES-IN-system-core \
-  MODULES-IN-external-jacoco \
   FrameworksWifiTests
 
 APK_NAME="$(ls -t $(find $OUT -name FrameworksWifiTests.apk) | head -n 1)"
