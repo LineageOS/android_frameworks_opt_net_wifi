@@ -77,21 +77,15 @@ java_library {
     name: "wifi-service",
     installable: true,
     defaults: ["WifiStackCommon"],
-    aidl: {
-        include_dirs: ["system/connectivity/wificond/aidl"],
-        local_include_dirs: ["java"],
-    },
     srcs: [
-	":libwificond_ipc_aidl",
         "java/**/*.java",
-        "java/**/I*.aidl",
         "java/**/*.logtags",
     ],
 
     libs: [
-	"error_prone_annotations",
-	"libprotobuf-java-lite",
-	"jsr305",
+        "error_prone_annotations",
+        "libprotobuf-java-lite",
+        "jsr305",
         "services",
     ],
 
@@ -105,14 +99,16 @@ java_library {
         "android.hardware.wifi.supplicant-V1.0-java",
         "android.hardware.wifi.supplicant-V1.1-java",
         "android.hardware.wifi.supplicant-V1.2-java",
+        "android.hardware.wifi.supplicant-V1.3-java",
         "android.hidl.manager-V1.2-java",
-	"androidx.annotation_annotation",
+        "androidx.annotation_annotation",
         "wifi_service_proto",
         "ksoap2",
         "libnanohttpd",
-	"services.core",
-	"services.net",
-	"services.wifi"
+        "services.core",
+        "services.net",
+        "services.wifi",
+        "libwificond_aidl-java",
     ],
 }
 
@@ -133,8 +129,8 @@ java_defaults {
     },
 
     required: [
-	"libwifi-jni",
-	"services",
+        "libwifi-jni",
+        "services",
         "cacerts_wfa",
     ],
 }
@@ -161,7 +157,7 @@ android_app {
     // InProcessWifiStack is a replacement for WifiStack
     overrides: ["WifiStack"],
     // The permission configuration *must* be included to ensure security of the device
-   required: ["PlatformWifiStackPermissionConfig"],
-   init_rc: ["wifi_inprocess.rc"],
+    required: ["PlatformWifiStackPermissionConfig"],
+    init_rc: ["wifi_inprocess.rc"],
 }
 
