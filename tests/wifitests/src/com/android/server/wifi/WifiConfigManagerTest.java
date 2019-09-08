@@ -164,6 +164,7 @@ public class WifiConfigManagerTest {
         mResources.setInteger(
                 R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels,
                 TEST_MAX_NUM_ACTIVE_CHANNELS_FOR_PARTIAL_SCAN);
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, true);
         when(mContext.getResources()).thenReturn(mResources);
 
         // Setup UserManager profiles for the default user.
@@ -1937,6 +1938,44 @@ public class WifiConfigManagerTest {
         configWithRandomizedMac = mWifiConfigManager
                 .getConfiguredNetworkWithoutMasking(result.getNetworkId());
         assertEquals(testMac, configWithRandomizedMac.getRandomizedMacAddress());
+    }
+
+    /**
+     * Verifies that macRandomizationSetting is not masked out when MAC randomization is supported.
+     */
+    @Test
+    public void testGetConfiguredNetworksNotMaskMacRandomizationSetting() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
+
+        MacAddress testMac = MacAddress.createRandomUnicastAddress();
+        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
+
+        // Verify macRandomizationSetting is not masked out when feature is supported.
+        List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
+        assertEquals(1, configs.size());
+        assertEquals(WifiConfiguration.RANDOMIZATION_PERSISTENT,
+                configs.get(0).macRandomizationSetting);
+    }
+
+    /**
+     * Verifies that macRandomizationSetting is masked out to WifiConfiguration.RANDOMIZATION_NONE
+     * when MAC randomization is not supported on the device.
+     */
+    @Test
+    public void testGetConfiguredNetworksMasksMacRandomizationSetting() {
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, false);
+        createWifiConfigManager();
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(config);
+
+        MacAddress testMac = MacAddress.createRandomUnicastAddress();
+        mWifiConfigManager.setNetworkRandomizedMacAddress(result.getNetworkId(), testMac);
+
+        // Verify macRandomizationSetting is masked out when feature is unsupported.
+        List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
+        assertEquals(1, configs.size());
+        assertEquals(WifiConfiguration.RANDOMIZATION_NONE, configs.get(0).macRandomizationSetting);
     }
 
     /**

@@ -600,6 +600,24 @@ public class WifiServiceImplTest {
     }
 
     /**
+     * Verify that wifi can be enabled by the system apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiEnabledSuccessForSystemAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+        mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+
+        when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, true));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
+    /**
      * Verify that wifi can be enabled by the apps targeting pre-Q SDK.
      */
     @Test
@@ -810,6 +828,25 @@ public class WifiServiceImplTest {
         assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
         verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
     }
+
+    /**
+     * Verify that wifi can be disabled by the system apps targeting Q SDK.
+     */
+    @Test
+    public void testSetWifiDisabledSuccessForSystemAppsTargetingQSDK() throws Exception {
+        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
+                .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
+                eq(Build.VERSION_CODES.Q))).thenReturn(false);
+        mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+
+        when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
+        assertTrue(mWifiServiceImpl.setWifiEnabled(TEST_PACKAGE_NAME, false));
+
+        verify(mWifiController).sendMessage(eq(CMD_WIFI_TOGGLED));
+    }
+
 
     /**
      * Verify that wifi can be disabled by the apps targeting pre-Q SDK.
@@ -3793,12 +3830,12 @@ public class WifiServiceImplTest {
     public void testRemoveNetworkSuggestions() {
         setupClientModeImplHandlerForRunWithScissors();
 
-        when(mWifiNetworkSuggestionsManager.remove(any(), anyString()))
+        when(mWifiNetworkSuggestionsManager.remove(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
 
-        when(mWifiNetworkSuggestionsManager.remove(any(), anyString()))
+        when(mWifiNetworkSuggestionsManager.remove(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
@@ -3808,7 +3845,8 @@ public class WifiServiceImplTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
 
-        verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), eq(TEST_PACKAGE_NAME));
+        verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), anyInt(),
+                eq(TEST_PACKAGE_NAME));
     }
 
     /**
