@@ -26,12 +26,12 @@ import android.content.Context;
 import android.os.Environment;
 import android.os.FileUtils;
 import android.os.Handler;
+import android.util.AtomicFile;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.Xml;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.os.AtomicFile;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.util.DataIntegrityChecker;
