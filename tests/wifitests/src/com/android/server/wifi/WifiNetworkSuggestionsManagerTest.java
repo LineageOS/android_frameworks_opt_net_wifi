@@ -340,7 +340,7 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify that an attempt to modify networks that are already active is rejected.
+     * Verify that modify networks that are already active is allowed.
      */
     @Test
     public void testAddNetworkSuggestionsFailureOnInPlaceModification() {
@@ -360,10 +360,13 @@ public class WifiNetworkSuggestionsManagerTest {
         networkSuggestion.wifiConfiguration.meteredOverride =
                 WifiConfiguration.METERED_OVERRIDE_METERED;
 
-        // Replace attempt should fail.
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE,
+        // Replace attempt should success.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
                         TEST_PACKAGE_1));
+        assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED,
+                mWifiNetworkSuggestionsManager
+                        .get(TEST_PACKAGE_1).get(0).wifiConfiguration.meteredOverride);
     }
 
     /**
