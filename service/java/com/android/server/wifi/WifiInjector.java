@@ -36,7 +36,6 @@ import android.os.IBinder;
 import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.Process;
-import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserManager;
 import android.provider.Settings.Secure;
@@ -224,7 +223,7 @@ public class WifiInjector {
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 wifiHandler, mClock);
         mNwManagementService = INetworkManagementService.Stub.asInterface(
-                ServiceManager.getService(Context.NETWORKMANAGEMENT_SERVICE));
+                mFrameworkFacade.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
@@ -530,7 +529,7 @@ public class WifiInjector {
     /** Gets IWificond without caching. */
     public IWificond makeWificond() {
         // We depend on being able to refresh our binder in ClientModeImpl, so don't cache it.
-        IBinder binder = ServiceManager.getService(WIFICOND_SERVICE_NAME);
+        IBinder binder = mFrameworkFacade.getService(WIFICOND_SERVICE_NAME);
         return IWificond.Stub.asInterface(binder);
     }
 
@@ -578,10 +577,9 @@ public class WifiInjector {
      */
     public synchronized WifiScanner getWifiScanner() {
         if (mWifiScanner == null) {
-            mWifiScanner = new WifiScanner(mContext,
-                    IWifiScanner.Stub.asInterface(ServiceManager.getService(
-                            Context.WIFI_SCANNING_SERVICE)),
-                    mWifiHandlerThread.getLooper());
+            IBinder binder = mFrameworkFacade.getService(Context.WIFI_SCANNING_SERVICE);
+            IWifiScanner service = IWifiScanner.Stub.asInterface(binder);
+            mWifiScanner = new WifiScanner(mContext, service, mWifiHandlerThread.getLooper());
         }
         return mWifiScanner;
     }
