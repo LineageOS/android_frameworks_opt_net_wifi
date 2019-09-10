@@ -30,7 +30,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiScoreCardProto}.
  */
 @SmallTest
-public class WifiScoreCardProtoTest {
+public class WifiScoreCardProtoTest extends WifiBaseTest {
 
     /**
      * Sets up for unit test

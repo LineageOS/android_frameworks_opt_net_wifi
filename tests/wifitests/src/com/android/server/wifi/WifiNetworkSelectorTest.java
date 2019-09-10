@@ -60,7 +60,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.WifiNetworkSelector}.
  */
 @SmallTest
-public class WifiNetworkSelectorTest {
+public class WifiNetworkSelectorTest extends WifiBaseTest {
 
     private static final int RSSI_BUMP = 1;
     private static final int DUMMY_EVALUATOR_ID_1 = -2; // lowest index

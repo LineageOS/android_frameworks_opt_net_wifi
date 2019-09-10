@@ -63,6 +63,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
@@ -105,7 +106,7 @@ import javax.net.ssl.SSLContext;
  * Unit tests for {@link PasspointProvisioner}.
  */
 @SmallTest
-public class PasspointProvisionerTest {
+public class PasspointProvisionerTest extends WifiBaseTest {
     private static final int TEST_UID = 1500;
     private static final int STEP_INIT = 0;
     private static final int STEP_AP_CONNECT = 1;

@@ -30,7 +30,7 @@ import java.util.Random;
  * Unit tests for {@link com.android.server.wifi.WifiLinkLayerStats}.
  */
 @SmallTest
-public class WifiLinkLayerStatsTest {
+public class WifiLinkLayerStatsTest extends WifiBaseTest {
 
     ExtendedWifiInfo mWifiInfo;
     WifiLinkLayerStats mWifiLinkLayerStats;

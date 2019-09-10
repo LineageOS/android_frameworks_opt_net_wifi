@@ -29,7 +29,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link WifiInjector}. */
 @SmallTest
-public class WifiInjectorTest {
+public class WifiInjectorTest extends WifiBaseTest {
 
     @Mock private Context mContext;
     private WifiInjector mInjector;

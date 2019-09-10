@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
  * Unit tests for {@link com.android.server.wifi.ActiveModeWarden}.
  */
 @SmallTest
-public class ActiveModeWardenTest {
+public class ActiveModeWardenTest extends WifiBaseTest {
     public static final String TAG = "WifiActiveModeWardenTest";
 
     private static final String CLIENT_MODE_STATE_STRING = "StaEnabledState";

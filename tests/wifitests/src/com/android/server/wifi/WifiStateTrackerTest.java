@@ -34,7 +34,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiStateTracker}.
  */
 @SmallTest
-public class WifiStateTrackerTest {
+public class WifiStateTrackerTest extends WifiBaseTest {
 
     private static final String TAG = "WifiStateTrackerTest";
     @Mock IBatteryStats mBatteryStats;

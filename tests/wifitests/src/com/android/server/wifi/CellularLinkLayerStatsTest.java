@@ -30,7 +30,7 @@ import org.junit.Test;
  * Unit tests for {@link com.android.server.wifi.CellularLinkLayerStats}.
  */
 @SmallTest
-public class CellularLinkLayerStatsTest {
+public class CellularLinkLayerStatsTest extends WifiBaseTest {
     private static final String TAG = "CellularStatsTest";
 
     CellularLinkLayerStats mStats;

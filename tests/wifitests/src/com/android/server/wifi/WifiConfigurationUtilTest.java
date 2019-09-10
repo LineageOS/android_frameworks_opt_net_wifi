@@ -43,7 +43,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.WifiConfigurationUtil}.
  */
 @SmallTest
-public class WifiConfigurationUtilTest {
+public class WifiConfigurationUtilTest extends WifiBaseTest {
     static final int CURRENT_USER_ID = 0;
     static final int CURRENT_USER_MANAGED_PROFILE_USER_ID = 10;
     static final int OTHER_USER_ID = 11;

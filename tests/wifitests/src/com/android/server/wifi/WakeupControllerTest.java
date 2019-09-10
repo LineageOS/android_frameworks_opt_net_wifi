@@ -61,7 +61,7 @@ import java.util.Set;
  * Unit tests for {@link WakeupController}.
  */
 @SmallTest
-public class WakeupControllerTest {
+public class WakeupControllerTest extends WifiBaseTest {
 
     private static final String SAVED_SSID = "test scan ssid";
     private static final int DFS_CHANNEL_FREQ = 5540;

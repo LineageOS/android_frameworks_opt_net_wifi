@@ -30,6 +30,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.wifi.CarrierNetworkConfig;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
@@ -49,7 +50,7 @@ import javax.crypto.Cipher;
  * Unit tests for {@link com.android.server.wifi.util.TelephonyUtil}.
  */
 @SmallTest
-public class TelephonyUtilTest {
+public class TelephonyUtilTest extends WifiBaseTest {
     private TelephonyUtil mTelephonyUtil;
 
     @Mock

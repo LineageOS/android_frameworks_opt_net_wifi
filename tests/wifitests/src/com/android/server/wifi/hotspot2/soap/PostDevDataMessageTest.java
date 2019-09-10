@@ -31,6 +31,7 @@ import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.SystemInfo;
 import com.android.server.wifi.hotspot2.omadm.DevDetailMo;
 import com.android.server.wifi.hotspot2.omadm.DevInfoMo;
@@ -49,7 +50,7 @@ import org.mockito.Mock;
  * Unit tests for {@link PostDevDataMessage}.
  */
 @SmallTest
-public class PostDevDataMessageTest {
+public class PostDevDataMessageTest extends WifiBaseTest {
     private static final String TEST_DEV_ID = "12312341";
     private static final String TEST_MANUFACTURER = Build.MANUFACTURER;
     private static final String TEST_MODEL = Build.MODEL;

@@ -52,7 +52,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.NetworkListStoreData}.
  */
 @SmallTest
-public class NetworkListStoreDataTest {
+public class NetworkListStoreDataTest extends WifiBaseTest {
 
     private static final String TEST_SSID = "WifiConfigStoreDataSSID_";
     private static final String TEST_CONNECT_CHOICE = "XmlUtilConnectChoice";

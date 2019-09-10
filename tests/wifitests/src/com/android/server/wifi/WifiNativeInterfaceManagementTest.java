@@ -67,7 +67,7 @@ import org.mockito.MockitoAnnotations;
  * {@link com.android.server.wifi.WifiNative}.
  */
 @SmallTest
-public class WifiNativeInterfaceManagementTest {
+public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
     private static final String IFACE_NAME_0 = "mockWlan0";
     private static final String IFACE_NAME_1 = "mockWlan1";
 

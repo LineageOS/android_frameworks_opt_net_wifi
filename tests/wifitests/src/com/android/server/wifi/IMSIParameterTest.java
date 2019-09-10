@@ -31,7 +31,7 @@ import java.util.Map;
  * Unit tests for {@link com.android.server.wifi.IMSIParameter}.
  */
 @SmallTest
-public class IMSIParameterTest {
+public class IMSIParameterTest extends WifiBaseTest {
     /**
      * Data points for testing function {@link IMSIParameter#build}.
      */

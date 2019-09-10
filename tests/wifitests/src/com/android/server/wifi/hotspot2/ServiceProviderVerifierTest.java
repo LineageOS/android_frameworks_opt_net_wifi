@@ -39,6 +39,7 @@ import com.android.org.bouncycastle.asn1.DERSequence;
 import com.android.org.bouncycastle.asn1.DERTaggedObject;
 import com.android.org.bouncycastle.asn1.DERUTF8String;
 import com.android.org.bouncycastle.asn1.x509.GeneralName;
+import com.android.server.wifi.WifiBaseTest;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -55,7 +56,7 @@ import java.util.Locale;
  * Unit tests for {@link ServiceProviderVerifier}.
  */
 @SmallTest
-public class ServiceProviderVerifierTest {
+public class ServiceProviderVerifierTest extends WifiBaseTest {
     private List<List<?>> mNewNames;
     private static final String LOCAL_HOST_NAME = "localhost";
     private static final byte[] LOCAL_HOST_ADDRESS = {127, 0, 0, 1};

@@ -59,7 +59,7 @@ import java.util.List;
  * Unit tests for {@link ScoredNetworkEvaluator}.
  */
 @SmallTest
-public class ScoredNetworkEvaluatorTest {
+public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
     private static final String TEST_PACKAGE_NAME = "name.package.test";
     private static final int TEST_UID = 12345;
     private static final NetworkScorerAppData TEST_APP_DATA = new NetworkScorerAppData(

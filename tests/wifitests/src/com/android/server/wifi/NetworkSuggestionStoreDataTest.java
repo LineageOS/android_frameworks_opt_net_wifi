@@ -48,7 +48,7 @@ import java.util.Map;
  * Unit tests for {@link com.android.server.wifi.NetworkSuggestionStoreData}.
  */
 @SmallTest
-public class NetworkSuggestionStoreDataTest {
+public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     private static final int TEST_UID_1 = 14556;
     private static final int TEST_UID_2 = 14536;
     private static final String TEST_PACKAGE_NAME_1 = "com.android.test.1";

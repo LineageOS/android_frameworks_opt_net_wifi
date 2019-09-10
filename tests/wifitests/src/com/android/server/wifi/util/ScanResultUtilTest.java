@@ -26,6 +26,7 @@ import android.net.wifi.WifiSsid;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.ScanDetail;
+import com.android.server.wifi.WifiBaseTest;
 
 import org.junit.Test;
 
@@ -36,7 +37,7 @@ import java.util.Arrays;
  * Unit tests for {@link com.android.server.wifi.util.ScanResultUtil}.
  */
 @SmallTest
-public class ScanResultUtilTest {
+public class ScanResultUtilTest extends WifiBaseTest {
 
     @Test
     public void convertScanResult() {

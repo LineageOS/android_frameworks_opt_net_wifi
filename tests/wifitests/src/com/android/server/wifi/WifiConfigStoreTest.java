@@ -64,7 +64,7 @@ import java.util.Random;
  * Unit tests for {@link com.android.server.wifi.WifiConfigStore}.
  */
 @SmallTest
-public class WifiConfigStoreTest {
+public class WifiConfigStoreTest extends WifiBaseTest {
     private static final String TEST_USER_DATA = "UserData";
     private static final String TEST_SHARE_DATA = "ShareData";
     private static final String TEST_CREATOR_NAME = "CreatorName";

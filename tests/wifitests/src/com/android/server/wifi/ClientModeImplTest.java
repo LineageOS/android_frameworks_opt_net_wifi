@@ -134,7 +134,7 @@ import java.util.function.Consumer;
  * Unit tests for {@link com.android.server.wifi.ClientModeImpl}.
  */
 @SmallTest
-public class ClientModeImplTest {
+public class ClientModeImplTest extends WifiBaseTest {
     public static final String TAG = "ClientModeImplTest";
 
     private static final int MANAGED_PROFILE_UID = 1100000;

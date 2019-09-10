@@ -51,7 +51,7 @@ import java.util.HashSet;
  * Unit tests for LinkProbeManager
  */
 @SmallTest
-public class LinkProbeManagerTest {
+public class LinkProbeManagerTest extends WifiBaseTest {
 
     private static final String TEST_IFACE_NAME = "testIfaceName";
     private static final String TEST_BSSID = "6c:f3:7f:ae:8c:f3";

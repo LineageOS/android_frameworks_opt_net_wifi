@@ -36,7 +36,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiConfigStoreData}.
  */
 @SmallTest
-public class WifiMulticastLockManagerTest {
+public class WifiMulticastLockManagerTest extends WifiBaseTest {
     private static final String WL_1_TAG = "Wakelock-1";
     private static final String WL_2_TAG = "Wakelock-2";
 

@@ -29,7 +29,7 @@ import org.mockito.Mock;
  * Unit tests for {@link com.android.server.wifi.SelfRecovery}.
  */
 @SmallTest
-public class SelfRecoveryTest {
+public class SelfRecoveryTest extends WifiBaseTest {
     SelfRecovery mSelfRecovery;
     @Mock ActiveModeWarden mActiveModeWarden;
     @Mock Clock mClock;

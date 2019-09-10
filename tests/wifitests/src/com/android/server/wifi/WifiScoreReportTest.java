@@ -52,7 +52,7 @@ import java.io.PrintWriter;
  * Unit tests for {@link com.android.server.wifi.WifiScoreReport}.
  */
 @SmallTest
-public class WifiScoreReportTest {
+public class WifiScoreReportTest extends WifiBaseTest {
 
 
     class FakeClock extends Clock {

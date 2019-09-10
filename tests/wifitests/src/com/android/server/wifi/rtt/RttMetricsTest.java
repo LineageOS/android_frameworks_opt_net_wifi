@@ -30,6 +30,7 @@ import android.util.Log;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.nano.WifiMetricsProto;
 
 import org.junit.Before;
@@ -48,7 +49,7 @@ import java.util.List;
  * Unit test harness for RttMetrics
  */
 @SmallTest
-public class RttMetricsTest {
+public class RttMetricsTest extends WifiBaseTest {
     private RttMetrics mDut;
 
     @Mock

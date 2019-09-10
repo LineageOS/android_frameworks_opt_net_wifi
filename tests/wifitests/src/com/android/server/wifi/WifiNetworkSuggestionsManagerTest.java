@@ -80,7 +80,7 @@ import java.util.stream.Collectors;
  * Unit tests for {@link com.android.server.wifi.WifiNetworkSuggestionsManager}.
  */
 @SmallTest
-public class WifiNetworkSuggestionsManagerTest {
+public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final String TEST_PACKAGE_1 = "com.test12345";
     private static final String TEST_PACKAGE_2 = "com.test54321";
     private static final String TEST_APP_NAME_1 = "test12345";

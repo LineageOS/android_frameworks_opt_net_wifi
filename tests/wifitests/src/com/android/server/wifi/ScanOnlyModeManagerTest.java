@@ -51,7 +51,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link ScanOnlyModeManager}.
  */
 @SmallTest
-public class ScanOnlyModeManagerTest {
+public class ScanOnlyModeManagerTest extends WifiBaseTest {
     private static final String TAG = "ScanOnlyModeManagerTest";
     private static final String TEST_INTERFACE_NAME = "testif0";
     private static final String OTHER_INTERFACE_NAME = "notTestIf";

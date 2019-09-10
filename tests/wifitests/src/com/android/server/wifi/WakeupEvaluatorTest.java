@@ -40,7 +40,7 @@ import java.util.Set;
  * Unit tests for {@link WakeupEvaluator}.
  */
 @SmallTest
-public class WakeupEvaluatorTest {
+public class WakeupEvaluatorTest extends WifiBaseTest {
 
     private static final String SAVED_SSID_1 = "saved ssid 1";
     private static final String SAVED_SSID_2 = "saved ssid 2";

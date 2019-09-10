@@ -118,7 +118,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.WifiVendorHal}.
  */
 @SmallTest
-public class WifiVendorHalTest {
+public class WifiVendorHalTest extends WifiBaseTest {
 
     private static final String TEST_IFACE_NAME = "wlan0";
     private static final String TEST_IFACE_NAME_1 = "wlan1";

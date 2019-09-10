@@ -59,7 +59,7 @@ import java.util.regex.Pattern;
  * Unit tests for {@link WifiDiagnostics}.
  */
 @SmallTest
-public class WifiDiagnosticsTest {
+public class WifiDiagnosticsTest extends WifiBaseTest {
     @Mock WifiNative mWifiNative;
     @Mock BuildProperties mBuildProperties;
     @Mock Context mContext;

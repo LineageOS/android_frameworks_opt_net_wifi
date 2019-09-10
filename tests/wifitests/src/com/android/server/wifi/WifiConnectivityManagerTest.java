@@ -78,7 +78,7 @@ import java.util.stream.Collectors;
  * Unit tests for {@link com.android.server.wifi.WifiConnectivityManager}.
  */
 @SmallTest
-public class WifiConnectivityManagerTest {
+public class WifiConnectivityManagerTest extends WifiBaseTest {
     /**
      * Called before each test
      */

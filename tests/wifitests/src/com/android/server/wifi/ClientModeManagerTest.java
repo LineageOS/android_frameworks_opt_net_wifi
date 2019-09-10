@@ -49,7 +49,7 @@ import java.util.List;
  * Unit tests for {@link ClientModeManager}.
  */
 @SmallTest
-public class ClientModeManagerTest {
+public class ClientModeManagerTest extends WifiBaseTest {
     private static final String TAG = "ClientModeManagerTest";
     private static final String TEST_INTERFACE_NAME = "testif0";
     private static final String OTHER_INTERFACE_NAME = "notTestIf";

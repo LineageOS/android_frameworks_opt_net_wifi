@@ -39,6 +39,7 @@ import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.FakeKeys;
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.SIMAccessor;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.CellularNetwork;
@@ -75,7 +76,7 @@ import java.util.Set;
  */
 @SmallTest
 @RunWith(Parameterized.class)
-public class PasspointProviderTest {
+public class PasspointProviderTest extends WifiBaseTest {
     private static final long PROVIDER_ID = 12L;
     private static final int CREATOR_UID = 1234;
     private static final String CREATOR_PACKAGE = "com.android.test";

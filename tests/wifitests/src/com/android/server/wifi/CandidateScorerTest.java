@@ -45,7 +45,7 @@ import java.util.List;
  */
 @SmallTest
 @RunWith(Parameterized.class)
-public class CandidateScorerTest {
+public class CandidateScorerTest extends WifiBaseTest {
 
     @Parameters(name = "{index}: {0}")
     public static List<Object[]> listOfObjectArraysBecauseJUnitMadeUs() {

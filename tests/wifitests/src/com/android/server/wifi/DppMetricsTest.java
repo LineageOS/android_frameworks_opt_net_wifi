@@ -47,7 +47,7 @@ import java.util.Random;
  * Unit tests for {@link com.android.server.wifi.DppMetrics}.
  */
 @SmallTest
-public class DppMetricsTest {
+public class DppMetricsTest extends WifiBaseTest {
     private static final int MAX_ITERATIONS = 30;
 
     private DppMetrics mDppMetrics = new DppMetrics();

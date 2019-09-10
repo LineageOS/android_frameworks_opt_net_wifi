@@ -153,7 +153,7 @@ import java.util.List;
  * Note: this is intended to build up over time and will not immediately cover the entire file.
  */
 @SmallTest
-public class WifiServiceImplTest {
+public class WifiServiceImplTest extends WifiBaseTest {
 
     private static final String TAG = "WifiServiceImplTest";
     private static final String SCAN_PACKAGE_NAME = "scanPackage";

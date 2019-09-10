@@ -43,6 +43,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.PropertyService;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiVendorHal;
 
 import org.junit.Before;
@@ -55,7 +56,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiP2pMonitor}.
  */
 @SmallTest
-public class WifiP2pNativeTest {
+public class WifiP2pNativeTest extends WifiBaseTest {
 
     private static final String TEST_DEVICE_NAME = "Android_HelloWorld";
     private static final String TEST_IFACE = "p2p-p2p0-1";

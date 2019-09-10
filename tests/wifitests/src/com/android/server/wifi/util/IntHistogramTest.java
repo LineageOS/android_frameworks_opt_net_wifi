@@ -23,6 +23,7 @@ import static org.hamcrest.core.IsEqual.equalTo;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
 
 import org.junit.Before;
@@ -36,7 +37,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for IntHistogram.
  */
 @SmallTest
-public class IntHistogramTest {
+public class IntHistogramTest extends WifiBaseTest {
 
     @Rule
     public ErrorCollector collector = new ErrorCollector();

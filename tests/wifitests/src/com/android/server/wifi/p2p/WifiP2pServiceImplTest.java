@@ -78,6 +78,7 @@ import com.android.internal.R;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.nano.WifiMetricsProto.P2pConnectionEvent;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -97,7 +98,7 @@ import java.util.List;
  * Unit test harness for WifiP2pServiceImpl.
  */
 @SmallTest
-public class WifiP2pServiceImplTest {
+public class WifiP2pServiceImplTest extends WifiBaseTest {
     private static final String TAG = "WifiP2pServiceImplTest";
     private static final String IFACE_NAME_P2P = "mockP2p0";
     private static final long STATE_CHANGE_WAITING_TIME = 1000;

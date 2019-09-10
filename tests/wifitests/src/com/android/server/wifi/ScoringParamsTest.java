@@ -48,7 +48,7 @@ import org.mockito.Spy;
  * Unit tests for {@link com.android.server.wifi.ScoringParams}.
  */
 @SmallTest
-public class ScoringParamsTest {
+public class ScoringParamsTest extends WifiBaseTest {
 
     private static final String EXPECTED_DEFAULTS =
             "rssi2=-83:-80:-73:-60,rssi5=-80:-77:-70:-57,pps=0:1:100,horizon=15,nud=8,expid=0";

@@ -47,7 +47,7 @@ import org.mockito.MockitoSession;
  * Unit tests for {@link com.android.server.wifi.DeviceConfigFacade}.
  */
 @SmallTest
-public class DeviceConfigFacadeTest {
+public class DeviceConfigFacadeTest extends WifiBaseTest {
     @Mock Context mContext;
 
     final ArgumentCaptor<OnPropertiesChangedListener> mOnPropertiesChangedListenerCaptor =

@@ -42,7 +42,7 @@ import java.util.Map;
  * Unit tests for {@link com.android.server.wifi.DeletedEphemeralSsidsStoreData}.
  */
 @SmallTest
-public class DeletedEphemeralSsidsStoreDataTest {
+public class DeletedEphemeralSsidsStoreDataTest extends WifiBaseTest {
     private static final String TEST_SSID1 = "SSID 1";
     private static final String TEST_SSID2 = "SSID 2";
     private static final long TEST_SSID1_TSTAMP = 6837367L;

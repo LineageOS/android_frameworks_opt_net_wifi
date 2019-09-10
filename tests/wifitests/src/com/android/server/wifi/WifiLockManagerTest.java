@@ -45,7 +45,7 @@ import java.io.StringWriter;
 
 /** Unit tests for {@link WifiLockManager}. */
 @SmallTest
-public class WifiLockManagerTest {
+public class WifiLockManagerTest extends WifiBaseTest {
 
     private static final int DEFAULT_TEST_UID_1 = 52;
     private static final int DEFAULT_TEST_UID_2 = 53;

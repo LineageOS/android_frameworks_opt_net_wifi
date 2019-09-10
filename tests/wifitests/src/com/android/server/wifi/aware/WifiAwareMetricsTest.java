@@ -33,6 +33,7 @@ import android.util.SparseIntArray;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.MetricsUtils;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -53,7 +54,7 @@ import java.util.Map;
  * Unit test harness for WifiAwareMetrics
  */
 @SmallTest
-public class WifiAwareMetricsTest {
+public class WifiAwareMetricsTest extends WifiBaseTest {
     @Mock Clock mClock;
     @Mock private Context mMockContext;
     @Mock private AppOpsManager mMockAppOpsManager;

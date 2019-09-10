@@ -25,6 +25,7 @@ import android.net.wifi.EAPConstants;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.IMSIParameter;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.anqp.CellularNetwork;
 import com.android.server.wifi.hotspot2.anqp.DomainNameElement;
 import com.android.server.wifi.hotspot2.anqp.NAIRealmData;
@@ -50,7 +51,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.hotspot2.ANQPMatcher}.
  */
 @SmallTest
-public class ANQPMatcherTest {
+public class ANQPMatcherTest extends WifiBaseTest {
     private static final String TEST_MCC_MNC = "123456";
     private static final String TEST_3GPP_FQDN = String.format("wlan.mnc%s.mcc%s.3gppnetwork.org",
             TEST_MCC_MNC.substring(3), TEST_MCC_MNC.substring(0, 3));

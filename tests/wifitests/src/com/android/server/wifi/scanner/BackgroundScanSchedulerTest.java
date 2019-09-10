@@ -32,6 +32,7 @@ import android.util.ArraySet;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.WifiNative.BucketSettings;
 import com.android.server.wifi.scanner.KnownBandsChannelHelper.KnownBandsChannelCollection;
@@ -50,7 +51,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.scanner.BackgroundScanScheduler}.
  */
 @SmallTest
-public class BackgroundScanSchedulerTest {
+public class BackgroundScanSchedulerTest extends WifiBaseTest {
 
     private static final int DEFAULT_MAX_BUCKETS = 9;
     private static final int DEFAULT_MAX_CHANNELS_PER_BUCKET = 23;

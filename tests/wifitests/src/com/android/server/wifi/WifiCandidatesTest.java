@@ -36,7 +36,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiCandidates}.
  */
 @SmallTest
-public class WifiCandidatesTest {
+public class WifiCandidatesTest extends WifiBaseTest {
 
     @Mock ScanDetail mScanDetail1;
     @Mock ScanDetail mScanDetail2;

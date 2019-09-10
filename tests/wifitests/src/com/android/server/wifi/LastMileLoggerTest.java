@@ -44,7 +44,7 @@ import java.io.StringWriter;
  * Unit tests for {@link LastMileLogger}.
  */
 @SmallTest
-public class LastMileLoggerTest {
+public class LastMileLoggerTest extends WifiBaseTest {
     @Mock WifiInjector mWifiInjector;
     @Spy FakeWifiLog mLog;
 

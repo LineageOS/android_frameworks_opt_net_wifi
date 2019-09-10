@@ -35,6 +35,7 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.MockResources;
 import com.android.server.wifi.MockWifiMonitor;
 import com.android.server.wifi.ScanResults;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
@@ -52,7 +53,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.scanner.WificondScannerImpl.setPnoList}.
  */
 @SmallTest
-public class WificondPnoScannerTest {
+public class WificondPnoScannerTest extends WifiBaseTest {
     private static final String IFACE_NAME = "a_test_interface_name";
 
     @Mock Context mContext;

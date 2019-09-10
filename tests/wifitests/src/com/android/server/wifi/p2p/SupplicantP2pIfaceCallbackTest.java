@@ -36,6 +36,7 @@ import android.net.wifi.p2p.nsd.WifiP2pServiceResponse;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl.P2pStatus;
 import com.android.server.wifi.util.NativeUtil;
 
@@ -53,7 +54,7 @@ import java.util.List;
  * Unit tests for SupplicantP2pIfaceCallback
  */
 @SmallTest
-public class SupplicantP2pIfaceCallbackTest {
+public class SupplicantP2pIfaceCallbackTest extends WifiBaseTest {
     private static final String TAG = "SupplicantP2pIfaceCallbackTest";
 
     private String mIface = "test_p2p0";

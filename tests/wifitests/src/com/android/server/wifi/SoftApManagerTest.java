@@ -63,7 +63,7 @@ import java.util.Locale;
 
 /** Unit tests for {@link SoftApManager}. */
 @SmallTest
-public class SoftApManagerTest {
+public class SoftApManagerTest extends WifiBaseTest {
 
     private static final String TAG = "SoftApManagerTest";
 

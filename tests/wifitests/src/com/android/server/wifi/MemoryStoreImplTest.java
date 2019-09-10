@@ -37,7 +37,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.MemoryStoreImpl}.
  */
 @SmallTest
-public class MemoryStoreImplTest {
+public class MemoryStoreImplTest extends WifiBaseTest {
     @Mock Context mContext;
     @Mock WifiScoreCard mWifiScoreCard;
     @Mock WifiScoreCard.BlobListener mBlobListener;

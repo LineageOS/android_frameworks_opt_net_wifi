@@ -66,7 +66,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.CellularLinkLayerStatsCollector}.
  */
 @SmallTest
-public class CellularLinkLayerStatsCollectorTest {
+public class CellularLinkLayerStatsCollectorTest extends WifiBaseTest {
     private CellularLinkLayerStatsCollector mCollector;
     private static final String TAG = "CellCollectorTest";
     private static final int DBM_VAL = -110;

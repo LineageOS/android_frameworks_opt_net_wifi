@@ -33,6 +33,8 @@ import android.net.wifi.WifiScanner.ScanSettings;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,7 +43,7 @@ import org.junit.Test;
  * {@link com.android.server.wifi.scanner.ScanScheduleUtil}.
  */
 @SmallTest
-public class ScanScheduleUtilFilterTest {
+public class ScanScheduleUtilFilterTest extends WifiBaseTest {
 
     private ChannelHelper mChannelHelper;
 

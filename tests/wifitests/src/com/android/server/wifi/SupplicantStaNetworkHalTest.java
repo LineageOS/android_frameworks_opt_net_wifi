@@ -62,7 +62,7 @@ import java.util.Random;
  * Unit tests for SupplicantStaNetworkHal
  */
 @SmallTest
-public class SupplicantStaNetworkHalTest {
+public class SupplicantStaNetworkHalTest extends WifiBaseTest {
     private static final String IFACE_NAME = "wlan0";
     private static final Map<String, String> NETWORK_EXTRAS_VALUES = new HashMap<>();
     static {

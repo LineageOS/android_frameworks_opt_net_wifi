@@ -48,7 +48,7 @@ import org.mockito.ArgumentCaptor;
  * Unit tests for {@link com.android.server.wifi.WifiMonitor}.
  */
 @SmallTest
-public class WifiMonitorTest {
+public class WifiMonitorTest extends WifiBaseTest {
     private static final String WLAN_IFACE_NAME = "wlan0";
     private static final String SECOND_WLAN_IFACE_NAME = "wlan1";
     private static final String[] GSM_AUTH_DATA = { "45adbc", "fead45", "0x3452"};

@@ -40,7 +40,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiDataStall}.
  */
 @SmallTest
-public class WifiDataStallTest {
+public class WifiDataStallTest extends WifiBaseTest {
 
     @Mock Context mContext;
     @Mock FrameworkFacade mFacade;

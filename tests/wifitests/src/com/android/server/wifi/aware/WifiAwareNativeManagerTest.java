@@ -35,6 +35,7 @@ import android.os.Handler;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.WifiBaseTest;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,7 +50,7 @@ import org.mockito.MockitoAnnotations;
  * Unit test harness for WifiAwareNativeManager.
  */
 @SmallTest
-public class WifiAwareNativeManagerTest {
+public class WifiAwareNativeManagerTest extends WifiBaseTest {
     private WifiAwareNativeManager mDut;
     @Mock private WifiAwareStateManager mWifiAwareStateManagerMock;
     @Mock private HalDeviceManager mHalDeviceManager;

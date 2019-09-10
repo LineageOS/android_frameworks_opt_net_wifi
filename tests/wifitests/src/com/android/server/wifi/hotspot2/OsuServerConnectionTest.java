@@ -37,6 +37,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.org.conscrypt.TrustManagerImpl;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.soap.HttpsServiceConnection;
 import com.android.server.wifi.hotspot2.soap.HttpsTransport;
 import com.android.server.wifi.hotspot2.soap.SoapParser;
@@ -80,7 +81,7 @@ import javax.net.ssl.X509TrustManager;
  * Unit tests for {@link OsuServerConnection}.
  */
 @SmallTest
-public class OsuServerConnectionTest {
+public class OsuServerConnectionTest extends WifiBaseTest {
     private static final String TEST_VALID_URL = "https://www.google.com";
     private static final String TEST_INVALID_URL = "http://www.google.com";
     private static final String AUTH_TYPE = "ECDHE_RSA";

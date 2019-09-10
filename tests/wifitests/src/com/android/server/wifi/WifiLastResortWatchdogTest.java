@@ -43,7 +43,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.WifiLastResortWatchdog}.
  */
 @SmallTest
-public class WifiLastResortWatchdogTest {
+public class WifiLastResortWatchdogTest extends WifiBaseTest {
     WifiLastResortWatchdog mLastResortWatchdog;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiMetrics mWifiMetrics;

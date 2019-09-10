@@ -41,6 +41,7 @@ import com.android.server.wifi.HalDeviceManager.InterfaceAvailableForRequestList
 import com.android.server.wifi.HalDeviceManager.InterfaceDestroyedListener;
 import com.android.server.wifi.HalDeviceManager.ManagerStatusListener;
 import com.android.server.wifi.PropertyService;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiVendorHal;
 
 import org.junit.Before;
@@ -54,7 +55,7 @@ import org.mockito.MockitoAnnotations;
  * {@link com.android.server.wifi.WifiP2pNative}.
  */
 @SmallTest
-public class WifiP2pNativeInterfaceManagementTest {
+public class WifiP2pNativeInterfaceManagementTest extends WifiBaseTest {
     private static final String P2P_IFACE_NAME = "p2p0";
     private static final String P2P_INTERFACE_PROPERTY = "wifi.direct.interface";
 

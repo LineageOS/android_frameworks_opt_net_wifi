@@ -86,6 +86,7 @@ import com.android.server.wifi.FakeKeys;
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.ScanDetail;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiConfigurationTestUtil;
@@ -128,7 +129,7 @@ import java.util.Set;
  * Unit tests for {@link PasspointManager}.
  */
 @SmallTest
-public class PasspointManagerTest {
+public class PasspointManagerTest extends WifiBaseTest {
     private static final long BSSID = 0x112233445566L;
     private static final String TEST_PACKAGE = "com.android.test";
     private static final String ICON_FILENAME = "test";

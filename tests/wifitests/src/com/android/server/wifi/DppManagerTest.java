@@ -71,7 +71,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link DppManager}.
  */
 @SmallTest
-public class DppManagerTest {
+public class DppManagerTest extends WifiBaseTest {
     private static final String TAG = "DppManagerTest";
     private static final String TEST_INTERFACE_NAME = "testif0";
     private static final int TEST_PEER_ID = 1;

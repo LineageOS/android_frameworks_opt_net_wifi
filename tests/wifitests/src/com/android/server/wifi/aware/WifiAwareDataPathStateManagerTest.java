@@ -81,6 +81,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -107,7 +108,7 @@ import java.util.Set;
  * Unit test harness for WifiAwareDataPathStateManager class.
  */
 @SmallTest
-public class WifiAwareDataPathStateManagerTest {
+public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
     private static final String sAwareInterfacePrefix = "aware_data";
 
     private TestLooper mMockLooper;

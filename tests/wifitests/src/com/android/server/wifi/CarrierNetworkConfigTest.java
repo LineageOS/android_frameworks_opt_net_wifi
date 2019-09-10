@@ -53,7 +53,7 @@ import java.util.Collections;
  * Unit tests for {@link com.android.server.wifi.CarrierNetworkConfig}.
  */
 @SmallTest
-public class CarrierNetworkConfigTest {
+public class CarrierNetworkConfigTest extends WifiBaseTest {
     private static final String TEST_SSID = "Test SSID";
     private static final int TEST_STANDARD_EAP_TYPE = EAPConstants.EAP_SIM;
     private static final int TEST_INTERNAL_EAP_TYPE = WifiEnterpriseConfig.Eap.SIM;

@@ -39,6 +39,7 @@ import com.android.server.wifi.MockResources;
 import com.android.server.wifi.MockWifiMonitor;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.ScanResults;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
@@ -60,7 +61,7 @@ import java.util.Set;
  * {@link com.android.server.wifi.scanner.WifiScannerImpl}.
  */
 @SmallTest
-public abstract class BaseWifiScannerImplTest {
+public abstract class BaseWifiScannerImplTest extends WifiBaseTest {
     protected static final String IFACE_NAME = "a_test_interface_name";
     @Mock Context mContext;
     TestAlarmManager mAlarmManager;

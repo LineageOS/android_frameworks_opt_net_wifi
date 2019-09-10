@@ -48,7 +48,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.SavedNetworkEvaluator}.
  */
 @SmallTest
-public class SavedNetworkEvaluatorTest {
+public class SavedNetworkEvaluatorTest extends WifiBaseTest {
 
     /** Sets up test. */
     @Before

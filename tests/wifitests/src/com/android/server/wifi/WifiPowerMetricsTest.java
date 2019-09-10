@@ -40,7 +40,7 @@ import java.io.PrintWriter;
  * Unit tests for {@link com.android.server.wifi.WifiPowerMetrics}.
  */
 @SmallTest
-public class WifiPowerMetricsTest {
+public class WifiPowerMetricsTest extends WifiBaseTest {
     @Mock IBatteryStats mBatteryStats;
     WifiPowerMetrics mWifiPowerMetrics;
 

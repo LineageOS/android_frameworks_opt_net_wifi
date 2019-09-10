@@ -80,6 +80,7 @@ import com.android.server.wifi.DppMetrics;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.ScanResults;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
@@ -113,7 +114,7 @@ import java.util.regex.Pattern;
  * Unit tests for {@link com.android.server.wifi.scanner.WifiScanningServiceImpl}.
  */
 @SmallTest
-public class WifiScanningServiceTest {
+public class WifiScanningServiceTest extends WifiBaseTest {
     public static final String TAG = "WifiScanningServiceTest";
 
     private static final int TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES = 8;

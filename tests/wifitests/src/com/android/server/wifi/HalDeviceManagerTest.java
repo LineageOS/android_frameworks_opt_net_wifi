@@ -85,7 +85,7 @@ import java.util.Set;
  * Unit test harness for HalDeviceManagerTest.
  */
 @SmallTest
-public class HalDeviceManagerTest {
+public class HalDeviceManagerTest extends WifiBaseTest {
     private HalDeviceManager mDut;
     @Mock IServiceManager mServiceManagerMock;
     @Mock IWifi mWifiMock;
