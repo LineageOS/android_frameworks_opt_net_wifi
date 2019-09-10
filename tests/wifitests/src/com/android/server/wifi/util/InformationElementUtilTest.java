@@ -776,6 +776,24 @@ public class InformationElementUtilTest extends WifiBaseTest {
     }
 
     /**
+     * Test Capabilities.generateCapabilitiesString() with the IBSS capability bit set.
+     *
+     * Expect the function to return a string with [IBSS] there.
+     */
+    @Test
+    public void buildCapabilities_IbssCapabilitySet() {
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(1);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(new InformationElement[0], beaconCap, false);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[IBSS]", result);
+    }
+
+    /**
      * Verify the expectations when building an ExtendedCapabilites IE from data with no bits set.
      * Both ExtendedCapabilities#isStrictUtf8() and ExtendedCapabilites#is80211McRTTResponder()
      * should return false.

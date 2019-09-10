@@ -395,6 +395,7 @@ public class InformationElementUtil {
      */
     public static class Capabilities {
         private static final int CAP_ESS_BIT_OFFSET = 0;
+        private static final int CAP_IBSS_BIT_OFFSET = 1;
         private static final int CAP_PRIVACY_BIT_OFFSET = 4;
 
         private static final int WPA_VENDOR_OUI_TYPE_ONE = 0x01f25000;
@@ -432,6 +433,7 @@ public class InformationElementUtil {
         public ArrayList<ArrayList<Integer>> pairwiseCipher;
         public ArrayList<Integer> groupCipher;
         public boolean isESS;
+        public boolean isIBSS;
         public boolean isPrivacy;
         public boolean isWPS;
 
@@ -678,6 +680,7 @@ public class InformationElementUtil {
                 return;
             }
             isESS = beaconCap.get(CAP_ESS_BIT_OFFSET);
+            isIBSS = beaconCap.get(CAP_IBSS_BIT_OFFSET);
             isPrivacy = beaconCap.get(CAP_PRIVACY_BIT_OFFSET);
             for (InformationElement ie : ies) {
                 if (ie.id == InformationElement.EID_RSN) {
@@ -813,6 +816,9 @@ public class InformationElementUtil {
             }
             if (isESS) {
                 capabilities.append("[ESS]");
+            }
+            if (isIBSS) {
+                capabilities.append("[IBSS]");
             }
             if (isWPS) {
                 capabilities.append("[WPS]");
