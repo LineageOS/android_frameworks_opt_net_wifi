@@ -85,6 +85,7 @@ public class WifiInjector {
     private final HandlerThread mAsyncChannelHandlerThread;
     private final HandlerThread mWifiHandlerThread;
     private final HandlerThread mWifiP2pServiceHandlerThread;
+    private final HandlerThread mPasspointProvisionerHandlerThread;
     private final WifiTrafficPoller mWifiTrafficPoller;
     private final WifiCountryCode mCountryCode;
     private final BackupManagerProxy mBackupManagerProxy = new BackupManagerProxy();
@@ -191,6 +192,9 @@ public class WifiInjector {
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
+        mPasspointProvisionerHandlerThread =
+                new HandlerThread("PasspointProvisionerHandlerThread");
+        mPasspointProvisionerHandlerThread.start();
         mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, wifiHandler, mFrameworkFacade);
         mDeviceConfigFacade = new DeviceConfigFacade(mContext, wifiHandler);
         WifiAwareMetrics awareMetrics = new WifiAwareMetrics(mClock);
@@ -394,6 +398,10 @@ public class WifiInjector {
 
     public HandlerThread getWifiP2pServiceHandlerThread() {
         return mWifiP2pServiceHandlerThread;
+    }
+
+    public HandlerThread getPasspointProvisionerHandlerThread() {
+        return mPasspointProvisionerHandlerThread;
     }
 
     public HandlerThread getWifiHandlerThread() {

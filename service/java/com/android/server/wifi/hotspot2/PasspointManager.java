@@ -364,7 +364,9 @@ public class PasspointManager {
     }
 
     /**
-     * Initializes the provisioning flow with a looper
+     * Initializes the provisioning flow with a looper.
+     * This looper should be tied to a background worker thread since PasspointProvisioner has a
+     * heavy workload.
      */
     public void initializeProvisioner(Looper looper) {
         mPasspointProvisioner.init(looper);
