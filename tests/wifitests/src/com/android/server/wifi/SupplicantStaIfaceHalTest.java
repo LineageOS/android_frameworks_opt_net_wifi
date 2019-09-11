@@ -94,7 +94,7 @@ import java.util.Random;
  * Unit tests for SupplicantStaIfaceHal
  */
 @SmallTest
-public class SupplicantStaIfaceHalTest {
+public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     private static final String TAG = "SupplicantStaIfaceHalTest";
     private static final Map<Integer, String> NETWORK_ID_TO_SSID = new HashMap<Integer, String>() {{
             put(1, "\"ssid1\"");

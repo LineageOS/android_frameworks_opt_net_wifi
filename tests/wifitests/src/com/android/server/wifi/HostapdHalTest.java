@@ -54,7 +54,7 @@ import java.util.ArrayList;
  * Unit tests for HostapdHal
  */
 @SmallTest
-public class HostapdHalTest {
+public class HostapdHalTest extends WifiBaseTest {
     private static final String IFACE_NAME = "mock-wlan0";
     private static final String NETWORK_SSID = "test-ssid";
     private static final String NETWORK_PSK = "test-psk";

@@ -30,6 +30,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.SIMAccessor;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
 
@@ -56,7 +57,7 @@ import java.util.Map;
  * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointConfigUserStoreData}.
  */
 @SmallTest
-public class PasspointConfigUserStoreDataTest {
+public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
     private static final String TEST_CA_CERTIFICATE_ALIAS = "CaCert";
     private static final String TEST_CA_CERTIFICATE_ALIAS_2 = "CaCert_2";
     private static final String TEST_CLIENT_CERTIFICATE_ALIAS = "ClientCert";

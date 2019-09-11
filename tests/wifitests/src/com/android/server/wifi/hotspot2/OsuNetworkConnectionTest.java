@@ -48,6 +48,7 @@ import android.os.test.TestLooper;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.TestUtil;
+import com.android.server.wifi.WifiBaseTest;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -61,7 +62,7 @@ import java.net.InetAddress;
  * Unit tests for {@link OsuNetworkConnection}.
  */
 @SmallTest
-public class OsuNetworkConnectionTest {
+public class OsuNetworkConnectionTest extends WifiBaseTest {
     private static final String TAG = "OsuNetworkConnectionTest";
     private static final int ENABLE_LOGGING = 1;
     private static final int DISABLE_LOGGING = 0;

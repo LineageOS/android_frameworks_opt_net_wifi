@@ -129,7 +129,7 @@ import java.util.regex.Pattern;
  * Unit tests for {@link com.android.server.wifi.WifiMetrics}.
  */
 @SmallTest
-public class WifiMetricsTest {
+public class WifiMetricsTest extends WifiBaseTest {
 
     WifiMetrics mWifiMetrics;
     WifiMetricsProto.WifiLog mDecodedProto;

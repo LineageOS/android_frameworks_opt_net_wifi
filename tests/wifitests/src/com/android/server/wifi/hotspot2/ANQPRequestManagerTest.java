@@ -30,6 +30,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.anqp.Constants;
 
 import org.junit.Before;
@@ -43,7 +44,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.hotspot2.ANQPRequestManager}.
  */
 @SmallTest
-public class ANQPRequestManagerTest {
+public class ANQPRequestManagerTest extends WifiBaseTest {
     private static final long TEST_BSSID = 0x123456L;
     private static final ANQPNetworkKey TEST_ANQP_KEY =
             new ANQPNetworkKey("TestSSID", TEST_BSSID, 0, 0);

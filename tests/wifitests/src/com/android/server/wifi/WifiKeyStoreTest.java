@@ -38,7 +38,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiConfigManager}.
  */
 @SmallTest
-public class WifiKeyStoreTest {
+public class WifiKeyStoreTest extends WifiBaseTest {
     @Mock private WifiEnterpriseConfig mWifiEnterpriseConfig;
     @Mock private KeyStore mKeyStore;
 

@@ -43,7 +43,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.WifiLastResortWatchdog}.
  */
 @SmallTest
-public class WifiLastResortWatchdogTest {
+public class WifiLastResortWatchdogTest extends WifiBaseTest {
     WifiLastResortWatchdog mLastResortWatchdog;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiMetrics mWifiMetrics;
@@ -75,12 +75,13 @@ public class WifiLastResortWatchdogTest {
         when(mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled()).thenReturn(true);
         when(mDeviceConfigFacade.getAbnormalConnectionDurationMs()).thenReturn(
                         DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
+        WifiThreadRunner wifiThreadRunner = new WifiThreadRunner(new Handler(mLooper.getLooper()));
         mLastResortWatchdog = new WifiLastResortWatchdog(mWifiInjector, mContext, mClock,
-                mWifiMetrics, mClientModeImpl, mLooper.getLooper(), mDeviceConfigFacade);
+                mWifiMetrics, mClientModeImpl, mLooper.getLooper(), mDeviceConfigFacade,
+                wifiThreadRunner);
         mLastResortWatchdog.setBugReportProbability(1);
         when(mClientModeImpl.getWifiInfo()).thenReturn(mWifiInfo);
         when(mWifiInfo.getSSID()).thenReturn(TEST_NETWORK_SSID);
-        when(mWifiInjector.getClientModeImplHandler()).thenReturn(mLastResortWatchdog.getHandler());
     }
 
     private List<Pair<ScanDetail, WifiConfiguration>> createFilteredQnsCandidates(String[] ssids,

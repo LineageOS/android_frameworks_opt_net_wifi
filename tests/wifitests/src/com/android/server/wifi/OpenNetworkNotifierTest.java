@@ -67,7 +67,7 @@ import java.util.List;
  * Unit tests for {@link OpenNetworkNotifier}.
  */
 @SmallTest
-public class OpenNetworkNotifierTest {
+public class OpenNetworkNotifierTest extends WifiBaseTest {
 
     private static final String TEST_SSID_1 = "Test SSID 1";
     private static final String TEST_SSID_2 = "Test SSID 2";

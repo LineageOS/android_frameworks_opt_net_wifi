@@ -50,7 +50,7 @@ import java.util.regex.Pattern;
  * Unit tests for {@link com.android.server.wifi.WifiNative}.
  */
 @SmallTest
-public class WifiNativeTest {
+public class WifiNativeTest extends WifiBaseTest {
     private static final String WIFI_IFACE_NAME = "mockWlan";
     private static final long FATE_REPORT_DRIVER_TIMESTAMP_USEC = 12345;
     private static final byte[] FATE_REPORT_FRAME_BYTES = new byte[] {

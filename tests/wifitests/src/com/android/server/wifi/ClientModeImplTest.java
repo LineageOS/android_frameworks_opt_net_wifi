@@ -134,7 +134,7 @@ import java.util.function.Consumer;
  * Unit tests for {@link com.android.server.wifi.ClientModeImpl}.
  */
 @SmallTest
-public class ClientModeImplTest {
+public class ClientModeImplTest extends WifiBaseTest {
     public static final String TAG = "ClientModeImplTest";
 
     private static final int MANAGED_PROFILE_UID = 1100000;
@@ -198,8 +198,14 @@ public class ClientModeImplTest {
         WifiP2pServiceImpl p2pm = (WifiP2pServiceImpl) p2pBinder.queryLocalInterface(
                 IWifiP2pManager.class.getCanonicalName());
 
-        final CountDownLatch untilDone = new CountDownLatch(1);
+        final CountDownLatch untilDone = new CountDownLatch(2);
         mP2pThread = new HandlerThread("WifiP2pMockThread") {
+            @Override
+            protected void onLooperPrepared() {
+                untilDone.countDown();
+            }
+        };
+        mPasspointProvisionerThread = new HandlerThread("PasspointProvisionerMockThread") {
             @Override
             protected void onLooperPrepared() {
                 untilDone.countDown();
@@ -207,10 +213,13 @@ public class ClientModeImplTest {
         };
 
         mP2pThread.start();
+        mPasspointProvisionerThread.start();
         untilDone.await();
 
         Handler handler = new Handler(mP2pThread.getLooper());
         when(p2pm.getP2pStateMachineMessenger()).thenReturn(new Messenger(handler));
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mPasspointProvisionerThread);
 
         IBinder batteryStatsBinder = mockService(BatteryStats.class, IBatteryStats.class);
         when(facade.getService(BatteryStats.SERVICE_NAME)).thenReturn(batteryStatsBinder);
@@ -334,6 +343,7 @@ public class ClientModeImplTest {
     ClientModeImpl mCmi;
     HandlerThread mWifiCoreThread;
     HandlerThread mP2pThread;
+    HandlerThread mPasspointProvisionerThread;
     HandlerThread mSyncThread;
     AsyncChannel  mCmiAsyncChannel;
     AsyncChannel  mNetworkAgentAsyncChannel;
@@ -591,9 +601,13 @@ public class ClientModeImplTest {
         if (mSyncThread != null) stopLooper(mSyncThread.getLooper());
         if (mWifiCoreThread != null) stopLooper(mWifiCoreThread.getLooper());
         if (mP2pThread != null) stopLooper(mP2pThread.getLooper());
+        if (mPasspointProvisionerThread != null) {
+            stopLooper(mPasspointProvisionerThread.getLooper());
+        }
 
         mWifiCoreThread = null;
         mP2pThread = null;
+        mPasspointProvisionerThread = null;
         mSyncThread = null;
         mCmiAsyncChannel = null;
         mNetworkAgentAsyncChannel = null;

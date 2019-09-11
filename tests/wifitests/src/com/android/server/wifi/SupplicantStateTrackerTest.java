@@ -43,7 +43,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link android.net.wifi.SupplicantStateTracker}.
  */
 @SmallTest
-public class SupplicantStateTrackerTest {
+public class SupplicantStateTrackerTest extends WifiBaseTest {
 
     private static final String TAG = "SupplicantStateTrackerTest";
     private static final String   sSSID = "\"GoogleGuest\"";

@@ -30,7 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 @SmallTest
-public class WifiWakeMetricsTest {
+public class WifiWakeMetricsTest extends WifiBaseTest {
 
     private WifiWakeMetrics mWifiWakeMetrics;
 

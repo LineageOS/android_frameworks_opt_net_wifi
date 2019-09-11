@@ -58,7 +58,7 @@ import java.util.Map;
  * Unit tests for CarrierNeteworkEvaluator
  */
 @SmallTest
-public class CarrierNetworkEvaluatorTest {
+public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     private static final String CARRIER1_SSID = "\"carrier1\"";
     private static final String CARRIER2_SSID = "\"carrier2\"";
     private static final String CARRIER_SAVED_SSID = "\"carrier3-saved\"";

@@ -30,6 +30,7 @@ import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.SystemInfo;
 
 import org.junit.Before;
@@ -41,7 +42,7 @@ import org.mockito.Mock;
  * TODO(b/80300806): change the test to verify the XML in terms of the structure of XML.
  */
 @SmallTest
-public class DevDetailMoTest {
+public class DevDetailMoTest extends WifiBaseTest {
     private static final String TEST_DEV_ID = "12312341";
     private static final String TEST_MANUFACTURER = Build.MANUFACTURER;
     private static final String TEST_HW_VERSION = "Test HW 1.0";

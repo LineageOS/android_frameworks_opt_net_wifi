@@ -41,7 +41,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WifiTrafficPoller}.
  */
 @SmallTest
-public class WifiTrafficPollerTest {
+public class WifiTrafficPollerTest extends WifiBaseTest {
     public static final String TAG = "WifiTrafficPollerTest";
 
     private TestLooper mLooper;

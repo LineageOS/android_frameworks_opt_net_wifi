@@ -95,7 +95,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.WifiNetworkFactory}.
  */
 @SmallTest
-public class WifiNetworkFactoryTest {
+public class WifiNetworkFactoryTest extends WifiBaseTest {
     private static final int TEST_NETWORK_ID_1 = 104;
     private static final int TEST_UID_1 = 10423;
     private static final int TEST_UID_2 = 10424;

@@ -51,6 +51,7 @@ import android.util.SparseIntArray;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.FrameworkFacade;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -71,7 +72,7 @@ import java.util.Map;
  * Unit test harness for WifiAwareStateManager.
  */
 @SmallTest
-public class WifiAwareServiceImplTest {
+public class WifiAwareServiceImplTest extends WifiBaseTest {
     private static final int MAX_LENGTH = 255;
 
     private WifiAwareServiceImplSpy mDut;

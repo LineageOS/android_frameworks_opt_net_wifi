@@ -47,6 +47,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.BinderUtil;
 import com.android.server.wifi.FakeWifiLog;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
 
 import org.junit.Before;
@@ -65,7 +66,7 @@ import java.util.HashMap;
 /** Unit tests for {@link WifiPermissionsUtil}. */
 @RunWith(JUnit4.class)
 @SmallTest
-public class WifiPermissionsUtilTest {
+public class WifiPermissionsUtilTest extends WifiBaseTest {
     public static final String TAG = "WifiPermissionsUtilTest";
 
     // Mock objects for testing

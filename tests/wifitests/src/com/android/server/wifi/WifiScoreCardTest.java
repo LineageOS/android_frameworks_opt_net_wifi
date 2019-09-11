@@ -47,7 +47,7 @@ import java.util.Arrays;
  * Unit tests for {@link com.android.server.wifi.WifiScoreCard}.
  */
 @SmallTest
-public class WifiScoreCardTest {
+public class WifiScoreCardTest extends WifiBaseTest {
 
     static final WifiSsid TEST_SSID_1 = WifiSsid.createFromAsciiEncoded("Joe's Place");
     static final WifiSsid TEST_SSID_2 = WifiSsid.createFromAsciiEncoded("Poe's Raven");

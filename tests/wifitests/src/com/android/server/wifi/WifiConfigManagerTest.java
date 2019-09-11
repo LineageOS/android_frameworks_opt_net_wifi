@@ -81,7 +81,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.WifiConfigManager}.
  */
 @SmallTest
-public class WifiConfigManagerTest {
+public class WifiConfigManagerTest extends WifiBaseTest {
 
     private static final String TEST_SSID = "\"test_ssid\"";
     private static final String TEST_BSSID = "0a:08:5c:67:89:00";

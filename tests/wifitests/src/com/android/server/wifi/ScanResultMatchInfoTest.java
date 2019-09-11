@@ -30,7 +30,7 @@ import org.junit.Test;
  * Unit tests for {@link com.android.server.wifi.ScanResultMatchInfoTest}.
  */
 @SmallTest
-public class ScanResultMatchInfoTest {
+public class ScanResultMatchInfoTest extends WifiBaseTest {
     /**
      * Tests that equivalent ScanResultMatchInfo objects are created for WifiConfigurations and
      * their associated ScanResult

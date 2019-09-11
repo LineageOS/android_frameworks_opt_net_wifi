@@ -50,7 +50,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link com.android.server.wifi.WakeupOnboarding} */
 @SmallTest
-public class WakeupOnboardingTest {
+public class WakeupOnboardingTest extends WifiBaseTest {
 
     @Mock private Context mContext;
     @Mock private WifiConfigManager mWifiConfigManager;

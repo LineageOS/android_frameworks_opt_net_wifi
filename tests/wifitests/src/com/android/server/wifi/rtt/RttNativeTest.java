@@ -46,6 +46,7 @@ import android.net.wifi.rtt.RangingRequest;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.WifiBaseTest;
 
 import org.hamcrest.core.IsNull;
 import org.junit.Before;
@@ -63,7 +64,7 @@ import java.util.List;
  * Unit test harness for the RttNative class.
  */
 @SmallTest
-public class RttNativeTest {
+public class RttNativeTest extends WifiBaseTest {
     private RttNative mDut;
     private WifiStatus mStatusSuccess;
 

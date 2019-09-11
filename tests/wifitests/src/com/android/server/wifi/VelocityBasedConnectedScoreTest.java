@@ -38,7 +38,7 @@ import org.mockito.Spy;
  * Unit tests for {@link com.android.server.wifi.VelocityBasedConnectedScore}.
  */
 @SmallTest
-public class VelocityBasedConnectedScoreTest {
+public class VelocityBasedConnectedScoreTest extends WifiBaseTest {
 
 
     class FakeClock extends Clock {

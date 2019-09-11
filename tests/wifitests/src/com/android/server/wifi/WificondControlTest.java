@@ -87,7 +87,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.WificondControl}.
  */
 @SmallTest
-public class WificondControlTest {
+public class WificondControlTest extends WifiBaseTest {
     @Mock private WifiInjector mWifiInjector;
     @Mock private WifiMonitor mWifiMonitor;
     @Mock private WifiMetrics mWifiMetrics;

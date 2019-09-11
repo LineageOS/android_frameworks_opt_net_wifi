@@ -68,6 +68,7 @@ import java.util.List;
  */
 @SmallTest
 public class PasspointNetworkEvaluatorTest {
+    // TODO(b/140763176): should extend WifiBaseTest, but if it does then it fails with NPE
     private static final int TEST_NETWORK_ID = 1;
     private static final String TEST_SSID1 = "ssid1";
     private static final String TEST_SSID2 = "ssid2";

@@ -59,7 +59,7 @@ import java.util.Random;
  * Unit tests for {@link com.android.server.wifi.WifiApConfigStore}.
  */
 @SmallTest
-public class WifiApConfigStoreTest {
+public class WifiApConfigStoreTest extends WifiBaseTest {
 
     private static final String TAG = "WifiApConfigStoreTest";
 

@@ -25,6 +25,7 @@ import android.net.wifi.ScanResult;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.ScanDetail;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.Constants;
 import com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType;
@@ -42,7 +43,7 @@ import java.util.Map;
  * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointNetworkScore}.
  */
 @SmallTest
-public class PasspointNetworkScoreTest {
+public class PasspointNetworkScoreTest extends WifiBaseTest {
     private static class TestData {
         public final boolean isHomeProvider;
         public final boolean isActiveNetwork;

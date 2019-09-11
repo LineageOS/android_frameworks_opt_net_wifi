@@ -75,6 +75,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -98,7 +99,7 @@ import java.util.Set;
  * Unit test harness for the RttServiceImpl class.
  */
 @SmallTest
-public class RttServiceImplTest {
+public class RttServiceImplTest extends WifiBaseTest {
 
     private static final long BACKGROUND_PROCESS_EXEC_GAP_MS = 10 * 60 * 1000;  // 10 minutes.
 

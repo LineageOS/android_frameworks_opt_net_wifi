@@ -50,7 +50,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.NetworkSuggestionEvaluator}.
  */
 @SmallTest
-public class NetworkSuggestionEvaluatorTest {
+public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
     private static final int TEST_UID = 3555;
     private static final int TEST_UID_OTHER = 3545;
     private static final int TEST_NETWORK_ID = 55;

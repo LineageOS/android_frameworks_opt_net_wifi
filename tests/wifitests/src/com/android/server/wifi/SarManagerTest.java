@@ -59,7 +59,7 @@ import java.util.List;
  * unit tests for {@link com.android.server.wifi.SarManager}.
  */
 @SmallTest
-public class SarManagerTest {
+public class SarManagerTest extends WifiBaseTest {
     private static final String TAG = "WifiSarManagerTest";
     private static final String OP_PACKAGE_NAME = "com.xxx";
     private static final String SAR_SENSOR_NAME = "com.google.sensor.sar";

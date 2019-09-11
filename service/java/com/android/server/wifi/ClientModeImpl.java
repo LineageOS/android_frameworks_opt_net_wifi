@@ -256,7 +256,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private boolean mEnableRssiPolling = false;
-    // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and ClientModeImpl thread.
+    // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and the main Wifi thread.
     private volatile int mPollRssiIntervalMsecs = DEFAULT_POLL_RSSI_INTERVAL_MSECS;
     private int mRssiPollToken = 0;
     /* 3 operational states for STA operation: CONNECT_MODE, SCAN_ONLY_MODE, SCAN_ONLY_WIFI_OFF_MODE
@@ -3523,7 +3523,7 @@ public class ClientModeImpl extends StateMachine {
                         Log.e(TAG, "Failed to load from config store");
                     }
                     mPasspointManager.initializeProvisioner(
-                            mWifiInjector.getWifiHandlerThread().getLooper());
+                            mWifiInjector.getPasspointProvisionerHandlerThread().getLooper());
                     registerNetworkFactory();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:

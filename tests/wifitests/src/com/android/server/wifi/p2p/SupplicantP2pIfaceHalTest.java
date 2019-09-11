@@ -51,6 +51,7 @@ import android.text.TextUtils;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.util.NativeUtil;
 
 import org.junit.Assert.*;
@@ -71,7 +72,7 @@ import java.util.Map;
  * Unit tests for SupplicantP2pIfaceHal
  */
 @SmallTest
-public class SupplicantP2pIfaceHalTest {
+public class SupplicantP2pIfaceHalTest extends WifiBaseTest {
     private static final String TAG = "SupplicantP2pIfaceHalTest";
     private SupplicantP2pIfaceHal mDut;
     private @Mock IServiceManager mServiceManagerMock;

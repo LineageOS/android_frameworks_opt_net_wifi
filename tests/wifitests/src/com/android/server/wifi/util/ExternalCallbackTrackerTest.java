@@ -29,6 +29,8 @@ import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,7 +41,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.util.ExternalCallbackTracker}.
  */
 @SmallTest
-public class ExternalCallbackTrackerTest {
+public class ExternalCallbackTrackerTest extends WifiBaseTest {
     private static final int TEST_CALLBACK_IDENTIFIER = 56;
     @Mock Handler mHandler;
     @Mock ISoftApCallback mCallback;

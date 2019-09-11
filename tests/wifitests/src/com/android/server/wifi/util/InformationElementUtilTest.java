@@ -25,6 +25,7 @@ import android.net.wifi.ScanResult.InformationElement;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 
 import org.junit.Test;
@@ -38,7 +39,7 @@ import java.util.BitSet;
  * Unit tests for {@link com.android.server.wifi.util.InformationElementUtil}.
  */
 @SmallTest
-public class InformationElementUtilTest {
+public class InformationElementUtilTest extends WifiBaseTest {
 
     // SSID Information Element tags
     private static final byte[] TEST_SSID_BYTES_TAG = new byte[] { (byte) 0x00, (byte) 0x0B };
@@ -772,6 +773,24 @@ public class InformationElementUtilTest {
 
 
         assertEquals("", result);
+    }
+
+    /**
+     * Test Capabilities.generateCapabilitiesString() with the IBSS capability bit set.
+     *
+     * Expect the function to return a string with [IBSS] there.
+     */
+    @Test
+    public void buildCapabilities_IbssCapabilitySet() {
+        BitSet beaconCap = new BitSet(16);
+        beaconCap.set(1);
+
+        InformationElementUtil.Capabilities capabilities =
+                new InformationElementUtil.Capabilities();
+        capabilities.from(new InformationElement[0], beaconCap, false);
+        String result = capabilities.generateCapabilitiesString();
+
+        assertEquals("[IBSS]", result);
     }
 
     /**

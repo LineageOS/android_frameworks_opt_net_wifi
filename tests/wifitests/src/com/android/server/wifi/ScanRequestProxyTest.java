@@ -56,7 +56,7 @@ import java.util.List;
  * Unit tests for {@link com.android.server.wifi.ScanRequestProxy}.
  */
 @SmallTest
-public class ScanRequestProxyTest {
+public class ScanRequestProxyTest extends WifiBaseTest {
     private static final int TEST_UID = 5;
     private static final String TEST_PACKAGE_NAME_1 = "com.test.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.test.2";

@@ -29,7 +29,7 @@ import org.junit.Test;
  * unit tests for {@link com.android.server.wifi.SarInfo}.
  */
 @SmallTest
-public class SarInfoTest {
+public class SarInfoTest extends WifiBaseTest {
     private static final String TAG = "WifiSarInfoTest";
 
     private SarInfo mSarInfo;

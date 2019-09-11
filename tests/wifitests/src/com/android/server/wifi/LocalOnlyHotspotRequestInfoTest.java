@@ -40,7 +40,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.LocalOnlyHotspotRequestInfo}.
  */
 @SmallTest
-public class LocalOnlyHotspotRequestInfoTest {
+public class LocalOnlyHotspotRequestInfoTest extends WifiBaseTest {
 
     private static final String TAG = "LocalOnlyHotspotRequestInfoTest";
     @Mock IBinder mAppBinder;

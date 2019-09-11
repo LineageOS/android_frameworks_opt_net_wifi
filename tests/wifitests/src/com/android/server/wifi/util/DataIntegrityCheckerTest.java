@@ -18,6 +18,8 @@ package com.android.server.wifi.util;
 
 import static org.junit.Assert.*;
 
+import com.android.server.wifi.WifiBaseTest;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -26,7 +28,7 @@ import java.io.File;
 /**
  * Unit tests for {@link com.android.server.wifi.util.DataIntegrityChecker}.
  */
-public class DataIntegrityCheckerTest {
+public class DataIntegrityCheckerTest extends WifiBaseTest {
     private static byte[] sGoodData = {1, 2, 3, 4};
     private static byte[] sBadData = {5, 6, 7, 8};
 

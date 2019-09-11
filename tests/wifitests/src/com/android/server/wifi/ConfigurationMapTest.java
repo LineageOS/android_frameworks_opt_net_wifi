@@ -48,7 +48,7 @@ import java.util.Set;
  * Unit tests for {@link com.android.server.wifi.ConfigurationMapTest}.
  */
 @SmallTest
-public class ConfigurationMapTest {
+public class ConfigurationMapTest extends WifiBaseTest {
     private static final List<WifiConfiguration> CONFIGS = Arrays.asList(
             WifiConfigurationTestUtil.generateWifiConfig(
                     0, 1000000, "\"red\"", true, true, null, null),

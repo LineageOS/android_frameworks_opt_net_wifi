@@ -31,6 +31,7 @@ import android.net.wifi.WifiScanner;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiNative;
 
 import org.junit.Before;
@@ -57,7 +58,7 @@ public class KnownBandsChannelHelperTest {
      * {@link com.android.server.wifi.scanner.KnownBandsChannelHelper.estimateScanDuration}.
      */
     @SmallTest
-    public static class EstimateScanDurationTest {
+    public static class EstimateScanDurationTest extends WifiBaseTest {
         KnownBandsChannelHelper mChannelHelper;
 
         /**
@@ -102,7 +103,7 @@ public class KnownBandsChannelHelperTest {
      * {@link com.android.server.wifi.scanner.KnownBandsChannelHelper.getAvailableScanChannels}.
      */
     @SmallTest
-    public static class GetAvailableScanChannelsTest {
+    public static class GetAvailableScanChannelsTest extends WifiBaseTest {
         KnownBandsChannelHelper mChannelHelper;
 
         /**
@@ -185,7 +186,7 @@ public class KnownBandsChannelHelperTest {
      * {@link com.android.server.wifi.scanner.KnownBandsChannelHelper.settingsContainChannel}.
      */
     @SmallTest
-    public static class SettingsContainChannelTest {
+    public static class SettingsContainChannelTest extends WifiBaseTest {
         KnownBandsChannelHelper mChannelHelper;
 
         /**
@@ -260,7 +261,7 @@ public class KnownBandsChannelHelperTest {
      * {@link com.android.server.wifi.scanner.KnownBandsChannelHelper.KnownBandsChannelCollection}.
      */
     @SmallTest
-    public static class KnownBandsChannelCollectionTest {
+    public static class KnownBandsChannelCollectionTest extends WifiBaseTest {
         ChannelHelper.ChannelCollection mChannelCollection;
 
         /**

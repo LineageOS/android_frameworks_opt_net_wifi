@@ -98,7 +98,7 @@ import java.util.stream.Collectors;
  * The provider matching requires obtaining additional information from the AP (ANQP elements).
  * The ANQP elements will be cached using {@link AnqpCache} to avoid unnecessary requests.
  *
- * NOTE: These API's are not thread safe and should only be used from ClientModeImpl thread.
+ * NOTE: These API's are not thread safe and should only be used from the main Wifi thread.
  */
 public class PasspointManager {
     private static final String TAG = "PasspointManager";
@@ -364,7 +364,9 @@ public class PasspointManager {
     }
 
     /**
-     * Initializes the provisioning flow with a looper
+     * Initializes the provisioning flow with a looper.
+     * This looper should be tied to a background worker thread since PasspointProvisioner has a
+     * heavy workload.
      */
     public void initializeProvisioner(Looper looper) {
         mPasspointProvisioner.init(looper);

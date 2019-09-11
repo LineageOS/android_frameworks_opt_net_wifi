@@ -51,7 +51,7 @@ import java.util.Random;
  * Unit tests for {@link com.android.server.wifi.WifiBackupRestore}.
  */
 @SmallTest
-public class WifiBackupRestoreTest {
+public class WifiBackupRestoreTest extends WifiBaseTest {
 
     private static final String WIFI_BACKUP_DATA_WITH_UNSUPPORTED_TAG =
             "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"

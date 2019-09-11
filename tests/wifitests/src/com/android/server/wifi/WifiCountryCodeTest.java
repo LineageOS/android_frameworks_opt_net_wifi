@@ -39,7 +39,7 @@ import java.util.Locale;
  * Unit tests for {@link com.android.server.wifi.WifiCountryCode}.
  */
 @SmallTest
-public class WifiCountryCodeTest {
+public class WifiCountryCodeTest extends WifiBaseTest {
 
     private static final String TAG = "WifiCountryCodeTest";
     private String mDefaultCountryCode = "US";

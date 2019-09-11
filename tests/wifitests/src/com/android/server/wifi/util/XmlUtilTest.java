@@ -29,6 +29,7 @@ import android.util.Xml;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FastXmlSerializer;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.util.XmlUtil.IpConfigurationXmlUtil;
 import com.android.server.wifi.util.XmlUtil.NetworkSelectionStatusXmlUtil;
@@ -50,7 +51,7 @@ import java.util.HashMap;
  * Unit tests for {@link com.android.server.wifi.util.XmlUtil}.
  */
 @SmallTest
-public class XmlUtilTest {
+public class XmlUtilTest extends WifiBaseTest {
     public static final String XML_STRING_EAP_METHOD_REPLACE_FORMAT =
             "<int name=\"EapMethod\" value=\"%d\" />";
 

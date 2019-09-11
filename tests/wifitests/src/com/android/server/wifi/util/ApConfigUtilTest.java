@@ -26,6 +26,7 @@ import android.net.wifi.WifiScanner;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.ArrayUtils;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiNative;
 
 import org.junit.Before;
@@ -40,7 +41,7 @@ import java.util.Arrays;
  * Unit tests for {@link com.android.server.wifi.util.ApConfigUtil}.
  */
 @SmallTest
-public class ApConfigUtilTest {
+public class ApConfigUtilTest extends WifiBaseTest {
 
     private static final String TEST_COUNTRY_CODE = "TestCountry";
 

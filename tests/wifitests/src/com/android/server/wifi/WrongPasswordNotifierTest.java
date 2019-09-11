@@ -41,7 +41,7 @@ import org.mockito.MockitoAnnotations;
  * Unit tests for {@link com.android.server.wifi.WrongPasswordNotifier}.
  */
 @SmallTest
-public class WrongPasswordNotifierTest {
+public class WrongPasswordNotifierTest extends WifiBaseTest {
     private static final String TEST_SSID = "Test SSID";
 
     @Mock Context mContext;

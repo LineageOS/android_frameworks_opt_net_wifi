@@ -74,6 +74,7 @@ import android.util.SparseArray;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -107,7 +108,7 @@ import java.util.Set;
  * Unit test harness for WifiAwareStateManager.
  */
 @SmallTest
-public class WifiAwareStateManagerTest {
+public class WifiAwareStateManagerTest extends WifiBaseTest {
     private TestLooper mMockLooper;
     private Random mRandomNg = new Random(15687);
     private WifiAwareStateManager mDut;
