@@ -44,12 +44,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.AdditionalAnswers.returnsSecondArg;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyObject;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.atLeastOnce;
@@ -63,6 +63,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -132,6 +133,7 @@ import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -193,7 +195,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private TestLooper mLooper;
     private PowerManager mPowerManager;
     private Handler mHandler;
-    private Handler mHandlerSpyForCmiRunWithScissors;
     private Messenger mAppMessenger;
     private int mPid;
     private int mPid2 = Process.myPid();
@@ -284,6 +285,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mClientModeImpl.getHandler()).thenReturn(new Handler());
         when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
         when(mWifiInjector.getAsyncChannelHandlerThread()).thenReturn(mHandlerThread);
+        when(mWifiInjector.getWifiHandlerThread()).thenReturn(mHandlerThread);
+        when(mHandlerThread.getThreadHandler()).thenReturn(new Handler(mLooper.getLooper()));
         when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
         when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
         when(mContext.getResources()).thenReturn(mResources);
@@ -324,7 +327,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getSarManager()).thenReturn(mSarManager);
-        when(mWifiInjector.getWifiThreadRunner()).thenReturn(new WifiThreadRunner(mHandler));
+        when(mWifiInjector.getWifiThreadRunner())
+                .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
                 any(OsuProvider.class), any(IProvisioningCallback.class), any())).thenReturn(true);
         // Create an OSU provider that can be provisioned via an open OSU AP
@@ -371,6 +375,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
         };
     }
 
+    /**
+     * Called after each test
+     */
+    @After
+    public void cleanup() {
+        validateMockitoUsage();
+    }
+
     private WifiServiceImpl makeWifiServiceImpl() {
         reset(mActiveModeWarden);
         WifiServiceImpl wifiServiceImpl =
@@ -384,7 +396,19 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLohsInterfaceName = WIFI_IFACE_NAME;
         verify(mActiveModeWarden).registerLohsCallback(lohsCallbackCaptor.capture());
         mLohsCallback = lohsCallbackCaptor.getValue();
+        mLooper.dispatchAll();
         return wifiServiceImpl;
+    }
+
+    private WifiServiceImpl makeWifiServiceImplWithMockRunnerWhichTimesOut() {
+        WifiThreadRunner mockRunner = mock(WifiThreadRunner.class);
+        when(mockRunner.call(any(), any())).then(returnsSecondArg());
+        when(mockRunner.call(any(), any(int.class))).then(returnsSecondArg());
+        when(mockRunner.call(any(), any(boolean.class))).then(returnsSecondArg());
+        when(mockRunner.post(any())).thenReturn(false);
+
+        when(mWifiInjector.getWifiThreadRunner()).thenReturn(mockRunner);
+        return makeWifiServiceImpl();
     }
 
     /**
@@ -416,9 +440,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testDumpNullArgs() {
-        setupWifiThreadRunnerForSync();
-
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
+        mLooper.stopAutoDispatch();
     }
 
     /**
@@ -437,16 +461,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testWifiScoreReportDump() {
-        setupWifiThreadRunnerForSync();
-
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
+        mLooper.stopAutoDispatch();
 
-        InOrder inOrder = inOrder(mClientModeImpl, mHandlerSpyForCmiRunWithScissors,
-                mWifiScoreReport);
+        InOrder inOrder = inOrder(mClientModeImpl, mWifiScoreReport);
 
         inOrder.verify(mClientModeImpl).updateLinkLayerStatsRssiAndScoreReport();
-        inOrder.verify(mHandlerSpyForCmiRunWithScissors, atLeastOnce())
-                .runWithScissors(any(), anyLong());
         inOrder.verify(mWifiScoreReport).dump(any(), any(), any());
     }
 
@@ -956,8 +977,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetWifiApConfigurationSuccess() throws Exception {
-        setupWifiThreadRunnerForSync();
-
         mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
 
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
@@ -965,7 +984,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration apConfig = new WifiConfiguration();
         when(mWifiApConfigStore.getApConfiguration()).thenReturn(apConfig);
 
+        mLooper.startAutoDispatch();
         assertEquals(apConfig, mWifiServiceImpl.getWifiApConfiguration());
+        mLooper.stopAutoDispatch();
     }
 
     /**
@@ -974,8 +995,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetWifiApEnabled() throws Exception {
-        setupWifiThreadRunnerForSync();
-
         // ap should be disabled when wifi hasn't been started
         assertEquals(WifiManager.WIFI_AP_STATE_DISABLED, mWifiServiceImpl.getWifiApEnabledState());
 
@@ -1110,10 +1129,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartScanFailureAppOpsIgnored() {
-        setupWifiThreadRunnerForSync();
         doReturn(AppOpsManager.MODE_IGNORED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), SCAN_PACKAGE_NAME);
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
     }
 
@@ -1122,10 +1142,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartScanFailureInCanAccessScanResultsPermission() {
-        setupWifiThreadRunnerForSync();
         doThrow(new SecurityException()).when(mWifiPermissionsUtil)
                 .enforceCanAccessScanResults(SCAN_PACKAGE_NAME, Process.myUid());
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
     }
 
@@ -1134,11 +1155,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartScanFailureInRunWithScissors() {
-        setupWifiThreadRunnerForSync();
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
-        verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+        verify(mScanRequestProxy, never()).startScan(anyInt(), eq(SCAN_PACKAGE_NAME));
     }
 
     /**
@@ -1146,10 +1168,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartScanFailureFromScanRequestProxy() {
-        setupWifiThreadRunnerForSync();
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(false);
+
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
-        verify(mScanRequestProxy).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
+        mLooper.stopAutoDispatch();
+        verify(mScanRequestProxy).startScan(Binder.getCallingUid(), SCAN_PACKAGE_NAME);
     }
 
     static final String TEST_SSID = "Sid's Place";
@@ -1223,7 +1247,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testConfiguredNetworkListAreEmptyFromAppWithoutPermission() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
+        when(mWifiConfigManager.getSavedNetworks(anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         // no permission = target SDK=Q && not a carrier app
@@ -1242,7 +1266,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testConfiguredNetworkListAreEmptyOnSecurityException() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
+        when(mWifiConfigManager.getSavedNetworks(anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
@@ -1261,7 +1285,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
+        when(mWifiConfigManager.getSavedNetworks(anyInt()))
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
@@ -1269,10 +1293,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
 
+        mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
+        mLooper.stopAutoDispatch();
 
-        verify(mClientModeImpl).syncGetConfiguredNetworks(anyInt(), any(), eq(Process.WIFI_UID));
+        verify(mWifiConfigManager).getSavedNetworks(eq(Process.WIFI_UID));
         WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
                 TEST_WIFI_CONFIGURATION_LIST, configs.getList());
     }
@@ -1283,18 +1309,19 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * appropriate permissions.
      */
     @Test
-    public void testPrivilegedConfiguredNetworkListAreEmptyFromAppWithoutPermission()
-            throws Exception {
-        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+    public void testPrivilegedConfiguredNetworkListAreEmptyFromAppWithoutPermission() {
+        when(mWifiConfigManager.getConfiguredNetworksWithPasswords())
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
                 anyString(), anyInt());
 
+        mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
-        assertEquals(null, configs);
+        assertNull(configs);
     }
 
     /**
@@ -1302,18 +1329,19 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * appropriate permissions, when enforceCanAccessScanResults raises a SecurityException.
      */
     @Test
-    public void testPrivilegedConfiguredNetworkListAreEmptyOnSecurityException() throws Exception {
-        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+    public void testPrivilegedConfiguredNetworkListAreEmptyOnSecurityException() {
+        when(mWifiConfigManager.getConfiguredNetworksWithPasswords())
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
                 anyString(), anyInt());
 
+        mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
-        assertEquals(null, configs);
-
+        assertNull(configs);
     }
 
     /**
@@ -1321,14 +1349,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * appropriate permissions (simulated by not throwing an exception for READ_WIFI_CREDENTIAL).
      */
     @Test
-    public void testPrivilegedConfiguredNetworkListAreVisibleFromPermittedApp() throws Exception {
-        when(mClientModeImpl.syncGetPrivilegedConfiguredNetwork(any()))
+    public void testPrivilegedConfiguredNetworkListAreVisibleFromPermittedApp() {
+        when(mWifiConfigManager.getConfiguredNetworksWithPasswords())
                 .thenReturn(TEST_WIFI_CONFIGURATION_LIST);
 
-        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
-
+        mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
+        mLooper.stopAutoDispatch();
 
         WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
                 TEST_WIFI_CONFIGURATION_LIST, configs.getList());
@@ -1339,8 +1367,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetScanResults() {
-        setupWifiThreadRunnerForSync();
-
         ScanResult[] scanResults =
                 ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
                         .getResults();
@@ -1349,7 +1375,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mScanRequestProxy.getScanResults()).thenReturn(scanResultList);
 
         String packageName = "test.com";
+        mLooper.startAutoDispatch();
         List<ScanResult> retrievedScanResultList = mWifiServiceImpl.getScanResults(packageName);
+        mLooper.stopAutoDispatch();
         verify(mScanRequestProxy).getScanResults();
 
         ScanTestUtil.assertScanResultsEquals(scanResults,
@@ -1361,9 +1389,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetScanResultsFailureInRunWithScissors() {
-        setupWifiThreadRunnerForSync();
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
 
         ScanResult[] scanResults =
                 ScanTestUtil.createScanDatas(new int[][]{{2417, 2427, 5180, 5170}})[0]
@@ -1373,7 +1399,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mScanRequestProxy.getScanResults()).thenReturn(scanResultList);
 
         String packageName = "test.com";
+        mLooper.startAutoDispatch();
         List<ScanResult> retrievedScanResultList = mWifiServiceImpl.getScanResults(packageName);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy, never()).getScanResults();
 
         assertTrue(retrievedScanResultList.isEmpty());
@@ -2499,7 +2527,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     /**
      * Verify that the call to getPasspointConfigurations is not redirected to specific API
-     * syncGetPasspointConfigs when the caller doesn't have NETWORK_SETTINGS permissions and
+     * getPasspointConfigs when the caller doesn't have NETWORK_SETTINGS permissions and
      * NETWORK_SETUP_WIZARD.
      */
     @Test(expected = SecurityException.class)
@@ -2538,6 +2566,36 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 TEST_PACKAGE_NAME);
         assertNotNull(result);
         assertEquals(0, result.size());
+    }
+
+
+    /**
+     * Verify that GetPasspointConfigurations will redirect calls to {@link PasspointManager}
+     * and returning the result that's returned from {@link PasspointManager}.
+     */
+    @Test
+    public void testGetPasspointConfigurations() throws Exception {
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+
+        // Setup expected configs.
+        List<PasspointConfiguration> expectedConfigs = new ArrayList<>();
+        PasspointConfiguration config = new PasspointConfiguration();
+        HomeSp homeSp = new HomeSp();
+        homeSp.setFqdn("test.com");
+        config.setHomeSp(homeSp);
+        expectedConfigs.add(config);
+
+        when(mPasspointManager.getProviderConfigs()).thenReturn(expectedConfigs);
+        mLooper.startAutoDispatch();
+        assertEquals(expectedConfigs, mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE));
+        mLooper.stopAutoDispatch();
+        reset(mPasspointManager);
+
+        when(mPasspointManager.getProviderConfigs())
+                .thenReturn(new ArrayList<PasspointConfiguration>());
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE).isEmpty());
+        mLooper.stopAutoDispatch();
     }
 
     /**
@@ -2788,29 +2846,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Set the WifiInjector mock to return a WifiThreadRunner created on test thread.
-     */
-    private void setupWifiThreadRunnerForSync() {
-        HandlerThread handlerThread = createAndStartHandlerThreadForRunWithScissors();
-        mHandlerSpyForCmiRunWithScissors = spy(handlerThread.getThreadHandler());
-        when(mWifiInjector.getWifiThreadRunner())
-                .thenReturn(new WifiThreadRunner(mHandlerSpyForCmiRunWithScissors));
-        mWifiServiceImpl = makeWifiServiceImpl();
-    }
-
-    private HandlerThread createAndStartHandlerThreadForRunWithScissors() {
-        HandlerThread handlerThread = new HandlerThread("ServiceHandlerThreadForTest");
-        handlerThread.start();
-        return handlerThread;
-    }
-
-    /**
      * Tests the scenario when a scan request arrives while the device is idle. In this case
      * the scan is done when idle mode ends.
      */
     @Test
     public void testHandleDelayedScanAfterIdleMode() throws Exception {
-        setupWifiThreadRunnerForSync();
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
@@ -2828,6 +2868,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // Tell the wifi service that idle mode ended.
         when(mPowerManager.isDeviceIdleMode()).thenReturn(false);
         TestUtil.sendIdleModeChanged(mBroadcastReceiverCaptor.getValue(), mContext);
+        mLooper.dispatchAll();
 
         // Must scan now.
         verify(mScanRequestProxy).startScan(Process.myUid(), TEST_PACKAGE_NAME);
@@ -2838,7 +2879,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         // Send another scan request. The device is not idle anymore, so it must be executed
         // immediately.
+        mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
         verify(mScanRequestProxy).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
     }
 
@@ -3279,11 +3322,15 @@ public class WifiServiceImplTest extends WifiBaseTest {
         config.setHomeSp(homeSp);
 
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
-        when(mClientModeImpl.syncGetConfiguredNetworks(anyInt(), any(), anyInt()))
+        when(mWifiConfigManager.getSavedNetworks(anyInt()))
                 .thenReturn(Arrays.asList(network));
-        when(mClientModeImpl.syncGetPasspointConfigs(any())).thenReturn(Arrays.asList(config));
+        when(mPasspointManager.getProviderConfigs()).thenReturn(Arrays.asList(config));
 
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
+        mLooper.stopAutoDispatch();
+
+        // Let the final post inside the |factoryReset| method run to completion.
         mLooper.dispatchAll();
 
         verify(mClientModeImpl).syncRemoveNetwork(mAsyncChannel, network.networkId);
@@ -3292,6 +3339,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
         verify(mWifiScoreCard).clear();
+        verify(mPasspointManager).getProviderConfigs();
     }
 
     /**
@@ -3303,15 +3351,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
                         eq("ConnectivityService"));
-        mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
-
         try {
             mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
             fail();
         } catch (SecurityException e) {
         }
-        verify(mClientModeImpl, never()).syncGetConfiguredNetworks(anyInt(), any(), anyInt());
-        verify(mClientModeImpl, never()).syncGetPasspointConfigs(any());
+        verify(mWifiConfigManager, never()).getSavedNetworks(anyInt());
+        verify(mPasspointManager, never()).getProviderConfigs();
     }
 
     /**
@@ -3319,16 +3365,18 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsNotAllowedForAppsTargetingQSDK() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl, never()).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics, never()).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3337,18 +3385,20 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForAppsTargetingBelowQSDK() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3357,21 +3407,23 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForSettingsApp() throws Exception {
-        mLooper.dispatchAll();
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.P;
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         // Ensure that we don't check for change permission.
         verify(mContext, never()).enforceCallingOrSelfPermission(
                 android.Manifest.permission.CHANGE_WIFI_STATE, "WifiService");
         verify(mAppOpsManager, never()).noteOp(
                 AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3380,17 +3432,19 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForSystemApp() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3399,20 +3453,22 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForAppsWithSystemAlertPermission() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
 
         when(mWifiPermissionsUtil.checkSystemAlertWindowPermission(
                 Process.myUid(), TEST_PACKAGE_NAME)).thenReturn(true);
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiPermissionsUtil).checkSystemAlertWindowPermission(anyInt(), anyString());
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3421,19 +3477,21 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForDOApp() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
                 Process.myUid(), DeviceAdminInfo.USES_POLICY_DEVICE_OWNER))
                 .thenReturn(true);
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3442,19 +3500,21 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddOrUpdateNetworkIsAllowedForPOApp() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
                 Process.myUid(), DeviceAdminInfo.USES_POLICY_PROFILE_OWNER))
                 .thenReturn(true);
-        when(mClientModeImpl.syncAddOrUpdateNetwork(any(), any())).thenReturn(0);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+                new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mClientModeImpl).syncAddOrUpdateNetwork(any(), any());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3463,7 +3523,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testEnableNetworkAllowedForPrivilegedApps() throws Exception {
-        mLooper.dispatchAll();
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
@@ -3499,7 +3558,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testEnableNetworkNotAllowedForAppsTargetingQ() throws Exception {
-        mLooper.dispatchAll();
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
 
@@ -3515,24 +3573,38 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testAddNetworkSuggestions() {
-        setupWifiThreadRunnerForSync();
-
         when(mWifiNetworkSuggestionsManager.add(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+        mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         when(mWifiNetworkSuggestionsManager.add(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE);
+        mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
-                mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verify(mWifiNetworkSuggestionsManager, times(2)).add(
+                any(), eq(Binder.getCallingUid()),  eq(TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Ensure that we don't invoke {@link WifiNetworkSuggestionsManager} to add network
+     * suggestions when the looper sync call times out.
+     */
+    @Test
+    public void testAddNetworkSuggestionsFailureInRunWithScissors() {
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
+        mLooper.startAutoDispatch();
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
+                mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        verify(mWifiNetworkSuggestionsManager, never()).add(
                 any(), eq(Binder.getCallingUid()),  eq(TEST_PACKAGE_NAME));
     }
 
@@ -3542,24 +3614,38 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testRemoveNetworkSuggestions() {
-        setupWifiThreadRunnerForSync();
-
         when(mWifiNetworkSuggestionsManager.remove(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID);
+        mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         when(mWifiNetworkSuggestionsManager.remove(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+        mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
-        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
-                mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
         verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), anyInt(),
+                eq(TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Ensure that we don't invoke {@link WifiNetworkSuggestionsManager} to remove network
+     * suggestions when the looper sync call times out.
+     */
+    @Test
+    public void testRemoveNetworkSuggestionsFailureInRunWithScissors() {
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
+        mLooper.startAutoDispatch();
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL,
+                mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        verify(mWifiNetworkSuggestionsManager, never()).remove(any(), anyInt(),
                 eq(TEST_PACKAGE_NAME));
     }
 
@@ -3569,16 +3655,28 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetNetworkSuggestions() {
-        setupWifiThreadRunnerForSync();
         List<WifiNetworkSuggestion> testList = new ArrayList<>();
         when(mWifiNetworkSuggestionsManager.get(anyString())).thenReturn(testList);
+        mLooper.startAutoDispatch();
         assertEquals(testList, mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME));
+        mLooper.stopAutoDispatch();
 
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
-        assertEquals(testList, mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME));
+        verify(mWifiNetworkSuggestionsManager).get(eq(TEST_PACKAGE_NAME));
+    }
 
-        verify(mWifiNetworkSuggestionsManager, times(1)).get(eq(TEST_PACKAGE_NAME));
+    /**
+     * Ensure that we don't invoke {@link WifiNetworkSuggestionsManager} to get network
+     * suggestions when the looper sync call times out.
+     */
+    @Test
+    public void testGetNetworkSuggestionsFailureInRunWithScissors() {
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
+        mLooper.startAutoDispatch();
+        assertTrue(mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME).isEmpty());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
+
+        verify(mWifiNetworkSuggestionsManager, never()).get(eq(TEST_PACKAGE_NAME));
     }
 
     /**
@@ -3610,10 +3708,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetFactoryMacAddresses() throws Exception {
-        setupWifiThreadRunnerForSync();
         when(mClientModeImpl.getFactoryMacAddress()).thenReturn(TEST_FACTORY_MAC);
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        mLooper.startAutoDispatch();
         final String[] factoryMacs = mWifiServiceImpl.getFactoryMacAddresses();
+        mLooper.stopAutoDispatch();
         assertEquals(1, factoryMacs.length);
         assertEquals(TEST_FACTORY_MAC, factoryMacs[0]);
         verify(mClientModeImpl).getFactoryMacAddress();
@@ -3625,11 +3724,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetFactoryMacAddressesPostFail() throws Exception {
-        setupWifiThreadRunnerForSync();
-        doReturn(false).when(mHandlerSpyForCmiRunWithScissors)
-                .runWithScissors(any(), anyLong());
+        mWifiServiceImpl = makeWifiServiceImplWithMockRunnerWhichTimesOut();
+
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        mLooper.startAutoDispatch();
         assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mClientModeImpl, never()).getFactoryMacAddress();
     }
 
@@ -3638,10 +3738,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetFactoryMacAddressesFail() throws Exception {
-        setupWifiThreadRunnerForSync();
         when(mClientModeImpl.getFactoryMacAddress()).thenReturn(null);
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        mLooper.startAutoDispatch();
         assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        mLooper.stopAutoDispatch();
         verify(mClientModeImpl).getFactoryMacAddress();
     }
 
@@ -3651,11 +3752,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetFactoryMacAddressesFailNoNetworkSettingsPermission() throws Exception {
-        setupWifiThreadRunnerForSync();
         when(mClientModeImpl.getFactoryMacAddress()).thenReturn(TEST_FACTORY_MAC);
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         try {
+            mLooper.startAutoDispatch();
             mWifiServiceImpl.getFactoryMacAddresses();
+            mLooper.stopAutoDispatch();
             fail();
         } catch (SecurityException e) {
             assertTrue("Exception message should contain 'factory MAC'",

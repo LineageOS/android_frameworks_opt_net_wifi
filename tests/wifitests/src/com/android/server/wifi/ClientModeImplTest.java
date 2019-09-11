@@ -126,7 +126,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
@@ -866,34 +865,16 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertEquals("DisconnectedState", getCurrentState().getName());
     }
 
-    private void addNetworkAndVerifySuccess(boolean isHidden) throws Exception {
+    private void initializeMocksForAddedNetwork(boolean isHidden) throws Exception {
         WifiConfiguration config = new WifiConfiguration();
         config.networkId = FRAMEWORK_NETWORK_ID;
         config.SSID = sSSID;
         config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         config.hiddenSSID = isHidden;
 
-        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
-                .thenReturn(new NetworkUpdateResult(0));
         when(mWifiConfigManager.getSavedNetworks(anyInt())).thenReturn(Arrays.asList(config));
         when(mWifiConfigManager.getConfiguredNetwork(0)).thenReturn(config);
         when(mWifiConfigManager.getConfiguredNetworkWithoutMasking(0)).thenReturn(config);
-
-        mLooper.startAutoDispatch();
-        mCmi.syncAddOrUpdateNetwork(mCmiAsyncChannel, config);
-        mLooper.stopAutoDispatch();
-
-        verify(mWifiConfigManager).addOrUpdateNetwork(eq(config), anyInt());
-
-        mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel,
-                Process.WIFI_UID);
-        mLooper.stopAutoDispatch();
-        assertEquals(1, configs.size());
-
-        WifiConfiguration config2 = configs.get(0);
-        assertEquals("\"GoogleGuest\"", config2.SSID);
-        assertTrue(config2.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.NONE));
     }
 
     private void initializeAndAddNetworkAndVerifySuccess() throws Exception {
@@ -902,26 +883,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
     private void initializeAndAddNetworkAndVerifySuccess(boolean isHidden) throws Exception {
         loadComponentsInStaMode();
-        addNetworkAndVerifySuccess(isHidden);
-    }
-
-    /**
-     * Helper method to retrieve WifiConfiguration by SSID.
-     *
-     * Returns the associated WifiConfiguration if it is found, null otherwise.
-     */
-    private WifiConfiguration getWifiConfigurationForNetwork(String ssid) {
-        mLooper.startAutoDispatch();
-        List<WifiConfiguration> configs = mCmi.syncGetConfiguredNetworks(-1, mCmiAsyncChannel,
-                Process.WIFI_UID);
-        mLooper.stopAutoDispatch();
-
-        for (WifiConfiguration checkConfig : configs) {
-            if (checkConfig.SSID.equals(ssid)) {
-                return checkConfig;
-            }
-        }
-        return null;
+        initializeMocksForAddedNetwork(isHidden);
     }
 
     private void setupAndStartConnectSequence(WifiConfiguration config) throws Exception {
@@ -1960,33 +1922,6 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that syncGetPasspointConfigs will redirect calls to {@link PasspointManager}
-     * and returning the result that's returned from {@link PasspointManager}.
-     */
-    @Test
-    public void syncGetPasspointConfigs() throws Exception {
-        // Setup expected configs.
-        List<PasspointConfiguration> expectedConfigs = new ArrayList<>();
-        PasspointConfiguration config = new PasspointConfiguration();
-        HomeSp homeSp = new HomeSp();
-        homeSp.setFqdn("test.com");
-        config.setHomeSp(homeSp);
-        expectedConfigs.add(config);
-
-        when(mPasspointManager.getProviderConfigs()).thenReturn(expectedConfigs);
-        mLooper.startAutoDispatch();
-        assertEquals(expectedConfigs, mCmi.syncGetPasspointConfigs(mCmiAsyncChannel));
-        mLooper.stopAutoDispatch();
-        reset(mPasspointManager);
-
-        when(mPasspointManager.getProviderConfigs())
-                .thenReturn(new ArrayList<PasspointConfiguration>());
-        mLooper.startAutoDispatch();
-        assertTrue(mCmi.syncGetPasspointConfigs(mCmiAsyncChannel).isEmpty());
-        mLooper.stopAutoDispatch();
-    }
-
-    /**
      * Verify that syncStartSubscriptionProvisioning will redirect calls with right parameters
      * to {@link PasspointManager} with expected true being returned when in client mode.
      */
@@ -2320,7 +2255,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     public void addNetworkInDefaultState() throws Exception {
         // We should not be in initial state now.
         assertTrue("DefaultState".equals(getCurrentState().getName()));
-        addNetworkAndVerifySuccess(false);
+        initializeMocksForAddedNetwork(false);
         verify(mWifiConnectivityManager, never()).setUserConnectChoice(eq(0));
     }
 
@@ -3721,43 +3656,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 WifiIsUnusableEvent.TYPE_IP_REACHABILITY_LOST);
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 WifiUsabilityStats.TYPE_IP_REACHABILITY_LOST, -1);
-    }
-
-    /**
-     * Verify that syncGetAllMatchingFqdnsForScanResults does not return null from a null message.
-     */
-    @Test
-    public void testSyncGetAllMatchingFqdnsForScanResult_doesNotReturnNull() {
-        assertNotNull(
-                mCmi.syncGetAllMatchingFqdnsForScanResults(null, mNullAsyncChannel));
-    }
-
-    /**
-     * Verify that syncGetMatchingOsuProviders does not return null from a null message.
-     */
-    @Test
-    public void testSyncGetMatchingOsuProviders_doesNotReturnNull() {
-        assertNotNull(
-                mCmi.syncGetMatchingOsuProviders(null, mNullAsyncChannel));
-    }
-
-    /**
-     * Verify that syncGetMatchingPasspointConfigsForOsuProviders does not return null from a null
-     * message.
-     */
-    @Test
-    public void testSyncGetMatchingPasspointConfigsForOsuProviders_doesNotReturnNull() {
-        assertNotNull(
-                mCmi.syncGetMatchingPasspointConfigsForOsuProviders(null, mNullAsyncChannel));
-    }
-
-    /**
-     * Verify that syncGetWifiConfigsForPasspointProfiles does not return null from a null message.
-     */
-    @Test
-    public void testSyncGetWifiConfigsForPasspointProfiles_doesNotReturnNull() {
-        assertNotNull(
-                mCmi.syncGetWifiConfigsForPasspointProfiles(null, mNullAsyncChannel));
     }
 
     /**

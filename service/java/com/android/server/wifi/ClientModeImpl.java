@@ -134,9 +134,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -434,21 +432,14 @@ public class ClientModeImpl extends StateMachine {
 
     static final int CMD_BLUETOOTH_ADAPTER_STATE_CHANGE                 = BASE + 31;
 
-    /* Supplicant commands */
-    /* Add/update a network configuration */
-    static final int CMD_ADD_OR_UPDATE_NETWORK                          = BASE + 52;
     /* Delete a network */
     static final int CMD_REMOVE_NETWORK                                 = BASE + 53;
     /* Enable a network. The device will attempt a connection to the given network. */
     static final int CMD_ENABLE_NETWORK                                 = BASE + 54;
     /* Disable a network. */
     static final int CMD_DISABLE_NETWORK                                = BASE + 55;
-    /* Get configured networks */
-    static final int CMD_GET_CONFIGURED_NETWORKS                        = BASE + 59;
     /* Get adaptors */
     static final int CMD_GET_SUPPORTED_FEATURES                         = BASE + 61;
-    /* Get configured networks with real preSharedKey */
-    static final int CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS             = BASE + 62;
     /* Get Link Layer Stats thru HAL */
     static final int CMD_GET_LINK_LAYER_STATS                           = BASE + 63;
     /* Supplicant commands after driver start*/
@@ -512,30 +503,15 @@ public class ClientModeImpl extends StateMachine {
     /* OSU APIs */
     static final int CMD_QUERY_OSU_ICON                                 = BASE + 104;
 
-    /* try to match a provider with current network */
-    static final int CMD_MATCH_PROVIDER_NETWORK                         = BASE + 105;
-
     // Add or update a Passpoint configuration.
     static final int CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG                 = BASE + 106;
 
     // Remove a Passpoint configuration.
     static final int CMD_REMOVE_PASSPOINT_CONFIG                        = BASE + 107;
 
-    // Get the list of installed Passpoint configurations.
-    static final int CMD_GET_PASSPOINT_CONFIGS                          = BASE + 108;
-
-    // Get the list of OSU providers associated with a Passpoint network.
-    static final int CMD_GET_MATCHING_OSU_PROVIDERS                     = BASE + 109;
-
-    // Get the list of installed Passpoint configurations matched with OSU providers
-    static final int CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS = BASE + 110;
-
     /* Commands from/to the SupplicantStateTracker */
     /* Reset the supplicant state tracker */
     static final int CMD_RESET_SUPPLICANT_STATE                         = BASE + 111;
-
-    // Get the list of wifi configurations for installed Passpoint profiles
-    static final int CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES = BASE + 112;
 
     int mDisconnectingWatchdogCount = 0;
     static final int DISCONNECTING_GUARD_TIMER_MSEC = 5000;
@@ -596,10 +572,6 @@ public class ClientModeImpl extends StateMachine {
     /* Enable/Disable WifiConnectivityManager */
     static final int CMD_ENABLE_WIFI_CONNECTIVITY_MANAGER               = BASE + 166;
 
-
-    /* Get FQDN list for Passpoint profiles matched with a given scanResults */
-    static final int CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS = BASE + 168;
-
     /**
      * Used to handle messages bounced between ClientModeImpl and IpClient.
      */
@@ -644,10 +616,10 @@ public class ClientModeImpl extends StateMachine {
     private static final int CMD_PRE_DHCP_ACTION_COMPLETE               = BASE + 256;
     private static final int CMD_POST_DHCP_ACTION                       = BASE + 257;
 
-    private static final int CMD_CONNECT_NETWORK                            = BASE + 258;
-    private static final int CMD_SAVE_NETWORK                               = BASE + 259;
-    private static final int CMD_FORGET_NETWORK                             = BASE + 260;
-    private static final int CMD_PKT_CNT_FETCH                              = BASE + 261;
+    private static final int CMD_CONNECT_NETWORK                        = BASE + 258;
+    private static final int CMD_SAVE_NETWORK                           = BASE + 259;
+    private static final int CMD_FORGET_NETWORK                         = BASE + 260;
+    private static final int CMD_PKT_CNT_FETCH                          = BASE + 261;
 
     // For message logging.
     private static final Class[] sMessageClasses = {
@@ -1552,20 +1524,6 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Blocking method to match the provider with the current network
-     *
-     * @param channel AsyncChannel to use for the response
-     * @param fqdn
-     * @return int returns message result
-     */
-    public int matchProviderWithCurrentNetwork(AsyncChannel channel, String fqdn) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_MATCH_PROVIDER_NETWORK, fqdn);
-        int result = resultMsg.arg1;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
      * Deauthenticate and set the re-authentication hold off time for the current network
      * @param holdoff hold off time in milliseconds
      * @param ess set if the hold off pertains to an ESS rather than a BSS
@@ -1634,140 +1592,6 @@ public class ClientModeImpl extends StateMachine {
     private AtomicInteger mNullMessageCounter = new AtomicInteger(0);
 
     /**
-     * Add a network synchronously
-     *
-     * @return network id of the new network
-     */
-    public int syncAddOrUpdateNetwork(AsyncChannel channel, WifiConfiguration config) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_ADD_OR_UPDATE_NETWORK, config);
-        if (messageIsNull(resultMsg)) return WifiConfiguration.INVALID_NETWORK_ID;
-        int result = resultMsg.arg1;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
-     * Get configured networks synchronously
-     *
-     * @param channel
-     * @return
-     */
-    public List<WifiConfiguration> syncGetConfiguredNetworks(int uuid, AsyncChannel channel,
-            int targetUid) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_CONFIGURED_NETWORKS, uuid,
-                targetUid);
-        if (messageIsNull(resultMsg)) return null;
-        List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
-     * Blocking call to get the current WifiConfiguration by a privileged caller so private data,
-     * like the password, is not redacted.
-     *
-     * @param channel AsyncChannel to use for the response
-     * @return List list of configured networks configs
-     */
-    public List<WifiConfiguration> syncGetPrivilegedConfiguredNetwork(AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(
-                CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS);
-        if (messageIsNull(resultMsg)) return null;
-        List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
-     * Returns the list of FQDN (Fully Qualified Domain Name) to installed Passpoint configurations.
-     *
-     * Return the map of all matching configurations with corresponding scanResults (or an empty map
-     * if none).
-     *
-     * @param scanResults The list of scan results
-     * @return Map that consists of FQDN (Fully Qualified Domain Name) and corresponding
-     * scanResults per network type({@link WifiManager#PASSPOINT_HOME_NETWORK} and {@link
-     * WifiManager#PASSPOINT_ROAMING_NETWORK}).
-     */
-    @NonNull
-    Map<String, Map<Integer, List<ScanResult>>> syncGetAllMatchingFqdnsForScanResults(
-            List<ScanResult> scanResults,
-            AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(
-                CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS,
-                scanResults);
-        if (messageIsNull(resultMsg)) return new HashMap<>();
-        Map<String, Map<Integer, List<ScanResult>>> configs =
-                (Map<String, Map<Integer, List<ScanResult>>>) resultMsg.obj;
-        resultMsg.recycle();
-        return configs;
-    }
-
-    /**
-     * Retrieve a list of {@link OsuProvider} associated with the given list of ScanResult
-     * synchronously.
-     *
-     * @param scanResults a list of ScanResult that has Passpoint APs.
-     * @param channel     Channel for communicating with the state machine
-     * @return Map that consists of {@link OsuProvider} and a matching list of {@link ScanResult}.
-     */
-    @NonNull
-    public Map<OsuProvider, List<ScanResult>> syncGetMatchingOsuProviders(
-            List<ScanResult> scanResults,
-            AsyncChannel channel) {
-        Message resultMsg =
-                channel.sendMessageSynchronously(CMD_GET_MATCHING_OSU_PROVIDERS, scanResults);
-        if (messageIsNull(resultMsg)) return new HashMap<>();
-        Map<OsuProvider, List<ScanResult>> providers =
-                (Map<OsuProvider, List<ScanResult>>) resultMsg.obj;
-        resultMsg.recycle();
-        return providers;
-    }
-
-    /**
-     * Returns the matching Passpoint configurations for given OSU(Online Sign-Up) Providers
-     *
-     * @param osuProviders a list of {@link OsuProvider}
-     * @param channel  AsyncChannel to use for the response
-     * @return Map that consists of {@link OsuProvider} and matching {@link PasspointConfiguration}.
-     */
-    @NonNull
-    public Map<OsuProvider, PasspointConfiguration> syncGetMatchingPasspointConfigsForOsuProviders(
-            List<OsuProvider> osuProviders, AsyncChannel channel) {
-        Message resultMsg =
-                channel.sendMessageSynchronously(
-                        CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS, osuProviders);
-        if (messageIsNull(resultMsg)) return new HashMap<>();
-        Map<OsuProvider, PasspointConfiguration> result =
-                (Map<OsuProvider, PasspointConfiguration>) resultMsg.obj;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
-     * Returns the corresponding wifi configurations for given FQDN (Fully Qualified Domain Name)
-     * list.
-     *
-     * An empty list will be returned when no match is found.
-     *
-     * @param fqdnList a list of FQDN
-     * @param channel  AsyncChannel to use for the response
-     * @return List of {@link WifiConfiguration} converted from
-     * {@link com.android.server.wifi.hotspot2.PasspointProvider}
-     */
-    @NonNull
-    public List<WifiConfiguration> syncGetWifiConfigsForPasspointProfiles(List<String> fqdnList,
-            AsyncChannel channel) {
-        Message resultMsg =
-                channel.sendMessageSynchronously(
-                        CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES, fqdnList);
-        if (messageIsNull(resultMsg)) return new ArrayList<>();
-        List<WifiConfiguration> result = (List<WifiConfiguration>) resultMsg.obj;
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
      * Add or update a Passpoint configuration synchronously.
      *
      * @param channel Channel for communicating with the state machine
@@ -1801,20 +1625,6 @@ public class ClientModeImpl extends StateMachine {
                 fqdn);
         if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 == SUCCESS);
-        resultMsg.recycle();
-        return result;
-    }
-
-    /**
-     * Get the list of installed Passpoint configurations synchronously.
-     *
-     * @param channel Channel for communicating with the state machine
-     * @return List of {@link PasspointConfiguration}
-     */
-    public List<PasspointConfiguration> syncGetPasspointConfigs(AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_PASSPOINT_CONFIGS);
-        if (messageIsNull(resultMsg)) return null;
-        List<PasspointConfiguration> result = (List<PasspointConfiguration>) resultMsg.obj;
         resultMsg.recycle();
         return result;
     }
@@ -2337,31 +2147,6 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(" roam=").append(Boolean.toString(mIsAutoRoaming));
                 sb.append(" fail count=").append(Integer.toString(mRoamFailCount));
                 break;
-            case CMD_ADD_OR_UPDATE_NETWORK:
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg1));
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg2));
-                if (msg.obj != null) {
-                    config = (WifiConfiguration) msg.obj;
-                    sb.append(" ").append(config.configKey());
-                    sb.append(" prio=").append(config.priority);
-                    sb.append(" status=").append(config.status);
-                    if (config.BSSID != null) {
-                        sb.append(" ").append(config.BSSID);
-                    }
-                    WifiConfiguration curConfig = getCurrentWifiConfiguration();
-                    if (curConfig != null) {
-                        if (curConfig.configKey().equals(config.configKey())) {
-                            sb.append(" is current");
-                        } else {
-                            sb.append(" current=").append(curConfig.configKey());
-                            sb.append(" prio=").append(curConfig.priority);
-                            sb.append(" status=").append(curConfig.status);
-                        }
-                    }
-                }
-                break;
             case CMD_ENABLE_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
@@ -2375,13 +2160,6 @@ public class ClientModeImpl extends StateMachine {
                 if (config != null && (key == null || !config.configKey().equals(key))) {
                     sb.append(" target=").append(key);
                 }
-                break;
-            case CMD_GET_CONFIGURED_NETWORKS:
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg1));
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg2));
-                sb.append(" num=").append(mWifiConfigManager.getConfiguredNetworks().size());
                 break;
             case CMD_PRE_DHCP_ACTION:
                 sb.append(" ");
@@ -3506,25 +3284,8 @@ public class ClientModeImpl extends StateMachine {
                     }
                     replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
                     break;
-                case CMD_ADD_OR_UPDATE_NETWORK:
-                    WifiConfiguration config = (WifiConfiguration) message.obj;
-                    NetworkUpdateResult result =
-                            mWifiConfigManager.addOrUpdateNetwork(config, message.sendingUid);
-                    if (!result.isSuccess()) {
-                        mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                    }
-                    replyToMessage(message, message.what, result.getNetworkId());
-                    break;
                 case CMD_REMOVE_NETWORK:
                     removeNetworkConfigAndSendReply(message);
-                    break;
-                case CMD_GET_CONFIGURED_NETWORKS:
-                    replyToMessage(message, message.what,
-                            mWifiConfigManager.getSavedNetworks(message.arg2));
-                    break;
-                case CMD_GET_PRIVILEGED_CONFIGURED_NETWORKS:
-                    replyToMessage(message, message.what,
-                            mWifiConfigManager.getConfiguredNetworksWithPasswords());
                     break;
                 case CMD_ENABLE_RSSI_POLL:
                     mEnableRssiPolling = (message.arg1 == 1);
@@ -3627,16 +3388,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_UPDATE_LINKPROPERTIES:
                     updateLinkProperties((LinkProperties) message.obj);
                     break;
-                case CMD_GET_MATCHING_OSU_PROVIDERS:
-                    replyToMessage(message, message.what, new HashMap<>());
-                    break;
-                case CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS:
-                    replyToMessage(message, message.what,
-                            new HashMap<OsuProvider, PasspointConfiguration>());
-                    break;
-                case CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES:
-                    replyToMessage(message, message.what, new ArrayList<>());
-                    break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     replyToMessage(message, message.what, 0);
                     break;
@@ -3683,7 +3434,6 @@ public class ClientModeImpl extends StateMachine {
                     mWifiConfigManager.handleUserStop(message.arg1);
                     break;
                 case CMD_QUERY_OSU_ICON:
-                case CMD_MATCH_PROVIDER_NETWORK:
                     /* reply with arg1 = 0 - it returns API failure to the calling app
                      * (message.what is not looked at)
                      */
@@ -3702,9 +3452,6 @@ public class ClientModeImpl extends StateMachine {
                     int removeResult = mPasspointManager.removeProvider(
                             (String) message.obj) ? SUCCESS : FAILURE;
                     replyToMessage(message, message.what, removeResult);
-                    break;
-                case CMD_GET_PASSPOINT_CONFIGS:
-                    replyToMessage(message, message.what, mPasspointManager.getProviderConfigs());
                     break;
                 case CMD_RESET_SIM_NETWORKS:
                     /* Defer this message until supplicant is started. */
@@ -3730,9 +3477,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_DIAGS_CONNECT_TIMEOUT:
                     mWifiDiagnostics.reportConnectionEvent(
                             BaseWifiDiagnostics.CONNECTION_EVENT_TIMEOUT);
-                    break;
-                case CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS:
-                    replyToMessage(message, message.what, new HashMap<>());
                     break;
                 case 0:
                     // We want to notice any empty messages (with what == 0) that might crop up.
@@ -4222,22 +3966,6 @@ public class ClientModeImpl extends StateMachine {
                         loge("Invalid SIM auth request");
                     }
                     break;
-                case CMD_GET_MATCHING_OSU_PROVIDERS:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingOsuProviders(
-                                    (List<ScanResult>) message.obj));
-                    break;
-                case CMD_GET_MATCHING_PASSPOINT_CONFIGS_FOR_OSU_PROVIDERS:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getMatchingPasspointConfigsForOsuProviders(
-                                    (List<OsuProvider>) message.obj));
-                    break;
-                case CMD_GET_WIFI_CONFIGS_FOR_PASSPOINT_PROFILES:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getWifiConfigsForPasspointProfiles(
-                                    (List<String>) message.obj));
-
-                    break;
                 case CMD_START_SUBSCRIPTION_PROVISIONING:
                     IProvisioningCallback callback = (IProvisioningCallback) message.obj;
                     OsuProvider provider =
@@ -4511,10 +4239,6 @@ public class ClientModeImpl extends StateMachine {
                             ((Bundle) message.obj).getLong(EXTRA_OSU_ICON_QUERY_BSSID),
                             ((Bundle) message.obj).getString(EXTRA_OSU_ICON_QUERY_FILENAME));
                     break;
-                case CMD_MATCH_PROVIDER_NETWORK:
-                    // TODO(b/31065385): Passpoint config management.
-                    replyToMessage(message, message.what, 0);
-                    break;
                 case CMD_ADD_OR_UPDATE_PASSPOINT_CONFIG:
                     Bundle bundle = (Bundle) message.obj;
                     PasspointConfiguration passpointConfig = bundle.getParcelable(
@@ -4546,11 +4270,6 @@ public class ClientModeImpl extends StateMachine {
                     } else {
                         replyToMessage(message, message.what, FAILURE);
                     }
-                    break;
-                case CMD_GET_ALL_MATCHING_FQDNS_FOR_SCAN_RESULTS:
-                    replyToMessage(message, message.what,
-                            mPasspointManager.getAllMatchingFqdnsForScanResults(
-                                    (List<ScanResult>) message.obj));
                     break;
                 case WifiMonitor.TARGET_BSSID_EVENT:
                     // Trying to associate to this BSSID

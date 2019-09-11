@@ -100,6 +100,7 @@ import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
+import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.WifiHandler;
@@ -163,7 +164,8 @@ public class WifiServiceImpl extends BaseWifiService {
     /** Backup/Restore Module */
     private final WifiBackupRestore mWifiBackupRestore;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
-
+    private final WifiConfigManager mWifiConfigManager;
+    private final PasspointManager mPasspointManager;
     private final WifiLog mLog;
     /**
      * Verbose logging flag. Toggled by developer options.
@@ -287,6 +289,8 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
         mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
+        mWifiConfigManager = mWifiInjector.getWifiConfigManager();
+        mPasspointManager = mWifiInjector.getPasspointManager();
     }
 
     /**
@@ -1680,27 +1684,21 @@ public class WifiServiceImpl extends BaseWifiService {
         } else if (isCarrierApp) {
             targetConfigUid = callingUid; // expose only those configs created by the Carrier App
         }
-
-        if (mClientModeImplChannel != null) {
-            List<WifiConfiguration> configs = mClientModeImpl.syncGetConfiguredNetworks(
-                    callingUid, mClientModeImplChannel, targetConfigUid);
-            if (configs != null) {
-                if (isTargetSdkLessThanQOrPrivileged) {
-                    return new ParceledListSlice<>(configs);
-                } else { // Carrier app: should only get its own configs
-                    List<WifiConfiguration> creatorConfigs = new ArrayList<>();
-                    for (WifiConfiguration config : configs) {
-                        if (config.creatorUid == callingUid) {
-                            creatorConfigs.add(config);
-                        }
-                    }
-                    return new ParceledListSlice<>(creatorConfigs);
-                }
-            }
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+        int finalTargetConfigUid = targetConfigUid;
+        List<WifiConfiguration> configs = mWifiThreadRunner.call(
+                () -> mWifiConfigManager.getSavedNetworks(finalTargetConfigUid),
+                Collections.emptyList());
+        if (isTargetSdkLessThanQOrPrivileged) {
+            return new ParceledListSlice<>(configs);
         }
-        return null;
+        // Carrier app: should only get its own configs
+        List<WifiConfiguration> creatorConfigs = new ArrayList<>();
+        for (WifiConfiguration config : configs) {
+            if (config.creatorUid == callingUid) {
+                creatorConfigs.add(config);
+            }
+        }
+        return new ParceledListSlice<>(creatorConfigs);
     }
 
     /**
@@ -1728,16 +1726,10 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getPrivilegedConfiguredNetworks uid=%").c(callingUid).flush();
         }
-        if (mClientModeImplChannel != null) {
-            List<WifiConfiguration> configs =
-                    mClientModeImpl.syncGetPrivilegedConfiguredNetwork(mClientModeImplChannel);
-            if (configs != null) {
-                return new ParceledListSlice<>(configs);
-            }
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-        }
-        return null;
+        List<WifiConfiguration> configs = mWifiThreadRunner.call(
+                () -> mWifiConfigManager.getConfiguredNetworksWithPasswords(),
+                Collections.emptyList());
+        return new ParceledListSlice<>(configs);
     }
 
     /**
@@ -1760,8 +1752,9 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
-        return mClientModeImpl.syncGetAllMatchingFqdnsForScanResults(scanResults,
-                mClientModeImplChannel);
+        return mWifiThreadRunner.call(
+            () -> mPasspointManager.getAllMatchingFqdnsForScanResults(scanResults),
+                Collections.emptyMap());
     }
 
     /**
@@ -1779,7 +1772,8 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getMatchingOsuProviders uid=%").c(Binder.getCallingUid()).flush();
         }
-        return mClientModeImpl.syncGetMatchingOsuProviders(scanResults, mClientModeImplChannel);
+        return mWifiThreadRunner.call(
+            () -> mPasspointManager.getMatchingOsuProviders(scanResults), Collections.emptyMap());
     }
 
     /**
@@ -1802,8 +1796,9 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.e(TAG, "Attempt to retrieve Passpoint configuration with null osuProviders");
             return new HashMap<>();
         }
-        return mClientModeImpl.syncGetMatchingPasspointConfigsForOsuProviders(osuProviders,
-                mClientModeImplChannel);
+        return mWifiThreadRunner.call(
+            () -> mPasspointManager.getMatchingPasspointConfigsForOsuProviders(osuProviders),
+                Collections.emptyMap());
     }
 
     /**
@@ -1828,8 +1823,9 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.e(TAG, "Attempt to retrieve WifiConfiguration with null fqdn List");
             return new ArrayList<>();
         }
-        return mClientModeImpl.syncGetWifiConfigsForPasspointProfiles(fqdnList,
-                mClientModeImplChannel);
+        return mWifiThreadRunner.call(
+            () -> mPasspointManager.getWifiConfigsForPasspointProfiles(fqdnList),
+                Collections.emptyList());
     }
 
     /**
@@ -1842,8 +1838,9 @@ public class WifiServiceImpl extends BaseWifiService {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return -1;
         }
+        int callingUid = Binder.getCallingUid();
         if (!isTargetSdkLessThanQOrPrivileged(
-                packageName, Binder.getCallingPid(), Binder.getCallingUid())) {
+                packageName, Binder.getCallingPid(), callingUid)) {
             mLog.info("addOrUpdateNetwork not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return -1;
@@ -1885,21 +1882,13 @@ public class WifiServiceImpl extends BaseWifiService {
             return 0;
         }
 
-        //TODO: pass the Uid the ClientModeImpl as a message parameter
         Slog.i("addOrUpdateNetwork", " uid = " + Binder.getCallingUid()
                 + " SSID " + config.SSID
                 + " nid=" + config.networkId);
-        if (config.networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-            config.creatorUid = Binder.getCallingUid();
-        } else {
-            config.lastUpdateUid = Binder.getCallingUid();
-        }
-        if (mClientModeImplChannel != null) {
-            return mClientModeImpl.syncAddOrUpdateNetwork(mClientModeImplChannel, config);
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-            return -1;
-        }
+        return mWifiThreadRunner.call(
+            () -> mWifiConfigManager.addOrUpdateNetwork(config, callingUid)
+                    .getNetworkId(),
+                WifiConfiguration.INVALID_NETWORK_ID);
     }
 
     public static void verifyCert(X509Certificate caCert)
@@ -2068,7 +2057,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
             List<ScanResult> scanResults = mWifiThreadRunner.call(
-                    mScanRequestProxy::getScanResults, Collections.EMPTY_LIST);
+                    mScanRequestProxy::getScanResults, Collections.emptyList());
             return scanResults;
         } catch (SecurityException e) {
             Slog.e(TAG, "Permission violation - getScanResults not allowed for uid="
@@ -2137,7 +2126,8 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
-        return mClientModeImpl.syncGetPasspointConfigs(mClientModeImplChannel);
+        return mWifiThreadRunner.call(
+            () -> mPasspointManager.getProviderConfigs(), Collections.emptyList());
     }
 
     /**
@@ -2160,7 +2150,7 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public int matchProviderWithCurrentNetwork(String fqdn) {
         mLog.info("matchProviderWithCurrentNetwork uid=%").c(Binder.getCallingUid()).flush();
-        return mClientModeImpl.matchProviderWithCurrentNetwork(mClientModeImplChannel, fqdn);
+        return 0;
     }
 
     /**
@@ -2677,41 +2667,34 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)) {
             return;
         }
-
         if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING)) {
             // Turn mobile hotspot off
             stopSoftApInternal(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
         }
 
-        if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) {
-            if (mClientModeImplChannel != null) {
-                // Delete all Wifi SSIDs
-                List<WifiConfiguration> networks = mClientModeImpl.syncGetConfiguredNetworks(
-                        Binder.getCallingUid(), mClientModeImplChannel, Process.WIFI_UID);
-                if (networks != null) {
-                    for (WifiConfiguration config : networks) {
-                        removeNetwork(config.networkId, packageName);
-                    }
-                }
-
-                // Delete all Passpoint configurations
-                List<PasspointConfiguration> configs = mClientModeImpl.syncGetPasspointConfigs(
-                        mClientModeImplChannel);
-                if (configs != null) {
-                    for (PasspointConfiguration config : configs) {
-                        removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
-                    }
-                }
-            }
-
-            mWifiThreadRunner.post(() -> {
-                mWifiInjector.getWifiConfigManager().clearDeletedEphemeralNetworks();
-                mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
-                mWifiNetworkSuggestionsManager.clear();
-                mWifiInjector.getWifiScoreCard().clear();
-            });
-            notifyFactoryReset();
+        if (mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) {
+            return;
         }
+        // Delete all Wifi SSIDs
+        List<WifiConfiguration> networks = mWifiThreadRunner.call(
+                () -> mWifiConfigManager.getSavedNetworks(Process.WIFI_UID),
+                Collections.emptyList());
+        for (WifiConfiguration network : networks) {
+            removeNetwork(network.networkId, packageName);
+        }
+        // Delete all Passpoint configurations
+        List<PasspointConfiguration> configs = mWifiThreadRunner.call(
+                () -> mPasspointManager.getProviderConfigs(), Collections.emptyList());
+        for (PasspointConfiguration config : configs) {
+            removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
+        }
+        mWifiThreadRunner.post(() -> {
+            mWifiConfigManager.clearDeletedEphemeralNetworks();
+            mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
+            mWifiNetworkSuggestionsManager.clear();
+            mWifiInjector.getWifiScoreCard().clear();
+            notifyFactoryReset();
+        });
     }
 
     /**
@@ -2774,8 +2757,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         Slog.d(TAG, "Retrieving backup data");
-        List<WifiConfiguration> wifiConfigurations =
-                mClientModeImpl.syncGetPrivilegedConfiguredNetwork(mClientModeImplChannel);
+        List<WifiConfiguration> wifiConfigurations = mWifiThreadRunner.call(
+                () -> mWifiConfigManager.getConfiguredNetworksWithPasswords(), null);
         byte[] backupData =
                 mWifiBackupRestore.retrieveBackupDataFromConfigurations(wifiConfigurations);
         Slog.d(TAG, "Retrieved backup data");
@@ -2792,9 +2775,12 @@ public class WifiServiceImpl extends BaseWifiService {
             Slog.e(TAG, "Backup data parse failed");
             return;
         }
+        int callingUid = Binder.getCallingUid();
         for (WifiConfiguration configuration : configurations) {
-            int networkId = mClientModeImpl.syncAddOrUpdateNetwork(
-                    mClientModeImplChannel, configuration);
+            int networkId = mWifiThreadRunner.call(
+                    () -> mWifiConfigManager.addOrUpdateNetwork(configuration, callingUid)
+                            .getNetworkId(),
+                    WifiConfiguration.INVALID_NETWORK_ID);
             if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
                 Slog.e(TAG, "Restore network failed: " + configuration.configKey());
                 continue;
@@ -3067,7 +3053,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("getNetworkSuggestionList uid=%").c(Binder.getCallingUid()).flush();
         }
         return mWifiThreadRunner.call(() ->
-                mWifiNetworkSuggestionsManager.get(callingPackageName), Collections.EMPTY_LIST);
+                mWifiNetworkSuggestionsManager.get(callingPackageName), Collections.emptyList());
     }
 
     /**
