@@ -2128,7 +2128,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         // This simulates the behavior of roaming to network with |sBSSID1|, |sFreq1|.
         // Send a CMD_ASSOCIATED_BSSID, verify WifiInfo is updated.
-        mCmi.sendMessage(ClientModeImpl.CMD_ASSOCIATED_BSSID, 0, 0, sBSSID1);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATED_BSSID_EVENT, 0, 0, sBSSID1);
         mLooper.dispatchAll();
 
         WifiInfo wifiInfo = mCmi.getWifiInfo();
@@ -3720,7 +3720,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 0, FRAMEWORK_NETWORK_ID, DEFAULT_TEST_SSID);
         mLooper.dispatchAll();
 
-        verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME, FRAMEWORK_NETWORK_ID,
+        verify(mWifiNative).simIdentityResponse(WIFI_IFACE_NAME,
                 "13214561234567890@wlan.mnc456.mcc321.3gppnetwork.org", "");
     }
 

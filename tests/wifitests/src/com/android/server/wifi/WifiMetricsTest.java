@@ -1789,8 +1789,8 @@ public class WifiMetricsTest extends WifiBaseTest {
         {WifiMonitor.NETWORK_CONNECTION_EVENT,      0,                   0},
         {WifiMonitor.NETWORK_DISCONNECTION_EVENT,   LOCAL_GEN,           DEAUTH_REASON},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0},
-        {ClientModeImpl.CMD_ASSOCIATED_BSSID,       0,                   0},
-        {ClientModeImpl.CMD_TARGET_BSSID,           0,                   0},
+        {WifiMonitor.ASSOCIATED_BSSID_EVENT,        0,                   0},
+        {WifiMonitor.TARGET_BSSID_EVENT,            0,                   0},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0},
         {WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0,                   0}
     };

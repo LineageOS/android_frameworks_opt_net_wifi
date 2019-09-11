@@ -1959,7 +1959,7 @@ public class WifiNative {
      * @return true if succeeds, false otherwise.
      */
     public boolean simAuthResponse(
-            @NonNull String ifaceName, int id, String type, String response) {
+            @NonNull String ifaceName, String type, String response) {
         if (SIM_AUTH_RESP_TYPE_GSM_AUTH.equals(type)) {
             return mSupplicantStaIfaceHal.sendCurrentNetworkEapSimGsmAuthResponse(
                     ifaceName, response);
@@ -1980,7 +1980,7 @@ public class WifiNative {
      * @param ifaceName Name of the interface.
      * @return true if succeeds, false otherwise.
      */
-    public boolean simAuthFailedResponse(@NonNull String ifaceName, int id) {
+    public boolean simAuthFailedResponse(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.sendCurrentNetworkEapSimGsmAuthFailure(ifaceName);
     }
 
@@ -1990,7 +1990,7 @@ public class WifiNative {
      * @param ifaceName Name of the interface.
      * @return true if succeeds, false otherwise.
      */
-    public boolean umtsAuthFailedResponse(@NonNull String ifaceName, int id) {
+    public boolean umtsAuthFailedResponse(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.sendCurrentNetworkEapSimUmtsAuthFailure(ifaceName);
     }
 
@@ -2002,8 +2002,8 @@ public class WifiNative {
      * @param encryptedResponse String to send.
      * @return true if succeeds, false otherwise.
      */
-    public boolean simIdentityResponse(@NonNull String ifaceName, int id,
-                                       String unencryptedResponse, String encryptedResponse) {
+    public boolean simIdentityResponse(@NonNull String ifaceName, String unencryptedResponse,
+                                       String encryptedResponse) {
         return mSupplicantStaIfaceHal.sendCurrentNetworkEapIdentityResponse(ifaceName,
                 unencryptedResponse, encryptedResponse);
     }
