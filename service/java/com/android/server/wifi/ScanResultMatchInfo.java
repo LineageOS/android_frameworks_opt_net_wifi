@@ -15,6 +15,7 @@
  */
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
@@ -46,7 +47,7 @@ public class ScanResultMatchInfo {
     /**
      * Fetch network type from network configuration.
      */
-    public static @WifiConfiguration.SecurityType int getNetworkType(WifiConfiguration config) {
+    private static @WifiConfiguration.SecurityType int getNetworkType(WifiConfiguration config) {
         if (WifiConfigurationUtil.isConfigForSaeNetwork(config)) {
             return WifiConfiguration.SECURITY_TYPE_SAE;
         } else if (WifiConfigurationUtil.isConfigForPskNetwork(config)) {
@@ -78,7 +79,7 @@ public class ScanResultMatchInfo {
     /**
      * Fetch network type from scan result.
      */
-    public static @WifiConfiguration.SecurityType int getNetworkType(ScanResult scanResult) {
+    private static @WifiConfiguration.SecurityType int getNetworkType(ScanResult scanResult) {
         if (ScanResultUtil.isScanResultForSaeNetwork(scanResult)) {
             return WifiConfiguration.SECURITY_TYPE_SAE;
         } else if (ScanResultUtil.isScanResultForPskNetwork(scanResult)) {
@@ -123,19 +124,11 @@ public class ScanResultMatchInfo {
         return info;
     }
 
-    @Override
-    public boolean equals(Object otherObj) {
-        if (this == otherObj) {
-            return true;
-        } else if (!(otherObj instanceof ScanResultMatchInfo)) {
-            return false;
-        }
-        ScanResultMatchInfo other = (ScanResultMatchInfo) otherObj;
-        if (!Objects.equals(networkSsid, other.networkSsid)) {
-            return false;
-        }
+    /**
+     * Checks for equality of network type.
+     */
+    public boolean networkTypeEquals(@NonNull ScanResultMatchInfo other) {
         boolean networkTypeEquals;
-
         // Detect <SSID, PSK+SAE> scan result and say it is equal to <SSID, PSK> configuration
         if (other.pskSaeInTransitionMode && networkType == WifiConfiguration.SECURITY_TYPE_PSK
                 || (pskSaeInTransitionMode
@@ -151,6 +144,20 @@ public class ScanResultMatchInfo {
             networkTypeEquals = networkType == other.networkType;
         }
         return networkTypeEquals;
+    }
+
+    @Override
+    public boolean equals(Object otherObj) {
+        if (this == otherObj) {
+            return true;
+        } else if (!(otherObj instanceof ScanResultMatchInfo)) {
+            return false;
+        }
+        ScanResultMatchInfo other = (ScanResultMatchInfo) otherObj;
+        if (!Objects.equals(networkSsid, other.networkSsid)) {
+            return false;
+        }
+        return networkTypeEquals(other);
     }
 
     @Override
