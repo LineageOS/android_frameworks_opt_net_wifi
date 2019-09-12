@@ -453,6 +453,7 @@ public class WifiNetworkSuggestionsManager {
                             scanResultMatchInfo, extNetworkSuggestionsForScanResultMatchInfo);
                 }
             }
+            extNetworkSuggestionsForScanResultMatchInfo.remove(extNetworkSuggestion);
             extNetworkSuggestionsForScanResultMatchInfo.add(extNetworkSuggestion);
         }
     }
@@ -576,25 +577,25 @@ public class WifiNetworkSuggestionsManager {
         }
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                 convertToExtendedWnsSet(networkSuggestions, perAppInfo);
-        // check if the app is trying to in-place modify network suggestions.
-        if (!Collections.disjoint(perAppInfo.extNetworkSuggestions, extNetworkSuggestions)) {
-            Log.e(TAG, "Failed to add network suggestions for " + packageName
-                    + ". Modification of active network suggestions disallowed");
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE;
-        }
         if (perAppInfo.extNetworkSuggestions.size() + extNetworkSuggestions.size()
                 > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
-            Log.e(TAG, "Failed to add network suggestions for " + packageName
-                    + ". Exceeds max per app, current list size: "
-                    + perAppInfo.extNetworkSuggestions.size()
-                    + ", new list size: "
-                    + extNetworkSuggestions.size());
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_EXCEEDS_MAX_PER_APP;
+            Set<ExtendedWifiNetworkSuggestion> savedNetworkSuggestions =
+                    new HashSet<>(perAppInfo.extNetworkSuggestions);
+            savedNetworkSuggestions.addAll(extNetworkSuggestions);
+            if (savedNetworkSuggestions.size() > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
+                Log.e(TAG, "Failed to add network suggestions for " + packageName
+                        + ". Exceeds max per app, current list size: "
+                        + perAppInfo.extNetworkSuggestions.size()
+                        + ", new list size: "
+                        + extNetworkSuggestions.size());
+                return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_EXCEEDS_MAX_PER_APP;
+            }
         }
         if (perAppInfo.extNetworkSuggestions.isEmpty()) {
             // Start tracking app-op changes from the app if they have active suggestions.
             startTrackingAppOpsChange(packageName, uid);
         }
+        perAppInfo.extNetworkSuggestions.removeAll(extNetworkSuggestions);
         perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
         // Update the max size for this app.
         perAppInfo.maxSize = Math.max(perAppInfo.extNetworkSuggestions.size(), perAppInfo.maxSize);
