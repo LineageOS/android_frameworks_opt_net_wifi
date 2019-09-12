@@ -85,6 +85,8 @@ public class WifiMonitor {
     /* Indicates assoc reject event */
     public static final int ASSOCIATION_REJECTION_EVENT          = BASE + 43;
     public static final int ANQP_DONE_EVENT                      = BASE + 44;
+    public static final int ASSOCIATED_BSSID_EVENT               = BASE + 45;
+    public static final int TARGET_BSSID_EVENT                   = BASE + 46;
 
     /* hotspot 2.0 ANQP events */
     public static final int GAS_QUERY_START_EVENT                = BASE + 51;
@@ -473,7 +475,7 @@ public class WifiMonitor {
      * @param bssid BSSID of the access point.
      */
     public void broadcastAssociatedBssidEvent(String iface, String bssid) {
-        sendMessage(iface, ClientModeImpl.CMD_ASSOCIATED_BSSID, 0, 0, bssid);
+        sendMessage(iface, ASSOCIATED_BSSID_EVENT, 0, 0, bssid);
     }
 
     /**
@@ -483,7 +485,7 @@ public class WifiMonitor {
      * @param bssid BSSID of the access point.
      */
     public void broadcastTargetBssidEvent(String iface, String bssid) {
-        sendMessage(iface, ClientModeImpl.CMD_TARGET_BSSID, 0, 0, bssid);
+        sendMessage(iface, TARGET_BSSID_EVENT, 0, 0, bssid);
     }
 
     /**
