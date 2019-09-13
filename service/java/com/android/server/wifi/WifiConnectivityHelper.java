@@ -29,7 +29,7 @@ import java.util.ArrayList;
  * access WifiNative. It starts with firmware roaming. TODO(b/34819513): Move operations
  * such as connection to network and legacy framework roaming here.
  *
- * NOTE: This class is not thread safe and should only be used from the main Wifi thread.
+ * NOTE: This class is not thread safe and should only be used from the ClientModeImpl thread.
  */
 public class WifiConnectivityHelper {
     private static final String TAG = "WifiConnectivityHelper";
