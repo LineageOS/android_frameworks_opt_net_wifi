@@ -2822,28 +2822,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 any(ITxPacketCountListener.class), anyInt(), anyInt());
     }
 
-    /**
-     * Verify that setCountryCode() calls WifiCountryCode object on succeess.
-     */
-    @Test
-    public void testSetCountryCode() throws Exception {
-        mWifiServiceImpl.setCountryCode(TEST_COUNTRY_CODE);
-        verify(mWifiCountryCode).setCountryCode(TEST_COUNTRY_CODE);
-    }
-
-    /**
-     * Verify that setCountryCode() fails and doesn't call WifiCountryCode object
-     * if the caller doesn't have CONNECTIVITY_INTERNAL permission.
-     */
-    @Test(expected = SecurityException.class)
-    public void testSetCountryCodeFailsWithoutConnectivityInternalPermission() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(
-                        eq(android.Manifest.permission.CONNECTIVITY_INTERNAL),
-                        eq("ConnectivityService"));
-        mWifiServiceImpl.setCountryCode(TEST_COUNTRY_CODE);
-        verify(mWifiCountryCode, never()).setCountryCode(TEST_COUNTRY_CODE);
-    }
 
     /**
      * Tests the scenario when a scan request arrives while the device is idle. In this case

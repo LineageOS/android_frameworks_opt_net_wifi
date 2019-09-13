@@ -229,7 +229,7 @@ public class WifiInjector {
 
         // Now get instances of all the objects that depend on the HandlerThreads
         mWifiTrafficPoller = new WifiTrafficPoller(wifiHandler);
-        mCountryCode = new WifiCountryCode(mWifiNative,
+        mCountryCode = new WifiCountryCode(mContext, wifiHandler, mWifiNative,
                 SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE),
                 mContext.getResources()
                         .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss));

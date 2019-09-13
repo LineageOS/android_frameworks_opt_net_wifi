@@ -2164,21 +2164,6 @@ public class WifiServiceImpl extends BaseWifiService {
         mClientModeImpl.deauthenticateNetwork(mClientModeImplChannel, holdoff, ess);
     }
 
-    /**
-     * Set the country code
-     * @param countryCode ISO 3166 country code.
-     *
-     */
-    @Override
-    public void setCountryCode(String countryCode) {
-        Slog.i(TAG, "WifiService trying to set country code to " + countryCode);
-        enforceConnectivityInternalPermission();
-        mLog.info("setCountryCode uid=%").c(Binder.getCallingUid()).flush();
-        final long token = Binder.clearCallingIdentity();
-        mCountryCode.setCountryCode(countryCode);
-        Binder.restoreCallingIdentity(token);
-    }
-
      /**
      * Get the country code
      * @return Get the best choice country code for wifi, regardless of if it was set or
