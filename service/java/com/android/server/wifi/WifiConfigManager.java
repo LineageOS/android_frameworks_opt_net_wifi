@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.admin.DeviceAdminInfo;
@@ -157,34 +158,34 @@ public class WifiConfigManager {
             Integer.MAX_VALUE   // threshold for DISABLED_AUTHENTICATION_NO_SUBSCRIBED
     };
     /**
-     * Interface for other modules to listen to the saved network updated
+     * Interface for other modules to listen to the network updated
      * events.
      */
-    public interface OnSavedNetworkUpdateListener {
+    public interface OnNetworkUpdateListener {
         /**
-         * Invoked on saved network being added.
+         * Invoked on network being added.
          */
-        void onSavedNetworkAdded(int networkId);
+        void onNetworkAdded(@NonNull WifiConfiguration config);
         /**
-         * Invoked on saved network being enabled.
+         * Invoked on network being enabled.
          */
-        void onSavedNetworkEnabled(int networkId);
+        void onNetworkEnabled(@NonNull WifiConfiguration config);
         /**
-         * Invoked on saved network being permanently disabled.
+         * Invoked on network being permanently disabled.
          */
-        void onSavedNetworkPermanentlyDisabled(int networkId, int disableReason);
+        void onNetworkPermanentlyDisabled(@NonNull WifiConfiguration config, int disableReason);
         /**
-         * Invoked on saved network being removed.
+         * Invoked on network being removed.
          */
-        void onSavedNetworkRemoved(int networkId);
+        void onNetworkRemoved(@NonNull WifiConfiguration config);
         /**
-         * Invoked on saved network being temporarily disabled.
+         * Invoked on network being temporarily disabled.
          */
-        void onSavedNetworkTemporarilyDisabled(int networkId, int disableReason);
+        void onNetworkTemporarilyDisabled(@NonNull WifiConfiguration config, int disableReason);
         /**
-         * Invoked on saved network being updated.
+         * Invoked on network being updated.
          */
-        void onSavedNetworkUpdated(int networkId);
+        void onNetworkUpdated(@NonNull WifiConfiguration config);
     }
     /**
      * Max size of scan details to cache in {@link #mScanDetailCaches}.
@@ -372,8 +373,8 @@ public class WifiConfigManager {
     private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     private final RandomizedMacStoreData mRandomizedMacStoreData;
 
-    // Store the saved network update listener.
-    private OnSavedNetworkUpdateListener mListener = null;
+    // Store the network update listener.
+    private OnNetworkUpdateListener mListener = null;
 
     private boolean mPnoFrequencyCullingEnabled = false;
     private boolean mPnoRecencySortingEnabled = false;
@@ -1388,16 +1389,16 @@ public class WifiConfigManager {
         // Unless the added network is ephemeral or Passpoint, persist the network update/addition.
         if (!config.ephemeral && !config.isPasspoint()) {
             saveToStore(true);
-            if (mListener != null) {
-                if (result.isNewNetwork()) {
-                    mListener.onSavedNetworkAdded(newConfig.networkId);
-                } else {
-                    mListener.onSavedNetworkUpdated(newConfig.networkId);
-                }
+        }
+
+        if (mListener != null) {
+            if (result.isNewNetwork()) {
+                mListener.onNetworkAdded(new WifiConfiguration(newConfig));
+            } else {
+                mListener.onNetworkUpdated(new WifiConfiguration(newConfig));
             }
         }
         return result;
-
     }
 
     /**
@@ -1476,8 +1477,8 @@ public class WifiConfigManager {
         // Unless the removed network is ephemeral or Passpoint, persist the network removal.
         if (!config.ephemeral && !config.isPasspoint()) {
             saveToStore(true);
-            if (mListener != null) mListener.onSavedNetworkRemoved(networkId);
         }
+        if (mListener != null) mListener.onNetworkRemoved(new WifiConfiguration(config));
         return true;
     }
 
@@ -1605,7 +1606,7 @@ public class WifiConfigManager {
 
         // Clear out all the disable reason counters.
         status.clearDisableReasonCounter();
-        if (mListener != null) mListener.onSavedNetworkEnabled(config.networkId);
+        if (mListener != null) mListener.onNetworkEnabled(new WifiConfiguration(config));
     }
 
     /**
@@ -1620,7 +1621,7 @@ public class WifiConfigManager {
         status.setDisableTime(mClock.getElapsedSinceBootMillis());
         status.setNetworkSelectionDisableReason(disableReason);
         if (mListener != null) {
-            mListener.onSavedNetworkTemporarilyDisabled(config.networkId, disableReason);
+            mListener.onNetworkTemporarilyDisabled(new WifiConfiguration(config), disableReason);
         }
     }
 
@@ -1636,7 +1637,7 @@ public class WifiConfigManager {
                 NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
         status.setNetworkSelectionDisableReason(disableReason);
         if (mListener != null) {
-            mListener.onSavedNetworkPermanentlyDisabled(config.networkId, disableReason);
+            mListener.onNetworkPermanentlyDisabled(new WifiConfiguration(config), disableReason);
         }
     }
 
@@ -3376,9 +3377,9 @@ public class WifiConfigManager {
     }
 
     /**
-     * Set the saved network update event listener
+     * Set the network update event listener
      */
-    public void setOnSavedNetworkUpdateListener(OnSavedNetworkUpdateListener listener) {
+    public void setOnNetworkUpdateListener(OnNetworkUpdateListener listener) {
         mListener = listener;
     }
 

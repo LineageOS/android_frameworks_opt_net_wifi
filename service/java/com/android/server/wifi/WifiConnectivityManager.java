@@ -532,39 +532,39 @@ public class WifiConnectivityManager {
 
     private final PnoScanListener mPnoScanListener = new PnoScanListener();
 
-    private class OnSavedNetworkUpdateListener implements
-            WifiConfigManager.OnSavedNetworkUpdateListener {
+    private class OnNetworkUpdateListener implements
+            WifiConfigManager.OnNetworkUpdateListener {
         @Override
-        public void onSavedNetworkAdded(int networkId) {
+        public void onNetworkAdded(WifiConfiguration config) {
             updatePnoScan();
         }
         @Override
-        public void onSavedNetworkEnabled(int networkId) {
+        public void onNetworkEnabled(WifiConfiguration config) {
             updatePnoScan();
         }
         @Override
-        public void onSavedNetworkRemoved(int networkId) {
+        public void onNetworkRemoved(WifiConfiguration config) {
             updatePnoScan();
         }
         @Override
-        public void onSavedNetworkUpdated(int networkId) {
+        public void onNetworkUpdated(WifiConfiguration config) {
             // User might have changed meteredOverride, so update capabilties
             mStateMachine.updateCapabilities();
             updatePnoScan();
         }
         @Override
-        public void onSavedNetworkTemporarilyDisabled(int networkId, int disableReason) {
+        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) {
             if (disableReason == DISABLED_NO_INTERNET_TEMPORARY) return;
-            mConnectivityHelper.removeNetworkIfCurrent(networkId);
+            mConnectivityHelper.removeNetworkIfCurrent(config.networkId);
         }
         @Override
-        public void onSavedNetworkPermanentlyDisabled(int networkId, int disableReason) {
+        public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
             // For DISABLED_NO_INTERNET_PERMANENT we do not need to remove the network
             // because supplicant won't be trying to reconnect. If this is due to a
             // preventAutomaticReconnect request from ConnectivityService, that service
             // will disconnect as appropriate.
             if (disableReason == DISABLED_NO_INTERNET_PERMANENT) return;
-            mConnectivityHelper.removeNetworkIfCurrent(networkId);
+            mConnectivityHelper.removeNetworkIfCurrent(config.networkId);
             updatePnoScan();
         }
         private void updatePnoScan() {
@@ -638,7 +638,7 @@ public class WifiConnectivityManager {
                 + " initialScoreMax " + initialScoreMax());
 
         // Listen to WifiConfigManager network update events
-        mConfigManager.setOnSavedNetworkUpdateListener(new OnSavedNetworkUpdateListener());
+        mConfigManager.setOnNetworkUpdateListener(new OnNetworkUpdateListener());
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */

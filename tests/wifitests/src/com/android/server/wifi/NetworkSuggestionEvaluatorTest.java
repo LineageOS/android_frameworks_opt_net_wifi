@@ -435,6 +435,10 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 appInteractions, meteredness, priorities, uids, packageNames);
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
+        // setup config manager interactions.
+        suggestions[0].wifiConfiguration.fromWifiNetworkSuggestion = true;
+        suggestions[0].wifiConfiguration.ephemeral = true;
+        setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
         // Existing saved network matching the credentials.
         when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.configKey()))
                 .thenReturn(suggestions[0].wifiConfiguration);
@@ -455,6 +459,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
+        verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
+                eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
+        verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
         verifyNoMoreInteractions(mWifiConfigManager);
@@ -538,6 +545,8 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
+        suggestions[0].wifiConfiguration.fromWifiNetworkSuggestion = true;
+        suggestions[0].wifiConfiguration.ephemeral = true;
         setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
         // Mark the network disabled.
         suggestions[0].wifiConfiguration.getNetworkSelectionStatus().setNetworkSelectionStatus(
@@ -560,6 +569,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
+        verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
+                eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
+        verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
         verify(mWifiConfigManager).tryEnableNetwork(eq(
                 suggestions[0].wifiConfiguration.networkId));
         // Verify we did not try to add any new networks or other interactions with
@@ -596,6 +608,8 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         // Link the scan result with suggestions.
         linkScanDetailsWithNetworkSuggestions(scanDetails, suggestions);
         // setup config manager interactions.
+        suggestions[0].wifiConfiguration.fromWifiNetworkSuggestion = true;
+        suggestions[0].wifiConfiguration.ephemeral = true;
         setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
         // Mark the network disabled.
         suggestions[0].wifiConfiguration.getNetworkSelectionStatus().setNetworkSelectionStatus(
@@ -622,6 +636,9 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
                 suggestions[0].wifiConfiguration.configKey()));
+        verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
+                eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
+        verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
         verify(mWifiConfigManager).tryEnableNetwork(eq(
                 suggestions[0].wifiConfiguration.networkId));
         // Verify we did not try to add any new networks or other interactions with
