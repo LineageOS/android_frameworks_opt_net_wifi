@@ -2810,6 +2810,21 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that we don't crash when WifiNative returns null as the current MAC address.
+     * @throws Exception
+     */
+    @Test
+    public void testMacRandomizationWifiNativeReturningNull() throws Exception {
+        when(mWifiNative.getMacAddress(anyString())).thenReturn(null);
+        initializeAndAddNetworkAndVerifySuccess();
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
+
+        connect();
+        verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
+    }
+
+    /**
      * Verifies that CMD_START_CONNECT make WifiDiagnostics report
      * CONNECTION_EVENT_STARTED
      * @throws Exception
