@@ -117,6 +117,7 @@ public class WifiLastResortWatchdog {
     private boolean mWatchdogFixedWifi = true;
     private long mLastStartConnectTime = 0;
     private Handler mHandler;
+    private final WifiThreadRunner mWifiThreadRunner;
 
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
@@ -125,7 +126,7 @@ public class WifiLastResortWatchdog {
 
     WifiLastResortWatchdog(WifiInjector wifiInjector, Context context, Clock clock,
             WifiMetrics wifiMetrics, ClientModeImpl clientModeImpl, Looper clientModeImplLooper,
-            DeviceConfigFacade deviceConfigFacade) {
+            DeviceConfigFacade deviceConfigFacade, WifiThreadRunner wifiThreadRunner) {
         mWifiInjector = wifiInjector;
         mClock = clock;
         mWifiMetrics = wifiMetrics;
@@ -133,6 +134,7 @@ public class WifiLastResortWatchdog {
         mClientModeImplLooper = clientModeImplLooper;
         mContext = context;
         mDeviceConfigFacade = deviceConfigFacade;
+        mWifiThreadRunner = wifiThreadRunner;
         mHandler = new Handler(clientModeImplLooper) {
             public void handleMessage(Message msg) {
                 processMessage(msg);
@@ -172,9 +174,8 @@ public class WifiLastResortWatchdog {
                                 + abnormalConnectionDurationMs + " milliseconds. "
                                 + "Actually took " + durationMs + " milliseconds.";
                         logv("Triggering bug report for abnormal connection time.");
-                        mWifiInjector.getClientModeImplHandler().post(() -> {
-                            mClientModeImpl.takeBugReport(bugTitle, bugDetail);
-                        });
+                        mWifiThreadRunner.post(() ->
+                                mClientModeImpl.takeBugReport(bugTitle, bugDetail));
                     }
                 }
                 // Should reset last connection time after each connection regardless if bugreport

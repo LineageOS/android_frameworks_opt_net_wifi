@@ -42,7 +42,7 @@ import com.android.server.wifi.WifiNative.DppEventCallback;
  */
 public class DppManager {
     private static final String TAG = "DppManager";
-    public Handler mHandler;
+    private final Handler mHandler;
 
     private DppRequestInfo mDppRequestInfo = null;
     private final WifiNative mWifiNative;
