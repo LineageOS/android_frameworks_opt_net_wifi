@@ -104,6 +104,7 @@ public class WifiInjector {
     private OpenNetworkNotifier mOpenNetworkNotifier;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiLockManager mLockManager;
+    private final WifiController mWifiController;
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
     private final WifiMetrics mWifiMetrics;
@@ -151,7 +152,7 @@ public class WifiInjector {
     private final LinkProbeManager mLinkProbeManager;
     private IpMemoryStore mIpMemoryStore;
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
-    private final WifiThreadRunner mWifiThreadRunner;
+
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -188,7 +189,6 @@ public class WifiInjector {
         mWifiHandlerThread.start();
         Looper wifiLooper = mWifiHandlerThread.getLooper();
         Handler wifiHandler = mWifiHandlerThread.getThreadHandler();
-        mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
         mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, wifiHandler, mFrameworkFacade);
@@ -302,9 +302,8 @@ public class WifiInjector {
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager);
-        mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
-                mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
-                mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);
+        mActiveModeWarden = new ActiveModeWarden(this, mContext, wifiLooper,
+                mWifiNative, new DefaultModeManager(mContext), mBatteryStats);
 
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, this, mFrameworkFacade);
@@ -317,7 +316,9 @@ public class WifiInjector {
                 this, mFrameworkFacade, mClock);
         mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
                 mClientModeImpl, mFrameworkFacade, wifiHandler, mWifiNative, mClock, mWifiMetrics);
-        mSelfRecovery = new SelfRecovery(mActiveModeWarden, mClock);
+        mWifiController = new WifiController(mContext, mClientModeImpl, wifiLooper,
+                mSettingsStore, mFrameworkFacade, mActiveModeWarden, mWifiPermissionsUtil);
+        mSelfRecovery = new SelfRecovery(mWifiController, mClock);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
                 mClientModeImpl.getMcastLockManagerFilterController(),
                 BatteryStatsService.getService());
@@ -420,6 +421,10 @@ public class WifiInjector {
         return mClientModeImpl;
     }
 
+    public Handler getClientModeImplHandler() {
+        return mClientModeImpl.getHandler();
+    }
+
     public ActiveModeWarden getActiveModeWarden() {
         return mActiveModeWarden;
     }
@@ -430,6 +435,10 @@ public class WifiInjector {
 
     public WifiLockManager getWifiLockManager() {
         return mLockManager;
+    }
+
+    public WifiController getWifiController() {
+        return mWifiController;
     }
 
     public WifiLastResortWatchdog getWifiLastResortWatchdog() {
@@ -579,8 +588,7 @@ public class WifiInjector {
                 mWifiConfigManager, mWifiConfigStore, clientModeImpl,
                 new ConnectToNetworkNotificationBuilder(mContext, this, mFrameworkFacade));
         mWifiLastResortWatchdog = new WifiLastResortWatchdog(this, mContext, mClock,
-                mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade,
-                mWifiThreadRunner);
+                mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
@@ -729,9 +737,5 @@ public class WifiInjector {
 
     public String getWifiStackPackageName() {
        return mContext.getPackageName();
-    }
-
-    public WifiThreadRunner getWifiThreadRunner() {
-        return mWifiThreadRunner;
     }
 }

@@ -78,7 +78,7 @@ public class WakeupControllerTest {
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private WifiSettingsStore mWifiSettingsStore;
     @Mock private WifiWakeMetrics mWifiWakeMetrics;
-    @Mock private ActiveModeWarden mActiveModeWarden;
+    @Mock private WifiController mWifiController;
     @Mock private WifiNative mWifiNative;
     @Mock private Clock mClock;
 
@@ -95,7 +95,7 @@ public class WakeupControllerTest {
 
         when(mWifiInjector.getWifiScanner()).thenReturn(mWifiScanner);
         when(mWifiInjector.getWifiSettingsStore()).thenReturn(mWifiSettingsStore);
-        when(mWifiInjector.getActiveModeWarden()).thenReturn(mActiveModeWarden);
+        when(mWifiInjector.getWifiController()).thenReturn(mWifiController);
         when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
         when(mWifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY))
                 .thenReturn(new int[]{DFS_CHANNEL_FREQ});
