@@ -122,6 +122,7 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -403,9 +404,8 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
             Boolean scanSuccess = mWifiThreadRunner.call(() ->
-                    mScanRequestProxy.startScan(callingUid, packageName));
+                    mScanRequestProxy.startScan(callingUid, packageName), null);
             if (scanSuccess == null) {
-                Log.e(TAG, "Timed out while synchronously starting scan");
                 sendFailedScanBroadcast();
                 return false;
             }
@@ -1425,12 +1425,8 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
-        WifiConfiguration config = mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration);
-        if (config == null) {
-            Log.e(TAG, "Timed out while synchronously fetching AP config");
-            return new WifiConfiguration();
-        }
-        return config;
+        return mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new WifiConfiguration());
     }
 
     /**
@@ -2072,11 +2068,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
             List<ScanResult> scanResults = mWifiThreadRunner.call(
-                    mScanRequestProxy::getScanResults);
-            if (scanResults == null) {
-                Log.e(TAG, "Timed out while synchronously fetching scan results");
-                return new ArrayList<>();
-            }
+                    mScanRequestProxy::getScanResults, Collections.EMPTY_LIST);
             return scanResults;
         } catch (SecurityException e) {
             Slog.e(TAG, "Permission violation - getScanResults not allowed for uid="
@@ -2522,7 +2514,7 @@ public class WifiServiceImpl extends BaseWifiService {
         } else if (args != null && args.length > 0 && WifiScoreCard.DUMP_ARG.equals(args[0])) {
             WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
             String networkListBase64 = mWifiThreadRunner.call(() ->
-                    wifiScoreCard.getNetworkListBase64(true));
+                    wifiScoreCard.getNetworkListBase64(true), "");
             pw.println(networkListBase64);
         } else {
             // Polls link layer stats and RSSI. This allows the stats to show up in
@@ -2549,7 +2541,7 @@ public class WifiServiceImpl extends BaseWifiService {
             pw.println();
             WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
             String networkListBase64 = mWifiThreadRunner.call(() ->
-                    wifiScoreCard.getNetworkListBase64(true));
+                    wifiScoreCard.getNetworkListBase64(true), "");
             pw.println("WifiScoreCard:");
             pw.println(networkListBase64);
             mClientModeImpl.updateWifiMetrics();
@@ -2585,13 +2577,8 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
-        Boolean lockSuccess = mWifiThreadRunner.call(() ->
-                mWifiLockManager.acquireWifiLock(lockMode, tag, binder, updatedWs));
-        if (lockSuccess == null) {
-            Log.e(TAG, "Timed out while synchronously calling acquireWifiLock()");
-            return false;
-        }
-        return lockSuccess;
+        return mWifiThreadRunner.call(() ->
+                mWifiLockManager.acquireWifiLock(lockMode, tag, binder, updatedWs), false);
     }
 
     @Override
@@ -2606,11 +2593,8 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
-        boolean runSuccess = mWifiThreadRunner.run(() ->
+        mWifiThreadRunner.run(() ->
                 mWifiLockManager.updateWifiLockWorkSource(binder, updatedWs));
-        if (!runSuccess) {
-            Log.e(TAG, "Timed out while synchronously calling updateWifiLockWorkSource()");
-        }
     }
 
     @Override
@@ -2620,13 +2604,8 @@ public class WifiServiceImpl extends BaseWifiService {
         // Check on permission to make this call
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
 
-        Boolean lockSuccess = mWifiThreadRunner.call(() ->
-                mWifiLockManager.releaseWifiLock(binder));
-        if (lockSuccess == null) {
-            Log.e(TAG, "Timed out while synchronously calling releaseWifiLock()");
-            return false;
-        }
-        return lockSuccess;
+        return mWifiThreadRunner.call(() ->
+                mWifiLockManager.releaseWifiLock(binder), false);
     }
 
     @Override
@@ -3039,12 +3018,9 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         int callingUid = Binder.getCallingUid();
 
-        Integer success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.add(
-                networkSuggestions, callingUid, callingPackageName));
-        if (success == null) {
-            Log.e(TAG, "Timed out while synchronously adding network suggestions");
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
-        }
+        int success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.add(
+                networkSuggestions, callingUid, callingPackageName),
+                WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL);
         if (success != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to add network suggestions");
         }
@@ -3070,12 +3046,9 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         int callingUid = Binder.getCallingUid();
 
-        Integer success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.remove(
-                networkSuggestions, callingUid, callingPackageName));
-        if (success == null) {
-            Log.e(TAG, "Timed out while synchronously removing network suggestions");
-            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
-        }
+        int success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.remove(
+                networkSuggestions, callingUid, callingPackageName),
+                WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL);
         if (success != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to remove network suggestions");
         }
@@ -3093,14 +3066,8 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getNetworkSuggestionList uid=%").c(Binder.getCallingUid()).flush();
         }
-
-        List<WifiNetworkSuggestion> result = mWifiThreadRunner.call(() ->
-                mWifiNetworkSuggestionsManager.get(callingPackageName));
-        if (result == null) {
-            Log.e(TAG, "Timed out while synchronously getting network suggestions");
-            return new ArrayList<>();
-        }
-        return result;
+        return mWifiThreadRunner.call(() ->
+                mWifiNetworkSuggestionsManager.get(callingPackageName), Collections.EMPTY_LIST);
     }
 
     /**
@@ -3115,7 +3082,7 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException("App not allowed to get Wi-Fi factory MAC address "
                     + "(uid = " + uid + ")");
         }
-        String result = mWifiThreadRunner.call(mClientModeImpl::getFactoryMacAddress);
+        String result = mWifiThreadRunner.call(mClientModeImpl::getFactoryMacAddress, null);
         // result can be null if either: WifiThreadRunner.call() timed out, or
         // ClientModeImpl.getFactoryMacAddress() returned null.
         // In this particular instance, we don't differentiate the two types of nulls.
