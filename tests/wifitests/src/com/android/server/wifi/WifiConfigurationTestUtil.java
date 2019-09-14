@@ -508,8 +508,7 @@ public class WifiConfigurationTestUtil {
     /**
      * Gets scan result capabilities for a WPA2/WPA3-Transition mode network configuration
      */
-    private static String
-            getScanResultCapsForWpa2Wpa3TransitionNetwork(WifiConfiguration configuration) {
+    public static String getScanResultCapsForWpa2Wpa3TransitionNetwork() {
         String caps = "[RSN-PSK+SAE-CCMP]";
         return caps;
     }
@@ -532,7 +531,7 @@ public class WifiConfigurationTestUtil {
     public static ScanDetail createScanDetailForWpa2Wpa3TransitionModeNetwork(
             WifiConfiguration configuration, String bssid, int level, int frequency,
             long tsf, long seen) {
-        String caps = getScanResultCapsForWpa2Wpa3TransitionNetwork(configuration);
+        String caps = getScanResultCapsForWpa2Wpa3TransitionNetwork();
         WifiSsid ssid = WifiSsid.createFromAsciiEncoded(configuration.getPrintableSsid());
         return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
     }

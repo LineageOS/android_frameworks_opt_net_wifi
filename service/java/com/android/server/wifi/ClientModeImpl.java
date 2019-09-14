@@ -256,7 +256,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private boolean mEnableRssiPolling = false;
-    // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and the main Wifi thread.
+    // Accessed via Binder thread ({get,set}PollRssiIntervalMsecs), and ClientModeImpl thread.
     private volatile int mPollRssiIntervalMsecs = DEFAULT_POLL_RSSI_INTERVAL_MSECS;
     private int mRssiPollToken = 0;
     /* 3 operational states for STA operation: CONNECT_MODE, SCAN_ONLY_MODE, SCAN_ONLY_WIFI_OFF_MODE
@@ -3374,11 +3374,13 @@ public class ClientModeImpl extends StateMachine {
             Log.e(TAG, "No config to change MAC address to");
             return;
         }
-        MacAddress currentMac = MacAddress.fromString(mWifiNative.getMacAddress(mInterfaceName));
+        String currentMacString = mWifiNative.getMacAddress(mInterfaceName);
+        MacAddress currentMac = currentMacString == null ? null :
+                MacAddress.fromString(currentMacString);
         MacAddress newMac = mWifiConfigManager.getRandomizedMacAndUpdateIfNeeded(config);
         if (!WifiConfiguration.isValidMacAddressForRandomization(newMac)) {
             Log.wtf(TAG, "Config generated an invalid MAC address");
-        } else if (currentMac.equals(newMac)) {
+        } else if (newMac.equals(currentMac)) {
             Log.d(TAG, "No changes in MAC address");
         } else {
             mWifiMetrics.logStaEvent(StaEvent.TYPE_MAC_CHANGE, config);
@@ -3386,7 +3388,7 @@ public class ClientModeImpl extends StateMachine {
                     mWifiNative.setMacAddress(mInterfaceName, newMac);
             Log.d(TAG, "ConnectedMacRandomization SSID(" + config.getPrintableSsid()
                     + "). setMacAddress(" + newMac.toString() + ") from "
-                    + currentMac.toString() + " = " + setMacSuccess);
+                    + currentMacString + " = " + setMacSuccess);
         }
     }
 
@@ -4387,8 +4389,6 @@ public class ClientModeImpl extends StateMachine {
                                 // We switched from DHCP to static or from static to DHCP, or the
                                 // static IP address has changed.
                                 log("Reconfiguring IP on connection");
-                                // TODO(b/36576642): clear addresses and disable IPv6
-                                // to simplify obtainingIpState.
                                 transitionTo(mObtainingIpState);
                             }
                         }
@@ -5280,9 +5280,7 @@ public class ClientModeImpl extends StateMachine {
             // Stop IpClient in case we're switching from DHCP to static
             // configuration or vice versa.
             //
-            // TODO: Only ever enter this state the first time we connect to a
-            // network, never on switching between static configuration and
-            // DHCP. When we transition from static configuration to DHCP in
+            // When we transition from static configuration to DHCP in
             // particular, we must tell ConnectivityService that we're
             // disconnected, because DHCP might take a long time during which
             // connectivity APIs such as getActiveNetworkInfo should not return
@@ -5328,6 +5326,25 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_START_CONNECT:
                 case CMD_START_ROAM:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
+                    break;
+                case WifiManager.CONNECT_NETWORK:
+                    // TODO(b/117601161) do all connect-network processing in one place
+                    // Do not disconnect if we try to connect to the same network
+                    int netId = message.arg1;
+                    if (mWifiInfo.getNetworkId() == netId) {
+                        handleStatus = NOT_HANDLED;
+                        break;
+                    }
+                    // Defer the message so it is handled after the state change
+                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
+                    deferMessage(message);
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+                    reportConnectionAttemptEnd(
+                                WifiMetrics.ConnectionEvent.FAILURE_NEW_CONNECTION_ATTEMPT,
+                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
+                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
+                    mWifiNative.disconnect(mInterfaceName);
+                    transitionTo(mDisconnectingState);
                     break;
                 case WifiManager.SAVE_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
@@ -5792,6 +5809,10 @@ public class ClientModeImpl extends StateMachine {
             boolean handleStatus = HANDLED;
 
             switch (message.what) {
+                case WifiManager.CONNECT_NETWORK:
+                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
+                    deferMessage(message);
+                    break;
                 case CMD_DISCONNECT:
                     if (mVerboseLoggingEnabled) {
                         log("Ignore CMD_DISCONNECT when already disconnecting.");
@@ -5810,6 +5831,7 @@ public class ClientModeImpl extends StateMachine {
                      * we have missed the network disconnection, transition to mDisconnectedState
                      * and handle the rest of the events there
                      */
+                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     handleNetworkDisconnect();
                     transitionTo(mDisconnectedState);

@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
+
 import android.content.Context;
 import android.database.ContentObserver;
 import android.net.wifi.ScanResult;
@@ -401,14 +403,14 @@ public class WakeupController {
     /**
      * Enables wifi.
      *
-     * <p>This method ignores all checks and assumes that {@link ActiveModeWarden} is currently
+     * <p>This method ignores all checks and assumes that {@link WifiController} is currently
      * in ScanModeState.
      */
     private void enableWifi() {
         if (USE_PLATFORM_WIFI_WAKE) {
             // TODO(b/72180295): ensure that there is no race condition with WifiServiceImpl here
             if (mWifiInjector.getWifiSettingsStore().handleWifiToggled(true /* wifiEnabled */)) {
-                mWifiInjector.getActiveModeWarden().wifiToggled();
+                mWifiInjector.getWifiController().sendMessage(CMD_WIFI_TOGGLED);
                 mWifiWakeMetrics.recordWakeupEvent(mNumScansHandled);
             }
         }

@@ -1396,6 +1396,50 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
+     * If caller tries to connect to a new network while still provisioning the current one,
+     * the connection attempt should succeed.
+     */
+    @Test
+    public void connectWhileObtainingIp() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+
+        verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
+
+        mLooper.startAutoDispatch();
+        mCmi.syncEnableNetwork(mCmiAsyncChannel, 0, true);
+        mLooper.stopAutoDispatch();
+
+        verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt());
+
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
+        mLooper.dispatchAll();
+
+        assertEquals("ObtainingIpState", getCurrentState().getName());
+        reset(mWifiNative);
+
+        // Connect to a different network
+        WifiConfiguration config = new WifiConfiguration();
+        config.networkId = TEST_NETWORK_ID;
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
+
+        mCmi.sendMessage(WifiManager.CONNECT_NETWORK, TEST_NETWORK_ID);
+        mLooper.dispatchAll();
+
+        verify(mWifiNative).disconnect(any());
+
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
+        mLooper.dispatchAll();
+
+        verify(mWifiConnectivityManager).prepareForForcedConnection(eq(config.networkId));
+
+    }
+
+    /**
      * Tests that manual connection to a network (from settings app) logs the correct nominator ID.
      */
     @Test
@@ -2763,6 +2807,21 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mWifiNative, never()).setMacAddress(eq(WIFI_IFACE_NAME), any(MacAddress.class));
+    }
+
+    /**
+     * Verify that we don't crash when WifiNative returns null as the current MAC address.
+     * @throws Exception
+     */
+    @Test
+    public void testMacRandomizationWifiNativeReturningNull() throws Exception {
+        when(mWifiNative.getMacAddress(anyString())).thenReturn(null);
+        initializeAndAddNetworkAndVerifySuccess();
+        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
+        assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
+
+        connect();
+        verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
     }
 
     /**

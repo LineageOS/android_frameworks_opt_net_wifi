@@ -176,7 +176,7 @@ public class WifiApConfigStore {
      * Update the current soft access point configuration.
      * Restore to default AP configuration if null is provided.
      * This can be invoked under context of binder threads (WifiManager.setWifiApConfiguration)
-     * and the main Wifi thread (CMD_START_AP).
+     * and ClientModeImpl thread (CMD_START_AP).
      */
     public synchronized void setApConfiguration(WifiConfiguration config) {
         if (config == null) {
