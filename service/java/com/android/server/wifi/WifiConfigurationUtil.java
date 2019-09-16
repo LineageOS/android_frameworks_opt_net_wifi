@@ -92,6 +92,20 @@ public class WifiConfigurationUtil {
     }
 
     /**
+     * Helper method to check if the provided |config| corresponds to a WAPI PSK network or not.
+     */
+    public static boolean isConfigForWapiPskNetwork(WifiConfiguration config) {
+        return config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WAPI_PSK);
+    }
+
+    /**
+     * Helper method to check if the provided |config| corresponds to a WAPI CERT network or not.
+     */
+    public static boolean isConfigForWapiCertNetwork(WifiConfiguration config) {
+        return config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WAPI_CERT);
+    }
+
+    /**
      * Helper method to check if the provided |config| corresponds to an SAE network or not.
      */
     public static boolean isConfigForSaeNetwork(WifiConfiguration config) {
