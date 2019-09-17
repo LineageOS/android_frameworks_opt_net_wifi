@@ -161,7 +161,8 @@ public class WifiAwareDataPathStateManagerTest {
 
         // by default pretend to be an old API: i.e. allow Responders configured as *ANY*. This
         // allows older (more extrensive) tests to run.
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt(), anyInt()))
+            .thenReturn(true);
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         mDut = new WifiAwareStateManager();
@@ -1017,7 +1018,8 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathResonderMacPassphraseNoPeerIdSuccessNonLegacy() throws Exception {
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt(), anyInt()))
+            .thenReturn(false);
         testDataPathResponderUtility(false, false, false, true, true);
     }
 
@@ -1028,7 +1030,8 @@ public class WifiAwareDataPathStateManagerTest {
     @Test
     public void testDataPathResonderMacOpenNoPeerIdNoPmkPassphraseSuccessNonLegacy()
             throws Exception {
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt(), anyInt()))
+            .thenReturn(false);
         testDataPathResponderUtility(false, false, false, false, true);
     }
 
@@ -1074,7 +1077,8 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathResonderDirectNoMacPassphraseSuccessNonLegacy() throws Exception {
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt(), anyInt()))
+            .thenReturn(false);
         testDataPathResponderUtility(true, false, false, true, true);
     }
 
@@ -1084,7 +1088,8 @@ public class WifiAwareDataPathStateManagerTest {
      */
     @Test
     public void testDataPathResonderDirectNoMacNoPmkPassphraseSuccessNonLegacy() throws Exception {
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(), anyInt(), anyInt()))
+            .thenReturn(false);
         testDataPathResponderUtility(true, false, false, false, true);
     }
 
@@ -1473,7 +1478,7 @@ public class WifiAwareDataPathStateManagerTest {
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         boolean isLegacy = mWifiPermissionsUtil.isTargetSdkLessThan("anything",
-                Build.VERSION_CODES.P);
+                Build.VERSION_CODES.P, 0);
 
         if (providePmk) {
             when(mPermissionsWrapperMock.getUidPermission(
