@@ -459,4 +459,19 @@ public class ANQPMatcherTest extends WifiBaseTest {
         assertEquals(-1,
                 ANQPMatcher.getCarrierEapMethodFromMatchingNAIRealm(TEST_3GPP_FQDN, element));
     }
+
+    /**
+     * Verify that domain name match will fail when domain contains invalid values.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void verifyInvalidDomain() throws Exception {
+        IMSIParameter imsiParam = new IMSIParameter("1234", true);
+        List<String> simImsiList = Arrays.asList(new String[] {"123457890", "123498723"});
+        // 3GPP network domain with MCC=123 and MNC=456.
+        String[] domains = new String[] {"wlan.mnc457.mccI23.3gppnetwork.org"};
+        DomainNameElement element = new DomainNameElement(Arrays.asList(domains));
+        assertFalse(ANQPMatcher.matchDomainName(element, null, imsiParam, simImsiList));
+    }
 }

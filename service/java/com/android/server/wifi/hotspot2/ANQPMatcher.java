@@ -292,7 +292,7 @@ public class ANQPMatcher {
      */
     private static boolean matchMccMnc(String mccMnc, IMSIParameter imsiParam,
             List<String> simImsiList) {
-        if (imsiParam == null || simImsiList == null) {
+        if (imsiParam == null || simImsiList == null || mccMnc == null) {
             return false;
         }
         // Match against the IMSI parameter in the provider.
