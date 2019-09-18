@@ -32,7 +32,7 @@ public interface WifiServiceBase {
      * it's binder service & perform necessary initialization. This should happen very close to
      * bootup phase {@link SystemService#PHASE_BOOT_COMPLETED} in system_server.
      */
-    default void onStart() {}
+    void onStart();
 
     /**
      * Invoked when the user switches.
@@ -58,7 +58,5 @@ public interface WifiServiceBase {
     /**
      * Retrieve the underlying binder service implementation.
      */
-    default Binder retrieveImpl() {
-        return null;
-    }
+    Binder retrieveImpl();
 }
