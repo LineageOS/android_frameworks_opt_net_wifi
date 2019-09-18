@@ -119,6 +119,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
     private static final int TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES = 8;
     private static final String TEST_PACKAGE_NAME = "com.test.123";
+    private static final String TEST_IFACE_NAME_0 = "wlan0";
 
     @Mock Context mContext;
     TestAlarmManager mAlarmManager;
@@ -131,6 +132,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Spy FakeWifiLog mLog;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock DppMetrics mDppMetrics;
+    @Mock WifiNative mWifiNative;
     WifiMetrics mWifiMetrics;
     TestLooper mLooper;
     WifiScanningServiceImpl mWifiScanningServiceImpl;
@@ -158,7 +160,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 new WifiPowerMetrics(mBatteryStats),
                 mWifiP2pMetrics, mDppMetrics, mCellularLinkLayerStatsCollector);
         when(mWifiScannerImplFactory
-                .create(any(), any(), any()))
+                .create(any(), any(), any(), any()))
                 .thenReturn(mWifiScannerImpl);
         when(mWifiScannerImpl.getChannelHelper()).thenReturn(channelHelper);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
@@ -168,6 +170,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         when(mFrameworkFacade.makeWifiAsyncChannel(anyString())).thenReturn(mWifiAsyncChannel);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getClock()).thenReturn(mClock);
+        when(mWifiNative.getClientInterfaceName()).thenReturn(TEST_IFACE_NAME_0);
+        when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
         when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), eq(Binder.getCallingUid())))
                 .thenReturn(PERMISSION_GRANTED);
@@ -498,7 +502,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         startServiceAndLoadDriver();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         verify(mWifiScannerImplFactory, times(1))
-                .create(any(), any(), any());
+                .create(any(), any(), any(), eq(TEST_IFACE_NAME_0));
 
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
@@ -525,7 +529,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
-                .create(any(), any(), any());
+                .create(any(), any(), any(), any());
     }
 
     @Test
@@ -584,7 +588,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void rejectBackgroundScanRequestWhenScannerImplCreateFails() throws Exception {
         // Fail scanner impl creation.
-        when(mWifiScannerImplFactory.create(any(), any(), any())).thenReturn(null);
+        when(mWifiScannerImplFactory.create(any(), any(), any(), any())).thenReturn(null);
 
         startServiceAndLoadDriver();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
@@ -2057,9 +2061,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     }
 
     @Test
-    public void rejectSingleScanRequestWhenScannerImplCreateFails() throws Exception {
-        // Fail scanner impl creation.
-        when(mWifiScannerImplFactory.create(any(), any(), any())).thenReturn(null);
+    public void rejectSingleScanRequestWhenScannerGetIfaceNameFails() throws Exception {
+        // Failed to get client interface name.
+        when(mWifiNative.getClientInterfaceName()).thenReturn(null);
 
         startServiceAndLoadDriver();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
@@ -2072,6 +2076,21 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         verifyFailedResponse(order, handler, 122, WifiScanner.REASON_UNSPECIFIED, "not available");
     }
 
+    @Test
+    public void rejectSingleScanRequestWhenScannerImplCreateFails() throws Exception {
+        // Fail scanner impl creation.
+        when(mWifiScannerImplFactory.create(any(), any(), any(), any())).thenReturn(null);
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler);
+        sendSingleScanRequest(controlChannel, 122, generateValidScanSettings(), null);
+        mLooper.dispatchAll();
+        verifyFailedResponse(order, handler, 122, WifiScanner.REASON_UNSPECIFIED, "not available");
+    }
 
     private void doSuccessfulBackgroundScan(WifiScanner.ScanSettings requestSettings,
             WifiNative.ScanSettings nativeSettings) {
@@ -2273,7 +2292,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void rejectHwPnoScanRequestWhenScannerImplCreateFails() throws Exception {
         // Fail scanner impl creation.
-        when(mWifiScannerImplFactory.create(any(), any(), any())).thenReturn(null);
+        when(mWifiScannerImplFactory.create(any(), any(), any(), any())).thenReturn(null);
 
         startServiceAndLoadDriver();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
@@ -2396,7 +2415,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
-                .create(any(), any(), any());
+                .create(any(), any(), any(), any());
 
         InOrder order = inOrder(handler);
         when(mWifiScannerImpl.startBatchedScan(any(WifiNative.ScanSettings.class),
@@ -2422,7 +2441,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
-                .create(any(), any(), any());
+                .create(any(), any(), any(), any());
 
         InOrder order = inOrder(handler, mWifiScannerImpl);
 
@@ -2473,7 +2492,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Ensure we didn't create scanner instance twice.
         verify(mWifiScannerImplFactory, times(1))
-                .create(any(), any(), any());
+                .create(any(), any(), any(), any());
 
         InOrder order = inOrder(handler, mWifiScannerImpl);
         int requestId = 12;
@@ -2536,7 +2555,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 "Not authorized", messageCaptor.getAllValues().get(4));
 
         // Ensure we didn't create scanner instance.
-        verify(mWifiScannerImplFactory, never()).create(any(), any(), any());
+        verify(mWifiScannerImplFactory, never()).create(any(), any(), any(), any());
 
     }
 
