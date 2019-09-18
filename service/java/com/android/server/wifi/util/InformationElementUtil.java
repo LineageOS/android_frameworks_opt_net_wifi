@@ -417,6 +417,7 @@ public class InformationElementUtil {
         private static final int RSN_AKM_FT_SAE = 0x09ac0f00;
         private static final int RSN_AKM_OWE = 0x12ac0f00;
         private static final int RSN_AKM_EAP_SUITE_B_192 = 0x0cac0f00;
+        private static final int RSN_OSEN = 0x019a6f50;
 
         private static final int WPA_CIPHER_NONE = 0x00f25000;
         private static final int WPA_CIPHER_TKIP = 0x02f25000;
@@ -515,6 +516,9 @@ public class InformationElementUtil {
                             break;
                         case RSN_AKM_EAP_SUITE_B_192:
                             rsnKeyManagement.add(ScanResult.KEY_MGMT_EAP_SUITE_B_192);
+                            break;
+                        case RSN_OSEN:
+                            rsnKeyManagement.add(ScanResult.KEY_MGMT_OSEN);
                             break;
                         default:
                             // do nothing
@@ -742,6 +746,8 @@ public class InformationElementUtil {
                     return "WPA";
                 case ScanResult.PROTOCOL_RSN:
                     return "RSN";
+                case ScanResult.PROTOCOL_OSEN:
+                    return "OSEN";
                 default:
                     return "?";
             }
@@ -773,6 +779,8 @@ public class InformationElementUtil {
                     return "FT/SAE";
                 case ScanResult.KEY_MGMT_EAP_SUITE_B_192:
                     return "EAP_SUITE_B_192";
+                case ScanResult.KEY_MGMT_OSEN:
+                    return "OSEN";
                 default:
                     return "?";
             }
