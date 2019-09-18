@@ -62,6 +62,9 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
+import java.util.HashSet;
+
 /**
  * Unit tests for the interface management operations in
  * {@link com.android.server.wifi.WifiNative}.
@@ -1332,6 +1335,25 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
                 mNetworkObserverCaptor0);
         assertTrue(mWifiNative.switchClientInterfaceToConnectivityMode(IFACE_NAME_0));
     }
+
+    /**
+     * Verifies the setup of two client interfaces.
+     */
+    @Test
+    public void testSetupTwoClientInterfaces() throws Exception {
+        executeAndValidateSetupClientInterface(
+                false, false, IFACE_NAME_0, mIfaceCallback0, mIfaceDestroyedListenerCaptor0,
+                mNetworkObserverCaptor0);
+        assertEquals(new HashSet<>(Arrays.asList(IFACE_NAME_0)),
+                mWifiNative.getClientInterfaceNames());
+
+        executeAndValidateSetupClientInterface(
+                true, false, IFACE_NAME_1, mIfaceCallback1, mIfaceDestroyedListenerCaptor1,
+                mNetworkObserverCaptor1);
+        assertEquals(new HashSet<>(Arrays.asList(IFACE_NAME_0, IFACE_NAME_1)),
+                mWifiNative.getClientInterfaceNames());
+    }
+
 
     private void executeAndValidateSetupClientInterface(
             boolean existingStaIface, boolean existingApIface,
