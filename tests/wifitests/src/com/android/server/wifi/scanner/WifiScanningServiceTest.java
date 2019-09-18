@@ -154,7 +154,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         mLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, mLooper.getLooper(),
-                new WifiAwareMetrics(mClock), new RttMetrics(mClock), new WifiPowerMetrics(),
+                new WifiAwareMetrics(mClock), new RttMetrics(mClock),
+                new WifiPowerMetrics(mBatteryStats),
                 mWifiP2pMetrics, mDppMetrics, mCellularLinkLayerStatsCollector);
         when(mWifiScannerImplFactory
                 .create(any(), any(), any()))
