@@ -26,7 +26,7 @@ import com.android.server.wifi.nano.WifiMetricsProto;
 /**
  * This class handles the "open wi-fi network available" notification
  *
- * NOTE: These API's are not thread safe and should only be used from ClientModeImpl thread.
+ * NOTE: These API's are not thread safe and should only be used from the main Wifi thread.
  */
 public class OpenNetworkNotifier extends AvailableNetworkNotifier {
     public static final String TAG = "WifiOpenNetworkNotifier";

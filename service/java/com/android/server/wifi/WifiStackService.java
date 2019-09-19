@@ -197,11 +197,14 @@ public class WifiStackService extends Service {
                 Log.w(TAG, "Wifi not supported on the device");
                 return false;
             }
+
+            // initialize static instance of WifiInjector
+            new WifiInjector(this);
             // Ordering of wifi services.
-            // wifi service
-            mApiServices.put(Context.WIFI_SERVICE, new WifiService(this));
             // wifiscanner service
             mApiServices.put(Context.WIFI_SCANNING_SERVICE, new WifiScanningService(this));
+            // wifi service
+            mApiServices.put(Context.WIFI_SERVICE, new WifiService(this));
             // wifi-p2p service
             if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
                 mApiServices.put(Context.WIFI_P2P_SERVICE, new WifiP2pService(this));

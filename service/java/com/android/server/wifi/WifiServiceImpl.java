@@ -28,13 +28,6 @@ import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_FAILED;
 import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 
-import static com.android.server.wifi.WifiController.CMD_AIRPLANE_TOGGLED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_CALL_STATE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_EMERGENCY_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED;
-import static com.android.server.wifi.WifiController.CMD_SET_AP;
-import static com.android.server.wifi.WifiController.CMD_WIFI_TOGGLED;
-
 import android.annotation.CheckResult;
 import android.app.AppOpsManager;
 import android.app.admin.DeviceAdminInfo;
@@ -106,7 +99,6 @@ import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.util.ExternalCallbackTracker;
-import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -399,12 +391,11 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private final ClientModeImplHandler mClientModeImplHandler;
-    private final WifiController mWifiController;
     private final WifiLockManager mWifiLockManager;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final DppManager mDppManager;
-
     private final WifiApConfigStore mWifiApConfigStore;
+    private final WifiThreadRunner mWifiThreadRunner;
 
     public WifiServiceImpl(Context context, WifiInjector wifiInjector, AsyncChannel asyncChannel) {
         mContext = context;
@@ -430,7 +421,6 @@ public class WifiServiceImpl extends BaseWifiService {
                 new AsyncChannelExternalClientHandler(TAG, asyncChannelHandlerThread.getLooper());
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
                 asyncChannelHandlerThread.getLooper(), asyncChannel);
-        mWifiController = mWifiInjector.getWifiController();
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
@@ -444,6 +434,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mPowerProfile = mWifiInjector.getPowerProfile();
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
+        mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
     }
 
     /**
@@ -475,7 +466,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         if (mSettingsStore.handleAirplaneModeToggled()) {
-                            mWifiController.sendMessage(CMD_AIRPLANE_TOGGLED);
+                            mActiveModeWarden.airplaneModeToggled();
                         }
                         if (mSettingsStore.isAirplaneModeOn()) {
                             Log.d(TAG, "resetting country code because Airplane mode is ON");
@@ -510,7 +501,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (!mClientModeImpl.syncInitialize(mClientModeImplChannel)) {
             Log.wtf(TAG, "Failed to initialize ClientModeImpl");
         }
-        mWifiController.start();
+        mActiveModeWarden.start();
 
         // If we are already disabled (could be due to airplane mode), avoid changing persist
         // state here
@@ -569,17 +560,14 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
-            Mutable<Boolean> scanSuccess = new Mutable<>();
-            boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler()
-                    .runWithScissors(() -> {
-                        scanSuccess.value = mScanRequestProxy.startScan(callingUid, packageName);
-                    }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-            if (!runWithScissorsSuccess) {
-                Log.e(TAG, "Failed to post runnable to start scan");
+            Boolean scanSuccess = mWifiThreadRunner.call(() ->
+                    mScanRequestProxy.startScan(callingUid, packageName));
+            if (scanSuccess == null) {
+                Log.e(TAG, "Timed out while synchronously starting scan");
                 sendFailedScanBroadcast();
                 return false;
             }
-            if (!scanSuccess.value) {
+            if (!scanSuccess) {
                 Log.e(TAG, "Failed to start scan");
                 return false;
             }
@@ -835,7 +823,7 @@ public class WifiServiceImpl extends BaseWifiService {
             Binder.restoreCallingIdentity(ident);
         }
         mWifiMetrics.incrementNumWifiToggles(isPrivileged, enable);
-        mWifiController.sendMessage(CMD_WIFI_TOGGLED);
+        mActiveModeWarden.wifiToggled();
         return true;
     }
 
@@ -892,9 +880,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("updateInterfaceIpState uid=%").c(Binder.getCallingUid()).flush();
 
         // hand off the work to our handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mLohsSoftApTracker.updateInterfaceIpState(ifaceName, mode);
-        });
+        mWifiThreadRunner.post(() -> mLohsSoftApTracker.updateInterfaceIpState(ifaceName, mode));
     }
 
     /**
@@ -932,7 +918,7 @@ public class WifiServiceImpl extends BaseWifiService {
         // null wifiConfig is a meaningful input for CMD_SET_AP
         if (wifiConfig == null || WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
             SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(mode, wifiConfig);
-            mWifiController.sendMessage(CMD_SET_AP, 1, 0, softApConfig);
+            mActiveModeWarden.startSoftAp(softApConfig);
             return true;
         }
         Slog.e(TAG, "Invalid WifiConfiguration");
@@ -972,7 +958,7 @@ public class WifiServiceImpl extends BaseWifiService {
     private void stopSoftApInternal(int mode) {
         mLog.trace("stopSoftApInternal uid=% mode=%").c(Binder.getCallingUid()).c(mode).flush();
 
-        mWifiController.sendMessage(CMD_SET_AP, 0, mode);
+        mActiveModeWarden.stopSoftAp(mode);
     }
 
     /**
@@ -1051,7 +1037,7 @@ public class WifiServiceImpl extends BaseWifiService {
             }
             // Notify WifiController so it has a chance to turn wifi back on
             if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
-                mWifiController.sendMessage(WifiController.CMD_AP_STOPPED);
+                mActiveModeWarden.softApStopped();
             }
         }
 
@@ -1407,7 +1393,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
+        mWifiThreadRunner.post(() -> {
             if (!mTetheredSoftApTracker.registerSoftApCallback(binder, callback,
                     callbackIdentifier)) {
                 Log.e(TAG, "registerSoftApCallback: Failed to add callback");
@@ -1420,7 +1406,6 @@ public class WifiServiceImpl extends BaseWifiService {
             } catch (RemoteException e) {
                 Log.e(TAG, "registerSoftApCallback: remote exception -- " + e);
             }
-
         });
     }
 
@@ -1439,9 +1424,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mTetheredSoftApTracker.unregisterSoftApCallback(callbackIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mTetheredSoftApTracker.unregisterSoftApCallback(callbackIdentifier));
     }
 
     /**
@@ -1543,7 +1527,6 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("stopLocalOnlyHotspot uid=% pid=%").c(uid).c(pid).flush();
 
         mLohsSoftApTracker.stopByPid(pid);
-
     }
 
     /**
@@ -1600,15 +1583,12 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
-        final Mutable<WifiConfiguration> config = new Mutable<>();
-        boolean success = mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-            config.value = mWifiApConfigStore.getApConfiguration();
-        }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (success) {
-            return config.value;
+        WifiConfiguration config = mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration);
+        if (config == null) {
+            Log.e(TAG, "Timed out while synchronously fetching AP config");
+            return new WifiConfiguration();
         }
-        Log.e(TAG, "Failed to post runnable to fetch ap config");
-        return new WifiConfiguration();
+        return config;
     }
 
     /**
@@ -1633,9 +1613,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (wifiConfig == null)
             return false;
         if (WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
-            mClientModeImplHandler.post(() -> {
-                mWifiApConfigStore.setApConfiguration(wifiConfig);
-            });
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(wifiConfig));
             return true;
         } else {
             Slog.e(TAG, "Invalid WifiConfiguration");
@@ -2251,12 +2229,10 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
-            final List<ScanResult> scanResults = new ArrayList<>();
-            boolean success = mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-                scanResults.addAll(mScanRequestProxy.getScanResults());
-            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-            if (!success) {
-                Log.e(TAG, "Failed to post runnable to fetch scan results");
+            List<ScanResult> scanResults = mWifiThreadRunner.call(
+                    mScanRequestProxy::getScanResults);
+            if (scanResults == null) {
+                Log.e(TAG, "Timed out while synchronously fetching scan results");
                 return new ArrayList<>();
             }
             return scanResults;
@@ -2613,11 +2589,11 @@ public class WifiServiceImpl extends BaseWifiService {
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED)) {
                 boolean emergencyMode =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_ECM_STATE, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_MODE_CHANGED, emergencyMode ? 1 : 0);
+                mActiveModeWarden.emergencyCallbackModeChanged(emergencyMode);
             } else if (action.equals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED)) {
                 boolean inCall =
                         intent.getBooleanExtra(PhoneConstants.PHONE_IN_EMERGENCY_CALL, false);
-                mWifiController.sendMessage(CMD_EMERGENCY_CALL_STATE_CHANGED, inCall ? 1 : 0);
+                mActiveModeWarden.emergencyCallStateChanged(inCall);
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
             }
@@ -2632,7 +2608,7 @@ public class WifiServiceImpl extends BaseWifiService {
             @Override
             public void onChange(boolean selfChange) {
                 mSettingsStore.handleWifiScanAlwaysAvailableToggled();
-                mWifiController.sendMessage(CMD_SCAN_ALWAYS_MODE_CHANGED);
+                mActiveModeWarden.scanAlwaysModeChanged();
             }
         };
         mFrameworkFacade.registerContentObserver(mContext,
@@ -2672,8 +2648,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     String pkgName = uri.getSchemeSpecificPart();
                     mClientModeImpl.removeAppConfigs(pkgName, uid);
 
-                    // Call the method in ClientModeImpl thread.
-                    mWifiInjector.getClientModeImplHandler().post(() -> {
+                    // Call the method in the main Wifi thread.
+                    mWifiThreadRunner.post(() -> {
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
 
                         // Remove all suggestions from the package.
@@ -2683,7 +2659,6 @@ public class WifiServiceImpl extends BaseWifiService {
                         // Remove all Passpoint profiles from package.
                         mWifiInjector.getPasspointManager().removePasspointProviderWithPackage(
                                 pkgName);
-
                     });
                 }
             }
@@ -2719,12 +2694,10 @@ public class WifiServiceImpl extends BaseWifiService {
             WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();
             if (wifiScoreReport != null) wifiScoreReport.dump(fd, pw, args);
         } else if (args != null && args.length > 0 && WifiScoreCard.DUMP_ARG.equals(args[0])) {
-            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-                WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
-                if (wifiScoreCard != null) {
-                    pw.println(wifiScoreCard.getNetworkListBase64(true));
-                }
-            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+            WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
+            String networkListBase64 = mWifiThreadRunner.call(() ->
+                    wifiScoreCard.getNetworkListBase64(true));
+            pw.println(networkListBase64);
         } else {
             // Polls link layer stats and RSSI. This allows the stats to show up in
             // WifiScoreReport's dump() output when taking a bug report even if the screen is off.
@@ -2736,7 +2709,6 @@ public class WifiServiceImpl extends BaseWifiService {
                             Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0));
             pw.println("mInIdleMode " + mInIdleMode);
             pw.println("mScanPending " + mScanPending);
-            mWifiController.dump(fd, pw, args);
             mSettingsStore.dump(fd, pw, args);
             mWifiTrafficPoller.dump(fd, pw, args);
             pw.println();
@@ -2749,35 +2721,27 @@ public class WifiServiceImpl extends BaseWifiService {
             pw.println();
             mClientModeImpl.dump(fd, pw, args);
             pw.println();
-            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-                WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
-                if (wifiScoreCard != null) {
-                    pw.println("WifiScoreCard:");
-                    pw.println(wifiScoreCard.getNetworkListBase64(true));
-                }
-            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+            WifiScoreCard wifiScoreCard = mWifiInjector.getWifiScoreCard();
+            String networkListBase64 = mWifiThreadRunner.call(() ->
+                    wifiScoreCard.getNetworkListBase64(true));
+            pw.println("WifiScoreCard:");
+            pw.println(networkListBase64);
             mClientModeImpl.updateWifiMetrics();
             mWifiMetrics.dump(fd, pw, args);
             pw.println();
-            mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-                mWifiNetworkSuggestionsManager.dump(fd, pw, args);
-                pw.println();
-            }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
+            mWifiThreadRunner.run(() -> mWifiNetworkSuggestionsManager.dump(fd, pw, args));
+            pw.println();
             mWifiBackupRestore.dump(fd, pw, args);
             pw.println();
             pw.println("ScoringParams: settings put global " + Settings.Global.WIFI_SCORE_PARAMS
                        + " " + mWifiInjector.getScoringParams());
             pw.println();
+            pw.println("WifiScoreReport:");
             WifiScoreReport wifiScoreReport = mClientModeImpl.getWifiScoreReport();
-            if (wifiScoreReport != null) {
-                pw.println("WifiScoreReport:");
-                wifiScoreReport.dump(fd, pw, args);
-            }
+            wifiScoreReport.dump(fd, pw, args);
             pw.println();
             SarManager sarManager = mWifiInjector.getSarManager();
-            if (sarManager != null) {
-                sarManager.dump(fd, pw, args);
-            }
+            sarManager.dump(fd, pw, args);
             pw.println();
         }
     }
@@ -2795,18 +2759,13 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
-        Mutable<Boolean> lockSuccess = new Mutable<>();
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> {
-                    lockSuccess.value = mWifiLockManager.acquireWifiLock(
-                            lockMode, tag, binder, updatedWs);
-                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to acquireWifiLock");
+        Boolean lockSuccess = mWifiThreadRunner.call(() ->
+                mWifiLockManager.acquireWifiLock(lockMode, tag, binder, updatedWs));
+        if (lockSuccess == null) {
+            Log.e(TAG, "Timed out while synchronously calling acquireWifiLock()");
             return false;
         }
-
-        return lockSuccess.value;
+        return lockSuccess;
     }
 
     @Override
@@ -2821,12 +2780,10 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> {
-                    mWifiLockManager.updateWifiLockWorkSource(binder, updatedWs);
-                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to updateWifiLockWorkSource");
+        boolean runSuccess = mWifiThreadRunner.run(() ->
+                mWifiLockManager.updateWifiLockWorkSource(binder, updatedWs));
+        if (!runSuccess) {
+            Log.e(TAG, "Timed out while synchronously calling updateWifiLockWorkSource()");
         }
     }
 
@@ -2836,16 +2793,14 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // Check on permission to make this call
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.WAKE_LOCK, null);
-        Mutable<Boolean> lockSuccess = new Mutable<>();
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> {
-                    lockSuccess.value = mWifiLockManager.releaseWifiLock(binder);
-                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to releaseWifiLock");
+
+        Boolean lockSuccess = mWifiThreadRunner.call(() ->
+                mWifiLockManager.releaseWifiLock(binder));
+        if (lockSuccess == null) {
+            Log.e(TAG, "Timed out while synchronously calling releaseWifiLock()");
             return false;
         }
-        return lockSuccess.value;
+        return lockSuccess;
     }
 
     @Override
@@ -2944,7 +2899,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
             }
 
-            mWifiInjector.getClientModeImplHandler().post(() -> {
+            mWifiThreadRunner.post(() -> {
                 mWifiInjector.getWifiConfigManager().clearDeletedEphemeralNetworks();
                 mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
                 mWifiNetworkSuggestionsManager.clear();
@@ -3143,9 +3098,8 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("registerTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mWifiTrafficPoller.addCallback(binder, callback, callbackIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mWifiTrafficPoller.addCallback(binder, callback, callbackIdentifier));
     }
 
     /**
@@ -3163,9 +3117,8 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("unregisterTrafficStateCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mWifiTrafficPoller.removeCallback(callbackIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mWifiTrafficPoller.removeCallback(callbackIdentifier));
     }
 
     private boolean is5GhzSupported() {
@@ -3217,9 +3170,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mClientModeImpl.addNetworkRequestMatchCallback(binder, callback, callbackIdentifier);
-        });
+        mWifiThreadRunner.post(() -> mClientModeImpl.addNetworkRequestMatchCallback(
+                binder, callback, callbackIdentifier));
     }
 
     /**
@@ -3238,9 +3190,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mClientModeImpl.removeNetworkRequestMatchCallback(callbackIdentifier));
     }
 
     /**
@@ -3261,20 +3212,17 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("addNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
         int callingUid = Binder.getCallingUid();
-        Mutable<Integer> success = new Mutable<>();
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> {
-                    success.value = mWifiNetworkSuggestionsManager.add(
-                            networkSuggestions, callingUid, callingPackageName);
-                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to add network suggestions");
+
+        Integer success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.add(
+                networkSuggestions, callingUid, callingPackageName));
+        if (success == null) {
+            Log.e(TAG, "Timed out while synchronously adding network suggestions");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
+        if (success != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to add network suggestions");
         }
-        return success.value;
+        return success;
     }
 
     /**
@@ -3295,20 +3243,17 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
         int callingUid = Binder.getCallingUid();
-        Mutable<Integer> success = new Mutable<>();
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> {
-                    success.value = mWifiNetworkSuggestionsManager.remove(
-                            networkSuggestions, callingUid, callingPackageName);
-                }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to remove network suggestions");
+
+        Integer success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.remove(
+                networkSuggestions, callingUid, callingPackageName));
+        if (success == null) {
+            Log.e(TAG, "Timed out while synchronously removing network suggestions");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL;
         }
-        if (success.value != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
+        if (success != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to remove network suggestions");
         }
-        return success.value;
+        return success;
     }
 
     /**
@@ -3322,15 +3267,14 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("getNetworkSuggestionList uid=%").c(Binder.getCallingUid()).flush();
         }
-        Mutable<List<WifiNetworkSuggestion>> result = new Mutable<>();
-        boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
-                () -> result.value = mWifiNetworkSuggestionsManager.get(callingPackageName),
-                RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (!runWithScissorsSuccess) {
-            Log.e(TAG, "Failed to post runnable to get network suggestions");
+
+        List<WifiNetworkSuggestion> result = mWifiThreadRunner.call(() ->
+                mWifiNetworkSuggestionsManager.get(callingPackageName));
+        if (result == null) {
+            Log.e(TAG, "Timed out while synchronously getting network suggestions");
             return new ArrayList<>();
         }
-        return result.value;
+        return result;
     }
 
     /**
@@ -3345,17 +3289,14 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException("App not allowed to get Wi-Fi factory MAC address "
                     + "(uid = " + uid + ")");
         }
-        final List<String> result = new ArrayList<>();
-        boolean success = mWifiInjector.getClientModeImplHandler().runWithScissors(() -> {
-            final String mac = mClientModeImpl.getFactoryMacAddress();
-            if (mac != null) {
-                result.add(mac);
-            }
-        }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
-        if (success) {
-            return result.isEmpty() ? null : result.toArray(new String[0]);
+        String result = mWifiThreadRunner.call(mClientModeImpl::getFactoryMacAddress);
+        // result can be null if either: WifiThreadRunner.call() timed out, or
+        // ClientModeImpl.getFactoryMacAddress() returned null.
+        // In this particular instance, we don't differentiate the two types of nulls.
+        if (result == null) {
+            return null;
         }
-        return null;
+        return new String[]{result};
     }
 
     /**
@@ -3374,8 +3315,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     .flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler()
-                .post(() -> mClientModeImpl.setDeviceMobilityState(state));
+        mWifiThreadRunner.post(() -> mClientModeImpl.setDeviceMobilityState(state));
     }
 
     /**
@@ -3419,10 +3359,8 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException(TAG + ": Permission denied");
         }
 
-        mDppManager.mHandler.post(() -> {
-            mDppManager.startDppAsConfiguratorInitiator(uid, binder, enrolleeUri,
-                    selectedNetworkId, netRole, callback);
-        });
+        mWifiThreadRunner.post(() -> mDppManager.startDppAsConfiguratorInitiator(
+                uid, binder, enrolleeUri, selectedNetworkId, netRole, callback));
     }
 
     /**
@@ -3453,9 +3391,8 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException(TAG + ": Permission denied");
         }
 
-        mDppManager.mHandler.post(() -> {
-            mDppManager.startDppAsEnrolleeInitiator(uid, binder, configuratorUri, callback);
-        });
+        mWifiThreadRunner.post(() ->
+                mDppManager.startDppAsEnrolleeInitiator(uid, binder, configuratorUri, callback));
     }
 
     /**
@@ -3468,9 +3405,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         final int uid = getMockableCallingUid();
 
-        mDppManager.mHandler.post(() -> {
-            mDppManager.stopDppSession(uid);
-        });
+        mWifiThreadRunner.post(() -> mDppManager.stopDppSession(uid));
     }
 
     /**
@@ -3503,9 +3438,8 @@ public class WifiServiceImpl extends BaseWifiService {
                 .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mWifiMetrics.addOnWifiUsabilityListener(binder, listener, listenerIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mWifiMetrics.addOnWifiUsabilityListener(binder, listener, listenerIdentifier));
     }
 
     /**
@@ -3525,9 +3459,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(() -> {
-            mWifiMetrics.removeOnWifiUsabilityListener(listenerIdentifier);
-        });
+        mWifiThreadRunner.post(() ->
+                mWifiMetrics.removeOnWifiUsabilityListener(listenerIdentifier));
     }
 
     /**
@@ -3550,8 +3483,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     .flush();
         }
         // Post operation to handler thread
-        mWifiInjector.getClientModeImplHandler().post(
-                () -> mClientModeImpl.updateWifiUsabilityScore(seqNum, score,
-                        predictionHorizonSec));
+        mWifiThreadRunner.post(() ->
+                mClientModeImpl.updateWifiUsabilityScore(seqNum, score, predictionHorizonSec));
     }
 }
