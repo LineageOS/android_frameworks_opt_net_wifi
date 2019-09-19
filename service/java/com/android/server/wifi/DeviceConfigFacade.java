@@ -31,10 +31,10 @@ public class DeviceConfigFacade {
     // Default duration for evaluating Wifi condition to trigger a data stall
     // measured in milliseconds
     public static final int DEFAULT_DATA_STALL_DURATION_MS = 1500;
-    // Default threshold of Tx throughput below which to trigger a data stall measured in Mbps
-    public static final int DEFAULT_DATA_STALL_TX_TPUT_THR_MBPS = 2;
-    // Default threshold of Rx throughput below which to trigger a data stall measured in Mbps
-    public static final int DEFAULT_DATA_STALL_RX_TPUT_THR_MBPS = 2;
+    // Default threshold of Tx throughput below which to trigger a data stall measured in Kbps
+    public static final int DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS = 2000;
+    // Default threshold of Rx throughput below which to trigger a data stall measured in Kbps
+    public static final int DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS = 2000;
     // Default threshold of Tx packet error rate above which to trigger a data stall in percentage
     public static final int DEFAULT_DATA_STALL_TX_PER_THR = 90;
     // Default threshold of CCA level above which to trigger a data stall in percentage
@@ -77,17 +77,17 @@ public class DeviceConfigFacade {
     /**
      * Gets the threshold of Tx throughput below which to trigger a data stall.
      */
-    public int getDataStallTxTputThrMbps() {
-        return DeviceConfig.getInt(NAMESPACE, "data_stall_tx_tput_thr_mbps",
-                DEFAULT_DATA_STALL_TX_TPUT_THR_MBPS);
+    public int getDataStallTxTputThrKbps() {
+        return DeviceConfig.getInt(NAMESPACE, "data_stall_tx_tput_thr_kbps",
+                DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS);
     }
 
     /**
      * Gets the threshold of Rx throughput below which to trigger a data stall.
      */
-    public int getDataStallRxTputThrMbps() {
-        return DeviceConfig.getInt(NAMESPACE, "data_stall_rx_tput_thr_mbps",
-                DEFAULT_DATA_STALL_RX_TPUT_THR_MBPS);
+    public int getDataStallRxTputThrKbps() {
+        return DeviceConfig.getInt(NAMESPACE, "data_stall_rx_tput_thr_kbps",
+                DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS);
     }
 
     /**
