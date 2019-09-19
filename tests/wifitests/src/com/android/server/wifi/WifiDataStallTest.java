@@ -76,10 +76,10 @@ public class WifiDataStallTest {
                 .thenReturn(WifiDataStall.MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT);
         when(mDeviceConfigFacade.getDataStallDurationMs()).thenReturn(
                 DeviceConfigFacade.DEFAULT_DATA_STALL_DURATION_MS);
-        when(mDeviceConfigFacade.getDataStallTxTputThrMbps()).thenReturn(
-                DeviceConfigFacade.DEFAULT_DATA_STALL_TX_TPUT_THR_MBPS);
-        when(mDeviceConfigFacade.getDataStallRxTputThrMbps()).thenReturn(
-                DeviceConfigFacade.DEFAULT_DATA_STALL_RX_TPUT_THR_MBPS);
+        when(mDeviceConfigFacade.getDataStallTxTputThrKbps()).thenReturn(
+                DeviceConfigFacade.DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS);
+        when(mDeviceConfigFacade.getDataStallRxTputThrKbps()).thenReturn(
+                DeviceConfigFacade.DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS);
         when(mDeviceConfigFacade.getDataStallTxPerThr()).thenReturn(
                 DeviceConfigFacade.DEFAULT_DATA_STALL_TX_PER_THR);
         when(mDeviceConfigFacade.getDataStallCcaLevelThr()).thenReturn(
