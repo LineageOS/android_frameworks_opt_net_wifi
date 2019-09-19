@@ -18,6 +18,7 @@ package com.android.server.wifi.scanner;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
+import android.annotation.NonNull;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
@@ -492,7 +493,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
      * ScanningState. Any requests queued while scanning will be placed in the pending queue and
      * executed after transitioning back to IdleState.
      */
-    class WifiSingleScanStateMachine extends StateMachine implements WifiNative.ScanEventHandler {
+    class WifiSingleScanStateMachine extends StateMachine {
         /**
          * Maximum age of results that we return from our cache via
          * {@link WifiScanner#getScanResults()}.
@@ -530,47 +531,54 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             setInitialState(mDefaultState);
         }
 
-        /**
-         * Called to indicate a change in state for the current scan.
-         * Will dispatch a coresponding event to the state machine
-         */
-        @Override
-        public void onScanStatus(int event) {
-            if (DBG) localLog("onScanStatus event received, event=" + event);
-            switch(event) {
-                case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
-                case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
-                case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
-                    sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
-                    break;
-                case WifiNative.WIFI_SCAN_FAILED:
-                    sendMessage(CMD_SCAN_FAILED);
-                    break;
-                default:
-                    Log.e(TAG, "Unknown scan status event: " + event);
-                    break;
+        private final class ScanEventHandler implements WifiNative.ScanEventHandler {
+            private final String mImplIfaceName;
+            ScanEventHandler(@NonNull String implIfaceName) {
+                mImplIfaceName = implIfaceName;
             }
-        }
 
-        /**
-         * Called for each full scan result if requested
-         */
-        @Override
-        public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
-            if (DBG) localLog("onFullScanResult received");
-            sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
-        }
+            /**
+             * Called to indicate a change in state for the current scan.
+             * Will dispatch a coresponding event to the state machine
+             */
+            @Override
+            public void onScanStatus(int event) {
+                if (DBG) localLog("onScanStatus event received, event=" + event);
+                switch (event) {
+                    case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
+                    case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
+                    case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
+                        sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
+                        break;
+                    case WifiNative.WIFI_SCAN_FAILED:
+                        sendMessage(CMD_SCAN_FAILED);
+                        break;
+                    default:
+                        Log.e(TAG, "Unknown scan status event: " + event);
+                        break;
+                }
+            }
 
-        @Override
-        public void onScanPaused(ScanData[] scanData) {
-            // should not happen for single scan
-            Log.e(TAG, "Got scan paused for single scan");
-        }
+            /**
+             * Called for each full scan result if requested
+             */
+            @Override
+            public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
+                if (DBG) localLog("onFullScanResult received");
+                sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
+            }
 
-        @Override
-        public void onScanRestarted() {
-            // should not happen for single scan
-            Log.e(TAG, "Got scan restarted for single scan");
+            @Override
+            public void onScanPaused(ScanData[] scanData) {
+                // should not happen for single scan
+                Log.e(TAG, "Got scan paused for single scan");
+            }
+
+            @Override
+            public void onScanRestarted() {
+                // should not happen for single scan
+                Log.e(TAG, "Got scan restarted for single scan");
+            }
         }
 
         class DefaultState extends State {
@@ -973,7 +981,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             channels.fillBucketSettings(bucketSettings, Integer.MAX_VALUE);
 
             settings.buckets = new WifiNative.BucketSettings[] {bucketSettings};
-            if (mScannerImpl.startSingleScan(settings, this)) {
+            if (mScannerImpl.startSingleScan(settings,
+                    new ScanEventHandler(mScannerImpl.getIfaceName()))) {
                 // store the active scan settings
                 mActiveScanSettings = settings;
                 // swap pending and active scan requests
@@ -1058,8 +1067,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         }
     }
 
-    class WifiBackgroundScanStateMachine extends StateMachine
-            implements WifiNative.ScanEventHandler {
+    class WifiBackgroundScanStateMachine extends StateMachine {
 
         private final DefaultState mDefaultState = new DefaultState();
         private final StartedState mStartedState = new StartedState();
@@ -1091,40 +1099,48 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             updateSchedule();
         }
 
-        @Override
-        public void onScanStatus(int event) {
-            if (DBG) localLog("onScanStatus event received, event=" + event);
-            switch(event) {
-                case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
-                case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
-                case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
-                    sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
-                    break;
-                case WifiNative.WIFI_SCAN_FAILED:
-                    sendMessage(CMD_SCAN_FAILED);
-                    break;
-                default:
-                    Log.e(TAG, "Unknown scan status event: " + event);
-                    break;
+        private final class ScanEventHandler implements WifiNative.ScanEventHandler {
+            private final String mImplIfaceName;
+
+            ScanEventHandler(@NonNull String implIfaceName) {
+                mImplIfaceName = implIfaceName;
             }
-        }
 
-        @Override
-        public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
-            if (DBG) localLog("onFullScanResult received");
-            sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
-        }
+            @Override
+            public void onScanStatus(int event) {
+                if (DBG) localLog("onScanStatus event received, event=" + event);
+                switch (event) {
+                    case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
+                    case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
+                    case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
+                        sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
+                        break;
+                    case WifiNative.WIFI_SCAN_FAILED:
+                        sendMessage(CMD_SCAN_FAILED);
+                        break;
+                    default:
+                        Log.e(TAG, "Unknown scan status event: " + event);
+                        break;
+                }
+            }
 
-        @Override
-        public void onScanPaused(ScanData scanData[]) {
-            if (DBG) localLog("onScanPaused received");
-            sendMessage(CMD_SCAN_PAUSED, scanData);
-        }
+            @Override
+            public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
+                if (DBG) localLog("onFullScanResult received");
+                sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
+            }
 
-        @Override
-        public void onScanRestarted() {
-            if (DBG) localLog("onScanRestarted received");
-            sendMessage(CMD_SCAN_RESTARTED);
+            @Override
+            public void onScanPaused(ScanData[] scanData) {
+                if (DBG) localLog("onScanPaused received");
+                sendMessage(CMD_SCAN_PAUSED, scanData);
+            }
+
+            @Override
+            public void onScanRestarted() {
+                if (DBG) localLog("onScanRestarted received");
+                sendMessage(CMD_SCAN_RESTARTED);
+            }
         }
 
         class DefaultState extends State {
@@ -1397,7 +1413,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                             + ChannelHelper.toString(bucket));
                 }
 
-                if (mScannerImpl.startBatchedScan(schedule, this)) {
+                if (mScannerImpl.startBatchedScan(schedule,
+                        new ScanEventHandler(mScannerImpl.getIfaceName()))) {
                     if (DBG) {
                         Log.d(TAG, "scan restarted with " + schedule.num_buckets
                                 + " bucket(s) and base period: " + schedule.base_period_ms);
@@ -1510,7 +1527,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
      * multiple requests at the same time, so will need non-trivial changes to support (if at all
      * possible) in WifiScanningService.
      */
-    class WifiPnoScanStateMachine extends StateMachine implements WifiNative.PnoEventHandler {
+    class WifiPnoScanStateMachine extends StateMachine {
 
         private final DefaultState mDefaultState = new DefaultState();
         private final StartedState mStartedState = new StartedState();
@@ -1542,16 +1559,24 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             transitionTo(mStartedState);
         }
 
-        @Override
-        public void onPnoNetworkFound(ScanResult[] results) {
-            if (DBG) localLog("onWifiPnoNetworkFound event received");
-            sendMessage(CMD_PNO_NETWORK_FOUND, 0, 0, results);
-        }
+        private final class PnoEventHandler implements WifiNative.PnoEventHandler {
+            private final String mImplIfaceName;
 
-        @Override
-        public void onPnoScanFailed() {
-            if (DBG) localLog("onWifiPnoScanFailed event received");
-            sendMessage(CMD_PNO_SCAN_FAILED, 0, 0, null);
+            PnoEventHandler(@NonNull String implIfaceName) {
+                mImplIfaceName = implIfaceName;
+            }
+
+            @Override
+            public void onPnoNetworkFound(ScanResult[] results) {
+                if (DBG) localLog("onWifiPnoNetworkFound event received");
+                sendMessage(CMD_PNO_NETWORK_FOUND, 0, 0, results);
+            }
+
+            @Override
+            public void onPnoScanFailed() {
+                if (DBG) localLog("onWifiPnoScanFailed event received");
+                sendMessage(CMD_PNO_SCAN_FAILED, 0, 0, null);
+            }
         }
 
         class DefaultState extends State {
@@ -1811,7 +1836,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
             WifiNative.PnoSettings nativePnoSettings =
                     convertSettingsToPnoNative(scanSettings, pnoSettings);
-            if (!mScannerImpl.setHwPnoList(nativePnoSettings, mPnoScanStateMachine)) {
+            if (!mScannerImpl.setHwPnoList(nativePnoSettings,
+                    new PnoEventHandler(mScannerImpl.getIfaceName()))) {
                 return false;
             }
             logScanRequest("addHwPnoScanRequest", ci, handler, null, scanSettings, pnoSettings);
