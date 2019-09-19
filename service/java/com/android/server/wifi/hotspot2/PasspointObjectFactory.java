@@ -59,9 +59,9 @@ public class PasspointObjectFactory{
      */
     public PasspointProvider makePasspointProvider(PasspointConfiguration config,
             WifiKeyStore keyStore, SIMAccessor simAccessor, long providerId, int creatorUid,
-            String packageName) {
+            String packageName, boolean isFromSuggestion) {
         return new PasspointProvider(config, keyStore, simAccessor, providerId, creatorUid,
-                packageName);
+                packageName, isFromSuggestion);
     }
 
     /**

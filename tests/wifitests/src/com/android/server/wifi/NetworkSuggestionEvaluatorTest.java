@@ -744,7 +744,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
             configs[i].meteredOverride = meteredness[i]
                     ? WifiConfiguration.METERED_OVERRIDE_METERED
                     : WifiConfiguration.METERED_OVERRIDE_NONE;
-            suggestions[i] = new WifiNetworkSuggestion(configs[i], appInteractions[i],
+            suggestions[i] = new WifiNetworkSuggestion(configs[i], null, appInteractions[i],
                     false, uids[i], packageNames[i]);
         }
         return suggestions;

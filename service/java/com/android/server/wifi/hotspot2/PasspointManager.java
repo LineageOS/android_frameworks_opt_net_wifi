@@ -392,7 +392,8 @@ public class PasspointManager {
      * @param packageName Package name of the app adding/Updating {@code config}
      * @return true if provider is added, false otherwise
      */
-    public boolean addOrUpdateProvider(PasspointConfiguration config, int uid, String packageName) {
+    public boolean addOrUpdateProvider(PasspointConfiguration config, int uid,
+            String packageName, boolean isFromSuggestion) {
         mWifiMetrics.incrementNumPasspointProviderInstallation();
         if (config == null) {
             Log.e(TAG, "Configuration not provided");
@@ -421,8 +422,8 @@ public class PasspointManager {
         }
 
         // Create a provider and install the necessary certificates and keys.
-        PasspointProvider newProvider = mObjectFactory.makePasspointProvider(
-                config, mKeyStore, mSimAccessor, mProviderIndex++, uid, packageName);
+        PasspointProvider newProvider = mObjectFactory.makePasspointProvider(config, mKeyStore,
+                mSimAccessor, mProviderIndex++, uid, packageName, isFromSuggestion);
 
         if (!newProvider.installCertsAndKeys()) {
             Log.e(TAG, "Failed to install certificates and keys to keystore");
@@ -431,15 +432,26 @@ public class PasspointManager {
 
         // Remove existing provider with the same FQDN.
         if (mProviders.containsKey(config.getHomeSp().getFqdn())) {
+            PasspointProvider old = mProviders.get(config.getHomeSp().getFqdn());
+            // If new profile is from suggestion and from a different App, ignore new profile,
+            // return true.
+            // If from same app, update it.
+            if (isFromSuggestion && !old.getPackageName().equals(packageName)) {
+                newProvider.uninstallCertsAndKeys();
+                return false;
+            }
             Log.d(TAG, "Replacing configuration for " + config.getHomeSp().getFqdn());
-            mProviders.get(config.getHomeSp().getFqdn()).uninstallCertsAndKeys();
+            old.uninstallCertsAndKeys();
             mProviders.remove(config.getHomeSp().getFqdn());
+            // New profile changes the credential, remove the related WifiConfig.
+            if (!old.equals(newProvider)) {
+                mWifiConfigManager.removePasspointConfiguredNetwork(
+                        newProvider.getWifiConfig().configKey());
+            }
         }
         mProviders.put(config.getHomeSp().getFqdn(), newProvider);
-        mWifiConfigManager.removePasspointConfiguredNetwork(
-                newProvider.getWifiConfig().configKey());
         mWifiConfigManager.saveToStore(true /* forceWrite */);
-        if (newProvider.getPackageName() != null) {
+        if (!isFromSuggestion && newProvider.getPackageName() != null) {
             startTrackingAppOpsChange(newProvider.getPackageName(), uid);
         }
         Log.d(TAG, "Added/updated Passpoint configuration: " + config.getHomeSp().getFqdn()
@@ -650,7 +662,7 @@ public class PasspointManager {
 
         // Create a provider and install the necessary certificates and keys.
         PasspointProvider newProvider = mObjectFactory.makePasspointProvider(
-                config, mKeyStore, mSimAccessor, mProviderIndex++, Process.WIFI_UID, null);
+                config, mKeyStore, mSimAccessor, mProviderIndex++, Process.WIFI_UID, null, false);
         newProvider.setEphemeral(true);
         Log.d(TAG, "installed PasspointConfiguration for carrier : "
                 + config.getHomeSp().getFriendlyName());
@@ -713,18 +725,21 @@ public class PasspointManager {
 
     /**
      * Return the installed Passpoint provider configurations.
-     *
      * An empty list will be returned when no provider is installed.
      *
      * @param callingUid Calling UID.
      * @param privileged Whether the caller is a privileged entity
      * @return A list of {@link PasspointConfiguration}
      */
-    public List<PasspointConfiguration> getProviderConfigs(int callingUid, boolean privileged) {
+    public List<PasspointConfiguration> getProviderConfigs(int callingUid,
+            boolean privileged) {
         List<PasspointConfiguration> configs = new ArrayList<>();
         for (Map.Entry<String, PasspointProvider> entry : mProviders.entrySet()) {
             PasspointProvider provider = entry.getValue();
             if (privileged || callingUid == provider.getCreatorUid()) {
+                if (provider.isEphemeral() || provider.isFromSuggestion()) {
+                    continue;
+                }
                 configs.add(provider.getConfig());
             }
         }
@@ -814,6 +829,15 @@ public class PasspointManager {
                     roamingConsortium);
             if (matchStatus == PasspointMatch.HomeProvider
                     || matchStatus == PasspointMatch.RoamingProvider) {
+                // If provider is from network suggestion, check user approval.
+                // Send user approval notification if need.
+                // If not approved, will be ignored in this matching.
+                if (provider.isFromSuggestion()
+                        && mWifiInjector.getWifiNetworkSuggestionsManager()
+                                .sendUserApprovalNotificationIfNotApproved(
+                                        provider.getPackageName(), provider.getCreatorUid())) {
+                    continue;
+                }
                 allMatches.add(Pair.create(provider, matchStatus));
             }
         }
@@ -1026,13 +1050,12 @@ public class PasspointManager {
     public Map<OsuProvider, PasspointConfiguration> getMatchingPasspointConfigsForOsuProviders(
             List<OsuProvider> osuProviders) {
         Map<OsuProvider, PasspointConfiguration> matchingPasspointConfigs = new HashMap<>();
-        List<PasspointConfiguration> passpointConfigurations =
-                getProviderConfigs(Process.WIFI_UID /* ignored */, true);
 
         for (OsuProvider osuProvider : osuProviders) {
             Map<String, String> friendlyNamesForOsuProvider = osuProvider.getFriendlyNameList();
             if (friendlyNamesForOsuProvider == null) continue;
-            for (PasspointConfiguration passpointConfiguration : passpointConfigurations) {
+            for (PasspointProvider provider : mProviders.values()) {
+                PasspointConfiguration passpointConfiguration = provider.getConfig();
                 Map<String, String> serviceFriendlyNamesForPpsMo =
                         passpointConfiguration.getServiceFriendlyNames();
                 if (serviceFriendlyNamesForPpsMo == null) continue;
@@ -1167,7 +1190,7 @@ public class PasspointManager {
         // Note that for legacy configuration, the alias for client private key is the same as the
         // alias for the client certificate.
         PasspointProvider provider = new PasspointProvider(passpointConfig, mKeyStore,
-                mSimAccessor, mProviderIndex++, wifiConfig.creatorUid, null,
+                mSimAccessor, mProviderIndex++, wifiConfig.creatorUid, null, false,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(),
                 enterpriseConfig.getClientCertificateAlias(), null, false, false);

@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
 import android.util.Log;
 import android.util.Pair;
@@ -26,6 +27,7 @@ import android.util.Pair;
 import com.android.internal.util.XmlUtils;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
+import com.android.server.wifi.hotspot2.PasspointXmlUtils;
 import com.android.server.wifi.util.XmlUtil;
 import com.android.server.wifi.util.XmlUtil.WifiConfigurationXmlUtil;
 
@@ -61,6 +63,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_HAS_USER_APPROVED = "SuggestorHasUserApproved";
     private static final String XML_TAG_SUGGESTOR_MAX_SIZE = "SuggestorMaxSize";
+    private static final String XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION =
+            "PasspointConfiguration";
 
     /**
      * Interface define the data source for the network suggestions store data.
@@ -199,6 +203,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                     out, suggestion.wifiConfiguration.enterpriseConfig);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
         }
+        if (suggestion.passpointConfiguration != null) {
+            XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
+            PasspointXmlUtils.serializePasspointConfiguration(out,
+                    suggestion.passpointConfiguration);
+            XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
+        }
 
         // Serialize other fields
         XmlUtil.writeNextValue(out, XML_TAG_IS_APP_INTERACTION_REQUIRED,
@@ -283,6 +293,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
         WifiEnterpriseConfig enterpriseConfig = null;
+        PasspointConfiguration passpointConfiguration = null;
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
         int suggestorUid = Process.INVALID_UID;
@@ -334,6 +345,14 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         enterpriseConfig = XmlUtil.WifiEnterpriseConfigXmlUtil.parseFromXml(
                                 in, outerTagDepth + 1);
                         break;
+                    case XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION:
+                        if (passpointConfiguration != null) {
+                            throw new XmlPullParserException("Detected duplicate tag for: "
+                                    + XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
+                        }
+                        passpointConfiguration = PasspointXmlUtils
+                                .deserializePasspointConfiguration(in, outerTagDepth + 1);
+                        break;
                     default:
                         throw new XmlPullParserException("Unknown tag under "
                                 + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION + ": " + in.getName());
@@ -354,8 +373,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             wifiConfiguration.enterpriseConfig = enterpriseConfig;
         }
         return new WifiNetworkSuggestion(
-                wifiConfiguration, isAppInteractionRequired, isUserInteractionRequired,
-                suggestorUid, suggestorPackageName);
+                wifiConfiguration, passpointConfiguration, isAppInteractionRequired,
+                isUserInteractionRequired, suggestorUid, suggestorPackageName);
     }
 }
 

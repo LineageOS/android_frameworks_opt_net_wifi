@@ -244,8 +244,13 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         }
 
         // Add the newly created WifiConfiguration to WifiConfigManager.
-        NetworkUpdateResult result =
-                mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
+        NetworkUpdateResult result;
+        if (config.fromWifiNetworkSuggestion) {
+            result = mWifiConfigManager.addOrUpdateNetwork(
+                    config, config.creatorUid, config.creatorName);
+        } else {
+            result = mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
+        }
         if (!result.isSuccess()) {
             localLog("Failed to add passpoint network");
             return null;

@@ -71,6 +71,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
             "RemediationCaCertificateAlias";
 
     private static final String XML_TAG_HAS_EVER_CONNECTED = "HasEverConnected";
+    private static final String XML_TAG_IS_FROM_SUGGESTION = "IsFromSuggestion";
 
     private final WifiKeyStore mKeyStore;
     private final SIMAccessor mSimAccessor;
@@ -200,6 +201,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         XmlUtil.writeNextValue(out, XML_TAG_CLIENT_PRIVATE_KEY_ALIAS,
                 provider.getClientPrivateKeyAlias());
         XmlUtil.writeNextValue(out, XML_TAG_HAS_EVER_CONNECTED, provider.getHasEverConnected());
+        XmlUtil.writeNextValue(out, XML_TAG_IS_FROM_SUGGESTION, provider.isFromSuggestion());
         if (provider.getConfig() != null) {
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION);
             PasspointXmlUtils.serializePasspointConfiguration(out, provider.getConfig());
@@ -272,6 +274,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         String remediationCaCertificateAlias = null;
         String packageName = null;
         boolean hasEverConnected = false;
+        boolean isFromSuggestion = false;
         boolean shared = false;
         PasspointConfiguration config = null;
         while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
@@ -309,6 +312,9 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                     case XML_TAG_HAS_EVER_CONNECTED:
                         hasEverConnected = (boolean) value;
                         break;
+                    case XML_TAG_IS_FROM_SUGGESTION:
+                        isFromSuggestion = (boolean) value;
+                        break;
                 }
             } else {
                 if (!TextUtils.equals(in.getName(),
@@ -338,8 +344,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
             throw new XmlPullParserException("Missing Passpoint configuration");
         }
         return new PasspointProvider(config, mKeyStore, mSimAccessor, providerId, creatorUid,
-                packageName, caCertificateAliases, clientCertificateAlias, clientPrivateKeyAlias,
-                remediationCaCertificateAlias, hasEverConnected, shared);
+                packageName, isFromSuggestion, caCertificateAliases, clientCertificateAlias,
+                clientPrivateKeyAlias, remediationCaCertificateAlias, hasEverConnected, shared);
     }
 }
 
