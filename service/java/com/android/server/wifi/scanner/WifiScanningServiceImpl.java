@@ -282,7 +282,13 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
             switch (msg.what) {
                 case WifiScanner.CMD_ENABLE:
+                    setupScannerImpl();
+                    mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
+                    mSingleScanStateMachine.sendMessage(Message.obtain(msg));
+                    mPnoScanStateMachine.sendMessage(Message.obtain(msg));
+                    break;
                 case WifiScanner.CMD_DISABLE:
+                    teardownScannerImpl();
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
                     mSingleScanStateMachine.sendMessage(Message.obtain(msg));
                     mPnoScanStateMachine.sendMessage(Message.obtain(msg));
@@ -378,6 +384,31 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
         // Create client handler only after StateMachines are ready.
         mClientHandler = new ClientHandler(TAG, mLooper);
+    }
+
+    private void setupScannerImpl() {
+        if (mScannerImpl != null) {
+            // Scanner Impl already exists (back to back CMD_ENABLE sent?).
+            Log.i(TAG, "scanner impl already exists");
+            return;
+        }
+
+        String ifaceName = mWifiNative.getClientInterfaceName();
+        if (TextUtils.isEmpty(ifaceName)) {
+            loge("Failed to retrieve client interface name");
+            return;
+        }
+        mScannerImpl = mScannerImplFactory.create(mContext, mLooper, mClock, ifaceName);
+        if (mScannerImpl == null) {
+            loge("Failed to create scanner impl");
+        }
+    }
+
+    private void teardownScannerImpl() {
+        if (mScannerImpl != null) {
+            mScannerImpl.cleanup();
+            mScannerImpl = null;
+        }
     }
 
     /**
@@ -1067,6 +1098,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         }
     }
 
+    // TODO(b/71855918): Remove this bg scan state machine and its dependencies.
+    // Note: bgscan will not support multiple scanner impls (will pick any).
     class WifiBackgroundScanStateMachine extends StateMachine {
 
         private final DefaultState mDefaultState = new DefaultState();
@@ -1154,16 +1187,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
                     case WifiScanner.CMD_ENABLE:
-                        // TODO this should be moved to a common location since it is used outside
-                        // of this state machine. It is ok right now because the enable event
-                        // is sent to this background scan state machine first.
-                        String ifaceName = mWifiNative.getClientInterfaceName();
-                        if (TextUtils.isEmpty(ifaceName)) {
-                            loge("Failed to retrieve client interface name");
-                            return HANDLED;
-                        }
-                        mScannerImpl =
-                                mScannerImplFactory.create(mContext, mLooper, mClock, ifaceName);
                         if (mScannerImpl == null) {
                             loge("Failed to start bgscan scan state machine because scanner impl"
                                     + " is null");
@@ -1231,9 +1254,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public void exit() {
                 sendBackgroundScanFailedToAllAndClear(
                         WifiScanner.REASON_UNSPECIFIED, "Scan was interrupted");
-                if (mScannerImpl != null) {
-                    mScannerImpl.cleanup();
-                }
             }
 
             @Override
