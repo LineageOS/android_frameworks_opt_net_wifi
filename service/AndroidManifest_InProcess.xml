@@ -37,5 +37,11 @@
                 <action android:name="android.net.wifi.IWifiStackConnector.InProcess"/>
             </intent-filter>
         </service>
+        <receiver android:name="com.android.server.wifi.BootCompleteReceiver"
+                  android:process="system">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
