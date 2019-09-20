@@ -19,6 +19,7 @@ package com.android.server.wifi.scanner;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
@@ -36,8 +37,8 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.WorkSource;
-import android.text.TextUtils;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
@@ -70,6 +71,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
@@ -95,8 +98,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         Log.e(TAG, message);
         mLocalLog.log(message);
     }
-
-    private WifiScannerImpl mScannerImpl;
 
     @Override
     public Messenger getMessenger() {
@@ -282,13 +283,13 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
             switch (msg.what) {
                 case WifiScanner.CMD_ENABLE:
-                    setupScannerImpl();
+                    setupScannerImpls();
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
                     mSingleScanStateMachine.sendMessage(Message.obtain(msg));
                     mPnoScanStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 case WifiScanner.CMD_DISABLE:
-                    teardownScannerImpl();
+                    teardownScannerImpls();
                     mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
                     mSingleScanStateMachine.sendMessage(Message.obtain(msg));
                     mPnoScanStateMachine.sendMessage(Message.obtain(msg));
@@ -335,6 +336,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private final Looper mLooper;
     private final WifiScannerImpl.WifiScannerImplFactory mScannerImplFactory;
     private final ArrayMap<Messenger, ClientInfo> mClients;
+    private final Map<String, WifiScannerImpl> mScannerImpls;
+
 
     private final RequestList<Void> mSingleScanListeners = new RequestList<>();
 
@@ -363,6 +366,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mScannerImplFactory = scannerImplFactory;
         mBatteryStats = batteryStats;
         mClients = new ArrayMap<>();
+        mScannerImpls = new ArrayMap<>();
         mAlarmManager = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
         mWifiMetrics = wifiInjector.getWifiMetrics();
         mClock = wifiInjector.getClock();
@@ -386,29 +390,62 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mClientHandler = new ClientHandler(TAG, mLooper);
     }
 
-    private void setupScannerImpl() {
-        if (mScannerImpl != null) {
-            // Scanner Impl already exists (back to back CMD_ENABLE sent?).
-            Log.i(TAG, "scanner impl already exists");
+    private void setupScannerImpls() {
+        Set<String> ifaceNames = mWifiNative.getClientInterfaceNames();
+        if (ArrayUtils.isEmpty(ifaceNames)) {
+            loge("Failed to retrieve client interface names");
             return;
         }
+        Set<String> ifaceNamesOfImplsAlreadySetup = mScannerImpls.keySet();
+        if (ifaceNames.equals(ifaceNamesOfImplsAlreadySetup)) {
+            // Scanner Impls already exist for all ifaces (back to back CMD_ENABLE sent?).
+            Log.i(TAG, "scanner impls already exists");
+            return;
+        }
+        // set of impls to teardown.
+        Set<String> ifaceNamesOfImplsToTeardown = new ArraySet<>(ifaceNamesOfImplsAlreadySetup);
+        ifaceNamesOfImplsToTeardown.removeAll(ifaceNames);
+        // set of impls to be considered for setup.
+        Set<String> ifaceNamesOfImplsToSetup = new ArraySet<>(ifaceNames);
+        ifaceNamesOfImplsToSetup.removeAll(ifaceNamesOfImplsAlreadySetup);
 
-        String ifaceName = mWifiNative.getClientInterfaceName();
-        if (TextUtils.isEmpty(ifaceName)) {
-            loge("Failed to retrieve client interface name");
-            return;
+        for (String ifaceName : ifaceNamesOfImplsToTeardown) {
+            WifiScannerImpl impl = mScannerImpls.remove(ifaceName);
+            if (impl == null) continue; // should never happen
+            impl.cleanup();
+            Log.i(TAG, "Removed an impl for " + ifaceName);
         }
-        mScannerImpl = mScannerImplFactory.create(mContext, mLooper, mClock, ifaceName);
-        if (mScannerImpl == null) {
-            loge("Failed to create scanner impl");
+        for (String ifaceName : ifaceNamesOfImplsToSetup) {
+            WifiScannerImpl impl = mScannerImplFactory.create(mContext, mLooper, mClock, ifaceName);
+            if (impl == null) {
+                loge("Failed to create scanner impl for " + ifaceName);
+                continue;
+            }
+            // TODO(b/140111024): Need to add band checks here. If this new scanner impl does not
+            // offer any new bands to scan, then we should ignore it.
+            mScannerImpls.put(ifaceName, impl);
+            Log.i(TAG, "Created a new impl for " + ifaceName);
         }
     }
 
-    private void teardownScannerImpl() {
-        if (mScannerImpl != null) {
-            mScannerImpl.cleanup();
-            mScannerImpl = null;
+    private void teardownScannerImpls() {
+        for (Map.Entry<String, WifiScannerImpl> entry : mScannerImpls.entrySet()) {
+            WifiScannerImpl impl = entry.getValue();
+            String ifaceName = entry.getKey();
+            if (impl == null) continue; // should never happen
+            impl.cleanup();
+            Log.i(TAG, "Removed an impl for " + ifaceName);
         }
+        mScannerImpls.clear();
+    }
+
+    /**
+     * Note: Temporarily used everywhere, will eventually be used only by bg scan state machine
+     * which does not support multiple impls.
+     */
+    private @Nullable WifiScannerImpl getAnyImpl() {
+        if (mScannerImpls.isEmpty()) return null;
+        return mScannerImpls.entrySet().iterator().next().getValue();
     }
 
     /**
@@ -622,7 +659,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
                     case WifiScanner.CMD_ENABLE:
-                        if (mScannerImpl == null) {
+                        if (mScannerImpls.isEmpty()) {
                             loge("Failed to start single scan state machine because scanner impl"
                                     + " is null");
                             return HANDLED;
@@ -804,7 +841,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         mWifiMetrics.incrementScanReturnEntry(
                                 WifiMetricsProto.WifiLog.SCAN_SUCCESS,
                                 mActiveScans.size());
-                        reportScanResults(mScannerImpl.getLatestSingleScanResults());
+                        reportScanResults(getAnyImpl().getLatestSingleScanResults());
                         mActiveScans.clear();
                         transitionTo(mIdleState);
                         return HANDLED;
@@ -1012,8 +1049,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             channels.fillBucketSettings(bucketSettings, Integer.MAX_VALUE);
 
             settings.buckets = new WifiNative.BucketSettings[] {bucketSettings};
-            if (mScannerImpl.startSingleScan(settings,
-                    new ScanEventHandler(mScannerImpl.getIfaceName()))) {
+            if (getAnyImpl().startSingleScan(settings,
+                    new ScanEventHandler(getAnyImpl().getIfaceName()))) {
                 // store the active scan settings
                 mActiveScanSettings = settings;
                 // swap pending and active scan requests
@@ -1187,18 +1224,18 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
                     case WifiScanner.CMD_ENABLE:
-                        if (mScannerImpl == null) {
+                        if (mScannerImpls.isEmpty()) {
                             loge("Failed to start bgscan scan state machine because scanner impl"
                                     + " is null");
                             return HANDLED;
                         }
-                        mChannelHelper = mScannerImpl.getChannelHelper();
+                        mChannelHelper = getAnyImpl().getChannelHelper();
 
                         mBackgroundScheduler = new BackgroundScanScheduler(mChannelHelper);
 
                         WifiNative.ScanCapabilities capabilities =
                                 new WifiNative.ScanCapabilities();
-                        if (!mScannerImpl.getScanCapabilities(capabilities)) {
+                        if (!getAnyImpl().getScanCapabilities(capabilities)) {
                             loge("could not get scan capabilities");
                             return HANDLED;
                         }
@@ -1290,11 +1327,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         removeBackgroundScanRequest(ci, msg.arg2);
                         break;
                     case WifiScanner.CMD_GET_SCAN_RESULTS:
-                        reportScanResults(mScannerImpl.getLatestBatchedScanResults(true));
+                        reportScanResults(getAnyImpl().getLatestBatchedScanResults(true));
                         replySucceeded(msg);
                         break;
                     case CMD_SCAN_RESULTS_AVAILABLE:
-                        reportScanResults(mScannerImpl.getLatestBatchedScanResults(true));
+                        reportScanResults(getAnyImpl().getLatestBatchedScanResults(true));
                         break;
                     case CMD_FULL_SCAN_RESULTS:
                         reportFullScanResult((ScanResult) msg.obj, /* bucketsScanned */ msg.arg2);
@@ -1400,7 +1437,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         }
 
         private boolean updateSchedule() {
-            if (mChannelHelper == null || mBackgroundScheduler == null || mScannerImpl == null) {
+            if (mChannelHelper == null || mBackgroundScheduler == null || getAnyImpl() == null) {
                 loge("Failed to update schedule because WifiScanningService is not initialized");
                 return false;
             }
@@ -1418,7 +1455,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             mPreviousSchedule = schedule;
 
             if (schedule.num_buckets == 0) {
-                mScannerImpl.stopBatchedScan();
+                getAnyImpl().stopBatchedScan();
                 if (DBG) Log.d(TAG, "scan stopped");
                 return true;
             } else {
@@ -1433,8 +1470,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                             + ChannelHelper.toString(bucket));
                 }
 
-                if (mScannerImpl.startBatchedScan(schedule,
-                        new ScanEventHandler(mScannerImpl.getIfaceName()))) {
+                if (getAnyImpl().startBatchedScan(schedule,
+                        new ScanEventHandler(getAnyImpl().getIfaceName()))) {
                     if (DBG) {
                         Log.d(TAG, "scan restarted with " + schedule.num_buckets
                                 + " bucket(s) and base period: " + schedule.base_period_ms);
@@ -1609,7 +1646,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
                     case WifiScanner.CMD_ENABLE:
-                        if (mScannerImpl == null) {
+                        if (mScannerImpls.isEmpty()) {
                             loge("Failed to start pno scan state machine because scanner impl"
                                     + " is null");
                             return HANDLED;
@@ -1664,7 +1701,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         pnoParams.setDefusable(true);
                         PnoSettings pnoSettings =
                                 pnoParams.getParcelable(WifiScanner.PNO_PARAMS_PNO_SETTINGS_KEY);
-                        if (mScannerImpl.isHwPnoSupported(pnoSettings.isConnected)) {
+                        if (getAnyImpl().isHwPnoSupported(pnoSettings.isConnected)) {
                             deferMessage(msg);
                             transitionTo(mHwPnoScanState);
                         } else {
@@ -1690,7 +1727,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public void exit() {
                 // Reset PNO scan in ScannerImpl before we exit.
-                mScannerImpl.resetHwPnoList();
+                getAnyImpl().resetHwPnoList();
                 removeInternalClient();
             }
 
@@ -1856,8 +1893,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
             WifiNative.PnoSettings nativePnoSettings =
                     convertSettingsToPnoNative(scanSettings, pnoSettings);
-            if (!mScannerImpl.setHwPnoList(nativePnoSettings,
-                    new PnoEventHandler(mScannerImpl.getIfaceName()))) {
+            if (!getAnyImpl().setHwPnoList(nativePnoSettings,
+                    new PnoEventHandler(getAnyImpl().getIfaceName()))) {
                 return false;
             }
             logScanRequest("addHwPnoScanRequest", ci, handler, null, scanSettings, pnoSettings);
@@ -2233,8 +2270,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             ScanResultUtil.dumpScanResults(pw, scanResults, nowMs);
             pw.println();
         }
-        if (mScannerImpl != null) {
-            mScannerImpl.dump(fd, pw, args);
+        for (WifiScannerImpl impl : mScannerImpls.values()) {
+            impl.dump(fd, pw, args);
         }
     }
 

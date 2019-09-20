@@ -66,6 +66,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.test.TestLooper;
+import android.util.ArraySet;
 import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
@@ -170,7 +171,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         when(mFrameworkFacade.makeWifiAsyncChannel(anyString())).thenReturn(mWifiAsyncChannel);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getClock()).thenReturn(mClock);
-        when(mWifiNative.getClientInterfaceName()).thenReturn(TEST_IFACE_NAME_0);
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0)));
         when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
         when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), eq(Binder.getCallingUid())))
@@ -2063,7 +2065,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void rejectSingleScanRequestWhenScannerGetIfaceNameFails() throws Exception {
         // Failed to get client interface name.
-        when(mWifiNative.getClientInterfaceName()).thenReturn(null);
+        when(mWifiNative.getClientInterfaceNames()).thenReturn(new ArraySet<>());
 
         startServiceAndLoadDriver();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
