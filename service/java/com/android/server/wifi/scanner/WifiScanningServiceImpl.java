@@ -583,8 +583,13 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         // Scan results cached from the last full single scan request.
         private final List<ScanResult> mCachedScanResults = new ArrayList<>();
 
+        // Tracks scan requests across multiple scanner impls.
+        private final ScannerImplsTracker mScannerImplsTracker;
+
         WifiSingleScanStateMachine(Looper looper) {
             super("WifiSingleScanStateMachine", looper);
+
+            mScannerImplsTracker = new ScannerImplsTracker();
 
             setLogRecSize(128);
             setLogOnlyTransitions(false);
@@ -599,53 +604,150 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             setInitialState(mDefaultState);
         }
 
-        private final class ScanEventHandler implements WifiNative.ScanEventHandler {
-            private final String mImplIfaceName;
-            ScanEventHandler(@NonNull String implIfaceName) {
-                mImplIfaceName = implIfaceName;
-            }
+        /**
+         * Tracks a single scan request across all the available scanner impls.
+         *
+         * a) Initiates the scan using the same ScanSettings across all the available impls.
+         * b) Waits for all the impls to report the status of the scan request (success or failure).
+         * c) Calculates a consolidated scan status and sends the results if successful.
+         * Note: If there are failures on some of the scanner impls, we ignore them since we will
+         * get some scan results from the other successful impls. We don't declare total scan
+         * failures, unless all the scanner impls fail.
+         */
+        private final class ScannerImplsTracker {
+            private final class ScanEventHandler implements WifiNative.ScanEventHandler {
+                private final String mImplIfaceName;
+                ScanEventHandler(@NonNull String implIfaceName) {
+                    mImplIfaceName = implIfaceName;
+                }
 
-            /**
-             * Called to indicate a change in state for the current scan.
-             * Will dispatch a coresponding event to the state machine
-             */
-            @Override
-            public void onScanStatus(int event) {
-                if (DBG) localLog("onScanStatus event received, event=" + event);
-                switch (event) {
-                    case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
-                    case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
-                    case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
-                        sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
-                        break;
-                    case WifiNative.WIFI_SCAN_FAILED:
-                        sendMessage(CMD_SCAN_FAILED);
-                        break;
-                    default:
-                        Log.e(TAG, "Unknown scan status event: " + event);
-                        break;
+                /**
+                 * Called to indicate a change in state for the current scan.
+                 * Will dispatch a corresponding event to the state machine
+                 */
+                @Override
+                public void onScanStatus(int event) {
+                    if (DBG) localLog("onScanStatus event received, event=" + event);
+                    switch (event) {
+                        case WifiNative.WIFI_SCAN_RESULTS_AVAILABLE:
+                        case WifiNative.WIFI_SCAN_THRESHOLD_NUM_SCANS:
+                        case WifiNative.WIFI_SCAN_THRESHOLD_PERCENT:
+                            reportScanStatusForImpl(mImplIfaceName, STATUS_SUCCEEDED);
+                            break;
+                        case WifiNative.WIFI_SCAN_FAILED:
+                            reportScanStatusForImpl(mImplIfaceName, STATUS_FAILED);
+                            break;
+                        default:
+                            Log.e(TAG, "Unknown scan status event: " + event);
+                            break;
+                    }
+                }
+
+                /**
+                 * Called for each full scan result if requested
+                 */
+                @Override
+                public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
+                    if (DBG) localLog("onFullScanResult received");
+                    reportFullScanResultForImpl(mImplIfaceName, fullScanResult, bucketsScanned);
+                }
+
+                @Override
+                public void onScanPaused(ScanData[] scanData) {
+                    // should not happen for single scan
+                    Log.e(TAG, "Got scan paused for single scan");
+                }
+
+                @Override
+                public void onScanRestarted() {
+                    // should not happen for single scan
+                    Log.e(TAG, "Got scan restarted for single scan");
                 }
             }
 
+            private static final int STATUS_PENDING = 0;
+            private static final int STATUS_SUCCEEDED = 1;
+            private static final int STATUS_FAILED = 2;
+
+            // Tracks scan status per impl.
+            Map<String, Integer> mStatusPerImpl = new ArrayMap<>();
+
             /**
-             * Called for each full scan result if requested
+             * Triggers a new scan on all the available scanner impls.
+             * @return true if the scan succeeded on any of the impl, false otherwise.
              */
-            @Override
-            public void onFullScanResult(ScanResult fullScanResult, int bucketsScanned) {
-                if (DBG) localLog("onFullScanResult received");
-                sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
+            public boolean startSingleScan(WifiNative.ScanSettings scanSettings) {
+                mStatusPerImpl.clear();
+                boolean anySuccess = false;
+                for (Map.Entry<String, WifiScannerImpl> entry : mScannerImpls.entrySet()) {
+                    String ifaceName = entry.getKey();
+                    WifiScannerImpl impl = entry.getValue();
+                    boolean success = impl.startSingleScan(
+                            scanSettings, new ScanEventHandler(ifaceName));
+                    if (!success) {
+                        Log.e(TAG, "Failed to start single scan on " + ifaceName);
+                        continue;
+                    }
+                    mStatusPerImpl.put(ifaceName, STATUS_PENDING);
+                    anySuccess = true;
+                }
+                return anySuccess;
             }
 
-            @Override
-            public void onScanPaused(ScanData[] scanData) {
-                // should not happen for single scan
-                Log.e(TAG, "Got scan paused for single scan");
+            /**
+             * Returns the latest scan results from all the available scanner impls.
+             * @return Consolidated list of scan results from all the impl.
+             */
+            public ScanData getLatestSingleScanResults() {
+                ScanData consolidatedScanData = null;
+                for (WifiScannerImpl impl : mScannerImpls.values()) {
+                    ScanData scanData = impl.getLatestSingleScanResults();
+                    if (consolidatedScanData == null) {
+                        consolidatedScanData = new ScanData(scanData);
+                    } else {
+                        consolidatedScanData.addResults(scanData.getResults());
+                    }
+                }
+                return consolidatedScanData;
             }
 
-            @Override
-            public void onScanRestarted() {
-                // should not happen for single scan
-                Log.e(TAG, "Got scan restarted for single scan");
+            private void reportFullScanResultForImpl(@NonNull String implIfaceName,
+                    ScanResult fullScanResult, int bucketsScanned) {
+                Integer status = mStatusPerImpl.get(implIfaceName);
+                if (status != null && status == STATUS_PENDING) {
+                    sendMessage(CMD_FULL_SCAN_RESULTS, 0, bucketsScanned, fullScanResult);
+                }
+            }
+
+            private int getConsolidatedStatus() {
+                boolean anyPending = mStatusPerImpl.values().stream()
+                        .anyMatch(status -> status == STATUS_PENDING);
+                // at-least one impl status is still pending.
+                if (anyPending) return STATUS_PENDING;
+
+                boolean anySuccess = mStatusPerImpl.values().stream()
+                        .anyMatch(status -> status == STATUS_SUCCEEDED);
+                // one success is good enough to declare consolidated success.
+                if (anySuccess) {
+                    return STATUS_SUCCEEDED;
+                } else {
+                    // all failed.
+                    return STATUS_FAILED;
+                }
+            }
+
+            private void reportScanStatusForImpl(@NonNull String implIfaceName, int newStatus) {
+                Integer currentStatus = mStatusPerImpl.get(implIfaceName);
+                if (currentStatus != null && currentStatus == STATUS_PENDING) {
+                    mStatusPerImpl.put(implIfaceName, newStatus);
+                }
+                // Now check if all the scanner impls scan status is available.
+                int consolidatedStatus = getConsolidatedStatus();
+                if (consolidatedStatus == STATUS_SUCCEEDED) {
+                    sendMessage(CMD_SCAN_RESULTS_AVAILABLE);
+                } else if (consolidatedStatus == STATUS_FAILED) {
+                    sendMessage(CMD_SCAN_FAILED);
+                }
             }
         }
 
@@ -841,7 +943,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         mWifiMetrics.incrementScanReturnEntry(
                                 WifiMetricsProto.WifiLog.SCAN_SUCCESS,
                                 mActiveScans.size());
-                        reportScanResults(getAnyImpl().getLatestSingleScanResults());
+                        reportScanResults(mScannerImplsTracker.getLatestSingleScanResults());
                         mActiveScans.clear();
                         transitionTo(mIdleState);
                         return HANDLED;
@@ -1049,8 +1151,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             channels.fillBucketSettings(bucketSettings, Integer.MAX_VALUE);
 
             settings.buckets = new WifiNative.BucketSettings[] {bucketSettings};
-            if (getAnyImpl().startSingleScan(settings,
-                    new ScanEventHandler(getAnyImpl().getIfaceName()))) {
+            if (mScannerImplsTracker.startSingleScan(settings)) {
                 // store the active scan settings
                 mActiveScanSettings = settings;
                 // swap pending and active scan requests
