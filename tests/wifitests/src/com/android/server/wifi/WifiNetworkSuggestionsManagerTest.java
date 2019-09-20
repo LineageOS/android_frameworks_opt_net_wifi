@@ -150,10 +150,12 @@ public class WifiNetworkSuggestionsManagerTest {
         when(mContext.getApplicationInfo()).thenReturn(ourAppInfo);
         // test app info
         ApplicationInfo appInfO1 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfo(TEST_PACKAGE_1, 0)).thenReturn(appInfO1);
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_1), eq(0), anyInt()))
+            .thenReturn(appInfO1);
         when(mPackageManager.getApplicationLabel(appInfO1)).thenReturn(TEST_APP_NAME_1);
         ApplicationInfo appInfO2 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfo(TEST_PACKAGE_2, 0)).thenReturn(appInfO2);
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_2), eq(0), anyInt()))
+            .thenReturn(appInfO2);
         when(mPackageManager.getApplicationLabel(appInfO2)).thenReturn(TEST_APP_NAME_2);
 
         mWifiNetworkSuggestionsManager =
