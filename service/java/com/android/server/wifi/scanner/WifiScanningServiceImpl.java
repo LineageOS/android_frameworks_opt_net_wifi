@@ -35,6 +35,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.WorkSource;
+import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.LocalLog;
 import android.util.Log;
@@ -280,14 +281,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
             switch (msg.what) {
                 case WifiScanner.CMD_ENABLE:
-                    mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                    mSingleScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                    mPnoScanStateMachine.sendMessage(CMD_DRIVER_LOADED);
-                    break;
                 case WifiScanner.CMD_DISABLE:
-                    mBackgroundScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
-                    mSingleScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
-                    mPnoScanStateMachine.sendMessage(CMD_DRIVER_UNLOADED);
+                    mBackgroundScanStateMachine.sendMessage(Message.obtain(msg));
+                    mSingleScanStateMachine.sendMessage(Message.obtain(msg));
+                    mPnoScanStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 case WifiScanner.CMD_START_BACKGROUND_SCAN:
                 case WifiScanner.CMD_STOP_BACKGROUND_SCAN:
@@ -321,8 +318,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     private static final int CMD_SCAN_RESULTS_AVAILABLE              = BASE + 0;
     private static final int CMD_FULL_SCAN_RESULTS                   = BASE + 1;
-    private static final int CMD_DRIVER_LOADED                       = BASE + 6;
-    private static final int CMD_DRIVER_UNLOADED                     = BASE + 7;
     private static final int CMD_SCAN_PAUSED                         = BASE + 8;
     private static final int CMD_SCAN_RESTARTED                      = BASE + 9;
     private static final int CMD_SCAN_FAILED                         = BASE + 10;
@@ -351,6 +346,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private final Clock mClock;
     private final FrameworkFacade mFrameworkFacade;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
+    private final WifiNative mWifiNative;
 
     WifiScanningServiceImpl(Context context, Looper looper,
             WifiScannerImpl.WifiScannerImplFactory scannerImplFactory, IBatteryStats batteryStats,
@@ -366,6 +362,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mLog = wifiInjector.makeLog(TAG);
         mFrameworkFacade = wifiInjector.getFrameworkFacade();
         mWifiPermissionsUtil = wifiInjector.getWifiPermissionsUtil();
+        mWifiNative = wifiInjector.getWifiNative();
         mPreviousSchedule = null;
     }
 
@@ -585,7 +582,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         if (mScannerImpl == null) {
                             loge("Failed to start single scan state machine because scanner impl"
                                     + " is null");
@@ -593,7 +590,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         }
                         transitionTo(mIdleState);
                         return HANDLED;
-                    case CMD_DRIVER_UNLOADED:
+                    case WifiScanner.CMD_DISABLE:
                         transitionTo(mDefaultState);
                         return HANDLED;
                     case WifiScanner.CMD_START_SINGLE_SCAN:
@@ -657,7 +654,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 ClientInfo ci = mClients.get(msg.replyTo);
 
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         // Ignore if we're already in driver loaded state.
                         return HANDLED;
                     case WifiScanner.CMD_START_SINGLE_SCAN:
@@ -1140,11 +1137,17 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         // TODO this should be moved to a common location since it is used outside
-                        // of this state machine. It is ok right now because the driver loaded event
-                        // is sent to this state machine first.
-                        mScannerImpl = mScannerImplFactory.create(mContext, mLooper, mClock);
+                        // of this state machine. It is ok right now because the enable event
+                        // is sent to this background scan state machine first.
+                        String ifaceName = mWifiNative.getClientInterfaceName();
+                        if (TextUtils.isEmpty(ifaceName)) {
+                            loge("Failed to retrieve client interface name");
+                            return HANDLED;
+                        }
+                        mScannerImpl =
+                                mScannerImplFactory.create(mContext, mLooper, mClock, ifaceName);
                         if (mScannerImpl == null) {
                             loge("Failed to start bgscan scan state machine because scanner impl"
                                     + " is null");
@@ -1173,7 +1176,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
                         transitionTo(mStartedState);
                         return HANDLED;
-                    case CMD_DRIVER_UNLOADED:
+                    case WifiScanner.CMD_DISABLE:
                         Log.i(TAG, "wifi driver unloaded");
                         transitionTo(mDefaultState);
                         break;
@@ -1222,11 +1225,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 ClientInfo ci = mClients.get(msg.replyTo);
 
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         Log.e(TAG, "wifi driver loaded received while already loaded");
                         // Ignore if we're already in driver loaded state.
                         return HANDLED;
-                    case CMD_DRIVER_UNLOADED:
+                    case WifiScanner.CMD_DISABLE:
                         return NOT_HANDLED;
                     case WifiScanner.CMD_START_BACKGROUND_SCAN: {
                         mWifiMetrics.incrementBackgroundScanCount();
@@ -1560,7 +1563,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         if (mScannerImpl == null) {
                             loge("Failed to start pno scan state machine because scanner impl"
                                     + " is null");
@@ -1568,7 +1571,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         }
                         transitionTo(mStartedState);
                         break;
-                    case CMD_DRIVER_UNLOADED:
+                    case WifiScanner.CMD_DISABLE:
                         transitionTo(mDefaultState);
                         break;
                     case WifiScanner.CMD_START_PNO_SCAN:
@@ -1604,7 +1607,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 ClientInfo ci = mClients.get(msg.replyTo);
                 switch (msg.what) {
-                    case CMD_DRIVER_LOADED:
+                    case WifiScanner.CMD_ENABLE:
                         // Ignore if we're already in driver loaded state.
                         return HANDLED;
                     case WifiScanner.CMD_START_PNO_SCAN:
