@@ -761,10 +761,11 @@ public class WifiNetworkSuggestionsManager {
                 PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    private @NonNull CharSequence getAppName(@NonNull String packageName) {
+    private @NonNull CharSequence getAppName(@NonNull String packageName, int uid) {
         ApplicationInfo applicationInfo = null;
         try {
-            applicationInfo = mPackageManager.getApplicationInfo(packageName, 0);
+            applicationInfo = mContext.getPackageManager().getApplicationInfoAsUser(
+                packageName, 0, UserHandle.getUserId(uid));
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Failed to find app name for " + packageName);
             return "";
@@ -787,7 +788,7 @@ public class WifiNetworkSuggestionsManager {
                                 packageName, uid))
                         .build();
 
-        CharSequence appName = getAppName(packageName);
+        CharSequence appName = getAppName(packageName, uid);
         Notification notification = new Notification.Builder(
                 mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.stat_notify_wifi_in_range)

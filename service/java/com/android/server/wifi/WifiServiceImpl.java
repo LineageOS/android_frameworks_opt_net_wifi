@@ -755,10 +755,11 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     // Helper method to check if the entity initiating the binder call is a system app.
-    private boolean isSystem(String packageName) {
+    private boolean isSystem(String packageName, int uid) {
         long ident = Binder.clearCallingIdentity();
         try {
-            ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
+                    packageName, 0, UserHandle.getUserId(uid));
             return info.isSystemApp() || info.isUpdatedSystemApp();
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume unknown app (more strict checking)
@@ -853,12 +854,12 @@ public class WifiServiceImpl extends BaseWifiService {
      * Note: Invoke mAppOps.checkPackage(uid, packageName) before to ensure correct package name.
      */
     private boolean isTargetSdkLessThanQOrPrivileged(String packageName, int pid, int uid) {
-        return mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
+        return mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)
                 || isPrivileged(pid, uid)
                 // DO/PO apps should be able to add/modify saved networks.
                 || isDeviceOrProfileOwner(uid)
                 // TODO: Remove this system app bypass once Q is released.
-                || isSystem(packageName)
+                || isSystem(packageName, uid)
                 || mWifiPermissionsUtil.checkSystemAlertWindowPermission(uid, packageName);
     }
 
@@ -875,8 +876,9 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
         if (!isPrivileged && !isDeviceOrProfileOwner(Binder.getCallingUid())
-                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)
-                && !isSystem(packageName)) {
+                && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q,
+                  Binder.getCallingUid())
+                && !isSystem(packageName, Binder.getCallingUid())) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
@@ -2309,7 +2311,7 @@ public class WifiServiceImpl extends BaseWifiService {
         final int uid = Binder.getCallingUid();
         if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
-            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
+            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)) {
                 return false;
             }
             throw new SecurityException(TAG + ": Permission denied");
@@ -2334,7 +2336,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mAppOps.checkPackage(uid, packageName);
         if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
                 && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
-            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q)) {
+            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)) {
                 return new ArrayList<>();
             }
             throw new SecurityException(TAG + ": Permission denied");
