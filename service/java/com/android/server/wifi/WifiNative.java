@@ -30,6 +30,7 @@ import android.os.INetworkManagementService;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.Immutable;
@@ -277,6 +278,17 @@ public class WifiNative {
                 return null;
             }
             return iface.name;
+        }
+
+        private @NonNull Set<String> findAllStaIfaceNames() {
+            Set<String> ifaceNames = new ArraySet<>();
+            for (Iface iface : mIfaces.values()) {
+                if (iface.type == Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY
+                        || iface.type == Iface.IFACE_TYPE_STA_FOR_SCAN) {
+                    ifaceNames.add(iface.name);
+                }
+            }
+            return ifaceNames;
         }
 
         /** Removes the existing iface that does not match the provided id. */
@@ -1254,6 +1266,17 @@ public class WifiNative {
     public String getClientInterfaceName() {
         synchronized (mLock) {
             return mIfaceMgr.findAnyStaIfaceName();
+        }
+    }
+
+    /**
+     * Get names of all the client interfaces.
+     *
+     * @return List of interface name of all active client interfaces.
+     */
+    public Set<String> getClientInterfaceNames() {
+        synchronized (mLock) {
+            return mIfaceMgr.findAllStaIfaceNames();
         }
     }
 

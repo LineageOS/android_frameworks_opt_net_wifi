@@ -31,7 +31,7 @@ public final class WifiService implements WifiServiceBase {
     final WifiServiceImpl mImpl;
 
     public WifiService(Context context) {
-        mImpl = new WifiServiceImpl(context, new WifiInjector(context), new WifiAsyncChannel(TAG));
+        mImpl = new WifiServiceImpl(context, WifiInjector.getInstance(), new WifiAsyncChannel(TAG));
     }
 
     @Override

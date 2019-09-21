@@ -63,7 +63,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *   {@link #SCAN_REQUEST_THROTTLE_TIME_WINDOW_FG_APPS_MS}.
  *  b) Background apps combined can request 1 scan every
  *   {@link #SCAN_REQUEST_THROTTLE_INTERVAL_BG_APPS_MS}.
- * Note: This class is not thread-safe. It needs to be invoked from ClientModeImpl thread only.
+ * Note: This class is not thread-safe. It needs to be invoked from the main Wifi thread only.
  */
 @NotThreadSafe
 public class ScanRequestProxy {

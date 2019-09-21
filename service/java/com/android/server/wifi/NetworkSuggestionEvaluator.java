@@ -102,11 +102,25 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             WifiNetworkSuggestion matchingNetworkSuggestion =
                     matchingNetworkSuggestions.stream().findAny().get();
             // Check if we already have a network with the same credentials in WifiConfigManager
-            // database. If yes, we should check if the network is currently blacklisted.
+            // database.
             WifiConfiguration wCmConfiguredNetwork =
                     mWifiConfigManager.getConfiguredNetwork(
                             matchingNetworkSuggestion.wifiConfiguration.configKey());
             if (wCmConfiguredNetwork != null) {
+                // If existing network is not from suggestion, ignore.
+                if (!wCmConfiguredNetwork.fromWifiNetworkSuggestion) {
+                    continue;
+                }
+                // Update the WifiConfigManager with the latest WifiConfig
+                NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(
+                                matchingNetworkSuggestion.wifiConfiguration,
+                                matchingNetworkSuggestion.suggestorUid,
+                                matchingNetworkSuggestion.suggestorPackageName);
+                if (result.isSuccess()) {
+                    wCmConfiguredNetwork = mWifiConfigManager.getConfiguredNetwork(
+                            result.getNetworkId());
+                }
+                // If the network is currently blacklisted, ignore.
                 if (!wCmConfiguredNetwork.getNetworkSelectionStatus().isNetworkEnabled()
                         && !mWifiConfigManager.tryEnableNetwork(wCmConfiguredNetwork.networkId)) {
                     mLocalLog.log("Ignoring blacklisted network: "

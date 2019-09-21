@@ -17,7 +17,7 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_PERMANENT;
 
 import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConfig;
@@ -102,7 +102,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         when(mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList())
                 .thenReturn(new ArrayList<>());
         mWifiConnectivityManager = createConnectivityManager();
-        verify(mWifiConfigManager).setOnSavedNetworkUpdateListener(anyObject());
+        verify(mWifiConfigManager).setOnNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         mWifiConnectivityManager.setWifiEnabled(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -148,8 +148,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Captor ArgumentCaptor<ScanResult> mCandidateScanResultCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mBssidBlacklistCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mSsidWhitelistCaptor;
-    @Captor ArgumentCaptor<WifiConfigManager.OnSavedNetworkUpdateListener>
-            mSavedNetworkUpdateListenerCaptor;
+    @Captor ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener>
+            mNetworkUpdateListenerCaptor;
     private MockResources mResources;
     private int mFullScanMaxTxPacketRate;
     private int mFullScanMaxRxPacketRate;
@@ -315,8 +315,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         pnoNetworkList.add(pnoNetwork);
         when(wifiConfigManager.retrievePnoNetworkList()).thenReturn(pnoNetworkList);
         when(wifiConfigManager.retrievePnoNetworkList()).thenReturn(pnoNetworkList);
-        doNothing().when(wifiConfigManager).setOnSavedNetworkUpdateListener(
-                mSavedNetworkUpdateListenerCaptor.capture());
+        doNothing().when(wifiConfigManager).setOnNetworkUpdateListener(
+                mNetworkUpdateListenerCaptor.capture());
 
         return wifiConfigManager;
     }
@@ -1977,15 +1977,18 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void dontDisconnectIfNetworkTemporarilyDisabledDueToNoInternet() {
-        assertNotNull(mSavedNetworkUpdateListenerCaptor.getValue());
+        assertNotNull(mNetworkUpdateListenerCaptor.getValue());
 
-        mSavedNetworkUpdateListenerCaptor.getValue()
-                .onSavedNetworkPermanentlyDisabled(0, DISABLED_AUTHENTICATION_FAILURE);
+        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+        config.networkId = 0;
+        mNetworkUpdateListenerCaptor.getValue()
+                .onNetworkPermanentlyDisabled(config, DISABLED_AUTHENTICATION_FAILURE);
         verify(mWifiConnectivityHelper).removeNetworkIfCurrent(0);
-
-        mSavedNetworkUpdateListenerCaptor.getValue()
-                .onSavedNetworkPermanentlyDisabled(0, DISABLED_NO_INTERNET_TEMPORARY);
+        reset(mWifiConnectivityHelper);
+        mNetworkUpdateListenerCaptor.getValue()
+                .onNetworkPermanentlyDisabled(config, DISABLED_NO_INTERNET_PERMANENT);
         // Don't remove network.
+        verify(mWifiConnectivityHelper, never()).removeNetworkIfCurrent(0);
     }
 
     /**
