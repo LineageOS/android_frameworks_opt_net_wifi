@@ -4473,14 +4473,25 @@ public class ClientModeImpl extends StateMachine {
                                         config.enterpriseConfig.getEapMethod())) {
                             String anonymousIdentity =
                                     mWifiNative.getEapAnonymousIdentity(mInterfaceName);
-                            if (mVerboseLoggingEnabled) {
-                                log("EAP Pseudonym: " + anonymousIdentity);
-                            }
-                            if (!TelephonyUtil.isAnonymousAtRealmIdentity(anonymousIdentity)) {
+                            if (!TextUtils.isEmpty(anonymousIdentity)
+                                    && !TelephonyUtil
+                                    .isAnonymousAtRealmIdentity(anonymousIdentity)) {
+                                String decoratedPseudonym = TelephonyUtil
+                                        .decoratePseudonymWith3GppRealm(getTelephonyManager(),
+                                                anonymousIdentity);
+                                if (decoratedPseudonym != null) {
+                                    anonymousIdentity = decoratedPseudonym;
+                                }
+                                if (mVerboseLoggingEnabled) {
+                                    log("EAP Pseudonym: " + anonymousIdentity);
+                                }
                                 // Save the pseudonym only if it is a real one
                                 config.enterpriseConfig.setAnonymousIdentity(anonymousIdentity);
-                                mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
+                            } else {
+                                // Clear any stored pseudonyms
+                                config.enterpriseConfig.setAnonymousIdentity(null);
                             }
+                            mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
                         }
                         sendNetworkStateChangeBroadcast(mLastBssid);
                         transitionTo(mObtainingIpState);
