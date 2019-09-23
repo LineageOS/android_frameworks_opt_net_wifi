@@ -19,7 +19,6 @@ package com.android.server.wifi.scanner;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
@@ -437,15 +436,6 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             Log.i(TAG, "Removed an impl for " + ifaceName);
         }
         mScannerImpls.clear();
-    }
-
-    /**
-     * Note: Temporarily used everywhere, will eventually be used only by bg scan state machine
-     * which does not support multiple impls.
-     */
-    private @Nullable WifiScannerImpl getAnyImpl() {
-        if (mScannerImpls.isEmpty()) return null;
-        return mScannerImpls.entrySet().iterator().next().getValue();
     }
 
     /**
@@ -1246,6 +1236,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
         private final RequestList<ScanSettings> mActiveBackgroundScans = new RequestList<>();
 
+        private WifiScannerImpl mScannerImpl;
+
         WifiBackgroundScanStateMachine(Looper looper) {
             super("WifiBackgroundScanStateMachine", looper);
 
@@ -1330,13 +1322,15 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                                     + " is null");
                             return HANDLED;
                         }
-                        mChannelHelper = getAnyImpl().getChannelHelper();
+                        // Pick any impl available and stick to it until disable.
+                        mScannerImpl = mScannerImpls.entrySet().iterator().next().getValue();
+                        mChannelHelper = mScannerImpl.getChannelHelper();
 
                         mBackgroundScheduler = new BackgroundScanScheduler(mChannelHelper);
 
                         WifiNative.ScanCapabilities capabilities =
                                 new WifiNative.ScanCapabilities();
-                        if (!getAnyImpl().getScanCapabilities(capabilities)) {
+                        if (!mScannerImpl.getScanCapabilities(capabilities)) {
                             loge("could not get scan capabilities");
                             return HANDLED;
                         }
@@ -1386,12 +1380,18 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public void enter() {
                 if (DBG) localLog("StartedState");
+                if (mScannerImpl == null) {
+                    // should never happen
+                    Log.wtf(TAG, "Scanner impl unexpectedly null");
+                    transitionTo(mDefaultState);
+                }
             }
 
             @Override
             public void exit() {
                 sendBackgroundScanFailedToAllAndClear(
                         WifiScanner.REASON_UNSPECIFIED, "Scan was interrupted");
+                mScannerImpl = null; // reset impl
             }
 
             @Override
@@ -1428,11 +1428,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         removeBackgroundScanRequest(ci, msg.arg2);
                         break;
                     case WifiScanner.CMD_GET_SCAN_RESULTS:
-                        reportScanResults(getAnyImpl().getLatestBatchedScanResults(true));
+                        reportScanResults(mScannerImpl.getLatestBatchedScanResults(true));
                         replySucceeded(msg);
                         break;
                     case CMD_SCAN_RESULTS_AVAILABLE:
-                        reportScanResults(getAnyImpl().getLatestBatchedScanResults(true));
+                        reportScanResults(mScannerImpl.getLatestBatchedScanResults(true));
                         break;
                     case CMD_FULL_SCAN_RESULTS:
                         reportFullScanResult((ScanResult) msg.obj, /* bucketsScanned */ msg.arg2);
@@ -1538,7 +1538,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         }
 
         private boolean updateSchedule() {
-            if (mChannelHelper == null || mBackgroundScheduler == null || getAnyImpl() == null) {
+            if (mChannelHelper == null || mBackgroundScheduler == null || mScannerImpl == null) {
                 loge("Failed to update schedule because WifiScanningService is not initialized");
                 return false;
             }
@@ -1556,7 +1556,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             mPreviousSchedule = schedule;
 
             if (schedule.num_buckets == 0) {
-                getAnyImpl().stopBatchedScan();
+                mScannerImpl.stopBatchedScan();
                 if (DBG) Log.d(TAG, "scan stopped");
                 return true;
             } else {
@@ -1571,8 +1571,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                             + ChannelHelper.toString(bucket));
                 }
 
-                if (getAnyImpl().startBatchedScan(schedule,
-                        new ScanEventHandler(getAnyImpl().getIfaceName()))) {
+                if (mScannerImpl.startBatchedScan(schedule,
+                        new ScanEventHandler(mScannerImpl.getIfaceName()))) {
                     if (DBG) {
                         Log.d(TAG, "scan restarted with " + schedule.num_buckets
                                 + " bucket(s) and base period: " + schedule.base_period_ms);
