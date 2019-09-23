@@ -18,6 +18,8 @@ package com.android.wifitrackerlib;
 
 import android.net.wifi.ScanResult;
 
+import androidx.annotation.NonNull;
+
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,7 +57,7 @@ public class ScanResultUpdater {
     /**
      * Updates scan result list and replaces older scans of the same BSSID.
      */
-    public void update(List<ScanResult> newResults) {
+    public void update(@NonNull List<ScanResult> newResults) {
         synchronized (mLock) {
             evictOldScans();
 
@@ -71,6 +73,7 @@ public class ScanResultUpdater {
     /**
      * Returns all seen scan results merged by BSSID.
      */
+    @NonNull
     public List<ScanResult> getScanResults() {
         return getScanResults(mMaxScanAgeMillis);
     }
@@ -79,6 +82,7 @@ public class ScanResultUpdater {
      * Returns all seen scan results merged by BSSID and newer than maxScanAgeMillis.
      * maxScanAgeMillis must be less than or equal to the mMaxScanAgeMillis field if it was set.
      */
+    @NonNull
     public List<ScanResult> getScanResults(long maxScanAgeMillis) throws IllegalArgumentException {
         if (maxScanAgeMillis > mMaxScanAgeMillis) {
             throw new IllegalArgumentException(
@@ -87,7 +91,7 @@ public class ScanResultUpdater {
         synchronized (mLock) {
             List<ScanResult> ageFilteredResults = new ArrayList<>();
             for (ScanResult result : mScanResultsByBssid.values()) {
-                if (mClock.millis() - result.timestamp <= maxScanAgeMillis) {
+                if (mClock.millis() - result.timestamp / 1000 <= maxScanAgeMillis) {
                     ageFilteredResults.add(result);
                 }
             }
@@ -98,7 +102,7 @@ public class ScanResultUpdater {
     private void evictOldScans() {
         synchronized (mLock) {
             mScanResultsByBssid.entrySet().removeIf((entry) ->
-                    mClock.millis() - entry.getValue().timestamp > mMaxScanAgeMillis);
+                    mClock.millis() - entry.getValue().timestamp / 1000 > mMaxScanAgeMillis);
         }
     }
 }

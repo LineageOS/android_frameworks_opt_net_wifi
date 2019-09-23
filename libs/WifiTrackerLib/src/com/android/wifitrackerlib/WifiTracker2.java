@@ -16,16 +16,24 @@
 
 package com.android.wifitrackerlib;
 
+import static com.android.wifitrackerlib.StandardWifiEntry.createStandardWifiEntryKey;
+
+import static java.util.stream.Collectors.groupingBy;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkScoreManager;
+import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.annotation.AnyThread;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
@@ -37,12 +45,29 @@ import androidx.lifecycle.OnLifecycleEvent;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Keeps track of the state of Wi-Fi and supplies {@link WifiEntry} for use in Wi-Fi picker lists.
  *
  * Clients should use WifiTracker2/WifiEntry for all information regarding Wi-Fi.
+ *
+ * This class runs on two threads:
+ *
+ * The main thread processes lifecycle events (onStart, onStop), as well as listener callbacks since
+ * these directly manipulate the UI.
+ *
+ * The worker thread is responsible for driving the periodic scan requests and updating internal
+ * data in reaction to system broadcasts. After a data update, the listener is notified on the main
+ * thread.
+ *
+ * To keep synchronization simple, this means that the vast majority of work is done within the
+ * worker thread. Synchronized blocks should then be used for updating/accessing only data that is
+ * consumed by the client listener.
  */
 public class WifiTracker2 implements LifecycleObserver {
 
@@ -66,7 +91,6 @@ public class WifiTracker2 implements LifecycleObserver {
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         /**
          * TODO (b/70983952): Add the rest of the broadcast handling.
-         *      WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
          *      WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION);
          *      WifiManager.LINK_CONFIGURATION_CHANGED_ACTION);
          *      WifiManager.NETWORK_STATE_CHANGED_ACTION);
@@ -78,23 +102,33 @@ public class WifiTracker2 implements LifecycleObserver {
             String action = intent.getAction();
 
             if (isVerboseLoggingEnabled()) {
-                Log.i(TAG, "Received broadcast: " + action);
+                Log.v(TAG, "Received broadcast: " + action);
             }
 
             if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
-                updateWifiState();
+                if (mWifiManager.getWifiState() == WifiManager.WIFI_STATE_ENABLED) {
+                    mScanner.start();
+                } else {
+                    mScanner.stop();
+                }
+                notifyOnWifiStateChanged();
+            } else if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
+                final boolean lastScanSucceeded =
+                        intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, true);
+                if (lastScanSucceeded) updateScanResults();
+                updateWifiEntries(lastScanSucceeded);
+                notifyOnWifiEntriesChanged();
             }
         }
     };
-
     private final ScanResultUpdater mScanResultUpdater;
+    private final Scanner mScanner;
 
     // Lock object for mWifiEntries
     private final Object mLock = new Object();
 
-    private int mWifiState;
-    @GuardedBy("mLock")
-    private final List<WifiEntry> mWifiEntries;
+    @GuardedBy("mLock") private final List<WifiEntry> mWifiEntries = new ArrayList<>();
+    private final Map<String, StandardWifiEntry> mStandardWifiEntryCache = new HashMap<>();
 
     /**
      * Constructor for WifiTracker2.
@@ -132,10 +166,9 @@ public class WifiTracker2 implements LifecycleObserver {
         mScanIntervalMillis = scanIntervalMillis;
         mListener = listener;
 
-        mScanResultUpdater = new ScanResultUpdater(clock, maxScanAgeMillis * 2);
-
-        mWifiState = WifiManager.WIFI_STATE_DISABLED;
-        mWifiEntries = new ArrayList<>();
+        mScanResultUpdater = new ScanResultUpdater(clock,
+                maxScanAgeMillis + scanIntervalMillis);
+        mScanner = new Scanner(workerHandler.getLooper());
 
         sVerboseLogging = mWifiManager.getVerboseLoggingLevel() > 0;
     }
@@ -147,7 +180,6 @@ public class WifiTracker2 implements LifecycleObserver {
     @MainThread
     public void onStart() {
         // TODO (b/70983952): Register score cache and receivers for network callbacks.
-        // TODO (b/70983952): Resume scanner here.
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
@@ -156,8 +188,16 @@ public class WifiTracker2 implements LifecycleObserver {
 
         // Populate data now so we don't have to wait for the next broadcast.
         mWorkerHandler.post(() -> {
-            updateWifiState();
-            // TODO (b/70983952): Update other info (eg ScanResults) driven by broadcasts here.
+            if (mWifiManager.getWifiState() == WifiManager.WIFI_STATE_ENABLED) {
+                mScanner.start();
+            } else {
+                mScanner.stop();
+            }
+            notifyOnWifiStateChanged();
+
+            updateScanResults();
+            updateWifiEntries(true);
+            notifyOnWifiEntriesChanged();
         });
     }
 
@@ -168,7 +208,7 @@ public class WifiTracker2 implements LifecycleObserver {
     @MainThread
     public void onStop() {
         // TODO (b/70983952): Unregister score cache and receivers for network callbacks.
-        // TODO (b/70983952): Pause scanner here.
+        mScanner.stop();
         mContext.unregisterReceiver(mBroadcastReceiver);
     }
 
@@ -181,13 +221,15 @@ public class WifiTracker2 implements LifecycleObserver {
      * <li>{@link WifiManager#WIFI_STATE_ENABLING}</li>
      * <li>{@link WifiManager#WIFI_STATE_UNKNOWN}</li>
      */
+    @AnyThread
     public int getWifiState() {
-        return mWifiState;
+        return mWifiManager.getWifiState();
     }
 
     /**
      * Returns the WifiEntry representing the current connection.
      */
+    @AnyThread
     public @Nullable WifiEntry getConnectedWifiEntry() {
         // TODO (b/70983952): Fill in this method.
         return null;
@@ -199,13 +241,17 @@ public class WifiTracker2 implements LifecycleObserver {
      * The currently connected entry is omitted and may be accessed through
      * {@link #getConnectedWifiEntry()}
      */
+    @AnyThread
     public @NonNull List<WifiEntry> getWifiEntries() {
-        return mWifiEntries;
+        synchronized (mLock) {
+            return new ArrayList<>(mWifiEntries);
+        }
     }
 
     /**
      * Returns a list of WifiEntries representing saved networks.
      */
+    @AnyThread
     public @NonNull List<WifiEntry> getSavedWifiEntries() {
         // TODO (b/70983952): Fill in this method.
         return new ArrayList<>();
@@ -214,23 +260,74 @@ public class WifiTracker2 implements LifecycleObserver {
     /**
      * Returns a list of WifiEntries representing network subscriptions.
      */
+    @AnyThread
     public @NonNull List<WifiEntry> getSubscriptionEntries() {
         // TODO (b/70983952): Fill in this method.
         return new ArrayList<>();
     }
 
+    @WorkerThread
+    private void updateScanResults() {
+        mScanResultUpdater.update(mWifiManager.getScanResults());
+        if (isVerboseLoggingEnabled()) {
+            Log.v(TAG, "Updated scans: " + Arrays.toString(
+                    mScanResultUpdater.getScanResults(mMaxScanAgeMillis).toArray()));
+        }
+    }
+
+    @WorkerThread
+    private void updateWifiEntries(boolean lastScanSucceeded) {
+        updateStandardWifiEntryCache(lastScanSucceeded);
+        // TODO (b/70983952): Update Passpoint/Suggestion entries here.
+        // updatePasspointWifiEntries();
+        // updateCarrierWifiEntries();
+        // updateSuggestionWifiEntries();
+        synchronized (mLock) {
+            mWifiEntries.clear();
+            mWifiEntries.addAll(mStandardWifiEntryCache.values());
+            // mWifiEntries.addAll(mPasspointWifiEntries);
+            // mWifiEntries.addAll(mCarrierWifiEntries);
+            // mWifiEntries.addAll(mSuggestionWifiEntries);
+            Collections.sort(mWifiEntries);
+            if (isVerboseLoggingEnabled()) {
+                Log.v(TAG, "Updated WifiEntries: " + Arrays.toString(mWifiEntries.toArray()));
+            }
+        }
+    }
+
     /**
-     * Updates mWifiState and notifies the listener.
+     * Updates mStandardWifiEntryCache with fresh scans.
      */
     @WorkerThread
-    private void updateWifiState() {
-        mWifiState = mWifiManager.getWifiState();
-        notifyOnWifiStateChanged();
+    private void updateStandardWifiEntryCache(boolean lastScanSucceeded) {
+        // If the current scan failed, use results from the previous scan to prevent flicker.
+        final List<ScanResult> scanResults = mScanResultUpdater.getScanResults(
+                lastScanSucceeded ? mMaxScanAgeMillis : mMaxScanAgeMillis + mScanIntervalMillis);
+        final Map<String, StandardWifiEntry> updatedStandardWifiEntries = new HashMap<>();
+
+        // Group scans by StandardWifiEntry Key
+        final Map<String, List<ScanResult>> scanResultsByKey = scanResults.stream()
+                .filter(scanResult -> !TextUtils.isEmpty(scanResult.SSID))
+                .collect(groupingBy(StandardWifiEntry::createStandardWifiEntryKey));
+
+        // Create or get cached StandardWifiEntry by key
+        for (String key : scanResultsByKey.keySet()) {
+            StandardWifiEntry entry = mStandardWifiEntryCache.get(key);
+            if (entry == null) {
+                entry = new StandardWifiEntry(mMainHandler, scanResultsByKey.get(key));
+            } else {
+                entry.updateScanResultInfo(scanResultsByKey.get(key));
+            }
+            updatedStandardWifiEntries.put(key, entry);
+        }
+        mStandardWifiEntryCache.clear();
+        mStandardWifiEntryCache.putAll(updatedStandardWifiEntries);
     }
 
     /**
      * Posts onWifiEntryChanged callback on the main thread.
      */
+    @WorkerThread
     private void notifyOnWifiEntriesChanged() {
         if (mListener != null) {
             mMainHandler.post(mListener::onWifiEntriesChanged);
@@ -240,9 +337,55 @@ public class WifiTracker2 implements LifecycleObserver {
     /**
      * Posts onWifiStateChanged callback on the main thread.
      */
+    @WorkerThread
     private void notifyOnWifiStateChanged() {
         if (mListener != null) {
             mMainHandler.post(mListener::onWifiStateChanged);
+        }
+    }
+
+    /**
+     * Scanner to handle starting scans every SCAN_INTERVAL_MILLIS
+     */
+    private class Scanner extends Handler {
+        private static final int SCAN_RETRY_TIMES = 3;
+
+        private int mRetry = 0;
+
+        private Scanner(Looper looper) {
+            super(looper);
+        }
+
+        @AnyThread
+        private void start() {
+            if (isVerboseLoggingEnabled()) {
+                Log.v(TAG, "Scanner start");
+            }
+            post(this::postScan);
+        }
+
+        @AnyThread
+        private void stop() {
+            if (isVerboseLoggingEnabled()) {
+                Log.v(TAG, "Scanner stop");
+            }
+            mRetry = 0;
+            removeCallbacksAndMessages(null);
+        }
+
+        @WorkerThread
+        private void postScan() {
+            if (mWifiManager.startScan()) {
+                mRetry = 0;
+            } else if (++mRetry >= SCAN_RETRY_TIMES) {
+                // TODO(b/70983952): See if toast is needed here
+                if (isVerboseLoggingEnabled()) {
+                    Log.v(TAG, "Scanner failed to start scan " + mRetry + " times!");
+                }
+                mRetry = 0;
+                return;
+            }
+            postDelayed(this::postScan, mScanIntervalMillis);
         }
     }
 

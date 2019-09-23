@@ -17,7 +17,6 @@ android_test {
     srcs: ["src/**/*.java"],
 
     static_libs: [
-        "android-support-test",
         "androidx.test.rules",
         "frameworks-base-testutils",
         "mockito-target-minus-junit4",
@@ -27,10 +26,7 @@ android_test {
 
     libs: [
         "android.test.mock",
-        "Robolectric_all-target",
     ],
 
     platform_apis: true,
-
-    test_suites: ["device-tests"],
 }

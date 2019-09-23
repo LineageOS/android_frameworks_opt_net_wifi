@@ -16,6 +16,8 @@
 
 package com.android.wifitrackerlib;
 
+import static com.android.wifitrackerlib.TestUtils.buildScanResult;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.fail;
@@ -33,6 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ScanResultUpdaterTest {
+    private static final String SSID = "ssid";
     private static final String BSSID_1 = "11:11:11:11:11:11";
     private static final String BSSID_2 = "22:22:22:22:22:22";
     private static final String BSSID_3 = "33:33:33:33:33:33";
@@ -47,28 +50,13 @@ public class ScanResultUpdaterTest {
         when(mMockClock.millis()).thenReturn(NOW_MILLIS);
     }
 
-    private static ScanResult buildScanResult(String bssid, long timestampMs) {
-        return new ScanResult(
-                null,
-                bssid,
-                0, // hessid
-                0, //anqpDomainId
-                null, // osuProviders
-                "", // capabilities
-                0,
-                0, // frequency
-                timestampMs /* microsecond timestamp */);
-    }
-
     /**
      * Verify that scan results of the same BSSID are merged to latest one.
      */
     @Test
     public void testGetScanResults_mergeSameBssid() {
-        ScanResult oldResult = buildScanResult(
-                BSSID_1, 10);
-        ScanResult newResult = buildScanResult(
-                BSSID_1, 20);
+        ScanResult oldResult = buildScanResult(SSID, BSSID_1, 10);
+        ScanResult newResult = buildScanResult(SSID, BSSID_1, 20);
 
         // Add initial scan result. List should have 1 scan.
         ScanResultUpdater sru = new ScanResultUpdater(mMockClock);
@@ -91,8 +79,8 @@ public class ScanResultUpdaterTest {
     public void testGetScanResults_filtersOldScans() {
         long maxScanAge = 15_000;
 
-        ScanResult oldResult = buildScanResult(BSSID_1, NOW_MILLIS - (maxScanAge + 1));
-        ScanResult newResult = buildScanResult(BSSID_2, NOW_MILLIS);
+        ScanResult oldResult = buildScanResult(SSID, BSSID_1, NOW_MILLIS - (maxScanAge + 1));
+        ScanResult newResult = buildScanResult(SSID, BSSID_2, NOW_MILLIS);
 
         // Add a new scan result and an out-of-date scan result.
         ScanResultUpdater sru = new ScanResultUpdater(mMockClock);
@@ -124,9 +112,9 @@ public class ScanResultUpdaterTest {
     public void testConstructor_maxScanAge_filtersOldScans() {
         ScanResultUpdater sru = new ScanResultUpdater(mMockClock, 15_000);
 
-        ScanResult scan1 = buildScanResult(BSSID_1, NOW_MILLIS - 10_000);
-        ScanResult scan2 = buildScanResult(BSSID_2, NOW_MILLIS - 15_000);
-        ScanResult scan3 = buildScanResult(BSSID_3, NOW_MILLIS - 20_000);
+        ScanResult scan1 = buildScanResult(SSID, BSSID_1, NOW_MILLIS - 10_000);
+        ScanResult scan2 = buildScanResult(SSID, BSSID_2, NOW_MILLIS - 15_000);
+        ScanResult scan3 = buildScanResult(SSID, BSSID_3, NOW_MILLIS - 20_000);
 
         sru.update(Arrays.asList(scan1, scan2, scan3));
 
@@ -143,9 +131,9 @@ public class ScanResultUpdaterTest {
     public void testGetScanResults_overridesConstructorMaxScanAge() {
         ScanResultUpdater sru = new ScanResultUpdater(mMockClock, 15_000);
 
-        ScanResult scan1 = buildScanResult(BSSID_1, NOW_MILLIS - 10_000);
-        ScanResult scan2 = buildScanResult(BSSID_2, NOW_MILLIS - 15_000);
-        ScanResult scan3 = buildScanResult(BSSID_3, NOW_MILLIS - 20_000);
+        ScanResult scan1 = buildScanResult(SSID, BSSID_1, NOW_MILLIS - 10_000);
+        ScanResult scan2 = buildScanResult(SSID, BSSID_2, NOW_MILLIS - 15_000);
+        ScanResult scan3 = buildScanResult(SSID, BSSID_3, NOW_MILLIS - 20_000);
 
         sru.update(Arrays.asList(scan1, scan2, scan3));
 
