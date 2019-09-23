@@ -4704,11 +4704,15 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS - 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
         assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
+        assertTrue(mWifiConfigManager.getConfiguredNetwork(config.networkId)
+                .getNetworkSelectionStatus().isNetworkPermanentlyDisabled());
 
         // After the expiry of timeout.
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS + 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
         assertFalse(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
+        assertFalse(mWifiConfigManager.getConfiguredNetwork(config.networkId)
+                .getNetworkSelectionStatus().isNetworkPermanentlyDisabled());
     }
 
     private NetworkUpdateResult verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(
