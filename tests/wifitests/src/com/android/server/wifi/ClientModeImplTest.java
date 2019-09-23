@@ -3612,7 +3612,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.sendMessage(ClientModeImpl.CMD_REMOVE_PASSPOINT_CONFIG, fqdn);
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).removePasspointConfiguredNetwork(eq(fqdn));
+        verify(mPasspointManager).removeProvider(fqdn);
     }
 
     /**

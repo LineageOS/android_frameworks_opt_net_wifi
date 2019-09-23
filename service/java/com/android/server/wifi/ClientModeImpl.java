@@ -4276,7 +4276,6 @@ public class ClientModeImpl extends StateMachine {
                             logd("Disconnect from current network since its provider is removed");
                             sendMessage(CMD_DISCONNECT);
                         }
-                        mWifiConfigManager.removePasspointConfiguredNetwork(fqdn);
                         replyToMessage(message, message.what, SUCCESS);
                     } else {
                         replyToMessage(message, message.what, FAILURE);

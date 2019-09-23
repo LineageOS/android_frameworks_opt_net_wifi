@@ -3889,7 +3889,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that Passpoint network corresponding with given FQDN is removed.
+     * Verifies that Passpoint network corresponding with given config key (FQDN) is removed.
      *
      * @throws Exception
      */
@@ -3899,7 +3899,22 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
 
         assertTrue(mWifiConfigManager.removePasspointConfiguredNetwork(
-                WifiConfigurationTestUtil.TEST_FQDN));
+                passpointNetwork.configKey()));
+    }
+
+    /**
+     * Verifies that suggested network corresponding with given config key is removed.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRemoveSuggestionConfiguredNetwork() throws Exception {
+        WifiConfiguration suggestedNetwork = WifiConfigurationTestUtil.createEphemeralNetwork();
+        suggestedNetwork.fromWifiNetworkSuggestion = true;
+        verifyAddEphemeralNetworkToWifiConfigManager(suggestedNetwork);
+
+        assertTrue(mWifiConfigManager.removeSuggestionConfiguredNetwork(
+                suggestedNetwork.configKey()));
     }
 
     /**
