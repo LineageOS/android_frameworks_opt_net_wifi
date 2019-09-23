@@ -17,12 +17,10 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
+import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
 import android.os.RemoteException;
 
 import com.android.internal.util.Preconditions;
@@ -36,9 +34,8 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
     static final int HOTSPOT_NO_ERROR = -1;
 
     private final int mPid;
-    private final IBinder mBinder;
-    private final RequestingApplicationDeathCallback mCallback;
-    private final Messenger mMessenger;
+    private final ILocalOnlyHotspotCallback mCallback;
+    private final RequestingApplicationDeathCallback mDeathCallback;
 
     /**
      * Callback for use with LocalOnlyHotspot to unregister requesting applications upon death.
@@ -50,15 +47,14 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
         void onLocalOnlyHotspotRequestorDeath(LocalOnlyHotspotRequestInfo requestor);
     }
 
-    LocalOnlyHotspotRequestInfo(@NonNull IBinder binder, @NonNull Messenger messenger,
-            @NonNull RequestingApplicationDeathCallback callback) {
+    LocalOnlyHotspotRequestInfo(@NonNull ILocalOnlyHotspotCallback callback,
+            @NonNull RequestingApplicationDeathCallback deathCallback) {
         mPid = Binder.getCallingPid();
-        mBinder = Preconditions.checkNotNull(binder);
-        mMessenger = Preconditions.checkNotNull(messenger);
         mCallback = Preconditions.checkNotNull(callback);
+        mDeathCallback = Preconditions.checkNotNull(deathCallback);
 
         try {
-            mBinder.linkToDeath(this, 0);
+            mCallback.asBinder().linkToDeath(this, 0);
         } catch (RemoteException e) {
             binderDied();
         }
@@ -68,7 +64,7 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
      * Allow caller to unlink this object from binder death.
      */
     public void unlinkDeathRecipient() {
-        mBinder.unlinkToDeath(this, 0);
+        mCallback.asBinder().unlinkToDeath(this, 0);
     }
 
     /**
@@ -76,7 +72,7 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
      */
     @Override
     public void binderDied() {
-        mCallback.onLocalOnlyHotspotRequestorDeath(this);
+        mDeathCallback.onLocalOnlyHotspotRequestorDeath(this);
     }
 
     /**
@@ -87,10 +83,7 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
      * @throws RemoteException
      */
     public void sendHotspotFailedMessage(int reasonCode) throws RemoteException {
-        Message message = Message.obtain();
-        message.what = WifiManager.HOTSPOT_FAILED;
-        message.arg1 = reasonCode;
-        mMessenger.send(message);
+        mCallback.onHotspotFailed(reasonCode);
     }
 
     /**
@@ -101,10 +94,7 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
      * @throws RemoteException
      */
     public void sendHotspotStartedMessage(WifiConfiguration config) throws RemoteException {
-        Message message = Message.obtain();
-        message.what = WifiManager.HOTSPOT_STARTED;
-        message.obj = config;
-        mMessenger.send(message);
+        mCallback.onHotspotStarted(config);
     }
 
     /**
@@ -113,9 +103,7 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
      * @throws RemoteException
      */
     public void sendHotspotStoppedMessage() throws RemoteException {
-        Message message = Message.obtain();
-        message.what = WifiManager.HOTSPOT_STOPPED;
-        mMessenger.send(message);
+        mCallback.onHotspotStopped();
     }
 
     public int getPid() {
