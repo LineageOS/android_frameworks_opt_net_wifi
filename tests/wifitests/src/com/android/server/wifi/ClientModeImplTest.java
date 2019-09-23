@@ -402,9 +402,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock Handler mNetworkAgentHandler;
 
-
-    final ArgumentCaptor<WifiNative.InterfaceCallback> mInterfaceCallbackCaptor =
-            ArgumentCaptor.forClass(WifiNative.InterfaceCallback.class);
+    final ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener> mConfigUpdateListenerCaptor =
+            ArgumentCaptor.forClass(WifiConfigManager.OnNetworkUpdateListener.class);
 
     public ClientModeImplTest() throws Exception {
     }
@@ -588,6 +587,9 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         verify(mWifiNetworkFactory, atLeastOnce()).register();
         verify(mUntrustedWifiNetworkFactory, atLeastOnce()).register();
+        verify(mWifiConfigManager, atLeastOnce()).addOnNetworkUpdateListener(
+                mConfigUpdateListenerCaptor.capture());
+        assertNotNull(mConfigUpdateListenerCaptor.getValue());
 
         mLooper.startAutoDispatch();
         mCmi.syncInitialize(mCmiAsyncChannel);
@@ -2066,6 +2068,10 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(connectActionListener).onSuccess();
         verify(mWifiConfigManager).removeNetwork(eq(FRAMEWORK_NETWORK_ID), anyInt());
+        // trigger removal callback to trigger disconnect.
+        WifiConfiguration removedConfig = new WifiConfiguration();
+        removedConfig.networkId = FRAMEWORK_NETWORK_ID;
+        mConfigUpdateListenerCaptor.getValue().onNetworkRemoved(removedConfig);
 
         reset(mWifiConfigManager);
 
@@ -3768,5 +3774,37 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertEquals("DisconnectedState", getCurrentState().getName());
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+    }
+
+    /**
+     * Verifies that we trigger a disconnect when the {@link WifiConfigManager.
+     * OnNetworkUpdateListener#onNetworkRemoved(WifiConfiguration)} is invoked.
+     */
+    @Test
+    public void testOnNetworkRemoved() throws Exception {
+        connect();
+
+        WifiConfiguration removedNetwork = new WifiConfiguration();
+        removedNetwork.networkId = FRAMEWORK_NETWORK_ID;
+        mConfigUpdateListenerCaptor.getValue().onNetworkRemoved(removedNetwork);
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectingState", getCurrentState().getName());
+    }
+
+    /**
+     * Verifies that we trigger a disconnect when the {@link WifiConfigManager
+     * .OnNetworkUpdateListener#onNetworkPermanentlyDisabled(WifiConfiguration, int)} is invoked.
+     */
+    @Test
+    public void testOnNetworkPermanentlyDisabled() throws Exception {
+        connect();
+
+        WifiConfiguration disabledNetwork = new WifiConfiguration();
+        disabledNetwork.networkId = FRAMEWORK_NETWORK_ID;
+        mConfigUpdateListenerCaptor.getValue().onNetworkRemoved(disabledNetwork);
+        mLooper.dispatchAll();
+
+        assertEquals("DisconnectingState", getCurrentState().getName());
     }
 }

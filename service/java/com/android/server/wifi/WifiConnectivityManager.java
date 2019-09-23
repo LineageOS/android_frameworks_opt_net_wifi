@@ -548,8 +548,6 @@ public class WifiConnectivityManager {
         }
         @Override
         public void onNetworkUpdated(WifiConfiguration config) {
-            // User might have changed meteredOverride, so update capabilties
-            mStateMachine.updateCapabilities();
             updatePnoScan();
         }
         @Override

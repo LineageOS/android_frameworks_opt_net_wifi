@@ -873,6 +873,7 @@ public class ClientModeImpl extends StateMachine {
 
         mTcpBufferSizes = mContext.getResources().getString(
                 R.string.config_wifi_tcp_buffers);
+        mWifiConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
 
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
@@ -1070,6 +1071,48 @@ public class ClientModeImpl extends StateMachine {
         handlePostDhcpSetup();
         if (mIpClient != null) {
             mIpClient.stop();
+        }
+    }
+
+    /**
+     * Listener for config manager network config related events.
+     * TODO (b/117601161) : Move some of the existing handling in WifiConnectivityManager's listener
+     * for the same events.
+     */
+    private class OnNetworkUpdateListener implements
+            WifiConfigManager.OnNetworkUpdateListener {
+        @Override
+        public void onNetworkAdded(WifiConfiguration config) { }
+
+        @Override
+        public void onNetworkEnabled(WifiConfiguration config) { }
+
+        @Override
+        public void onNetworkRemoved(WifiConfiguration config) {
+            // The current connected or connecting network has been removed, trigger a disconnect.
+            if (config.networkId == mTargetNetworkId || config.networkId == mLastNetworkId) {
+                // Disconnect and let autojoin reselect a new network
+                sendMessage(CMD_DISCONNECT);
+            }
+        }
+
+        @Override
+        public void onNetworkUpdated(WifiConfiguration config) {
+            // User might have changed meteredOverride, so update capabilities
+            if (config.networkId == mLastNetworkId) {
+                updateCapabilities();
+            }
+        }
+
+        @Override
+        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) { }
+
+        @Override
+        public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
+            if (config.networkId == mTargetNetworkId || config.networkId == mLastNetworkId) {
+                // Disconnect and let autojoin reselect a new network
+                sendMessage(CMD_DISCONNECT);
+            }
         }
     }
 
@@ -3419,13 +3462,7 @@ public class ClientModeImpl extends StateMachine {
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
                     break;
                 case CMD_USER_SWITCH:
-                    Set<Integer> removedNetworkIds =
-                            mWifiConfigManager.handleUserSwitch(message.arg1);
-                    if (removedNetworkIds.contains(mTargetNetworkId)
-                            || removedNetworkIds.contains(mLastNetworkId)) {
-                        // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
-                    }
+                    mWifiConfigManager.handleUserSwitch(message.arg1);
                     break;
                 case CMD_USER_UNLOCK:
                     mWifiConfigManager.handleUserUnlock(message.arg1);
@@ -3868,12 +3905,6 @@ public class ClientModeImpl extends StateMachine {
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
                         break;
                     }
-                    //  we successfully deleted the network config
-                    netId = message.arg1;
-                    if (netId == mTargetNetworkId || netId == mLastNetworkId) {
-                        // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
-                    }
                     break;
                 case CMD_ENABLE_NETWORK:
                     boolean disableOthers = message.arg2 == 1;
@@ -3893,26 +3924,14 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_DISABLE_NETWORK:
                     netId = message.arg1;
                     ok = mWifiConfigManager.disableNetwork(netId, message.sendingUid);
-                    if (ok) {
-                        if (netId == mTargetNetworkId || netId == mLastNetworkId) {
-                            // Disconnect and let autojoin reselect a new network
-                            sendMessage(CMD_DISCONNECT);
-                        }
-                    } else {
+                    if (!ok) {
                         loge("Failed to disable network");
                         mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
                     }
                     replyToMessage(message, message.what, ok ? SUCCESS : FAILURE);
                     break;
                 case CMD_DISABLE_EPHEMERAL_NETWORK:
-                    config = mWifiConfigManager.disableEphemeralNetwork((String) message.obj);
-                    if (config != null) {
-                        if (config.networkId == mTargetNetworkId
-                                || config.networkId == mLastNetworkId) {
-                            // Disconnect and let autojoin reselect a new network
-                            sendMessage(CMD_DISCONNECT);
-                        }
-                    }
+                    mWifiConfigManager.disableEphemeralNetwork((String) message.obj);
                     break;
                 case WifiMonitor.SUP_REQUEST_IDENTITY:
                     netId = message.arg2;
@@ -4060,22 +4079,10 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_REMOVE_APP_CONFIGURATIONS:
-                    removedNetworkIds =
-                            mWifiConfigManager.removeNetworksForApp((ApplicationInfo) message.obj);
-                    if (removedNetworkIds.contains(mTargetNetworkId)
-                            || removedNetworkIds.contains(mLastNetworkId)) {
-                        // Disconnect and let autojoin reselect a new network.
-                        sendMessage(CMD_DISCONNECT);
-                    }
+                    mWifiConfigManager.removeNetworksForApp((ApplicationInfo) message.obj);
                     break;
                 case CMD_REMOVE_USER_CONFIGURATIONS:
-                    removedNetworkIds =
-                            mWifiConfigManager.removeNetworksForUser((Integer) message.arg1);
-                    if (removedNetworkIds.contains(mTargetNetworkId)
-                            || removedNetworkIds.contains(mLastNetworkId)) {
-                        // Disconnect and let autojoin reselect a new network.
-                        sendMessage(CMD_DISCONNECT);
-                    }
+                    mWifiConfigManager.removeNetworksForUser((Integer) message.arg1);
                     break;
                 case CMD_CONNECT_NETWORK:
                     /**
@@ -4141,16 +4148,7 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_FORGET_NETWORK:
-                    if (!forgetNetworkConfigAndInvokeCb(message)) {
-                        // Caller was notified of failure, nothing else to do
-                        break;
-                    }
-                    // the network was deleted
-                    netId = message.arg1;
-                    if (netId == mTargetNetworkId || netId == mLastNetworkId) {
-                        // Disconnect and let autojoin reselect a new network
-                        sendMessage(CMD_DISCONNECT);
-                    }
+                    forgetNetworkConfigAndInvokeCb(message);
                     break;
                 case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                     // This is where we can confirm the connection BSSID. Use it to find the
@@ -4257,12 +4255,6 @@ public class ClientModeImpl extends StateMachine {
                     if (mPasspointManager.addOrUpdateProvider(passpointConfig,
                             bundle.getInt(EXTRA_UID),
                             bundle.getString(EXTRA_PACKAGE_NAME))) {
-                        String fqdn = passpointConfig.getHomeSp().getFqdn();
-                        if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
-                                || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
-                            logd("Disconnect from current network since its provider is updated");
-                            sendMessage(CMD_DISCONNECT);
-                        }
                         replyToMessage(message, message.what, SUCCESS);
                     } else {
                         replyToMessage(message, message.what, FAILURE);
@@ -4271,11 +4263,6 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_REMOVE_PASSPOINT_CONFIG:
                     String fqdn = (String) message.obj;
                     if (mPasspointManager.removeProvider(fqdn)) {
-                        if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
-                                || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
-                            logd("Disconnect from current network since its provider is removed");
-                            sendMessage(CMD_DISCONNECT);
-                        }
                         replyToMessage(message, message.what, SUCCESS);
                     } else {
                         replyToMessage(message, message.what, FAILURE);
@@ -4445,25 +4432,6 @@ public class ClientModeImpl extends StateMachine {
             return;
         }
         mNetworkAgent.sendNetworkCapabilities(getCapabilities(currentWifiConfiguration));
-    }
-
-    /**
-     * Checks if the given network |networkdId| is provided by the given Passpoint provider with
-     * |providerFqdn|.
-     *
-     * @param networkId The ID of the network to check
-     * @param providerFqdn The FQDN of the Passpoint provider
-     * @return true if the given network is provided by the given Passpoint provider
-     */
-    private boolean isProviderOwnedNetwork(int networkId, String providerFqdn) {
-        if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-            return false;
-        }
-        WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(networkId);
-        if (config == null) {
-            return false;
-        }
-        return TextUtils.equals(config.FQDN, providerFqdn);
     }
 
     private void handleEapAuthFailure(int networkId, int errorCode) {
