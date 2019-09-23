@@ -1695,9 +1695,13 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
         private final RequestList<Pair<PnoSettings, ScanSettings>> mActivePnoScans =
                 new RequestList<>();
+        // Tracks scan requests across multiple scanner impls.
+        private final ScannerImplsTracker mScannerImplsTracker;
 
         WifiPnoScanStateMachine(Looper looper) {
             super("WifiPnoScanStateMachine", looper);
+
+            mScannerImplsTracker = new ScannerImplsTracker();
 
             setLogRecSize(256);
             setLogOnlyTransitions(false);
@@ -1717,23 +1721,124 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             transitionTo(mStartedState);
         }
 
-        private final class PnoEventHandler implements WifiNative.PnoEventHandler {
-            private final String mImplIfaceName;
+        /**
+         * Tracks a PNO scan request across all the available scanner impls.
+         *
+         * Note: If there are failures on some of the scanner impls, we ignore them since we can
+         * get a PNO match from the other successful impls. We don't declare total scan
+         * failures, unless all the scanner impls fail.
+         */
+        private final class ScannerImplsTracker {
+            private final class PnoEventHandler implements WifiNative.PnoEventHandler {
+                private final String mImplIfaceName;
 
-            PnoEventHandler(@NonNull String implIfaceName) {
-                mImplIfaceName = implIfaceName;
+                PnoEventHandler(@NonNull String implIfaceName) {
+                    mImplIfaceName = implIfaceName;
+                }
+
+                @Override
+                public void onPnoNetworkFound(ScanResult[] results) {
+                    if (DBG) localLog("onWifiPnoNetworkFound event received");
+                    reportPnoNetworkFoundForImpl(mImplIfaceName, results);
+                }
+
+                @Override
+                public void onPnoScanFailed() {
+                    if (DBG) localLog("onWifiPnoScanFailed event received");
+                    reportPnoScanFailedForImpl(mImplIfaceName);
+                }
             }
 
-            @Override
-            public void onPnoNetworkFound(ScanResult[] results) {
-                if (DBG) localLog("onWifiPnoNetworkFound event received");
-                sendMessage(CMD_PNO_NETWORK_FOUND, 0, 0, results);
+            private static final int STATUS_PENDING = 0;
+            private static final int STATUS_FAILED = 2;
+
+            // Tracks scan status per impl.
+            Map<String, Integer> mStatusPerImpl = new ArrayMap<>();
+
+            /**
+             * Triggers a new PNO with the specified settings on all the available scanner impls.
+             * @return true if the PNO succeeded on any of the impl, false otherwise.
+             */
+            public boolean setHwPnoList(WifiNative.PnoSettings pnoSettings) {
+                mStatusPerImpl.clear();
+                boolean anySuccess = false;
+                for (Map.Entry<String, WifiScannerImpl> entry : mScannerImpls.entrySet()) {
+                    String ifaceName = entry.getKey();
+                    WifiScannerImpl impl = entry.getValue();
+                    boolean success = impl.setHwPnoList(
+                            pnoSettings, new PnoEventHandler(ifaceName));
+                    if (!success) {
+                        Log.e(TAG, "Failed to start pno on " + ifaceName);
+                        continue;
+                    }
+                    mStatusPerImpl.put(ifaceName, STATUS_PENDING);
+                    anySuccess = true;
+                }
+                return anySuccess;
             }
 
-            @Override
-            public void onPnoScanFailed() {
-                if (DBG) localLog("onWifiPnoScanFailed event received");
-                sendMessage(CMD_PNO_SCAN_FAILED, 0, 0, null);
+            /**
+             * Resets any ongoing PNO on all the available scanner impls.
+             * @return true if the PNO stop succeeded on all of the impl, false otherwise.
+             */
+            public boolean resetHwPnoList() {
+                boolean allSuccess = true;
+                for (String ifaceName : mStatusPerImpl.keySet()) {
+                    WifiScannerImpl impl = mScannerImpls.get(ifaceName);
+                    if (impl == null) continue;
+                    boolean success = impl.resetHwPnoList();
+                    if (!success) {
+                        Log.e(TAG, "Failed to stop pno on " + ifaceName);
+                        allSuccess = false;
+                    }
+                }
+                mStatusPerImpl.clear();
+                return allSuccess;
+            }
+
+            /**
+             * @return true if HW PNO is supported on all the available scanner impls,
+             * false otherwise.
+             */
+            public boolean isHwPnoSupported(boolean isConnected) {
+                for (WifiScannerImpl impl : mScannerImpls.values()) {
+                    if (!impl.isHwPnoSupported(isConnected)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            private void reportPnoNetworkFoundForImpl(@NonNull String implIfaceName,
+                                                      ScanResult[] results) {
+                Integer status = mStatusPerImpl.get(implIfaceName);
+                if (status != null && status == STATUS_PENDING) {
+                    sendMessage(CMD_PNO_NETWORK_FOUND, 0, 0, results);
+                }
+            }
+
+            private int getConsolidatedStatus() {
+                boolean anyPending = mStatusPerImpl.values().stream()
+                        .anyMatch(status -> status == STATUS_PENDING);
+                // at-least one impl status is still pending.
+                if (anyPending) {
+                    return STATUS_PENDING;
+                } else {
+                    // all failed.
+                    return STATUS_FAILED;
+                }
+            }
+
+            private void reportPnoScanFailedForImpl(@NonNull String implIfaceName) {
+                Integer currentStatus = mStatusPerImpl.get(implIfaceName);
+                if (currentStatus != null && currentStatus == STATUS_PENDING) {
+                    mStatusPerImpl.put(implIfaceName, STATUS_FAILED);
+                }
+                // Now check if all the scanner impls scan status is available.
+                int consolidatedStatus = getConsolidatedStatus();
+                if (consolidatedStatus == STATUS_FAILED) {
+                    sendMessage(CMD_PNO_SCAN_FAILED);
+                }
             }
         }
 
@@ -1802,7 +1907,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                         pnoParams.setDefusable(true);
                         PnoSettings pnoSettings =
                                 pnoParams.getParcelable(WifiScanner.PNO_PARAMS_PNO_SETTINGS_KEY);
-                        if (getAnyImpl().isHwPnoSupported(pnoSettings.isConnected)) {
+                        if (mScannerImplsTracker.isHwPnoSupported(pnoSettings.isConnected)) {
                             deferMessage(msg);
                             transitionTo(mHwPnoScanState);
                         } else {
@@ -1828,7 +1933,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public void exit() {
                 // Reset PNO scan in ScannerImpl before we exit.
-                getAnyImpl().resetHwPnoList();
+                mScannerImplsTracker.resetHwPnoList();
                 removeInternalClient();
             }
 
@@ -1994,8 +2099,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
             WifiNative.PnoSettings nativePnoSettings =
                     convertSettingsToPnoNative(scanSettings, pnoSettings);
-            if (!getAnyImpl().setHwPnoList(nativePnoSettings,
-                    new PnoEventHandler(getAnyImpl().getIfaceName()))) {
+            if (!mScannerImplsTracker.setHwPnoList(nativePnoSettings)) {
                 return false;
             }
             logScanRequest("addHwPnoScanRequest", ci, handler, null, scanSettings, pnoSettings);

@@ -2238,13 +2238,13 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         return ScanResults.create(0, 2400, 5150, 5175);
     }
 
-    private WifiNative.PnoEventHandler verifyHwPno(InOrder order,
+    private WifiNative.PnoEventHandler verifyHwPnoForImpl(WifiScannerImpl impl, InOrder order,
             WifiNative.PnoSettings expected) {
         ArgumentCaptor<WifiNative.PnoSettings> pnoSettingsCaptor =
                 ArgumentCaptor.forClass(WifiNative.PnoSettings.class);
         ArgumentCaptor<WifiNative.PnoEventHandler> pnoEventHandlerCaptor =
                 ArgumentCaptor.forClass(WifiNative.PnoEventHandler.class);
-        order.verify(mWifiScannerImpl0).setHwPnoList(pnoSettingsCaptor.capture(),
+        order.verify(impl).setHwPnoList(pnoSettingsCaptor.capture(),
                 pnoEventHandlerCaptor.capture());
         assertNativePnoSettingsEquals(expected, pnoSettingsCaptor.getValue());
         return pnoEventHandlerCaptor.getValue();
@@ -2299,15 +2299,40 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
                 any(WifiNative.PnoEventHandler.class))).thenReturn(true);
         mLooper.dispatchAll();
-        WifiNative.PnoEventHandler eventHandler = verifyHwPno(order, nativeSettings);
+        WifiNative.PnoEventHandler eventHandler =
+                verifyHwPnoForImpl(mWifiScannerImpl0, order, nativeSettings);
         verifySuccessfulResponse(order, handler, requestId);
         eventHandler.onPnoNetworkFound(results.getRawScanResults());
         mLooper.dispatchAll();
     }
 
+    private void expectHwPnoScanOnImpls(InOrder order, Handler handler,
+            int requestId, WifiNative.PnoSettings nativeSettings,
+            @Nullable ScanResults resultsForImpl0, @Nullable ScanResults resultsForImpl1) {
+        when(mWifiScannerImpl0.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        when(mWifiScannerImpl1.isHwPnoSupported(anyBoolean())).thenReturn(true);
+
+        when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+        when(mWifiScannerImpl1.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+        mLooper.dispatchAll();
+        WifiNative.PnoEventHandler eventHandler0 =
+                verifyHwPnoForImpl(mWifiScannerImpl0, order, nativeSettings);
+        WifiNative.PnoEventHandler eventHandler1 =
+                verifyHwPnoForImpl(mWifiScannerImpl1, order, nativeSettings);
+        verifySuccessfulResponse(order, handler, requestId);
+        if (resultsForImpl0 != null) {
+            eventHandler0.onPnoNetworkFound(resultsForImpl0.getRawScanResults());
+        } else if (resultsForImpl1 != null) {
+            eventHandler1.onPnoNetworkFound(resultsForImpl1.getRawScanResults());
+        }
+        mLooper.dispatchAll();
+    }
+
     /**
-     * Tests wificond PNO scan when the PNO scan results contain IE info. This ensures that the
-     * PNO scan results are plumbed back to the client as a PNO network found event.
+     * Tests wificond PNO scan. This ensures that the PNO scan results are plumbed back to the
+     * client as a PNO network found event.
      */
     @Test
     public void testSuccessfulHwPnoScanWithNoBackgroundScan() throws Exception {
@@ -3092,7 +3117,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         sendSingleScanRequest(controlChannel, requestId, requestSettings, null);
 
-        // Scan is successfully queue
+        // Scan is successfully queued
         mLooper.dispatchAll();
         WifiNative.ScanEventHandler eventHandler0 =
                 verifyStartSingleScanForImpl(mWifiScannerImpl0, order, nativeSettings);
@@ -3116,5 +3141,214 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         assertDumpContainsRequestLog("addSingleScanRequest", requestId);
         assertDumpContainsCallbackLog("singleScanResults", requestId,
                 "results=" + results.getScanData().getResults().length);
+    }
+
+    /**
+     * Tests wificond PNO scan across multiple impls. This ensures that the
+     * PNO scan results are plumbed back to the client as a PNO network found event.
+     */
+    @Test
+    public void testSuccessfulHwPnoScanOnMultipleImpls() throws Exception {
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0, TEST_IFACE_NAME_1)));
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl0, mWifiScannerImpl1);
+        int requestId = 12;
+
+        ScanResults scanResults = createScanResultsForPno();
+        Pair<WifiScanner.ScanSettings, WifiNative.ScanSettings> scanSettings =
+                createScanSettingsForHwPno();
+        Pair<WifiScanner.PnoSettings, WifiNative.PnoSettings> pnoSettings =
+                createPnoSettings(scanResults);
+
+        // Results received on impl 0
+        sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
+        expectHwPnoScanOnImpls(order, handler, requestId, pnoSettings.second, scanResults, null);
+        verifyPnoNetworkFoundReceived(order, handler, requestId, scanResults.getRawScanResults());
+    }
+
+    /**
+     * Tests wificond PNO scan that fails to start on all impls.
+     */
+    @Test
+    public void testFailedHwPnoScanWhichFailsToStartOnMultipleImpls() throws Exception {
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0, TEST_IFACE_NAME_1)));
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl0, mWifiScannerImpl1);
+        int requestId = 12;
+
+        ScanResults scanResults = createScanResultsForPno();
+        Pair<WifiScanner.ScanSettings, WifiNative.ScanSettings> scanSettings =
+                createScanSettingsForHwPno();
+        Pair<WifiScanner.PnoSettings, WifiNative.PnoSettings> pnoSettings =
+                createPnoSettings(scanResults);
+
+        when(mWifiScannerImpl0.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        when(mWifiScannerImpl1.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        // pno scan fails on both impls
+        when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(false);
+        when(mWifiScannerImpl1.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(false);
+
+        sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
+        mLooper.dispatchAll();
+
+        verifyFailedResponse(order, handler, requestId, WifiScanner.REASON_INVALID_REQUEST,
+                "bad request");
+    }
+
+    /**
+     * Tests wificond PNO scan that fails to start on one of the impls.
+     */
+    @Test
+    public void testSuccessfulHwPnoScanWhichFailsToStartOnOneImpl() throws Exception {
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0, TEST_IFACE_NAME_1)));
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl0, mWifiScannerImpl1);
+        int requestId = 12;
+
+        ScanResults scanResults = createScanResultsForPno();
+        Pair<WifiScanner.ScanSettings, WifiNative.ScanSettings> scanSettings =
+                createScanSettingsForHwPno();
+        Pair<WifiScanner.PnoSettings, WifiNative.PnoSettings> pnoSettings =
+                createPnoSettings(scanResults);
+
+        when(mWifiScannerImpl0.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        when(mWifiScannerImpl1.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        // pno scan fails on impl0
+        when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(false);
+        // pno scan succeeds on impl1
+        when(mWifiScannerImpl1.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+
+        sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
+        mLooper.dispatchAll();
+
+        WifiNative.PnoEventHandler eventHandler0 =
+                verifyHwPnoForImpl(mWifiScannerImpl0, order, pnoSettings.second);
+        WifiNative.PnoEventHandler eventHandler1 =
+                verifyHwPnoForImpl(mWifiScannerImpl1, order, pnoSettings.second);
+
+        verifySuccessfulResponse(order, handler, requestId);
+
+        eventHandler1.onPnoNetworkFound(scanResults.getRawScanResults());
+        mLooper.dispatchAll();
+
+        verifyPnoNetworkFoundReceived(order, handler, requestId, scanResults.getRawScanResults());
+    }
+
+    /**
+     * Tests wificond PNO scan that fails after start on all impls.
+     */
+    @Test
+    public void testFailedHwPnoScanWhichFailsAfterStartOnMultipleImpls() throws Exception {
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0, TEST_IFACE_NAME_1)));
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl0, mWifiScannerImpl1);
+        int requestId = 12;
+
+        ScanResults scanResults = createScanResultsForPno();
+        Pair<WifiScanner.ScanSettings, WifiNative.ScanSettings> scanSettings =
+                createScanSettingsForHwPno();
+        Pair<WifiScanner.PnoSettings, WifiNative.PnoSettings> pnoSettings =
+                createPnoSettings(scanResults);
+
+        when(mWifiScannerImpl0.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        when(mWifiScannerImpl1.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        // pno scan succeeds
+        when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+        when(mWifiScannerImpl1.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+
+        sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
+        mLooper.dispatchAll();
+
+        WifiNative.PnoEventHandler eventHandler0 =
+                verifyHwPnoForImpl(mWifiScannerImpl0, order, pnoSettings.second);
+        WifiNative.PnoEventHandler eventHandler1 =
+                verifyHwPnoForImpl(mWifiScannerImpl1, order, pnoSettings.second);
+
+        verifySuccessfulResponse(order, handler, requestId);
+
+        // fails afterwards.
+        eventHandler0.onPnoScanFailed();
+        eventHandler1.onPnoScanFailed();
+        mLooper.dispatchAll();
+
+        // Scan is successfully queue, but then fails to execute
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        order.verify(handler).handleMessage(messageCaptor.capture());
+        assertFailedResponse(requestId, WifiScanner.REASON_UNSPECIFIED,
+                "pno scan failed", messageCaptor.getValue());
+    }
+
+    /**
+     * Tests wificond PNO scan that fails after start on one impls.
+     */
+    @Test
+    public void testSuccessfulHwPnoScanWhichFailsAfterStartOnOneImpl() throws Exception {
+        when(mWifiNative.getClientInterfaceNames())
+                .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0, TEST_IFACE_NAME_1)));
+
+        startServiceAndLoadDriver();
+        mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
+        Handler handler = mock(Handler.class);
+        BidirectionalAsyncChannel controlChannel = connectChannel(handler);
+        InOrder order = inOrder(handler, mWifiScannerImpl0, mWifiScannerImpl1);
+        int requestId = 12;
+
+        ScanResults scanResults = createScanResultsForPno();
+        Pair<WifiScanner.ScanSettings, WifiNative.ScanSettings> scanSettings =
+                createScanSettingsForHwPno();
+        Pair<WifiScanner.PnoSettings, WifiNative.PnoSettings> pnoSettings =
+                createPnoSettings(scanResults);
+
+        when(mWifiScannerImpl0.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        when(mWifiScannerImpl1.isHwPnoSupported(anyBoolean())).thenReturn(true);
+        // pno scan succeeds
+        when(mWifiScannerImpl0.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+        when(mWifiScannerImpl1.setHwPnoList(any(WifiNative.PnoSettings.class),
+                any(WifiNative.PnoEventHandler.class))).thenReturn(true);
+
+        sendPnoScanRequest(controlChannel, requestId, scanSettings.first, pnoSettings.first);
+        mLooper.dispatchAll();
+
+        WifiNative.PnoEventHandler eventHandler0 =
+                verifyHwPnoForImpl(mWifiScannerImpl0, order, pnoSettings.second);
+        WifiNative.PnoEventHandler eventHandler1 =
+                verifyHwPnoForImpl(mWifiScannerImpl1, order, pnoSettings.second);
+
+        verifySuccessfulResponse(order, handler, requestId);
+
+        // fails afterwards on impl0.
+        eventHandler0.onPnoScanFailed();
+        // pno match on impl1.
+        eventHandler1.onPnoNetworkFound(scanResults.getRawScanResults());
+        mLooper.dispatchAll();
+
+        verifyPnoNetworkFoundReceived(order, handler, requestId, scanResults.getRawScanResults());
     }
 }
