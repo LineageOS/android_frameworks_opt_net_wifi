@@ -638,7 +638,7 @@ public class WifiConnectivityManager {
                 + " initialScoreMax " + initialScoreMax());
 
         // Listen to WifiConfigManager network update events
-        mConfigManager.setOnNetworkUpdateListener(new OnNetworkUpdateListener());
+        mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */

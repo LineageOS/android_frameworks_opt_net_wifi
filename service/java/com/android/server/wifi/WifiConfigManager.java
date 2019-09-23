@@ -310,6 +310,10 @@ public class WifiConfigManager {
     private final Set<String> mAggressiveMacRandomizationBlacklist;
 
     /**
+     * Store the network update listeners.
+     */
+    private final List<OnNetworkUpdateListener> mListeners;
+    /**
      * Flag to indicate if only networks with the same psk should be linked.
      * TODO(b/30706406): Remove this flag if unused.
      */
@@ -373,8 +377,6 @@ public class WifiConfigManager {
     private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     private final RandomizedMacStoreData mRandomizedMacStoreData;
 
-    // Store the network update listener.
-    private OnNetworkUpdateListener mListener = null;
 
     private boolean mPnoFrequencyCullingEnabled = false;
     private boolean mPnoRecencySortingEnabled = false;
@@ -412,6 +414,7 @@ public class WifiConfigManager {
         mScanDetailCaches = new HashMap<>(16, 0.75f);
         mDeletedEphemeralSsidsToTimeMap = new HashMap<>();
         mRandomizedMacAddressMapping = new HashMap<>();
+        mListeners = new ArrayList<>();
 
         // Register store data for network list and deleted ephemeral SSIDs.
         mNetworkListSharedStoreData = networkListSharedStoreData;
@@ -1391,11 +1394,12 @@ public class WifiConfigManager {
             saveToStore(true);
         }
 
-        if (mListener != null) {
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(newConfig);
             if (result.isNewNetwork()) {
-                mListener.onNetworkAdded(new WifiConfiguration(newConfig));
+                listener.onNetworkAdded(configForListener);
             } else {
-                mListener.onNetworkUpdated(new WifiConfiguration(newConfig));
+                listener.onNetworkUpdated(configForListener);
             }
         }
         return result;
@@ -1478,7 +1482,10 @@ public class WifiConfigManager {
         if (!config.ephemeral && !config.isPasspoint()) {
             saveToStore(true);
         }
-        if (mListener != null) mListener.onNetworkRemoved(new WifiConfiguration(config));
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkRemoved(configForListener);
+        }
         return true;
     }
 
@@ -1606,7 +1613,10 @@ public class WifiConfigManager {
 
         // Clear out all the disable reason counters.
         status.clearDisableReasonCounter();
-        if (mListener != null) mListener.onNetworkEnabled(new WifiConfiguration(config));
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkEnabled(configForListener);
+        }
     }
 
     /**
@@ -1620,8 +1630,9 @@ public class WifiConfigManager {
         // Only need a valid time filled in for temporarily disabled networks.
         status.setDisableTime(mClock.getElapsedSinceBootMillis());
         status.setNetworkSelectionDisableReason(disableReason);
-        if (mListener != null) {
-            mListener.onNetworkTemporarilyDisabled(new WifiConfiguration(config), disableReason);
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkTemporarilyDisabled(configForListener, disableReason);
         }
     }
 
@@ -1636,8 +1647,9 @@ public class WifiConfigManager {
         status.setDisableTime(
                 NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
         status.setNetworkSelectionDisableReason(disableReason);
-        if (mListener != null) {
-            mListener.onNetworkPermanentlyDisabled(new WifiConfiguration(config), disableReason);
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkPermanentlyDisabled(configForListener, disableReason);
         }
     }
 
@@ -3379,8 +3391,8 @@ public class WifiConfigManager {
     /**
      * Set the network update event listener
      */
-    public void setOnNetworkUpdateListener(OnNetworkUpdateListener listener) {
-        mListener = listener;
+    public void addOnNetworkUpdateListener(OnNetworkUpdateListener listener) {
+        mListeners.add(listener);
     }
 
     /**
