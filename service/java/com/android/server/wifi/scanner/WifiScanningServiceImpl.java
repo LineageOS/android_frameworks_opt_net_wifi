@@ -389,6 +389,26 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         mClientHandler = new ClientHandler(TAG, mLooper);
     }
 
+    /**
+     * Checks if all the channels provided by the new impl is already satisfied by an existing impl.
+     *
+     * Note: This only handles the cases where the 2 ifaces are on different chips with
+     * distinctly different bands supported on both. If there are cases where
+     * the 2 ifaces support overlapping bands, then we probably need to rework this.
+     * For example: wlan0 supports 2.4G only, wlan1 supports 2.4G + 5G + DFS.
+     * In the above example, we should teardown wlan0 impl when wlan1 impl is created
+     * because wlan1 impl can already handle all the supported bands.
+     * Ignoring this for now since we don't foresee this requirement in the near future.
+     */
+    private boolean doesAnyExistingImplSatisfy(WifiScannerImpl newImpl) {
+        for (WifiScannerImpl existingImpl : mScannerImpls.values()) {
+            if (existingImpl.getChannelHelper().satisfies(newImpl.getChannelHelper())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void setupScannerImpls() {
         Set<String> ifaceNames = mWifiNative.getClientInterfaceNames();
         if (ArrayUtils.isEmpty(ifaceNames)) {
@@ -420,10 +440,16 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 loge("Failed to create scanner impl for " + ifaceName);
                 continue;
             }
-            // TODO(b/140111024): Need to add band checks here. If this new scanner impl does not
-            // offer any new bands to scan, then we should ignore it.
-            mScannerImpls.put(ifaceName, impl);
-            Log.i(TAG, "Created a new impl for " + ifaceName);
+            // If this new scanner impl does not offer any new bands to scan, then we should
+            // ignore it.
+            if (!doesAnyExistingImplSatisfy(impl)) {
+                mScannerImpls.put(ifaceName, impl);
+                Log.i(TAG, "Created a new impl for " + ifaceName);
+            } else {
+                Log.i(TAG, "All the channels on the new impl for iface " + ifaceName
+                        + " are already satisfied by an existing impl. Skipping..");
+                impl.cleanup(); // cleanup the impl before discarding.
+            }
         }
     }
 
