@@ -19,7 +19,6 @@ package com.android.server.wifi;
 import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
-import static android.app.AppOpsManager.OP_CHANGE_WIFI_STATE;
 import static android.app.Notification.EXTRA_BIG_TEXT;
 
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION;
@@ -1942,8 +1941,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Ensure we turn off CHANGE_WIFI_STATE app-ops.
         verify(mAppOpsManager).setMode(
-                OP_CHANGE_WIFI_STATE, TEST_UID_1,
-                        TEST_PACKAGE_1, MODE_IGNORED);
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1, MODE_IGNORED);
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
 
@@ -2154,8 +2152,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
         // Ensure we turn off CHANGE_WIFI_STATE app-ops.
         verify(mAppOpsManager).setMode(
-                OP_CHANGE_WIFI_STATE, TEST_UID_1,
-                TEST_PACKAGE_1, MODE_IGNORED);
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1, TEST_PACKAGE_1, MODE_IGNORED);
         // Cancel the notification.
         verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
 

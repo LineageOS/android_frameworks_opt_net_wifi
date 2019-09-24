@@ -379,8 +379,6 @@ public class WifiConfigManager {
     private boolean mPnoFrequencyCullingEnabled = false;
     private boolean mPnoRecencySortingEnabled = false;
 
-
-
     /**
      * Create new instance of WifiConfigManager.
      */
@@ -449,12 +447,15 @@ public class WifiConfigManager {
         mConnectedMacRandomzationSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mDeviceConfigFacade = deviceConfigFacade;
-        mAggressiveMacRandomizationWhitelist = new ArraySet<String>();
-        mAggressiveMacRandomizationBlacklist = new ArraySet<String>();
+        mAggressiveMacRandomizationWhitelist = new ArraySet<>();
+        mAggressiveMacRandomizationBlacklist = new ArraySet<>();
 
         try {
-            mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
-                    PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
+            // TODO(b/141890172): do not hardcode SYSUI_PACKAGE_NAME
+            mSystemUiUid = mContext
+                    .createPackageContextAsUser(SYSUI_PACKAGE_NAME, 0, UserHandle.SYSTEM)
+                    .getPackageManager()
+                    .getPackageUid(SYSUI_PACKAGE_NAME, PackageManager.MATCH_SYSTEM_ONLY);
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Unable to resolve SystemUI's UID.");
         }

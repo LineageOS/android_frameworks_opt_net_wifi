@@ -362,7 +362,7 @@ public class WifiNetworkSuggestionsManager {
                             // Set the user approved flag.
                             setHasUserApprovedForApp(false, packageName);
                             // Take away CHANGE_WIFI_STATE app-ops from the app.
-                            mAppOps.setMode(AppOpsManager.OP_CHANGE_WIFI_STATE, uid, packageName,
+                            mAppOps.setMode(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, uid, packageName,
                                     MODE_IGNORED);
                             break;
                         case NOTIFICATION_USER_DISMISSED_INTENT_ACTION:
