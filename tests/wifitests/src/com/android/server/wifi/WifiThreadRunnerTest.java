@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 public class WifiThreadRunnerTest {
 
     private static final int RESULT = 2;
+    private static final int VALUE_ON_TIMEOUT = -1;
 
     private WifiThreadRunner mWifiThreadRunner;
 
@@ -76,19 +77,19 @@ public class WifiThreadRunnerTest {
             return true;
         }).when(mHandler).runWithScissors(any(), anyLong());
 
-        Integer result = mWifiThreadRunner.call(mSupplier);
+        Integer result = mWifiThreadRunner.call(mSupplier, VALUE_ON_TIMEOUT);
 
         assertThat(result).isEqualTo(RESULT);
         verify(mSupplier).get();
     }
 
     @Test
-    public void callFailure_returnNull() {
+    public void callFailure_returnValueOnTimeout() {
         doReturn(false).when(mHandler).runWithScissors(any(), anyLong());
 
-        Integer result = mWifiThreadRunner.call(mSupplier);
+        Integer result = mWifiThreadRunner.call(mSupplier, VALUE_ON_TIMEOUT);
 
-        assertThat(result).isNull();
+        assertThat(result).isEqualTo(VALUE_ON_TIMEOUT);
         verify(mSupplier, never()).get();
     }
 

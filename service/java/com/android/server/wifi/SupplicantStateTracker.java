@@ -69,9 +69,6 @@ public class SupplicantStateTracker extends StateMachine {
     /* Maximum retries on assoc rejection events */
     private static final int MAX_RETRIES_ON_ASSOCIATION_REJECT = 16;
 
-    /* Tracks if networks have been disabled during a connection */
-    private boolean mNetworksDisabledDuringConnect = false;
-
     private final Context mContext;
 
     private final State mUninitializedState = new UninitializedState();
@@ -126,13 +123,9 @@ public class SupplicantStateTracker extends StateMachine {
     private void handleNetworkConnectionFailure(int netId, int disableReason) {
         if (DBG) {
             Log.d(TAG, "handleNetworkConnectionFailure netId=" + Integer.toString(netId)
-                    + " reason " + Integer.toString(disableReason)
-                    + " mNetworksDisabledDuringConnect=" + mNetworksDisabledDuringConnect);
+                    + " reason " + Integer.toString(disableReason));
         }
 
-        /* If other networks disabled during connection, enable them */
-        if (mNetworksDisabledDuringConnect) {
-            mNetworksDisabledDuringConnect = false; }
         /* update network status */
         mWifiConfigManager.updateNetworkSelectionStatus(netId, disableReason);
     }
@@ -255,9 +248,6 @@ public class SupplicantStateTracker extends StateMachine {
                 case ClientModeImpl.CMD_RESET_SUPPLICANT_STATE:
                     transitionTo(mUninitializedState);
                     break;
-                case WifiManager.CONNECT_NETWORK:
-                    mNetworksDisabledDuringConnect = true;
-                    break;
                 case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
                 default:
                     Log.e(TAG, "Ignoring " + message);
@@ -368,10 +358,6 @@ public class SupplicantStateTracker extends StateMachine {
         @Override
          public void enter() {
              if (DBG) Log.d(TAG, getName() + "\n");
-             /* Reset authentication failure count */
-             if (mNetworksDisabledDuringConnect) {
-                 mNetworksDisabledDuringConnect = false;
-             }
         }
         @Override
         public boolean processMessage(Message message) {
@@ -411,7 +397,6 @@ public class SupplicantStateTracker extends StateMachine {
         super.dump(fd, pw, args);
         pw.println("mAuthFailureInSupplicantBroadcast " + mAuthFailureInSupplicantBroadcast);
         pw.println("mAuthFailureReason " + mAuthFailureReason);
-        pw.println("mNetworksDisabledDuringConnect " + mNetworksDisabledDuringConnect);
         pw.println();
     }
 }

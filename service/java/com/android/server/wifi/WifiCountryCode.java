@@ -16,8 +16,16 @@
 
 package com.android.server.wifi;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Handler;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -33,6 +41,7 @@ import java.util.Locale;
  */
 public class WifiCountryCode {
     private static final String TAG = "WifiCountryCode";
+    private final TelephonyManager mTelephonyManager;
     private final WifiNative mWifiNative;
     private boolean DBG = false;
     private boolean mReady = false;
@@ -51,10 +60,12 @@ public class WifiCountryCode {
     private boolean mForceCountryCode = false;
 
     public WifiCountryCode(
+            Context context,
+            Handler handler,
             WifiNative wifiNative,
             String oemDefaultCountryCode,
             boolean revertCountryCodeOnCellularLoss) {
-
+        mTelephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         mWifiNative = wifiNative;
         mRevertCountryCodeOnCellularLoss = revertCountryCodeOnCellularLoss;
 
@@ -67,6 +78,14 @@ public class WifiCountryCode {
                 mRevertCountryCodeOnCellularLoss = false;
             }
         }
+        context.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+                String countryCode = intent.getStringExtra(TelephonyManager.EXTRA_NETWORK_COUNTRY);
+                Log.d(TAG, "Country code changed");
+                setCountryCodeAndUpdate(countryCode);
+            }}, new IntentFilter(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED), null, handler);
 
         Log.d(TAG, "mDefaultCountryCode " + mDefaultCountryCode
                 + " mRevertCountryCodeOnCellularLoss " + mRevertCountryCodeOnCellularLoss);
@@ -95,6 +114,14 @@ public class WifiCountryCode {
         mTelephonyCountryCode = null;
     }
 
+    private void initializeTelephonyCountryCodeIfNeeded() {
+        // If we don't have a country code set, read it from telephony on bootup.
+        if (mTelephonyCountryCode == null) {
+            Log.d(TAG, "Reading country code on initialization");
+            setCountryCode(mTelephonyManager.getNetworkCountryIso());
+        }
+    }
+
     /**
      * Change the state to indicates if wpa_supplicant is ready to handle country code changing
      * request or not.
@@ -107,6 +134,7 @@ public class WifiCountryCode {
         // We are ready to set country code now.
         // We need to post pending country code request.
         if (mReady) {
+            initializeTelephonyCountryCodeIfNeeded();
             updateCountryCode();
         }
     }
@@ -141,19 +169,12 @@ public class WifiCountryCode {
         mTelephonyCountryCode = null;
     }
 
-    /**
-     * Handle country code change request.
-     * @param countryCode The country code intended to set.
-     * This is supposed to be from Telephony service.
-     * otherwise we think it is from other applications.
-     * @return Returns true if the country code passed in is acceptable.
-     */
-    public synchronized boolean setCountryCode(String countryCode) {
+    private boolean setCountryCode(String countryCode) {
         if (mForceCountryCode) {
             Log.d(TAG, "Country code can't be set because it is the force-country-code mode");
             return false;
         }
-        Log.d(TAG, "Receive set country code request: " + countryCode);
+        Log.d(TAG, "Set country code to: " + countryCode);
         mTelephonyCountryTimestamp = FORMATTER.format(new Date(System.currentTimeMillis()));
 
         // Empty country code.
@@ -165,6 +186,18 @@ public class WifiCountryCode {
         } else {
             mTelephonyCountryCode = countryCode.toUpperCase(Locale.US);
         }
+        return true;
+    }
+
+    /**
+     * Handle country code change request.
+     * @param countryCode The country code intended to set.
+     * This is supposed to be from Telephony service.
+     * otherwise we think it is from other applications.
+     * @return Returns true if the country code passed in is acceptable.
+     */
+    private boolean setCountryCodeAndUpdate(String countryCode) {
+        if (!setCountryCode(countryCode)) return false;
         // If wpa_supplicant is ready we set the country code now, otherwise it will be
         // set once wpa_supplicant is ready.
         if (mReady) {
@@ -185,6 +218,7 @@ public class WifiCountryCode {
      * country code.
      * Returns null if no Country Code was sent to driver.
      */
+    @VisibleForTesting
     public synchronized String getCountryCodeSentToDriver() {
         return mDriverCountryCode;
     }
@@ -204,7 +238,6 @@ public class WifiCountryCode {
      * Method to dump the current state of this WifiCounrtyCode object.
      */
     public synchronized void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
-
         pw.println("mRevertCountryCodeOnCellularLoss: " + mRevertCountryCodeOnCellularLoss);
         pw.println("mDefaultCountryCode: " + mDefaultCountryCode);
         pw.println("mDriverCountryCode: " + mDriverCountryCode);
