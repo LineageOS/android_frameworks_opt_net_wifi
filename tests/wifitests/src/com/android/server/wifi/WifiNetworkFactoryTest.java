@@ -41,6 +41,7 @@ import android.net.MacAddress;
 import android.net.NetworkCapabilities;
 import android.net.NetworkFactory;
 import android.net.NetworkRequest;
+import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.INetworkRequestUserSelectionCallback;
 import android.net.wifi.ScanResult;
@@ -50,6 +51,7 @@ import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiScanner.ScanListener;
 import android.net.wifi.WifiScanner.ScanSettings;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
@@ -150,6 +152,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
             ArgumentCaptor.forClass(OnAlarmListener.class);
     ArgumentCaptor<ScanListener> mScanListenerArgumentCaptor =
             ArgumentCaptor.forClass(ScanListener.class);
+    ArgumentCaptor<IActionListener> mConnectListenerArgumentCaptor =
+            ArgumentCaptor.forClass(IActionListener.class);
     InOrder mInOrder;
 
     private WifiNetworkFactory mWifiNetworkFactory;
@@ -1126,14 +1130,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                 eq(WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER));
 
         verify(mClientModeImpl).disconnectCommand();
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
-
-        Message message = messageCaptor.getValue();
-        assertNotNull(message);
-
-        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
-        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID_1), any(Binder.class),
+                mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -1237,14 +1235,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(), anyInt(), anyString());
 
         verify(mClientModeImpl).disconnectCommand();
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
-
-        Message message = messageCaptor.getValue();
-        assertNotNull(message);
-
-        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
-        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID_1), any(Binder.class),
+                mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -1294,15 +1286,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                 eq(WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER));
 
         verify(mClientModeImpl).disconnectCommand();
-        // Verify connection message.
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
-
-        Message message = messageCaptor.getValue();
-        assertNotNull(message);
-
-        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
-        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID_1), any(Binder.class),
+                mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -1353,15 +1338,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                 eq(WifiMetricsProto.ConnectionEvent.NOMINATOR_SPECIFIER));
 
         verify(mClientModeImpl).disconnectCommand();
-        // Verify connection message.
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl).sendMessage(messageCaptor.capture());
-
-        Message message = messageCaptor.getValue();
-        assertNotNull(message);
-
-        assertEquals(WifiManager.CONNECT_NETWORK, message.what);
-        assertEquals(TEST_NETWORK_ID_1, message.arg1);
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID_1), any(Binder.class),
+                mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -1424,15 +1402,14 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
      */
     @Test
     public void testNetworkSpecifierHandleConnectionTriggerFailure() throws Exception {
-        Messenger replyToMsgr = sendNetworkRequestAndSetupForConnectionStatus();
+        sendNetworkRequestAndSetupForConnectionStatus();
 
         // Send failure message beyond the retry limit to trigger the failure handling.
         for (int i = 0; i <= WifiNetworkFactory.USER_SELECTED_NETWORK_CONNECT_RETRY_MAX; i++) {
-            Message failureMsg = Message.obtain();
-            failureMsg.what = WifiManager.CONNECT_NETWORK_FAILED;
-            replyToMsgr.send(failureMsg);
-            mLooper.dispatchAll();
+            assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
+            mConnectListenerArgumentCaptor.getValue().onFailure(WifiManager.ERROR);
         }
+        mLooper.dispatchAll();
 
         mInOrder = inOrder(mAlarmManager, mClientModeImpl);
         validateConnectionRetryAttempts();
@@ -2159,7 +2136,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Verify we did not trigger the match callback.
         verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
         // Verify that we sent a connection attempt to ClientModeImpl
-        verify(mClientModeImpl).sendMessage(any());
+        verify(mClientModeImpl).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
 
         verify(mWifiMetrics).incrementNetworkRequestApiNumUserApprovalBypass();
     }
@@ -2206,7 +2184,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertNotNull(matchedScanResultsCaptor.getValue());
         validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
         // Verify that we did not send a connection attempt to ClientModeImpl.
-        verify(mClientModeImpl, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2247,7 +2226,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertNotNull(matchedScanResultsCaptor.getValue());
         validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
         // Verify that we did not send a connection attempt to ClientModeImpl.
-        verify(mClientModeImpl, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2286,7 +2266,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertNotNull(matchedScanResultsCaptor.getValue());
         validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
         // Verify that we did not send a connection attempt to ClientModeImpl.
-        verify(mClientModeImpl, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2329,7 +2310,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertNotNull(matchedScanResultsCaptor.getValue());
         validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
         // Verify that we did not send a connection attempt to ClientModeImpl.
-        verify(mClientModeImpl, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2371,7 +2353,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertNotNull(matchedScanResultsCaptor.getValue());
         validateScanResults(matchedScanResultsCaptor.getValue(), matchingScanResult);
         // Verify that we did not send a connection attempt to ClientModeImpl.
-        verify(mClientModeImpl, never()).sendMessage(any());
+        verify(mClientModeImpl, never()).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2440,7 +2423,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Verify we did not trigger the match callback.
         verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
         // Verify that we sent a connection attempt to ClientModeImpl
-        verify(mClientModeImpl).sendMessage(any());
+        verify(mClientModeImpl).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
     }
 
     /**
@@ -2472,12 +2456,12 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         assertArrayEquals(approvedApSet.toArray(), storedApSet.toArray());
     }
 
-    private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
-        return sendNetworkRequestAndSetupForConnectionStatus(TEST_SSID_1);
+    private void sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
+        sendNetworkRequestAndSetupForConnectionStatus(TEST_SSID_1);
     }
 
     // Helper method to setup the necessary pre-requisite steps for tracking connection status.
-    private Messenger sendNetworkRequestAndSetupForConnectionStatus(String targetSsid)
+    private void sendNetworkRequestAndSetupForConnectionStatus(String targetSsid)
             throws RemoteException {
         when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
 
@@ -2501,19 +2485,14 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         verify(mWifiMetrics).incrementNetworkRequestApiNumApps();
 
         verify(mClientModeImpl, atLeastOnce()).disconnectCommand();
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl, atLeastOnce()).sendMessage(messageCaptor.capture());
-
-        Message message = messageCaptor.getValue();
-        assertNotNull(message);
+        verify(mClientModeImpl, atLeastOnce()).connect(eq(null), eq(TEST_NETWORK_ID_1),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
 
         // Start the connection timeout alarm.
         mInOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                 eq((long) WifiNetworkFactory.NETWORK_CONNECTION_TIMEOUT_MS), any(),
                 mConnectionTimeoutAlarmListenerArgumentCaptor.capture(), any());
         assertNotNull(mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
-
-        return message.replyTo;
     }
 
     private void sendNetworkRequestAndSetupForUserSelection() throws RemoteException {
@@ -2685,11 +2664,9 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
                     mConnectionTimeoutAlarmListenerArgumentCaptor.getValue());
 
             // Trigger new connection.
-            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-            mInOrder.verify(mClientModeImpl).sendMessage(messageCaptor.capture());
-            Message message = messageCaptor.getValue();
-            assertNotNull(message);
-            assertEquals(WifiManager.CONNECT_NETWORK, message.what);
+            mInOrder.verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID_1),
+                    any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(),
+                    anyInt());
 
             // Start the new connection timeout alarm.
             mInOrder.verify(mAlarmManager).set(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),

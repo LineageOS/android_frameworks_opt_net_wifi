@@ -87,7 +87,7 @@ public class ExternalCallbackTrackerTest extends WifiBaseTest {
     public void testRemoveCallback() throws Exception {
         testAddCallback();
 
-        assertTrue(mExternalCallbackTracker.remove(TEST_CALLBACK_IDENTIFIER));
+        assertNotNull(mExternalCallbackTracker.remove(TEST_CALLBACK_IDENTIFIER));
         assertEquals(0, mExternalCallbackTracker.getNumCallbacks());
         assertTrue(mExternalCallbackTracker.getCallbacks().isEmpty());
         verify(mBinder).unlinkToDeath(any(), anyInt());
@@ -101,7 +101,7 @@ public class ExternalCallbackTrackerTest extends WifiBaseTest {
     public void testRemoveCallbackFailureOnWrongIdentifier() throws Exception {
         testAddCallback();
 
-        assertFalse(mExternalCallbackTracker.remove(TEST_CALLBACK_IDENTIFIER + 5));
+        assertNull(mExternalCallbackTracker.remove(TEST_CALLBACK_IDENTIFIER + 5));
         assertEquals(1, mExternalCallbackTracker.getNumCallbacks());
         assertEquals(mCallback, mExternalCallbackTracker.getCallbacks().get(0));
     }

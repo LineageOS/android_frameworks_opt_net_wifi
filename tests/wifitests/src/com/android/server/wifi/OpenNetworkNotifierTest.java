@@ -40,9 +40,12 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.Uri;
+import android.net.wifi.IActionListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.os.Binder;
 import android.os.Message;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -489,8 +492,8 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
     @Test
     public void actionConnectToNetwork_notificationNotShowing_doesNothing() {
         mBroadcastReceiver.onReceive(mContext, createIntent(ACTION_CONNECT_TO_NETWORK));
-
-        verify(mClientModeImpl, never()).sendMessage(any(Message.class));
+        verify(mClientModeImpl, never()).connect(any(), anyInt(), any(Binder.class),
+                any(IActionListener.class), anyInt(), eq(Process.WIFI_UID));
     }
 
     /**
@@ -510,7 +513,8 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
 
         mBroadcastReceiver.onReceive(mContext, createIntent(ACTION_CONNECT_TO_NETWORK));
 
-        verify(mClientModeImpl).sendMessage(any(Message.class));
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID), any(Binder.class),
+                any(IActionListener.class), anyInt(), eq(Process.WIFI_UID));
         // Connecting Notification
         verify(mNotificationBuilder).createNetworkConnectingNotification(OPEN_NET_NOTIFIER_TAG,
                 mDummyNetwork);
@@ -688,9 +692,11 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
         verify(mWifiMetrics).setNominatorForNetwork(TEST_NETWORK_ID,
                 WifiMetricsProto.ConnectionEvent.NOMINATOR_OPEN_NETWORK_AVAILABLE);
 
-        ArgumentCaptor<Message> connectMessageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mClientModeImpl).sendMessage(connectMessageCaptor.capture());
-        Message connectMessage = connectMessageCaptor.getValue();
+        ArgumentCaptor<IActionListener> connectListenerCaptor =
+                ArgumentCaptor.forClass(IActionListener.class);
+        verify(mClientModeImpl).connect(eq(null), eq(TEST_NETWORK_ID), any(Binder.class),
+                connectListenerCaptor.capture(), anyInt(), eq(Process.WIFI_UID));
+        IActionListener connectListener = connectListenerCaptor.getValue();
 
         // Connecting Notification
         verify(mNotificationBuilder).createNetworkConnectingNotification(OPEN_NET_NOTIFIER_TAG,
@@ -702,9 +708,7 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
                 ConnectToNetworkNotificationAndActionCount.ACTION_CONNECT_TO_NETWORK);
         verify(mNotificationManager, times(2)).notify(anyInt(), any());
 
-        Message connectFailedMsg = Message.obtain();
-        connectFailedMsg.what = WifiManager.CONNECT_NETWORK_FAILED;
-        connectMessage.replyTo.send(connectFailedMsg);
+        connectListener.onFailure(WifiManager.ERROR);
         mLooper.dispatchAll();
 
         // Failed to Connect Notification

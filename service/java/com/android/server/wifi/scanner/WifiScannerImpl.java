@@ -81,6 +81,19 @@ public abstract class WifiScannerImpl {
         }
     };
 
+    private final String mIfaceName;
+
+    WifiScannerImpl(@NonNull String ifaceName) {
+        mIfaceName = ifaceName;
+    }
+
+    /**
+     * Get the interface name used by this instance of {@link WifiScannerImpl}
+     */
+    public @NonNull String getIfaceName() {
+        return mIfaceName;
+    }
+
     /**
      * Cleanup any ongoing operations. This may be called when the driver is unloaded.
      * There is no expectation that failure events are returned for ongoing operations.
