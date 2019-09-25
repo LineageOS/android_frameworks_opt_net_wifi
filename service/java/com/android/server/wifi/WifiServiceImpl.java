@@ -3258,10 +3258,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void connect(WifiConfiguration config, int netId, IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
@@ -3279,10 +3275,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void save(WifiConfiguration config, IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
@@ -3299,10 +3291,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void forget(int netId, IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
