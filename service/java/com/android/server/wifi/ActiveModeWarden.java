@@ -199,20 +199,18 @@ public class ActiveModeWarden {
      *
      * @param softApConfig SoftApModeConfiguration for the hostapd softap
      */
-    private void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
-        mHandler.post(() -> {
-            Log.d(TAG, "Starting SoftApModeManager config = "
-                    + softApConfig.getWifiConfiguration());
+    private void startSoftApModeManager(@NonNull SoftApModeConfiguration softApConfig) {
+        Log.d(TAG, "Starting SoftApModeManager config = "
+                + softApConfig.getWifiConfiguration());
 
-            SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
-            SoftApListener listener = new SoftApListener();
-            ActiveModeManager manager =
-                    mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
-            listener.setActiveModeManager(manager);
-            manager.start();
-            mActiveModeManagers.add(manager);
-            updateBatteryStatsWifiState(true);
-        });
+        SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
+        SoftApListener listener = new SoftApListener();
+        ActiveModeManager manager =
+                mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
+        listener.setActiveModeManager(manager);
+        manager.start();
+        mActiveModeManagers.add(manager);
+        updateBatteryStatsWifiState(true);
     }
 
     /**
@@ -225,32 +223,28 @@ public class ActiveModeWarden {
      *             {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *             Use {@link WifiManager#IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    private void stopSoftAPMode(int mode) {
-        mHandler.post(() -> {
-            for (ActiveModeManager manager : mActiveModeManagers) {
-                if (!(manager instanceof SoftApManager)) continue;
-                SoftApManager softApManager = (SoftApManager) manager;
+    private void stopSoftApModeManagers(int mode) {
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof SoftApManager)) continue;
+            SoftApManager softApManager = (SoftApManager) manager;
 
-                if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
-                        && mode != softApManager.getIpMode()) {
-                    continue;
-                }
-                softApManager.stop();
+            if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
+                    && mode != softApManager.getIpMode()) {
+                continue;
             }
-            updateBatteryStatsWifiState(false);
-        });
+            softApManager.stop();
+        }
+        updateBatteryStatsWifiState(false);
     }
 
     /**
      * Method to stop all active modes, for example, when toggling airplane mode.
      */
     private void shutdownWifi() {
-        mHandler.post(() -> {
-            for (ActiveModeManager manager : mActiveModeManagers) {
-                manager.stop();
-            }
-            updateBatteryStatsWifiState(false);
-        });
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            manager.stop();
+        }
+        updateBatteryStatsWifiState(false);
     }
 
     /**
@@ -505,12 +499,10 @@ public class ActiveModeWarden {
             }
 
             private void enterEmergencyMode() {
-                stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                stopSoftApModeManagers(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
                 boolean configWiFiDisableInECBM = mFacade.getConfigWiFiDisableInECBM(mContext);
                 log("WifiController msg getConfigWiFiDisableInECBM " + configWiFiDisableInECBM);
                 if (configWiFiDisableInECBM) {
-                    // TODO: this will shut down Soft AP twice in conjunction with stopSoftAPMode()
-                    //  above, is this a problem?
                     shutdownWifi();
                     mWasWifiDisabled = true;
                 }
@@ -587,9 +579,9 @@ public class ActiveModeWarden {
                     case CMD_SET_AP:
                         // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
                         if (msg.arg1 == 1) {
-                            enterSoftAPMode((SoftApModeConfiguration) msg.obj);
+                            startSoftApModeManager((SoftApModeConfiguration) msg.obj);
                         } else {
-                            stopSoftAPMode(msg.arg2);
+                            stopSoftApModeManagers(msg.arg2);
                         }
                         break;
                     case CMD_AIRPLANE_TOGGLED:
