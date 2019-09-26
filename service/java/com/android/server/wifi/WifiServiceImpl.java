@@ -349,12 +349,6 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.wtf(TAG, "Failed to initialize ClientModeImpl");
         }
         mActiveModeWarden.start();
-
-        // If we are already disabled (could be due to airplane mode), avoid changing persist
-        // state here
-        if (wifiEnabled) {
-            setWifiEnabled(mContext.getPackageName(), true);
-        }
     }
 
     public void handleBootCompleted() {

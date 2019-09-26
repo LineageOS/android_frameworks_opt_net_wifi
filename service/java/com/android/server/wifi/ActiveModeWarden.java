@@ -437,7 +437,9 @@ public class ActiveModeWarden {
                     + ", isScanningAvailable = " + isScanningAlwaysAvailable
                     + ", isLocationModeActive = " + isLocationModeActive);
 
-            if (checkScanOnlyModeAvailable()) {
+            if (mSettingsStore.isWifiToggleEnabled()) {
+                setInitialState(mStaEnabledState);
+            } else if (checkScanOnlyModeAvailable()) {
                 setInitialState(mStaDisabledWithScanState);
             } else {
                 setInitialState(mStaDisabledState);
