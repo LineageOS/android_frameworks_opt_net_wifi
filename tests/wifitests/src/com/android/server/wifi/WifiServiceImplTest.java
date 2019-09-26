@@ -1055,7 +1055,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mWifiServiceImpl.checkAndStartWifi();
         verify(mActiveModeWarden).start();
-        verify(mActiveModeWarden).wifiToggled();
     }
 
     /**
