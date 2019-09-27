@@ -19,6 +19,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -972,6 +973,35 @@ public class SupplicantStaNetworkHalTest extends WifiBaseTest {
         assertEquals(ANONYMOUS_IDENTITY, mSupplicantNetwork.fetchEapAnonymousIdentity());
     }
 
+    /** Verifies that setPmkCache can set PMK cache
+     *
+     */
+    public void testSetPmkCache() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
+        config.enterpriseConfig =
+                WifiConfigurationTestUtil.createTLSWifiEnterpriseConfigWithNonePhase2();
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        ArrayList<Byte> serializedData = new ArrayList<>();
+        assertTrue(mSupplicantNetwork.setPmkCache(serializedData));
+        assertEquals(serializedData, mSupplicantVariables.serializedPmkCache);
+    }
+
+    /**
+     * Tests PMK cache is not set on HAL v1.2 or lower
+     */
+    @Test
+    public void testSetPmkCacheHal1_2OrLower() throws Exception {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork();
+        config.enterpriseConfig =
+                WifiConfigurationTestUtil.createTLSWifiEnterpriseConfigWithNonePhase2();
+        assertTrue(mSupplicantNetwork.saveWifiConfiguration(config));
+
+        ArrayList<Byte> serializedData = new ArrayList<>();
+        assertFalse(mSupplicantNetwork.setPmkCache(serializedData));
+        assertNull(mSupplicantVariables.serializedPmkCache);
+    }
+
     /**
      * Sets up the HIDL interface mock with all the setters/getter values.
      * Note: This only sets up the mock to return success on all methods.
@@ -1545,6 +1575,14 @@ public class SupplicantStaNetworkHalTest extends WifiBaseTest {
                 .getOcsp(any(android.hardware.wifi.supplicant.V1_3.ISupplicantStaNetwork
                         .getOcspCallback.class));
 
+        /** PMK cache */
+        doAnswer(new AnswerWithArguments() {
+            public SupplicantStatus answer(ArrayList<Byte> serializedData) throws RemoteException {
+                mSupplicantVariables.serializedPmkCache = serializedData;
+                return mStatusSuccess;
+            }
+        }).when(mISupplicantStaNetworkV13).setPmkCache(any(ArrayList.class));
+
     }
 
     private SupplicantStatus createSupplicantStatus(int code) {
@@ -1609,5 +1647,6 @@ public class SupplicantStaNetworkHalTest extends WifiBaseTest {
         public String eapDomainSuffixMatch;
         public boolean eapProactiveKeyCaching;
         public int ocsp;
+        public ArrayList<Byte> serializedPmkCache;
     }
 }
