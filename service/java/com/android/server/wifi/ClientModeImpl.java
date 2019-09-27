@@ -6180,9 +6180,9 @@ public class ClientModeImpl extends StateMachine {
     /**
      * Trigger network connection and provide status via the provided callback.
      */
-    public void connect(WifiConfiguration config, int netId, IBinder binder,
+    public void connect(WifiConfiguration config, int netId, @Nullable IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier, int callingUid) {
-        if (callback != null) {
+        if (callback != null && binder != null) {
             synchronized (mProcessingActionListeners) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
@@ -6195,9 +6195,9 @@ public class ClientModeImpl extends StateMachine {
     /**
      * Trigger network save and provide status via the provided callback.
      */
-    public void save(WifiConfiguration config, IBinder binder, @Nullable IActionListener callback,
-            int callbackIdentifier, int callingUid) {
-        if (callback != null) {
+    public void save(WifiConfiguration config, @Nullable IBinder binder,
+            @Nullable IActionListener callback, int callbackIdentifier, int callingUid) {
+        if (callback != null && binder != null) {
             synchronized (mProcessingActionListeners) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
@@ -6210,9 +6210,9 @@ public class ClientModeImpl extends StateMachine {
     /**
      * Trigger network forget and provide status via the provided callback.
      */
-    public void forget(int netId, IBinder binder, @Nullable IActionListener callback,
+    public void forget(int netId, @Nullable IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier, int callingUid) {
-        if (callback != null) {
+        if (callback != null && binder != null) {
             synchronized (mProcessingActionListeners) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
