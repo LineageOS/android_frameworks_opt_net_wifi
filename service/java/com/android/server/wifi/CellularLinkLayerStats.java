@@ -16,9 +16,9 @@
 
 package com.android.server.wifi;
 
+import android.telephony.Annotation.NetworkType;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
-import android.telephony.TelephonyManager.NetworkType;
 
 /**
  * A class representing the link layer statistics of the primary registered cell
