@@ -17,6 +17,7 @@
 package com.android.server.wifi;
 
 import android.content.Context;
+import android.net.wifi.WifiInfo;
 import android.provider.Settings;
 
 import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
@@ -33,18 +34,36 @@ public class WifiDataStall {
     public static final int MIN_TX_SUCCESS_WITHOUT_RX_DEFAULT = 50;
     // Maximum time gap between two WifiLinkLayerStats to trigger a data stall
     public static final long MAX_MS_DELTA_FOR_DATA_STALL = 60 * 1000; // 1 minute
+    // Maximum time that a data stall start time stays valid.
+    public static final long VALIDITY_PERIOD_OF_DATA_STALL_START_MS = 30 * 1000; // 0.5 minutes
+    // Default Tx packet error rate when there is no Tx attempt
+    public static final int DEFAULT_TX_PACKET_ERROR_RATE = 20;
+    // Default CCA level when CCA stats are not available
+    public static final int DEFAULT_CCA_LEVEL = 0;
 
     private final Context mContext;
+    private final DeviceConfigFacade mDeviceConfigFacade;
     private final FrameworkFacade mFacade;
     private final WifiMetrics mWifiMetrics;
 
     private int mMinTxBad;
     private int mMinTxSuccessWithoutRx;
+    private int mLastFrequency = -1;
+    private String mLastBssid;
+    private long mLastTotalRadioOnFreqTimeMs = -1;
+    private long mLastTotalCcaBusyFreqTimeMs = -1;
+    private long mDataStallStartTimeMs = -1;
+    private Clock mClock;
+    private boolean mDataStallTx = false;
+    private boolean mDataStallRx = false;
 
-    public WifiDataStall(Context context, FrameworkFacade facade, WifiMetrics wifiMetrics) {
+    public WifiDataStall(Context context, FrameworkFacade facade, WifiMetrics wifiMetrics,
+            DeviceConfigFacade deviceConfigFacade, Clock clock) {
         mContext = context;
+        mDeviceConfigFacade = deviceConfigFacade;
         mFacade = facade;
         mWifiMetrics = wifiMetrics;
+        mClock = clock;
         loadSettings();
     }
 
@@ -65,9 +84,11 @@ public class WifiDataStall {
      * Checks for data stall by looking at tx/rx packet counts
      * @param oldStats second most recent WifiLinkLayerStats
      * @param newStats most recent WifiLinkLayerStats
+     * @param wifiInfo WifiInfo for current connection
      * @return trigger type of WifiIsUnusableEvent
      */
-    public int checkForDataStall(WifiLinkLayerStats oldStats, WifiLinkLayerStats newStats) {
+    public int checkForDataStall(WifiLinkLayerStats oldStats, WifiLinkLayerStats newStats,
+            WifiInfo wifiInfo) {
         if (oldStats == null || newStats == null) {
             mWifiMetrics.resetWifiIsUnusableLinkLayerStats();
             return WifiIsUnusableEvent.TYPE_UNKNOWN;
@@ -104,24 +125,117 @@ public class WifiDataStall {
         mWifiMetrics.updateWifiIsUnusableLinkLayerStats(txSuccessDelta, txRetriesDelta,
                 txBadDelta, rxSuccessDelta, timeMsDelta);
         if (timeMsDelta < MAX_MS_DELTA_FOR_DATA_STALL) {
-            // There is a data stall if there are too many tx failures
-            // or if we are not receiving any packets despite many tx successes
-            boolean dataStallBadTx = (txBadDelta >= mMinTxBad);
-            boolean dataStallTxSuccessWithoutRx =
-                    (rxSuccessDelta == 0 && txSuccessDelta >= mMinTxSuccessWithoutRx);
-            if (dataStallBadTx && dataStallTxSuccessWithoutRx) {
-                mWifiMetrics.logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH);
-                return WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH;
-            } else if (dataStallBadTx) {
-                mWifiMetrics.logWifiIsUnusableEvent(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
-                return WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX;
-            } else if (dataStallTxSuccessWithoutRx) {
-                mWifiMetrics.logWifiIsUnusableEvent(
-                        WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX);
-                return WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX;
+            int txLinkSpeed = wifiInfo.getLinkSpeed();
+            int rxLinkSpeed = wifiInfo.getRxLinkSpeedMbps();
+            boolean isSameBssidAndFreq = mLastBssid == null || mLastFrequency == -1
+                    || (mLastBssid.equals(wifiInfo.getBSSID())
+                    && mLastFrequency == wifiInfo.getFrequency());
+            mLastFrequency = wifiInfo.getFrequency();
+            mLastBssid = wifiInfo.getBSSID();
+
+            int ccaLevel = updateCcaLevel(newStats, wifiInfo, isSameBssidAndFreq);
+            int txPer = updateTxPer(txSuccessDelta, txRetriesDelta, isSameBssidAndFreq);
+
+            boolean isTxTputLow = false;
+            boolean isRxTputLow = false;
+            if (txLinkSpeed > 0) {
+                long txTputKbps = (long) txLinkSpeed * 1000 * (100 - txPer) * (100 - ccaLevel);
+                isTxTputLow =
+                        txTputKbps < mDeviceConfigFacade.getDataStallTxTputThrKbps() * 100 * 100;
+            }
+            if (rxLinkSpeed > 0) {
+                long rxTputKbps = (long) rxLinkSpeed * 1000 * (100 - ccaLevel);
+                isRxTputLow = rxTputKbps < mDeviceConfigFacade.getDataStallRxTputThrKbps() * 100;
+            }
+
+            boolean dataStallTx = isTxTputLow
+                    || ccaLevel >= mDeviceConfigFacade.getDataStallCcaLevelThr()
+                    || txPer >= mDeviceConfigFacade.getDataStallTxPerThr();
+            boolean dataStallRx = isRxTputLow
+                    || ccaLevel >= mDeviceConfigFacade.getDataStallCcaLevelThr();
+
+            // Data stall event is triggered if there are consecutive Tx and/or Rx data stalls
+            // Reset mDataStallStartTimeMs to -1 if currently there is no Tx or Rx data stall
+            if (dataStallTx || dataStallRx) {
+                mDataStallTx = mDataStallTx || dataStallTx;
+                mDataStallRx = mDataStallRx || dataStallRx;
+                if (mDataStallStartTimeMs == -1) {
+                    mDataStallStartTimeMs = mClock.getElapsedSinceBootMillis();
+                    if (mDeviceConfigFacade.getDataStallDurationMs() == 0) {
+                        mDataStallStartTimeMs = -1;
+                        int result = calculateUsabilityEventType(mDataStallTx, mDataStallRx);
+                        mDataStallRx = false;
+                        mDataStallTx = false;
+                        return result;
+                    }
+                } else {
+                    long elapsedTime =  mClock.getElapsedSinceBootMillis() - mDataStallStartTimeMs;
+                    if (elapsedTime >= mDeviceConfigFacade.getDataStallDurationMs()) {
+                        mDataStallStartTimeMs = -1;
+                        if (elapsedTime <= VALIDITY_PERIOD_OF_DATA_STALL_START_MS) {
+                            int result = calculateUsabilityEventType(mDataStallTx, mDataStallRx);
+                            mDataStallRx = false;
+                            mDataStallTx = false;
+                            return result;
+                        } else {
+                            mDataStallTx = false;
+                            mDataStallRx = false;
+                        }
+                    } else {
+                        // No need to do anything.
+                    }
+                }
+            } else {
+                mDataStallStartTimeMs = -1;
+                mDataStallTx = false;
+                mDataStallRx = false;
             }
         }
 
         return WifiIsUnusableEvent.TYPE_UNKNOWN;
+    }
+
+    private int updateCcaLevel(WifiLinkLayerStats newStats, WifiInfo wifiInfo,
+            boolean isSameBssidAndFreq) {
+        WifiLinkLayerStats.ChannelStats statsMap = newStats.channelStatsMap.get(mLastFrequency);
+        if (statsMap == null || !isSameBssidAndFreq) {
+            return DEFAULT_CCA_LEVEL;
+        }
+        int radioOnTimeDelta = (int) (statsMap.radioOnTimeMs - mLastTotalRadioOnFreqTimeMs);
+        int ccaBusyTimeDelta = (int) (statsMap.ccaBusyTimeMs - mLastTotalCcaBusyFreqTimeMs);
+        mLastTotalRadioOnFreqTimeMs = statsMap.radioOnTimeMs;
+        mLastTotalCcaBusyFreqTimeMs = statsMap.ccaBusyTimeMs;
+
+        boolean isCcaValid = (radioOnTimeDelta > 0) && (ccaBusyTimeDelta >= 0)
+                && (ccaBusyTimeDelta <= radioOnTimeDelta);
+        // Update CCA level only if CCA stats are valid.
+        if (!isCcaValid) {
+            return DEFAULT_CCA_LEVEL;
+        }
+        return (int) (ccaBusyTimeDelta * 100 / radioOnTimeDelta);
+    }
+
+    private int updateTxPer(long txSuccessDelta, long txRetriesDelta, boolean isSameBssidAndFreq) {
+        if (!isSameBssidAndFreq) {
+            return DEFAULT_TX_PACKET_ERROR_RATE;
+        }
+        long txAttempts = txSuccessDelta + txRetriesDelta;
+        if (txAttempts <= 0) {
+            return DEFAULT_TX_PACKET_ERROR_RATE;
+        }
+        return (int) (txRetriesDelta * 100 / txAttempts);
+    }
+
+    private int calculateUsabilityEventType(boolean dataStallTx, boolean dataStallRx) {
+        int result = WifiIsUnusableEvent.TYPE_UNKNOWN;
+        if (dataStallTx && dataStallRx) {
+            result = WifiIsUnusableEvent.TYPE_DATA_STALL_BOTH;
+        } else if (dataStallTx) {
+            result = WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX;
+        } else if (dataStallRx) {
+            result = WifiIsUnusableEvent.TYPE_DATA_STALL_TX_WITHOUT_RX;
+        }
+        mWifiMetrics.logWifiIsUnusableEvent(result);
+        return result;
     }
 }
