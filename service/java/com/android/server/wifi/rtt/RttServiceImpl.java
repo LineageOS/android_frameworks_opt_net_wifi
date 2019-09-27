@@ -399,7 +399,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     public boolean isAvailable() {
         long ident = Binder.clearCallingIdentity();
         try {
-            return mRttNative.isReady() && !mPowerManager.isDeviceIdleMode()
+            return mRttNative != null && mRttNative.isReady() && !mPowerManager.isDeviceIdleMode()
                     && mWifiPermissionsUtil.isLocationModeEnabled();
         } finally {
             Binder.restoreCallingIdentity(ident);
