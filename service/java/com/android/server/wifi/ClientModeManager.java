@@ -156,11 +156,11 @@ public class ClientModeManager implements ActiveModeManager {
         mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
     }
 
-    private boolean isInConnectMode() {
+    public boolean isInConnectMode() {
         return mStateMachine.getCurrentState() == mStateMachine.mConnectModeState;
     }
 
-    private boolean isInScanOnlyMode() {
+    public boolean isInScanOnlyMode() {
         return mStateMachine.getCurrentState() == mStateMachine.mScanOnlyModeState;
     }
 
