@@ -44,6 +44,7 @@ public class ApConfigUtil {
 
     /**
      * Convert frequency to channel.
+     * Note: the utility does not perform any regulatory domain compliance.
      * @param frequency frequency to convert
      * @return channel number associated with given frequency, -1 if no match
      */
@@ -52,7 +53,7 @@ public class ApConfigUtil {
             return (frequency - 2412) / 5 + 1;
         } else if (frequency == 2484) {
             return 14;
-        } else if (frequency >= 5170  &&  frequency <= 5825) {
+        } else if (frequency >= 5170  &&  frequency <= 5865) {
             /* DFS is included. */
             return (frequency - 5170) / 5 + 34;
         }
