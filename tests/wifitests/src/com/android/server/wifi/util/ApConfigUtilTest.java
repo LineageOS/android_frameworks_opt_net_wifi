@@ -99,7 +99,9 @@ public class ApConfigUtilTest extends WifiBaseTest {
             5765, 153,
             5785, 157,
             5805, 161,
-            5825, 165
+            5825, 165,
+            5845, 169,
+            5865, 173
     };
 
     private static final Integer[] ALLOWED_2G_CHANNELS = {1, 2, 3, 4};

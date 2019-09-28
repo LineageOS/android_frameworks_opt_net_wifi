@@ -614,7 +614,8 @@ public class WifiConfigManager {
                 }
             }
         }
-        if (!TextUtils.isEmpty(configuration.enterpriseConfig.getPassword())) {
+        if (configuration.enterpriseConfig != null && !TextUtils.isEmpty(
+                configuration.enterpriseConfig.getPassword())) {
             configuration.enterpriseConfig.setPassword(PASSWORD_MASK);
         }
     }

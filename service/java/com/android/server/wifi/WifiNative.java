@@ -2304,6 +2304,15 @@ public class WifiNative {
         mSupplicantStaIfaceHal.removeNetworkIfCurrent(ifaceName, networkId);
     }
 
+    /**
+     * Clean HAL cached data for |networkId|.
+     *
+     * @param networkId network id of the network to be removed from supplicant.
+     */
+    public void removeNetworkCachedData(int networkId) {
+        mSupplicantStaIfaceHal.removeNetworkCachedData(networkId);
+    }
+
     /*
      * DPP
      */

@@ -31,8 +31,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.IWifiStackConnector;
+import android.net.wifi.WifiApiServiceInfo;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
 import android.util.Log;
@@ -47,6 +50,7 @@ import com.android.server.wifi.scanner.WifiScanningService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Android service used to start the wifi stack when bound to via an intent.
@@ -67,41 +71,21 @@ public class WifiStackService extends Service {
         }
 
         @Override
-        public IBinder retrieveApiServiceImpl(@NonNull String serviceName) {
+        public List<WifiApiServiceInfo> getWifiApiServiceInfos() {
             // Ensure this is being invoked from system_server only.
             mContext.enforceCallingOrSelfPermission(
                     android.Manifest.permission.NETWORK_STACK, "WifiStackService");
             long ident = Binder.clearCallingIdentity();
             try {
                 synchronized (mApiServices) {
-                    WifiServiceBase serviceBase = mApiServices.get(serviceName);
-                    if (serviceBase == null) return null;
-                    return serviceBase.retrieveImpl();
-                }
-            } finally {
-                Binder.restoreCallingIdentity(ident);
-            }
-        }
-
-        @Override
-        public boolean startApiService(@NonNull String serviceName) {
-            // Ensure this is being invoked from system_server only.
-            mContext.enforceCallingOrSelfPermission(
-                    android.Manifest.permission.NETWORK_STACK, "WifiStackService");
-            long ident = Binder.clearCallingIdentity();
-            try {
-                synchronized (mApiServices) {
-                    WifiServiceBase serviceBase = mApiServices.get(serviceName);
-                    if (serviceBase == null) return false;
-                    serviceBase.onStart();
-                    // The current active user might have switched before the wifi services
-                    // started up. So, send a onSwitchUser callback just after onStart callback is
-                    // invoked.
-                    int currentUser = ActivityManager.getCurrentUser();
-                    if (currentUser != UserHandle.USER_SYSTEM) {
-                        serviceBase.onSwitchUser(currentUser);
-                    }
-                    return true;
+                    return mApiServices.entrySet().stream()
+                            .map(entry -> {
+                                WifiApiServiceInfo service = new WifiApiServiceInfo();
+                                service.name = entry.getKey();
+                                service.binder = entry.getValue().retrieveImpl();
+                                return service;
+                            })
+                            .collect(Collectors.toList());
                 }
             } finally {
                 Binder.restoreCallingIdentity(ident);
@@ -191,6 +175,16 @@ public class WifiStackService extends Service {
             return false;
         }
 
+        // BootCompleteReceiver is registered in AndroidManifest.xml and here. The receiver
+        // registered here is triggered earlier, while the receiver registered in the manifest
+        // is more reliable since it is registered earlier, so we are guaranteed to get the
+        // broadcast (if we register too late the broadcast may have already triggered and we
+        // would have missed it). Register in both places and BootCompleteReceiver will ensure that
+        // callbacks are called exactly once.
+        Log.d(TAG, "Registering BootCompleteReceiver to listen for ACTION_BOOT_COMPLETED");
+        context.registerReceiver(new BootCompleteReceiver(),
+                new IntentFilter(Intent.ACTION_BOOT_COMPLETED));
+
         synchronized (mApiServices) {
             // Top level wifi feature flag.
             if (!context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI)) {
@@ -218,6 +212,22 @@ public class WifiStackService extends Service {
                 mApiServices.put(Context.WIFI_RTT_RANGING_SERVICE, new RttService(this));
             }
         }
+
+        Handler handler = new Handler(Looper.myLooper());
+        // register callback to start Wifi services after boot completes
+        BootCompleteReceiver.registerCallback(() -> handler.post(() -> {
+            int currentUser = ActivityManager.getCurrentUser();
+            synchronized (mApiServices) {
+                for (WifiServiceBase service : mApiServices.values()) {
+                    service.onStart();
+                    // The current active user might have switched before the wifi services started
+                    // up. So, send a onSwitchUser callback just after onStart callback is invoked.
+                    if (currentUser != UserHandle.USER_SYSTEM) {
+                        service.onSwitchUser(currentUser);
+                    }
+                }
+            }
+        }));
 
         // Register broadcast receiver for system events.
         IntentFilter intentFilter = new IntentFilter();

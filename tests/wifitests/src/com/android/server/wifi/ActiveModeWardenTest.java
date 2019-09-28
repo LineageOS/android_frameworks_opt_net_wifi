@@ -971,6 +971,20 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that if Wifi is enabled at startup, we enter client mode
+     */
+    @Test
+    public void testEnterClientModeAtStartWhenSet() throws Exception {
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(true);
+
+        mActiveModeWarden = createActiveModeWarden();
+        mActiveModeWarden.start();
+        mLooper.dispatchAll();
+
+        assertInClientState();
+    }
+
+    /**
      * Do not enter scan mode if location mode disabled.
      */
     @Test

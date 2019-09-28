@@ -52,6 +52,7 @@ public class KnownBandsChannelHelperTest {
     private static final int[] CHANNELS_24_GHZ = new int[]{2400, 2450};
     private static final int[] CHANNELS_5_GHZ = new int[]{5150, 5175};
     private static final int[] CHANNELS_DFS = new int[]{5600, 5650, 5660};
+    private static final int[] CHANNELS_DFS_OTHER = new int[]{5600, 5650, 5660, 5680};
 
     /**
      * Unit tests for
@@ -253,6 +254,45 @@ public class KnownBandsChannelHelperTest {
             assertTrue(mChannelHelper.settingsContainChannel(testSettings, 2450));
             assertTrue(mChannelHelper.settingsContainChannel(testSettings, 5150));
             assertFalse(mChannelHelper.settingsContainChannel(testSettings, 5650));
+        }
+    }
+
+    /**
+     * Unit tests for
+     * {@link com.android.server.wifi.scanner.KnownBandsChannelHelper#equals(ChannelHelper)}.
+     */
+    @SmallTest
+    public static class EqualsTest extends WifiBaseTest {
+        /**
+         * Creates 2 channel helper instances which are equal.
+         */
+        @Test
+        public void channelHelpersAreSatisfiedBySame() {
+            KnownBandsChannelHelper channelHelper0 = new PresetKnownBandsChannelHelper(
+                    CHANNELS_24_GHZ,
+                    CHANNELS_5_GHZ,
+                    CHANNELS_DFS);
+            KnownBandsChannelHelper channelHelper1 = new PresetKnownBandsChannelHelper(
+                    CHANNELS_24_GHZ,
+                    CHANNELS_5_GHZ,
+                    CHANNELS_DFS);
+            assertTrue(channelHelper0.satisfies(channelHelper1));
+        }
+
+        /**
+         * Creates 2 channel helper instances which are equal.
+         */
+        @Test
+        public void channelHelpersAreNotSatisfiedByDifferent() {
+            KnownBandsChannelHelper channelHelper0 = new PresetKnownBandsChannelHelper(
+                    CHANNELS_24_GHZ,
+                    CHANNELS_5_GHZ,
+                    CHANNELS_DFS);
+            KnownBandsChannelHelper channelHelper1 = new PresetKnownBandsChannelHelper(
+                    CHANNELS_24_GHZ,
+                    CHANNELS_5_GHZ,
+                    CHANNELS_DFS_OTHER);
+            assertFalse(channelHelper0.satisfies(channelHelper1));
         }
     }
 

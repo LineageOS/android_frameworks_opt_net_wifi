@@ -56,6 +56,15 @@ public abstract class ChannelHelper {
     public abstract WifiScanner.ChannelSpec[] getAvailableScanChannels(int band);
 
     /**
+     * Compares the channels / bands available from this helper with the channels / bands available
+     * from the other channel helper.
+     *
+     * @return true if the all the channels available from the other channel helper is also
+     * available in this helper.
+     */
+    public abstract boolean satisfies(ChannelHelper otherChannelHelper);
+
+    /**
      * Estimates the duration that the chip will spend scanning with the given settings
      */
     public abstract int estimateScanDuration(WifiScanner.ScanSettings settings);

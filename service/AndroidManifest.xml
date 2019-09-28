@@ -69,7 +69,8 @@
     <!-- TODO(b/135691051): Need to move to network stack process.
          "android:process="com.google.android.networkstack"
          This is not possible currently because hidden API access is denied when run on network
-         stack process -->
+         stack process.
+         <receiver> also needs to run on the networkstack process. -->
     <application
         android:persistent="true"
         android:directBootAware="true"
@@ -81,5 +82,10 @@
                 <action android:name="android.net.wifi.IWifiStackConnector"/>
             </intent-filter>
         </service>
+        <receiver android:name="com.android.server.wifi.BootCompleteReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

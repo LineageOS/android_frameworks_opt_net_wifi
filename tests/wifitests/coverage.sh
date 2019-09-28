@@ -70,7 +70,7 @@ adb pull $REMOTE_COVERAGE_OUTPUT_FILE $COVERAGE_OUTPUT_FILE
 
 java -jar $REPORTER_JAR \
   report \
-  --classfiles $ANDROID_BUILD_TOP/out/soong/.intermediates/frameworks/opt/net/wifi/service/wifi-service/android_common/javac/classes/ \
+  --classfiles $BUILD_OUT_DIR/soong/.intermediates/frameworks/opt/net/wifi/service/wifi-service/android_common/javac/classes/ \
   --html $OUTPUT_DIR \
   --sourcefiles $ANDROID_BUILD_TOP/frameworks/opt/net/wifi/tests/wifitests/src \
   --sourcefiles $ANDROID_BUILD_TOP/frameworks/opt/net/wifi/service/java \

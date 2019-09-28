@@ -453,7 +453,7 @@ public class ScanRequestProxy {
      * @return true if the scan request was placed or a scan is already ongoing, false otherwise.
      */
     public boolean startScan(int callingUid, String packageName) {
-        if (!retrieveWifiScannerIfNecessary()) {
+        if (!mScanningEnabled || !retrieveWifiScannerIfNecessary()) {
             Log.e(TAG, "Failed to retrieve wifiscanner");
             sendScanResultFailureBroadcastToPackage(packageName);
             return false;

@@ -349,12 +349,6 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.wtf(TAG, "Failed to initialize ClientModeImpl");
         }
         mActiveModeWarden.start();
-
-        // If we are already disabled (could be due to airplane mode), avoid changing persist
-        // state here
-        if (wifiEnabled) {
-            setWifiEnabled(mContext.getPackageName(), true);
-        }
     }
 
     public void handleBootCompleted() {
@@ -3258,10 +3252,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void connect(WifiConfiguration config, int netId, IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
@@ -3279,10 +3269,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void save(WifiConfiguration config, IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
@@ -3299,10 +3285,6 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public void forget(int netId, IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier) {
-        // verify arguments
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
         if (!isPrivileged(Binder.getCallingPid(), Binder.getCallingUid())) {
             throw new SecurityException(TAG + ": Permission denied");
         }
