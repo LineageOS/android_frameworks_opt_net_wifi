@@ -1722,9 +1722,11 @@ public class HalDeviceManager {
             int requestedIfaceType, WifiIfaceInfo[][] currentIfaces, int numNecessaryInterfaces) {
         // rule 0: check for any low priority interfaces
         int numAvailableLowPriorityInterfaces = 0;
-        for (InterfaceCacheEntry entry : mInterfaceInfoCache.values()) {
-            if (entry.type == existingIfaceType && entry.isLowPriority) {
-                numAvailableLowPriorityInterfaces++;
+        synchronized (mLock) {
+            for (InterfaceCacheEntry entry : mInterfaceInfoCache.values()) {
+                if (entry.type == existingIfaceType && entry.isLowPriority) {
+                    numAvailableLowPriorityInterfaces++;
+                }
             }
         }
         if (numAvailableLowPriorityInterfaces >= numNecessaryInterfaces) {
@@ -1779,8 +1781,10 @@ public class HalDeviceManager {
         LongSparseArray<WifiIfaceInfo> orderedListLowPriority = new LongSparseArray<>();
         LongSparseArray<WifiIfaceInfo> orderedList = new LongSparseArray<>();
         for (WifiIfaceInfo info : interfaces) {
-            InterfaceCacheEntry cacheEntry = mInterfaceInfoCache.get(
-                    Pair.create(info.name, getType(info.iface)));
+            InterfaceCacheEntry cacheEntry;
+            synchronized (mLock) {
+                cacheEntry = mInterfaceInfoCache.get(Pair.create(info.name, getType(info.iface)));
+            }
             if (cacheEntry == null) {
                 Log.e(TAG,
                         "selectInterfacesToDelete: can't find cache entry with name=" + info.name);
