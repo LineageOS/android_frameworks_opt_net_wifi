@@ -181,9 +181,9 @@ public class WifiStackService extends Service {
         // broadcast (if we register too late the broadcast may have already triggered and we
         // would have missed it). Register in both places and BootCompleteReceiver will ensure that
         // callbacks are called exactly once.
-        Log.d(TAG, "Registering BootCompleteReceiver to listen for ACTION_BOOT_COMPLETED");
+        Log.d(TAG, "Registering BootCompleteReceiver to listen for ACTION_LOCKED_BOOT_COMPLETED");
         context.registerReceiver(new BootCompleteReceiver(),
-                new IntentFilter(Intent.ACTION_BOOT_COMPLETED));
+                new IntentFilter(Intent.ACTION_LOCKED_BOOT_COMPLETED));
 
         synchronized (mApiServices) {
             // Top level wifi feature flag.
