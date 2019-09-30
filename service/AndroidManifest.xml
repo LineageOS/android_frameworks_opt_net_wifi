@@ -84,7 +84,7 @@
         </service>
         <receiver android:name="com.android.server.wifi.BootCompleteReceiver">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>
