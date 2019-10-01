@@ -91,6 +91,7 @@ import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.MutableBoolean;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
@@ -128,6 +129,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * WifiService handles remote WiFi operation requests by implementing
@@ -353,22 +356,30 @@ public class WifiServiceImpl extends BaseWifiService {
 
     public void handleBootCompleted() {
         Log.d(TAG, "Handle boot completed");
+        mWifiThreadRunner.post(() -> {
+            new MemoryStoreImpl(mContext, mWifiInjector, mWifiInjector.getWifiScoreCard()).start();
+            if (!mWifiConfigManager.loadFromStore()) {
+                Log.e(TAG, "Failed to load from config store");
+            }
+            mPasspointManager.initializeProvisioner(
+                    mWifiInjector.getPasspointProvisionerHandlerThread().getLooper());
+        });
         mClientModeImpl.handleBootCompleted();
     }
 
     public void handleUserSwitch(int userId) {
         Log.d(TAG, "Handle user switch " + userId);
-        mClientModeImpl.handleUserSwitch(userId);
+        mWifiThreadRunner.post(() -> mWifiConfigManager.handleUserSwitch(userId));
     }
 
     public void handleUserUnlock(int userId) {
         Log.d(TAG, "Handle user unlock " + userId);
-        mClientModeImpl.handleUserUnlock(userId);
+        mWifiThreadRunner.post(() -> mWifiConfigManager.handleUserUnlock(userId));
     }
 
     public void handleUserStop(int userId) {
         Log.d(TAG, "Handle user stop " + userId);
-        mClientModeImpl.handleUserStop(userId);
+        mWifiThreadRunner.post(() -> mWifiConfigManager.handleUserStop(userId));
     }
 
     /**
@@ -1917,14 +1928,42 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
             return false;
         }
-        mLog.info("removeNetwork uid=%").c(Binder.getCallingUid()).flush();
-        // TODO Add private logging for netId b/33807876
-        if (mClientModeImplChannel != null) {
-            return mClientModeImpl.syncRemoveNetwork(mClientModeImplChannel, netId);
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-            return false;
+        int callingUid = Binder.getCallingUid();
+        mLog.info("removeNetwork uid=%").c(callingUid).flush();
+        return mWifiThreadRunner.call(
+                () -> mWifiConfigManager.removeNetwork(netId, callingUid), false);
+    }
+
+    /**
+     * Trigger a connect request and wait for the callback to return status.
+     * This preserves the legacy connect API behavior, i.e. {@link WifiManager#enableNetwork(
+     * int, true)}
+     * @return
+     */
+    private boolean triggerConnectAndReturnStatus(int netId, int callingUid) {
+        final CountDownLatch countDownLatch = new CountDownLatch(1);
+        final MutableBoolean success = new MutableBoolean(false);
+        IActionListener.Stub connectListener = new IActionListener.Stub() {
+            @Override
+            public void onSuccess() {
+                success.value = true;
+                countDownLatch.countDown();
+            }
+            @Override
+            public void onFailure(int reason) {
+                success.value = false;
+                countDownLatch.countDown();
+            }
+        };
+        mClientModeImpl.connect(null, netId, new Binder(), connectListener,
+                connectListener.hashCode(), callingUid);
+        // now wait for response.
+        try {
+            countDownLatch.await(RUN_WITH_SCISSORS_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Log.e(TAG, "Failed to retrieve connect status");
         }
+        return success.value;
     }
 
     /**
@@ -1945,18 +1984,18 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
             return false;
         }
+        int callingUid = Binder.getCallingUid();
         // TODO b/33807876 Log netId
         mLog.info("enableNetwork uid=% disableOthers=%")
-                .c(Binder.getCallingUid())
+                .c(callingUid)
                 .c(disableOthers).flush();
 
         mWifiMetrics.incrementNumEnableNetworkCalls();
-        if (mClientModeImplChannel != null) {
-            return mClientModeImpl.syncEnableNetwork(mClientModeImplChannel, netId,
-                    disableOthers);
+        if (disableOthers) {
+            return triggerConnectAndReturnStatus(netId, callingUid);
         } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-            return false;
+            return mWifiThreadRunner.call(
+                    () -> mWifiConfigManager.enableNetwork(netId, false, callingUid), false);
         }
     }
 
@@ -1977,15 +2016,10 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid()).flush();
             return false;
         }
-        // TODO b/33807876 Log netId
-        mLog.info("disableNetwork uid=%").c(Binder.getCallingUid()).flush();
-
-        if (mClientModeImplChannel != null) {
-            return mClientModeImpl.syncDisableNetwork(mClientModeImplChannel, netId);
-        } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
-            return false;
-        }
+        int callingUid = Binder.getCallingUid();
+        mLog.info("disableNetwork uid=%").c(callingUid).flush();
+        return mWifiThreadRunner.call(
+                () -> mWifiConfigManager.disableNetwork(netId, callingUid), false);
     }
 
     /**
@@ -2075,9 +2109,11 @@ public class WifiServiceImpl extends BaseWifiService {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return false;
         }
-        mLog.info("addorUpdatePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
-        return mClientModeImpl.syncAddOrUpdatePasspointConfig(mClientModeImplChannel, config,
-                Binder.getCallingUid(), packageName);
+        int callingUid = Binder.getCallingUid();
+        mLog.info("addorUpdatePasspointConfiguration uid=%").c(callingUid).flush();
+        return mWifiThreadRunner.call(
+                () -> mPasspointManager.addOrUpdateProvider(config, callingUid, packageName),
+                false);
     }
 
     /**
@@ -2097,7 +2133,8 @@ public class WifiServiceImpl extends BaseWifiService {
             throw new SecurityException(TAG + ": Permission denied");
         }
         mLog.info("removePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
-        return mClientModeImpl.syncRemovePasspointConfig(mClientModeImplChannel, fqdn);
+        return mWifiThreadRunner.call(
+                () -> mPasspointManager.removeProvider(fqdn), false);
     }
 
     /**
@@ -2360,7 +2397,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return;
         }
         mLog.info("disableEphemeralNetwork uid=%").c(Binder.getCallingUid()).flush();
-        mClientModeImpl.disableEphemeralNetwork(SSID);
+        mWifiThreadRunner.post(() -> mWifiConfigManager.disableEphemeralNetwork(SSID));
     }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
@@ -2369,7 +2406,7 @@ public class WifiServiceImpl extends BaseWifiService {
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_USER_REMOVED)) {
                 int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
-                mClientModeImpl.removeUserConfigs(userHandle);
+                mWifiThreadRunner.post(() -> mWifiConfigManager.removeNetworksForUser(userHandle));
             } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
                 int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE,
                         BluetoothAdapter.STATE_DISCONNECTED);
@@ -2434,10 +2471,13 @@ public class WifiServiceImpl extends BaseWifiService {
                         return;
                     }
                     String pkgName = uri.getSchemeSpecificPart();
-                    mClientModeImpl.removeAppConfigs(pkgName, uid);
 
                     // Call the method in the main Wifi thread.
                     mWifiThreadRunner.post(() -> {
+                        ApplicationInfo ai = new ApplicationInfo();
+                        ai.packageName = pkgName;
+                        ai.uid = uid;
+                        mWifiConfigManager.removeNetworksForApp(ai);
                         mScanRequestProxy.clearScanRequestTimestampsForApp(pkgName, uid);
 
                         // Remove all suggestions from the package.
@@ -2471,7 +2511,11 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         if (args != null && args.length > 0 && WifiMetrics.PROTO_DUMP_ARG.equals(args[0])) {
             // WifiMetrics proto bytes were requested. Dump only these.
-            mClientModeImpl.updateWifiMetrics();
+            mWifiThreadRunner.run(() -> {
+                mWifiMetrics.updateSavedNetworks(
+                        mWifiConfigManager.getSavedNetworks(Process.WIFI_UID));
+                mPasspointManager.updateMetrics();
+            });
             mWifiMetrics.dump(fd, pw, args);
         } else if (args != null && args.length > 0 && IpClientUtil.DUMP_ARG.equals(args[0])) {
             // IpClient dump was requested. Pass it along and take no further action.
@@ -2514,7 +2558,11 @@ public class WifiServiceImpl extends BaseWifiService {
                     wifiScoreCard.getNetworkListBase64(true), "");
             pw.println("WifiScoreCard:");
             pw.println(networkListBase64);
-            mClientModeImpl.updateWifiMetrics();
+            mWifiThreadRunner.run(() -> {
+                mWifiMetrics.updateSavedNetworks(
+                        mWifiConfigManager.getSavedNetworks(Process.WIFI_UID));
+                mPasspointManager.updateMetrics();
+            });
             mWifiMetrics.dump(fd, pw, args);
             pw.println();
             mWifiThreadRunner.run(() -> mWifiNetworkSuggestionsManager.dump(fd, pw, args));
@@ -2756,18 +2804,20 @@ public class WifiServiceImpl extends BaseWifiService {
             return;
         }
         int callingUid = Binder.getCallingUid();
-        for (WifiConfiguration configuration : configurations) {
-            int networkId = mWifiThreadRunner.call(
-                    () -> mWifiConfigManager.addOrUpdateNetwork(configuration, callingUid)
-                            .getNetworkId(),
-                    WifiConfiguration.INVALID_NETWORK_ID);
-            if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-                Slog.e(TAG, "Restore network failed: " + configuration.configKey());
-                continue;
-            }
-            // Enable all networks restored.
-            mClientModeImpl.syncEnableNetwork(mClientModeImplChannel, networkId, false);
-        }
+        mWifiThreadRunner.run(
+                () -> {
+                    for (WifiConfiguration configuration : configurations) {
+                        int networkId =
+                                mWifiConfigManager.addOrUpdateNetwork(configuration, callingUid)
+                                        .getNetworkId();
+                        if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
+                            Slog.e(TAG, "Restore network failed: " + configuration.configKey());
+                            continue;
+                        }
+                        // Enable all networks restored.
+                        mWifiConfigManager.enableNetwork(networkId, false, callingUid);
+                    }
+                });
     }
 
     /**

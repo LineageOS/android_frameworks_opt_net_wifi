@@ -216,7 +216,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .thenReturn(false);
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         createWifiConfigManager();
-        mWifiConfigManager.setOnNetworkUpdateListener(mWcmListener);
+        mWifiConfigManager.addOnNetworkUpdateListener(mWcmListener);
         ArgumentCaptor<ContentObserver> observerCaptor =
                 ArgumentCaptor.forClass(ContentObserver.class);
         verify(mFrameworkFacade).registerContentObserver(eq(mContext), eq(Settings.Global.getUriFor(
@@ -3889,7 +3889,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that Passpoint network corresponding with given FQDN is removed.
+     * Verifies that Passpoint network corresponding with given config key (FQDN) is removed.
      *
      * @throws Exception
      */
@@ -3899,7 +3899,22 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         verifyAddPasspointNetworkToWifiConfigManager(passpointNetwork);
 
         assertTrue(mWifiConfigManager.removePasspointConfiguredNetwork(
-                WifiConfigurationTestUtil.TEST_FQDN));
+                passpointNetwork.configKey()));
+    }
+
+    /**
+     * Verifies that suggested network corresponding with given config key is removed.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRemoveSuggestionConfiguredNetwork() throws Exception {
+        WifiConfiguration suggestedNetwork = WifiConfigurationTestUtil.createEphemeralNetwork();
+        suggestedNetwork.fromWifiNetworkSuggestion = true;
+        verifyAddEphemeralNetworkToWifiConfigManager(suggestedNetwork);
+
+        assertTrue(mWifiConfigManager.removeSuggestionConfiguredNetwork(
+                suggestedNetwork.configKey()));
     }
 
     /**
@@ -4689,11 +4704,15 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS - 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
         assertTrue(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
+        assertTrue(mWifiConfigManager.getConfiguredNetwork(config.networkId)
+                .getNetworkSelectionStatus().isNetworkPermanentlyDisabled());
 
         // After the expiry of timeout.
         currentTimeMs = disableTimeMs + WifiConfigManager.DELETED_EPHEMERAL_SSID_EXPIRY_MS + 1;
         when(mClock.getWallClockMillis()).thenReturn(currentTimeMs);
         assertFalse(mWifiConfigManager.wasEphemeralNetworkDeleted(config.SSID));
+        assertFalse(mWifiConfigManager.getConfiguredNetwork(config.networkId)
+                .getNetworkSelectionStatus().isNetworkPermanentlyDisabled());
     }
 
     private NetworkUpdateResult verifyAddOrUpdateNetworkWithProxySettingsAndPermissions(

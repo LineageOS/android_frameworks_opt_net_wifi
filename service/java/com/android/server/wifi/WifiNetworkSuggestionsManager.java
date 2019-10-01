@@ -500,18 +500,21 @@ public class WifiNetworkSuggestionsManager {
     }
 
     // Issues a disconnect if the only serving network suggestion is removed.
-    // TODO (b/115504887): What if there is also a saved network with the same credentials?
-    private void triggerDisconnectIfServingNetworkSuggestionRemoved(
+    private void removeFromConfigManagerIfServingNetworkSuggestionRemoved(
             Collection<ExtendedWifiNetworkSuggestion> extNetworkSuggestionsRemoved) {
         if (mActiveNetworkSuggestionsMatchingConnection == null
                 || mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
             return;
         }
+        WifiConfiguration activeWifiConfiguration =
+                mActiveNetworkSuggestionsMatchingConnection.iterator().next().wns.wifiConfiguration;
         if (mActiveNetworkSuggestionsMatchingConnection.removeAll(extNetworkSuggestionsRemoved)) {
             if (mActiveNetworkSuggestionsMatchingConnection.isEmpty()) {
                 Log.i(TAG, "Only network suggestion matching the connected network removed. "
-                        + "Disconnecting...");
-                mWifiInjector.getClientModeImpl().disconnectCommand();
+                        + "Removing from config manager...");
+                // will trigger a disconnect.
+                mWifiConfigManager.removeSuggestionConfiguredNetwork(
+                        activeWifiConfiguration.configKey());
             }
         }
     }
@@ -640,7 +643,7 @@ public class WifiNetworkSuggestionsManager {
             stopTrackingAppOpsChange(packageName);
         }
         // Disconnect suggested network if connected
-        triggerDisconnectIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
+        removeFromConfigManagerIfServingNetworkSuggestionRemoved(extNetworkSuggestions);
         // Clear the scan cache.
         removeFromScanResultMatchInfoMap(extNetworkSuggestions);
     }
