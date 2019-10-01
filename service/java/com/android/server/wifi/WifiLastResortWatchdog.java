@@ -119,6 +119,8 @@ public class WifiLastResortWatchdog {
     private Handler mHandler;
     private final WifiThreadRunner mWifiThreadRunner;
 
+    private boolean mWatchdogFeatureEnabled = true;
+
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
      */
@@ -308,16 +310,23 @@ public class WifiLastResortWatchdog {
             Log.v(TAG, "isRestartNeeded = " + isRestartNeeded);
         }
         if (isRestartNeeded) {
-            // Stop the watchdog from triggering until re-enabled
-            localLog("noteConnectionFailureAndTriggerIfNeeded: setWatchdogTriggerEnabled to false");
-            setWatchdogTriggerEnabled(false);
-            mWatchdogFixedWifi = true;
-            loge("Watchdog triggering recovery");
-            mSsidLastTrigger = ssid;
-            mTimeLastTrigger = mClock.getElapsedSinceBootMillis();
-            localLog(toString());
-            mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
-            incrementWifiMetricsTriggerCounts();
+            if (mWatchdogFeatureEnabled) {
+                // Stop the watchdog from triggering until re-enabled
+                localLog("Trigger recovery: setWatchdogTriggerEnabled to false");
+                setWatchdogTriggerEnabled(false);
+                mWatchdogFixedWifi = true;
+                loge("Watchdog triggering recovery");
+                mSsidLastTrigger = ssid;
+                mTimeLastTrigger = mClock.getElapsedSinceBootMillis();
+                localLog(toString());
+                mWifiInjector.getSelfRecovery().trigger(SelfRecovery.REASON_LAST_RESORT_WATCHDOG);
+                incrementWifiMetricsTriggerCounts();
+            } else {
+                // auto bugreport if issue happens
+                loge("bugreport notification");
+                setWatchdogTriggerEnabled(false);
+                takeBugReportWithCurrentProbability("Wifi Watchdog bite");
+            }
         }
         return isRestartNeeded;
     }
@@ -335,6 +344,7 @@ public class WifiLastResortWatchdog {
             return;
         }
         if (!mWatchdogAllowedToTrigger && mWatchdogFixedWifi
+                && mWatchdogFeatureEnabled
                 && checkIfAtleastOneNetworkHasEverConnected()
                 && checkIfConnectedBackToSameSsid()
                 && checkIfConnectedBssidHasEverFailed()) {
@@ -623,7 +633,8 @@ public class WifiLastResortWatchdog {
      */
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("mWatchdogAllowedToTrigger: ").append(mWatchdogAllowedToTrigger);
+        sb.append("mWatchdogFeatureEnabled: ").append(mWatchdogFeatureEnabled);
+        sb.append("\nmWatchdogAllowedToTrigger: ").append(mWatchdogAllowedToTrigger);
         sb.append("\nmWifiIsConnected: ").append(mWifiIsConnected);
         sb.append("\nmRecentAvailableNetworks: ").append(mRecentAvailableNetworks.size());
         for (Map.Entry<String, AvailableNetworkFailureCount> entry
@@ -680,6 +691,23 @@ public class WifiLastResortWatchdog {
             default:
                 return 0;
         }
+    }
+
+    /**
+     * Sets whether wifi watchdog should trigger recovery
+     */
+    public void setWifiWatchdogFeature(boolean enable) {
+        logv("setWifiWatchdogFeature: " + enable);
+        mWatchdogFeatureEnabled = enable;
+        // for debugging purpose, reset mWatchdogAllowedToTrigger as well
+        setWatchdogTriggerEnabled(true);
+    }
+
+    /**
+     * Returns whether wifi watchdog should trigger recovery.
+     */
+    public boolean getWifiWatchdogFeature() {
+        return mWatchdogFeatureEnabled;
     }
 
     protected void enableVerboseLogging(int verbose) {

@@ -54,6 +54,7 @@ public class WifiShellCommand extends ShellCommand {
     private final WifiNative mWifiNative;
     private final HostapdHal mHostapdHal;
     private final WifiCountryCode mWifiCountryCode;
+    private final WifiLastResortWatchdog mWifiLastResortWatchdog;
 
     WifiShellCommand(WifiInjector wifiInjector) {
         mClientModeImpl = wifiInjector.getClientModeImpl();
@@ -64,6 +65,7 @@ public class WifiShellCommand extends ShellCommand {
         mHostapdHal = wifiInjector.getHostapdHal();
         mWifiNative = wifiInjector.getWifiNative();
         mWifiCountryCode = wifiInjector.getWifiCountryCode();
+        mWifiLastResortWatchdog = wifiInjector.getWifiLastResortWatchdog();
     }
 
     @Override
@@ -245,6 +247,27 @@ public class WifiShellCommand extends ShellCommand {
                             + mWifiCountryCode.getCountryCode());
                     return 0;
                 }
+                case "set-wifi-watchdog": {
+                    boolean enabled;
+                    String nextArg = getNextArgRequired();
+                    if ("enabled".equals(nextArg)) {
+                        enabled = true;
+                    } else if ("disabled".equals(nextArg)) {
+                        enabled = false;
+                    } else {
+                        pw.println(
+                                "Invalid argument to 'set-wifi-watchdog' - must be 'enabled'"
+                                        + " or 'disabled'");
+                        return -1;
+                    }
+                    mWifiLastResortWatchdog.setWifiWatchdogFeature(enabled);
+                    return 0;
+                }
+                case "get-wifi-watchdog": {
+                    pw.println("wifi watchdog state is "
+                            + mWifiLastResortWatchdog.getWifiWatchdogFeature());
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -344,6 +367,10 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Sets country code to <two-letter code> or left for normal value");
         pw.println("  get-country-code");
         pw.println("    Gets country code as a two-letter string");
+        pw.println("  set-wifi-watchdog enabled|disabled");
+        pw.println("    Sets whether wifi watchdog should trigger recovery");
+        pw.println("  get-wifi-watchdog");
+        pw.println("    Gets setting of wifi watchdog trigger recovery.");
         pw.println();
     }
 }
