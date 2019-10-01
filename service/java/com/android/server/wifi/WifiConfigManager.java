@@ -229,7 +229,11 @@ public class WifiConfigManager {
     private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 1; // 0 = disabled:
 
     @VisibleForTesting
-    protected static final long AGGRESSIVE_MAC_REFRESH_MS = 10 * 60 * 1000; //10 minutes
+    protected static final long AGGRESSIVE_MAC_REFRESH_MS_MIN = 30 * 60 * 1000; // 30 minutes
+    @VisibleForTesting
+    protected static final long AGGRESSIVE_MAC_REFRESH_MS_MAX = 24 * 60 * 60 * 1000; // 24 hours
+    @VisibleForTesting
+    protected static final long AGGRESSIVE_MAC_REFRESH_MS_DEFAULT = 3 * 60 * 60 * 1000; // 3 hours
 
     private static final MacAddress DEFAULT_MAC_ADDRESS =
             MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS);
@@ -498,6 +502,9 @@ public class WifiConfigManager {
      * @return
      */
     private boolean shouldUseAggressiveRandomization(WifiConfiguration config) {
+        if (config.getIpConfiguration().ipAssignment == IpConfiguration.IpAssignment.STATIC) {
+            return false;
+        }
         if (mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled()) {
             return isSsidOptInForAggressiveRandomization(config.SSID);
         }
@@ -568,6 +575,22 @@ public class WifiConfigManager {
     }
 
     /**
+     * Sets the randomized MAC expiration time based on the DHCP lease duration.
+     * This should be called every time DHCP lease information is obtained.
+     */
+    public void updateRandomizedMacExpireTime(WifiConfiguration config, long dhcpLeaseSeconds) {
+        WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
+        if (internalConfig == null) {
+            return;
+        }
+        long expireDurationMs = (dhcpLeaseSeconds & 0xffffffffL) * 1000;
+        expireDurationMs = Math.max(AGGRESSIVE_MAC_REFRESH_MS_MIN, expireDurationMs);
+        expireDurationMs = Math.min(AGGRESSIVE_MAC_REFRESH_MS_MAX, expireDurationMs);
+        internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
+                + expireDurationMs;
+    }
+
+    /**
      * Obtain the persistent MAC address by first reading from an internal database. If non exists
      * then calculate the persistent MAC using HMAC-SHA256.
      * Finally set the randomized MAC of the configuration to the randomized MAC obtained.
@@ -581,25 +604,27 @@ public class WifiConfigManager {
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
         internalConfig.setRandomizedMacAddress(persistentMac);
-        internalConfig.randomizedMacLastModifiedTimeMs = mClock.getWallClockMillis();
+        internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
+                + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         return persistentMac;
     }
 
     /**
-     * Re-randomizes the randomized MAC address if needed.
+     * This method is called before connecting to a network that has "aggressive randomization"
+     * enabled, and will re-randomize the MAC address if needed.
      * @param config the WifiConfiguration to make the update
      * @return the updated MacAddress
      */
     private MacAddress updateRandomizedMacIfNeeded(WifiConfiguration config) {
-        boolean shouldUpdateMac = config.randomizedMacLastModifiedTimeMs
-                + AGGRESSIVE_MAC_REFRESH_MS
+        boolean shouldUpdateMac = config.randomizedMacExpirationTimeMs
                 < mClock.getWallClockMillis();
         if (!shouldUpdateMac) {
             return config.getRandomizedMacAddress();
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
         internalConfig.setRandomizedMacAddress(MacAddress.createRandomUnicastAddress());
-        internalConfig.randomizedMacLastModifiedTimeMs = mClock.getWallClockMillis();
+        internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
+                + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         return internalConfig.getRandomizedMacAddress();
     }
 
@@ -1203,9 +1228,12 @@ public class WifiConfigManager {
                 packageName != null ? packageName : mContext.getPackageManager().getNameForUid(uid);
         newInternalConfig.creationTime = newInternalConfig.updateTime =
                 createDebugTimeStampString(mClock.getWallClockMillis());
+
         MacAddress randomizedMac = getPersistentMacAddress(newInternalConfig);
         if (randomizedMac != null) {
             newInternalConfig.setRandomizedMacAddress(randomizedMac);
+            newInternalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
+                    + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         }
         return newInternalConfig;
     }
