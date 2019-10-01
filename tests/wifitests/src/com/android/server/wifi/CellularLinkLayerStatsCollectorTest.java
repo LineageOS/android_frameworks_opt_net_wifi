@@ -33,6 +33,7 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.validateMockitoUsage;
 
 import android.content.Context;
+import android.telephony.Annotation.NetworkType;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoCdma;
 import android.telephony.CellInfoGsm;
@@ -48,7 +49,6 @@ import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
-import android.telephony.TelephonyManager.NetworkType;
 
 import androidx.test.filters.SmallTest;
 
