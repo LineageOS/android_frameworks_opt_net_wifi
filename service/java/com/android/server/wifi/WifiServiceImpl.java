@@ -887,10 +887,6 @@ public class WifiServiceImpl extends BaseWifiService {
                     iterator.remove();
                 }
             }
-            // Notify WifiController so it has a chance to turn wifi back on
-            if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
-                mActiveModeWarden.softApStopped();
-            }
         }
 
         /**
