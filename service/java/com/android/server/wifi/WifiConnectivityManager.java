@@ -549,8 +549,6 @@ public class WifiConnectivityManager {
         }
         @Override
         public void onNetworkUpdated(WifiConfiguration config) {
-            // User might have changed meteredOverride, so update capabilties
-            mStateMachine.updateCapabilities();
             updatePnoScan();
         }
         @Override
@@ -639,7 +637,7 @@ public class WifiConnectivityManager {
                 + " initialScoreMax " + initialScoreMax());
 
         // Listen to WifiConfigManager network update events
-        mConfigManager.setOnNetworkUpdateListener(new OnNetworkUpdateListener());
+        mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */

@@ -102,7 +102,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         when(mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList())
                 .thenReturn(new ArrayList<>());
         mWifiConnectivityManager = createConnectivityManager();
-        verify(mWifiConfigManager).setOnNetworkUpdateListener(anyObject());
+        verify(mWifiConfigManager).addOnNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
         mWifiConnectivityManager.setWifiEnabled(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -315,7 +315,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         pnoNetworkList.add(pnoNetwork);
         when(wifiConfigManager.retrievePnoNetworkList()).thenReturn(pnoNetworkList);
         when(wifiConfigManager.retrievePnoNetworkList()).thenReturn(pnoNetworkList);
-        doNothing().when(wifiConfigManager).setOnNetworkUpdateListener(
+        doNothing().when(wifiConfigManager).addOnNetworkUpdateListener(
                 mNetworkUpdateListenerCaptor.capture());
 
         return wifiConfigManager;

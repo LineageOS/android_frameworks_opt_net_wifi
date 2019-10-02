@@ -100,7 +100,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock WifiConfigStore mWifiConfigStore;
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
-    private @Mock ClientModeImpl mClientModeImpl;
     private @Mock WifiMetrics mWifiMetrics;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
@@ -126,7 +125,6 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         when(mWifiInjector.makeNetworkSuggestionStoreData(any()))
                 .thenReturn(mNetworkSuggestionStoreData);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
-        when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
         when(mFrameworkFacade.getBroadcast(any(), anyInt(), any(), anyInt()))
                 .thenReturn(mock(PendingIntent.class));
         when(mContext.getResources()).thenReturn(mResources);
@@ -1365,7 +1363,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
-        verify(mClientModeImpl).disconnectCommand();
+        verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
+                networkSuggestion.wifiConfiguration.configKey());
     }
 
     /**
@@ -1396,7 +1395,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), TEST_UID_1,
                         TEST_PACKAGE_1));
-        verify(mClientModeImpl).disconnectCommand();
+        verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
+                networkSuggestion.wifiConfiguration.configKey());
     }
 
 
@@ -1437,11 +1437,12 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         // Now remove one of the apps and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mWifiConfigManager, never()).removeSuggestionConfiguredNetwork(anyString());
 
         // Now remove the other app and ensure we trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
-        verify(mClientModeImpl).disconnectCommand();
+        verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
+                networkSuggestion2.wifiConfiguration.configKey());
     }
 
     /**
@@ -1469,7 +1470,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         // Now remove the app and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mWifiConfigManager, never()).removeSuggestionConfiguredNetwork(anyString());
     }
 
     /**
@@ -1502,7 +1503,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         // Now remove the app and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mClientModeImpl, never()).disconnectCommand();
+        verify(mWifiConfigManager, never()).removeSuggestionConfiguredNetwork(anyString());
     }
 
     /**

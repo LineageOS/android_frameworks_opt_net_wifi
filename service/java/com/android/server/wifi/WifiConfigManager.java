@@ -310,6 +310,10 @@ public class WifiConfigManager {
     private final Set<String> mAggressiveMacRandomizationBlacklist;
 
     /**
+     * Store the network update listeners.
+     */
+    private final List<OnNetworkUpdateListener> mListeners;
+    /**
      * Flag to indicate if only networks with the same psk should be linked.
      * TODO(b/30706406): Remove this flag if unused.
      */
@@ -373,8 +377,6 @@ public class WifiConfigManager {
     private final DeletedEphemeralSsidsStoreData mDeletedEphemeralSsidsStoreData;
     private final RandomizedMacStoreData mRandomizedMacStoreData;
 
-    // Store the network update listener.
-    private OnNetworkUpdateListener mListener = null;
 
     private boolean mPnoFrequencyCullingEnabled = false;
     private boolean mPnoRecencySortingEnabled = false;
@@ -412,6 +414,7 @@ public class WifiConfigManager {
         mScanDetailCaches = new HashMap<>(16, 0.75f);
         mDeletedEphemeralSsidsToTimeMap = new HashMap<>();
         mRandomizedMacAddressMapping = new HashMap<>();
+        mListeners = new ArrayList<>();
 
         // Register store data for network list and deleted ephemeral SSIDs.
         mNetworkListSharedStoreData = networkListSharedStoreData;
@@ -1320,6 +1323,8 @@ public class WifiConfigManager {
         }
 
         if (mDeletedEphemeralSsidsToTimeMap.remove(config.SSID) != null) {
+            updateNetworkSelectionStatus(
+                    newInternalConfig, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Removed from ephemeral blacklist: " + config.SSID);
             }
@@ -1392,11 +1397,12 @@ public class WifiConfigManager {
             saveToStore(true);
         }
 
-        if (mListener != null) {
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(newConfig);
             if (result.isNewNetwork()) {
-                mListener.onNetworkAdded(new WifiConfiguration(newConfig));
+                listener.onNetworkAdded(configForListener);
             } else {
-                mListener.onNetworkUpdated(new WifiConfiguration(newConfig));
+                listener.onNetworkUpdated(configForListener);
             }
         }
         return result;
@@ -1479,7 +1485,10 @@ public class WifiConfigManager {
         if (!config.ephemeral && !config.isPasspoint()) {
             saveToStore(true);
         }
-        if (mListener != null) mListener.onNetworkRemoved(new WifiConfiguration(config));
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkRemoved(configForListener);
+        }
         return true;
     }
 
@@ -1576,20 +1585,31 @@ public class WifiConfigManager {
     }
 
     /**
-     * Removes the passpoint network configuration matched with {@code fqdn} provided.
+     * Removes the suggestion network configuration matched with {@code configKey} provided.
      *
-     * @param fqdn Fully Qualified Domain Name to remove.
+     * @param configKey Config Key for the corresponding network suggestion.
      * @return true if a network was removed, false otherwise.
      */
-    public boolean removePasspointConfiguredNetwork(String fqdn) {
-        WifiConfiguration[] copiedConfigs =
-                mConfiguredNetworks.valuesForAllUsers().toArray(new WifiConfiguration[0]);
-        for (WifiConfiguration config : copiedConfigs) {
-            if (config.isPasspoint() && TextUtils.equals(fqdn, config.FQDN)) {
-                Log.d(TAG, "Removing passpoint network config " + config.configKey());
-                removeNetwork(config.networkId, mSystemUiUid);
-                return true;
-            }
+    public boolean removeSuggestionConfiguredNetwork(@NonNull String configKey) {
+        WifiConfiguration config = getInternalConfiguredNetwork(configKey);
+        if (config != null && config.ephemeral && config.fromWifiNetworkSuggestion) {
+            Log.d(TAG, "Removing suggestion network config " + config.configKey());
+            return removeNetwork(config.networkId, mSystemUiUid);
+        }
+        return false;
+    }
+
+    /**
+     * Removes the passpoint network configuration matched with {@code configKey} provided.
+     *
+     * @param configKey Config Key for the corresponding passpoint.
+     * @return true if a network was removed, false otherwise.
+     */
+    public boolean removePasspointConfiguredNetwork(@NonNull String configKey) {
+        WifiConfiguration config = getInternalConfiguredNetwork(configKey);
+        if (config != null && config.isPasspoint()) {
+            Log.d(TAG, "Removing passpoint network config " + config.configKey());
+            return removeNetwork(config.networkId, mSystemUiUid);
         }
         return false;
     }
@@ -1607,7 +1627,10 @@ public class WifiConfigManager {
 
         // Clear out all the disable reason counters.
         status.clearDisableReasonCounter();
-        if (mListener != null) mListener.onNetworkEnabled(new WifiConfiguration(config));
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkEnabled(configForListener);
+        }
     }
 
     /**
@@ -1621,8 +1644,9 @@ public class WifiConfigManager {
         // Only need a valid time filled in for temporarily disabled networks.
         status.setDisableTime(mClock.getElapsedSinceBootMillis());
         status.setNetworkSelectionDisableReason(disableReason);
-        if (mListener != null) {
-            mListener.onNetworkTemporarilyDisabled(new WifiConfiguration(config), disableReason);
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkTemporarilyDisabled(configForListener, disableReason);
         }
     }
 
@@ -1637,8 +1661,9 @@ public class WifiConfigManager {
         status.setDisableTime(
                 NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP);
         status.setNetworkSelectionDisableReason(disableReason);
-        if (mListener != null) {
-            mListener.onNetworkPermanentlyDisabled(new WifiConfiguration(config), disableReason);
+        for (OnNetworkUpdateListener listener : mListeners) {
+            WifiConfiguration configForListener = new WifiConfiguration(config);
+            listener.onNetworkPermanentlyDisabled(configForListener, disableReason);
         }
     }
 
@@ -2802,6 +2827,16 @@ public class WifiConfigManager {
         return hiddenList;
     }
 
+    private @Nullable WifiConfiguration getInternalEphemeralConfiguredNetwork(
+            @NonNull String ssid) {
+        for (WifiConfiguration config : getInternalConfiguredNetworks()) {
+            if ((config.ephemeral || config.isPasspoint()) && TextUtils.equals(config.SSID, ssid)) {
+                return config;
+            }
+        }
+        return null;
+    }
+
     /**
      * Check if the provided ephemeral network was deleted by the user or not. This call also clears
      * the SSID from the deleted ephemeral network map, if the duration has expired the
@@ -2820,6 +2855,11 @@ public class WifiConfigManager {
         // Clear the ssid from the map if the age > |DELETED_EPHEMERAL_SSID_EXPIRY_MS|.
         if (nowInMs - deletedTimeInMs > DELETED_EPHEMERAL_SSID_EXPIRY_MS) {
             mDeletedEphemeralSsidsToTimeMap.remove(ssid);
+            WifiConfiguration foundConfig = getInternalEphemeralConfiguredNetwork(ssid);
+            if (foundConfig != null) {
+                updateNetworkSelectionStatus(
+                        foundConfig, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
+            }
             return false;
         }
         return true;
@@ -2841,16 +2881,13 @@ public class WifiConfigManager {
         if (ssid == null) {
             return null;
         }
-        WifiConfiguration foundConfig = null;
-        for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if ((config.ephemeral || config.isPasspoint()) && TextUtils.equals(config.SSID, ssid)) {
-                foundConfig = config;
-                break;
-            }
-        }
+        WifiConfiguration foundConfig = getInternalEphemeralConfiguredNetwork(ssid);
         if (foundConfig == null) return null;
         // Store the ssid & the wall clock time at which the network was disabled.
         mDeletedEphemeralSsidsToTimeMap.put(ssid, mClock.getWallClockMillis());
+        // Also, mark the ephemeral permanently blacklisted. Will be taken out of blacklist
+        // when the ssid is taken out of |mDeletedEphemeralSsidsToTimeMap|.
+        updateNetworkSelectionStatus(foundConfig, NetworkSelectionStatus.DISABLED_BY_WIFI_MANAGER);
         Log.d(TAG, "Forget ephemeral SSID " + ssid + " num="
                 + mDeletedEphemeralSsidsToTimeMap.size());
         if (foundConfig.ephemeral) {
@@ -3380,8 +3417,8 @@ public class WifiConfigManager {
     /**
      * Set the network update event listener
      */
-    public void setOnNetworkUpdateListener(OnNetworkUpdateListener listener) {
-        mListener = listener;
+    public void addOnNetworkUpdateListener(OnNetworkUpdateListener listener) {
+        mListeners.add(listener);
     }
 
     /**

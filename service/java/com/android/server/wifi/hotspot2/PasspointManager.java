@@ -436,6 +436,8 @@ public class PasspointManager {
             mProviders.remove(config.getHomeSp().getFqdn());
         }
         mProviders.put(config.getHomeSp().getFqdn(), newProvider);
+        mWifiConfigManager.removePasspointConfiguredNetwork(
+                newProvider.getWifiConfig().configKey());
         mWifiConfigManager.saveToStore(true /* forceWrite */);
         if (newProvider.getPackageName() != null) {
             startTrackingAppOpsChange(newProvider.getPackageName(), uid);
@@ -665,14 +667,16 @@ public class PasspointManager {
      */
     public boolean removeProvider(String fqdn) {
         mWifiMetrics.incrementNumPasspointProviderUninstallation();
-        String packageName;
-        if (!mProviders.containsKey(fqdn)) {
+        PasspointProvider removedProvider = mProviders.remove(fqdn);
+        if (removedProvider == null) {
             Log.e(TAG, "Config doesn't exist");
             return false;
         }
-        mProviders.get(fqdn).uninstallCertsAndKeys();
-        packageName = mProviders.get(fqdn).getPackageName();
-        mProviders.remove(fqdn);
+        removedProvider.uninstallCertsAndKeys();
+        String packageName = removedProvider.getPackageName();
+        // Remove any configs corresponding to the profile in WifiConfigManager.
+        mWifiConfigManager.removePasspointConfiguredNetwork(
+                removedProvider.getWifiConfig().configKey());
         mWifiConfigManager.saveToStore(true /* forceWrite */);
 
         // Stop monitoring the package if there is no Passpoint profile installed by the package.
