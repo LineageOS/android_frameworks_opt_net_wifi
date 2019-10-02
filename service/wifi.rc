@@ -19,7 +19,6 @@
 on post-fs-data
    chown network_stack network_stack /data/misc/wifi
    chown network_stack network_stack /data/misc/wifi/WifiConfigStore.xml
-   chown network_stack network_stack /data/misc/wifi/WifiConfigStore.xml.encrypted-checksum
    chown network_stack network_stack /data/misc/wifi/softap.conf
 
 on property:sys.user.0.ce_available=true
@@ -27,16 +26,12 @@ on property:sys.user.0.ce_available=true
    # For devices upgrading, we need to change permission.
    chown network_stack network_stack /data/misc_ce/0/wifi
    chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStore.xml
-   chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStore.xml.encrypted-checksum
    chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml
-   chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml.encrypted-checksum
 
    # Load the new sepolicy file context labels (these files were relabeled in R).
    restorecon /data/misc_ce/0/wifi
    restorecon /data/misc_ce/0/wifi/WifiConfigStore.xml
-   restorecon /data/misc_ce/0/wifi/WifiConfigStore.xml.encrypted-checksum
    restorecon /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml
-   restorecon /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml.encrypted-checksum
 
 # Below are for kernel tracing related stuff.
 on fs
