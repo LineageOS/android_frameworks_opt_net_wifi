@@ -185,11 +185,6 @@ public class ActiveModeWarden {
         mWifiController.sendMessage(WifiController.CMD_SCAN_ALWAYS_MODE_CHANGED);
     }
 
-    /** When SoftAp has stopped. */
-    public void softApStopped() {
-        mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_AP_STOPPED);
-    }
-
     private boolean hasAnyModeManager() {
         return !mActiveModeManagers.isEmpty();
     }
@@ -698,12 +693,6 @@ public class ActiveModeWarden {
                         shutdownWifi();
                         // onStopped will move the state machine to "DisabledState".
                         break;
-                    case CMD_RECOVERY_RESTART_WIFI:
-                        log("Recovery triggered, disable wifi");
-                        deferMessage(obtainMessage(CMD_DEFERRED_RECOVERY_RESTART_WIFI));
-                        shutdownWifi();
-                        // onStopped will move the state machine to "DisabledState".
-                        break;
                     case CMD_AIRPLANE_TOGGLED:
                         if (mSettingsStore.isAirplaneModeOn()) {
                             log("Airplane mode toggled, shutdown all modes");
@@ -762,6 +751,9 @@ public class ActiveModeWarden {
                             transitionTo(mEnabledState);
                         }
                         break;
+                    case CMD_RECOVERY_RESTART_WIFI:
+                        log("Recovery triggered, already in disabled state");
+                        // intentional fallthrough
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         // wait mRecoveryDelayMillis for letting driver clean reset.
                         sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE,
@@ -869,8 +861,11 @@ public class ActiveModeWarden {
                         if (msg.arg1 != SelfRecovery.REASON_LAST_RESORT_WATCHDOG) {
                             mHandler.post(() -> mClientModeImpl.takeBugReport(bugTitle, bugDetail));
                         }
-                        // after the bug report trigger, more handling needs to be done
-                        return NOT_HANDLED;
+                        log("Recovery triggered, disable wifi");
+                        deferMessage(obtainMessage(CMD_DEFERRED_RECOVERY_RESTART_WIFI));
+                        shutdownWifi();
+                        // onStopped will move the state machine to "DisabledState".
+                        break;
                     default:
                         return NOT_HANDLED;
                 }
