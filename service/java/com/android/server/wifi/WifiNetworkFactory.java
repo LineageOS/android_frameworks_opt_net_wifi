@@ -706,6 +706,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         WifiConfiguration existingSavedNetwork =
                 mWifiConfigManager.getConfiguredNetwork(network.configKey());
         if (existingSavedNetwork != null) {
+            if (WifiConfigurationUtil.hasCredentialChanged(existingSavedNetwork, network)) {
+                // TODO (b/142035508): What if the user has a saved network with different
+                // credentials?
+                Log.w(TAG, "Network config already present in config manager, reusing");
+            }
             return existingSavedNetwork.networkId;
         }
         NetworkUpdateResult networkUpdateResult =
@@ -716,6 +721,32 @@ public class WifiNetworkFactory extends NetworkFactory {
             Log.v(TAG, "Added network to config manager " + networkUpdateResult.netId);
         }
         return networkUpdateResult.netId;
+    }
+
+    // Helper method to remove the provided network configuration from WifiConfigManager, if it was
+    // added by an app's specifier request.
+    private void disconnectAndRemoveNetworkFromWifiConfigManager(
+            @Nullable WifiConfiguration network) {
+        // Trigger a disconnect first.
+        mWifiInjector.getClientModeImpl().disconnectCommand();
+
+        if (network == null) return;
+        WifiConfiguration wcmNetwork =
+                mWifiConfigManager.getConfiguredNetwork(network.configKey());
+        if (wcmNetwork == null) {
+            Log.e(TAG, "Network not present in config manager");
+            return;
+        }
+        // Remove the network if it was added previously by an app's specifier request.
+        if (wcmNetwork.ephemeral && wcmNetwork.fromWifiNetworkSpecifier) {
+            boolean success =
+                    mWifiConfigManager.removeNetwork(wcmNetwork.networkId, wcmNetwork.creatorUid);
+            if (!success) {
+                Log.e(TAG, "Failed to remove network from config manager");
+            } else if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Removed network from config manager " + wcmNetwork.networkId);
+            }
+        }
     }
 
     // Helper method to trigger a connection request & schedule a timeout alarm to track the
@@ -755,7 +786,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         networkToConnect.SSID = network.SSID;
         // Set the WifiConfiguration.BSSID field to prevent roaming.
         networkToConnect.BSSID = findBestBssidFromActiveMatchedScanResultsForNetwork(network);
-        // Mark the network ephemeral so that it's automatically removed at the end of connection.
         networkToConnect.ephemeral = true;
         networkToConnect.fromWifiNetworkSpecifier = true;
 
@@ -763,7 +793,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         mUserSelectedNetwork = networkToConnect;
 
         // Disconnect from the current network before issuing a new connect request.
-        mWifiInjector.getClientModeImpl().disconnectCommand();
+        disconnectAndRemoveNetworkFromWifiConfigManager(mUserSelectedNetwork);
+
         // Trigger connection to the network.
         connectToNetwork(networkToConnect);
         // Triggered connection to network, now wait for the connection status.
@@ -967,7 +998,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     // Invoked at the termination of current connected request processing.
     private void teardownForConnectedNetwork() {
         Log.i(TAG, "Disconnecting from network on reset");
-        mWifiInjector.getClientModeImpl().disconnectCommand();
+        disconnectAndRemoveNetworkFromWifiConfigManager(mUserSelectedNetwork);
         mConnectedSpecificNetworkRequest = null;
         mConnectedSpecificNetworkRequestSpecifier = null;
         // ensure there is no active request in progress.
