@@ -3474,8 +3474,6 @@ public class ClientModeImpl extends StateMachine {
             // Inform metrics that Wifi is Enabled (but not yet connected)
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
-            // Inform sar manager that wifi is Enabled
-            mSarManager.setClientWifiState(WifiManager.WIFI_STATE_ENABLED);
             mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
         }
 
@@ -3494,8 +3492,6 @@ public class ClientModeImpl extends StateMachine {
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_DISABLED);
             // Inform scorecard that wifi is being disabled
             mWifiScoreCard.noteWifiDisabled(mWifiInfo);
-            // Inform sar manager that wifi is being disabled
-            mSarManager.setClientWifiState(WifiManager.WIFI_STATE_DISABLED);
 
             if (!mWifiNative.removeAllNetworks(mInterfaceName)) {
                 loge("Failed to remove networks on exiting connect mode");

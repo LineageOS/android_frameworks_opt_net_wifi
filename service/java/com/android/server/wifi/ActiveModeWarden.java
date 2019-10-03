@@ -190,6 +190,32 @@ public class ActiveModeWarden {
         mWifiController.sendMessage(ActiveModeWarden.WifiController.CMD_AP_STOPPED);
     }
 
+    private boolean hasAnyModeManager() {
+        return !mActiveModeManagers.isEmpty();
+    }
+
+    private boolean hasAnyClientModeManager() {
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (manager instanceof ClientModeManager) return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return true if all client mode managers are in scan mode,
+     * false if there are no client mode managers present or if any of them are not in scan mode.
+     */
+    private boolean areAllClientModeManagersInScanMode() {
+        boolean hasAnyClientModeManager = false;
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof ClientModeManager)) continue;
+            ClientModeManager clientModeManager = (ClientModeManager) manager;
+            hasAnyClientModeManager = true;
+            if (!clientModeManager.isInScanOnlyMode()) return false;
+        }
+        return hasAnyClientModeManager;
+    }
+
     /**
      * Method to enable soft ap for wifi hotspot.
      *
@@ -199,22 +225,21 @@ public class ActiveModeWarden {
      *
      * @param softApConfig SoftApModeConfiguration for the hostapd softap
      */
-    private void enterSoftAPMode(@NonNull SoftApModeConfiguration softApConfig) {
-        mHandler.post(() -> {
-            Log.d(TAG, "Starting SoftApModeManager config = "
-                    + softApConfig.getWifiConfiguration());
+    private void startSoftApModeManager(@NonNull SoftApModeConfiguration softApConfig) {
+        Log.d(TAG, "Starting SoftApModeManager config = "
+                + softApConfig.getWifiConfiguration());
 
-            SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
-            ActiveModeManager manager = mWifiInjector.makeSoftApManager(callback, softApConfig);
-            callback.setActiveModeManager(manager);
-            manager.start();
-            mActiveModeManagers.add(manager);
-            updateBatteryStatsWifiState(true);
-        });
+        SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
+        SoftApListener listener = new SoftApListener();
+        ActiveModeManager manager =
+                mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
+        listener.setActiveModeManager(manager);
+        manager.start();
+        mActiveModeManagers.add(manager);
     }
 
     /**
-     * Method to stop soft ap for wifi hotspot.
+     * Method to stop all soft ap for the specified mode.
      *
      * This method will stop any active softAp mode managers.
      *
@@ -223,32 +248,89 @@ public class ActiveModeWarden {
      *             {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *             Use {@link WifiManager#IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    private void stopSoftAPMode(int mode) {
-        mHandler.post(() -> {
-            for (ActiveModeManager manager : mActiveModeManagers) {
-                if (!(manager instanceof SoftApManager)) continue;
-                SoftApManager softApManager = (SoftApManager) manager;
+    private void stopSoftApModeManagers(int mode) {
+        Log.d(TAG, "Shutting down all softap mode managers in mode " + mode);
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof SoftApManager)) continue;
+            SoftApManager softApManager = (SoftApManager) manager;
 
-                if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
-                        && mode != softApManager.getIpMode()) {
-                    continue;
-                }
-                softApManager.stop();
+            if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
+                    && mode != softApManager.getIpMode()) {
+                continue;
             }
-            updateBatteryStatsWifiState(false);
-        });
+            softApManager.stop();
+        }
+    }
+
+    /**
+     * Method to enable a new client mode manager.
+     */
+    private boolean startClientModeManager() {
+        Log.d(TAG, "Starting ClientModeManager");
+        ClientListener listener = new ClientListener();
+        ClientModeManager manager = mWifiInjector.makeClientModeManager(listener);
+        listener.setActiveModeManager(manager);
+        manager.start();
+        if (!switchClientMode(manager)) {
+            return false;
+        }
+        mActiveModeManagers.add(manager);
+        return true;
+    }
+
+    /**
+     * Method to stop all client mode mangers.
+     */
+    private void stopAllClientModeManagers() {
+        Log.d(TAG, "Shutting down all client mode managers");
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof ClientModeManager)) continue;
+            ClientModeManager clientModeManager = (ClientModeManager) manager;
+            clientModeManager.stop();
+        }
+    }
+
+    /**
+     * Method to switch all client mode manager mode of operation (from ScanOnly To Connect &
+     * vice-versa) based on the toggle state.
+     */
+    private boolean switchAllClientModeManagers() {
+        Log.d(TAG, "Switching all client mode managers");
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (!(manager instanceof ClientModeManager)) continue;
+            ClientModeManager clientModeManager = (ClientModeManager) manager;
+            if (!switchClientMode(clientModeManager)) {
+                return false;
+            }
+        }
+        updateBatteryStats();
+        return true;
+    }
+
+    /**
+     * Method to switch a client mode manager mode of operation (from ScanOnly To Connect &
+     * vice-versa) based on the toggle state.
+     */
+    private boolean switchClientMode(@NonNull ClientModeManager modeManager) {
+        if (mSettingsStore.isWifiToggleEnabled()) {
+            modeManager.switchToConnectMode();
+        } else if (checkScanOnlyModeAvailable()) {
+            modeManager.switchToScanOnlyMode();
+        } else {
+            Log.e(TAG, "Something is wrong, no client mode toggles enabled");
+            return false;
+        }
+        return true;
     }
 
     /**
      * Method to stop all active modes, for example, when toggling airplane mode.
      */
     private void shutdownWifi() {
-        mHandler.post(() -> {
-            for (ActiveModeManager manager : mActiveModeManagers) {
-                manager.stop();
-            }
-            updateBatteryStatsWifiState(false);
-        });
+        Log.d(TAG, "Shutting down all mode managers");
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            manager.stop();
+        }
     }
 
     /**
@@ -298,7 +380,7 @@ public class ActiveModeWarden {
         }
     }
 
-    private class SoftApCallbackImpl extends ModeCallback implements WifiManager.SoftApCallback {
+    private class SoftApCallbackImpl implements WifiManager.SoftApCallback {
         private final int mMode;
 
         SoftApCallbackImpl(int mode) {
@@ -309,13 +391,6 @@ public class ActiveModeWarden {
 
         @Override
         public void onStateChanged(int state, int reason) {
-            if (state == WifiManager.WIFI_AP_STATE_DISABLED) {
-                mActiveModeManagers.remove(getActiveModeManager());
-                updateBatteryStatsWifiState(false);
-            } else if (state == WifiManager.WIFI_AP_STATE_FAILED) {
-                mActiveModeManagers.remove(getActiveModeManager());
-                updateBatteryStatsWifiState(false);
-            }
             switch (mMode) {
                 case WifiManager.IFACE_IP_MODE_TETHERED:
                     if (mSoftApCallback != null) mSoftApCallback.onStateChanged(state, reason);
@@ -337,6 +412,79 @@ public class ActiveModeWarden {
                     break;
             }
         }
+    }
+
+    private void updateBatteryStats() {
+        updateBatteryStatsWifiState(hasAnyModeManager());
+        if (areAllClientModeManagersInScanMode()) {
+            updateBatteryStatsScanModeActive();
+        }
+    }
+
+    private class SoftApListener extends ModeCallback implements ActiveModeManager.Listener {
+        @Override
+        public void onStarted() {
+            updateBatteryStats();
+        }
+
+        @Override
+        public void onStopped() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateBatteryStats();
+            mWifiController.sendMessage(WifiController.CMD_AP_STOPPED);
+        }
+
+        @Override
+        public void onStartFailure() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateBatteryStats();
+            mWifiController.sendMessage(WifiController.CMD_AP_START_FAILURE);
+        }
+    }
+
+    private class ClientListener extends ModeCallback implements ActiveModeManager.Listener {
+        @Override
+        public void onStarted() {
+            updateScanMode();
+            updateBatteryStats();
+        }
+
+        @Override
+        public void onStopped() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateScanMode();
+            updateBatteryStats();
+            mWifiController.sendMessage(WifiController.CMD_STA_STOPPED);
+        }
+
+        @Override
+        public void onStartFailure() {
+            mActiveModeManagers.remove(getActiveModeManager());
+            updateScanMode();
+            updateBatteryStats();
+            mWifiController.sendMessage(WifiController.CMD_STA_START_FAILURE);
+        }
+    }
+
+    // Update the scan state based on all active mode managers.
+    private void updateScanMode() {
+        boolean scanEnabled = false;
+        boolean scanningForHiddenNetworksEnabled = false;
+        for (ActiveModeManager modeManager : mActiveModeManagers) {
+            @ActiveModeManager.ScanMode int scanState = modeManager.getScanMode();
+            switch (scanState) {
+                case ActiveModeManager.SCAN_NONE:
+                    break;
+                case ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETWORKS:
+                    scanEnabled = true;
+                    break;
+                case ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS:
+                    scanEnabled = true;
+                    scanningForHiddenNetworksEnabled = true;
+                    break;
+            }
+        }
+        mScanRequestProxy.enableScanning(scanEnabled, scanningForHiddenNetworksEnabled);
     }
 
     /**
@@ -370,6 +518,11 @@ public class ActiveModeWarden {
         }
     }
 
+    private boolean checkScanOnlyModeAvailable() {
+        return mWifiPermissionsUtil.isLocationModeEnabled()
+                && mSettingsStore.isScanAlwaysAvailable();
+    }
+
     /**
      * WifiController is the class used to manage wifi state for various operating
      * modes (normal, airplane, wifi hotspot, etc.).
@@ -400,23 +553,22 @@ public class ActiveModeWarden {
         // recovery
         static final int CMD_RECOVERY_DISABLE_WIFI                  = BASE + 19;
         static final int CMD_STA_STOPPED                            = BASE + 20;
-        static final int CMD_SCANNING_STOPPED                       = BASE + 21;
         static final int CMD_DEFERRED_RECOVERY_RESTART_WIFI         = BASE + 22;
-        static final int CMD_SCANNING_START_FAILURE                 = BASE + 23;
+        static final int CMD_AP_START_FAILURE                       = BASE + 23;
 
-        private final StaEnabledState mStaEnabledState = new StaEnabledState();
-        private final StaDisabledState mStaDisabledState = new StaDisabledState();
-        private final StaDisabledWithScanState mStaDisabledWithScanState =
-                new StaDisabledWithScanState();
+        private final EnabledState mEnabledState = new EnabledState();
+        private final DisabledState mDisabledState = new DisabledState();
+
+        private boolean mIsInEmergencyCall = false;
+        private boolean mIsInEmergencyCallbackMode = false;
 
         WifiController() {
             super(TAG, mLooper);
 
             DefaultState defaultState = new DefaultState();
             addState(defaultState); {
-                addState(mStaDisabledState, defaultState);
-                addState(mStaEnabledState, defaultState);
-                addState(mStaDisabledWithScanState, defaultState);
+                addState(mDisabledState, defaultState);
+                addState(mEnabledState, defaultState);
             }
 
             setLogRecSize(100);
@@ -437,12 +589,11 @@ public class ActiveModeWarden {
                     + ", isScanningAvailable = " + isScanningAlwaysAvailable
                     + ", isLocationModeActive = " + isLocationModeActive);
 
-            if (mSettingsStore.isWifiToggleEnabled()) {
-                setInitialState(mStaEnabledState);
-            } else if (checkScanOnlyModeAvailable()) {
-                setInitialState(mStaDisabledWithScanState);
+            if (shouldEnableSta()) {
+                startClientModeManager();
+                setInitialState(mEnabledState);
             } else {
-                setInitialState(mStaDisabledState);
+                setInitialState(mDisabledState);
             }
             mContext.registerReceiver(new BroadcastReceiver() {
                 @Override
@@ -453,11 +604,6 @@ public class ActiveModeWarden {
                 }
             }, new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
             super.start();
-        }
-
-        private boolean checkScanOnlyModeAvailable() {
-            return mWifiPermissionsUtil.isLocationModeEnabled()
-                    && mSettingsStore.isScanAlwaysAvailable();
         }
 
         private int readWifiRecoveryDelay() {
@@ -471,21 +617,6 @@ public class ActiveModeWarden {
         }
 
         abstract class BaseState extends State {
-            private boolean mIsInEmergencyCall;
-            private boolean mIsInEmergencyCallbackMode;
-
-            private boolean mWasWifiDisabled;
-
-            @Override
-            public void enter() {
-                super.enter();
-                // Not allowed to change state when ECM is enabled!
-                // Thus reset to false when changing states just to be safe.
-                mIsInEmergencyCall = false;
-                mIsInEmergencyCallbackMode = false;
-                mWasWifiDisabled = false;
-            }
-
             @VisibleForTesting
             boolean isInEmergencyMode() {
                 return mIsInEmergencyCall || mIsInEmergencyCallbackMode;
@@ -500,35 +631,20 @@ public class ActiveModeWarden {
             }
 
             private void enterEmergencyMode() {
-                stopSoftAPMode(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
+                stopSoftApModeManagers(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
                 boolean configWiFiDisableInECBM = mFacade.getConfigWiFiDisableInECBM(mContext);
                 log("WifiController msg getConfigWiFiDisableInECBM " + configWiFiDisableInECBM);
                 if (configWiFiDisableInECBM) {
-                    // TODO: this will shut down Soft AP twice in conjunction with stopSoftAPMode()
-                    //  above, is this a problem?
                     shutdownWifi();
-                    mWasWifiDisabled = true;
                 }
             }
 
             private void exitEmergencyMode() {
-                State stateToTransitionTo;
-                if (mSettingsStore.isWifiToggleEnabled()) {
-                    stateToTransitionTo = mStaEnabledState;
-                } else if (checkScanOnlyModeAvailable()) {
-                    stateToTransitionTo = mStaDisabledWithScanState;
+                if (shouldEnableSta()) {
+                    startClientModeManager();
+                    transitionTo(mEnabledState);
                 } else {
-                    stateToTransitionTo = mStaDisabledState;
-                }
-
-                if (stateToTransitionTo == this) {
-                    // stay in same state
-                    if (mWasWifiDisabled) {
-                        // if Wifi was shutdown, restart the current state
-                        this.enter();
-                    }
-                } else {
-                    transitionTo(stateToTransitionTo);
+                    transitionTo(mDisabledState);
                 }
             }
 
@@ -546,9 +662,15 @@ public class ActiveModeWarden {
                         exitEmergencyMode();
                     }
                     return HANDLED;
-                }
-                // already in emergency mode, drop all messages
-                if (isInEmergencyMode()) {
+                } else if (isInEmergencyMode()) {
+                    // already in emergency mode, drop all messages other than mode stop messages
+                    // triggered by emergency mode start.
+                    if (msg.what == CMD_STA_STOPPED || msg.what == CMD_AP_STOPPED) {
+                        if (!hasAnyModeManager()) {
+                            log("No active mode managers, return to DisabledState.");
+                            transitionTo(mDisabledState);
+                        }
+                    }
                     return HANDLED;
                 }
                 // not in emergency mode, process messages normally
@@ -564,53 +686,37 @@ public class ActiveModeWarden {
                 switch (msg.what) {
                     case CMD_SCAN_ALWAYS_MODE_CHANGED:
                     case CMD_WIFI_TOGGLED:
-                    case CMD_SCANNING_STOPPED:
                     case CMD_STA_STOPPED:
                     case CMD_STA_START_FAILURE:
+                    case CMD_AP_STOPPED:
+                    case CMD_AP_START_FAILURE:
                     case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         break;
                     case CMD_RECOVERY_DISABLE_WIFI:
                         log("Recovery has been throttled, disable wifi");
                         shutdownWifi();
-                        transitionTo(mStaDisabledState);
+                        // onStopped will move the state machine to "DisabledState".
                         break;
                     case CMD_RECOVERY_RESTART_WIFI:
+                        log("Recovery triggered, disable wifi");
                         deferMessage(obtainMessage(CMD_DEFERRED_RECOVERY_RESTART_WIFI));
                         shutdownWifi();
-                        transitionTo(mStaDisabledState);
-                        break;
-                    case CMD_SET_AP:
-                        // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
-                        if (msg.arg1 == 1) {
-                            enterSoftAPMode((SoftApModeConfiguration) msg.obj);
-                        } else {
-                            stopSoftAPMode(msg.arg2);
-                        }
+                        // onStopped will move the state machine to "DisabledState".
                         break;
                     case CMD_AIRPLANE_TOGGLED:
                         if (mSettingsStore.isAirplaneModeOn()) {
                             log("Airplane mode toggled, shutdown all modes");
                             shutdownWifi();
-                            transitionTo(mStaDisabledState);
+                            // onStopped will move the state machine to "DisabledState".
                         } else {
                             log("Airplane mode disabled, determine next state");
-                            if (mSettingsStore.isWifiToggleEnabled()) {
-                                transitionTo(mStaEnabledState);
-                            } else if (checkScanOnlyModeAvailable()) {
-                                transitionTo(mStaDisabledWithScanState);
+                            if (shouldEnableSta()) {
+                                startClientModeManager();
+                                transitionTo(mEnabledState);
                             }
                             // wifi should remain disabled, do not need to transition
                         }
-                        break;
-                    case CMD_AP_STOPPED:
-                        log("SoftAp mode disabled, determine next state");
-                        if (mSettingsStore.isWifiToggleEnabled()) {
-                            transitionTo(mStaEnabledState);
-                        } else if (checkScanOnlyModeAvailable()) {
-                            transitionTo(mStaDisabledWithScanState);
-                        }
-                        // wifi should remain disabled, do not need to transition
                         break;
                     default:
                         throw new RuntimeException("WifiController.handleMessage " + msg.what);
@@ -619,93 +725,52 @@ public class ActiveModeWarden {
             }
         }
 
-        abstract class ModeActiveState extends BaseState {
-            protected ActiveModeManager mManager;
+        private boolean shouldEnableSta() {
+            return mSettingsStore.isWifiToggleEnabled() || checkScanOnlyModeAvailable();
+        }
+
+        class DisabledState extends BaseState {
+            @Override
+            public void enter() {
+                log("DisabledState.enter()");
+                super.enter();
+                if (hasAnyModeManager()) {
+                    Log.e(TAG, "Entered DisabledState, but has active mode managers");
+                }
+            }
 
             @Override
             public void exit() {
-                // Active states must have a mode manager, so this should not be null, but it isn't
-                // obvious from the structure - add a null check here, just in case this is missed
-                // in the future
-                if (mManager != null) {
-                    mManager.stop();
-                    mActiveModeManagers.remove(mManager);
-                    updateScanMode();
-                }
-                updateBatteryStatsWifiState(false);
+                log("DisabledState.exit()");
                 super.exit();
             }
 
-            // Hook to be used by sub-classes of ModeActiveState to indicate the completion of
-            // bringup of the corresponding mode.
-            protected void onModeActivationComplete() {
-                updateScanMode();
-            }
-
-            // Update the scan state based on all active mode managers.
-            // Note: This is an overkill currently because there is only 1 of scan-only or client
-            // mode present today. TODO(STA+STA): multiple modes
-            private void updateScanMode() {
-                boolean scanEnabled = false;
-                boolean scanningForHiddenNetworksEnabled = false;
-                for (ActiveModeManager modeManager : mActiveModeManagers) {
-                    @ActiveModeManager.ScanMode int scanState = modeManager.getScanMode();
-                    switch (scanState) {
-                        case ActiveModeManager.SCAN_NONE:
-                            break;
-                        case ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETWORKS:
-                            scanEnabled = true;
-                            break;
-                        case ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS:
-                            scanEnabled = true;
-                            scanningForHiddenNetworksEnabled = true;
-                            break;
-                    }
-                }
-                mScanRequestProxy.enableScanning(scanEnabled, scanningForHiddenNetworksEnabled);
-            }
-        }
-
-        class StaDisabledState extends BaseState {
             @Override
             public boolean processMessageFiltered(Message msg) {
                 switch (msg.what) {
                     case CMD_WIFI_TOGGLED:
-                        if (mSettingsStore.isWifiToggleEnabled()) {
-                            transitionTo(mStaEnabledState);
-                        } else if (checkScanOnlyModeAvailable()) {
-                            // only go to scan mode if we aren't in airplane mode
-                            if (!mSettingsStore.isAirplaneModeOn()) {
-                                transitionTo(mStaDisabledWithScanState);
-                            }
-                        }
-                        break;
                     case CMD_SCAN_ALWAYS_MODE_CHANGED:
-                        if (checkScanOnlyModeAvailable()) {
-                            transitionTo(mStaDisabledWithScanState);
+                        if (shouldEnableSta()) {
+                            startClientModeManager();
+                            transitionTo(mEnabledState);
                         }
                         break;
                     case CMD_SET_AP:
+                        // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
                         if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
+                            startSoftApModeManager((SoftApModeConfiguration) msg.obj);
+                            transitionTo(mEnabledState);
                         }
-                        return NOT_HANDLED;
+                        break;
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         // wait mRecoveryDelayMillis for letting driver clean reset.
                         sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE,
                                 mRecoveryDelayMillis);
                         break;
                     case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
-                        if (mSettingsStore.isWifiToggleEnabled()) {
-                            // wifi is currently disabled but the toggle is on, must have had an
-                            // interface down before the recovery triggered
-                            transitionTo(mStaEnabledState);
-                            break;
-                        } else if (checkScanOnlyModeAvailable()) {
-                            transitionTo(mStaDisabledWithScanState);
-                            break;
+                        if (shouldEnableSta()) {
+                            startClientModeManager();
+                            transitionTo(mEnabledState);
                         }
                         break;
                     default:
@@ -715,51 +780,22 @@ public class ActiveModeWarden {
             }
         }
 
-        class StaEnabledState extends ModeActiveState {
-            private class ClientListener implements ClientModeManager.Listener {
-                @Override
-                public void onStateChanged(int state) {
-                    // make sure this listener is still active
-                    if (this != mListener) {
-                        log("Client mode state change from previous manager");
-                        return;
-                    }
-
-                    log("State changed from client mode. state = " + state);
-
-                    if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                        // error while setting up client mode or an unexpected failure.
-                        sendMessage(CMD_STA_START_FAILURE, this);
-                    } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                        // client mode stopped
-                        sendMessage(CMD_STA_STOPPED, this);
-                    } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                        // client mode is ready to go
-                        log("client mode active");
-                        onModeActivationComplete();
-                    } else {
-                        // only care if client mode stopped or started, dropping
-                    }
-                }
-            }
-            private ClientListener mListener;
-
+        class EnabledState extends BaseState {
             @Override
             public void enter() {
+                log("EnabledState.enter()");
                 super.enter();
-                log("StaEnabledState.enter()");
-
-                mListener = new ClientListener();
-                mManager = mWifiInjector.makeClientModeManager(mListener);
-                mManager.start();
-                mActiveModeManagers.add(mManager);
-
-                updateBatteryStatsWifiState(true);
+                if (!hasAnyModeManager()) {
+                    Log.e(TAG, "Entered EnabledState, but no active mode managers");
+                }
             }
 
             @Override
             public void exit() {
-                mListener = null;
+                log("EnabledState.exit()");
+                if (hasAnyModeManager()) {
+                    Log.e(TAG, "Existing EnabledState, but has active mode managers");
+                }
                 super.exit();
             }
 
@@ -767,12 +803,23 @@ public class ActiveModeWarden {
             public boolean processMessageFiltered(Message msg) {
                 switch (msg.what) {
                     case CMD_WIFI_TOGGLED:
-                        if (! mSettingsStore.isWifiToggleEnabled()) {
-                            if (checkScanOnlyModeAvailable()) {
-                                transitionTo(mStaDisabledWithScanState);
+                    case CMD_SCAN_ALWAYS_MODE_CHANGED:
+                        if (shouldEnableSta()) {
+                            if (hasAnyClientModeManager()) {
+                                switchAllClientModeManagers();
                             } else {
-                                transitionTo(mStaDisabledState);
+                                startClientModeManager();
                             }
+                        } else {
+                            stopAllClientModeManagers();
+                        }
+                        break;
+                    case CMD_SET_AP:
+                        // note: CMD_SET_AP is handled/dropped in ECM mode - will not start here
+                        if (msg.arg1 == 1) {
+                            startSoftApModeManager((SoftApModeConfiguration) msg.obj);
+                        } else {
+                            stopSoftApModeManagers(msg.arg2);
                         }
                         break;
                     case CMD_AIRPLANE_TOGGLED:
@@ -784,42 +831,30 @@ public class ActiveModeWarden {
                             log("airplane mode toggled - and airplane mode is off. return handled");
                             return HANDLED;
                         }
-                    case CMD_STA_START_FAILURE:
-                        if (mListener != msg.obj) {
-                            log("StaEnabledState change from previous manager");
-                            break;
-                        }
-                        log("StaEnabledState failed, return to StaDisabled(WithScan)State.");
-                        if (!checkScanOnlyModeAvailable()) {
-                            transitionTo(mStaDisabledState);
-                        } else {
-                            transitionTo(mStaDisabledWithScanState);
-                        }
-                        break;
-                    case CMD_SET_AP:
-                        if (msg.arg1 == 1) {
-                            // remember that we were enabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_ENABLED);
-                        }
-                        return NOT_HANDLED;
                     case CMD_AP_STOPPED:
-                        // already in a wifi mode, no need to check where we should go with softap
-                        // stopped
-                        break;
-                    case CMD_STA_STOPPED:
-                        if (mListener != msg.obj) {
-                            log("StaEnabledState change from previous manager");
-                            break;
+                    case CMD_AP_START_FAILURE:
+                        if (!hasAnyModeManager()) {
+                            if (shouldEnableSta()) {
+                                log("SoftAp disabled, start client mode");
+                                startClientModeManager();
+                            } else {
+                                log("SoftAp mode disabled, return to DisabledState");
+                                transitionTo(mDisabledState);
+                            }
+                        } else {
+                            log("AP disabled, remain in EnabledState.");
                         }
-                        log("StaEnabledState stopped, return to StaDisabledState.");
-                        // Client mode stopped. Head to Disabled to wait for next command.
-                        // We don't check whether we should go to StaDisabledWithScanState because
-                        // the STA was stopped so that (for example) SoftAP can be turned on and the
-                        // device doesn't support STA+AP. If we instead entered
-                        // StaDisabledWithScanState that might kill the SoftAP that we are trying to
-                        // start.
-                        transitionTo(mStaDisabledState);
+                        break;
+                    case CMD_STA_START_FAILURE:
+                    case CMD_STA_STOPPED:
+                        // Client mode stopped. Head to Disabled to wait for next command if there
+                        // no active mode managers.
+                        if (!hasAnyModeManager()) {
+                            log("STA disabled, return to DisabledState.");
+                            transitionTo(mDisabledState);
+                        } else {
+                            log("STA disabled, remain in EnabledState.");
+                        }
                         break;
                     case CMD_RECOVERY_RESTART_WIFI:
                         final String bugTitle;
@@ -836,98 +871,6 @@ public class ActiveModeWarden {
                         }
                         // after the bug report trigger, more handling needs to be done
                         return NOT_HANDLED;
-                    default:
-                        return NOT_HANDLED;
-                }
-                return HANDLED;
-            }
-        }
-
-        class StaDisabledWithScanState extends ModeActiveState {
-            private class ScanOnlyListener implements ScanOnlyModeManager.Listener {
-                @Override
-                public void onStateChanged(int state) {
-                    if (this != mListener) {
-                        log("ScanOnly mode state change from previous manager");
-                        return;
-                    }
-
-                    if (state == WifiManager.WIFI_STATE_UNKNOWN) {
-                        log("StaDisabledWithScanState mode failed");
-                        // error while setting up scan mode or an unexpected failure.
-                        sendMessage(CMD_SCANNING_START_FAILURE, this);
-                    } else if (state == WifiManager.WIFI_STATE_DISABLED) {
-                        log("StaDisabledWithScanState stopped");
-                        //scan only mode stopped
-                        sendMessage(CMD_SCANNING_STOPPED, this);
-                    } else if (state == WifiManager.WIFI_STATE_ENABLED) {
-                        // scan mode is ready to go
-                        log("scan mode active");
-                        onModeActivationComplete();
-                    } else {
-                        log("unexpected state update: " + state);
-                    }
-                }
-            }
-            private ScanOnlyListener mListener;
-
-            @Override
-            public void enter() {
-                super.enter();
-                log("StaDisabledWithScanState.enter()");
-
-                mListener = new ScanOnlyListener();
-                mManager = mWifiInjector.makeScanOnlyModeManager(mListener);
-                mManager.start();
-                mActiveModeManagers.add(mManager);
-
-                updateBatteryStatsWifiState(true);
-                updateBatteryStatsScanModeActive();
-            }
-
-            @Override
-            public void exit() {
-                mListener = null;
-                super.exit();
-            }
-
-            @Override
-            public boolean processMessageFiltered(Message msg) {
-                switch (msg.what) {
-                    case CMD_WIFI_TOGGLED:
-                        if (mSettingsStore.isWifiToggleEnabled()) {
-                            transitionTo(mStaEnabledState);
-                        }
-                        break;
-                    case CMD_SCAN_ALWAYS_MODE_CHANGED:
-                        if (!checkScanOnlyModeAvailable()) {
-                            log("StaDisabledWithScanState: scan no longer available");
-                            transitionTo(mStaDisabledState);
-                        }
-                        break;
-                    case CMD_SET_AP:
-                        if (msg.arg1 == 1) {
-                            // remember that we were disabled, but pass the command up to start
-                            // softap
-                            mSettingsStore.setWifiSavedState(WifiSettingsStore.WIFI_DISABLED);
-                        }
-                        return NOT_HANDLED;
-                    case CMD_AP_STOPPED:
-                        // already in a wifi mode, no need to check where we should go with softap
-                        // stopped
-                        break;
-                    case CMD_SCANNING_START_FAILURE:
-                    case CMD_SCANNING_STOPPED:
-                        if (mListener != msg.obj) {
-                            Log.d(TAG, "ScanOnly mode state change from previous manager");
-                            break;
-                        }
-                        log("StaDisabledWithScanState "
-                                + (msg.what == CMD_SCANNING_STOPPED ? "stopped" : "failed")
-                                + ", return to StaDisabledState.");
-                        // stopped due to interface destruction - return to disabled and wait
-                        transitionTo(mStaDisabledState);
-                        break;
                     default:
                         return NOT_HANDLED;
                 }

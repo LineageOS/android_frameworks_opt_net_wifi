@@ -51,6 +51,7 @@ import android.net.Uri;
 import android.net.ip.IpClientUtil;
 import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
+import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ISoftApCallback;
@@ -78,7 +79,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
@@ -887,10 +887,6 @@ public class WifiServiceImpl extends BaseWifiService {
                     iterator.remove();
                 }
             }
-            // Notify WifiController so it has a chance to turn wifi back on
-            if (state == WIFI_AP_STATE_FAILED || state == WIFI_AP_STATE_DISABLED) {
-                mActiveModeWarden.softApStopped();
-            }
         }
 
         /**
@@ -1300,8 +1296,7 @@ public class WifiServiceImpl extends BaseWifiService {
      *
      * see {@link WifiManager#startLocalOnlyHotspot(LocalOnlyHotspotCallback)}
      *
-     * @param messenger Messenger to send messages to the corresponding WifiManager.
-     * @param binder IBinder instance to allow cleanup if the app dies
+     * @param callback Callback to communicate with WifiManager and allow cleanup if the app dies.
      * @param packageName String name of the calling package
      *
      * @return int return code for attempt to start LocalOnlyHotspot.
@@ -1312,7 +1307,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * have an outstanding request.
      */
     @Override
-    public int startLocalOnlyHotspot(Messenger messenger, IBinder binder, String packageName) {
+    public int startLocalOnlyHotspot(ILocalOnlyHotspotCallback callback, String packageName) {
         // first check if the caller has permission to start a local only hotspot
         // need to check for WIFI_STATE_CHANGE and location permission
         final int uid = Binder.getCallingUid();
@@ -1355,7 +1350,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // now create the new LOHS request info object
-        LocalOnlyHotspotRequestInfo request = new LocalOnlyHotspotRequestInfo(binder, messenger,
+        LocalOnlyHotspotRequestInfo request = new LocalOnlyHotspotRequestInfo(callback,
                 new LocalOnlyRequestorCallback());
 
         return mLohsSoftApTracker.start(pid, request);
@@ -1386,8 +1381,7 @@ public class WifiServiceImpl extends BaseWifiService {
      *
      * This call requires the android.permission.NETWORK_SETTINGS permission.
      *
-     * @param messenger Messenger to send messages to the corresponding WifiManager.
-     * @param binder IBinder instance to allow cleanup if the app dies
+     * @param callback Callback to communicate with WifiManager and allow cleanup if the app dies.
      *
      * @throws SecurityException if the caller does not have permission to watch Local Only Hotspot
      * status updates.
@@ -1395,7 +1389,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * an existing subscription.
      */
     @Override
-    public void startWatchLocalOnlyHotspot(Messenger messenger, IBinder binder) {
+    public void startWatchLocalOnlyHotspot(ILocalOnlyHotspotCallback callback) {
         // NETWORK_SETTINGS is a signature only permission.
         enforceNetworkSettingsPermission();
 

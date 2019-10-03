@@ -516,24 +516,12 @@ public class WifiInjector {
      * @param config SoftApModeConfiguration object holding the config and mode
      * @return an instance of SoftApManager
      */
-    public SoftApManager makeSoftApManager(@NonNull WifiManager.SoftApCallback callback,
+    public SoftApManager makeSoftApManager(@NonNull ActiveModeManager.Listener listener,
+                                           @NonNull WifiManager.SoftApCallback callback,
                                            @NonNull SoftApModeConfiguration config) {
         return new SoftApManager(mContext, mWifiHandlerThread.getLooper(),
-                mFrameworkFacade, mWifiNative, mCountryCode.getCountryCode(), callback,
+                mFrameworkFacade, mWifiNative, mCountryCode.getCountryCode(), listener, callback,
                 mWifiApConfigStore, config, mWifiMetrics, mSarManager, mWifiDiagnostics);
-    }
-
-    /**
-     * Create a ScanOnlyModeManager
-     *
-     * @param listener listener for ScanOnlyModeManager state changes
-     * @return a new instance of ScanOnlyModeManager
-     */
-    public ScanOnlyModeManager makeScanOnlyModeManager(
-            @NonNull ScanOnlyModeManager.Listener listener) {
-        return new ScanOnlyModeManager(mContext, mWifiHandlerThread.getLooper(),
-                mWifiNative, listener, mWifiMetrics, mWakeupController,
-                mSarManager);
     }
 
     /**
@@ -544,7 +532,8 @@ public class WifiInjector {
      */
     public ClientModeManager makeClientModeManager(ClientModeManager.Listener listener) {
         return new ClientModeManager(mContext, mWifiHandlerThread.getLooper(),
-                mWifiNative, listener, mWifiMetrics, mClientModeImpl);
+                mWifiNative, listener, mWifiMetrics, mSarManager, mWakeupController,
+                mClientModeImpl);
     }
 
     /**

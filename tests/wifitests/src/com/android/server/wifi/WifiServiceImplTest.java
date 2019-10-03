@@ -17,9 +17,6 @@
 package com.android.server.wifi;
 
 import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_STATIONARY;
-import static android.net.wifi.WifiManager.HOTSPOT_FAILED;
-import static android.net.wifi.WifiManager.HOTSPOT_STARTED;
-import static android.net.wifi.WifiManager.HOTSPOT_STOPPED;
 import static android.net.wifi.WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR;
 import static android.net.wifi.WifiManager.IFACE_IP_MODE_LOCAL_ONLY;
 import static android.net.wifi.WifiManager.IFACE_IP_MODE_TETHERED;
@@ -45,6 +42,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.AdditionalAnswers.returnsSecondArg;
+import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -52,10 +50,12 @@ import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.ignoreStubs;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.isNull;
 import static org.mockito.Mockito.mock;
@@ -87,6 +87,7 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
+import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ISoftApCallback;
@@ -114,7 +115,6 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.IPowerManager;
 import android.os.Message;
-import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
@@ -195,13 +195,11 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private WifiServiceImpl mWifiServiceImpl;
     private TestLooper mLooper;
     private PowerManager mPowerManager;
-    private Handler mHandler;
-    private Messenger mAppMessenger;
     private int mPid;
     private int mPid2 = Process.myPid();
     private OsuProvider mOsuProvider;
     private SoftApCallback mStateMachineSoftApCallback;
-    private SoftApCallback mLohsCallback;
+    private SoftApCallback mLohsApCallback;
     private String mLohsInterfaceName;
     private ApplicationInfo mApplicationInfo;
     private static final String DPP_URI = "DPP:some_dpp_uri";
@@ -263,14 +261,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock PasspointManager mPasspointManager;
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
+    @Mock ILocalOnlyHotspotCallback mLohsCallback;
 
     @Spy FakeWifiLog mLog;
 
     @Before public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mLooper = new TestLooper();
-        mHandler = spy(new Handler(mLooper.getLooper()));
-        mAppMessenger = new Messenger(mHandler);
         mAsyncChannel = spy(new AsyncChannel());
         mApplicationInfo = new ApplicationInfo();
         mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
@@ -347,6 +344,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(true);
+        when(mLohsCallback.asBinder()).thenReturn(mock(IBinder.class));
 
         mWifiServiceImpl = makeWifiServiceImpl();
         mDppCallback = new IDppCallback() {
@@ -397,7 +395,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 ArgumentCaptor.forClass(SoftApCallback.class);
         mLohsInterfaceName = WIFI_IFACE_NAME;
         verify(mActiveModeWarden).registerLohsCallback(lohsCallbackCaptor.capture());
-        mLohsCallback = lohsCallbackCaptor.getValue();
+        mLohsApCallback = lohsCallbackCaptor.getValue();
         mLooper.dispatchAll();
         return wifiServiceImpl;
     }
@@ -708,7 +706,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * Helper to verify registering for state changes.
      */
     private void verifyApRegistration() {
-        assertNotNull(mLohsCallback);
+        assertNotNull(mLohsApCallback);
     }
 
     /**
@@ -719,7 +717,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private void changeLohsState(int apState, int previousState, int error) {
         // TestUtil.sendWifiApStateChanged(mBroadcastReceiverCaptor.getValue(), mContext,
         //        apState, previousState, error, WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
-        mLohsCallback.onStateChanged(apState, error);
+        mLohsApCallback.onStateChanged(apState, error);
     }
 
     /**
@@ -1422,8 +1420,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
-                TEST_PACKAGE_NAME);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
     }
@@ -1446,7 +1443,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.CHANGE_WIFI_STATE),
                                                 eq("WifiService"));
-        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
     }
 
     /**
@@ -1458,7 +1455,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doThrow(new SecurityException())
                 .when(mWifiPermissionsUtil).enforceLocationPermission(eq(TEST_PACKAGE_NAME),
                                                                       anyInt());
-        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
     }
 
     /**
@@ -1468,7 +1465,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testStartLocalOnlyHotspotThrowsSecurityExceptionWithoutLocationEnabled() {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
-        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
     }
 
     /**
@@ -1479,8 +1476,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder,
-                TEST_PACKAGE_NAME);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
     }
 
@@ -1518,8 +1514,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         mLooper.dispatchAll();
-        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
-                mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(ERROR_INCOMPATIBLE_MODE, returnCode);
     }
 
@@ -1532,8 +1527,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(true);
-        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
-                mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(ERROR_TETHERING_DISALLOWED, returnCode);
     }
 
@@ -1545,7 +1539,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         registerLOHSRequestFull();
 
         // now do the second request that will fail
-        mWifiServiceImpl.startLocalOnlyHotspot(mAppMessenger, mAppBinder, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
     }
 
     /**
@@ -1957,10 +1951,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         changeLohsState(WIFI_AP_STATE_FAILED, WIFI_AP_STATE_DISABLED, SAP_START_FAILURE_GENERAL);
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_GENERIC, message.arg1);
+
+        verify(mLohsCallback).onHotspotFailed(ERROR_GENERIC);
     }
 
     /**
@@ -1979,10 +1971,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 WIFI_AP_STATE_DISABLED, SAP_START_FAILURE_NO_CHANNEL);
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_NO_CHANNEL, message.arg1);
+        verify(mLohsCallback).onHotspotFailed(ERROR_NO_CHANNEL);
     }
 
     /**
@@ -1999,10 +1988,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
         mWifiServiceImpl.updateInterfaceIpState(mLohsInterfaceName, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STARTED, message.what);
-        reset(mHandler);
+        verify(mLohsCallback).onHotspotStarted(any());
     }
 
     /**
@@ -2016,9 +2002,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STOPPED, message.what);
+        verify(mLohsCallback).onHotspotStopped();
     }
 
 
@@ -2033,9 +2017,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STOPPED, message.what);
+        verify(mLohsCallback).onHotspotStopped();
     }
 
     /**
@@ -2054,7 +2036,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
 
         mLooper.dispatchAll();
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verifyZeroInteractions(ignoreStubs(mLohsCallback));
     }
 
     /**
@@ -2070,9 +2052,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STOPPED, message.what);
+        verify(mLohsCallback).onHotspotStopped();
     }
 
     /**
@@ -2087,10 +2067,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         changeLohsState(WIFI_AP_STATE_FAILED, WIFI_AP_STATE_FAILED, ERROR_GENERIC);
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_GENERIC, message.arg1);
+        verify(mLohsCallback).onHotspotFailed(ERROR_GENERIC);
     }
 
     /**
@@ -2114,10 +2091,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         verify(mRequestInfo).sendHotspotFailedMessage(ERROR_GENERIC);
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_GENERIC, message.arg1);
+        verify(mLohsCallback).onHotspotFailed(ERROR_GENERIC);
     }
 
     /**
@@ -2139,19 +2113,17 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
         verify(mRequestInfo).sendHotspotStartedMessage(any());
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STARTED, message.what);
-        reset(mHandler);
+        verify(mLohsCallback).onHotspotStarted(any());
+
+        reset(mRequestInfo);
+        clearInvocations(mLohsCallback);
 
         changeLohsState(WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
         changeLohsState(WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
 
         verify(mRequestInfo).sendHotspotStoppedMessage();
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STOPPED, message.what);
+        verify(mLohsCallback).onHotspotStopped();
     }
 
     /**
@@ -2206,10 +2178,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mRequestInfo).sendHotspotStartedMessage(any(WifiConfiguration.class));
 
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STARTED, message.what);
-        assertNotNull((WifiConfiguration) message.obj);
+        verify(mLohsCallback).onHotspotStarted(notNull());
     }
 
     /**
@@ -2229,9 +2198,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.dispatchAll();
 
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_STARTED, message.what);
+        verify(mLohsCallback).onHotspotStarted(any());
     }
 
     /**
@@ -2247,20 +2214,16 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
         mLooper.dispatchAll();
 
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_GENERIC, message.arg1);
-
+        verify(mLohsCallback).onHotspotFailed(ERROR_GENERIC);
         verify(mActiveModeWarden).stopSoftAp(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
 
-        reset(mHandler);
+        clearInvocations(mLohsCallback);
 
         // send HOTSPOT_FAILED message should only happen once since the requestor should be
         // unregistered
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_CONFIGURATION_ERROR);
         mLooper.dispatchAll();
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verifyZeroInteractions(ignoreStubs(mLohsCallback));
     }
 
     /**
@@ -2286,24 +2249,20 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_LOCAL_ONLY);
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
-        reset(mHandler);
+        verify(mLohsCallback).onHotspotStarted(any());
+        clearInvocations(mLohsCallback);
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
 
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        Message message = mMessageCaptor.getValue();
-        assertEquals(HOTSPOT_FAILED, message.what);
-        assertEquals(ERROR_INCOMPATIBLE_MODE, message.arg1);
+        verify(mLohsCallback).onHotspotFailed(ERROR_INCOMPATIBLE_MODE);
 
         // sendMessage should only happen once since the requestor should be unregistered
-        reset(mHandler);
+        clearInvocations(mLohsCallback);
 
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
         mLooper.dispatchAll();
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verifyZeroInteractions(ignoreStubs(mLohsCallback));
     }
 
     /**
@@ -2316,7 +2275,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         registerLOHSRequestFull();
         mLooper.dispatchAll();
 
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verifyZeroInteractions(ignoreStubs(mLohsCallback));
     }
 
     /**
@@ -2339,29 +2298,27 @@ public class WifiServiceImplTest extends WifiBaseTest {
         registerLOHSRequestFull();
         mLooper.dispatchAll();
 
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        assertEquals(HOTSPOT_STARTED, mMessageCaptor.getValue().what);
+        verify(mLohsCallback).onHotspotStarted(any());
 
-        reset(mHandler);
+        clearInvocations(mLohsCallback);
 
         // now stop the hotspot
         changeLohsState(WIFI_AP_STATE_DISABLING, WIFI_AP_STATE_ENABLED, HOTSPOT_NO_ERROR);
         changeLohsState(WIFI_AP_STATE_DISABLED, WIFI_AP_STATE_DISABLING, HOTSPOT_NO_ERROR);
         mLooper.dispatchAll();
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        assertEquals(HOTSPOT_STOPPED, mMessageCaptor.getValue().what);
+        verify(mLohsCallback).onHotspotStopped();
 
-        reset(mHandler);
+        clearInvocations(mLohsCallback);
 
         // now register a new caller - they should not get the onStarted callback
-        Messenger messenger2 = new Messenger(mHandler);
-        IBinder binder2 = mock(IBinder.class);
+        ILocalOnlyHotspotCallback callback2 = mock(ILocalOnlyHotspotCallback.class);
+        when(callback2.asBinder()).thenReturn(mock(IBinder.class));
 
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(messenger2, binder2, TEST_PACKAGE_NAME);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(callback2, TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
         mLooper.dispatchAll();
 
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verify(mLohsCallback, never()).onHotspotStarted(any());
     }
 
     /**
@@ -2377,7 +2334,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                                                 eq("WifiService"));
-        mWifiServiceImpl.startWatchLocalOnlyHotspot(mAppMessenger, mAppBinder);
+        mWifiServiceImpl.startWatchLocalOnlyHotspot(mLohsCallback);
     }
 
     /**
@@ -2386,7 +2343,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test(expected = UnsupportedOperationException.class)
     public void testStartWatchLocalOnlyHotspotNotSupported() {
-        mWifiServiceImpl.startWatchLocalOnlyHotspot(mAppMessenger, mAppBinder);
+        mWifiServiceImpl.startWatchLocalOnlyHotspot(mLohsCallback);
     }
 
     /**
@@ -3970,8 +3927,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         startLohsAndTethering(1);
 
         // verify LOHS got stopped
-        verify(mHandler).handleMessage(mMessageCaptor.capture());
-        assertEquals(HOTSPOT_FAILED, mMessageCaptor.getValue().what);
+        verify(mLohsCallback).onHotspotFailed(anyInt());
         verify(mActiveModeWarden).stopSoftAp(WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
     }
 
@@ -3984,7 +3940,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         startLohsAndTethering(2);
 
         // verify LOHS didn't get stopped
-        verify(mHandler, never()).handleMessage(any(Message.class));
+        verifyZeroInteractions(ignoreStubs(mLohsCallback));
         verify(mActiveModeWarden, never()).stopSoftAp(anyInt());
     }
 
