@@ -16,9 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_PERMANENT;
-
 import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 import static com.android.server.wifi.WifiConfigurationTestUtil.generateWifiConfig;
 
@@ -1969,26 +1966,6 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         assertTrue(capturedScanResults.contains(mScanData.getResults()[1]));
         assertTrue(capturedScanResults.contains(mScanData.getResults()[2]));
         assertTrue(capturedScanResults.contains(mScanData.getResults()[3]));
-    }
-
-    /**
-     * Disabling the network temporarily due to lack of internet is a special reason for which we
-     * don't want WCM to trigger a disconnect (by removing the network from supplicant).
-     */
-    @Test
-    public void dontDisconnectIfNetworkTemporarilyDisabledDueToNoInternet() {
-        assertNotNull(mNetworkUpdateListenerCaptor.getValue());
-
-        WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
-        config.networkId = 0;
-        mNetworkUpdateListenerCaptor.getValue()
-                .onNetworkPermanentlyDisabled(config, DISABLED_AUTHENTICATION_FAILURE);
-        verify(mWifiConnectivityHelper).removeNetworkIfCurrent(0);
-        reset(mWifiConnectivityHelper);
-        mNetworkUpdateListenerCaptor.getValue()
-                .onNetworkPermanentlyDisabled(config, DISABLED_NO_INTERNET_PERMANENT);
-        // Don't remove network.
-        verify(mWifiConnectivityHelper, never()).removeNetworkIfCurrent(0);
     }
 
     /**

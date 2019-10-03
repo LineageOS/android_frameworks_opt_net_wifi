@@ -16,9 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_PERMANENT;
-import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
-
 import static com.android.internal.util.Preconditions.checkNotNull;
 import static com.android.server.wifi.ClientModeImpl.WIFI_WORK_SOURCE;
 
@@ -544,7 +541,6 @@ public class WifiConnectivityManager {
         }
         @Override
         public void onNetworkRemoved(WifiConfiguration config) {
-            mConnectivityHelper.removeNetworkCachedData(config.networkId);
             updatePnoScan();
         }
         @Override
@@ -552,18 +548,10 @@ public class WifiConnectivityManager {
             updatePnoScan();
         }
         @Override
-        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) {
-            if (disableReason == DISABLED_NO_INTERNET_TEMPORARY) return;
-            mConnectivityHelper.removeNetworkIfCurrent(config.networkId);
-        }
+        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) { }
+
         @Override
         public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
-            // For DISABLED_NO_INTERNET_PERMANENT we do not need to remove the network
-            // because supplicant won't be trying to reconnect. If this is due to a
-            // preventAutomaticReconnect request from ConnectivityService, that service
-            // will disconnect as appropriate.
-            if (disableReason == DISABLED_NO_INTERNET_PERMANENT) return;
-            mConnectivityHelper.removeNetworkIfCurrent(config.networkId);
             updatePnoScan();
         }
         private void updatePnoScan() {

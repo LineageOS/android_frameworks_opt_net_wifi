@@ -1040,22 +1040,6 @@ public class SupplicantStaIfaceHal {
     }
 
     /**
-     * Remove the request |networkId| from supplicant if it's the current network,
-     * if the current configured network matches |networkId|.
-     *
-     * @param ifaceName Name of the interface.
-     * @param networkId network id of the network to be removed from supplicant.
-     */
-    public void removeNetworkIfCurrent(@NonNull String ifaceName, int networkId) {
-        synchronized (mLock) {
-            if (getCurrentNetworkId(ifaceName) == networkId) {
-                // Currently we only save 1 network in supplicant.
-                removeAllNetworks(ifaceName);
-            }
-        }
-    }
-
-    /**
      * Clean HAL cached data for |networkId| in the framework.
      *
      * @param networkId network id of the network to be removed from supplicant.

@@ -162,23 +162,4 @@ public class WifiConnectivityHelper {
 
         return mWifiNative.configureRoaming(mWifiNative.getClientInterfaceName(), roamConfig);
     }
-
-    /**
-     * Remove the request |networkId| from supplicant if it's the current network,
-     * if the current configured network matches |networkId|.
-     *
-     * @param networkId network id of the network to be removed from supplicant.
-     */
-    public void removeNetworkIfCurrent(int networkId) {
-        mWifiNative.removeNetworkIfCurrent(mWifiNative.getClientInterfaceName(), networkId);
-    }
-
-    /**
-     * Clean HAL cached data for |networkId| in the framework.
-     *
-     * @param networkId network id of the network to be removed from supplicant.
-     */
-    public void removeNetworkCachedData(int networkId) {
-        mWifiNative.removeNetworkCachedData(networkId);
-    }
 }
