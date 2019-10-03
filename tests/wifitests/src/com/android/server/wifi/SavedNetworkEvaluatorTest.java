@@ -28,9 +28,9 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.SystemClock;
 import android.telephony.SubscriptionManager;
+import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
 
-import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
@@ -42,6 +42,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -79,7 +80,8 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
                 new ScoringParams(mContext), mWifiConfigManager,
                 mClock, mLocalLog, mWifiConnectivityHelper, mSubscriptionManager);
         // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
     }
 
     /** Cleans up test. */

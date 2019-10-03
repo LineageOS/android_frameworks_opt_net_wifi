@@ -80,7 +80,6 @@ import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
 import android.security.KeyStore;
-import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
@@ -342,7 +341,6 @@ public class ClientModeImplTest extends WifiBaseTest {
     MockResources mResources;
     FrameworkFacade mFrameworkFacade;
     IpClientCallbacks mIpClientCallback;
-    PhoneStateListener mPhoneStateListener;
     OsuProvider mOsuProvider;
     WifiConfiguration mConnectedNetwork;
 
@@ -490,13 +488,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mUserManager.getProfiles(UserHandle.USER_SYSTEM)).thenReturn(Arrays.asList(
                 new UserInfo(UserHandle.USER_SYSTEM, "owner", 0),
                 new UserInfo(11, "managed profile", 0)));
-
-        doAnswer(new AnswerWithArguments() {
-            public void answer(PhoneStateListener phoneStateListener, int events)
-                    throws Exception {
-                mPhoneStateListener = phoneStateListener;
-            }
-        }).when(mDataTelephonyManager).listen(any(PhoneStateListener.class), anyInt());
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
@@ -2218,18 +2209,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue("DefaultState".equals(getCurrentState().getName()));
         initializeMocksForAddedNetwork(false);
         verify(mWifiConnectivityManager, never()).setUserConnectChoice(eq(0));
-    }
-
-    /**
-     * Test that we don't register the telephony call state listener on devices which do not support
-     * setting/resetting Tx power limit.
-     */
-    @Test
-    public void testVoiceCallSar_disabledTxPowerScenario_WifiOn() throws Exception {
-        loadComponentsInStaMode();
-        assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
-        assertEquals("DisconnectedState", getCurrentState().getName());
-        assertNull(mPhoneStateListener);
     }
 
     /**

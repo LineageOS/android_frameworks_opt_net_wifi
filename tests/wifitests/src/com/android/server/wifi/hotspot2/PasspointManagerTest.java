@@ -72,6 +72,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
@@ -118,6 +119,7 @@ import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -235,7 +237,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         mSharedDataSource = sharedDataSource.getValue();
         mUserDataSource = userDataSource.getValue();
         // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
     }
 
     /**
@@ -1680,7 +1683,8 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Test
     public void verifyInstallEphemeralPasspointConfigurationWithNonCarrierEapMethod() {
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         PasspointConfiguration config = createTestConfigWithUserCredential("abc.com", "test");
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -1695,7 +1699,8 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Test
     public void verifyInstallEphemeralPasspointConfiguration() {
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         PasspointConfiguration config = createTestConfigWithSimCredential(TEST_FQDN, TEST_IMSI,
                 TEST_REALM);
         PasspointProvider provider = createMockProvider(config);
@@ -1741,7 +1746,8 @@ public class PasspointManagerTest extends WifiBaseTest {
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             // SIM is present
-            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+            when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                    .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, TEST_HESSID,
                     TEST_ANQP_DOMAIN_ID, true));
@@ -1785,7 +1791,8 @@ public class PasspointManagerTest extends WifiBaseTest {
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             // SIM is present
-            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+            when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                    .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, 0, 0, false));
 

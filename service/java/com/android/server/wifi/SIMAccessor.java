@@ -1,6 +1,7 @@
 package com.android.server.wifi;
 
 import android.content.Context;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 
@@ -13,9 +14,9 @@ public class SIMAccessor {
 
     public SIMAccessor(Context context) {
         // TODO(b/132188983): Inject this using WifiInjector
-        mTelephonyManager = TelephonyManager.from(context);
+        mTelephonyManager = context.getSystemService(TelephonyManager.class);
         // TODO(b/132188983): Inject this using WifiInjector
-        mSubscriptionManager = SubscriptionManager.from(context);
+        mSubscriptionManager = context.getSystemService(SubscriptionManager.class);
     }
 
     public List<String> getMatchingImsis(IMSIParameter mccMnc) {
@@ -23,8 +24,10 @@ public class SIMAccessor {
             return null;
         }
         List<String> imsis = new ArrayList<>();
-        for (int subId : mSubscriptionManager.getActiveSubscriptionIdList()) {
-            String imsi = mTelephonyManager.getSubscriberId(subId);
+        for (SubscriptionInfo sub : mSubscriptionManager.getActiveSubscriptionInfoList()) {
+            String imsi =
+                    mTelephonyManager.createForSubscriptionId(sub.getSubscriptionId())
+                            .getSubscriberId();
             if (imsi != null && mccMnc.matchesImsi(imsi)) {
                 imsis.add(imsi);
             }
