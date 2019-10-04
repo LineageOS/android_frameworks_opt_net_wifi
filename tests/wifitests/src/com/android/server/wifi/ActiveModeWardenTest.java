@@ -1825,14 +1825,14 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     }
 
     /**
-     * The command to trigger a WiFi reset should not trigger any action by WifiController if we
-     * are not in STA mode, even if scans are allowed.
-     * WiFi is not in connect mode, so any calls to reset the wifi stack due to connection failures
-     * should be ignored.
-     * Create and start WifiController in DisabledState, send command to restart WiFi
+     * The command to trigger a WiFi reset should trigger a wifi reset in ClientModeImpl through
+     * the ActiveModeWarden.shutdownWifi() call when in STA mode.
+     * When WiFi is in scan mode, calls to reset the wifi stack due to native failure
+     * should trigger a supplicant stop, and subsequently, a driver reload.
+     * Create and start WifiController in EnabledState, send command to restart WiFi
      * <p>
-     * Expected: WiFiController should not call ActiveModeWarden.disableWifi() or
-     * ActiveModeWarden.shutdownWifi().
+     * Expected: WiFiController should call ActiveModeWarden.shutdownWifi() and
+     * ActiveModeWarden should enter SCAN_ONLY mode and the wifi driver should be started.
      */
     @Test
     public void testRestartWifiStackInDisabledStateWithScanState() throws Exception {
