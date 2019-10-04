@@ -114,7 +114,9 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
         if (networkScorerAppData == null || packageName == null) return false;
         int uid = networkScorerAppData.packageUid;
         try {
-            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, uid);
+            // TODO moltmann: Can we set a featureID here instead of null?
+            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, null, uid,
+                    null);
             return true;
         } catch (SecurityException e) {
             return false;

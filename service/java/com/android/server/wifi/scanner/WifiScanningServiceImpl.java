@@ -112,8 +112,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     @Override
-    public Bundle getAvailableChannels(@WifiBand int band, String packageName) {
-        enforcePermission(Binder.getCallingUid(), packageName, false, false, false);
+    public Bundle getAvailableChannels(@WifiBand int band, String packageName,
+            @Nullable String featureId) {
+        enforcePermission(Binder.getCallingUid(), packageName, featureId, false, false, false);
 
         mChannelHelper.updateChannels();
         ChannelSpec[] channelSpecs = mChannelHelper.getAvailableScanChannels(band);
@@ -158,6 +159,17 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return bundle.getString(WifiScanner.REQUEST_PACKAGE_NAME_KEY);
     }
 
+    // For non-privileged requests, retrieve the bundled featureId name for app-op & permission
+    // checks.
+    private String getFeatureId(Message msg) {
+        if (!(msg.obj instanceof Bundle)) {
+            return null;
+        }
+        Bundle bundle = (Bundle) msg.obj;
+        return bundle.getString(WifiScanner.REQUEST_FEATURE_ID_KEY);
+    }
+
+
     // Check if we should ignore location settings if this is a single scan request.
     private boolean shouldIgnoreLocationSettingsForSingleScan(Message msg) {
         if (msg.what != WifiScanner.CMD_START_SINGLE_SCAN) return false;
@@ -177,11 +189,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     /**
-     * @see #enforcePermission(int, String, boolean, boolean, boolean)
+     * @see #enforcePermission(int, String, String, boolean, boolean, boolean)
      */
     private void enforcePermission(int uid, Message msg) throws SecurityException {
-        enforcePermission(uid, getPackageName(msg), isPrivilegedMessage(msg.what),
-                shouldIgnoreLocationSettingsForSingleScan(msg),
+        enforcePermission(uid, getPackageName(msg), getFeatureId(msg),
+                isPrivilegedMessage(msg.what), shouldIgnoreLocationSettingsForSingleScan(msg),
                 shouldHideFromAppsForSingleScan(msg));
     }
 
@@ -193,12 +205,14 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
      *    b) Can never make one of the privileged requests.
      * @param uid uid of the client
      * @param packageName package name of the client
+     * @param featureId The feature in the package of the client
      * @param isPrivilegedRequest whether we are checking for a privileged request
      * @param shouldIgnoreLocationSettings override to ignore location settings
      * @param shouldHideFromApps override to hide request from AppOps
      */
-    private void enforcePermission(int uid, String packageName, boolean isPrivilegedRequest,
-            boolean shouldIgnoreLocationSettings, boolean shouldHideFromApps) {
+    private void enforcePermission(int uid, String packageName, @Nullable String featureId,
+            boolean isPrivilegedRequest, boolean shouldIgnoreLocationSettings,
+            boolean shouldHideFromApps) {
         try {
             // Wifi stack issued requests.
             enforceWifiStackPermission(uid);
@@ -208,8 +222,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 // Privileged message, only requests from clients with NETWORK_STACK allowed!
                 throw e;
             }
-            mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(packageName, uid,
-                    shouldIgnoreLocationSettings, shouldHideFromApps);
+            mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(packageName, featureId,
+                    uid, shouldIgnoreLocationSettings, shouldHideFromApps);
         }
     }
 

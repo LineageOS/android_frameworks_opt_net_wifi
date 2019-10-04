@@ -1615,7 +1615,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         InOrder inOrderS = inOrder(mockAwareService, mockCallback, mockSessionCallback);
 
         mgr.attach(mMockLooperHandler, configRequest, mockCallback, null);
-        inOrderS.verify(mockAwareService).connect(any(), any(),
+        inOrderS.verify(mockAwareService).connect(any(), any(), any(),
                 clientProxyCallback.capture(), eq(configRequest), eq(false));
         IWifiAwareEventCallback iwaec = clientProxyCallback.getValue();
         iwaec.onConnectSuccess(clientId);
@@ -1624,13 +1624,13 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         if (doPublish) {
             sessionCaptor.getValue().publish(publishConfig, mockSessionCallback,
                     mMockLooperHandler);
-            inOrderS.verify(mockAwareService).publish(any(), eq(clientId), eq(publishConfig),
+            inOrderS.verify(mockAwareService).publish(any(), any(), eq(clientId), eq(publishConfig),
                     sessionProxyCallback.capture());
         } else {
             sessionCaptor.getValue().subscribe(subscribeConfig, mockSessionCallback,
                     mMockLooperHandler);
-            inOrderS.verify(mockAwareService).subscribe(any(), eq(clientId), eq(subscribeConfig),
-                    sessionProxyCallback.capture());
+            inOrderS.verify(mockAwareService).subscribe(any(), any(), eq(clientId),
+                    eq(subscribeConfig), sessionProxyCallback.capture());
         }
         sessionProxyCallback.getValue().onSessionStarted(sessionId);
         mMockLooper.dispatchAll();
@@ -1693,7 +1693,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         AttachCallback mockCallback = mock(AttachCallback.class);
 
         mgr.attach(mMockLooperHandler, configRequest, mockCallback, null);
-        verify(mockAwareService).connect(any(), any(),
+        verify(mockAwareService).connect(any(), any(), any(),
                 clientProxyCallback.capture(), eq(configRequest), eq(false));
         clientProxyCallback.getValue().onConnectSuccess(clientId);
         mMockLooper.dispatchAll();
@@ -1773,6 +1773,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             throws Exception {
         final int pid = 2000;
         final String callingPackage = "com.android.somePackage";
+        final String callingFeatureId = "com.android.someFeature";
         final ConfigRequest configRequest = new ConfigRequest.Builder().build();
 
         ArgumentCaptor<Short> transactionId = ArgumentCaptor.forClass(Short.class);
@@ -1803,9 +1804,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         }
 
         // (3) create client
-        mDut.connect(clientId, Process.myUid(), pid, callingPackage, mMockCallback,
-                configRequest,
-                false);
+        mDut.connect(clientId, Process.myUid(), pid, callingPackage, callingFeatureId,
+                mMockCallback, configRequest, false);
         mMockLooper.dispatchAll();
 
         if (startUpSequence) {

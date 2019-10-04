@@ -406,8 +406,9 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
      * to be posted to handler thread.
      */
     @Override
-    public void startRanging(IBinder binder, String callingPackage, WorkSource workSource,
-            RangingRequest request, IRttCallback callback) throws RemoteException {
+    public void startRanging(IBinder binder, String callingPackage, String callingFeatureId,
+            WorkSource workSource, RangingRequest request, IRttCallback callback)
+            throws RemoteException {
         if (VDBG) {
             Log.v(TAG, "startRanging: binder=" + binder + ", callingPackage=" + callingPackage
                     + ", workSource=" + workSource + ", request=" + request + ", callback="
@@ -446,7 +447,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         // permission checks
         enforceAccessPermission();
         enforceChangePermission();
-        mWifiPermissionsUtil.enforceFineLocationPermission(callingPackage, uid);
+        mWifiPermissionsUtil.enforceFineLocationPermission(callingPackage, callingFeatureId, uid);
         if (workSource != null) {
             enforceLocationHardware();
             // We only care about UIDs in the incoming worksources and not their associated
@@ -483,7 +484,8 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                 sourceToUse = new WorkSource(uid);
             }
             mRttServiceSynchronized.queueRangingRequest(uid, sourceToUse, binder, dr,
-                    callingPackage, request, callback, isCalledFromPrivilegedContext);
+                    callingPackage, callingFeatureId, request, callback,
+                    isCalledFromPrivilegedContext);
         });
     }
 
@@ -692,8 +694,9 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         }
 
         private void queueRangingRequest(int uid, WorkSource workSource, IBinder binder,
-                IBinder.DeathRecipient dr, String callingPackage, RangingRequest request,
-                IRttCallback callback, boolean isCalledFromPrivilegedContext) {
+                IBinder.DeathRecipient dr, String callingPackage, String callingFeatureId,
+                RangingRequest request, IRttCallback callback,
+                boolean isCalledFromPrivilegedContext) {
             mRttMetrics.recordRequest(workSource, request);
 
             if (isRequestorSpamming(workSource)) {
@@ -716,6 +719,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             newRequest.binder = binder;
             newRequest.dr = dr;
             newRequest.callingPackage = callingPackage;
+            newRequest.callingFeatureId = callingFeatureId;
             newRequest.request = request;
             newRequest.callback = callback;
             newRequest.isCalledFromPrivilegedContext = isCalledFromPrivilegedContext;
@@ -1088,8 +1092,8 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             }
 
             boolean permissionGranted = mWifiPermissionsUtil.checkCallersLocationPermission(
-                    topOfQueueRequest.callingPackage,
-                    topOfQueueRequest.uid, /* coarseForTargetSdkLessThanQ */ false)
+                    topOfQueueRequest.callingPackage, topOfQueueRequest.callingFeatureId,
+                    topOfQueueRequest.uid, /* coarseForTargetSdkLessThanQ */ false, null)
                     && mWifiPermissionsUtil.isLocationModeEnabled();
             try {
                 if (permissionGranted) {
@@ -1222,6 +1226,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         public IBinder binder;
         public IBinder.DeathRecipient dr;
         public String callingPackage;
+        public String callingFeatureId;
         public RangingRequest request;
         public IRttCallback callback;
         public boolean isCalledFromPrivilegedContext;
@@ -1235,10 +1240,10 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             return new StringBuilder("RttRequestInfo: uid=").append(uid).append(
                     ", workSource=").append(workSource).append(", binder=").append(binder).append(
                     ", dr=").append(dr).append(", callingPackage=").append(callingPackage).append(
-                    ", request=").append(request.toString()).append(", callback=").append(
-                    callback).append(", cmdId=").append(cmdId).append(
-                    ", peerHandlesTranslated=").append(peerHandlesTranslated).append(
-                    ", isCalledFromPrivilegedContext=").append(
+                    ", callingFeatureId=").append(callingFeatureId).append(", request=").append(
+                    request.toString()).append(", callback=").append(callback).append(
+                    ", cmdId=").append(cmdId).append(", peerHandlesTranslated=").append(
+                    peerHandlesTranslated).append(", isCalledFromPrivilegedContext=").append(
                     isCalledFromPrivilegedContext).toString();
         }
     }

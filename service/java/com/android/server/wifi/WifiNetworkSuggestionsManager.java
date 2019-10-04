@@ -124,6 +124,10 @@ public class WifiNetworkSuggestionsManager {
          */
         public final String packageName;
         /**
+         * First Feature in the package that registered the suggestion
+         */
+        public final String featureId;
+        /**
          * Set of active network suggestions provided by the app.
          */
         public final Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
@@ -135,8 +139,9 @@ public class WifiNetworkSuggestionsManager {
         /** Stores the max size of the {@link #extNetworkSuggestions} list ever for this app */
         public int maxSize = 0;
 
-        public PerAppInfo(@NonNull String packageName) {
+        public PerAppInfo(@NonNull String packageName, @Nullable String featureId) {
             this.packageName = packageName;
+            this.featureId = featureId;
         }
 
         // This is only needed for comparison in unit tests.
@@ -599,7 +604,8 @@ public class WifiNetworkSuggestionsManager {
      * Add the provided list of network suggestions from the corresponding app's active list.
      */
     public @WifiManager.NetworkSuggestionsStatusCode int add(
-            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName) {
+            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName,
+            @Nullable String featureId) {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Adding " + networkSuggestions.size() + " networks from " + packageName);
         }
@@ -612,7 +618,7 @@ public class WifiNetworkSuggestionsManager {
         }
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) {
-            perAppInfo = new PerAppInfo(packageName);
+            perAppInfo = new PerAppInfo(packageName, featureId);
             mActiveNetworkSuggestionsPerApp.put(packageName, perAppInfo);
             if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
                 Log.i(TAG, "Setting the carrier provisioning app approved");
@@ -1096,10 +1102,11 @@ public class WifiNetworkSuggestionsManager {
      * Helper method to send the post connection broadcast to specified package.
      */
     private void sendPostConnectionBroadcastIfAllowed(
-            String packageName, WifiNetworkSuggestion matchingSuggestion) {
+            String packageName, String featureId, WifiNetworkSuggestion matchingSuggestion,
+            @NonNull String message) {
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(
-                    packageName, matchingSuggestion.suggestorUid);
+                    packageName, featureId, matchingSuggestion.suggestorUid, message);
         } catch (SecurityException se) {
             Log.w(TAG, "Permission denied for sending post connection broadcast to " + packageName);
             return;
@@ -1148,7 +1155,10 @@ public class WifiNetworkSuggestionsManager {
                 : matchingExtNetworkSuggestionsWithReqAppInteraction) {
             sendPostConnectionBroadcastIfAllowed(
                     matchingExtNetworkSuggestion.perAppInfo.packageName,
-                    matchingExtNetworkSuggestion.wns);
+                    matchingExtNetworkSuggestion.perAppInfo.featureId,
+                    matchingExtNetworkSuggestion.wns,
+                    "Connected to " + matchingExtNetworkSuggestion.wns.wifiConfiguration.SSID
+                            + ". featureId is first feature of the app using network suggestions");
         }
     }
 
@@ -1177,6 +1187,7 @@ public class WifiNetworkSuggestionsManager {
         for (ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion
                 : matchingExtNetworkSuggestions) {
             sendConnectionFailureIfAllowed(matchingExtNetworkSuggestion.perAppInfo.packageName,
+                    matchingExtNetworkSuggestion.perAppInfo.featureId,
                     matchingExtNetworkSuggestion.wns, failureCode);
         }
     }
@@ -1218,12 +1229,12 @@ public class WifiNetworkSuggestionsManager {
     /**
      * Send network connection failure event to app when an connection attempt failure.
      * @param packageName package name to send event
+     * @param featureId The feature in the package
      * @param matchingSuggestion suggestion on this connection failure
      * @param connectionEvent connection failure code
      */
-    private void sendConnectionFailureIfAllowed(String packageName,
-            @NonNull WifiNetworkSuggestion matchingSuggestion,
-            int connectionEvent) {
+    private void sendConnectionFailureIfAllowed(String packageName, @Nullable String featureId,
+            @NonNull WifiNetworkSuggestion matchingSuggestion, int connectionEvent) {
         ExternalCallbackTracker<ISuggestionConnectionStatusListener> listenersTracker =
                 mSuggestionStatusListenerPerApp.get(packageName);
         if (listenersTracker == null || listenersTracker.getNumCallbacks() == 0) {
@@ -1231,7 +1242,8 @@ public class WifiNetworkSuggestionsManager {
         }
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(
-                    packageName, matchingSuggestion.suggestorUid);
+                    packageName, featureId, matchingSuggestion.suggestorUid,
+                    "Connection failure");
         } catch (SecurityException se) {
             Log.w(TAG, "Permission denied for sending connection failure event to " + packageName);
             return;

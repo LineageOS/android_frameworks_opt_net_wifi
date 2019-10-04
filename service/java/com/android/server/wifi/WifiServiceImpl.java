@@ -392,9 +392,10 @@ public class WifiServiceImpl extends BaseWifiService {
      * See {@link android.net.wifi.WifiManager#startScan}
      *
      * @param packageName Package name of the app that requests wifi scan.
+     * @param featureId The feature in the package
      */
     @Override
-    public boolean startScan(String packageName) {
+    public boolean startScan(String packageName, String featureId) {
         if (enforceChangePermission(packageName) != MODE_ALLOWED) {
             return false;
         }
@@ -417,7 +418,8 @@ public class WifiServiceImpl extends BaseWifiService {
             }
         }
         try {
-            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
+            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, featureId, callingUid,
+                    null);
             Boolean scanSuccess = mWifiThreadRunner.call(() ->
                     mScanRequestProxy.startScan(callingUid, packageName), null);
             if (scanSuccess == null) {
@@ -489,7 +491,7 @@ public class WifiServiceImpl extends BaseWifiService {
             // Someone requested a scan while we were idle; do a full scan now.
             // A security check of the caller's identity was made when the request arrived via
             // Binder. Now we'll pass the current process's identity to startScan().
-            startScan(mContext.getOpPackageName());
+            startScan(mContext.getOpPackageName(), mContext.getFeatureId());
         }
     }
 
@@ -622,8 +624,8 @@ public class WifiServiceImpl extends BaseWifiService {
                 "ConnectivityService");
     }
 
-    private void enforceLocationPermission(String pkgName, int uid) {
-        mWifiPermissionsUtil.enforceLocationPermission(pkgName, uid);
+    private void enforceLocationPermission(String pkgName, @Nullable String featureId, int uid) {
+        mWifiPermissionsUtil.enforceLocationPermission(pkgName, featureId, uid);
     }
 
     /**
@@ -1378,6 +1380,7 @@ public class WifiServiceImpl extends BaseWifiService {
      *
      * @param callback Callback to communicate with WifiManager and allow cleanup if the app dies.
      * @param packageName String name of the calling package.
+     * @param featureId The feature in the package
      * @param customConfig Custom configuration to be applied to the hotspot, or null for a shared
      *                     hotspot with framework-generated config.
      *
@@ -1390,7 +1393,7 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     @Override
     public int startLocalOnlyHotspot(ILocalOnlyHotspotCallback callback, String packageName,
-            SoftApConfiguration customConfig) {
+            String featureId, SoftApConfiguration customConfig) {
         // first check if the caller has permission to start a local only hotspot
         // need to check for WIFI_STATE_CHANGE and location permission
         final int uid = Binder.getCallingUid();
@@ -1403,7 +1406,7 @@ public class WifiServiceImpl extends BaseWifiService {
             if (enforceChangePermission(packageName) != MODE_ALLOWED) {
                 return LocalOnlyHotspotCallback.ERROR_GENERIC;
             }
-            enforceLocationPermission(packageName, uid);
+            enforceLocationPermission(packageName, featureId, uid);
             long ident = Binder.clearCallingIdentity();
             try {
                 // also need to verify that Locations services are enabled.
@@ -1742,17 +1745,20 @@ public class WifiServiceImpl extends BaseWifiService {
      * see {@link android.net.wifi.WifiManager#getConfiguredNetworks()}
      *
      * @param packageName String name of the calling package
+     * @param featureId The feature in the package
      * @return the list of configured networks
      */
     @Override
-    public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName) {
+    public ParceledListSlice<WifiConfiguration> getConfiguredNetworks(String packageName,
+            String featureId) {
         enforceAccessPermission();
         int callingUid = Binder.getCallingUid();
         // bypass shell: can get varioud pkg name
         if (callingUid != Process.SHELL_UID && callingUid != Process.ROOT_UID) {
             long ident = Binder.clearCallingIdentity();
             try {
-                mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
+                mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, featureId,
+                        callingUid, null);
             } catch (SecurityException e) {
                 Log.e(TAG, "Permission violation - getConfiguredNetworks not allowed for uid="
                         + callingUid + ", packageName=" + packageName + ", reason=" + e);
@@ -1803,17 +1809,19 @@ public class WifiServiceImpl extends BaseWifiService {
      * see {@link android.net.wifi.WifiManager#getPrivilegedConfiguredNetworks()}
      *
      * @param packageName String name of the calling package
+     * @param featureId The feature in the package
      * @return the list of configured networks with real preSharedKey
      */
     @Override
     public ParceledListSlice<WifiConfiguration> getPrivilegedConfiguredNetworks(
-            String packageName) {
+            String packageName, String featureId) {
         enforceReadCredentialPermission();
         enforceAccessPermission();
         int callingUid = Binder.getCallingUid();
         long ident = Binder.clearCallingIdentity();
         try {
-            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
+            mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, featureId, callingUid,
+                    null);
         } catch (SecurityException e) {
             Log.e(TAG, "Permission violation - getPrivilegedConfiguredNetworks not allowed for"
                     + " uid=" + callingUid + ", packageName=" + packageName + ", reason=" + e);
@@ -2135,7 +2143,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */
     @Override
-    public WifiInfo getConnectionInfo(String callingPackage) {
+    public WifiInfo getConnectionInfo(String callingPackage, String callingFeatureId) {
         enforceAccessPermission();
         int uid = Binder.getCallingUid();
         if (mVerboseLoggingEnabled) {
@@ -2152,7 +2160,8 @@ public class WifiServiceImpl extends BaseWifiService {
                         == PERMISSION_GRANTED) {
                     hideDefaultMacAddress = false;
                 }
-                mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
+                mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
+                        uid, null);
                 hideBssidSsidAndNetworkId = false;
             } catch (SecurityException ignored) {
             }
@@ -2182,7 +2191,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * @return the list of results
      */
     @Override
-    public List<ScanResult> getScanResults(String callingPackage) {
+    public List<ScanResult> getScanResults(String callingPackage, String callingFeatureId) {
         enforceAccessPermission();
         int uid = Binder.getCallingUid();
         long ident = Binder.clearCallingIdentity();
@@ -2190,7 +2199,8 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("getScanResults uid=%").c(uid).flush();
         }
         try {
-            mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
+            mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, callingFeatureId,
+                    uid, null);
             List<ScanResult> scanResults = mWifiThreadRunner.call(
                     mScanRequestProxy::getScanResults, Collections.emptyList());
             return scanResults;
@@ -3135,12 +3145,14 @@ public class WifiServiceImpl extends BaseWifiService {
      *
      * @param networkSuggestions List of network suggestions to be added.
      * @param callingPackageName Package Name of the app adding the suggestions.
+     * @param callingFeatureId Feature in the calling package
      * @throws SecurityException if the caller does not have permission.
      * @return One of status codes from {@link WifiManager.NetworkSuggestionsStatusCode}.
      */
     @Override
     public int addNetworkSuggestions(
-            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName) {
+            List<WifiNetworkSuggestion> networkSuggestions, String callingPackageName,
+            String callingFeatureId) {
         if (enforceChangePermission(callingPackageName) != MODE_ALLOWED) {
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
         }
@@ -3150,7 +3162,7 @@ public class WifiServiceImpl extends BaseWifiService {
         int callingUid = Binder.getCallingUid();
 
         int success = mWifiThreadRunner.call(() -> mWifiNetworkSuggestionsManager.add(
-                networkSuggestions, callingUid, callingPackageName),
+                networkSuggestions, callingUid, callingPackageName, callingFeatureId),
                 WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_INTERNAL);
         if (success != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
             Log.e(TAG, "Failed to add network suggestions");
@@ -3526,7 +3538,7 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     public void registerSuggestionConnectionStatusListener(IBinder binder,
             @NonNull ISuggestionConnectionStatusListener listener,
-            int listenerIdentifier, String packageName) {
+            int listenerIdentifier, String packageName, @Nullable String featureId) {
         if (binder == null) {
             throw new IllegalArgumentException("Binder must not be null");
         }
@@ -3535,7 +3547,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         final int uid = Binder.getCallingUid();
         enforceAccessPermission();
-        enforceLocationPermission(packageName, uid);
+        enforceLocationPermission(packageName, featureId, uid);
         if (mVerboseLoggingEnabled) {
             mLog.info("registerSuggestionConnectionStatusListener uid=%").c(uid).flush();
         }

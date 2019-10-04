@@ -65,6 +65,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_IS_USER_INTERACTION_REQUIRED = "IsUserInteractionRequired";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
+    private static final String XML_TAG_SUGGESTOR_FEATURE_ID = "SuggestorFeatureId";
     private static final String XML_TAG_SUGGESTOR_HAS_USER_APPROVED = "SuggestorHasUserApproved";
     private static final String XML_TAG_SUGGESTOR_MAX_SIZE = "SuggestorMaxSize";
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION =
@@ -160,12 +161,14 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         }
         for (Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
             String packageName = entry.getKey();
+            String featureId = entry.getValue().featureId;
             boolean hasUserApproved = entry.getValue().hasUserApproved;
             int maxSize = entry.getValue().maxSize;
             Set<ExtendedWifiNetworkSuggestion> networkSuggestions =
                     entry.getValue().extNetworkSuggestions;
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME, packageName);
+            XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_FEATURE_ID, featureId);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_MAX_SIZE, maxSize);
             serializeExtNetworkSuggestions(out, networkSuggestions, encryptionUtil);
@@ -252,10 +255,12 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             try {
                 String packageName =
                         (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_PACKAGE_NAME);
+                String featureId =
+                        (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_FEATURE_ID);
                 boolean hasUserApproved = (boolean) XmlUtil.readNextValueWithName(in,
                         XML_TAG_SUGGESTOR_HAS_USER_APPROVED);
                 int maxSize = (int) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_MAX_SIZE);
-                PerAppInfo perAppInfo = new PerAppInfo(packageName);
+                PerAppInfo perAppInfo = new PerAppInfo(packageName, featureId);
                 Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                         parseExtNetworkSuggestions(
                                 in, outerTagDepth + 1, version, encryptionUtil, perAppInfo);
