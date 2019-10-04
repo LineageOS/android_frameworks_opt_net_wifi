@@ -2784,10 +2784,10 @@ public class WifiMetrics {
                         + mExperimentValues.linkSpeedCountsLoggingEnabled);
                 pw.println("mExperimentValues.dataStallDurationMs="
                         + mExperimentValues.dataStallDurationMs);
-                pw.println("mExperimentValues.dataStallTxTputThrKbps="
-                        + mExperimentValues.dataStallTxTputThrKbps);
-                pw.println("mExperimentValues.dataStallRxTputThrKbps="
-                        + mExperimentValues.dataStallRxTputThrKbps);
+                pw.println("mExperimentValues.dataStallTxTputThrMbps="
+                        + mExperimentValues.dataStallTxTputThrMbps);
+                pw.println("mExperimentValues.dataStallRxTputThrMbps="
+                        + mExperimentValues.dataStallRxTputThrMbps);
                 pw.println("mExperimentValues.dataStallTxPerThr="
                         + mExperimentValues.dataStallTxPerThr);
                 pw.println("mExperimentValues.dataStallCcaLevelThr="
@@ -5214,18 +5214,18 @@ public class WifiMetrics {
     /**
      * Sets the threshold of Tx throughput below which to trigger a data stall
      */
-    public void setDataStallTxTputThrKbps(int txTputThr) {
+    public void setDataStallTxTputThrMbps(int txTputThr) {
         synchronized (mLock) {
-            mExperimentValues.dataStallTxTputThrKbps = txTputThr;
+            mExperimentValues.dataStallTxTputThrMbps = txTputThr;
         }
     }
 
     /**
      * Sets the threshold of Rx throughput below which to trigger a data stall
      */
-    public void setDataStallRxTputThrKbps(int rxTputThr) {
+    public void setDataStallRxTputThrMbps(int rxTputThr) {
         synchronized (mLock) {
-            mExperimentValues.dataStallRxTputThrKbps = rxTputThr;
+            mExperimentValues.dataStallRxTputThrMbps = rxTputThr;
         }
     }
 
