@@ -130,9 +130,4 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
         return choice;
     }
 
-    @Override
-    public boolean userConnectChoiceOverrideWanted() {
-        return USE_USER_CONNECT_CHOICE;
-    }
-
 }

@@ -1482,11 +1482,6 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                         Collection<WifiCandidates.Candidate> group) {
                     return new WifiCandidates.ScoredCandidate(0, 0, false, null);
                 }
-
-                @Override
-                public boolean userConnectChoiceOverrideWanted() {
-                    return false;
-                }
             };
 
     /**

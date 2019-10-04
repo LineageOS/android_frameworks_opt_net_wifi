@@ -137,9 +137,4 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         return choice;
     }
 
-    @Override
-    public boolean userConnectChoiceOverrideWanted() {
-        return true;
-    }
-
 }
