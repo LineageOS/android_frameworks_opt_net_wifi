@@ -39,7 +39,6 @@ import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
 
 import com.android.internal.app.IBatteryStats;
-import com.android.server.LocalServices;
 import com.android.server.wifi.util.WifiAsyncChannel;
 
 /**

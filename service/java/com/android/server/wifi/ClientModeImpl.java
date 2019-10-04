@@ -1178,7 +1178,7 @@ public class ClientModeImpl extends StateMachine {
             loge("connectToUserSelectNetwork Invalid network Id=" + netId);
             return false;
         }
-        if (!mWifiConfigManager.enableNetwork(netId, true, uid)
+        if (!mWifiConfigManager.enableNetwork(netId, true, uid, null)
                 || !mWifiConfigManager.updateLastConnectUid(netId, uid)) {
             logi("connectToUserSelectNetwork Allowing uid " + uid
                     + " with insufficient permissions to connect=" + netId);
@@ -5547,7 +5547,7 @@ public class ClientModeImpl extends StateMachine {
      * corresponding callback from the sender of the outcome.
      */
     private boolean forgetNetworkConfigAndInvokeCb(Message message) {
-        boolean success = mWifiConfigManager.removeNetwork(message.arg1, message.sendingUid);
+        boolean success = mWifiConfigManager.removeNetwork(message.arg1, message.sendingUid, null);
         int callbackIdentifier = message.arg2;
         if (success) {
             sendActionListenerSuccess(callbackIdentifier);
@@ -5586,7 +5586,7 @@ public class ClientModeImpl extends StateMachine {
             return result;
         }
         if (!mWifiConfigManager.enableNetwork(
-                result.getNetworkId(), false, message.sendingUid)) {
+                result.getNetworkId(), false, message.sendingUid, null)) {
             loge("CMD_SAVE_NETWORK enabling config=" + config + " failed");
             mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
             sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);

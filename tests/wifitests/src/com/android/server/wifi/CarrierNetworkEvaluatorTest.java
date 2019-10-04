@@ -142,7 +142,8 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
             mGetConfiguredNetworkForScanDetailsAnswer.addConfig(scanDetail, newConfig);
         }
 
-        when(mWifiConfigManager.enableNetwork(networkId, false, Process.WIFI_UID)).thenReturn(true);
+        when(mWifiConfigManager.enableNetwork(
+                networkId, false, Process.WIFI_UID, null)).thenReturn(true);
         when(mWifiConfigManager.setNetworkCandidateScanResult(eq(networkId), any(),
                 anyInt())).thenReturn(true);
         when(mWifiConfigManager.getConfiguredNetwork(networkId)).thenReturn(newConfig);

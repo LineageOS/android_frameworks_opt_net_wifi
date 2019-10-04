@@ -72,8 +72,6 @@ import static org.mockito.Mockito.when;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
-import android.app.admin.DeviceAdminInfo;
-import android.app.admin.DevicePolicyManagerInternal;
 import android.app.test.MockAnswerUtil;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
@@ -252,7 +250,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock ITrafficStateCallback mTrafficStateCallback;
     @Mock INetworkRequestMatchCallback mNetworkRequestMatchCallback;
     @Mock WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
-    @Mock DevicePolicyManagerInternal mDevicePolicyManagerInternal;
     @Mock TelephonyManager mTelephonyManager;
     @Mock IOnWifiUsabilityStatsListener mOnWifiUsabilityStatsListener;
     @Mock WifiConfigManager mWifiConfigManager;
@@ -304,8 +301,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiAsyncChannel wifiAsyncChannel = new WifiAsyncChannel("WifiServiceImplTest");
         wifiAsyncChannel.setWifiLog(mLog);
         when(mFrameworkFacade.makeWifiAsyncChannel(anyString())).thenReturn(wifiAsyncChannel);
-        when(mWifiPermissionsWrapper.getDevicePolicyManagerInternal())
-                .thenReturn(mDevicePolicyManagerInternal);
         when(mWifiInjector.getFrameworkFacade()).thenReturn(mFrameworkFacade);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mLockManager);
         when(mWifiInjector.getWifiMulticastLockManager()).thenReturn(mWifiMulticastLockManager);
@@ -421,7 +416,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
-        when(mWifiConfigManager.removeNetwork(anyInt(), anyInt())).thenReturn(false);
+        when(mWifiConfigManager.removeNetwork(anyInt(), anyInt(), anyString())).thenReturn(false);
 
         mLooper.startAutoDispatch();
         boolean succeeded = mWifiServiceImpl.removeNetwork(0, TEST_PACKAGE_NAME);
@@ -568,8 +563,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(false);
-        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
-                Process.myUid(), DeviceAdminInfo.USES_POLICY_DEVICE_OWNER))
+        when(mWifiPermissionsUtil.isDeviceOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
                 .thenReturn(true);
 
         when(mSettingsStore.handleWifiToggled(eq(true))).thenReturn(true);
@@ -828,8 +822,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(false);
-        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
-                Process.myUid(), DeviceAdminInfo.USES_POLICY_PROFILE_OWNER))
+        when(mWifiPermissionsUtil.isProfileOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
                 .thenReturn(true);
 
         when(mSettingsStore.handleWifiToggled(eq(false))).thenReturn(true);
@@ -3287,7 +3280,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // Let the final post inside the |factoryReset| method run to completion.
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).removeNetwork(network.networkId, Binder.getCallingUid());
+        verify(mWifiConfigManager).removeNetwork(
+                network.networkId, Binder.getCallingUid(), TEST_PACKAGE_NAME);
         verify(mPasspointManager).removeProvider(fqdn);
         verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
@@ -3321,7 +3315,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAddOrUpdateNetworkIsNotAllowedForAppsTargetingQSdk() throws Exception {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3330,7 +3324,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics, never()).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3341,7 +3335,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAddOrUpdateNetworkIsAllowedForAppsTargetingBelowQSdk() throws Exception {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
@@ -3352,7 +3346,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3364,7 +3358,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
         mApplicationInfo.targetSdkVersion = Build.VERSION_CODES.P;
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3377,7 +3371,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 android.Manifest.permission.CHANGE_WIFI_STATE, "WifiService");
         verify(mAppOpsManager, never()).noteOp(
                 AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3389,7 +3383,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         mApplicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3398,7 +3392,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3412,7 +3406,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         when(mWifiPermissionsUtil.checkSystemAlertWindowPermission(
                 Process.myUid(), TEST_PACKAGE_NAME)).thenReturn(true);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3422,7 +3416,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiPermissionsUtil).checkSystemAlertWindowPermission(anyInt(), anyString());
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3433,10 +3427,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAddOrUpdateNetworkIsAllowedForDOApp() throws Exception {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
-                Process.myUid(), DeviceAdminInfo.USES_POLICY_DEVICE_OWNER))
+        when(mWifiPermissionsUtil.isDeviceOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
                 .thenReturn(true);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3445,7 +3438,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3456,10 +3449,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testAddOrUpdateNetworkIsAllowedForPOApp() throws Exception {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mDevicePolicyManagerInternal.isActiveAdminWithPolicy(
-                Process.myUid(), DeviceAdminInfo.USES_POLICY_PROFILE_OWNER))
+        when(mWifiPermissionsUtil.isProfileOwner(Binder.getCallingUid(), TEST_PACKAGE_NAME))
                 .thenReturn(true);
-        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt())).thenReturn(
+        when(mWifiConfigManager.addOrUpdateNetwork(any(),  anyInt(), any())).thenReturn(
                 new NetworkUpdateResult(0));
 
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
@@ -3468,7 +3460,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatch();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
-        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
         verify(mWifiMetrics).incrementNumAddOrUpdateNetworkCalls();
     }
 
@@ -3542,12 +3534,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
 
-        when(mWifiConfigManager.enableNetwork(anyInt(), anyBoolean(), anyInt())).thenReturn(true);
+        when(mWifiConfigManager.enableNetwork(anyInt(), anyBoolean(), anyInt(), anyString()))
+                .thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.enableNetwork(TEST_NETWORK_ID, false, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
         verify(mWifiConfigManager).enableNetwork(eq(TEST_NETWORK_ID), eq(false),
-                eq(Binder.getCallingUid()));
+                eq(Binder.getCallingUid()), eq(TEST_PACKAGE_NAME));
         verify(mWifiMetrics).incrementNumEnableNetworkCalls();
     }
 
@@ -3982,7 +3975,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testRemoveNetworkIsAllowedForAppsTargetingBelowQSdk() {
         doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOpsManager)
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
-        when(mWifiConfigManager.removeNetwork(eq(0), anyInt())).thenReturn(true);
+        when(mWifiConfigManager.removeNetwork(eq(0), anyInt(), anyString())).thenReturn(true);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
 
@@ -3991,7 +3984,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.stopAutoDispatch();
 
         assertTrue(result);
-        verify(mWifiConfigManager).removeNetwork(anyInt(), anyInt());
+        verify(mWifiConfigManager).removeNetwork(anyInt(), anyInt(), anyString());
     }
 
     /**
@@ -4051,7 +4044,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .noteOp(AppOpsManager.OPSTR_CHANGE_WIFI_STATE, Process.myUid(), TEST_PACKAGE_NAME);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
-        when(mWifiConfigManager.disableNetwork(anyInt(), anyInt())).thenReturn(false);
+        when(mWifiConfigManager.disableNetwork(anyInt(), anyInt(), anyString())).thenReturn(false);
 
         mLooper.startAutoDispatch();
         boolean succeeded = mWifiServiceImpl.disableNetwork(0, TEST_PACKAGE_NAME);
