@@ -41,6 +41,7 @@ import android.util.Log;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.IState;
+import com.android.internal.util.Preconditions;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.internal.util.WakeupMessage;
@@ -107,6 +108,8 @@ public class SoftApManager implements ActiveModeManager {
 
     private BaseWifiDiagnostics mWifiDiagnostics;
 
+    private @Role int mRole = ROLE_UNSPECIFIED;
+
     /**
      * Listener for soft AP events.
      */
@@ -163,6 +166,7 @@ public class SoftApManager implements ActiveModeManager {
     /**
      * Start soft AP, as configured in the constructor.
      */
+    @Override
     public void start() {
         mStateMachine.sendMessage(SoftApStateMachine.CMD_START);
     }
@@ -170,6 +174,7 @@ public class SoftApManager implements ActiveModeManager {
     /**
      * Stop soft AP.
      */
+    @Override
     public void stop() {
         Log.d(TAG, " currentstate: " + getCurrentStateName());
         if (mApInterfaceName != null) {
@@ -184,21 +189,28 @@ public class SoftApManager implements ActiveModeManager {
         mStateMachine.quitNow();
     }
 
-    public @ScanMode int getScanMode() {
-        return SCAN_NONE;
+    @Override
+    public @Role int getRole() {
+        return mRole;
     }
 
-    public int getIpMode() {
-        return mApConfig.getTargetMode();
+    @Override
+    public void setRole(@Role int role) {
+        // softap does not allow in-place switching of roles.
+        Preconditions.checkState(mRole == ROLE_UNSPECIFIED);
+        Preconditions.checkState(SOFTAP_ROLES.contains(role));
+        mRole = role;
     }
 
     /**
      * Dump info about this softap manager.
      */
+    @Override
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("--Dump of SoftApManager--");
 
         pw.println("current StateMachine mode: " + getCurrentStateName());
+        pw.println("mRole: " + mRole);
         pw.println("mApInterfaceName: " + mApInterfaceName);
         pw.println("mIfaceIsUp: " + mIfaceIsUp);
         pw.println("mSoftApCountryCode: " + mCountryCode);
@@ -643,6 +655,7 @@ public class SoftApManager implements ActiveModeManager {
                 mApInterfaceName = null;
                 mIfaceIsUp = false;
                 mIfaceIsDestroyed = false;
+                mRole = ROLE_UNSPECIFIED;
                 mStateMachine.quitNow();
                 mModeListener.onStopped();
             }
