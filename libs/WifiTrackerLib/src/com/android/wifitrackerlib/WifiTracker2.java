@@ -16,9 +16,13 @@
 
 package com.android.wifitrackerlib;
 
-import static com.android.wifitrackerlib.StandardWifiEntry.createStandardWifiEntryKey;
+import static androidx.core.util.Preconditions.checkNotNull;
+
+import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -27,6 +31,7 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -50,6 +55,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Keeps track of the state of Wi-Fi and supplies {@link WifiEntry} for use in Wi-Fi picker lists.
@@ -113,21 +120,42 @@ public class WifiTracker2 implements LifecycleObserver {
                 }
                 notifyOnWifiStateChanged();
             } else if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
-                final boolean lastScanSucceeded =
-                        intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, true);
-                if (lastScanSucceeded) updateScanResults();
-                updateWifiEntries(lastScanSucceeded);
-                notifyOnWifiEntriesChanged();
+                if (intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, true)) {
+                    // Scan succeeded, update scans aged to mMaxScanAgeMillis
+                    mScanResultUpdater.update(mWifiManager.getScanResults());
+                    updateStandardWifiEntryScans(mScanResultUpdater.getScanResults(
+                            mMaxScanAgeMillis));
+                } else {
+                    // Scan failed, keep results from previous scan to prevent WifiEntry list from
+                    // clearing prematurely.
+                    updateStandardWifiEntryScans(mScanResultUpdater.getScanResults(
+                            mMaxScanAgeMillis + mScanIntervalMillis));
+                }
+                updateWifiEntries();
+            } else if (WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION.equals(action)) {
+                final WifiConfiguration config =
+                        (WifiConfiguration) intent.getExtra(WifiManager.EXTRA_WIFI_CONFIGURATION);
+                if (config != null) {
+                    updateStandardWifiEntryConfig(
+                            config, (Integer) intent.getExtra(WifiManager.EXTRA_CHANGE_REASON));
+                } else {
+                    updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
+                }
+                updateWifiEntries();
             }
         }
     };
     private final ScanResultUpdater mScanResultUpdater;
     private final Scanner mScanner;
 
-    // Lock object for mWifiEntries
+    // Lock object for data returned by the public API
     private final Object mLock = new Object();
 
+    // List representing return value of the getWifiEntries() API
     @GuardedBy("mLock") private final List<WifiEntry> mWifiEntries = new ArrayList<>();
+
+    // Cache containing StandardWifiEntries for visible networks and saved networks
+    // Must be accessed only by the worker thread.
     private final Map<String, StandardWifiEntry> mStandardWifiEntryCache = new HashMap<>();
 
     /**
@@ -195,9 +223,10 @@ public class WifiTracker2 implements LifecycleObserver {
             }
             notifyOnWifiStateChanged();
 
-            updateScanResults();
-            updateWifiEntries(true);
-            notifyOnWifiEntriesChanged();
+            mScanResultUpdater.update(mWifiManager.getScanResults());
+            updateStandardWifiEntryScans(mScanResultUpdater.getScanResults(mMaxScanAgeMillis));
+            updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
+            updateWifiEntries();
         });
     }
 
@@ -266,62 +295,122 @@ public class WifiTracker2 implements LifecycleObserver {
         return new ArrayList<>();
     }
 
+    /**
+     * Update the list returned by getWifiEntries() with the current states of the entry caches.
+     */
     @WorkerThread
-    private void updateScanResults() {
-        mScanResultUpdater.update(mWifiManager.getScanResults());
-        if (isVerboseLoggingEnabled()) {
-            Log.v(TAG, "Updated scans: " + Arrays.toString(
-                    mScanResultUpdater.getScanResults(mMaxScanAgeMillis).toArray()));
-        }
-    }
-
-    @WorkerThread
-    private void updateWifiEntries(boolean lastScanSucceeded) {
-        updateStandardWifiEntryCache(lastScanSucceeded);
-        // TODO (b/70983952): Update Passpoint/Suggestion entries here.
-        // updatePasspointWifiEntries();
-        // updateCarrierWifiEntries();
-        // updateSuggestionWifiEntries();
+    private void updateWifiEntries() {
         synchronized (mLock) {
             mWifiEntries.clear();
-            mWifiEntries.addAll(mStandardWifiEntryCache.values());
-            // mWifiEntries.addAll(mPasspointWifiEntries);
-            // mWifiEntries.addAll(mCarrierWifiEntries);
-            // mWifiEntries.addAll(mSuggestionWifiEntries);
+            mWifiEntries.addAll(mStandardWifiEntryCache.values().stream().filter(
+                    entry -> entry.getLevel() != WIFI_LEVEL_UNREACHABLE).collect(toList()));
+            // mWifiEntries.addAll(mPasspointWifiEntryCache);
+            // mWifiEntries.addAll(mCarrierWifiEntryCache);
+            // mWifiEntries.addAll(mSuggestionWifiEntryCache);
             Collections.sort(mWifiEntries);
             if (isVerboseLoggingEnabled()) {
                 Log.v(TAG, "Updated WifiEntries: " + Arrays.toString(mWifiEntries.toArray()));
             }
         }
+        notifyOnWifiEntriesChanged();
     }
 
     /**
-     * Updates mStandardWifiEntryCache with fresh scans.
+     * Updates or removes a single WifiConfiguration for the corresponding StandardWifiEntry.
+     * A new entry will be created for configs without an existing entry.
+     * Unsaved and unreachable entries will be removed.
+     *
+     * @param config WifiConfiguration to update
+     * @param changeReason WifiManager.CHANGE_REASON_ADDED, WifiManager.CHANGE_REASON_REMOVED, or
+     *                     WifiManager.CHANGE_REASON_CONFIG_CHANGE
      */
     @WorkerThread
-    private void updateStandardWifiEntryCache(boolean lastScanSucceeded) {
-        // If the current scan failed, use results from the previous scan to prevent flicker.
-        final List<ScanResult> scanResults = mScanResultUpdater.getScanResults(
-                lastScanSucceeded ? mMaxScanAgeMillis : mMaxScanAgeMillis + mScanIntervalMillis);
-        final Map<String, StandardWifiEntry> updatedStandardWifiEntries = new HashMap<>();
+    private void updateStandardWifiEntryConfig(WifiConfiguration config, int changeReason) {
+        checkNotNull(config, "Config should not be null!");
 
-        // Group scans by StandardWifiEntry Key
+        final String key = wifiConfigToStandardWifiEntryKey(config);
+        final StandardWifiEntry entry = mStandardWifiEntryCache.get(key);
+
+        if (entry != null) {
+            if (changeReason == WifiManager.CHANGE_REASON_REMOVED) {
+                entry.updateConfig(null);
+                // Remove unsaved, unreachable entry from cache
+                if (entry.getLevel() == WIFI_LEVEL_UNREACHABLE) mStandardWifiEntryCache.remove(key);
+            } else { // CHANGE_REASON_ADDED || CHANGE_REASON_CONFIG_CHANGE
+                entry.updateConfig(config);
+            }
+        } else {
+            if (changeReason != WifiManager.CHANGE_REASON_REMOVED) {
+                mStandardWifiEntryCache.put(key, new StandardWifiEntry(mMainHandler, config));
+            }
+        }
+    }
+
+    /**
+     * Updates or removes all saved WifiConfigurations for the corresponding StandardWifiEntries.
+     * New entries will be created for configs without an existing entry.
+     * Unsaved and unreachable entries will be removed.
+     *
+     * @param configs List of saved WifiConfigurations
+     */
+    @WorkerThread
+    private void updateStandardWifiEntryConfigs(@NonNull List<WifiConfiguration> configs) {
+        checkNotNull(configs, "Config list should not be null!");
+
+        // Group configs by StandardWifiEntry key
+        final Map<String, WifiConfiguration> wifiConfigsByKey =
+                configs.stream().collect(Collectors.toMap(
+                        StandardWifiEntry::wifiConfigToStandardWifiEntryKey,
+                        Function.identity()));
+
+        // Iterate through current entries and update each entry's config
+        mStandardWifiEntryCache.entrySet().removeIf(e -> {
+            final String key = e.getKey();
+            final StandardWifiEntry entry = e.getValue();
+            // Update the config if available, or set to null.
+            entry.updateConfig(wifiConfigsByKey.remove(key));
+            // Entry is not saved and is unreachable, remove it.
+            return !entry.isSaved() && entry.getLevel() == WIFI_LEVEL_UNREACHABLE;
+        });
+
+        // Create new StandardWifiEntry objects for each leftover config
+        for (Map.Entry<String, WifiConfiguration> e: wifiConfigsByKey.entrySet()) {
+            mStandardWifiEntryCache.put(e.getKey(),
+                    new StandardWifiEntry(mMainHandler, e.getValue()));
+        }
+    }
+
+    /**
+     * Updates or removes scan results for the corresponding StandardWifiEntries.
+     * New entries will be created for scan results without an existing entry.
+     * Unsaved and unreachable entries will be removed.
+     *
+     * @param scanResults List of valid scan results to convey as StandardWifiEntries
+     */
+    @WorkerThread
+    private void updateStandardWifiEntryScans(@NonNull List<ScanResult> scanResults) {
+        checkNotNull(scanResults, "Scan Result list should not be null!");
+
+        // Group scans by StandardWifiEntry key
         final Map<String, List<ScanResult>> scanResultsByKey = scanResults.stream()
                 .filter(scanResult -> !TextUtils.isEmpty(scanResult.SSID))
-                .collect(groupingBy(StandardWifiEntry::createStandardWifiEntryKey));
+                .collect(groupingBy(StandardWifiEntry::scanResultToStandardWifiEntryKey));
 
-        // Create or get cached StandardWifiEntry by key
-        for (String key : scanResultsByKey.keySet()) {
-            StandardWifiEntry entry = mStandardWifiEntryCache.get(key);
-            if (entry == null) {
-                entry = new StandardWifiEntry(mMainHandler, scanResultsByKey.get(key));
-            } else {
-                entry.updateScanResultInfo(scanResultsByKey.get(key));
-            }
-            updatedStandardWifiEntries.put(key, entry);
+        // Iterate through current entries and update each entry's scan results
+        mStandardWifiEntryCache.entrySet().removeIf(e -> {
+            final String key = e.getKey();
+            final StandardWifiEntry entry = e.getValue();
+            // Update scan results if available, or set to null.
+            entry.updateScanResultInfo(scanResultsByKey.remove(key));
+            // Entry is not saved and is unreachable, remove it.
+            return !entry.isSaved() && entry.getLevel() == WIFI_LEVEL_UNREACHABLE;
+        });
+
+        // Create new StandardWifiEntry objects for each leftover group of scan results.
+        for (Map.Entry<String, List<ScanResult>> e: scanResultsByKey.entrySet()) {
+            mStandardWifiEntryCache.put(e.getKey(),
+                    new StandardWifiEntry(mMainHandler, e.getValue()));
         }
-        mStandardWifiEntryCache.clear();
-        mStandardWifiEntryCache.putAll(updatedStandardWifiEntries);
     }
 
     /**

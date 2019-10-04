@@ -16,7 +16,6 @@
 
 package com.android.wifitrackerlib;
 
-import static com.android.wifitrackerlib.StandardWifiEntry.createStandardWifiEntryKey;
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -32,6 +31,7 @@ import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -47,6 +47,7 @@ import org.mockito.MockitoAnnotations;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class WifiTracker2Test {
@@ -228,8 +229,8 @@ public class WifiTracker2Test {
         }
 
         assertThat(seenKeys).containsExactly(
-                createStandardWifiEntryKey(openNetwork),
-                createStandardWifiEntryKey(secureNetwork));
+                StandardWifiEntry.scanResultToStandardWifiEntryKey(openNetwork),
+                StandardWifiEntry.scanResultToStandardWifiEntryKey(secureNetwork));
     }
 
     /**
@@ -306,5 +307,68 @@ public class WifiTracker2Test {
 
         // Successful scan should time out old entries.
         assertThat(wifiTracker2.getWifiEntries()).isEmpty();
+    }
+
+    /**
+     * Tests that a CONFIGURED_NETWORKS_CHANGED broadcast updates the correct WifiEntry from
+     * unsaved to saved.
+     */
+    @Test
+    public void testGetWifiEntries_configuredNetworksChanged_unsavedToSaved() {
+        final WifiTracker2 wifiTracker2 = createTestWifiTracker2();
+        wifiTracker2.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+
+        when(mMockWifiManager.getScanResults()).thenReturn(Arrays.asList(
+                buildScanResult("ssid", "bssid", START_MILLIS)));
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+        final WifiEntry entry = wifiTracker2.getWifiEntries().get(0);
+
+        assertThat(entry.isSaved()).isFalse();
+
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION)
+                        .putExtra(WifiManager.EXTRA_WIFI_CONFIGURATION, config)
+                        .putExtra(WifiManager.EXTRA_CHANGE_REASON,
+                                WifiManager.CHANGE_REASON_ADDED));
+
+        assertThat(entry.isSaved()).isTrue();
+    }
+
+    /**
+     * Tests that a CONFIGURED_NETWORKS_CHANGED broadcast updates the correct WifiEntry from
+     * saved to unsaved.
+     */
+    @Test
+    public void testGetWifiEntries_configuredNetworksChanged_savedToUnsaved() {
+        final WifiTracker2 wifiTracker2 = createTestWifiTracker2();
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        when(mMockWifiManager.getConfiguredNetworks())
+                .thenReturn(Collections.singletonList(config));
+        wifiTracker2.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+        mTestLooper.dispatchAll();
+
+        when(mMockWifiManager.getScanResults()).thenReturn(Arrays.asList(
+                buildScanResult("ssid", "bssid", START_MILLIS)));
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+        final WifiEntry entry = wifiTracker2.getWifiEntries().get(0);
+
+        assertThat(entry.isSaved()).isTrue();
+
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION)
+                        .putExtra(WifiManager.EXTRA_WIFI_CONFIGURATION, config)
+                        .putExtra(WifiManager.EXTRA_CHANGE_REASON,
+                                WifiManager.CHANGE_REASON_REMOVED));
+
+        assertThat(entry.isSaved()).isFalse();
     }
 }
