@@ -2040,8 +2040,6 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
                 hideBssidSsidAndNetworkId = false;
-            } catch (RemoteException e) {
-                Log.e(TAG, "Error checking receiver permission", e);
             } catch (SecurityException ignored) {
             }
             if (hideDefaultMacAddress) {

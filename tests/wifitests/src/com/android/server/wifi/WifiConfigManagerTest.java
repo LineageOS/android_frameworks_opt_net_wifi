@@ -189,15 +189,15 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 return "";
             }
         }).when(mPackageManager).getNameForUid(anyInt());
-        doAnswer(new AnswerWithArguments() {
-            public int answer(String packageName, int flags, int userId) throws Exception {
-                if (packageName.equals(WifiConfigManager.SYSUI_PACKAGE_NAME)) {
-                    return TEST_SYSUI_UID;
-                } else {
-                    return 0;
-                }
-            }
-        }).when(mPackageManager).getPackageUidAsUser(anyString(), anyInt(), anyInt());
+
+        Context mockContext = mock(Context.class);
+        when(mContext.createPackageContextAsUser(
+                eq(WifiConfigManager.SYSUI_PACKAGE_NAME), anyInt(), any()))
+                .thenReturn(mockContext);
+        PackageManager mockPackageManager = mock(PackageManager.class);
+        when(mockContext.getPackageManager()).thenReturn(mockPackageManager);
+        when(mockPackageManager.getPackageUid(eq(WifiConfigManager.SYSUI_PACKAGE_NAME), anyInt()))
+                .thenReturn(TEST_SYSUI_UID);
 
         when(mWifiKeyStore
                 .updateNetworkKeys(any(WifiConfiguration.class), any()))
