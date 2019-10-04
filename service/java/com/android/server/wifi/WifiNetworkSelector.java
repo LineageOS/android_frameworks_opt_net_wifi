@@ -799,7 +799,7 @@ public class WifiNetworkSelector {
             String chooses = " would choose ";
             if (candidateScorer == activeScorer) {
                 chooses = " chooses ";
-                legacyOverrideWanted = candidateScorer.userConnectChoiceOverrideWanted();
+                legacyOverrideWanted = choice.userConnectChoiceOverride;
                 selectedNetworkId = networkId;
             }
             String id = candidateScorer.getIdentifier();

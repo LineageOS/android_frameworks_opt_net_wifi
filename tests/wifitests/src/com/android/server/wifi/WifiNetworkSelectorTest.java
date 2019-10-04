@@ -1480,7 +1480,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 @Override
                 public WifiCandidates.ScoredCandidate scoreCandidates(
                         Collection<WifiCandidates.Candidate> group) {
-                    return new WifiCandidates.ScoredCandidate(0, 0, null);
+                    return new WifiCandidates.ScoredCandidate(0, 0, false, null);
                 }
 
                 @Override

@@ -40,6 +40,7 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
     private static final double LAST_SELECTION_BOOST = 250.0;
     private static final double LOW_BAND_FACTOR = 0.25;
     private static final double TYPICAL_SCAN_RSSI_STD = 4.0;
+    private static final boolean USE_USER_CONNECT_CHOICE = true;
 
     private final ScoringParams mScoringParams;
 
@@ -90,7 +91,8 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
             score += SECURITY_AWARD;
         }
 
-        return new ScoredCandidate(score, TYPICAL_SCAN_RSSI_STD * gain, candidate);
+        return new ScoredCandidate(score, TYPICAL_SCAN_RSSI_STD * gain,
+                                   USE_USER_CONNECT_CHOICE, candidate);
     }
 
     /**
@@ -130,7 +132,7 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
 
     @Override
     public boolean userConnectChoiceOverrideWanted() {
-        return true;
+        return USE_USER_CONNECT_CHOICE;
     }
 
 }
