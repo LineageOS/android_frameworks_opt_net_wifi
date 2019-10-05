@@ -22,6 +22,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
 import android.os.Handler;
@@ -44,6 +45,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * This class provides the implementation for different WiFi operating modes.
@@ -397,13 +399,17 @@ public class ActiveModeWarden {
         }
 
         @Override
-        public void onNumClientsChanged(int numClients) {
+        public void onConnectedClientsChanged(List<WifiClient> clients) {
             switch (mMode) {
                 case WifiManager.IFACE_IP_MODE_TETHERED:
-                    if (mSoftApCallback != null) mSoftApCallback.onNumClientsChanged(numClients);
+                    if (mSoftApCallback != null) {
+                        mSoftApCallback.onConnectedClientsChanged(clients);
+                    }
                     break;
                 case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
-                    if (mLohsCallback != null) mLohsCallback.onNumClientsChanged(numClients);
+                    if (mLohsCallback != null) {
+                        mLohsCallback.onConnectedClientsChanged(clients);
+                    }
                     break;
             }
         }

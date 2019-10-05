@@ -63,6 +63,7 @@ import com.android.server.wifi.wificond.ISendMgmtFrameEvent;
 import com.android.server.wifi.wificond.IWifiScannerImpl;
 import com.android.server.wifi.wificond.IWificond;
 import com.android.server.wifi.wificond.NativeScanResult;
+import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoSettings;
 import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
@@ -922,9 +923,9 @@ public class WificondControlTest extends WifiBaseTest {
                 TEST_INTERFACE_NAME, mSoftApListener));
         verify(mApInterface).registerCallback(apInterfaceCallbackCaptor.capture());
 
-        int numStations = 5;
-        apInterfaceCallbackCaptor.getValue().onNumAssociatedStationsChanged(numStations);
-        verify(mSoftApListener).onNumAssociatedStationsChanged(eq(numStations));
+        final NativeWifiClient[] testClients = new NativeWifiClient[]{};
+        apInterfaceCallbackCaptor.getValue().onConnectedClientsChanged(testClients);
+        verify(mSoftApListener).onConnectedClientsChanged(Arrays.asList(testClients));
 
         int channelFrequency = 2437;
         int channelBandwidth = IApInterfaceEventCallback.BANDWIDTH_20;

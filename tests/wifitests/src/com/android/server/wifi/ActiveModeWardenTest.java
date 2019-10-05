@@ -22,7 +22,20 @@ import static com.android.server.wifi.ActiveModeManager.SCAN_WITH_HIDDEN_NETWORK
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -30,6 +43,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.location.LocationManager;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
@@ -54,6 +68,7 @@ import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -328,7 +343,8 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
     /**
      * Asserts that the runnable r has shut down wifi properly.
-     * @param r runnable that will shut down wifi
+     *
+     * @param r     runnable that will shut down wifi
      * @param times expected number of times that <code>r</code> shut down wifi
      */
     private void assertWifiShutDown(Runnable r, int times) {
@@ -363,7 +379,8 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
     /**
      * Asserts that the runnable r has entered ECM state properly.
-     * @param r runnable that will enter ECM
+     *
+     * @param r     runnable that will enter ECM
      * @param times expected number of times that <code>r</code> shut down wifi
      */
     private void assertEnteredEcmMode(Runnable r, int times) {
@@ -617,7 +634,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mSoftApStateMachineCallback, never()).onStateChanged(anyInt(), anyInt());
-        verify(mSoftApStateMachineCallback, never()).onNumClientsChanged(anyInt());
+        verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
     }
 
     /**
@@ -641,13 +658,13 @@ public class ActiveModeWardenTest extends WifiBaseTest {
      * Verifies that NumClientsChanged event is being passed from SoftApManager to WifiServiceImpl
      */
     @Test
-    public void callsWifiServiceCallbackOnSoftApNumClientsChanged() throws Exception {
-        final int testNumClients = 3;
+    public void callsWifiServiceCallbackOnSoftApConnectedClientsChanged() throws Exception {
+        final List<WifiClient> testClients = new ArrayList();
         enterSoftApActiveMode();
-        mSoftApManagerCallback.onNumClientsChanged(testNumClients);
+        mSoftApManagerCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
 
-        verify(mSoftApStateMachineCallback).onNumClientsChanged(testNumClients);
+        verify(mSoftApStateMachineCallback).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -655,16 +672,16 @@ public class ActiveModeWardenTest extends WifiBaseTest {
      * WifiServiceImpl is null.
      */
     @Test
-    public void testNullCallbackToWifiServiceImplForNumClientsChanged() throws Exception {
-        final int testNumClients = 3;
+    public void testNullCallbackToWifiServiceImplForConnectedClientsChanged() throws Exception {
+        final List<WifiClient> testClients = new ArrayList();
 
         //set the callback to null
         mActiveModeWarden.registerSoftApCallback(null);
 
         enterSoftApActiveMode();
-        mSoftApManagerCallback.onNumClientsChanged(testNumClients);
+        mSoftApManagerCallback.onConnectedClientsChanged(testClients);
 
-        verify(mSoftApStateMachineCallback, never()).onNumClientsChanged(anyInt());
+        verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
     }
 
     /**
