@@ -1335,7 +1335,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // the app should be in the foreground
-        if (!mFrameworkFacade.isAppForeground(uid)) {
+        if (!mFrameworkFacade.isAppForeground(mContext, uid)) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 
@@ -2040,8 +2040,6 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
                 mWifiPermissionsUtil.enforceCanAccessScanResults(callingPackage, uid);
                 hideBssidSsidAndNetworkId = false;
-            } catch (RemoteException e) {
-                Log.e(TAG, "Error checking receiver permission", e);
             } catch (SecurityException ignored) {
             }
             if (hideDefaultMacAddress) {

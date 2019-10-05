@@ -29,7 +29,9 @@
          running in the system server process does not need any permission, and having privileged
          permissions added would cause crashes on startup unless they are also added to the
          privileged permissions whitelist for that package. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
@@ -66,14 +68,10 @@
     <!-- Signature permission defined for wifi module-->
     <uses-permission android:name="android.permission.MAINLINE_WIFI_STACK" />
 
-    <!-- TODO(b/135691051): Need to move to network stack process.
-         "android:process="com.google.android.networkstack"
-         This is not possible currently because hidden API access is denied when run on network
-         stack process.
-         <receiver> also needs to run on the networkstack process. -->
     <application
         android:persistent="true"
         android:directBootAware="true"
+        android:process="com.android.networkstack.process"
         android:label="@string/wifiAppLabel">
         <service
             android:name="com.android.server.wifi.WifiStackService"

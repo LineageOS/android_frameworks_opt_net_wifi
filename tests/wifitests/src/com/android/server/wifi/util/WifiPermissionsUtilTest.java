@@ -39,7 +39,6 @@ import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.net.NetworkStack;
 import android.os.Build;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 
@@ -156,20 +155,6 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                 mMockContext, mMockUserManager, mWifiInjector);
         when(mMockPermissionsWrapper.getOverrideWifiConfigPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
-        assertFalse(codeUnderTest.checkConfigOverridePermission(mUid));
-    }
-
-    /**
-     * Verify we return false when the override config permission check throws a RemoteException.
-     */
-    @Test
-    public void testCheckConfigOverridePermissionWithException() throws Exception {
-        mUid = OTHER_USER_UID;  // do not really care about this value
-        setupTestCase();
-        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
-                mMockContext, mMockUserManager, mWifiInjector);
-        doThrow(new RemoteException("Failed to check permissions for " + mUid))
-                .when(mMockPermissionsWrapper).getOverrideWifiConfigPermission(mUid);
         assertFalse(codeUnderTest.checkConfigOverridePermission(mUid));
     }
 
@@ -378,8 +363,6 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         mIsLocationEnabled = false;
 
         setupTestCase();
-        when(mMockPermissionsWrapper.getChangeWifiConfigPermission(mUid))
-                .thenReturn(PackageManager.PERMISSION_DENIED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
@@ -412,8 +395,6 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         mIsLocationEnabled = false;
 
         setupTestCase();
-        when(mMockPermissionsWrapper.getChangeWifiConfigPermission(mUid))
-                .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
@@ -447,8 +428,6 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         mIsLocationEnabled = false;
 
         setupTestCase();
-        when(mMockPermissionsWrapper.getAccessWifiStatePermission(mUid))
-                .thenReturn(PackageManager.PERMISSION_GRANTED);
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
@@ -727,7 +706,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
 
         // verify that checking FINE for legacy apps!
-        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
+        verify(mMockAppOps).noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(),
+                any());
     }
 
     /**
@@ -748,7 +728,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
-        verify(mMockAppOps).noteOp(eq(AppOpsManager.OP_FINE_LOCATION), anyInt(), anyString());
+        verify(mMockAppOps)
+                .noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(), any());
     }
 
     /**
@@ -830,8 +811,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
 
-        when(mMockAppOps.noteOp(
-                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID, TEST_PACKAGE_NAME))
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID,
+                TEST_PACKAGE_NAME, null))
                 .thenReturn(AppOpsManager.MODE_DEFAULT);
         when(mMockPermissionsWrapper.getUidPermission(
                 Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
@@ -839,8 +820,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         assertFalse(wifiPermissionsUtil.checkSystemAlertWindowPermission(
                 MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
 
-        when(mMockAppOps.noteOp(
-                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID, TEST_PACKAGE_NAME))
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID,
+                TEST_PACKAGE_NAME, null))
                 .thenReturn(AppOpsManager.MODE_DEFAULT);
         when(mMockPermissionsWrapper.getUidPermission(
                 Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
@@ -900,9 +881,10 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
                 CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
 
-        verify(mMockAppOps, never()).checkOp(
-                AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
-        verify(mMockAppOps).noteOp(AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
+        verify(mMockAppOps, never())
+                .unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
+        verify(mMockAppOps)
+                .noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null);
     }
 
     /**
@@ -929,9 +911,10 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
                 IGNORE_LOCATION_SETTINGS, HIDE_FROM_APP_OPS);
 
-        verify(mMockAppOps).checkOp(AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
+        verify(mMockAppOps).unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid,
+                TEST_PACKAGE_NAME);
         verify(mMockAppOps, never()).noteOp(
-                AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
+                AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null);
     }
 
 
@@ -1152,13 +1135,13 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         when(mMockPkgMgr.getApplicationInfoAsUser(eq(TEST_PACKAGE_NAME), eq(0), anyInt()))
             .thenReturn(mMockApplInfo);
         when(mMockContext.getPackageManager()).thenReturn(mMockPkgMgr);
-        when(mMockAppOps.noteOp(AppOpsManager.OP_WIFI_SCAN, mUid, TEST_PACKAGE_NAME))
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_WIFI_SCAN, mUid, TEST_PACKAGE_NAME, null))
             .thenReturn(mWifiScanAllowApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OP_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME))
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME, null))
             .thenReturn(mAllowCoarseLocationApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null))
                 .thenReturn(mAllowFineLocationApps);
-        when(mMockAppOps.checkOp(AppOpsManager.OP_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
+        when(mMockAppOps.unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
                 .thenReturn(mAllowFineLocationApps);
         if (mThrowSecurityException) {
             doThrow(new SecurityException("Package " + TEST_PACKAGE_NAME + " doesn't belong"
@@ -1208,6 +1191,5 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         when(mMockPermissionsWrapper.getUidPermission(mManifestStringHardware, mUid))
                 .thenReturn(mHardwareLocationPermission);
         when(mLocationManager.isLocationEnabledForUser(any())).thenReturn(mIsLocationEnabled);
-        when(mMockPermissionsWrapper.getTopPkgName()).thenReturn(mPkgNameOfTopActivity);
     }
 }

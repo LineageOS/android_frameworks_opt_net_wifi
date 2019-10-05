@@ -381,8 +381,6 @@ public class WifiConfigManager {
     private boolean mPnoFrequencyCullingEnabled = false;
     private boolean mPnoRecencySortingEnabled = false;
 
-
-
     /**
      * Create new instance of WifiConfigManager.
      */
@@ -452,12 +450,15 @@ public class WifiConfigManager {
         mConnectedMacRandomzationSupported = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mDeviceConfigFacade = deviceConfigFacade;
-        mAggressiveMacRandomizationWhitelist = new ArraySet<String>();
-        mAggressiveMacRandomizationBlacklist = new ArraySet<String>();
+        mAggressiveMacRandomizationWhitelist = new ArraySet<>();
+        mAggressiveMacRandomizationBlacklist = new ArraySet<>();
 
         try {
-            mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
-                    PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
+            // TODO(b/141890172): do not hardcode SYSUI_PACKAGE_NAME
+            mSystemUiUid = mContext
+                    .createPackageContextAsUser(SYSUI_PACKAGE_NAME, 0, UserHandle.SYSTEM)
+                    .getPackageManager()
+                    .getPackageUid(SYSUI_PACKAGE_NAME, PackageManager.MATCH_SYSTEM_ONLY);
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Unable to resolve SystemUI's UID.");
         }
@@ -1377,7 +1378,7 @@ public class WifiConfigManager {
                 // In this case, new connection for this config won't happen because same
                 // network is already registered as an ephemeral network.
                 // Clear the Ephemeral Network to address the situation.
-                removeNetwork(existingConfig.networkId, mSystemUiUid);
+                removeNetwork(existingConfig.networkId, existingConfig.creatorUid);
             }
         }
 
@@ -1526,7 +1527,7 @@ public class WifiConfigManager {
             localLog("Removing network " + config.SSID
                     + ", application \"" + app.packageName + "\" uninstalled"
                     + " from user " + UserHandle.getUserId(app.uid));
-            if (removeNetwork(config.networkId, mSystemUiUid)) {
+            if (removeNetwork(config.networkId, config.creatorUid)) {
                 removedNetworks.add(config.networkId);
             }
         }
@@ -1550,7 +1551,7 @@ public class WifiConfigManager {
                 continue;
             }
             localLog("Removing network " + config.SSID + ", user " + userId + " removed");
-            if (removeNetwork(config.networkId, mSystemUiUid)) {
+            if (removeNetwork(config.networkId, config.creatorUid)) {
                 removedNetworks.add(config.networkId);
             }
         }
@@ -1573,11 +1574,11 @@ public class WifiConfigManager {
         for (WifiConfiguration config : copiedConfigs) {
             if (config.isPasspoint()) {
                 Log.d(TAG, "Removing passpoint network config " + config.configKey());
-                removeNetwork(config.networkId, mSystemUiUid);
+                removeNetwork(config.networkId, config.creatorUid);
                 didRemove = true;
             } else if (config.ephemeral) {
                 Log.d(TAG, "Removing ephemeral network config " + config.configKey());
-                removeNetwork(config.networkId, mSystemUiUid);
+                removeNetwork(config.networkId, config.creatorUid);
                 didRemove = true;
             }
         }
@@ -1594,7 +1595,7 @@ public class WifiConfigManager {
         WifiConfiguration config = getInternalConfiguredNetwork(configKey);
         if (config != null && config.ephemeral && config.fromWifiNetworkSuggestion) {
             Log.d(TAG, "Removing suggestion network config " + config.configKey());
-            return removeNetwork(config.networkId, mSystemUiUid);
+            return removeNetwork(config.networkId, config.creatorUid);
         }
         return false;
     }
@@ -1609,7 +1610,7 @@ public class WifiConfigManager {
         WifiConfiguration config = getInternalConfiguredNetwork(configKey);
         if (config != null && config.isPasspoint()) {
             Log.d(TAG, "Removing passpoint network config " + config.configKey());
-            return removeNetwork(config.networkId, mSystemUiUid);
+            return removeNetwork(config.networkId, config.creatorUid);
         }
         return false;
     }

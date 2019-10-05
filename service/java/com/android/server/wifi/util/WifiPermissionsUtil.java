@@ -23,10 +23,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.net.NetworkStack;
-import android.net.wifi.WifiStackClient;
 import android.os.Binder;
 import android.os.Build;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Slog;
@@ -68,45 +66,8 @@ public class WifiPermissionsUtil {
      * @return true if the app does have the permission, false otherwise.
      */
     public boolean checkConfigOverridePermission(int uid) {
-        try {
-            int permission = mWifiPermissionsWrapper.getOverrideWifiConfigPermission(uid);
-            return (permission == PackageManager.PERMISSION_GRANTED);
-        } catch (RemoteException e) {
-            mLog.err("Error checking for permission: %").r(e.getMessage()).flush();
-            return false;
-        }
-    }
-
-    /**
-     * Checks if the app has the permission to change Wi-Fi network configuration or not.
-     *
-     * @param uid uid of the app.
-     * @return true if the app does have the permission, false otherwise.
-     */
-    public boolean checkChangePermission(int uid) {
-        try {
-            int permission = mWifiPermissionsWrapper.getChangeWifiConfigPermission(uid);
-            return (permission == PackageManager.PERMISSION_GRANTED);
-        } catch (RemoteException e) {
-            mLog.err("Error checking for permission: %").r(e.getMessage()).flush();
-            return false;
-        }
-    }
-
-    /**
-     * Checks if the app has the permission to access Wi-Fi state or not.
-     *
-     * @param uid uid of the app.
-     * @return true if the app does have the permission, false otherwise.
-     */
-    public boolean checkWifiAccessPermission(int uid) {
-        try {
-            int permission = mWifiPermissionsWrapper.getAccessWifiStatePermission(uid);
-            return (permission == PackageManager.PERMISSION_GRANTED);
-        } catch (RemoteException e) {
-            mLog.err("Error checking for permission: %").r(e.getMessage()).flush();
-            return false;
-        }
+        int permission = mWifiPermissionsWrapper.getOverrideWifiConfigPermission(uid);
+        return permission == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
@@ -169,11 +130,15 @@ public class WifiPermissionsUtil {
 
         // Always checking FINE - even if will not enforce. This will record the request for FINE
         // so that a location request by the app is surfaced to the user.
-        boolean isAppOpAllowed = noteAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid);
-        if (!isAppOpAllowed && coarseForTargetSdkLessThanQ && isTargetSdkLessThanQ) {
-            isAppOpAllowed = noteAppOpAllowed(AppOpsManager.OP_COARSE_LOCATION, pkgName, uid);
+        boolean isFineLocationAllowed = noteAppOpAllowed(
+                AppOpsManager.OPSTR_FINE_LOCATION, pkgName, uid);
+        if (isFineLocationAllowed) {
+            return true;
         }
-        return isAppOpAllowed;
+        if (coarseForTargetSdkLessThanQ && isTargetSdkLessThanQ) {
+            return noteAppOpAllowed(AppOpsManager.OPSTR_COARSE_LOCATION, pkgName, uid);
+        }
+        return false;
     }
 
     /**
@@ -188,7 +153,6 @@ public class WifiPermissionsUtil {
         }
     }
 
-
     /**
      * Checks that calling process has android.Manifest.permission.ACCESS_FINE_LOCATION
      * and a corresponding app op is allowed for this package and uid.
@@ -196,7 +160,7 @@ public class WifiPermissionsUtil {
      * @param pkgName PackageName of the application requesting access
      * @param uid The uid of the package
      * @param hideFromAppOps True to invoke {@link AppOpsManager#checkOp(int, int, String)}, false
-     *                       to invoke {@link AppOpsManager#noteOp(int, int, String)}.
+     *                       to invoke {@link AppOpsManager#noteOp(String, int, String, String)}.
      */
     private boolean checkCallersFineLocationPermission(String pkgName, int uid,
                                                        boolean hideFromAppOps) {
@@ -208,15 +172,10 @@ public class WifiPermissionsUtil {
         }
         if (hideFromAppOps) {
             // Don't note the operation, just check if the app is allowed to perform the operation.
-            if (!checkAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid)) {
-                return false;
-            }
+            return checkAppOpAllowed(AppOpsManager.OPSTR_FINE_LOCATION, pkgName, uid);
         } else {
-            if (!noteAppOpAllowed(AppOpsManager.OP_FINE_LOCATION, pkgName, uid)) {
-                return false;
-            }
+            return noteAppOpAllowed(AppOpsManager.OPSTR_FINE_LOCATION, pkgName, uid);
         }
-        return true;
     }
 
     /**
@@ -382,7 +341,7 @@ public class WifiPermissionsUtil {
      * and package.
      */
     private boolean isScanAllowedbyApps(String pkgName, int uid) {
-        return noteAppOpAllowed(AppOpsManager.OP_WIFI_SCAN, pkgName, uid);
+        return noteAppOpAllowed(AppOpsManager.OPSTR_WIFI_SCAN, pkgName, uid);
     }
 
     /**
@@ -414,12 +373,12 @@ public class WifiPermissionsUtil {
         return false;
     }
 
-    private boolean noteAppOpAllowed(int op, String pkgName, int uid) {
-        return mAppOps.noteOp(op, uid, pkgName) == AppOpsManager.MODE_ALLOWED;
+    private boolean noteAppOpAllowed(String op, String pkgName, int uid) {
+        return mAppOps.noteOp(op, uid, pkgName, null) == AppOpsManager.MODE_ALLOWED;
     }
 
-    private boolean checkAppOpAllowed(int op, String pkgName, int uid) {
-        return mAppOps.checkOp(op, uid, pkgName) == AppOpsManager.MODE_ALLOWED;
+    private boolean checkAppOpAllowed(String op, String pkgName, int uid) {
+        return mAppOps.unsafeCheckOp(op, uid, pkgName) == AppOpsManager.MODE_ALLOWED;
     }
 
     private boolean retrieveLocationManagerIfNecessary() {
@@ -509,8 +468,8 @@ public class WifiPermissionsUtil {
      * Returns true if the |callingUid|/\callingPackage| holds SYSTEM_ALERT_WINDOW permission.
      */
     public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
-        final int mode = mAppOps.noteOp(
-                AppOpsManager.OP_SYSTEM_ALERT_WINDOW, callingUid, callingPackage);
+        final int mode = mAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, callingUid,
+                callingPackage, null);
         if (mode == AppOpsManager.MODE_DEFAULT) {
             return mWifiPermissionsWrapper.getUidPermission(
                     Manifest.permission.SYSTEM_ALERT_WINDOW, callingUid)
