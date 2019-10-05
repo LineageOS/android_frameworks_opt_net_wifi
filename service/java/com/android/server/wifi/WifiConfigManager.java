@@ -1378,7 +1378,7 @@ public class WifiConfigManager {
                 // In this case, new connection for this config won't happen because same
                 // network is already registered as an ephemeral network.
                 // Clear the Ephemeral Network to address the situation.
-                removeNetwork(existingConfig.networkId, mSystemUiUid);
+                removeNetwork(existingConfig.networkId, existingConfig.creatorUid);
             }
         }
 
@@ -1527,7 +1527,7 @@ public class WifiConfigManager {
             localLog("Removing network " + config.SSID
                     + ", application \"" + app.packageName + "\" uninstalled"
                     + " from user " + UserHandle.getUserId(app.uid));
-            if (removeNetwork(config.networkId, mSystemUiUid)) {
+            if (removeNetwork(config.networkId, config.creatorUid)) {
                 removedNetworks.add(config.networkId);
             }
         }
@@ -1551,7 +1551,7 @@ public class WifiConfigManager {
                 continue;
             }
             localLog("Removing network " + config.SSID + ", user " + userId + " removed");
-            if (removeNetwork(config.networkId, mSystemUiUid)) {
+            if (removeNetwork(config.networkId, config.creatorUid)) {
                 removedNetworks.add(config.networkId);
             }
         }
@@ -1574,11 +1574,11 @@ public class WifiConfigManager {
         for (WifiConfiguration config : copiedConfigs) {
             if (config.isPasspoint()) {
                 Log.d(TAG, "Removing passpoint network config " + config.configKey());
-                removeNetwork(config.networkId, mSystemUiUid);
+                removeNetwork(config.networkId, config.creatorUid);
                 didRemove = true;
             } else if (config.ephemeral) {
                 Log.d(TAG, "Removing ephemeral network config " + config.configKey());
-                removeNetwork(config.networkId, mSystemUiUid);
+                removeNetwork(config.networkId, config.creatorUid);
                 didRemove = true;
             }
         }
@@ -1595,7 +1595,7 @@ public class WifiConfigManager {
         WifiConfiguration config = getInternalConfiguredNetwork(configKey);
         if (config != null && config.ephemeral && config.fromWifiNetworkSuggestion) {
             Log.d(TAG, "Removing suggestion network config " + config.configKey());
-            return removeNetwork(config.networkId, mSystemUiUid);
+            return removeNetwork(config.networkId, config.creatorUid);
         }
         return false;
     }
@@ -1610,7 +1610,7 @@ public class WifiConfigManager {
         WifiConfiguration config = getInternalConfiguredNetwork(configKey);
         if (config != null && config.isPasspoint()) {
             Log.d(TAG, "Removing passpoint network config " + config.configKey());
-            return removeNetwork(config.networkId, mSystemUiUid);
+            return removeNetwork(config.networkId, config.creatorUid);
         }
         return false;
     }
