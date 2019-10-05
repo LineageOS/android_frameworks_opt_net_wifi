@@ -3656,6 +3656,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mConfigUpdateListenerCaptor.getValue().onNetworkRemoved(removedNetwork);
         mLooper.dispatchAll();
 
+        verify(mWifiNative).removeNetworkCachedData(FRAMEWORK_NETWORK_ID);
         assertEquals("DisconnectingState", getCurrentState().getName());
     }
 
@@ -3669,9 +3670,44 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         WifiConfiguration disabledNetwork = new WifiConfiguration();
         disabledNetwork.networkId = FRAMEWORK_NETWORK_ID;
-        mConfigUpdateListenerCaptor.getValue().onNetworkRemoved(disabledNetwork);
+        mConfigUpdateListenerCaptor.getValue().onNetworkPermanentlyDisabled(disabledNetwork,
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_BY_WRONG_PASSWORD);
         mLooper.dispatchAll();
 
         assertEquals("DisconnectingState", getCurrentState().getName());
+    }
+
+    /**
+     * Verifies that we don't trigger a disconnect when the {@link WifiConfigManager
+     * .OnNetworkUpdateListener#onNetworkPermanentlyDisabled(WifiConfiguration, int)} is invoked.
+     */
+    @Test
+    public void testOnNetworkPermanentlyDisabledWithNoInternet() throws Exception {
+        connect();
+
+        WifiConfiguration disabledNetwork = new WifiConfiguration();
+        disabledNetwork.networkId = FRAMEWORK_NETWORK_ID;
+        mConfigUpdateListenerCaptor.getValue().onNetworkPermanentlyDisabled(disabledNetwork,
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_PERMANENT);
+        mLooper.dispatchAll();
+
+        assertEquals("ConnectedState", getCurrentState().getName());
+    }
+
+    /**
+     * Verifies that we don't trigger a disconnect when the {@link WifiConfigManager
+     * .OnNetworkUpdateListener#onNetworkTemporarilyDisabled(WifiConfiguration, int)} is invoked.
+     */
+    @Test
+    public void testOnNetworkTemporarilyDisabledWithNoInternet() throws Exception {
+        connect();
+
+        WifiConfiguration disabledNetwork = new WifiConfiguration();
+        disabledNetwork.networkId = FRAMEWORK_NETWORK_ID;
+        mConfigUpdateListenerCaptor.getValue().onNetworkTemporarilyDisabled(disabledNetwork,
+                WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY);
+        mLooper.dispatchAll();
+
+        assertEquals("ConnectedState", getCurrentState().getName());
     }
 }

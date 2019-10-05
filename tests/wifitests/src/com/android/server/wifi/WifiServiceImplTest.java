@@ -1417,7 +1417,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private void registerLOHSRequestFull() {
         // allow test to proceed without a permission check failure
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
-        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
+        when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
@@ -1475,7 +1475,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testStartLocalOnlyHotspotFailsIfRequestorNotForegroundApp() throws Exception {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
-        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(false);
+        when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(false);
         int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
     }
@@ -1512,7 +1512,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
 
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
-        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
+        when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
         mLooper.dispatchAll();
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(ERROR_INCOMPATIBLE_MODE, returnCode);
@@ -1524,7 +1524,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testHotspotDoesNotStartWhenTetheringDisallowed() throws Exception {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
-        when(mFrameworkFacade.isAppForeground(anyInt())).thenReturn(true);
+        when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(true);
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);

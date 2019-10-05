@@ -404,7 +404,7 @@ public class WifiLockManager {
             mLowLatencyUidWatchList.put(uid, uidRec);
 
             // Now check if the uid is running in foreground
-            if (mFrameworkFacade.isAppForeground(uid)) {
+            if (mFrameworkFacade.isAppForeground(mContext, uid)) {
                 uidRec.mIsFg = true;
             }
 

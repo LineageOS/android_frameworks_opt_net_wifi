@@ -16,7 +16,9 @@
 
 package com.android.server.wifi;
 
-import android.app.ActivityManagerInternal;
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
+
+import android.app.ActivityManager;
 import android.app.AppGlobals;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -32,7 +34,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
-import android.os.storage.StorageManager;
 import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
 
@@ -45,8 +46,6 @@ import com.android.server.wifi.util.WifiAsyncChannel;
  */
 public class FrameworkFacade {
     public static final String TAG = "FrameworkFacade";
-
-    private ActivityManagerInternal mActivityManagerInternal;
 
     public boolean setIntegerSetting(Context context, String name, int def) {
         return Settings.Global.putInt(context.getContentResolver(), name, def);
@@ -190,11 +189,11 @@ public class FrameworkFacade {
      * @param uid the uid to check
      * @return true if the app is in the foreground, false otherwise
      */
-    public boolean isAppForeground(int uid) {
-        if (mActivityManagerInternal == null) {
-            mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
-        }
-        return mActivityManagerInternal.isAppForeground(uid);
+    public boolean isAppForeground(Context context, int uid) {
+        ActivityManager activityManager =
+                (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (activityManager == null) return false;
+        return activityManager.getUidImportance(uid) <= IMPORTANCE_VISIBLE;
     }
 
     /**

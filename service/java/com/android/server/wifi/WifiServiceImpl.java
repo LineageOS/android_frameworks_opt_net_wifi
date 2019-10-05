@@ -1335,7 +1335,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // the app should be in the foreground
-        if (!mFrameworkFacade.isAppForeground(uid)) {
+        if (!mFrameworkFacade.isAppForeground(mContext, uid)) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 

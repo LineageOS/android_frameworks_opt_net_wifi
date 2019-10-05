@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_PERMANENT;
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLED_NO_INTERNET_TEMPORARY;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
@@ -1062,6 +1064,7 @@ public class ClientModeImpl extends StateMachine {
                 // Disconnect and let autojoin reselect a new network
                 sendMessage(CMD_DISCONNECT);
             }
+            mWifiNative.removeNetworkCachedData(config.networkId);
         }
 
 
@@ -1074,10 +1077,22 @@ public class ClientModeImpl extends StateMachine {
         }
 
         @Override
-        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) { }
+        public void onNetworkTemporarilyDisabled(WifiConfiguration config, int disableReason) {
+            if (disableReason == DISABLED_NO_INTERNET_TEMPORARY) return;
+            if (config.networkId == mTargetNetworkId || config.networkId == mLastNetworkId) {
+                // Disconnect and let autojoin reselect a new network
+                sendMessage(CMD_DISCONNECT);
+            }
+
+        }
 
         @Override
         public void onNetworkPermanentlyDisabled(WifiConfiguration config, int disableReason) {
+            // For DISABLED_NO_INTERNET_PERMANENT we do not need to remove the network
+            // because supplicant won't be trying to reconnect. If this is due to a
+            // preventAutomaticReconnect request from ConnectivityService, that service
+            // will disconnect as appropriate.
+            if (disableReason == DISABLED_NO_INTERNET_PERMANENT) return;
             if (config.networkId == mTargetNetworkId || config.networkId == mLastNetworkId) {
                 // Disconnect and let autojoin reselect a new network
                 sendMessage(CMD_DISCONNECT);
@@ -5042,8 +5057,7 @@ public class ClientModeImpl extends StateMachine {
                                 mWifiConfigManager.setNetworkValidatedInternetAccess(
                                         config.networkId, false);
                                 mWifiConfigManager.updateNetworkSelectionStatus(config.networkId,
-                                        WifiConfiguration.NetworkSelectionStatus
-                                        .DISABLED_NO_INTERNET_PERMANENT);
+                                        DISABLED_NO_INTERNET_PERMANENT);
                             } else {
                                 // stop collect last-mile stats since validation fail
                                 removeMessages(CMD_DIAGS_CONNECT_TIMEOUT);
@@ -5059,8 +5073,7 @@ public class ClientModeImpl extends StateMachine {
                                             + "no-internet access");
                                     mWifiConfigManager.updateNetworkSelectionStatus(
                                             config.networkId,
-                                            WifiConfiguration.NetworkSelectionStatus
-                                                    .DISABLED_NO_INTERNET_TEMPORARY);
+                                            DISABLED_NO_INTERNET_TEMPORARY);
                                 }
                             }
                         }
