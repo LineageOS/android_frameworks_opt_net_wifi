@@ -1274,6 +1274,7 @@ public class ClientModeImpl extends StateMachine {
         } else { // LinkLayerStats are broken or unsupported
                 long mTxPkts = mFacade.getTxPackets(mInterfaceName);
                 long mRxPkts = mFacade.getRxPackets(mInterfaceName);
+                mWifiInfo.updatePacketRates(mTxPkts, mRxPkts, mLastLinkLayerStatsUpdate);
         }
         return stats;
     }
