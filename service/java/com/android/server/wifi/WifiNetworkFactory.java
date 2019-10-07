@@ -422,7 +422,12 @@ public class WifiNetworkFactory extends NetworkFactory {
                     new NetworkFactoryUserSelectionCallback(mActiveSpecificNetworkRequest));
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to invoke user selection registration callback " + callback, e);
+            return;
         }
+
+        // If we are already in the midst of processing a request, send matching callbacks
+        // immediately on registering the callback.
+        sendNetworkRequestMatchCallbacksForActiveRequest(mActiveMatchedScanResults);
     }
 
     /**
@@ -975,6 +980,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mConnectedSpecificNetworkRequestSpecifier = mActiveSpecificNetworkRequestSpecifier;
         mActiveSpecificNetworkRequest = null;
         mActiveSpecificNetworkRequestSpecifier = null;
+        mActiveMatchedScanResults = null;
         mPendingConnectionSuccess = false;
         // Cancel connection timeout alarm.
         cancelConnectionTimeout();
@@ -1120,7 +1126,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     }
 
     private void sendNetworkRequestMatchCallbacksForActiveRequest(
-            List<ScanResult> matchedScanResults) {
+            @Nullable List<ScanResult> matchedScanResults) {
+        if (matchedScanResults == null || matchedScanResults.isEmpty()) return;
         if (mRegisteredCallbacks.getNumCallbacks() == 0) {
             Log.e(TAG, "No callback registered for sending network request matches. "
                     + "Ignoring...");
