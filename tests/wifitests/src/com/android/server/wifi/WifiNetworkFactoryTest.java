@@ -954,13 +954,8 @@ public class WifiNetworkFactoryTest {
 
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
-                ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
-
-        assertNotNull(matchedScanResultsCaptor.getValue());
         // We expect no network match in this case.
-        assertEquals(0, matchedScanResultsCaptor.getValue().size());
+        verify(mNetworkRequestMatchCallback, never()).onMatch(any());
 
         // Don't increment metrics until we have a match
         verify(mWifiMetrics, never()).incrementNetworkRequestApiMatchSizeHistogram(anyInt());
@@ -999,13 +994,8 @@ public class WifiNetworkFactoryTest {
 
         verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
 
-        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
-                ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
-
-        assertNotNull(matchedScanResultsCaptor.getValue());
         // We expect no network match in this case.
-        assertEquals(0, matchedScanResultsCaptor.getValue().size());
+        verify(mNetworkRequestMatchCallback, never()).onMatch(any());
     }
 
     /**
@@ -2550,6 +2540,53 @@ public class WifiNetworkFactoryTest {
         verify(mClientModeImpl).sendMessage(any());
 
         verify(mWifiMetrics).incrementNetworkRequestApiNumUserApprovalBypass();
+    }
+
+    /**
+     * Verify network specifier matching for a specifier containing a specific SSID match using
+     * 4 WPA_PSK scan results, each with unique SSID when the UI callback registration is delayed.
+     */
+    @Test
+    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatchCallbackRegistrationDelayed()
+            throws Exception {
+        // Setup scan data for open networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Setup network specifier for open networks.
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+        WifiConfiguration wifiConfiguration = new WifiConfiguration();
+        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
+                TEST_PACKAGE_NAME_1);
+
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        validateUiStartParams(true);
+
+        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
+
+        // Ensure we did not send any match callbacks, until the callback is registered
+        verify(mNetworkRequestMatchCallback, never()).onMatch(any());
+
+        // Register the callback & ensure we triggered the on match callback.
+        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
+                TEST_CALLBACK_IDENTIFIER);
+        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
+
+        assertNotNull(matchedScanResultsCaptor.getValue());
+        // We only expect 1 network match in this case.
+        validateScanResults(matchedScanResultsCaptor.getValue(), mTestScanDatas[0].getResults()[0]);
+
+        verify(mWifiMetrics).incrementNetworkRequestApiMatchSizeHistogram(
+                matchedScanResultsCaptor.getValue().size());
     }
 
     private Messenger sendNetworkRequestAndSetupForConnectionStatus() throws RemoteException {
