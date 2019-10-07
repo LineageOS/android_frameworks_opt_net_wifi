@@ -82,6 +82,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     private static final int SCORE_FILTER = 60;
     @VisibleForTesting
+    public static final int CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS = 20 * 1000;  // 20 seconds
+    @VisibleForTesting
     public static final int PERIODIC_SCAN_INTERVAL_MS = 10 * 1000; // 10 seconds
     @VisibleForTesting
     public static final int NETWORK_CONNECTION_TIMEOUT_MS = 30 * 1000; // 30 seconds
@@ -230,37 +232,10 @@ public class WifiNetworkFactory extends NetworkFactory {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "Received " + scanResults.length + " scan results");
             }
-            List<ScanResult> matchedScanResults =
-                    getNetworksMatchingActiveNetworkRequest(scanResults);
-            if (mActiveMatchedScanResults == null) {
-                // only note the first match size in metrics (chances of this changing in further
-                // scans is pretty low)
-                mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(
-                        matchedScanResults.size());
-            }
-            mActiveMatchedScanResults = matchedScanResults;
-
-            ScanResult approvedScanResult = null;
-            if (isActiveRequestForSingleAccessPoint()) {
-                approvedScanResult =
-                        findUserApprovedAccessPointForActiveRequestFromActiveMatchedScanResults();
-            }
-            if (approvedScanResult != null
-                    && !mWifiConfigManager.wasEphemeralNetworkDeleted(
-                            ScanResultUtil.createQuotedSSID(approvedScanResult.SSID))) {
-                Log.v(TAG, "Approved access point found in matching scan results. "
-                        + "Triggering connect " + approvedScanResult);
-                handleConnectToNetworkUserSelectionInternal(
-                        ScanResultUtil.createNetworkFromScanResult(approvedScanResult));
-                mWifiMetrics.incrementNetworkRequestApiNumUserApprovalBypass();
-                // TODO (b/122658039): Post notification.
-            } else {
-                if (mVerboseLoggingEnabled) {
-                    Log.v(TAG, "No approved access points found in matching scan results. "
-                            + "Sending match callback");
-                }
-                sendNetworkRequestMatchCallbacksForActiveRequest(matchedScanResults);
-                // Didn't find an approved match, schedule the next scan.
+            if (!handleScanResultsAndTriggerConnectIfUserApprovedMatchFound(scanResults)) {
+                // Didn't find an approved match, send the matching results to UI and schedule the
+                // next scan.
+                sendNetworkRequestMatchCallbacksForActiveRequest(mActiveMatchedScanResults);
                 scheduleNextPeriodicScan();
             }
         }
@@ -612,10 +587,19 @@ public class WifiNetworkFactory extends NetworkFactory {
                     wns.requestorUid, wns.requestorPackageName);
             mWifiMetrics.incrementNetworkRequestApiNumRequest();
 
-            // Start UI to let the user grant/disallow this request from the app.
-            startUi();
-            // Trigger periodic scans for finding a network in the request.
-            startPeriodicScans();
+            // Fetch the latest cached scan results to speed up network matching.
+            ScanResult[] cachedScanResults = getFilteredCachedScanResults();
+            if (mVerboseLoggingEnabled) {
+                Log.v(TAG, "Using cached " + cachedScanResults.length + " scan results");
+            }
+            if (!handleScanResultsAndTriggerConnectIfUserApprovedMatchFound(cachedScanResults)) {
+                // Start UI to let the user grant/disallow this request from the app.
+                startUi();
+                // Didn't find an approved match, send the matching results to UI and trigger
+                // periodic scans for finding a network in the request.
+                sendNetworkRequestMatchCallbacksForActiveRequest(mActiveMatchedScanResults);
+                startPeriodicScans();
+            }
         }
     }
 
@@ -1328,6 +1312,65 @@ public class WifiNetworkFactory extends NetworkFactory {
         approvedAccessPoints.addAll(newUserApprovedAccessPoints);
         cleanUpLRUAccessPoints(approvedAccessPoints);
         saveToStore();
+    }
+
+    /**
+     * Handle scan results
+     * a) Find all scan results matching the active network request.
+     * b) If the request is for a single bssid, check if the matching ScanResult was pre-approved
+     * by the user.
+     * c) If yes to (b), trigger a connect immediately and returns true. Else, returns false.
+     *
+     * @param scanResults Array of {@link ScanResult} to be processed.
+     * @return true if a pre-approved network was found for connection, false otherwise.
+     */
+    private boolean handleScanResultsAndTriggerConnectIfUserApprovedMatchFound(
+            ScanResult[] scanResults) {
+        List<ScanResult> matchedScanResults =
+                getNetworksMatchingActiveNetworkRequest(scanResults);
+        if ((mActiveMatchedScanResults == null || mActiveMatchedScanResults.isEmpty())
+                && !matchedScanResults.isEmpty()) {
+            // only note the first match size in metrics (chances of this changing in further
+            // scans is pretty low)
+            mWifiMetrics.incrementNetworkRequestApiMatchSizeHistogram(
+                    matchedScanResults.size());
+        }
+        mActiveMatchedScanResults = matchedScanResults;
+
+        ScanResult approvedScanResult = null;
+        if (isActiveRequestForSingleAccessPoint()) {
+            approvedScanResult =
+                    findUserApprovedAccessPointForActiveRequestFromActiveMatchedScanResults();
+        }
+        if (approvedScanResult != null
+                && !mWifiConfigManager.wasEphemeralNetworkDeleted(
+                ScanResultUtil.createQuotedSSID(approvedScanResult.SSID))) {
+            Log.v(TAG, "Approved access point found in matching scan results. "
+                    + "Triggering connect " + approvedScanResult);
+            handleConnectToNetworkUserSelectionInternal(
+                    ScanResultUtil.createNetworkFromScanResult(approvedScanResult));
+            mWifiMetrics.incrementNetworkRequestApiNumUserApprovalBypass();
+            return true;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "No approved access points found in matching scan results");
+        }
+        return false;
+    }
+
+    /**
+     * Retrieve the latest cached scan results from wifi scanner and filter out any
+     * {@link ScanResult} older than {@link #CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS}.
+     */
+    private @NonNull ScanResult[] getFilteredCachedScanResults() {
+        List<ScanResult> cachedScanResults = mWifiScanner.getSingleScanResults();
+        if (cachedScanResults == null || cachedScanResults.isEmpty()) return new ScanResult[0];
+        long currentTimeInMillis = mClock.getElapsedSinceBootMillis();
+        return cachedScanResults.stream()
+                .filter(scanResult
+                        -> ((currentTimeInMillis - (scanResult.timestamp / 1000))
+                        < CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS))
+                .toArray(ScanResult[]::new);
     }
 
     /**
