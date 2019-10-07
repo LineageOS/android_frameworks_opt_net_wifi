@@ -17,7 +17,10 @@
 package com.android.server.wifi.util;
 
 import android.Manifest;
+import android.annotation.Nullable;
 import android.app.AppOpsManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
@@ -27,6 +30,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
@@ -476,5 +480,69 @@ public class WifiPermissionsUtil {
                     == PackageManager.PERMISSION_GRANTED;
         }
         return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
+    private static DevicePolicyManager retrieveDevicePolicyManagerFromContext(Context context) {
+        DevicePolicyManager devicePolicyManager =
+                context.getSystemService(DevicePolicyManager.class);
+        if (devicePolicyManager == null
+                && context.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_DEVICE_ADMIN)) {
+            Log.w(TAG, "Error retrieving DPM service");
+        }
+        return devicePolicyManager;
+    }
+
+    private DevicePolicyManager retrieveDevicePolicyManagerFromUserContext(int uid) {
+        Context userContext = null;
+        try {
+            userContext = mContext.createPackageContextAsUser(mContext.getPackageName(), 0,
+                    UserHandle.getUserHandleForUid(uid));
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Unknown package name");
+            return null;
+        }
+        if (userContext == null) {
+            Log.e(TAG, "Unable to retrieve user context for " + uid);
+            return null;
+        }
+        return retrieveDevicePolicyManagerFromContext(userContext);
+    }
+
+    /**
+     * Returns true if the |callingUid|/\callingPackage| is the device owner.
+     */
+    public boolean isDeviceOwner(int uid, @Nullable String packageName) {
+        // Cannot determine if the app is DO/PO if packageName is null. So, will return false to be
+        // safe.
+        if (packageName == null) {
+            Log.e(TAG, "isDeviceOwner: packageName is null, returning false");
+            return false;
+        }
+        DevicePolicyManager devicePolicyManager =
+                retrieveDevicePolicyManagerFromContext(mContext);
+        if (devicePolicyManager == null) return false;
+        UserHandle deviceOwnerUser = devicePolicyManager.getDeviceOwnerUser();
+        if (deviceOwnerUser == null) return false; // no device owner
+        ComponentName deviceOwnerComponent = devicePolicyManager.getDeviceOwnerComponentOnAnyUser();
+        if (deviceOwnerComponent == null) return false; // weird, can never happen.
+        return deviceOwnerUser.equals(UserHandle.getUserHandleForUid(uid))
+                && deviceOwnerComponent.getPackageName().equals(packageName);
+    }
+
+    /**
+     * Returns true if the |callingUid|/\callingPackage| is the profile owner.
+     */
+    public boolean isProfileOwner(int uid, @Nullable String packageName) {
+        // Cannot determine if the app is DO/PO if packageName is null. So, will return false to be
+        // safe.
+        if (packageName == null) {
+            Log.e(TAG, "isProfileOwner: packageName is null, returning false");
+            return false;
+        }
+        DevicePolicyManager devicePolicyManager =
+                retrieveDevicePolicyManagerFromUserContext(uid);
+        if (devicePolicyManager == null) return false;
+        return devicePolicyManager.isProfileOwnerApp(packageName);
     }
 }

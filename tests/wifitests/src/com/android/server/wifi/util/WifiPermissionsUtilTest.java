@@ -31,6 +31,8 @@ import static org.mockito.Mockito.when;
 
 import android.Manifest;
 import android.app.AppOpsManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -79,8 +81,10 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
     @Mock private ContentResolver mMockContentResolver;
     @Mock private WifiInjector mWifiInjector;
     @Mock private LocationManager mLocationManager;
+    @Mock private DevicePolicyManager mDevicePolicyManager;
     @Spy private FakeWifiLog mWifiLog;
 
+    private static final String TEST_WIFI_STACK_APK_NAME = "com.android.server.wifistack";
     private static final String TEST_PACKAGE_NAME = "com.google.somePackage";
     private static final String INVALID_PACKAGE  = "BAD_PACKAGE";
     private static final int MANAGED_PROFILE_UID = 1100000;
@@ -847,6 +851,95 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies the helper method exposed for checking if the app is a DeviceOwner.
+     */
+    @Test
+    public void testIsDeviceOwnerApp() throws Exception {
+        setupMocks();
+        WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+
+        when(mMockContext.getSystemService(DevicePolicyManager.class))
+                .thenReturn(mDevicePolicyManager);
+
+        when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser())
+                .thenReturn(new ComponentName(TEST_PACKAGE_NAME, new String()));
+        when(mDevicePolicyManager.getDeviceOwnerUser())
+                .thenReturn(UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID));
+        assertTrue(wifiPermissionsUtil.isDeviceOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+
+        // userId does not match
+        when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser())
+                .thenReturn(new ComponentName(TEST_PACKAGE_NAME, new String()));
+        when(mDevicePolicyManager.getDeviceOwnerUser())
+                .thenReturn(UserHandle.getUserHandleForUid(OTHER_USER_UID));
+        assertFalse(wifiPermissionsUtil.isDeviceOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        // Package Name does not match
+        when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser())
+                .thenReturn(new ComponentName(INVALID_PACKAGE, new String()));
+        when(mDevicePolicyManager.getDeviceOwnerUser())
+                .thenReturn(UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID));
+        assertFalse(wifiPermissionsUtil.isDeviceOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        // No device owner.
+        when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser())
+                .thenReturn(null);
+        assertFalse(wifiPermissionsUtil.isDeviceOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        // DevicePolicyManager does not exist.
+        when(mMockContext.getSystemService(Context.DEVICE_POLICY_SERVICE))
+                .thenReturn(null);
+        assertFalse(wifiPermissionsUtil.isDeviceOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+    }
+
+    /**
+     * Verifies the helper method exposed for checking if the app is a ProfileOwner.
+     */
+    @Test
+    public void testIsProfileOwnerApp() throws Exception {
+        setupMocks();
+        WifiPermissionsUtil wifiPermissionsUtil = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+
+        when(mMockContext.createPackageContextAsUser(
+                TEST_WIFI_STACK_APK_NAME, 0, UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID)))
+                .thenReturn(mMockContext);
+        when(mMockContext.getSystemService(DevicePolicyManager.class))
+                .thenReturn(mDevicePolicyManager);
+
+        when(mDevicePolicyManager.isProfileOwnerApp(TEST_PACKAGE_NAME))
+                .thenReturn(true);
+        assertTrue(wifiPermissionsUtil.isProfileOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        when(mDevicePolicyManager.isProfileOwnerApp(TEST_PACKAGE_NAME))
+                .thenReturn(false);
+        assertFalse(wifiPermissionsUtil.isProfileOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        // DevicePolicyManager does not exist.
+        when(mMockContext.getSystemService(Context.DEVICE_POLICY_SERVICE))
+                .thenReturn(null);
+        assertFalse(wifiPermissionsUtil.isProfileOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+
+        // Invalid package name.
+        doThrow(new PackageManager.NameNotFoundException())
+                .when(mMockContext).createPackageContextAsUser(
+                        TEST_WIFI_STACK_APK_NAME, 0,
+                UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID));
+        assertFalse(wifiPermissionsUtil.isProfileOwner(
+                MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
+    }
+
+    /**
      * Test case setting: caller does not have Location permission.
      * Expect a SecurityException
      */
@@ -1157,6 +1250,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
             .thenReturn(mMockUserManager);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mWifiLog);
         when(mMockContext.getSystemService(Context.LOCATION_SERVICE)).thenReturn(mLocationManager);
+        when(mMockContext.getPackageName()).thenReturn(TEST_WIFI_STACK_APK_NAME);
     }
 
     private void initTestVars() {

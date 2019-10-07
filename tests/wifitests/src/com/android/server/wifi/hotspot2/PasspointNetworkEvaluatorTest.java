@@ -235,7 +235,8 @@ public class PasspointNetworkEvaluatorTest {
         assertNotNull(addedConfig.getValue().enterpriseConfig);
         assertEquals("", addedConfig.getValue().enterpriseConfig.getAnonymousIdentity());
         assertTrue(addedConfig.getValue().isHomeProviderNetwork);
-        verify(mWifiConfigManager).enableNetwork(eq(TEST_NETWORK_ID), eq(false), anyInt());
+        verify(mWifiConfigManager).enableNetwork(
+                eq(TEST_NETWORK_ID), eq(false), anyInt(), any());
         verify(mWifiConfigManager).setNetworkCandidateScanResult(
                 eq(TEST_NETWORK_ID), any(ScanResult.class), anyInt());
         verify(mWifiConfigManager).updateScanDetailForNetwork(
@@ -278,7 +279,8 @@ public class PasspointNetworkEvaluatorTest {
         assertNotNull(addedConfig.getValue().enterpriseConfig);
         assertEquals("", addedConfig.getValue().enterpriseConfig.getAnonymousIdentity());
         assertFalse(addedConfig.getValue().isHomeProviderNetwork);
-        verify(mWifiConfigManager).enableNetwork(eq(TEST_NETWORK_ID), eq(false), anyInt());
+        verify(mWifiConfigManager).enableNetwork(
+                eq(TEST_NETWORK_ID), eq(false), anyInt(), any());
         verify(mWifiConfigManager).setNetworkCandidateScanResult(
                 eq(TEST_NETWORK_ID), any(ScanResult.class), anyInt());
         verify(mWifiConfigManager).updateScanDetailForNetwork(
@@ -323,7 +325,8 @@ public class PasspointNetworkEvaluatorTest {
         assertNotNull(addedConfig.getValue().enterpriseConfig);
         assertEquals("", addedConfig.getValue().enterpriseConfig.getAnonymousIdentity());
         assertTrue(addedConfig.getValue().isHomeProviderNetwork);
-        verify(mWifiConfigManager).enableNetwork(eq(TEST_NETWORK_ID), eq(false), anyInt());
+        verify(mWifiConfigManager).enableNetwork(
+                eq(TEST_NETWORK_ID), eq(false), anyInt(), any());
         verify(mWifiConfigManager).setNetworkCandidateScanResult(
                 eq(TEST_NETWORK_ID), any(ScanResult.class), anyInt());
         verify(mWifiConfigManager).updateScanDetailForNetwork(

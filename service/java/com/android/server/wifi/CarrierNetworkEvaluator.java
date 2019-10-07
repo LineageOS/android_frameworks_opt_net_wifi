@@ -141,7 +141,8 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
                 mLocalLog.log(TAG + ": Failed to add carrier network: " + config);
                 continue;
             }
-            if (!mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID)) {
+            if (!mWifiConfigManager.enableNetwork(
+                    result.getNetworkId(), false, Process.WIFI_UID, null)) {
                 mLocalLog.log(TAG + ": Failed to enable carrier network: " + config);
                 continue;
             }

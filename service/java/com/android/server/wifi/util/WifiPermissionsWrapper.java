@@ -18,11 +18,8 @@ package com.android.server.wifi.util;
 
 import android.Manifest;
 import android.app.ActivityManager;
-import android.app.admin.DevicePolicyManagerInternal;
 import android.content.Context;
 import android.os.UserHandle;
-
-import com.android.server.LocalServices;
 
 /**
  * A wifi permissions dependency class to wrap around external
@@ -58,13 +55,6 @@ public class WifiPermissionsWrapper {
     public int getUidPermission(String permissionType, int uid) {
         // We don't care about pid, pass in -1
         return mContext.checkPermission(permissionType, -1, uid);
-    }
-
-    /**
-     * Gets the local service {link@ DevicePolicyManagerInternal}, can be null
-     */
-    public DevicePolicyManagerInternal getDevicePolicyManagerInternal() {
-        return LocalServices.getService(DevicePolicyManagerInternal.class);
     }
 
     /**
