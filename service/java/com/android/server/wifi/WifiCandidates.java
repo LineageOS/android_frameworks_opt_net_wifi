@@ -260,10 +260,9 @@ public class WifiCandidates {
         String getIdentifier();
 
         /**
-         * Calculates the score for a group of candidates that belong
-         * to the same network.
+         * Calculates the best score for a collection of candidates.
          */
-        @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group);
+        @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> candidates);
 
     }
 
@@ -404,7 +403,7 @@ public class WifiCandidates {
      */
     public boolean remove(Candidate candidate) {
         if (!(candidate instanceof CandidateImpl)) return failure();
-        return mCandidates.remove(((CandidateImpl) candidate).key, (CandidateImpl) candidate);
+        return mCandidates.remove(((CandidateImpl) candidate).key, candidate);
     }
 
     /**
@@ -437,14 +436,9 @@ public class WifiCandidates {
      */
     public @NonNull ScoredCandidate choose(@NonNull CandidateScorer candidateScorer) {
         Preconditions.checkNotNull(candidateScorer);
-        ScoredCandidate choice = ScoredCandidate.NONE;
-        for (Collection<Candidate> group : getGroupedCandidates()) {
-            ScoredCandidate scoredCandidate = candidateScorer.scoreCandidates(group);
-            if (scoredCandidate != null && scoredCandidate.value > choice.value) {
-                choice = scoredCandidate;
-            }
-        }
-        return choice;
+        Collection<Candidate> candidates = new ArrayList<>(mCandidates.values());
+        ScoredCandidate choice = candidateScorer.scoreCandidates(candidates);
+        return choice == null ? ScoredCandidate.NONE : choice;
     }
 
     /**

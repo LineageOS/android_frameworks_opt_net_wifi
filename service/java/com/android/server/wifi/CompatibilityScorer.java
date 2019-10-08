@@ -102,9 +102,9 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
     }
 
     @Override
-    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group) {
+    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> candidates) {
         ScoredCandidate choice = ScoredCandidate.NONE;
-        for (Candidate candidate : group) {
+        for (Candidate candidate : candidates) {
             ScoredCandidate scoredCandidate = scoreCandidate(candidate);
             if (scoredCandidate.value > choice.value) {
                 choice = scoredCandidate;
