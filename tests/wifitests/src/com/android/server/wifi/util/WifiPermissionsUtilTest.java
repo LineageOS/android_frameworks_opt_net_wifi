@@ -711,7 +711,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         // verify that checking FINE for legacy apps!
         verify(mMockAppOps).noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(),
-                any());
+                any(), any());
     }
 
     /**
@@ -733,7 +733,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                 mMockContext, mMockUserManager, mWifiInjector);
         codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
         verify(mMockAppOps)
-                .noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(), any());
+                .noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(), any(), any());
     }
 
     /**
@@ -816,7 +816,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                 mMockContext, mMockUserManager, mWifiInjector);
 
         when(mMockAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID,
-                TEST_PACKAGE_NAME, null))
+                TEST_PACKAGE_NAME, null, null))
                 .thenReturn(AppOpsManager.MODE_DEFAULT);
         when(mMockPermissionsWrapper.getUidPermission(
                 Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
@@ -825,7 +825,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                 MANAGED_PROFILE_UID, TEST_PACKAGE_NAME));
 
         when(mMockAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID,
-                TEST_PACKAGE_NAME, null))
+                TEST_PACKAGE_NAME, null, null))
                 .thenReturn(AppOpsManager.MODE_DEFAULT);
         when(mMockPermissionsWrapper.getUidPermission(
                 Manifest.permission.SYSTEM_ALERT_WINDOW, MANAGED_PROFILE_UID))
@@ -977,7 +977,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         verify(mMockAppOps, never())
                 .unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
         verify(mMockAppOps)
-                .noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null);
+                .noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null, null);
     }
 
     /**
@@ -1007,7 +1007,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         verify(mMockAppOps).unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid,
                 TEST_PACKAGE_NAME);
         verify(mMockAppOps, never()).noteOp(
-                AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null);
+                AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null, null);
     }
 
 
@@ -1228,12 +1228,12 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         when(mMockPkgMgr.getApplicationInfoAsUser(eq(TEST_PACKAGE_NAME), eq(0), anyInt()))
             .thenReturn(mMockApplInfo);
         when(mMockContext.getPackageManager()).thenReturn(mMockPkgMgr);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_WIFI_SCAN, mUid, TEST_PACKAGE_NAME, null))
-            .thenReturn(mWifiScanAllowApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME, null))
-            .thenReturn(mAllowCoarseLocationApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null))
-                .thenReturn(mAllowFineLocationApps);
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_WIFI_SCAN, mUid, TEST_PACKAGE_NAME, null, null))
+                .thenReturn(mWifiScanAllowApps);
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME, null,
+                null)).thenReturn(mAllowCoarseLocationApps);
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null,
+                null)).thenReturn(mAllowFineLocationApps);
         when(mMockAppOps.unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
                 .thenReturn(mAllowFineLocationApps);
         if (mThrowSecurityException) {

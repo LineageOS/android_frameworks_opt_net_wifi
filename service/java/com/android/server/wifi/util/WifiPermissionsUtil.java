@@ -378,7 +378,8 @@ public class WifiPermissionsUtil {
     }
 
     private boolean noteAppOpAllowed(String op, String pkgName, int uid) {
-        return mAppOps.noteOp(op, uid, pkgName, null) == AppOpsManager.MODE_ALLOWED;
+        // TODO moltmann: Set correct featureId
+        return mAppOps.noteOp(op, uid, pkgName, null, null) == AppOpsManager.MODE_ALLOWED;
     }
 
     private boolean checkAppOpAllowed(String op, String pkgName, int uid) {
@@ -473,7 +474,7 @@ public class WifiPermissionsUtil {
      */
     public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
         final int mode = mAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, callingUid,
-                callingPackage, null);
+                callingPackage, null, null);
         if (mode == AppOpsManager.MODE_DEFAULT) {
             return mWifiPermissionsWrapper.getUidPermission(
                     Manifest.permission.SYSTEM_ALERT_WINDOW, callingUid)
