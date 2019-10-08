@@ -740,7 +740,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         // Remove the network if it was added previously by an app's specifier request.
         if (wcmNetwork.ephemeral && wcmNetwork.fromWifiNetworkSpecifier) {
             boolean success =
-                    mWifiConfigManager.removeNetwork(wcmNetwork.networkId, wcmNetwork.creatorUid);
+                    mWifiConfigManager.removeNetwork(
+                            wcmNetwork.networkId, wcmNetwork.creatorUid, wcmNetwork.creatorName);
             if (!success) {
                 Log.e(TAG, "Failed to remove network from config manager");
             } else if (mVerboseLoggingEnabled) {

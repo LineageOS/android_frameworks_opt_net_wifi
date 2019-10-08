@@ -32,8 +32,6 @@ import android.annotation.CheckResult;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
-import android.app.admin.DeviceAdminInfo;
-import android.app.admin.DevicePolicyManagerInternal;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -551,12 +549,9 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /** Helper method to check if the entity initiating the binder call is a DO/PO app. */
-    private boolean isDeviceOrProfileOwner(int uid) {
-        final DevicePolicyManagerInternal dpmi =
-                mWifiInjector.getWifiPermissionsWrapper().getDevicePolicyManagerInternal();
-        if (dpmi == null) return false;
-        return dpmi.isActiveAdminWithPolicy(uid, DeviceAdminInfo.USES_POLICY_DEVICE_OWNER)
-                || dpmi.isActiveAdminWithPolicy(uid, DeviceAdminInfo.USES_POLICY_PROFILE_OWNER);
+    private boolean isDeviceOrProfileOwner(int uid, String packageName) {
+        return mWifiPermissionsUtil.isDeviceOwner(uid, packageName)
+                || mWifiPermissionsUtil.isProfileOwner(uid, packageName);
     }
 
     private void enforceNetworkSettingsPermission() {
@@ -625,7 +620,7 @@ public class WifiServiceImpl extends BaseWifiService {
         return mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)
                 || isPrivileged(pid, uid)
                 // DO/PO apps should be able to add/modify saved networks.
-                || isDeviceOrProfileOwner(uid)
+                || isDeviceOrProfileOwner(uid, packageName)
                 // TODO: Remove this system app bypass once Q is released.
                 || isSystem(packageName, uid)
                 || mWifiPermissionsUtil.checkSystemAlertWindowPermission(uid, packageName);
@@ -643,7 +638,7 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
         boolean isPrivileged = isPrivileged(Binder.getCallingPid(), Binder.getCallingUid());
-        if (!isPrivileged && !isDeviceOrProfileOwner(Binder.getCallingUid())
+        if (!isPrivileged && !isDeviceOrProfileOwner(Binder.getCallingUid(), packageName)
                 && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q,
                   Binder.getCallingUid())
                 && !isSystem(packageName, Binder.getCallingUid())) {
@@ -1679,7 +1674,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         int targetConfigUid = Process.INVALID_UID; // don't expose any MAC addresses
-        if (isPrivileged(getCallingPid(), callingUid) || isDeviceOrProfileOwner(callingUid)) {
+        if (isPrivileged(getCallingPid(), callingUid)
+                || isDeviceOrProfileOwner(callingUid, packageName)) {
             targetConfigUid = Process.WIFI_UID; // expose all MAC addresses
         } else if (isCarrierApp) {
             targetConfigUid = callingUid; // expose only those configs created by the Carrier App
@@ -1886,7 +1882,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 + " SSID " + config.SSID
                 + " nid=" + config.networkId);
         return mWifiThreadRunner.call(
-            () -> mWifiConfigManager.addOrUpdateNetwork(config, callingUid)
+            () -> mWifiConfigManager.addOrUpdateNetwork(config, callingUid, packageName)
                     .getNetworkId(),
                 WifiConfiguration.INVALID_NETWORK_ID);
     }
@@ -1925,7 +1921,7 @@ public class WifiServiceImpl extends BaseWifiService {
         int callingUid = Binder.getCallingUid();
         mLog.info("removeNetwork uid=%").c(callingUid).flush();
         return mWifiThreadRunner.call(
-                () -> mWifiConfigManager.removeNetwork(netId, callingUid), false);
+                () -> mWifiConfigManager.removeNetwork(netId, callingUid, packageName), false);
     }
 
     /**
@@ -1989,7 +1985,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return triggerConnectAndReturnStatus(netId, callingUid);
         } else {
             return mWifiThreadRunner.call(
-                    () -> mWifiConfigManager.enableNetwork(netId, false, callingUid), false);
+                    () -> mWifiConfigManager.enableNetwork(netId, false, callingUid, packageName),
+                    false);
         }
     }
 
@@ -2013,7 +2010,7 @@ public class WifiServiceImpl extends BaseWifiService {
         int callingUid = Binder.getCallingUid();
         mLog.info("disableNetwork uid=%").c(callingUid).flush();
         return mWifiThreadRunner.call(
-                () -> mWifiConfigManager.disableNetwork(netId, callingUid), false);
+                () -> mWifiConfigManager.disableNetwork(netId, callingUid, packageName), false);
     }
 
     /**
@@ -2807,7 +2804,7 @@ public class WifiServiceImpl extends BaseWifiService {
                             continue;
                         }
                         // Enable all networks restored.
-                        mWifiConfigManager.enableNetwork(networkId, false, callingUid);
+                        mWifiConfigManager.enableNetwork(networkId, false, callingUid, null);
                     }
                 });
     }

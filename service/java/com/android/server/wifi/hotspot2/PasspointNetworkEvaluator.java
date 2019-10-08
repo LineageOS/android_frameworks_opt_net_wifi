@@ -250,7 +250,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             localLog("Failed to add passpoint network");
             return null;
         }
-        mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID);
+        mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID, null);
         mWifiConfigManager.setNetworkCandidateScanResult(result.getNetworkId(),
                 networkInfo.mScanDetail.getScanResult(), 0);
         mWifiConfigManager.updateScanDetailForNetwork(
