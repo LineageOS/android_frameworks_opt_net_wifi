@@ -77,6 +77,10 @@ public class WifiCandidates {
          */
         boolean isTrusted();
         /**
+         * Returns true for a metered network.
+         */
+        boolean isMetered();
+        /**
          * Returns the ID of the evaluator that provided the candidate.
          */
         @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId();
@@ -132,6 +136,7 @@ public class WifiCandidates {
         private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
         private final boolean mIsCurrentNetwork;
         private final boolean mIsCurrentBssid;
+        private final boolean mIsMetered;
 
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
@@ -141,7 +146,8 @@ public class WifiCandidates {
                 WifiScoreCard.PerBssid perBssid,
                 double lastSelectionWeight,
                 boolean isCurrentNetwork,
-                boolean isCurrentBssid) {
+                boolean isCurrentBssid,
+                boolean isMetered) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
@@ -151,6 +157,7 @@ public class WifiCandidates {
             this.lastSelectionWeight = lastSelectionWeight;
             this.mIsCurrentNetwork = isCurrentNetwork;
             this.mIsCurrentBssid = isCurrentBssid;
+            this.mIsMetered = isMetered;
         }
 
         @Override
@@ -187,6 +194,11 @@ public class WifiCandidates {
         @Override
         public boolean isTrusted() {
             return config.trusted;
+        }
+
+        @Override
+        public boolean isMetered() {
+            return (mIsMetered);
         }
 
         @Override
@@ -346,7 +358,8 @@ public class WifiCandidates {
                     WifiConfiguration config,
                     @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                     int evaluatorScore,
-                    double lastSelectionWeightBetweenZeroAndOne) {
+                    double lastSelectionWeightBetweenZeroAndOne,
+                    boolean isMetered) {
         if (config == null) return failure();
         if (scanDetail == null) return failure();
         ScanResult scanResult = scanDetail.getScanResult();
@@ -379,16 +392,10 @@ public class WifiCandidates {
                 scanDetail, config, evaluatorId, evaluatorScore, perBssid,
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
-                bssid.equals(mCurrentBssid));
+                bssid.equals(mCurrentBssid),
+                isMetered);
         mCandidates.put(key, candidate);
         return true;
-    }
-    /** Adds a new candidate with no user selection weight. */
-    public boolean add(ScanDetail scanDetail,
-                    WifiConfiguration config,
-                    @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
-                    int evaluatorScore) {
-        return add(scanDetail, config, evaluatorId, evaluatorScore, 0.0);
     }
 
     /**
