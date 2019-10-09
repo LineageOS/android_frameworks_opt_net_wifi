@@ -1507,6 +1507,9 @@ public class SupplicantStaNetworkHal {
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
                 return false;
+            } catch (ArrayIndexOutOfBoundsException e) {
+                Log.e(TAG, "ISupplicantStaNetwork." + methodStr + " failed: " + e);
+                return false;
             }
         }
     }
