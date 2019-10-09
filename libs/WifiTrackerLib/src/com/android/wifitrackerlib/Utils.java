@@ -29,6 +29,7 @@ import static com.android.wifitrackerlib.WifiEntry.SECURITY_WEP;
 import static java.util.Comparator.comparingInt;
 
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -73,5 +74,26 @@ class Utils {
             return SECURITY_OWE;
         }
         return SECURITY_NONE;
+    }
+
+    @WifiEntry.Security
+    static int getSecurityFromWifiConfiguration(@NonNull WifiConfiguration config) {
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SAE)) {
+            return SECURITY_SAE;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_PSK)) {
+            return SECURITY_PSK;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.SUITE_B_192)) {
+            return SECURITY_EAP_SUITE_B;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP)
+                || config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.IEEE8021X)) {
+            return SECURITY_EAP;
+        }
+        if (config.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.OWE)) {
+            return SECURITY_OWE;
+        }
+        return (config.wepKeys[0] != null) ? SECURITY_WEP : SECURITY_NONE;
     }
 }
