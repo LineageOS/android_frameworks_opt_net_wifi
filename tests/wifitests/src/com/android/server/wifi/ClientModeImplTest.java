@@ -443,6 +443,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
+        when(mWifiInjector.getWifiThreadRunner())
+                .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -1335,32 +1337,44 @@ public class ClientModeImplTest extends WifiBaseTest {
      * that connection request returns with CONNECT_NETWORK_SUCCEEDED.
      */
     @Test
-    public void reconnectToConnectedNetwork() throws Exception {
-        initializeAndAddNetworkAndVerifySuccess();
-
-        verify(mWifiNative).removeAllNetworks(WIFI_IFACE_NAME);
-
-        IActionListener connectActionListener = mock(IActionListener.class);
-        mCmi.connect(null, 0, mock(Binder.class), connectActionListener, 0, Binder.getCallingUid());
-        mLooper.dispatchAll();
-        verify(connectActionListener).onSuccess();
-
-        verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt(), any());
-
-        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
-        mLooper.dispatchAll();
-
-        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
-                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
-        mLooper.dispatchAll();
-
-        assertEquals("ObtainingIpState", getCurrentState().getName());
+    public void reconnectToConnectedNetworkWithNetworkId() throws Exception {
+        connect();
 
         // try to reconnect
-        reset(connectActionListener);
-        mCmi.connect(null, 0, mock(Binder.class), connectActionListener, 0, Binder.getCallingUid());
+        IActionListener connectActionListener = mock(IActionListener.class);
+        mCmi.connect(null, FRAMEWORK_NETWORK_ID, mock(Binder.class), connectActionListener, 0,
+                Binder.getCallingUid());
         mLooper.dispatchAll();
         verify(connectActionListener).onSuccess();
+
+        // Verify that we didn't trigger a second connection.
+        verify(mWifiNative, times(1)).connectToNetwork(eq(WIFI_IFACE_NAME), any());
+    }
+
+    /**
+     * If caller tries to connect to a network that is already connected, the connection request
+     * should succeed.
+     *
+     * Test: Create and connect to a network, then try to reconnect to the same network. Verify
+     * that connection request returns with CONNECT_NETWORK_SUCCEEDED.
+     */
+    @Test
+    public void reconnectToConnectedNetworkWithConfig() throws Exception {
+        connect();
+
+        // try to reconnect
+        WifiConfiguration config = new WifiConfiguration();
+        config.networkId = FRAMEWORK_NETWORK_ID;
+        when(mWifiConfigManager.addOrUpdateNetwork(eq(config), anyInt()))
+                .thenReturn(new NetworkUpdateResult(FRAMEWORK_NETWORK_ID));
+        IActionListener connectActionListener = mock(IActionListener.class);
+        mCmi.connect(config, WifiConfiguration.INVALID_NETWORK_ID, mock(Binder.class),
+                connectActionListener, 0, Binder.getCallingUid());
+        mLooper.dispatchAll();
+        verify(connectActionListener).onSuccess();
+
+        // Verify that we didn't trigger a second connection.
+        verify(mWifiNative, times(1)).connectToNetwork(eq(WIFI_IFACE_NAME), any());
     }
 
     /**
@@ -1397,8 +1411,6 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         mCmi.connect(null, TEST_NETWORK_ID, mock(Binder.class), null, 0, Binder.getCallingUid());
         mLooper.dispatchAll();
-
-        verify(mWifiNative).disconnect(any());
 
         mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.DISCONNECTED));
