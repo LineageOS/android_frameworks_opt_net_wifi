@@ -789,8 +789,7 @@ public class PasspointProvisioner {
 
             // Verify that the intent will resolve to an activity
             if (intent.resolveActivity(mContext.getPackageManager()) != null) {
-                // TODO (b/142234604): This will not work on multi-user device scenarios.
-                mContext.startActivityAsUser(intent, UserHandle.CURRENT_OR_SELF);
+                mContext.startActivityAsUser(intent, UserHandle.CURRENT);
                 invokeProvisioningCallback(PROVISIONING_STATUS,
                         ProvisioningCallback.OSU_STATUS_WAITING_FOR_REDIRECT_RESPONSE);
                 changeState(STATE_WAITING_FOR_REDIRECT_RESPONSE);
