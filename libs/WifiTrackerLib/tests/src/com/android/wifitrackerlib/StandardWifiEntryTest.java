@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
 
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.test.TestLooper;
@@ -86,7 +87,7 @@ public class StandardWifiEntryTest {
      * Tests that the level is set to the level of the strongest scan
      */
     @Test
-    public void testConstructor_setsBestLevel() {
+    public void testConstructor_scanResults_setsBestLevel() {
         final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, Arrays.asList(
                 buildScanResult("ssid", "bssid0", 0, GOOD_RSSI),
                 buildScanResult("ssid", "bssid1", 0, OKAY_RSSI),
@@ -100,7 +101,7 @@ public class StandardWifiEntryTest {
      * Tests that the security is set to the security capabilities of the scan
      */
     @Test
-    public void testConstructor_setsSecurity() {
+    public void testConstructor_scanResults_setsSecurity() {
         final ScanResult unsecureScan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
         final ScanResult secureScan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
         secureScan.capabilities = "EAP";
@@ -112,23 +113,6 @@ public class StandardWifiEntryTest {
 
         assertThat(unsecureEntry.getSecurity()).isEqualTo(WifiEntry.SECURITY_NONE);
         assertThat(secureEntry.getSecurity()).isEqualTo(WifiEntry.SECURITY_EAP);
-    }
-
-    /**
-     * Tests that updating with an empty list of scans throws an exception.
-     */
-    @Test
-    public void testUpdateScanResultInfo_emptyScanList_throwsException() {
-        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, Arrays.asList(
-                buildScanResult("ssid", "bssid", 0, GOOD_RSSI))
-        );
-
-        try {
-            entry.updateScanResultInfo(new ArrayList<>());
-            fail("Empty scan list should have thrown exception");
-        } catch (IllegalArgumentException e) {
-            // Test succeeded
-        }
     }
 
     /**
@@ -197,5 +181,92 @@ public class StandardWifiEntryTest {
 
         assertThat(entry.getLevel()).isEqualTo(
                 WifiManager.calculateSignalLevel(GOOD_RSSI, WifiManager.RSSI_LEVELS));
+    }
+
+    @Test
+    public void testConstructor_wifiConfig_setsTitle() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config);
+
+        assertThat(entry.getTitle()).isEqualTo("ssid");
+    }
+
+    @Test
+    public void testConstructor_wifiConfig_setsSecurity() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config);
+
+        assertThat(entry.getSecurity()).isEqualTo(WifiEntry.SECURITY_EAP);
+    }
+
+    @Test
+    public void testUpdateConfig_mismatchedSsids_throwsException() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config);
+
+        final WifiConfiguration config2 = new WifiConfiguration(config);
+        config2.SSID = "\"ssid2\"";
+        try {
+            entry.updateConfig(config2);
+            fail("Updating with wrong SSID config should throw exception");
+        } catch (IllegalArgumentException e) {
+            // Test Succeeded
+        }
+    }
+
+    @Test
+    public void testUpdateConfig_mismatchedSecurity_throwsException() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_WEP);
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config);
+
+        final WifiConfiguration config2 = new WifiConfiguration(config);
+        config2.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        try {
+            entry.updateConfig(config2);
+            fail("Updating with wrong security config should throw exception");
+        } catch (IllegalArgumentException e) {
+            // Test Succeeded
+        }
+    }
+
+    @Test
+    public void testUpdateConfig_unsavedToSaved() {
+        final ScanResult scan = buildScanResult("ssid", "bssid", 0, GOOD_RSSI);
+        scan.capabilities = "EAP";
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler,
+                Arrays.asList(scan));
+
+        assertThat(entry.isSaved()).isFalse();
+
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"ssid\"";
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.networkId = 1;
+        entry.updateConfig(config);
+
+        assertThat(entry.isSaved()).isTrue();
+    }
+
+    @Test
+    public void testUpdateConfig_savedToUnsaved() {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.setSecurityParams(WifiConfiguration.SECURITY_TYPE_EAP);
+        config.SSID = "\"ssid\"";
+        config.networkId = 1;
+        final StandardWifiEntry entry = new StandardWifiEntry(mTestHandler, config);
+
+        assertThat(entry.isSaved()).isTrue();
+
+        entry.updateConfig(null);
+
+        assertThat(entry.isSaved()).isFalse();
     }
 }

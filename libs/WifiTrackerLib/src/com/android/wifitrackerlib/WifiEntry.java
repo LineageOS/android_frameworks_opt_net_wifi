@@ -16,6 +16,8 @@
 
 package com.android.wifitrackerlib;
 
+import static androidx.core.util.Preconditions.checkNotNull;
+
 import android.os.Handler;
 
 import androidx.annotation.AnyThread;
@@ -128,6 +130,7 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     private Handler mCallbackHandler;
 
     WifiEntry(@NonNull Handler callbackHandler) throws IllegalArgumentException {
+        checkNotNull(callbackHandler, "Cannot construct with null handler!");
         mCallbackHandler = callbackHandler;
     }
 
@@ -160,6 +163,12 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
      * Indicates when a network is metered or the user marked the network as metered.
      */
     public abstract boolean isMetered();
+
+    /**
+     * Indicates whether or not an entry is saved, whether by a saved configuration or
+     * subscription.
+     */
+    public abstract boolean isSaved();
 
     /**
      * Returns the ConnectedInfo object pertaining to an active connection.
@@ -375,6 +384,16 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     // TODO (b/70983952) Come up with a sorting scheme that does the right thing.
     @Override
     public int compareTo(@NonNull WifiEntry other) {
+        if (getLevel() != WIFI_LEVEL_UNREACHABLE && other.getLevel() == WIFI_LEVEL_UNREACHABLE) {
+            return -1;
+        }
+        if (getLevel() == WIFI_LEVEL_UNREACHABLE && other.getLevel() != WIFI_LEVEL_UNREACHABLE) {
+            return 1;
+        }
+
+        if (isSaved() && !other.isSaved()) return -1;
+        if (!isSaved() && other.isSaved()) return 1;
+
         if (getLevel() > other.getLevel()) return -1;
         if (getLevel() < other.getLevel()) return 1;
 

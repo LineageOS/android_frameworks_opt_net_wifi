@@ -16,15 +16,22 @@
 
 package com.android.wifitrackerlib;
 
+import static android.net.wifi.WifiInfo.removeDoubleQuotes;
+
+import static androidx.core.util.Preconditions.checkNotNull;
+
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 import static com.android.wifitrackerlib.Utils.getSecurityFromScanResult;
+import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
 
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 
 import java.util.ArrayList;
@@ -40,9 +47,10 @@ class StandardWifiEntry extends WifiEntry {
 
     private final List<ScanResult> mCurrentScanResults = new ArrayList<>();
 
-    private final String mKey;
-    private final String mSsid;
+    @NonNull private final String mKey;
+    @NonNull private final String mSsid;
     private final @Security int mSecurity;
+    @Nullable private WifiConfiguration mWifiConfig;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -50,6 +58,7 @@ class StandardWifiEntry extends WifiEntry {
             throws IllegalArgumentException {
         super(callbackHandler);
 
+        checkNotNull(scanResults, "Cannot construct with null ScanResult list!");
         if (scanResults.isEmpty()) {
             throw new IllegalArgumentException("Cannot construct with empty ScanResult list!");
         }
@@ -58,6 +67,19 @@ class StandardWifiEntry extends WifiEntry {
         mSsid = firstScan.SSID;
         mSecurity = getSecurityFromScanResult(firstScan);
         updateScanResultInfo(scanResults);
+    }
+
+    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull WifiConfiguration config)
+            throws IllegalArgumentException {
+        super(callbackHandler);
+
+        checkNotNull(config, "Cannot construct with null config!");
+        checkNotNull(config.SSID, "Supplied config must have an SSID!");
+
+        mKey = createStandardWifiEntryKey(config);
+        mSsid = removeDoubleQuotes(config.SSID);
+        mSecurity = getSecurityFromWifiConfiguration(config);
+        mWifiConfig = config;
     }
 
     @Override
@@ -99,6 +121,11 @@ class StandardWifiEntry extends WifiEntry {
     public boolean isMetered() {
         // TODO(b/70983952): Fill this method in
         return false;
+    }
+
+    @Override
+    public boolean isSaved() {
+        return mWifiConfig != null;
     }
 
     @Override
@@ -241,9 +268,7 @@ class StandardWifiEntry extends WifiEntry {
     @WorkerThread
     void updateScanResultInfo(@NonNull List<ScanResult> scanResults)
             throws IllegalArgumentException {
-        if (scanResults.isEmpty()) {
-            throw new IllegalArgumentException("Cannot update with empty ScanResult list!");
-        }
+        checkNotNull(scanResults);
 
         for (ScanResult result : scanResults) {
             if (!TextUtils.equals(result.SSID, mSsid)) {
@@ -263,12 +288,50 @@ class StandardWifiEntry extends WifiEntry {
         mCurrentScanResults.addAll(scanResults);
 
         final ScanResult bestScanResult = getBestScanResultByLevel(mCurrentScanResults);
-        mLevel = WifiManager.calculateSignalLevel(bestScanResult.level, WifiManager.RSSI_LEVELS);
+        if (bestScanResult == null) {
+            mLevel = WIFI_LEVEL_UNREACHABLE;
+        } else {
+            mLevel = WifiManager.calculateSignalLevel(
+                    bestScanResult.level, WifiManager.RSSI_LEVELS);
+        }
 
         notifyOnUpdated();
     }
 
-    static String createStandardWifiEntryKey(ScanResult scan) {
+    @WorkerThread
+    void updateConfig(@Nullable WifiConfiguration wifiConfig) throws IllegalArgumentException {
+        if (wifiConfig != null) {
+            if (!TextUtils.equals(mSsid, removeDoubleQuotes(wifiConfig.SSID))) {
+                throw new IllegalArgumentException(
+                        "Attempted to update with wrong SSID!"
+                                + " Expected: " + mSsid
+                                + ", Actual: " + removeDoubleQuotes(wifiConfig.SSID)
+                                + ", Config: " + wifiConfig);
+            }
+            if (mSecurity != getSecurityFromWifiConfiguration(wifiConfig)) {
+                throw new IllegalArgumentException(
+                        "Attempted to update with wrong security!"
+                                + " Expected: " + mSsid
+                                + ", Actual: " + getSecurityFromWifiConfiguration(wifiConfig)
+                                + ", Config: " + wifiConfig);
+            }
+        }
+
+        mWifiConfig = wifiConfig;
+        notifyOnUpdated();
+    }
+
+    @NonNull
+    static String createStandardWifiEntryKey(@NonNull ScanResult scan) {
+        checkNotNull(scan, "Cannot create key with null scan result!");
         return KEY_PREFIX + scan.SSID + "," + getSecurityFromScanResult(scan);
+    }
+
+    @NonNull
+    static String createStandardWifiEntryKey(@NonNull WifiConfiguration config) {
+        checkNotNull(config, "Cannot create key with null config!");
+        checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
+        return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
+                + getSecurityFromWifiConfiguration(config);
     }
 }
