@@ -175,6 +175,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private static final String WIFI_IFACE_NAME2 = "wlan1";
     private static final String TEST_COUNTRY_CODE = "US";
     private static final String TEST_FACTORY_MAC = "10:22:34:56:78:92";
+    private static final String TEST_FQDN = "testfqdn";
     private static final List<WifiConfiguration> TEST_WIFI_CONFIGURATION_LIST = Arrays.asList(
             WifiConfigurationTestUtil.generateWifiConfig(
                     0, 1000000, "\"red\"", true, true, null, null),
@@ -2490,48 +2491,28 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that the call to getPasspointConfigurations is not redirected to specific API
-     * getPasspointConfigs when the caller doesn't have NETWORK_SETTINGS permissions and
-     * NETWORK_SETUP_WIZARD.
+     * Verify the call to getPasspointConfigurations when the caller doesn't have
+     * NETWORK_SETTINGS and NETWORK_SETUP_WIZARD permissions.
      */
-    @Test(expected = SecurityException.class)
-    public void testGetPasspointConfigurationsWithOutPermissions() {
+    public void testGetPasspointConfigurationsWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
 
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
+
+        verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), false);
     }
 
     /**
-     * Verify that getPasspointConfigurations called by apps that has invalid package will
+     * Verify that the call to getPasspointConfigurations when the caller does have
+     * NETWORK_SETTINGS permission.
      */
-    @Test(expected = SecurityException.class)
-    public void testGetPasspointConfigurationWithInvalidPackage() {
-        doThrow(new SecurityException()).when(mAppOpsManager).checkPackage(anyInt(),
-                eq(TEST_PACKAGE_NAME));
+    public void testGetPasspointConfigurationsWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
-        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(true);
 
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
+        verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), false);
     }
-
-    /**
-     * Verify that getPasspointConfigurations called by apps targeting below Q SDK will return
-     * empty list if the caller doesn't have NETWORK_SETTINGS permissions and NETWORK_SETUP_WIZARD.
-     */
-    @Test
-    public void testGetPasspointConfigurationForAppsTargetingBelowQSdk() {
-        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
-        when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(eq(TEST_PACKAGE_NAME),
-                eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
-
-        List<PasspointConfiguration> result = mWifiServiceImpl.getPasspointConfigurations(
-                TEST_PACKAGE_NAME);
-        assertNotNull(result);
-        assertEquals(0, result.size());
-    }
-
 
     /**
      * Verify that GetPasspointConfigurations will redirect calls to {@link PasspointManager}
@@ -2549,13 +2530,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
         config.setHomeSp(homeSp);
         expectedConfigs.add(config);
 
-        when(mPasspointManager.getProviderConfigs()).thenReturn(expectedConfigs);
+        when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
+                .thenReturn(expectedConfigs);
         mLooper.startAutoDispatch();
         assertEquals(expectedConfigs, mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.getProviderConfigs())
+        when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
                 .thenReturn(new ArrayList<PasspointConfiguration>());
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE).isEmpty());
@@ -2563,33 +2545,28 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that the call to removePasspointConfiguration is not redirected to specific API
-     * syncRemovePasspointConfig when the caller doesn't have NETWORK_SETTINGS and
-     * NETWORK_CARRIER_PROVISIONING permission.
+     * Verify the call to removePasspointConfigurations when the caller doesn't have
+     * NETWORK_SETTINGS and NETWORK_CARRIER_PROVISIONING permissions.
      */
-    @Test(expected = SecurityException.class)
-    public void testRemovePasspointConfigurationWithOutPermissions() {
+    public void testRemovePasspointConfigurationWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
                 false);
 
-        mWifiServiceImpl.removePasspointConfiguration(null, null);
+        mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
+        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), false, TEST_FQDN);
     }
 
     /**
-     * Verify that the call to removePasspointConfiguration for apps targeting below Q SDK will
-     * return false if the caller doesn't have NETWORK_SETTINGS and NETWORK_CARRIER_PROVISIONING
-     * permission.
+     * Verify the call to removePasspointConfigurations when the caller does have
+     * NETWORK_CARRIER_PROVISIONING permission.
      */
-    @Test
-    public void testRemovePasspointConfigurationForAppsTargetingBelowQSdk() {
-        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+    public void testRemovePasspointConfigurationWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
-                false);
-        when(mWifiPermissionsUtil.isTargetSdkLessThan(isNull(),
-                eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
+                true);
 
-        assertFalse(mWifiServiceImpl.removePasspointConfiguration(null, null));
+        mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
+        verify(mPasspointManager).removeProvider(Binder.getCallingUid(), true, TEST_FQDN);
     }
 
     /**
@@ -3271,7 +3248,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.mClientModeImplChannel = mAsyncChannel;
         when(mWifiConfigManager.getSavedNetworks(anyInt()))
                 .thenReturn(Arrays.asList(network));
-        when(mPasspointManager.getProviderConfigs()).thenReturn(Arrays.asList(config));
+        when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
+                .thenReturn(Arrays.asList(config));
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
@@ -3282,12 +3260,12 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         verify(mWifiConfigManager).removeNetwork(
                 network.networkId, Binder.getCallingUid(), TEST_PACKAGE_NAME);
-        verify(mPasspointManager).removeProvider(fqdn);
+        verify(mPasspointManager).removeProvider(anyInt(), anyBoolean(), eq(fqdn));
         verify(mWifiConfigManager).clearDeletedEphemeralNetworks();
         verify(mClientModeImpl).clearNetworkRequestUserApprovedAccessPoints();
         verify(mWifiNetworkSuggestionsManager).clear();
         verify(mWifiScoreCard).clear();
-        verify(mPasspointManager).getProviderConfigs();
+        verify(mPasspointManager).getProviderConfigs(anyInt(), anyBoolean());
     }
 
     /**
@@ -3305,7 +3283,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         } catch (SecurityException e) {
         }
         verify(mWifiConfigManager, never()).getSavedNetworks(anyInt());
-        verify(mPasspointManager, never()).getProviderConfigs();
+        verify(mPasspointManager, never()).getProviderConfigs(anyInt(), anyBoolean());
     }
 
     /**
@@ -4022,13 +4000,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
 
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(false);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
