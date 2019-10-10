@@ -1866,15 +1866,15 @@ public class ClientModeImplTest {
     @Test
     public void syncRemovePasspointConfig() throws Exception {
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertTrue(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
+        assertTrue(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, true, fqdn));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.removeProvider(fqdn)).thenReturn(false);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(false);
         mLooper.startAutoDispatch();
-        assertFalse(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, fqdn));
+        assertFalse(mCmi.syncRemovePasspointConfig(mCmiAsyncChannel, true, fqdn));
         mLooper.stopAutoDispatch();
     }
 
@@ -1902,16 +1902,17 @@ public class ClientModeImplTest {
         config.setHomeSp(homeSp);
         expectedConfigs.add(config);
 
-        when(mPasspointManager.getProviderConfigs()).thenReturn(expectedConfigs);
+        when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
+                .thenReturn(expectedConfigs);
         mLooper.startAutoDispatch();
-        assertEquals(expectedConfigs, mCmi.syncGetPasspointConfigs(mCmiAsyncChannel));
+        assertEquals(expectedConfigs, mCmi.syncGetPasspointConfigs(mCmiAsyncChannel, true));
         mLooper.stopAutoDispatch();
         reset(mPasspointManager);
 
-        when(mPasspointManager.getProviderConfigs())
-                .thenReturn(new ArrayList<PasspointConfiguration>());
+        when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
+                .thenReturn(new ArrayList<>());
         mLooper.startAutoDispatch();
-        assertTrue(mCmi.syncGetPasspointConfigs(mCmiAsyncChannel).isEmpty());
+        assertTrue(mCmi.syncGetPasspointConfigs(mCmiAsyncChannel, true).isEmpty());
         mLooper.stopAutoDispatch();
     }
 
@@ -3544,14 +3545,15 @@ public class ClientModeImplTest {
     @Test
     public void testRemovePasspointConfig() throws Exception {
         String fqdn = "test.com";
-        when(mPasspointManager.removeProvider(anyString())).thenReturn(true);
+        when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), anyString()))
+                .thenReturn(true);
 
         // switch to connect mode and verify wifi is reported as enabled
         startSupplicantAndDispatchMessages();
-        mCmi.sendMessage(ClientModeImpl.CMD_REMOVE_PASSPOINT_CONFIG, fqdn);
+        mCmi.sendMessage(ClientModeImpl.CMD_REMOVE_PASSPOINT_CONFIG, TEST_UID, 0, fqdn);
         mLooper.dispatchAll();
 
-        verify(mWifiConfigManager).removePasspointConfiguredNetwork(eq(fqdn));
+        verify(mWifiConfigManager).removePasspointConfiguredNetwork(fqdn);
     }
 
     /**
