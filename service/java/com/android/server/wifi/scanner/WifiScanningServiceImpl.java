@@ -19,6 +19,7 @@ package com.android.server.wifi.scanner;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.net.wifi.IWifiScanner;
@@ -714,7 +715,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
              * Returns the latest scan results from all the available scanner impls.
              * @return Consolidated list of scan results from all the impl.
              */
-            public ScanData getLatestSingleScanResults() {
+            public @Nullable ScanData getLatestSingleScanResults() {
                 ScanData consolidatedScanData = null;
                 for (WifiScannerImpl impl : mScannerImpls.values()) {
                     ScanData scanData = impl.getLatestSingleScanResults();
@@ -956,11 +957,17 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             public boolean processMessage(Message msg) {
                 switch (msg.what) {
                     case CMD_SCAN_RESULTS_AVAILABLE:
-                        mWifiMetrics.incrementScanReturnEntry(
-                                WifiMetricsProto.WifiLog.SCAN_SUCCESS,
-                                mActiveScans.size());
-                        reportScanResults(mScannerImplsTracker.getLatestSingleScanResults());
-                        mActiveScans.clear();
+                        ScanData latestScanResults =
+                                mScannerImplsTracker.getLatestSingleScanResults();
+                        if (latestScanResults != null) {
+                            mWifiMetrics.incrementScanReturnEntry(
+                                    WifiMetricsProto.WifiLog.SCAN_SUCCESS,
+                                    mActiveScans.size());
+                            reportScanResults(latestScanResults);
+                            mActiveScans.clear();
+                        } else {
+                            Log.e(TAG, "latest scan results null unexpectedly");
+                        }
                         transitionTo(mIdleState);
                         return HANDLED;
                     case CMD_FULL_SCAN_RESULTS:
@@ -1197,7 +1204,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             clientHandlers.clear();
         }
 
-        void reportFullScanResult(ScanResult result, int bucketsScanned) {
+        void reportFullScanResult(@NonNull ScanResult result, int bucketsScanned) {
             for (RequestInfo<ScanSettings> entry : mActiveScans) {
                 if (ScanScheduleUtil.shouldReportFullScanResultForSettings(mChannelHelper,
                                 result, bucketsScanned, entry.settings, -1)) {
@@ -1210,7 +1217,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
         }
 
-        void reportScanResults(ScanData results) {
+        void reportScanResults(@NonNull ScanData results) {
             if (results != null && results.getResults() != null) {
                 if (results.getResults().length > 0) {
                     mWifiMetrics.incrementNonEmptyScanResultCount();
