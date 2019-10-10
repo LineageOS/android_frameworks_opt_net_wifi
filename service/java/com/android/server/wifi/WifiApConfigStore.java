@@ -44,6 +44,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.UUID;
@@ -367,9 +368,7 @@ public class WifiApConfigStore {
         config.apBand = apBand;
         config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
         config.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
-        String randomUUID = UUID.randomUUID().toString();
-        // first 12 chars from xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-        config.preSharedKey = randomUUID.substring(0, 8) + randomUUID.substring(9, 13);
+        config.preSharedKey = generatePassword();
         return config;
     }
 
@@ -503,5 +502,19 @@ public class WifiApConfigStore {
                 .setPackage(mWifiInjector.getWifiStackPackageName());
         return mFrameworkFacade.getBroadcast(
                 mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    private static String generatePassword() {
+        // Characters that will be used for password generation. Some characters commonly known to
+        // be confusing like 0 and O excluded from this list.
+        final String allowed = "23456789abcdefghijkmnpqrstuvwxyz";
+        final int passLength = 15;
+
+        StringBuilder sb = new StringBuilder(passLength);
+        SecureRandom random = new SecureRandom();
+        for (int i = 0; i < passLength; i++) {
+            sb.append(allowed.charAt(random.nextInt(allowed.length())));
+        }
+        return sb.toString();
     }
 }
