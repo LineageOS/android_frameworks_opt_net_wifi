@@ -22,10 +22,13 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
+import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.WorkSource;
 import android.provider.Settings;
@@ -34,6 +37,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.util.ArrayList;
@@ -103,6 +107,8 @@ public class ScanRequestProxy {
             new ArrayMap();
     // Scan results cached from the last full single scan request.
     private final List<ScanResult> mLastScanResults = new ArrayList<>();
+    // external ScanResultListener tracker
+    private final ExternalCallbackTracker<IScanResultsListener> mRegisteredScanResultsListeners;
     // Global scan listener for listening to all scan requests.
     private class GlobalScanListener implements WifiScanner.ScanListener {
         @Override
@@ -137,6 +143,7 @@ public class ScanRequestProxy {
                 mLastScanResults.clear();
                 mLastScanResults.addAll(Arrays.asList(scanResults));
                 sendScanResultBroadcast(true);
+                sendScanResultsAvailableToListeners();
             }
         }
 
@@ -244,6 +251,7 @@ public class ScanRequestProxy {
         mClock = clock;
         mFrameworkFacade = frameworkFacade;
         mThrottleEnabledSettingObserver = new ThrottleEnabledSettingObserver(handler);
+        mRegisteredScanResultsListeners = new ExternalCallbackTracker<>(handler);
     }
 
     /**
@@ -527,5 +535,38 @@ public class ScanRequestProxy {
                     + packageName);
         }
         mLastScanTimestampsForFgApps.remove(Pair.create(uid, packageName));
+    }
+
+    private void sendScanResultsAvailableToListeners() {
+        Iterator<IScanResultsListener> iterator =
+                mRegisteredScanResultsListeners.getCallbacks().iterator();
+        while (iterator.hasNext()) {
+            IScanResultsListener listener = iterator.next();
+            try {
+                listener.onScanResultsAvailable();
+            } catch (RemoteException e) {
+                Log.e(TAG, "onScanResultsAvailable: remote exception -- " + e);
+            }
+        }
+    }
+
+    /**
+     * Register a listener on scan event
+     * @param binder IBinder instance to allow cleanup if the app dies.
+     * @param listener IScanResultListener instance to add.
+     * @param listenerIdentifier identifier of the listener, should be hash code of package name.
+     * @return true if succeed otherwise false.
+     */
+    public boolean registerScanResultsListener(IBinder binder, IScanResultsListener listener,
+            int listenerIdentifier) {
+        return mRegisteredScanResultsListeners.add(binder, listener, listenerIdentifier);
+    }
+
+    /**
+     * Unregister a listener on scan event
+     * @param listenerIdentifier identifier of the listener, should be hash code of package name.
+     */
+    public void unregisterScanResultsListener(int listenerIdentifier) {
+        mRegisteredScanResultsListeners.remove(listenerIdentifier);
     }
 }

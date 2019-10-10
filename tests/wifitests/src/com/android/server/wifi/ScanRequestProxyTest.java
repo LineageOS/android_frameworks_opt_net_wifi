@@ -29,12 +29,16 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
+import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
+import android.os.Binder;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.UserHandle;
 import android.os.WorkSource;
+import android.os.test.TestLooper;
 import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
@@ -83,6 +87,10 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     @Mock private Clock mClock;
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    @Mock private IScanResultsListener mScanResultsListener;
+    @Mock private IScanResultsListener mAnotherScanResultsListener;
+    @Mock private TestLooper mLooper;
+    @Mock private IBinder mBinder;
 
     private ArgumentCaptor<WorkSource> mWorkSourceArgumentCaptor =
             ArgumentCaptor.forClass(WorkSource.class);
@@ -132,10 +140,11 @@ public class ScanRequestProxyTest extends WifiBaseTest {
         when(mFrameworkFacade.getIntegerSetting(
                 eq(mContext), eq(Settings.Global.WIFI_SCAN_THROTTLE_ENABLED), anyInt()))
                 .thenReturn(1);
+        mLooper = new TestLooper();
         mScanRequestProxy =
             new ScanRequestProxy(mContext, mAppOps, mActivityManager, mWifiInjector,
                     mWifiConfigManager, mWifiPermissionsUtil, mWifiMetrics, mClock,
-                    mFrameworkFacade, mock(Handler.class));
+                    mFrameworkFacade, new Handler(mLooper.getLooper()));
     }
 
     @After
@@ -944,5 +953,86 @@ public class ScanRequestProxyTest extends WifiBaseTest {
                 WifiManager.WIFI_STATE_DISABLED);
         boolean scanAvailable = scanState == WifiManager.WIFI_STATE_ENABLED;
         assertEquals(expectedScanAvailable, scanAvailable);
+    }
+
+    /**
+     * Test register scan result listener from different apps, all of them will receive the event.
+     */
+    @Test
+    public void testScanSuccessWithMultipleListenerFromDifferentApps() throws Exception {
+        final int listenerIdentifier1 = 1;
+        final int listenerIdentifier2 = 2;
+        Binder binder1 = new Binder();
+        Binder binder2 = new Binder();
+        mScanRequestProxy.registerScanResultsListener(binder1, mScanResultsListener,
+                listenerIdentifier1);
+        mScanRequestProxy.registerScanResultsListener(binder2, mAnotherScanResultsListener,
+                listenerIdentifier2);
+        mLooper.dispatchAll();
+        testStartScanSuccess();
+        // Verify the scan results processing.
+        mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
+        mLooper.dispatchAll();
+        verify(mScanResultsListener).onScanResultsAvailable();
+        verify(mAnotherScanResultsListener).onScanResultsAvailable();
+        validateScanResultsAvailableBroadcastSent(true);
+
+        reset(mScanResultsListener);
+        reset(mAnotherScanResultsListener);
+        mScanRequestProxy.unregisterScanResultsListener(listenerIdentifier1);
+        mLooper.dispatchAll();
+        mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
+        mLooper.dispatchAll();
+        verify(mScanResultsListener, never()).onScanResultsAvailable();
+        verify(mAnotherScanResultsListener).onScanResultsAvailable();
+        validateScanResultsAvailableBroadcastSent(true);
+    }
+
+    /**
+     * Test same app register scan result listener second time will replace the first one.
+     */
+    @Test
+    public void testScanSuccessWithMultipleListenerFromSameApps() throws Exception {
+        final int listenerIdentifier = 1;
+        Binder binder = new Binder();
+        mScanRequestProxy.registerScanResultsListener(binder, mScanResultsListener,
+                listenerIdentifier);
+        mScanRequestProxy.registerScanResultsListener(binder, mAnotherScanResultsListener,
+                listenerIdentifier);
+        testStartScanSuccess();
+        // Verify the scan results processing.
+        mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
+        mLooper.dispatchAll();
+        verify(mScanResultsListener, never()).onScanResultsAvailable();
+        verify(mAnotherScanResultsListener).onScanResultsAvailable();
+        validateScanResultsAvailableBroadcastSent(true);
+    }
+
+    /**
+     * Test registered scan result listener will be unregistered when calling binder is died.
+     */
+    @Test
+    public void testUnregisterScanResultListenerOnBinderDied() throws Exception {
+        final int callbackIdentifier = 1;
+        ArgumentCaptor<IBinder.DeathRecipient> drCaptor =
+                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
+        mScanRequestProxy.registerScanResultsListener(mBinder, mScanResultsListener,
+                callbackIdentifier);
+        verify(mBinder).linkToDeath(drCaptor.capture(), anyInt());
+        testStartScanSuccess();
+        // Verify the scan results processing.
+        mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
+        mLooper.dispatchAll();
+        verify(mScanResultsListener).onScanResultsAvailable();
+        validateScanResultsAvailableBroadcastSent(true);
+        reset(mScanResultsListener);
+        drCaptor.getValue().binderDied();
+        mLooper.dispatchAll();
+        verify(mBinder).unlinkToDeath(drCaptor.capture(), eq(0));
+        // Verify the scan results processing.
+        mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
+        mLooper.dispatchAll();
+        verify(mScanResultsListener, never()).onScanResultsAvailable();
+        validateScanResultsAvailableBroadcastSent(true);
     }
 }
