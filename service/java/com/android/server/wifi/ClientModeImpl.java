@@ -73,7 +73,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.IWifiP2pManager;
-import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
 import android.os.IBinder;
@@ -99,7 +99,6 @@ import android.util.StatsLog;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.MessageUtils;
 import com.android.internal.util.Protocol;
@@ -313,9 +312,6 @@ public class ClientModeImpl extends StateMachine {
 
     /* Tracks sequence number on a periodic scan message */
     private int mPeriodicScanToken = 0;
-
-    // Wakelock held during wifi start/stop and driver load/unload
-    private PowerManager.WakeLock mWakeLock;
 
     private Context mContext;
 
@@ -673,26 +669,6 @@ public class ClientModeImpl extends StateMachine {
      */
     public static final WorkSource WIFI_WORK_SOURCE = new WorkSource(Process.WIFI_UID);
 
-    /**
-     * Keep track of whether WIFI is running.
-     */
-    private boolean mIsRunning = false;
-
-    /**
-     * Keep track of whether we last told the battery stats we had started.
-     */
-    private boolean mReportedRunning = false;
-
-    /**
-     * Most recently set source of starting WIFI.
-     */
-    private final WorkSource mRunningWifiUids = new WorkSource();
-
-    /**
-     * The last reported UIDs that were responsible for starting WIFI.
-     */
-    private final WorkSource mLastRunningWifiUids = new WorkSource();
-
     private TelephonyManager mTelephonyManager;
     private TelephonyManager getTelephonyManager() {
         if (mTelephonyManager == null) {
@@ -701,7 +677,7 @@ public class ClientModeImpl extends StateMachine {
         return mTelephonyManager;
     }
 
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStatsManager;
 
     private final String mTcpBufferSizes;
 
@@ -725,7 +701,9 @@ public class ClientModeImpl extends StateMachine {
                             BackupManagerProxy backupManagerProxy, WifiCountryCode countryCode,
                             WifiNative wifiNative, WrongPasswordNotifier wrongPasswordNotifier,
                             SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
-                            LinkProbeManager linkProbeManager) {
+                            LinkProbeManager linkProbeManager,
+                            BatteryStatsManager batteryStatsManager,
+                            SupplicantStateTracker supplicantStateTracker) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -743,8 +721,7 @@ public class ClientModeImpl extends StateMachine {
         mLinkProbeManager = linkProbeManager;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
-        mBatteryStats = IBatteryStats.Stub.asInterface(mFacade.getService(
-                BatteryStats.SERVICE_NAME));
+        mBatteryStatsManager = batteryStatsManager;
         mWifiStateTracker = wifiInjector.getWifiStateTracker();
         IBinder b = mFacade.getService(Context.NETWORKMANAGEMENT_SERVICE);
 
@@ -762,8 +739,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiDataStall = mWifiInjector.getWifiDataStall();
 
         mWifiInfo = new ExtendedWifiInfo();
-        mSupplicantStateTracker =
-                mFacade.makeSupplicantStateTracker(context, mWifiConfigManager, getHandler());
+        mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
 
 
@@ -835,7 +811,6 @@ public class ClientModeImpl extends StateMachine {
                 Settings.Global.WIFI_SUSPEND_OPTIMIZATIONS_ENABLED, 1) == 1);
 
         PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
-        mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getName());
 
         mSuspendWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WifiSuspend");
         mSuspendWakeLock.setReferenceCounted(false);
@@ -1705,44 +1680,6 @@ public class ClientModeImpl extends StateMachine {
     }
 
     /**
-     * Update the BatteryStats WorkSource.
-     */
-    public void updateBatteryWorkSource(WorkSource newSource) {
-        synchronized (mRunningWifiUids) {
-            try {
-                if (newSource != null) {
-                    mRunningWifiUids.set(newSource);
-                }
-                if (mIsRunning) {
-                    if (mReportedRunning) {
-                        // If the work source has changed since last time, need
-                        // to remove old work from battery stats.
-                        if (!mLastRunningWifiUids.equals(mRunningWifiUids)) {
-                            mBatteryStats.noteWifiRunningChanged(mLastRunningWifiUids,
-                                    mRunningWifiUids);
-                            mLastRunningWifiUids.set(mRunningWifiUids);
-                        }
-                    } else {
-                        // Now being started, report it.
-                        mBatteryStats.noteWifiRunning(mRunningWifiUids);
-                        mLastRunningWifiUids.set(mRunningWifiUids);
-                        mReportedRunning = true;
-                    }
-                } else {
-                    if (mReportedRunning) {
-                        // Last reported we were running, time to stop.
-                        mBatteryStats.noteWifiStopped(mLastRunningWifiUids);
-                        mLastRunningWifiUids.clear();
-                        mReportedRunning = false;
-                    }
-                }
-                mWakeLock.setWorkSource(newSource);
-            } catch (RemoteException ignore) {
-            }
-        }
-    }
-
-    /**
      * Trigger dump on the class IpClient object.
      */
     public void dumpIpClient(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -2424,11 +2361,7 @@ public class ClientModeImpl extends StateMachine {
     }
 
     private void sendRssiChangeBroadcast(final int newRssi) {
-        try {
-            mBatteryStats.noteWifiRssiChanged(newRssi);
-        } catch (RemoteException e) {
-            // Won't happen.
-        }
+        mBatteryStatsManager.noteWifiRssiChanged(newRssi);
         StatsLog.write(StatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
                 WifiManager.calculateSignalLevel(newRssi, WifiManager.RSSI_LEVELS));
 
@@ -3309,9 +3242,6 @@ public class ClientModeImpl extends StateMachine {
         mWifiDiagnostics.startPktFateMonitoring(mInterfaceName);
         mWifiDiagnostics.startLogging(mInterfaceName);
 
-        mIsRunning = true;
-        updateBatteryWorkSource(null);
-
         /**
          * Enable bluetooth coexistence scan mode when bluetooth connection is active.
          * When this mode is on, some of the low-level scan parameters used by the
@@ -3347,9 +3277,6 @@ public class ClientModeImpl extends StateMachine {
     private void stopClientMode() {
         // exiting supplicant started state is now only applicable to client mode
         mWifiDiagnostics.stopLogging(mInterfaceName);
-
-        mIsRunning = false;
-        updateBatteryWorkSource(null);
 
         if (mIpClient != null && mIpClient.shutdown()) {
             // Block to make sure IpClient has really shut down, lest cleanup

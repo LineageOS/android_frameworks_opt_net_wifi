@@ -19,12 +19,11 @@ package com.android.server.wifi;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.os.BatteryStatsManager;
 import android.os.IBinder;
 import android.os.RemoteException;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.internal.app.IBatteryStats;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -41,7 +40,7 @@ public class WifiMulticastLockManagerTest extends WifiBaseTest {
     private static final String WL_2_TAG = "Wakelock-2";
 
     @Mock WifiMulticastLockManager.FilterController mHandler;
-    @Mock IBatteryStats mBatteryStats;
+    @Mock BatteryStatsManager mBatteryStats;
     WifiMulticastLockManager mManager;
 
     /**

@@ -31,6 +31,7 @@ import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiScanner.ScanSettings;
 import android.net.wifi.WifiScanner.WifiBand;
 import android.net.wifi.WifiStackClient;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Looper;
@@ -46,7 +47,6 @@ import android.util.Pair;
 import android.util.StatsLog;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
@@ -362,8 +362,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private WifiSingleScanStateMachine mSingleScanStateMachine;
     private WifiPnoScanStateMachine mPnoScanStateMachine;
     private ClientHandler mClientHandler;
-    // This is retrieved lazily because location service is started after wifi scanner.
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStats;
     private final AlarmManager mAlarmManager;
     private final WifiMetrics mWifiMetrics;
     private final Clock mClock;
@@ -372,8 +371,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     private final WifiNative mWifiNative;
 
     WifiScanningServiceImpl(Context context, Looper looper,
-            WifiScannerImpl.WifiScannerImplFactory scannerImplFactory, IBatteryStats batteryStats,
-            WifiInjector wifiInjector) {
+            WifiScannerImpl.WifiScannerImplFactory scannerImplFactory,
+            BatteryStatsManager batteryStats, WifiInjector wifiInjector) {
         mContext = context;
         mLooper = looper;
         mScannerImplFactory = scannerImplFactory;
@@ -938,11 +937,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public void enter() {
                 mScanWorkSource = mActiveScans.createMergedWorkSource();
-                try {
-                    mBatteryStats.noteWifiScanStartedFromSource(mScanWorkSource);
-                } catch (RemoteException e) {
-                    loge(e.toString());
-                }
+                mBatteryStats.noteWifiScanStartedFromSource(mScanWorkSource);
                 StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
                         StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__ON);
             }
@@ -950,11 +945,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             @Override
             public void exit() {
                 mActiveScanSettings = null;
-                try {
-                    mBatteryStats.noteWifiScanStoppedFromSource(mScanWorkSource);
-                } catch (RemoteException e) {
-                    loge(e.toString());
-                }
+                mBatteryStats.noteWifiScanStoppedFromSource(mScanWorkSource);
                 StatsLog.write(StatsLog.WIFI_SCAN_STATE_CHANGED, mScanWorkSource,
                         StatsLog.WIFI_SCAN_STATE_CHANGED__STATE__OFF);
 
@@ -2260,11 +2251,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
             int csph = getCsph();
 
-            try {
-                mBatteryStats.noteWifiBatchedScanStartedFromSource(mWorkSource, csph);
-            } catch (RemoteException e) {
-                logw("failed to report scan work: " + e.toString());
-            }
+            mBatteryStats.noteWifiBatchedScanStartedFromSource(mWorkSource, csph);
         }
 
         // TODO(b/27903217, 71530998): This is dead code. Should this be wired up ?
@@ -2272,11 +2259,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             if (mUid == 0)
                 return;
 
-            try {
-                mBatteryStats.noteWifiBatchedScanStoppedFromSource(mWorkSource);
-            } catch (RemoteException e) {
-                logw("failed to cleanup scan work: " + e.toString());
-            }
+            mBatteryStats.noteWifiBatchedScanStoppedFromSource(mWorkSource);
         }
 
         // TODO migrate batterystats to accept scan duration per hour instead of csph

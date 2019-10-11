@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -30,8 +31,6 @@ import android.os.WorkSource;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.internal.app.IBatteryStats;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -59,7 +58,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
 
     WifiLockManager mWifiLockManager;
     @Mock Clock mClock;
-    @Mock IBatteryStats mBatteryStats;
+    @Mock BatteryStatsManager mBatteryStats;
     @Mock IBinder mBinder;
     @Mock IBinder mBinder2;
     WorkSource mWorkSource;
@@ -106,11 +105,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         InOrder inOrder = inOrder(binder, mBatteryStats);
 
         inOrder.verify(binder).linkToDeath(deathRecipient.capture(), eq(0));
-        if (lockMode == WifiManager.WIFI_MODE_FULL_LOW_LATENCY) {
-            inOrder.verify(mBatteryStats).noteFullWifiLockAcquired(DEFAULT_TEST_UID_1);
-        } else {
-            inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(ws);
-        }
+        inOrder.verify(mBatteryStats).noteFullWifiLockAcquiredFromSource(ws);
     }
 
     private void captureUidImportanceListener() {
@@ -149,7 +144,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         assertTrue(mWifiLockManager.releaseWifiLock(binder));
         InOrder inOrder = inOrder(binder, mBatteryStats);
         inOrder.verify(binder).unlinkToDeath(deathRecipient.capture(), eq(0));
-        inOrder.verify(mBatteryStats).noteFullWifiLockReleased(anyInt());
+        inOrder.verify(mBatteryStats).noteFullWifiLockReleasedFromSource(any(WorkSource.class));
     }
 
     /**
@@ -1220,7 +1215,6 @@ public class WifiLockManagerTest extends WifiBaseTest {
         assertTrue(mWifiLockManager.acquireWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "",
                 mBinder, mWorkSource));
         assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
-        verify(mBatteryStats, never()).noteFullWifiLockAcquired(anyInt());
         verify(mBatteryStats, never()).noteFullWifiLockAcquiredFromSource(any());
     }
 
@@ -1252,7 +1246,7 @@ public class WifiLockManagerTest extends WifiBaseTest {
         mWifiLockManager.updateWifiClientConnected(false);
 
         assertEquals(WifiManager.WIFI_MODE_NO_LOCKS_HELD, mWifiLockManager.getStrongestLockMode());
-        verify(mBatteryStats).noteFullWifiLockReleased(DEFAULT_TEST_UID_1);
+        verify(mBatteryStats).noteFullWifiLockReleasedFromSource(mWorkSource);
     }
 
     /**
