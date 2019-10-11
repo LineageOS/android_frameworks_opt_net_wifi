@@ -2792,6 +2792,7 @@ public class WifiServiceImplTest {
      * Verify the call to getPasspointConfigurations when the caller doesn't have
      * NETWORK_SETTINGS and NETWORK_SETUP_WIZARD permissions.
      */
+    @Test
     public void testGetPasspointConfigurationsWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
@@ -2805,6 +2806,7 @@ public class WifiServiceImplTest {
      * Verify that the call to getPasspointConfigurations when the caller does have
      * NETWORK_SETTINGS permission.
      */
+    @Test
     public void testGetPasspointConfigurationsWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
 
@@ -2817,6 +2819,7 @@ public class WifiServiceImplTest {
      * Verify the call to removePasspointConfigurations when the caller doesn't have
      * NETWORK_SETTINGS and NETWORK_CARRIER_PROVISIONING permissions.
      */
+    @Test
     public void testRemovePasspointConfigurationWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
@@ -2830,6 +2833,7 @@ public class WifiServiceImplTest {
      * Verify the call to removePasspointConfigurations when the caller does have
      * NETWORK_CARRIER_PROVISIONING permission.
      */
+    @Test
     public void testRemovePasspointConfigurationWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
                 true);
