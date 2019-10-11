@@ -729,7 +729,7 @@ public class TelephonyUtil {
      * Returns true if at least one SIM is present on the device, false otherwise.
      */
     public static boolean isSimPresent(@Nonnull SubscriptionManager sm) {
-        return sm.getActiveSubscriptionIdList().length > 0;
+        return !sm.getActiveSubscriptionInfoList().isEmpty();
     }
 
     /**
