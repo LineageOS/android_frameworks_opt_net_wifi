@@ -58,6 +58,7 @@ import android.database.ContentObserver;
 import android.net.DhcpInfo;
 import android.net.DhcpResults;
 import android.net.Network;
+import android.net.NetworkStack;
 import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClientUtil;
@@ -785,8 +786,15 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     private void enforceNetworkStackPermission() {
-        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK,
-                "WifiService");
+        // TODO(b/142554155): Only check for MAINLINE_NETWORK_STACK permission
+        boolean granted = mContext.checkCallingOrSelfPermission(
+                android.Manifest.permission.NETWORK_STACK)
+                == PackageManager.PERMISSION_GRANTED;
+        if (granted) {
+            return;
+        }
+        mContext.enforceCallingOrSelfPermission(
+                NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK, "WifiService");
     }
 
     private void enforceAccessPermission() {
