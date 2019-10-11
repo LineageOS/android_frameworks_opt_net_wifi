@@ -17,7 +17,7 @@
  */
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.android.server.wifistack.permissionconfig"
+    package="com.android.wifi.permissionconfig"
     android:sharedUserId="android.uid.networkstack"
     android:versionCode="210000000"
     android:versionName="R-initial">

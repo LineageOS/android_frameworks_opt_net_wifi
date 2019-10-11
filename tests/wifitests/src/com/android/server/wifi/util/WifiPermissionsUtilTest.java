@@ -84,7 +84,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
     @Mock private DevicePolicyManager mDevicePolicyManager;
     @Spy private FakeWifiLog mWifiLog;
 
-    private static final String TEST_WIFI_STACK_APK_NAME = "com.android.server.wifistack";
+    private static final String TEST_WIFI_STACK_APK_NAME = "com.android.wifi";
     private static final String TEST_PACKAGE_NAME = "com.google.somePackage";
     private static final String INVALID_PACKAGE  = "BAD_PACKAGE";
     private static final int MANAGED_PROFILE_UID = 1100000;
