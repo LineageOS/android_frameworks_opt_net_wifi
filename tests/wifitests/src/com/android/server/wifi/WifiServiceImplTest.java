@@ -2494,12 +2494,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * Verify the call to getPasspointConfigurations when the caller doesn't have
      * NETWORK_SETTINGS and NETWORK_SETUP_WIZARD permissions.
      */
+    @Test
     public void testGetPasspointConfigurationsWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkSetupWizardPermission(anyInt())).thenReturn(false);
 
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
-
+        mLooper.stopAutoDispatch();
         verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), false);
     }
 
@@ -2507,11 +2509,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * Verify that the call to getPasspointConfigurations when the caller does have
      * NETWORK_SETTINGS permission.
      */
+    @Test
     public void testGetPasspointConfigurationsWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
 
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
-        verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), false);
+        mLooper.stopAutoDispatch();
+        verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), true);
     }
 
     /**
@@ -2548,12 +2553,15 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * Verify the call to removePasspointConfigurations when the caller doesn't have
      * NETWORK_SETTINGS and NETWORK_CARRIER_PROVISIONING permissions.
      */
+    @Test
     public void testRemovePasspointConfigurationWithOutPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
                 false);
 
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
+        mLooper.stopAutoDispatch();
         verify(mPasspointManager).removeProvider(Binder.getCallingUid(), false, TEST_FQDN);
     }
 
@@ -2561,11 +2569,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
      * Verify the call to removePasspointConfigurations when the caller does have
      * NETWORK_CARRIER_PROVISIONING permission.
      */
+    @Test
     public void testRemovePasspointConfigurationWithPrivilegedPermissions() {
         when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(anyInt())).thenReturn(
                 true);
 
+        mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
+        mLooper.stopAutoDispatch();
         verify(mPasspointManager).removeProvider(Binder.getCallingUid(), true, TEST_FQDN);
     }
 
