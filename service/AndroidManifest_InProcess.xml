@@ -17,7 +17,7 @@
  */
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.android.server.wifistack.inprocess"
+          package="com.android.wifi.inprocess"
           coreApp="true"
           android:sharedUserId="android.uid.system"
           android:versionCode="220000000"

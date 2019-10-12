@@ -72,6 +72,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
@@ -118,6 +119,7 @@ import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -235,7 +237,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         mSharedDataSource = sharedDataSource.getValue();
         mUserDataSource = userDataSource.getValue();
         // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
     }
 
     /**
@@ -269,7 +272,8 @@ public class PasspointManagerTest extends WifiBaseTest {
      * @param expectedConfig The expected installed Passpoint configuration
      */
     private void verifyInstalledConfig(PasspointConfiguration expectedConfig) {
-        List<PasspointConfiguration> installedConfigs = mManager.getProviderConfigs();
+        List<PasspointConfiguration> installedConfigs =
+                mManager.getProviderConfigs(TEST_CREATOR_UID, true);
         assertEquals(1, installedConfigs.size());
         assertEquals(expectedConfig, installedConfigs.get(0));
     }
@@ -292,6 +296,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(provider.installCertsAndKeys()).thenReturn(true);
         lenient().when(provider.getConfig()).thenReturn(config);
         lenient().when(provider.getWifiConfig()).thenReturn(wifiConfig);
+        lenient().when(provider.getCreatorUid()).thenReturn(TEST_CREATOR_UID);
         return provider;
     }
 
@@ -669,8 +674,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Provider index start with 0, should be 1 after adding a provider.
         assertEquals(1, mSharedDataSource.getProviderIndex());
 
-        // Remove the provider.
-        assertTrue(mManager.removeProvider(TEST_FQDN));
+        // Remove the provider as the creator app.
+        assertTrue(mManager.removeProvider(TEST_CREATOR_UID, false, TEST_FQDN));
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).removePasspointConfiguredNetwork(
                 provider.getWifiConfig().configKey());
@@ -678,7 +683,7 @@ public class PasspointManagerTest extends WifiBaseTest {
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallSuccess();
         verify(mAppOpsManager).stopWatchingMode(any(AppOpsManager.OnOpChangedListener.class));
-        assertTrue(mManager.getProviderConfigs().isEmpty());
+        assertTrue(mManager.getProviderConfigs(TEST_CREATOR_UID, false).isEmpty());
 
         // Verify content in the data source.
         assertTrue(mUserDataSource.getProviders().isEmpty());
@@ -716,15 +721,15 @@ public class PasspointManagerTest extends WifiBaseTest {
         // Provider index start with 0, should be 1 after adding a provider.
         assertEquals(1, mSharedDataSource.getProviderIndex());
 
-        // Remove the provider.
-        assertTrue(mManager.removeProvider(TEST_FQDN));
+        // Remove the provider as a privileged non-creator app.
+        assertTrue(mManager.removeProvider(TEST_UID, true, TEST_FQDN));
         verify(provider).uninstallCertsAndKeys();
         verify(mWifiConfigManager).removePasspointConfiguredNetwork(
                 provider.getWifiConfig().configKey());
         verify(mWifiConfigManager).saveToStore(true);
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallSuccess();
-        assertTrue(mManager.getProviderConfigs().isEmpty());
+        assertTrue(mManager.getProviderConfigs(TEST_UID, true).isEmpty());
 
         // Verify content in the data source.
         assertTrue(mUserDataSource.getProviders().isEmpty());
@@ -852,7 +857,7 @@ public class PasspointManagerTest extends WifiBaseTest {
      */
     @Test
     public void removeNonExistingProvider() throws Exception {
-        assertFalse(mManager.removeProvider(TEST_FQDN));
+        assertFalse(mManager.removeProvider(TEST_CREATOR_UID, true, TEST_FQDN));
         verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
         verify(mWifiMetrics, never()).incrementNumPasspointProviderUninstallSuccess();
     }
@@ -1296,8 +1301,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         mUserDataSource.setProviders(providers);
 
         // Verify the providers maintained by PasspointManager.
-        assertEquals(1, mManager.getProviderConfigs().size());
-        assertEquals(config, mManager.getProviderConfigs().get(0));
+        assertEquals(1, mManager.getProviderConfigs(TEST_CREATOR_UID, true).size());
+        assertEquals(config, mManager.getProviderConfigs(TEST_CREATOR_UID, true).get(0));
     }
 
     /**
@@ -1678,7 +1683,8 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Test
     public void verifyInstallEphemeralPasspointConfigurationWithNonCarrierEapMethod() {
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         PasspointConfiguration config = createTestConfigWithUserCredential("abc.com", "test");
         PasspointProvider provider = createMockProvider(config);
         when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
@@ -1693,7 +1699,8 @@ public class PasspointManagerTest extends WifiBaseTest {
     @Test
     public void verifyInstallEphemeralPasspointConfiguration() {
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         PasspointConfiguration config = createTestConfigWithSimCredential(TEST_FQDN, TEST_IMSI,
                 TEST_REALM);
         PasspointProvider provider = createMockProvider(config);
@@ -1739,7 +1746,8 @@ public class PasspointManagerTest extends WifiBaseTest {
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             // SIM is present
-            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+            when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                    .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, TEST_HESSID,
                     TEST_ANQP_DOMAIN_ID, true));
@@ -1783,7 +1791,8 @@ public class PasspointManagerTest extends WifiBaseTest {
                     .thenReturn(mDataTelephonyManager);
             when(mDataTelephonyManager.getSimOperator()).thenReturn(TEST_MCC_MNC);
             // SIM is present
-            when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+            when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                    .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
             List<ScanDetail> scanDetails = new ArrayList<>();
             scanDetails.add(generateScanDetail(TEST_SSID, TEST_BSSID_STRING, 0, 0, false));
 
@@ -1811,7 +1820,7 @@ public class PasspointManagerTest extends WifiBaseTest {
 
         verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE), eq(TEST_PACKAGE),
                 mAppOpChangedListenerCaptor.capture());
-        assertEquals(1, mManager.getProviderConfigs().size());
+        assertEquals(1, mManager.getProviderConfigs(TEST_CREATOR_UID, true).size());
         AppOpsManager.OnOpChangedListener listener = mAppOpChangedListenerCaptor.getValue();
         assertNotNull(listener);
 
@@ -1825,6 +1834,45 @@ public class PasspointManagerTest extends WifiBaseTest {
 
         verify(mAppOpsManager).stopWatchingMode(mAppOpChangedListenerCaptor.getValue());
         verify(mClientModeImpl).disconnectCommand();
-        assertTrue(mManager.getProviderConfigs().isEmpty());
+        assertTrue(mManager.getProviderConfigs(TEST_CREATOR_UID, true).isEmpty());
+    }
+
+    /**
+     * Verify that removing a provider with a different UID will not succeed.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void removeGetProviderWithDifferentUid() throws Exception {
+        PasspointConfiguration config = createTestConfigWithSimCredential(TEST_FQDN, TEST_IMSI,
+                TEST_REALM);
+        PasspointProvider provider = createMockProvider(config);
+        when(mObjectFactory.makePasspointProvider(eq(config), eq(mWifiKeyStore),
+                eq(mSimAccessor), anyLong(), eq(TEST_CREATOR_UID), eq(TEST_PACKAGE))).thenReturn(
+                provider);
+        assertTrue(mManager.addOrUpdateProvider(config, TEST_CREATOR_UID, TEST_PACKAGE));
+        verifyInstalledConfig(config);
+        verify(mWifiConfigManager).saveToStore(true);
+        verify(mWifiMetrics).incrementNumPasspointProviderInstallation();
+        verify(mWifiMetrics).incrementNumPasspointProviderInstallSuccess();
+        reset(mWifiMetrics);
+        reset(mWifiConfigManager);
+
+        // no profiles available for TEST_UID
+        assertTrue(mManager.getProviderConfigs(TEST_UID, false).isEmpty());
+        // 1 profile available for TEST_CREATOR_UID
+        assertFalse(mManager.getProviderConfigs(TEST_CREATOR_UID, false).isEmpty());
+
+        // Remove the provider as a non-privileged non-creator app.
+        assertFalse(mManager.removeProvider(TEST_UID, false, TEST_FQDN));
+        verify(provider, never()).uninstallCertsAndKeys();
+        verify(mWifiConfigManager, never()).saveToStore(true);
+        verify(mWifiMetrics).incrementNumPasspointProviderUninstallation();
+        verify(mWifiMetrics, never()).incrementNumPasspointProviderUninstallSuccess();
+
+        // no profiles available for TEST_UID
+        assertTrue(mManager.getProviderConfigs(TEST_UID, false).isEmpty());
+        // 1 profile available for TEST_CREATOR_UID
+        assertFalse(mManager.getProviderConfigs(TEST_CREATOR_UID, false).isEmpty());
     }
 }

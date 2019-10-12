@@ -2114,16 +2114,15 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public boolean removePasspointConfiguration(String fqdn, String packageName) {
         final int uid = Binder.getCallingUid();
-        if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
-                && !mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
-            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)) {
-                return false;
-            }
-            throw new SecurityException(TAG + ": Permission denied");
+        boolean privileged = false;
+        if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                || mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
+            privileged = true;
         }
         mLog.info("removePasspointConfiguration uid=%").c(Binder.getCallingUid()).flush();
+        final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
-                () -> mPasspointManager.removeProvider(fqdn), false);
+                () -> mPasspointManager.removeProvider(uid, privilegedFinal, fqdn), false);
     }
 
     /**
@@ -2136,19 +2135,18 @@ public class WifiServiceImpl extends BaseWifiService {
     @Override
     public List<PasspointConfiguration> getPasspointConfigurations(String packageName) {
         final int uid = Binder.getCallingUid();
-        mAppOps.checkPackage(uid, packageName);
-        if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
-                && !mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
-            if (mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q, uid)) {
-                return new ArrayList<>();
-            }
-            throw new SecurityException(TAG + ": Permission denied");
+        boolean privileged = false;
+        if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                || mWifiPermissionsUtil.checkNetworkSetupWizardPermission(uid)) {
+            privileged = true;
         }
         if (mVerboseLoggingEnabled) {
             mLog.info("getPasspointConfigurations uid=%").c(Binder.getCallingUid()).flush();
         }
+        final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
-            () -> mPasspointManager.getProviderConfigs(), Collections.emptyList());
+            () -> mPasspointManager.getProviderConfigs(uid, privilegedFinal),
+            Collections.emptyList());
     }
 
     /**
@@ -2701,7 +2699,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         // Delete all Passpoint configurations
         List<PasspointConfiguration> configs = mWifiThreadRunner.call(
-                () -> mPasspointManager.getProviderConfigs(), Collections.emptyList());
+                () -> mPasspointManager.getProviderConfigs(Process.WIFI_UID /* ignored */, true),
+                Collections.emptyList());
         for (PasspointConfiguration config : configs) {
             removePasspointConfiguration(config.getHomeSp().getFqdn(), packageName);
         }

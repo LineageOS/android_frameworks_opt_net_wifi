@@ -32,6 +32,7 @@ import android.media.AudioManager;
 import android.media.AudioSystem;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.Looper;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -486,7 +487,7 @@ public class SarManager {
      */
     private class WifiPhoneStateListener extends PhoneStateListener {
         WifiPhoneStateListener(Looper looper) {
-            super(looper);
+            super(new HandlerExecutor(new Handler(looper)));
         }
 
         /**

@@ -37,6 +37,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
@@ -157,7 +158,8 @@ public class PasspointNetworkEvaluatorTest {
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
     }
@@ -391,7 +393,8 @@ public class PasspointNetworkEvaluatorTest {
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
         when(testProvider.isSimCredential()).thenReturn(true);
         // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
 
         assertEquals(null, mEvaluator.evaluateNetworks(
                 scanDetails, null, null, false, false, mOnConnectableListener));
@@ -420,7 +423,8 @@ public class PasspointNetworkEvaluatorTest {
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
         when(testProvider.isSimCredential()).thenReturn(true);
         // SIM is present
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[1]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
@@ -460,7 +464,8 @@ public class PasspointNetworkEvaluatorTest {
         List<ScanDetail> scanDetails = Collections.singletonList(
                 generateScanDetail(TEST_SSID1, TEST_BSSID1));
         // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(mock(SubscriptionInfo.class)));
         when(mPasspointManager.hasCarrierProvider(anyString())).thenReturn(false);
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
 
