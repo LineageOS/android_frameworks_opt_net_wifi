@@ -1780,12 +1780,14 @@ public class ClientModeImpl extends StateMachine {
      * Remove a Passpoint configuration synchronously.
      *
      * @param channel Channel for communicating with the state machine
+     * @param privileged Whether the caller is a privileged entity
      * @param fqdn The FQDN of the Passpoint configuration to remove
      * @return true on success
      */
-    public boolean syncRemovePasspointConfig(AsyncChannel channel, String fqdn) {
+    public boolean syncRemovePasspointConfig(AsyncChannel channel, boolean privileged,
+            String fqdn) {
         Message resultMsg = channel.sendMessageSynchronously(CMD_REMOVE_PASSPOINT_CONFIG,
-                fqdn);
+                privileged ? 1 : 0, 0, fqdn);
         if (messageIsNull(resultMsg)) return false;
         boolean result = (resultMsg.arg1 == SUCCESS);
         resultMsg.recycle();
@@ -1796,10 +1798,13 @@ public class ClientModeImpl extends StateMachine {
      * Get the list of installed Passpoint configurations synchronously.
      *
      * @param channel Channel for communicating with the state machine
+     * @param privileged Whether the caller is a privileged entity
      * @return List of {@link PasspointConfiguration}
      */
-    public List<PasspointConfiguration> syncGetPasspointConfigs(AsyncChannel channel) {
-        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_PASSPOINT_CONFIGS);
+    public List<PasspointConfiguration> syncGetPasspointConfigs(AsyncChannel channel,
+            boolean privileged) {
+        Message resultMsg = channel.sendMessageSynchronously(CMD_GET_PASSPOINT_CONFIGS,
+                privileged ? 1 : 0);
         if (messageIsNull(resultMsg)) return null;
         List<PasspointConfiguration> result = (List<PasspointConfiguration>) resultMsg.obj;
         resultMsg.recycle();
@@ -3685,11 +3690,13 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_REMOVE_PASSPOINT_CONFIG:
                     int removeResult = mPasspointManager.removeProvider(
-                            (String) message.obj) ? SUCCESS : FAILURE;
+                            message.sendingUid, message.arg1 == 1, (String) message.obj)
+                            ? SUCCESS : FAILURE;
                     replyToMessage(message, message.what, removeResult);
                     break;
                 case CMD_GET_PASSPOINT_CONFIGS:
-                    replyToMessage(message, message.what, mPasspointManager.getProviderConfigs());
+                    replyToMessage(message, message.what, mPasspointManager.getProviderConfigs(
+                            message.sendingUid, message.arg1 == 1));
                     break;
                 case CMD_RESET_SIM_NETWORKS:
                     /* Defer this message until supplicant is started. */
@@ -4524,7 +4531,8 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_REMOVE_PASSPOINT_CONFIG:
                     String fqdn = (String) message.obj;
-                    if (mPasspointManager.removeProvider(fqdn)) {
+                    if (mPasspointManager.removeProvider(
+                            message.sendingUid, message.arg1 == 1, fqdn)) {
                         if (isProviderOwnedNetwork(mTargetNetworkId, fqdn)
                                 || isProviderOwnedNetwork(mLastNetworkId, fqdn)) {
                             logd("Disconnect from current network since its provider is removed");
