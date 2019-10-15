@@ -91,7 +91,8 @@ public class WifiPermissionsUtil {
         long ident = Binder.clearCallingIdentity();
         try {
             if (mContext.getPackageManager().getApplicationInfoAsUser(
-                    packageName, 0, UserHandle.getUserId(callingUid)).targetSdkVersion
+                    packageName, 0,
+                    UserHandle.getUserHandleForUid(callingUid).getIdentifier()).targetSdkVersion
                     < versionCode) {
                 return true;
             }

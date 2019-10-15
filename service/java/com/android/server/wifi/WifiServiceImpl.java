@@ -538,7 +538,7 @@ public class WifiServiceImpl extends BaseWifiService {
         long ident = Binder.clearCallingIdentity();
         try {
             ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
-                    packageName, 0, UserHandle.getUserId(uid));
+                    packageName, 0, UserHandle.getUserHandleForUid(uid).getIdentifier());
             return (info.flags & APP_INFO_FLAGS_SYSTEM_APP) != 0;
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume unknown app (more strict checking)
