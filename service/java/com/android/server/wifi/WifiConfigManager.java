@@ -1924,6 +1924,30 @@ public class WifiConfigManager {
     }
 
     /**
+     * Changes the user's choice to allow auto-join using the
+     * {@link WifiManager#allowAutojoin(int, boolean)} API.
+     *
+     * @param networkId network ID of the network that needs the update.
+     * @param choice the choice to allow auto-join or not
+     * @return true if it succeeds, false otherwise
+     */
+    public boolean allowAutojoin(int networkId, boolean choice) {
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Setting allowAutojoin to " + choice + " for netId " + networkId);
+        }
+        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
+        if (config == null) {
+            Log.e(TAG, "allowAutojoin: Supplied networkId " + networkId
+                    + " has no matching config");
+            return false;
+        }
+        config.allowAutojoin = choice;
+        sendConfiguredNetworkChangedBroadcast(config, WifiManager.CHANGE_REASON_CONFIG_CHANGE);
+        saveToStore(true);
+        return true;
+    }
+
+    /**
      * Updates the last connected UID for the provided configuration.
      *
      * @param networkId network ID corresponding to the network.

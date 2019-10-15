@@ -2016,6 +2016,21 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoin(int, boolean)}
+     * @param netId the integer that identifies the network configuration
+     * @param choice the user's choice to allow auto-join
+     */
+    @Override
+    public void allowAutojoin(int netId, boolean choice) {
+        enforceNetworkSettingsPermission();
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mWifiConfigManager.allowAutojoin(netId, choice));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */

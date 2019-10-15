@@ -205,6 +205,11 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                 continue;
             }
 
+            // Ignore networks that the user has disallowed auto-join for.
+            if (!network.allowAutojoin) {
+                continue;
+            }
+
             /**
              * Ignore Passpoint and Ephemeral networks. They are configured networks,
              * but without being persisted to the storage. They are evaluated by
