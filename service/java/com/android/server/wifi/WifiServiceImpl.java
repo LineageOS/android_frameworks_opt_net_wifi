@@ -136,6 +136,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class WifiServiceImpl extends BaseWifiService {
     private static final String TAG = "WifiService";
+    private static final int APP_INFO_FLAGS_SYSTEM_APP =
+            ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;
     private static final boolean VDBG = false;
 
     /** Max wait time for posting blocking runnables */
@@ -537,7 +539,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
                     packageName, 0, UserHandle.getUserId(uid));
-            return info.isSystemApp() || info.isUpdatedSystemApp();
+            return (info.flags & APP_INFO_FLAGS_SYSTEM_APP) != 0;
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume unknown app (more strict checking)
             // Note: This case will never happen since checkPackage is
