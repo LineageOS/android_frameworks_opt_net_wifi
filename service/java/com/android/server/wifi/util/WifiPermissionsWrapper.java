@@ -19,7 +19,6 @@ package com.android.server.wifi.util;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.content.Context;
-import android.os.UserHandle;
 
 /**
  * A wifi permissions dependency class to wrap around external
@@ -35,15 +34,6 @@ public class WifiPermissionsWrapper {
 
     public int getCurrentUser() {
         return ActivityManager.getCurrentUser();
-    }
-
-    /**
-     * Returns the user ID corresponding to the UID
-     * @param uid Calling Uid
-     * @return userid Corresponding user id
-     */
-    public int getCallingUserId(int uid) {
-        return UserHandle.getUserId(uid);
     }
 
     /**

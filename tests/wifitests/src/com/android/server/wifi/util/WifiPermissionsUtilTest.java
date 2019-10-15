@@ -94,7 +94,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
     private static final boolean DONT_HIDE_FROM_APP_OPS = false;
     private static final boolean HIDE_FROM_APP_OPS = true;
 
-    private final int mCallingUser = UserHandle.USER_CURRENT_OR_SELF;
+    private final int mCallingUser = UserHandle.USER_SYSTEM;
     private final String mMacAddressPermission = "android.permission.PEERS_MAC_ADDRESS";
     private final String mInteractAcrossUsersFullPermission =
             "android.permission.INTERACT_ACROSS_USERS_FULL";
@@ -177,7 +177,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         mUid = MANAGED_PROFILE_UID;
         mPermissionsList.put(mMacAddressPermission, mUid);
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
-        mCurrentUser = UserHandle.USER_CURRENT_OR_SELF;
+        mCurrentUser = UserHandle.USER_SYSTEM;
         mIsLocationEnabled = true;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
@@ -290,7 +290,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         mPkgNameOfTopActivity = TEST_PACKAGE_NAME;
         mWifiScanAllowApps = AppOpsManager.MODE_ALLOWED;
         mUid = MANAGED_PROFILE_UID;
-        mCurrentUser = UserHandle.USER_CURRENT_OR_SELF;
+        mCurrentUser = UserHandle.USER_SYSTEM;
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
@@ -1276,7 +1276,9 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                         anyString(), anyInt());
         doAnswer(mReturnPermission).when(mMockPermissionsWrapper).getUidPermission(
                         anyString(), anyInt());
-        when(mMockPermissionsWrapper.getCallingUserId(mUid)).thenReturn(mCallingUser);
+        when(mMockUserManager.isSameProfileGroup(UserHandle.USER_SYSTEM,
+                UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID).getIdentifier()))
+                .thenReturn(true);
         when(mMockPermissionsWrapper.getCurrentUser()).thenReturn(mCurrentUser);
         when(mMockPermissionsWrapper.getUidPermission(mManifestStringCoarse, mUid))
             .thenReturn(mCoarseLocationPermission);
