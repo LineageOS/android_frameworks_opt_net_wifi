@@ -251,6 +251,9 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         when(context.getOpPackageName()).thenReturn(OP_PACKAGE_NAME);
 
+        when(context.getSystemService(ActivityManager.class)).thenReturn(
+                mock(ActivityManager.class));
+
         return context;
     }
 
