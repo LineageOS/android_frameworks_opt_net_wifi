@@ -63,7 +63,7 @@ class StandardWifiEntry extends WifiEntry {
             throw new IllegalArgumentException("Cannot construct with empty ScanResult list!");
         }
         final ScanResult firstScan = scanResults.get(0);
-        mKey = createStandardWifiEntryKey(firstScan);
+        mKey = scanResultToStandardWifiEntryKey(firstScan);
         mSsid = firstScan.SSID;
         mSecurity = getSecurityFromScanResult(firstScan);
         updateScanResultInfo(scanResults);
@@ -76,7 +76,7 @@ class StandardWifiEntry extends WifiEntry {
         checkNotNull(config, "Cannot construct with null config!");
         checkNotNull(config.SSID, "Supplied config must have an SSID!");
 
-        mKey = createStandardWifiEntryKey(config);
+        mKey = wifiConfigToStandardWifiEntryKey(config);
         mSsid = removeDoubleQuotes(config.SSID);
         mSecurity = getSecurityFromWifiConfiguration(config);
         mWifiConfig = config;
@@ -102,6 +102,7 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public String getSummary() {
         // TODO(b/70983952): Fill this method in
+        if (isSaved()) return "Saved"; // Placeholder for visual verification
         return null;
     }
 
@@ -266,9 +267,9 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @WorkerThread
-    void updateScanResultInfo(@NonNull List<ScanResult> scanResults)
+    void updateScanResultInfo(@Nullable List<ScanResult> scanResults)
             throws IllegalArgumentException {
-        checkNotNull(scanResults);
+        if (scanResults == null) scanResults = new ArrayList<>();
 
         for (ScanResult result : scanResults) {
             if (!TextUtils.equals(result.SSID, mSsid)) {
@@ -322,13 +323,13 @@ class StandardWifiEntry extends WifiEntry {
     }
 
     @NonNull
-    static String createStandardWifiEntryKey(@NonNull ScanResult scan) {
+    static String scanResultToStandardWifiEntryKey(@NonNull ScanResult scan) {
         checkNotNull(scan, "Cannot create key with null scan result!");
         return KEY_PREFIX + scan.SSID + "," + getSecurityFromScanResult(scan);
     }
 
     @NonNull
-    static String createStandardWifiEntryKey(@NonNull WifiConfiguration config) {
+    static String wifiConfigToStandardWifiEntryKey(@NonNull WifiConfiguration config) {
         checkNotNull(config, "Cannot create key with null config!");
         checkNotNull(config.SSID, "Cannot create key with null SSID in config!");
         return KEY_PREFIX + removeDoubleQuotes(config.SSID) + ","
