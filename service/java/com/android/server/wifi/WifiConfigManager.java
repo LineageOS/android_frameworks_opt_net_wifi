@@ -277,8 +277,7 @@ public class WifiConfigManager {
     /**
      * Local log used for debugging any WifiConfigManager issues.
      */
-    private final LocalLog mLocalLog =
-            new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 128 : 256);
+    private final LocalLog mLocalLog;
     /**
      * Map of configured networks with network id as the key.
      */
@@ -450,6 +449,9 @@ public class WifiConfigManager {
         mDeviceConfigFacade = deviceConfigFacade;
         mAggressiveMacRandomizationWhitelist = new ArraySet<>();
         mAggressiveMacRandomizationBlacklist = new ArraySet<>();
+
+        mLocalLog = new LocalLog(
+                context.getSystemService(ActivityManager.class).isLowRamDevice() ? 128 : 256);
 
         try {
             // TODO(b/141890172): do not hardcode SYSUI_PACKAGE_NAME

@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.annotation.Nullable;
+import android.app.ActivityManager;
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.content.Context;
 import android.content.Intent;
@@ -187,6 +188,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
             }
         }).when(mPackageManager).getNameForUid(anyInt());
 
+        when(mContext.getSystemService(ActivityManager.class))
+                .thenReturn(mock(ActivityManager.class));
         Context mockContext = mock(Context.class);
         when(mContext.createPackageContextAsUser(
                 eq(WifiConfigManager.SYSUI_PACKAGE_NAME), anyInt(), any()))

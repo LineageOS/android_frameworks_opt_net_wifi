@@ -253,7 +253,8 @@ public class WifiInjector {
                 mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
-        mConnectivityLocalLog = new LocalLog(ActivityManager.isLowRamDeviceStatic() ? 256 : 512);
+        mConnectivityLocalLog = new LocalLog(
+                mContext.getSystemService(ActivityManager.class).isLowRamDevice() ? 256 : 512);
         mScoringParams = new ScoringParams(mContext, mFrameworkFacade, wifiHandler);
         mWifiMetrics.setScoringParams(mScoringParams);
         mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
