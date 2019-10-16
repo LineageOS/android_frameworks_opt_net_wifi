@@ -522,10 +522,17 @@ public class WifiPermissionsUtil {
         DevicePolicyManager devicePolicyManager =
                 retrieveDevicePolicyManagerFromContext(mContext);
         if (devicePolicyManager == null) return false;
-        UserHandle deviceOwnerUser = devicePolicyManager.getDeviceOwnerUser();
-        if (deviceOwnerUser == null) return false; // no device owner
-        ComponentName deviceOwnerComponent = devicePolicyManager.getDeviceOwnerComponentOnAnyUser();
-        if (deviceOwnerComponent == null) return false; // weird, can never happen.
+        long ident = Binder.clearCallingIdentity();
+        UserHandle deviceOwnerUser = null;
+        ComponentName deviceOwnerComponent = null;
+        try {
+            deviceOwnerUser = devicePolicyManager.getDeviceOwnerUser();
+            deviceOwnerComponent = devicePolicyManager.getDeviceOwnerComponentOnAnyUser();
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+        // no device owner
+        if (deviceOwnerUser == null || deviceOwnerComponent == null) return false;
         return deviceOwnerUser.equals(UserHandle.getUserHandleForUid(uid))
                 && deviceOwnerComponent.getPackageName().equals(packageName);
     }
