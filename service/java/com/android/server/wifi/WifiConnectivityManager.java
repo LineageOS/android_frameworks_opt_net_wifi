@@ -1365,8 +1365,12 @@ public class WifiConnectivityManager {
         }
 
         int maxBlacklistSize = mConnectivityHelper.getMaxNumBlacklistBssid();
-        if (maxBlacklistSize <= 0) {
+        if (maxBlacklistSize < 0) {
             Log.wtf(TAG, "Invalid max BSSID blacklist size:  " + maxBlacklistSize);
+            return;
+        } else if (maxBlacklistSize == 0) {
+            Log.d(TAG, "Skip setting firmware roaming configuration" +
+                    " since max BSSID blacklist size is zero");
             return;
         }
 
