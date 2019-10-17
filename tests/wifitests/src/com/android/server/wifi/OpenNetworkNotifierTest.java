@@ -107,7 +107,7 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
         when(mFrameworkFacade.getIntegerSetting(mContext,
                 Settings.Global.WIFI_NETWORKS_AVAILABLE_REPEAT_DELAY, DEFAULT_REPEAT_DELAY_SEC))
                 .thenReturn(DEFAULT_REPEAT_DELAY_SEC);
-        when(mContext.getSystemService(Context.USER_SERVICE))
+        when(mContext.getSystemService(UserManager.class))
                 .thenReturn(mUserManager);
         when(mContext.getResources()).thenReturn(mResources);
         mDummyNetwork = new ScanResult();

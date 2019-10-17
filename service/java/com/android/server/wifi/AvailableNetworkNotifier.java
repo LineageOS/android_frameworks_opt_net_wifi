@@ -259,7 +259,7 @@ public class AvailableNetworkNotifier {
     }
 
     private boolean isControllerEnabled() {
-        return mSettingEnabled && !UserManager.get(mContext)
+        return mSettingEnabled && !mContext.getSystemService(UserManager.class)
                 // TODO (b/142234604): This will not work on multi-user device scenarios.
                 .hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI, UserHandle.CURRENT_OR_SELF);
     }

@@ -1521,7 +1521,7 @@ public class WifiConfigManager {
             }
             localLog("Removing network " + config.SSID
                     + ", application \"" + app.packageName + "\" uninstalled"
-                    + " from user " + UserHandle.getUserId(app.uid));
+                    + " from user " + UserHandle.getUserHandleForUid(app.uid));
             if (removeNetwork(config.networkId, config.creatorUid, config.creatorName)) {
                 removedNetworks.add(config.networkId);
             }
@@ -1542,7 +1542,7 @@ public class WifiConfigManager {
         WifiConfiguration[] copiedConfigs =
                 mConfiguredNetworks.valuesForAllUsers().toArray(new WifiConfiguration[0]);
         for (WifiConfiguration config : copiedConfigs) {
-            if (userId != UserHandle.getUserId(config.creatorUid)) {
+            if (userId != UserHandle.getUserHandleForUid(config.creatorUid).getIdentifier()) {
                 continue;
             }
             localLog("Removing network " + config.SSID + ", user " + userId + " removed");

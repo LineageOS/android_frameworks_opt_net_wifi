@@ -230,7 +230,7 @@ public class ConfigurationMapTest extends WifiBaseTest {
         final WifiConfiguration config1 = CONFIGS.get(0);
 
         // Verify that there are no network configurations to start with.
-        switchUser(UserHandle.getUserId(config1.creatorUid));
+        switchUser(UserHandle.getUserHandleForUid(config1.creatorUid).getIdentifier());
         verifyGetters(configs);
 
         // Add |config1|.
