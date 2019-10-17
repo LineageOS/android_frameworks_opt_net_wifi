@@ -218,6 +218,7 @@ public class ClientModeImpl extends StateMachine {
     private final LinkProbeManager mLinkProbeManager;
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
+    private final ActivityManager mActivityManager;
 
     private boolean mScreenOn = false;
 
@@ -766,6 +767,7 @@ public class ClientModeImpl extends StateMachine {
 
         mLinkProperties = new LinkProperties();
         mMcastLockManagerFilterController = new McastLockManagerFilterController();
+        mActivityManager = context.getSystemService(ActivityManager.class);
 
         mNetworkInfo.setIsAvailable(false);
         mLastBssid = null;
@@ -1115,7 +1117,7 @@ public class ClientModeImpl extends StateMachine {
     public void enableVerboseLogging(int verbose) {
         if (verbose > 0) {
             mVerboseLoggingEnabled = true;
-            setLogRecSize(ActivityManager.isLowRamDeviceStatic()
+            setLogRecSize(mActivityManager.isLowRamDevice()
                     ? NUM_LOG_RECS_VERBOSE_LOW_MEMORY : NUM_LOG_RECS_VERBOSE);
         } else {
             mVerboseLoggingEnabled = false;
