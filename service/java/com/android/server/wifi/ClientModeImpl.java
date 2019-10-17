@@ -3866,8 +3866,14 @@ public class ClientModeImpl extends StateMachine {
                             if (result.hasProxyChanged()) {
                                 if (mIpClient != null) {
                                     log("Reconfiguring proxy on connection");
-                                    mIpClient.setHttpProxy(
-                                            getCurrentWifiConfiguration().getHttpProxy());
+                                    WifiConfiguration currentConfig = getCurrentWifiConfiguration();
+                                    if (currentConfig != null) {
+                                        mIpClient.setHttpProxy(currentConfig.getHttpProxy());
+                                    } else {
+                                        Log.w(TAG,
+                                                "CMD_SAVE_NETWORK proxy change - but no current "
+                                                        + "Wi-Fi config");
+                                    }
                                 }
                             }
                             if (result.hasIpChanged()) {
