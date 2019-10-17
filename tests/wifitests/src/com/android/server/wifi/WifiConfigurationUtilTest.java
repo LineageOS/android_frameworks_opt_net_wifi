@@ -26,7 +26,6 @@ import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.PatternMatcher;
-import android.os.UserHandle;
 import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
@@ -56,29 +55,6 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     static final List<UserInfo> PROFILES = Arrays.asList(
             new UserInfo(CURRENT_USER_ID, "owner", 0),
             new UserInfo(CURRENT_USER_MANAGED_PROFILE_USER_ID, "managed profile", 0));
-
-    /**
-     * Test for {@link WifiConfigurationUtil.isVisibleToAnyProfile}.
-     */
-    @Test
-    public void isVisibleToAnyProfile() {
-        // Shared network configuration created by another user.
-        final WifiConfiguration configuration = new WifiConfiguration();
-        configuration.creatorUid = UserHandle.getUid(OTHER_USER_ID, 0);
-        assertTrue(WifiConfigurationUtil.isVisibleToAnyProfile(configuration, PROFILES));
-
-        // Private network configuration created by another user.
-        configuration.shared = false;
-        assertFalse(WifiConfigurationUtil.isVisibleToAnyProfile(configuration, PROFILES));
-
-        // Private network configuration created by the current user.
-        configuration.creatorUid = UserHandle.getUid(CURRENT_USER_ID, 0);
-        assertTrue(WifiConfigurationUtil.isVisibleToAnyProfile(configuration, PROFILES));
-
-        // Private network configuration created by the current user's managed profile.
-        configuration.creatorUid = UserHandle.getUid(CURRENT_USER_MANAGED_PROFILE_USER_ID, 0);
-        assertTrue(WifiConfigurationUtil.isVisibleToAnyProfile(configuration, PROFILES));
-    }
 
     /**
      * Verify that new WifiEnterpriseConfig is detected.

@@ -950,8 +950,9 @@ public class WifiConfigManager {
         if (uid == android.os.Process.SYSTEM_UID || uid == mSystemUiUid) {
             return true;
         } else {
-            return WifiConfigurationUtil.doesUidBelongToAnyProfile(
-                    uid, mUserManager.getProfiles(mCurrentUserId));
+            int userId = UserHandle.getUserHandleForUid(uid).getIdentifier();
+            return userId == mCurrentUserId
+                    || mUserManager.isSameProfileGroup(mCurrentUserId, userId);
         }
     }
 
@@ -2998,7 +2999,7 @@ public class WifiConfigManager {
             saveToStore(true);
         }
         // Remove any private networks of the old user before switching the userId.
-        Set<Integer> removedNetworkIds = clearInternalUserData(mCurrentUserId);
+        Set<Integer> removedNetworkIds = clearInternalDataForCurrentUser();
         mConfiguredNetworks.setNewUser(userId);
         mCurrentUserId = userId;
 
@@ -3052,7 +3053,7 @@ public class WifiConfigManager {
         }
         if (userId == mCurrentUserId && mUserManager.isUserUnlockingOrUnlocked(mCurrentUserId)) {
             saveToStore(true);
-            clearInternalUserData(mCurrentUserId);
+            clearInternalDataForCurrentUser();
         }
     }
 
@@ -3079,17 +3080,15 @@ public class WifiConfigManager {
      *  - Map of scan detail caches.
      *  - List of deleted ephemeral networks.
      *
-     * @param userId The identifier of the current foreground user, before the switch.
      * @return List of network ID's of all the private networks of the old user which will be
      * removed from memory.
      */
-    private Set<Integer> clearInternalUserData(int userId) {
-        localLog("clearInternalUserData: Clearing user internal data for " + userId);
+    private Set<Integer> clearInternalDataForCurrentUser() {
+        localLog("clearInternalUserData: Clearing user internal data for " + mCurrentUserId);
         Set<Integer> removedNetworkIds = new HashSet<>();
         // Remove any private networks of the old user before switching the userId.
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (!config.shared && WifiConfigurationUtil.doesUidBelongToAnyProfile(
-                    config.creatorUid, mUserManager.getProfiles(userId))) {
+            if (!config.shared && doesUidBelongToCurrentUser(config.creatorUid)) {
                 removedNetworkIds.add(config.networkId);
                 localLog("clearInternalUserData: removed config."
                         + " netId=" + config.networkId
@@ -3301,8 +3300,7 @@ public class WifiConfigManager {
 
             // Migrate the legacy Passpoint configurations owned by the current user to
             // {@link PasspointManager}.
-            if (config.isLegacyPasspointConfig && WifiConfigurationUtil.doesUidBelongToAnyProfile(
-                        config.creatorUid, mUserManager.getProfiles(mCurrentUserId))) {
+            if (config.isLegacyPasspointConfig && doesUidBelongToCurrentUser(config.creatorUid)) {
                 legacyPasspointNetId.add(config.networkId);
                 // Migrate the legacy Passpoint configuration and add it to PasspointManager.
                 if (!PasspointManager.addLegacyPasspointConfig(config)) {
@@ -3319,8 +3317,7 @@ public class WifiConfigManager {
             // because all networks were previously stored in a central file. We cannot
             // write these private networks to the user specific store until the corresponding
             // user logs in.
-            if (config.shared || !WifiConfigurationUtil.doesUidBelongToAnyProfile(
-                    config.creatorUid, mUserManager.getProfiles(mCurrentUserId))) {
+            if (config.shared || !doesUidBelongToCurrentUser(config.creatorUid)) {
                 sharedConfigurations.add(config);
             } else {
                 userConfigurations.add(config);
