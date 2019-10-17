@@ -244,11 +244,11 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
         List<PasspointProvider> providerList = new ArrayList<>();
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mSimAccessor, TEST_PROVIDER_ID, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
-                Arrays.asList(TEST_CA_CERTIFICATE_ALIAS), TEST_CLIENT_CERTIFICATE_ALIAS,
+                false, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS), TEST_CLIENT_CERTIFICATE_ALIAS,
                 TEST_CLIENT_PRIVATE_KEY_ALIAS, null, TEST_HAS_EVER_CONNECTED, TEST_SHARED));
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mSimAccessor, TEST_PROVIDER_ID_2, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
-                Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
+                true, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
                 TEST_CLIENT_CERTIFICATE_ALIAS,
                 TEST_CLIENT_PRIVATE_KEY_ALIAS, TEST_REMEDIATION_CA_CERTIFICATE_ALIAS,
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED));

@@ -98,6 +98,8 @@ public class PasspointProvider {
 
     private boolean mHasEverConnected;
     private boolean mIsShared;
+    private boolean mIsFromSuggestion;
+
 
     /**
      * This is a flag to indicate if the Provider is created temporarily.
@@ -106,14 +108,15 @@ public class PasspointProvider {
     private boolean mIsEphemeral = false;
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
-            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName) {
-        this(config, keyStore, simAccessor, providerId, creatorUid, packageName, null, null, null,
-                null, false, false);
+            SIMAccessor simAccessor, long providerId, int creatorUid, String packageName,
+            boolean isFromSuggestion) {
+        this(config, keyStore, simAccessor, providerId, creatorUid, packageName, isFromSuggestion,
+                null, null, null, null, false, false);
     }
 
     public PasspointProvider(PasspointConfiguration config, WifiKeyStore keyStore,
             SIMAccessor simAccessor, long providerId, int creatorUid, String packageName,
-            List<String> caCertificateAliases,
+            boolean isFromSuggestion, List<String> caCertificateAliases,
             String clientCertificateAlias, String clientPrivateKeyAlias,
             String remediationCaCertificateAlias,
             boolean hasEverConnected, boolean isShared) {
@@ -129,6 +132,7 @@ public class PasspointProvider {
         mRemediationCaCertificateAlias = remediationCaCertificateAlias;
         mHasEverConnected = hasEverConnected;
         mIsShared = isShared;
+        mIsFromSuggestion = isFromSuggestion;
 
         // Setup EAP method and authentication parameter based on the credential.
         if (mConfig.getCredential().getUserCredential() != null) {
@@ -203,6 +207,10 @@ public class PasspointProvider {
 
     public IMSIParameter getImsiParameter() {
         return mImsiParameter;
+    }
+
+    public boolean isFromSuggestion() {
+        return mIsFromSuggestion;
     }
 
     /**
@@ -426,6 +434,10 @@ public class PasspointProvider {
             wifiConfig.enterpriseConfig.setOcsp(WifiEnterpriseConfig.OCSP_REQUIRE_CERT_STATUS);
         }
         wifiConfig.shared = mIsShared;
+        wifiConfig.fromWifiNetworkSuggestion = mIsFromSuggestion;
+        wifiConfig.ephemeral = mIsFromSuggestion;
+        wifiConfig.creatorName = mPackageName;
+        wifiConfig.creatorUid = mCreatorUid;
         return wifiConfig;
     }
 
