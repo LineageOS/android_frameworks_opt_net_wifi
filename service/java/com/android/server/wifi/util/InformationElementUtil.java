@@ -151,73 +151,148 @@ public class InformationElementUtil {
     }
 
     public static class HtOperation {
-        public int secondChannelOffset = 0;
+        private static final int HT_OPERATION_IE_LEN = 22;
+        private boolean mPresent = false;
+        private int mSecondChannelOffset = 0;
 
+        /**
+         * returns if HT Operation IE present in the message.
+         */
+        public boolean isPresent() {
+            return mPresent;
+        }
+
+        /**
+         * Returns channel width if it is 20 or 40MHz
+         * Results will be invalid if channel width greater than 40MHz
+         * So caller should only call this method if VHT Operation IE is not present,
+         * or if VhtOperation.getChannelWidth() returns ScanResult.UNSPECIFIED.
+         */
         public int getChannelWidth() {
-            if (secondChannelOffset != 0) {
-                return 1;
+            if (mSecondChannelOffset != 0) {
+                return ScanResult.CHANNEL_WIDTH_40MHZ;
             } else {
-                return 0;
+                return ScanResult.CHANNEL_WIDTH_20MHZ;
             }
         }
 
+        /**
+         * Returns channel Center frequency (for 20/40 MHz channels only)
+         * Results will be invalid for larger channel width,
+         * So, caller should only call this method if VHT Operation IE is not present,
+         * or if VhtOperation.getChannelWidth() returns ScanResult.UNSPECIFIED.
+         */
         public int getCenterFreq0(int primaryFrequency) {
-            //40 MHz
-            if (secondChannelOffset != 0) {
-                if (secondChannelOffset == 1) {
+            if (mSecondChannelOffset != 0) {
+                //40 MHz
+                if (mSecondChannelOffset == 1) {
                     return primaryFrequency + 10;
-                } else if (secondChannelOffset == 3) {
+                } else if (mSecondChannelOffset == 3) {
                     return primaryFrequency - 10;
                 } else {
-                    Log.e("HtOperation", "Error on secondChannelOffset: " + secondChannelOffset);
+                    Log.e("HtOperation", "Error on secondChannelOffset: " + mSecondChannelOffset);
                     return 0;
                 }
             } else {
-                return 0;
+                //20 MHz
+                return primaryFrequency;
             }
         }
 
+        /**
+         * Parse the HT Operation IE to read the fields of interest.
+         */
         public void from(InformationElement ie) {
             if (ie.id != InformationElement.EID_HT_OPERATION) {
                 throw new IllegalArgumentException("Element id is not HT_OPERATION, : " + ie.id);
             }
-            secondChannelOffset = ie.bytes[1] & 0x3;
+            if (ie.bytes.length < HT_OPERATION_IE_LEN) {
+                throw new IllegalArgumentException("Invalid HT_OPERATION len: " + ie.bytes.length);
+            }
+            mPresent = true;
+            mSecondChannelOffset = ie.bytes[1] & 0x3;
         }
     }
 
     public static class VhtOperation {
-        public int channelMode = 0;
-        public int centerFreqIndex1 = 0;
-        public int centerFreqIndex2 = 0;
+        private static final int VHT_OPERATION_IE_LEN = 5;
+        private boolean mPresent = false;
+        private int mChannelMode = 0;
+        private int mCenterFreqIndex1 = 0;
+        private int mCenterFreqIndex2 = 0;
 
-        public boolean isValid() {
-            return channelMode != 0;
+        /**
+         * returns if VHT Operation IE present in the message.
+         */
+        public boolean isPresent() {
+            return mPresent;
         }
 
+        /**
+         * Returns channel width if it is above 40MHz,
+         * otherwise, returns {@link ScanResult.UNSPECIFIED} to indicate that
+         * channel width should be obtained from the HT Operation IE via
+         * HtOperation.getChannelWidth().
+         */
         public int getChannelWidth() {
-            return channelMode + 1;
-        }
-
-        public int getCenterFreq0() {
-            //convert channel index to frequency in MHz, channel 36 is 5180MHz
-            return (centerFreqIndex1 - 36) * 5 + 5180;
-        }
-
-        public int getCenterFreq1() {
-            if (channelMode > 1) { //160MHz
-                return (centerFreqIndex2 - 36) * 5 + 5180;
+            if (mChannelMode == 0) {
+                // 20 or 40MHz
+                return ScanResult.UNSPECIFIED;
+            } else if (mCenterFreqIndex2 == 0) {
+                // No secondary channel
+                return ScanResult.CHANNEL_WIDTH_80MHZ;
+            } else if (Math.abs(mCenterFreqIndex2 - mCenterFreqIndex1) == 8) {
+                // Primary and secondary channels adjacent
+                return ScanResult.CHANNEL_WIDTH_160MHZ;
             } else {
-                return 0;
+                // Primary and secondary channels not adjacent
+                return ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ;
             }
         }
 
+        /**
+         * Returns center frequency of primary channel (if channel width greater than 40MHz),
+         * otherwise, it returns zero to indicate that center frequency should be obtained from
+         * the HT Operation IE via HtOperation.getCenterFreq0().
+         */
+        public int getCenterFreq0() {
+            if (mCenterFreqIndex1 == 0 || mChannelMode == 0) {
+                return 0;
+            } else {
+                //convert channel index to frequency in MHz, channel 36 is 5180MHz
+                return (mCenterFreqIndex1 - 36) * 5 + 5180;
+            }
+        }
+
+         /**
+         * Returns center frequency of secondary channel if exists (channel width greater than
+         * 40MHz), otherwise, it returns zero.
+         * Note that the secondary channel center frequency only applies to 80+80 or 160 MHz
+         * channels.
+         */
+        public int getCenterFreq1() {
+            if (mCenterFreqIndex2 == 0 || mChannelMode == 0) {
+                return 0;
+            } else {
+                //convert channel index to frequency in MHz, channel 36 is 5180MHz
+                return (mCenterFreqIndex2 - 36) * 5 + 5180;
+            }
+        }
+
+        /**
+         * Parse the VHT Operation IE to read the fields of interest.
+         */
         public void from(InformationElement ie) {
             if (ie.id != InformationElement.EID_VHT_OPERATION) {
                 throw new IllegalArgumentException("Element id is not VHT_OPERATION, : " + ie.id);
             }
-            channelMode = ie.bytes[0] & Constants.BYTE_MASK;
-            centerFreqIndex1 = ie.bytes[1] & Constants.BYTE_MASK;
-            centerFreqIndex2 = ie.bytes[2] & Constants.BYTE_MASK;
+            if (ie.bytes.length < VHT_OPERATION_IE_LEN) {
+                throw new IllegalArgumentException("Invalid VHT_OPERATION len: " + ie.bytes.length);
+            }
+            mPresent = true;
+            mChannelMode = ie.bytes[0] & Constants.BYTE_MASK;
+            mCenterFreqIndex1 = ie.bytes[1] & Constants.BYTE_MASK;
+            mCenterFreqIndex2 = ie.bytes[2] & Constants.BYTE_MASK;
         }
     }
 
