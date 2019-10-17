@@ -3853,14 +3853,14 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_SAVE_NETWORK:
                     result = saveNetworkConfigAndInvokeCb(message);
+                    if (!result.isSuccess()) break;
                     netId = result.getNetworkId();
-                    if (result.isSuccess() && mWifiInfo.getNetworkId() == netId) {
+                    if (mWifiInfo.getNetworkId() == netId) {
                         if (result.hasCredentialChanged()) {
-                            config = (WifiConfiguration) message.obj;
                             // The network credentials changed and we're connected to this network,
                             // start a new connection with the updated credentials.
-                            logi("CMD_SAVE_NETWORK credential changed for config="
-                                    + config.configKey() + ", Reconnecting.");
+                            logi("CMD_SAVE_NETWORK credential changed for nid="
+                                    + netId + ". Reconnecting.");
                             startConnectToNetwork(netId, message.sendingUid, SUPPLICANT_BSSID_ANY);
                         } else {
                             if (result.hasProxyChanged()) {
@@ -3878,6 +3878,11 @@ public class ClientModeImpl extends StateMachine {
                                 transitionTo(mObtainingIpState);
                             }
                         }
+                    } else if (mWifiInfo.getNetworkId() == WifiConfiguration.INVALID_NETWORK_ID
+                            && result.hasCredentialChanged()) {
+                        logi("CMD_SAVE_NETWORK credential changed for nid="
+                                + netId + " while disconnected. Connecting.");
+                        startConnectToNetwork(netId, message.sendingUid, SUPPLICANT_BSSID_ANY);
                     }
                     break;
                 case CMD_FORGET_NETWORK:
