@@ -1291,17 +1291,23 @@ public class WifiVendorHal {
         byte[] macByteArray = mac.toByteArray();
         synchronized (sLock) {
             try {
-                android.hardware.wifi.V1_2.IWifiStaIface ifaceV12 =
+                android.hardware.wifi.V1_2.IWifiStaIface sta12 =
                         getWifiStaIfaceForV1_2Mockable(ifaceName);
-                if (ifaceV12 == null) return boolResult(false);
-                WifiStatus status = ifaceV12.setMacAddress(macByteArray);
-                if (!ok(status)) return false;
-                return true;
+                if (sta12 != null) {
+                    return ok(sta12.setMacAddress(macByteArray));
+                }
+
+                android.hardware.wifi.V1_4.IWifiApIface ap14 =
+                        getWifiApIfaceForV1_4Mockable(ifaceName);
+                if (ap14 != null) {
+                    return ok(ap14.setMacAddress(macByteArray));
+                }
             } catch (RemoteException e) {
                 handleRemoteException(e);
                 return false;
             }
         }
+        return boolResult(false);
     }
 
     /**
@@ -1316,20 +1322,33 @@ public class WifiVendorHal {
         }
         synchronized (sLock) {
             try {
-                android.hardware.wifi.V1_3.IWifiStaIface ifaceV13 =
-                        getWifiStaIfaceForV1_3Mockable(ifaceName);
-                if (ifaceV13 == null) return null;
                 AnswerBox box = new AnswerBox();
-                ifaceV13.getFactoryMacAddress((status, macBytes) -> {
-                    if (!ok(status)) return;
-                    box.mac = MacAddress.fromBytes(macBytes);
-                });
-                return box.mac;
+
+                android.hardware.wifi.V1_3.IWifiStaIface sta13 =
+                        getWifiStaIfaceForV1_3Mockable(ifaceName);
+                if (sta13 != null) {
+                    sta13.getFactoryMacAddress((status, macBytes) -> {
+                        if (!ok(status)) return;
+                        box.mac = MacAddress.fromBytes(macBytes);
+                    });
+                    return box.mac;
+                }
+
+                android.hardware.wifi.V1_4.IWifiApIface ap14 =
+                        getWifiApIfaceForV1_4Mockable(ifaceName);
+                if (ap14 != null) {
+                    ap14.getFactoryMacAddress((status, macBytes) -> {
+                        if (!ok(status)) return;
+                        box.mac = MacAddress.fromBytes(macBytes);
+                    });
+                    return box.mac;
+                }
             } catch (RemoteException e) {
                 handleRemoteException(e);
                 return null;
             }
         }
+        return null;
     }
 
     /**
@@ -2305,6 +2324,13 @@ public class WifiVendorHal {
         IWifiStaIface iface = getStaIface(ifaceName);
         if (iface == null) return null;
         return android.hardware.wifi.V1_3.IWifiStaIface.castFrom(iface);
+    }
+
+    protected android.hardware.wifi.V1_4.IWifiApIface getWifiApIfaceForV1_4Mockable(
+            String ifaceName) {
+        IWifiApIface iface = getApIface(ifaceName);
+        if (iface == null) return null;
+        return android.hardware.wifi.V1_4.IWifiApIface.castFrom(iface);
     }
 
     /**
