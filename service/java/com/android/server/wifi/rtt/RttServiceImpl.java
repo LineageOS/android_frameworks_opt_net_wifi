@@ -25,8 +25,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.ContentObserver;
-import android.hardware.wifi.V1_0.RttResult;
-import android.hardware.wifi.V1_0.RttStatus;
 import android.location.LocationManager;
 import android.net.MacAddress;
 import android.net.wifi.aware.IWifiAwareMacAddressProvider;
@@ -60,7 +58,6 @@ import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.nano.WifiMetricsProto;
-import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.json.JSONException;
@@ -96,8 +93,6 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     private long mBackgroundProcessExecGapMs;
 
     private RttServiceSynchronized mRttServiceSynchronized;
-
-    private static final int CONVERSION_US_TO_MS = 1_000;
 
     /* package */ static final String HAL_RANGING_TIMEOUT_TAG = TAG + " HAL Ranging Timeout";
 
@@ -169,12 +164,12 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                         return -1;
                     }
                 } else if ("get_capabilities".equals(cmd)) {
-                    android.hardware.wifi.V1_0.RttCapabilities cap =
+                    RttNative.Capabilities cap =
                             mRttNative.getRttCapabilities();
                     JSONObject j = new JSONObject();
                     if (cap != null) {
                         try {
-                            j.put("rttOneSidedSupported", cap.rttOneSidedSupported);
+                            j.put("rttOneSidedSupported", cap.oneSidedRttSupported);
                             j.put("rttFtmSupported", cap.rttFtmSupported);
                             j.put("lciSupported", cap.lciSupported);
                             j.put("lcrSupported", cap.lcrSupported);
@@ -516,7 +511,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
      * Called by HAL to report ranging results. Called on HAL thread - needs to post to local
      * thread.
      */
-    public void onRangingResults(int cmdId, List<RttResult> results) {
+    public void onRangingResults(int cmdId, List<RangingResult> results) {
         if (VDBG) Log.v(TAG, "onRangingResults: cmdId=" + cmdId);
         mRttServiceSynchronized.mHandler.post(() -> {
             mRttServiceSynchronized.onRangingResults(cmdId, results);
@@ -1071,7 +1066,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             startRanging(request);
         }
 
-        private void onRangingResults(int cmdId, List<RttResult> results) {
+        private void onRangingResults(int cmdId, List<RangingResult> results) {
             if (mRttRequestQueue.size() == 0) {
                 Log.e(TAG, "RttServiceSynchronized.onRangingResults: no current RTT request "
                         + "pending!?");
@@ -1130,17 +1125,18 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
          * - Effectively: throws away results which don't match requests
          */
         private List<RangingResult> postProcessResults(RangingRequest request,
-                List<RttResult> results, boolean isCalledFromPrivilegedContext) {
-            Map<MacAddress, RttResult> resultEntries = new HashMap<>();
-            for (RttResult result : results) {
-                resultEntries.put(MacAddress.fromBytes(result.addr), result);
+                List<RangingResult> results, boolean isCalledFromPrivilegedContext) {
+            Map<MacAddress, RangingResult> resultEntries = new HashMap<>();
+            for (RangingResult result : results) {
+                resultEntries.put(result.getMacAddress(), result);
             }
 
             List<RangingResult> finalResults = new ArrayList<>(request.mRttPeers.size());
 
             for (ResponderConfig peer : request.mRttPeers) {
-                RttResult resultForRequest = resultEntries.get(peer.macAddress);
-                if (resultForRequest == null) {
+                RangingResult resultForRequest = resultEntries.get(peer.macAddress);
+                if (resultForRequest == null
+                        || resultForRequest.getStatus() != RttNative.FRAMEWORK_RTT_STATUS_SUCCESS) {
                     if (mDbg) {
                         Log.v(TAG, "postProcessResults: missing=" + peer.macAddress);
                     }
@@ -1162,48 +1158,46 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                                         null, null, 0));
                     }
                 } else {
-                    int status = resultForRequest.status == RttStatus.SUCCESS
-                            ? RangingResult.STATUS_SUCCESS : RangingResult.STATUS_FAIL;
-                    byte[] lci = NativeUtil.byteArrayFromArrayList(resultForRequest.lci.data);
-                    byte[] lcr = NativeUtil.byteArrayFromArrayList(resultForRequest.lcr.data);
-                    ResponderLocation responderLocation;
-                    try {
-                        responderLocation = new ResponderLocation(lci, lcr);
-                        if (!responderLocation.isValid()) {
-                            responderLocation = null;
-                        }
-                    } catch (Exception e) {
-                        responderLocation = null;
-                        Log.e(TAG,
-                                "ResponderLocation: lci/lcr parser failed exception -- " + e);
-                    }
+                    int status = RangingResult.STATUS_SUCCESS;
+
                     // Clear LCI and LCR data if the location data should not be retransmitted,
                     // has a retention expiration time, contains no useful data, or did not parse,
                     // or the caller is not in a privileged context.
+                    byte[] lci = resultForRequest.getLci();
+                    byte[] lcr = resultForRequest.getLcr();
+                    ResponderLocation responderLocation =
+                            resultForRequest.getUnverifiedResponderLocation();
                     if (responderLocation == null || !isCalledFromPrivilegedContext) {
                         lci = null;
                         lcr = null;
                     }
-                    if (resultForRequest.successNumber <= 1
-                            && resultForRequest.distanceSdInMm != 0) {
-                        if (mDbg) {
-                            Log.w(TAG, "postProcessResults: non-zero distance stdev with 0||1 num "
-                                    + "samples!? result=" + resultForRequest);
-                        }
-                        resultForRequest.distanceSdInMm = 0;
-                    }
+                    // Create external result with external RangResultStatus, cleared LCI and LCR.
                     if (peer.peerHandle == null) {
-                        finalResults.add(new RangingResult(status, peer.macAddress,
-                                resultForRequest.distanceInMm, resultForRequest.distanceSdInMm,
-                                resultForRequest.rssi / -2, resultForRequest.numberPerBurstPeer,
-                                resultForRequest.successNumber, lci, lcr, responderLocation,
-                                resultForRequest.timeStampInUs / CONVERSION_US_TO_MS));
+                        finalResults.add(new RangingResult(
+                                status,
+                                peer.macAddress,
+                                resultForRequest.getDistanceMm(),
+                                resultForRequest.getDistanceStdDevMm(),
+                                resultForRequest.getRssi(),
+                                resultForRequest.getNumAttemptedMeasurements(),
+                                resultForRequest.getNumSuccessfulMeasurements(),
+                                lci,
+                                lcr,
+                                responderLocation,
+                                resultForRequest.getRangingTimestampMillis()));
                     } else {
-                        finalResults.add(new RangingResult(status, peer.peerHandle,
-                                resultForRequest.distanceInMm, resultForRequest.distanceSdInMm,
-                                resultForRequest.rssi / -2, resultForRequest.numberPerBurstPeer,
-                                resultForRequest.successNumber, lci, lcr, responderLocation,
-                                resultForRequest.timeStampInUs / CONVERSION_US_TO_MS));
+                        finalResults.add(new RangingResult(
+                                status,
+                                peer.peerHandle,
+                                resultForRequest.getDistanceMm(),
+                                resultForRequest.getDistanceStdDevMm(),
+                                resultForRequest.getRssi(),
+                                resultForRequest.getNumAttemptedMeasurements(),
+                                resultForRequest.getNumSuccessfulMeasurements(),
+                                lci,
+                                lcr,
+                                responderLocation,
+                                resultForRequest.getRangingTimestampMillis()));
                     }
                 }
             }
