@@ -24,6 +24,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.MacAddress;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Environment;
@@ -47,6 +49,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Random;
+
+import javax.annotation.Nullable;
 
 /**
  * Provides API for reading/writing soft access point configuration.
@@ -163,7 +167,7 @@ public class WifiApConfigStore {
      * Return the current soft access point configuration.
      */
     public synchronized WifiConfiguration getApConfiguration() {
-        WifiConfiguration config = apBandCheckConvert(mWifiApConfig);
+        WifiConfiguration config = sanitizePersistentApConfig(mWifiApConfig);
         if (mWifiApConfig != config) {
             Log.d(TAG, "persisted config was converted, need to resave it");
             mWifiApConfig = config;
@@ -182,7 +186,7 @@ public class WifiApConfigStore {
         if (config == null) {
             mWifiApConfig = getDefaultApConfiguration();
         } else {
-            mWifiApConfig = apBandCheckConvert(config);
+            mWifiApConfig = sanitizePersistentApConfig(config);
         }
         persistConfigAndTriggerBackupManagerProxy(mWifiApConfig);
     }
@@ -232,28 +236,38 @@ public class WifiApConfigStore {
                 .build();
     }
 
-    private WifiConfiguration apBandCheckConvert(WifiConfiguration config) {
+    private WifiConfiguration sanitizePersistentApConfig(WifiConfiguration config) {
+        WifiConfiguration convertedConfig = null;
+
+        // Persistent config may not set BSSID.
+        if (config.BSSID != null) {
+            convertedConfig = new WifiConfiguration(config);
+            convertedConfig.BSSID = null;
+        }
+
         if (mRequiresApBandConversion) {
             // some devices are unable to support 5GHz only operation, check for 5GHz and
             // move to ANY if apBand conversion is required.
             if (config.apBand == WifiConfiguration.AP_BAND_5GHZ) {
                 Log.w(TAG, "Supplied ap config band was 5GHz only, converting to ANY");
-                WifiConfiguration convertedConfig = new WifiConfiguration(config);
+                if (convertedConfig == null) {
+                    convertedConfig = new WifiConfiguration(config);
+                }
                 convertedConfig.apBand = WifiConfiguration.AP_BAND_ANY;
                 convertedConfig.apChannel = AP_CHANNEL_DEFAULT;
-                return convertedConfig;
             }
         } else {
             // this is a single mode device, we do not support ANY.  Convert all ANY to 5GHz
             if (config.apBand == WifiConfiguration.AP_BAND_ANY) {
                 Log.w(TAG, "Supplied ap config band was ANY, converting to 5GHz");
-                WifiConfiguration convertedConfig = new WifiConfiguration(config);
+                if (convertedConfig == null) {
+                    convertedConfig = new WifiConfiguration(config);
+                }
                 convertedConfig.apBand = WifiConfiguration.AP_BAND_5GHZ;
                 convertedConfig.apChannel = AP_CHANNEL_DEFAULT;
-                return convertedConfig;
             }
         }
-        return config;
+        return convertedConfig == null ? config : convertedConfig;
     }
 
     private void persistConfigAndTriggerBackupManagerProxy(WifiConfiguration config) {
@@ -352,20 +366,56 @@ public class WifiApConfigStore {
         return random.nextInt((RAND_SSID_INT_MAX - RAND_SSID_INT_MIN) + 1) + RAND_SSID_INT_MIN;
     }
 
+    private static String generateLohsSsid(Context context) {
+        return context.getResources().getString(
+                R.string.wifi_localhotspot_configure_ssid_default) + "_"
+                + getRandomIntForDefaultSsid();
+    }
+
     /**
      * Generate a temporary WPA2 based configuration for use by the local only hotspot.
      * This config is not persisted and will not be stored by the WifiApConfigStore.
      */
-    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand) {
+    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand,
+            @Nullable SoftApConfiguration customConfig) {
         WifiConfiguration config = new WifiConfiguration();
 
-        config.SSID = context.getResources().getString(
-              R.string.wifi_localhotspot_configure_ssid_default) + "_"
-                      + getRandomIntForDefaultSsid();
         config.apBand = apBand;
-        config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
         config.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
-        config.preSharedKey = generatePassword();
+
+        if (customConfig == null || customConfig.getSsid() == null) {
+            config.SSID = generateLohsSsid(context);
+        } else {
+            config.SSID = customConfig.getSsid();
+        }
+        if (customConfig == null) {
+            config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
+            config.preSharedKey = generatePassword();
+        } else if (customConfig.getWpa2Passphrase() != null) {
+            config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
+            config.preSharedKey = customConfig.getWpa2Passphrase();
+        } else {
+            config.allowedKeyManagement.set(KeyMgmt.NONE);
+        }
+        if (customConfig != null && customConfig.getBssid() != null) {
+            config.BSSID = customConfig.getBssid().toString();
+        } else {
+            // use factory or random BSSID
+            config.BSSID = null;
+        }
+        return config;
+    }
+
+    /**
+     * @return a copy of the given WifiConfig with the BSSID randomized, unless a custom BSSID is
+     * already set.
+     */
+    WifiConfiguration randomizeBssidIfUnset(Context context, WifiConfiguration config) {
+        config = new WifiConfiguration(config);
+        if (config.BSSID == null && context.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported)) {
+            config.BSSID = MacAddress.createRandomUnicastAddress().toString();
+        }
         return config;
     }
 

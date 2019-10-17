@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -31,6 +33,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.net.MacAddress;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Build;
@@ -543,7 +547,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     @Test
     public void generateLocalOnlyHotspotConfigIsValid() {
         WifiConfiguration config = WifiApConfigStore
-                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_2GHZ);
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_2GHZ, null);
         verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
                 WifiConfiguration.AP_BAND_2GHZ);
         // The LOHS config should also have a specific network id set - check that as well.
@@ -559,7 +563,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     @Test
     public void generateLocalOnlyHotspotConfigIsValid5G() {
         WifiConfiguration config = WifiApConfigStore
-                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_5GHZ);
+                .generateLocalOnlyHotspotConfig(mContext, WifiConfiguration.AP_BAND_5GHZ, null);
         verifyDefaultLocalOnlyApConfig(config, TEST_DEFAULT_HOTSPOT_SSID,
                 WifiConfiguration.AP_BAND_5GHZ);
         // The LOHS config should also have a specific network id set - check that as well.
@@ -567,6 +571,59 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
 
         // verify that the config passes the validateApWifiConfiguration check
         assertTrue(WifiApConfigStore.validateApWifiConfiguration(config));
+    }
+
+    @Test
+    public void generateLohsConfig_forwardsCustomMac() {
+        SoftApConfiguration customConfig = new SoftApConfiguration.Builder()
+                .setBssid(MacAddress.fromString("11:22:33:44:55:66"))
+                .build();
+        WifiConfiguration wifiConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
+                mContext, WifiConfiguration.AP_BAND_2GHZ, customConfig);
+        assertThat(wifiConfig.BSSID).isNotEmpty();
+        assertThat(MacAddress.fromString(wifiConfig.BSSID)).isEqualTo(
+                MacAddress.fromString("11:22:33:44:55:66"));
+    }
+
+    @Test
+    public void randomizeBssid_randomizesWhenEnabled() {
+        mResources.setBoolean(R.bool.config_wifi_ap_mac_randomization_supported, true);
+        WifiConfiguration baseConfig = new WifiConfiguration();
+
+        WifiApConfigStore store = createWifiApConfigStore();
+        WifiConfiguration config1 = store.randomizeBssidIfUnset(mContext, baseConfig);
+        WifiConfiguration config2 = store.randomizeBssidIfUnset(mContext, baseConfig);
+
+        assertThat(config1.BSSID).isNotNull();
+        assertThat(config2.BSSID).isNotNull();
+        MacAddress mac1 = MacAddress.fromString(config1.BSSID);
+        MacAddress mac2 = MacAddress.fromString(config2.BSSID);
+        assertThat(mac1).isNotEqualTo(mac2);
+    }
+
+    @Test
+    public void randomizeBssid_usesFactoryMacWhenRandomizationOff() {
+        mResources.setBoolean(R.bool.config_wifi_ap_mac_randomization_supported, false);
+        WifiConfiguration baseConfig = new WifiConfiguration();
+
+        WifiApConfigStore store = createWifiApConfigStore();
+        WifiConfiguration config = store.randomizeBssidIfUnset(mContext, baseConfig);
+
+        assertThat(config.BSSID).isNull();
+    }
+
+    @Test
+    public void randomizeBssid_forwardsCustomMac() {
+        mResources.setBoolean(R.bool.config_wifi_ap_mac_randomization_supported, true);
+        WifiConfiguration baseConfig = new WifiConfiguration();
+        baseConfig.BSSID = "11:22:33:44:55:66";
+
+        WifiApConfigStore store = createWifiApConfigStore();
+        WifiConfiguration config = store.randomizeBssidIfUnset(mContext, baseConfig);
+
+        assertThat(config.BSSID).isNotEmpty();
+        assertThat(MacAddress.fromString(config.BSSID)).isEqualTo(
+                MacAddress.fromString("11:22:33:44:55:66"));
     }
 
     /**

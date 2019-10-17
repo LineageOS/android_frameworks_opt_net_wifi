@@ -152,11 +152,16 @@ public class SoftApManager implements ActiveModeManager {
         mModeListener = listener;
         mSoftApCallback = callback;
         mWifiApConfigStore = wifiApConfigStore;
-        mApConfig = apConfig;
-        if (mApConfig.getWifiConfiguration() == null) {
-            WifiConfiguration wifiConfig = mWifiApConfigStore.getApConfiguration();
-            mApConfig = new SoftApModeConfiguration(mApConfig.getTargetMode(), wifiConfig);
+        WifiConfiguration wifiConfig = apConfig.getWifiConfiguration();
+        // null is a valid input and means we use the user-configured tethering settings.
+        if (wifiConfig == null) {
+            wifiConfig = mWifiApConfigStore.getApConfiguration();
+            // may still be null if we fail to load the default config
         }
+        if (wifiConfig != null) {
+            wifiConfig = mWifiApConfigStore.randomizeBssidIfUnset(mContext, wifiConfig);
+        }
+        mApConfig = new SoftApModeConfiguration(apConfig.getTargetMode(), wifiConfig);
         mWifiMetrics = wifiMetrics;
         mSarManager = sarManager;
         mWifiDiagnostics = wifiDiagnostics;
@@ -263,27 +268,35 @@ public class SoftApManager implements ActiveModeManager {
     }
 
     private int setMacAddress() {
-        boolean randomize = mContext.getResources().getBoolean(
-                R.bool.config_wifi_ap_mac_randomization_supported);
-        if (!randomize) {
-            MacAddress mac = mWifiNative.getFactoryMacAddress(mApInterfaceName);
+        String macStr = mApConfig.getWifiConfiguration().BSSID;
+        MacAddress mac = null;
+        if (!TextUtils.isEmpty(macStr)) {
+            try {
+                mac = MacAddress.fromString(macStr);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "invalid MAC address: " + macStr);
+                return ERROR_GENERIC;
+            }
+        }
+
+        if (mac == null) {
+            // If no BSSID is explicitly requested, (re-)configure the factory MAC address. Some
+            // drivers may not support setting the MAC at all, so fail soft in this case.
+            mac = mWifiNative.getFactoryMacAddress(mApInterfaceName);
             if (mac == null) {
                 Log.e(TAG, "failed to get factory MAC address");
                 return ERROR_GENERIC;
             }
 
-            // We're (re-)configuring the factory MAC address. Some drivers may not support setting
-            // the MAC at all, so fail soft in this case.
             if (!mWifiNative.setMacAddress(mApInterfaceName, mac)) {
                 Log.w(TAG, "failed to reset to factory MAC address; continuing with current MAC");
             }
             return SUCCESS;
         }
 
-        // We're configuring a random MAC address. In this case, driver support is mandatory.
-        MacAddress mac = MacAddress.createRandomUnicastAddress();
+        // We're configuring a random/custom MAC address. In this case, driver support is mandatory.
         if (!mWifiNative.setMacAddress(mApInterfaceName, mac)) {
-            Log.e(TAG, "failed to set random MAC address");
+            Log.e(TAG, "failed to set explicitly requested MAC address");
             return ERROR_GENERIC;
         }
         return SUCCESS;
