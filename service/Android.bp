@@ -104,6 +104,7 @@ java_library {
         "android.hardware.wifi.supplicant-V1.3-java",
         "android.hidl.manager-V1.2-java",
         "androidx.annotation_annotation",
+	"bouncycastle-unbundled",
         "wifi_service_proto",
         "ksoap2",
         "libnanohttpd",
