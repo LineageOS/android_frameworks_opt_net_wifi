@@ -80,6 +80,7 @@ java_library {
     srcs: [
         "java/**/*.java",
         "java/**/*.logtags",
+        ":framework-wifistack-shared-srcs",
     ],
 
     libs: [
