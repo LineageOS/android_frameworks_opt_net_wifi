@@ -19,7 +19,6 @@ package com.android.server.wifi;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
 
 import android.app.ActivityManager;
-import android.app.AppGlobals;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.ContentResolver;
@@ -33,7 +32,6 @@ import android.net.ip.IpClientUtil;
 import android.os.BatteryStats;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.provider.Settings;
 import android.telephony.CarrierConfigManager;
@@ -188,17 +186,6 @@ public class FrameworkFacade {
      */
     public void makeIpClient(Context context, String iface, IpClientCallbacks callback) {
         IpClientUtil.makeIpClient(context, iface, callback);
-    }
-
-    /**
-     * Checks whether the given uid has been granted the given permission.
-     * @param permName the permission to check
-     * @param uid The uid to check
-     * @return {@link PackageManager.PERMISSION_GRANTED} if the permission has been granted and
-     *         {@link PackageManager.PERMISSION_DENIED} otherwise
-     */
-    public int checkUidPermission(String permName, int uid) throws RemoteException {
-        return AppGlobals.getPackageManager().checkUidPermission(permName, uid);
     }
 
     /**

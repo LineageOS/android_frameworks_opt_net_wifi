@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import android.app.AppGlobals;
-import android.content.pm.IPackageManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
 import android.os.ShellCommand;
@@ -50,7 +48,6 @@ public class WifiShellCommand extends ShellCommand {
     private final WifiLockManager mWifiLockManager;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
-    private final IPackageManager mPM;
     private final WifiNative mWifiNative;
     private final HostapdHal mHostapdHal;
     private final WifiCountryCode mWifiCountryCode;
@@ -61,7 +58,6 @@ public class WifiShellCommand extends ShellCommand {
         mWifiLockManager = wifiInjector.getWifiLockManager();
         mWifiNetworkSuggestionsManager = wifiInjector.getWifiNetworkSuggestionsManager();
         mWifiConfigManager = wifiInjector.getWifiConfigManager();
-        mPM = AppGlobals.getPackageManager();
         mHostapdHal = wifiInjector.getHostapdHal();
         mWifiNative = wifiInjector.getWifiNative();
         mWifiCountryCode = wifiInjector.getWifiCountryCode();

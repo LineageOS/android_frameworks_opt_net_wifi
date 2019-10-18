@@ -23,7 +23,6 @@ import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiEnterpriseConfig.Ocsp;
-import android.os.HidlSupport.Mutable;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
@@ -32,6 +31,7 @@ import android.util.MutableBoolean;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
+import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.NativeUtil;
 
 import org.json.JSONException;
