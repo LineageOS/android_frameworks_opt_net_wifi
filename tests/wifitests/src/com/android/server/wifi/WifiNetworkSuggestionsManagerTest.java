@@ -153,11 +153,11 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         when(mContext.getApplicationInfo()).thenReturn(ourAppInfo);
         // test app info
         ApplicationInfo appInfO1 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_1), eq(0), anyInt()))
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_1), eq(0), any()))
             .thenReturn(appInfO1);
         when(mPackageManager.getApplicationLabel(appInfO1)).thenReturn(TEST_APP_NAME_1);
         ApplicationInfo appInfO2 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_2), eq(0), anyInt()))
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_2), eq(0), any()))
             .thenReturn(appInfO2);
         when(mPackageManager.getApplicationLabel(appInfO2)).thenReturn(TEST_APP_NAME_2);
 

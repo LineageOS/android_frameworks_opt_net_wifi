@@ -1160,7 +1160,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         ApplicationInfo applicationInfo = null;
         try {
             applicationInfo = mContext.getPackageManager().getApplicationInfoAsUser(
-                packageName, 0, UserHandle.getUserHandleForUid(uid).getIdentifier());
+                packageName, 0, UserHandle.getUserHandleForUid(uid));
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Failed to find app name for " + packageName);
             return "";

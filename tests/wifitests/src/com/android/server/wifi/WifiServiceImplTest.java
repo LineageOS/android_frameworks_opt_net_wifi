@@ -290,7 +290,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mContext.getContentResolver()).thenReturn(mContentResolver);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
-        when(mPackageManager.getApplicationInfoAsUser(any(), anyInt(), anyInt()))
+        when(mPackageManager.getApplicationInfoAsUser(any(), anyInt(), any()))
                 .thenReturn(mApplicationInfo);
         when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
         doNothing().when(mFrameworkFacade).registerContentObserver(eq(mContext), any(),
@@ -2374,7 +2374,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         PackageManager pm = mock(PackageManager.class);
         when(mContext.getPackageManager()).thenReturn(pm);
-        when(pm.getApplicationInfoAsUser(any(), anyInt(), anyInt())).thenReturn(mApplicationInfo);
+        when(pm.getApplicationInfoAsUser(any(), anyInt(), any())).thenReturn(mApplicationInfo);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
 

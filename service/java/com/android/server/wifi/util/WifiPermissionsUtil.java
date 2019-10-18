@@ -92,7 +92,7 @@ public class WifiPermissionsUtil {
         try {
             if (mContext.getPackageManager().getApplicationInfoAsUser(
                     packageName, 0,
-                    UserHandle.getUserHandleForUid(callingUid).getIdentifier()).targetSdkVersion
+                    UserHandle.getUserHandleForUid(callingUid)).targetSdkVersion
                     < versionCode) {
                 return true;
             }
