@@ -152,7 +152,6 @@ public class WifiInjector {
     private final DppManager mDppManager;
     private final LinkProbeManager mLinkProbeManager;
     private IpMemoryStore mIpMemoryStore;
-    private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
     private final WifiThreadRunner mWifiThreadRunner;
 
     public WifiInjector(Context context) {
@@ -203,10 +202,8 @@ public class WifiInjector {
         RttMetrics rttMetrics = new RttMetrics(mClock);
         mWifiP2pMetrics = new WifiP2pMetrics(mClock);
         mDppMetrics = new DppMetrics();
-        mCellularLinkLayerStatsCollector = new CellularLinkLayerStatsCollector(mContext);
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, wifiLooper,
-                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics, mDppMetrics,
-                mCellularLinkLayerStatsCollector);
+                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics, mDppMetrics);
         // Modules interacting with Native.
         mWifiMonitor = new WifiMonitor(this);
         mHalDeviceManager = new HalDeviceManager(mClock, wifiHandler);
