@@ -143,6 +143,7 @@ public class NetworkDetail {
         InformationElementUtil.HtOperation htOperation = new InformationElementUtil.HtOperation();
         InformationElementUtil.VhtOperation vhtOperation =
                 new InformationElementUtil.VhtOperation();
+        InformationElementUtil.HeOperation heOperation = new InformationElementUtil.HeOperation();
 
         InformationElementUtil.ExtendedCapabilities extendedCapabilities =
                 new InformationElementUtil.ExtendedCapabilities();
@@ -194,6 +195,15 @@ public class NetworkDetail {
                         break;
                     case ScanResult.InformationElement.EID_EXTENDED_SUPPORTED_RATES:
                         extendedSupportedRates.from(ie);
+                        break;
+                    case ScanResult.InformationElement.EID_EXTENSION_PRESENT:
+                        switch(ie.idExt) {
+                            case ScanResult.InformationElement.EID_EXT_HE_OPERATION:
+                                heOperation.from(ie);
+                                break;
+                            default:
+                                break;
+                        }
                         break;
                     default:
                         break;
@@ -262,14 +272,33 @@ public class NetworkDetail {
         int centerFreq0 = 0;
         int centerFreq1 = 0;
 
-        if (vhtOperation.isPresent()) {
-            channelWidth = vhtOperation.getChannelWidth();
-            if (channelWidth != ScanResult.UNSPECIFIED) {
-                centerFreq0 = vhtOperation.getCenterFreq0();
-                centerFreq1 = vhtOperation.getCenterFreq1();
+        // First check if HE Operation IE is present
+        if (heOperation.isPresent()) {
+            // If 6GHz info is present, then parameters should be acquired from HE Operation IE
+            if (heOperation.is6GhzInfoPresent()) {
+                channelWidth = heOperation.getChannelWidth();
+                centerFreq0 = heOperation.getCenterFreq0();
+                centerFreq1 = heOperation.getCenterFreq1();
+            } else if (heOperation.isVhtInfoPresent()) {
+                // VHT Operation Info could be included inside the HE Operation IE
+                vhtOperation.from(heOperation.getVhtInfoElement());
             }
         }
 
+        // Proceed to VHT Operation IE if parameters were not obtained from HE Operation IE
+        // Not operating in 6GHz
+        if (channelWidth == ScanResult.UNSPECIFIED) {
+            if (vhtOperation.isPresent()) {
+                channelWidth = vhtOperation.getChannelWidth();
+                if (channelWidth != ScanResult.UNSPECIFIED) {
+                    centerFreq0 = vhtOperation.getCenterFreq0();
+                    centerFreq1 = vhtOperation.getCenterFreq1();
+                }
+            }
+        }
+
+        // Proceed to HT Operation IE if parameters were not obtained from VHT/HE Operation IEs
+        // Apply to operating in 2.4/5GHz with 20/40MHz channels
         if (channelWidth == ScanResult.UNSPECIFIED) {
             //Either no vht, or vht shows BW is 40/20 MHz
             if (htOperation.isPresent()) {
@@ -298,7 +327,7 @@ public class NetworkDetail {
             maxRateA = supportedRates.mRates.get(supportedRates.mRates.size() - 1);
             mMaxRate = maxRateA > maxRateB ? maxRateA : maxRateB;
             mWifiMode = InformationElementUtil.WifiMode.determineMode(mPrimaryFreq, mMaxRate,
-                    vhtOperation.isPresent(), htOperation.isPresent(),
+                    heOperation.isPresent(), vhtOperation.isPresent(), htOperation.isPresent(),
                     iesFound.contains(ScanResult.InformationElement.EID_ERP));
         } else {
             mWifiMode = 0;
@@ -313,6 +342,7 @@ public class NetworkDetail {
                     + ", WifiMode: " + InformationElementUtil.WifiMode.toString(mWifiMode)
                     + ", Freq: " + mPrimaryFreq
                     + ", mMaxRate: " + mMaxRate
+                    + ", HE: " + String.valueOf(heOperation.isPresent())
                     + ", VHT: " + String.valueOf(vhtOperation.isPresent())
                     + ", HT: " + String.valueOf(htOperation.isPresent())
                     + ", ERP: " + String.valueOf(

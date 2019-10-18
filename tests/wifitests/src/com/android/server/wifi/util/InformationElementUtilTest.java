@@ -28,6 +28,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.NetworkDetail;
+import com.android.server.wifi.util.InformationElementUtil.HeOperation;
 import com.android.server.wifi.util.InformationElementUtil.HtOperation;
 import com.android.server.wifi.util.InformationElementUtil.VhtOperation;
 
@@ -245,6 +246,23 @@ public class InformationElementUtilTest extends WifiBaseTest {
         assertEquals("First result should have data of 1 byte", 1, results[0].bytes.length);
         assertEquals("First result should have data set to 0x00",
                 invalidLengthTagWithSSIDBytes[2], results[0].bytes[0]);
+    }
+
+    /**
+     * Test parseInformationElement with an element that uses extension IE
+     */
+    @Test
+    public void parseInformationElementWithExtensionId() throws IOException {
+        byte[] testByteArray = new byte[] {(byte) 0xFF, (byte) 0x02, (byte) 0x01, (byte) 0x40};
+        InformationElement[] results =
+                InformationElementUtil.parseInformationElements(testByteArray);
+        assertEquals("Parsed results should have 1 element", 1, results.length);
+        assertEquals("First result should have id = EID_EXTENSION_PRESENT",
+                InformationElement.EID_EXTENSION_PRESENT, results[0].id);
+        assertEquals("First result should have idExt = 0x01", 0x01, results[0].idExt);
+        assertEquals("First result should have data of 1 byte", 1, results[0].bytes.length);
+        assertEquals("First result should have data set to 0x40",
+                testByteArray[3], results[0].bytes[0]);
     }
 
     /**
@@ -1168,6 +1186,181 @@ public class InformationElementUtilTest extends WifiBaseTest {
         assertEquals(ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ, vhtOperation.getChannelWidth());
         assertEquals(5270, vhtOperation.getCenterFreq0());
         assertEquals(5180, vhtOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected HE Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel is in 6GHz band and channel width is 80MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHeOperationElement80Mhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_EXTENSION_PRESENT;
+        ie.idExt = InformationElement.EID_EXT_HE_OPERATION;
+        /**
+         * HE Operation Format:
+         * | HE Operation Info | BSS Color | Basic HE-MCS | VHT Info  | Cohosted BSS| 6GH Info |
+         *          3                1            2           0/3           0/1         0/5
+         *
+         * HE Operation Info:
+         *    |  Misc | VHT Operatoin Info | Misc | 6 GHz Operation Info Present | reserved |
+         * bits:  14           1              2                   1                   6
+         *
+         * 6GHz Info Format:
+         * | Primary Channel | Control | Center Freq Seg 0 | Center Freq Seg 1 | Min Rate |
+         *         1             1               1                  1               1
+         *
+         * Control Field:
+         *       | Channel Width | Reserved |
+         * bits:        2             6
+         *
+         */
+        ie.bytes = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x02,  //HE Operation Info
+                              (byte) 0x00, (byte) 0x00, (byte) 0x00,  // BSS Color and HE-MCS
+                              (byte) 0x10, (byte) 0x02, (byte) 0x14, (byte) 0x00, (byte) 0x00};
+
+        HeOperation heOperation = new HeOperation();
+        heOperation.from(ie);
+
+        assertTrue(heOperation.isPresent());
+        assertTrue(heOperation.is6GhzInfoPresent());
+        assertFalse(heOperation.isVhtInfoPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_80MHZ, heOperation.getChannelWidth());
+        assertEquals(6040, heOperation.getCenterFreq0());
+        assertEquals(0, heOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected HE Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel is in 6GHz band and channel width is 160MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHeOperationElement160Mhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_EXTENSION_PRESENT;
+        ie.idExt = InformationElement.EID_EXT_HE_OPERATION;
+        /**
+         * HE Operation Format:
+         * | HE Operation Info | BSS Color | Basic HE-MCS | VHT Info  | Cohosted BSS| 6GH Info |
+         *          3                1            2           0/3           0/1         0/5
+         *
+         * HE Operation Info:
+         *    |  Misc | VHT Operatoin Info | Misc | 6 GHz Operation Info Present | reserved |
+         * bits:  14           1              2                   1                   6
+         *
+         * 6GHz Info Format:
+         * | Primary Channel | Control | Center Freq Seg 0 | Center Freq Seg 1 | Min Rate |
+         *         1             1               1                  1               1
+         *
+         * Control Field:
+         *       | Channel Width | Reserved |
+         * bits:        2             6
+         *
+         */
+        ie.bytes = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x02,  //HE Operation Info
+                              (byte) 0x00, (byte) 0x00, (byte) 0x00,  // BSS Color and HE-MCS
+                              (byte) 0x10, (byte) 0x03, (byte) 0x14, (byte) 0x1C, (byte) 0x00};
+
+        HeOperation heOperation = new HeOperation();
+        heOperation.from(ie);
+
+        assertTrue(heOperation.isPresent());
+        assertTrue(heOperation.is6GhzInfoPresent());
+        assertFalse(heOperation.isVhtInfoPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_160MHZ, heOperation.getChannelWidth());
+        assertEquals(6040, heOperation.getCenterFreq0());
+        assertEquals(6080, heOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected HE Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel is not in 6GHz band and VHT info not present
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHeOperationElementNo6GHzNoVht() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_EXTENSION_PRESENT;
+        ie.idExt = InformationElement.EID_EXT_HE_OPERATION;
+        /**
+         * HE Operation Format:
+         * | HE Operation Info | BSS Color | Basic HE-MCS | VHT Info  | Cohosted BSS| 6GH Info |
+         *          3                1            2           0/3           0/1         0/5
+         *
+         * HE Operation Info:
+         *    |  Misc | VHT Operatoin Info | Misc | 6 GHz Operation Info Present | reserved |
+         * bits:  14           1              2                   1                   6
+         *
+         */
+        ie.bytes = new byte[] {
+            (byte) 0x00, (byte) 0x00, (byte) 0x00,  //HE Operation Info
+            (byte) 0x00, (byte) 0x00, (byte) 0x00   // BSS Color and HE-MCS
+        };
+
+        HeOperation heOperation = new HeOperation();
+        heOperation.from(ie);
+
+        assertTrue(heOperation.isPresent());
+        assertFalse(heOperation.is6GhzInfoPresent());
+        assertFalse(heOperation.isVhtInfoPresent());
+        assertEquals(ScanResult.UNSPECIFIED, heOperation.getChannelWidth());
+        assertEquals(0, heOperation.getCenterFreq0());
+        assertEquals(0, heOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected HE Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel is not in 6GHz band and VHT info is present
+     * channel width is 80 MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHeOperationElementNo6GHzWithVht() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_EXTENSION_PRESENT;
+        ie.idExt = InformationElement.EID_EXT_HE_OPERATION;
+        /**
+         * HE Operation Format:
+         * | HE Operation Info | BSS Color | Basic HE-MCS | VHT Info  | Cohosted BSS| 6GH Info |
+         *          3                1            2           0/3           0/1         0/5
+         *
+         * HE Operation Info:
+         *    |  Misc | VHT Operatoin Info | Misc | 6 GHz Operation Info Present | reserved |
+         * bits:  14           1              2                   1                   6
+         *
+         * VHT Operation Info Format:
+         * | Channel Width | Channel Center Freq Seg 0 | Channel Center Freq Seg 1 |
+         *         1                      1                      1
+         */
+        ie.bytes = new byte[]{(byte) 0x00, (byte) 0x40, (byte) 0x00,  //HE Operation Info
+                              (byte) 0x00, (byte) 0x00, (byte) 0x00,  // BSS Color and HE-MCS
+                              (byte) 0x01, (byte) 0x28, (byte) 0x00};
+
+        HeOperation heOperation = new HeOperation();
+        heOperation.from(ie);
+
+        assertTrue(heOperation.isPresent());
+        assertFalse(heOperation.is6GhzInfoPresent());
+        assertTrue(heOperation.isVhtInfoPresent());
+        assertEquals(ScanResult.UNSPECIFIED, heOperation.getChannelWidth());
+        assertEquals(0, heOperation.getCenterFreq0());
+        assertEquals(0, heOperation.getCenterFreq1());
+
+        VhtOperation vhtOperation = new VhtOperation();
+        vhtOperation.from(heOperation.getVhtInfoElement());
+        assertEquals(ScanResult.CHANNEL_WIDTH_80MHZ, vhtOperation.getChannelWidth());
+        assertEquals(5200, vhtOperation.getCenterFreq0());
+        assertEquals(0, vhtOperation.getCenterFreq1());
     }
 
     // TODO: SAE, OWN, SUITE_B
