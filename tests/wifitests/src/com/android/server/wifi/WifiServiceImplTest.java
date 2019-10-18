@@ -88,6 +88,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
+import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
@@ -260,6 +261,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
+    @Mock IScanResultsListener mClientScanResultsListener;
 
     @Spy FakeWifiLog mLog;
 
@@ -4084,5 +4086,55 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.handleUserStop(5);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).handleUserStop(5);
+    }
+
+    /**
+     * Test register scan result listener without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRegisterScanResultListenerWithMissingPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
+                mClientScanResultsListener,
+                listenerIdentifier);
+    }
+
+    /**
+     * Test unregister scan result listener without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testUnregisterScanResultListenerWithMissingPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+    }
+
+    /**
+     * Test register scan result listener with illegal argument.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testRegisterScanResultListenerWithIllegalArgument() throws Exception {
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder, null, listenerIdentifier);
+    }
+
+    /**
+     * Test register and unregister listener will go to ScanRequestProxy;
+     */
+    @Test
+    public void testRegisterUnregisterScanResultListener() throws Exception {
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
+                mClientScanResultsListener,
+                listenerIdentifier);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).registerScanResultsListener(eq(mAppBinder),
+                eq(mClientScanResultsListener), eq(listenerIdentifier));
+        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).unregisterScanResultsListener(eq(listenerIdentifier));
     }
 }
