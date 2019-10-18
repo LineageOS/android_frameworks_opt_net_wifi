@@ -24,9 +24,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import android.os.FileUtils;
-
 import androidx.test.filters.SmallTest;
+
+import com.android.server.wifi.util.FileUtils;
 
 import libcore.io.IoUtils;
 
@@ -58,7 +58,7 @@ public class LastMileLoggerTest extends WifiBaseTest {
         mTraceDataFile.deleteOnExit();
         mTraceEnableFile.deleteOnExit();
         mTraceReleaseFile.deleteOnExit();
-        FileUtils.stringToFile(mTraceEnableFile, "0");
+        FileUtils.stringToFile(mTraceEnableFile.getPath(), "0");
         mLastMileLogger = new LastMileLogger(mWifiInjector, mTraceDataFile.getPath(),
                 mTraceEnableFile.getPath(),  mTraceReleaseFile.getPath());
     }
