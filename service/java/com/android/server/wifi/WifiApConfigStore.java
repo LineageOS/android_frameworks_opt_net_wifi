@@ -47,7 +47,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.UUID;
 
 /**
  * Provides API for reading/writing soft access point configuration.
@@ -344,9 +343,7 @@ public class WifiApConfigStore {
         config.SSID = mContext.getResources().getString(
                 R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid();
         config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
-        String randomUUID = UUID.randomUUID().toString();
-        //first 12 chars from xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-        config.preSharedKey = randomUUID.substring(0, 8) + randomUUID.substring(9, 13);
+        config.preSharedKey = generatePassword();
         return config;
     }
 
