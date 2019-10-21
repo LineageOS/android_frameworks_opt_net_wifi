@@ -29,10 +29,11 @@ public class EncryptedData {
     private final byte[] mIv;
 
     public EncryptedData(byte[] encryptedData, byte[] iv) {
-        Preconditions.checkNotNull(encryptedData, iv);
-        Preconditions.checkState(encryptedData.length == ENCRYPTED_DATA_LENGTH,
+        Preconditions.checkNotNull(encryptedData);
+        Preconditions.checkNotNull(iv);
+        Preconditions.checkArgument(encryptedData.length == ENCRYPTED_DATA_LENGTH,
                 "encryptedData.length=" + encryptedData.length);
-        Preconditions.checkState(iv.length == IV_LENGTH, "iv.length=" + iv.length);
+        Preconditions.checkArgument(iv.length == IV_LENGTH, "iv.length=" + iv.length);
         mEncryptedData = encryptedData;
         mIv = iv;
     }
