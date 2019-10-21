@@ -35,7 +35,6 @@ import android.app.test.TestAlarmManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
@@ -75,7 +74,6 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
-import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
@@ -485,12 +483,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mFrameworkFacade.makeSupplicantStateTracker(
                 any(Context.class), any(WifiConfigManager.class),
                 any(Handler.class))).thenReturn(mSupplicantStateTracker);
-
-        when(mUserManager.getProfileParent(11))
-                .thenReturn(new UserInfo(UserHandle.USER_SYSTEM, "owner", 0));
-        when(mUserManager.getProfiles(UserHandle.USER_SYSTEM)).thenReturn(Arrays.asList(
-                new UserInfo(UserHandle.USER_SYSTEM, "owner", 0),
-                new UserInfo(11, "managed profile", 0)));
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))

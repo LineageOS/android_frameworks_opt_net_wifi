@@ -156,7 +156,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         configuration.enterpriseConfig =
                 WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
         WifiNetworkSuggestion networkSuggestion =
-                new WifiNetworkSuggestion(configuration, false, false, TEST_UID_1,
+                new WifiNetworkSuggestion(configuration, null, false, false, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
         appInfo.hasUserApproved = false;
         appInfo.extNetworkSuggestions.add(
@@ -186,7 +186,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, false, TEST_UID_1,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
         appInfo1.hasUserApproved = false;
         appInfo1.extNetworkSuggestions.add(
@@ -195,7 +195,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_2,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_2,
                 TEST_PACKAGE_NAME_2);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(
@@ -214,10 +214,10 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, true, TEST_UID_1,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
         appInfo1.hasUserApproved = true;
         appInfo1.extNetworkSuggestions.add(
@@ -228,10 +228,10 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
         PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2);
         WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_2,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_2,
                 TEST_PACKAGE_NAME_2);
         WifiNetworkSuggestion networkSuggestion4 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), false, true, TEST_UID_2,
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, TEST_UID_2,
                 TEST_PACKAGE_NAME_2);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(

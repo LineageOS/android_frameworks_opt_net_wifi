@@ -35,7 +35,6 @@ import android.hardware.wifi.V1_0.WifiStatusCode;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.hidl.manager.V1_2.IServiceManager;
 import android.os.Handler;
-import android.os.HidlSupport.Mutable;
 import android.os.HwRemoteBinder;
 import android.os.RemoteException;
 import android.util.Log;
@@ -46,6 +45,7 @@ import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.GeneralUtil.Mutable;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

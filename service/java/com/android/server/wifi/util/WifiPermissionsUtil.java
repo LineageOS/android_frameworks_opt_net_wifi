@@ -23,7 +23,6 @@ import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.location.LocationManager;
 import android.net.NetworkStack;
 import android.os.Binder;
@@ -36,8 +35,6 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
-
-import java.util.List;
 
 /**
  * A wifi permissions utility assessing permissions
@@ -94,7 +91,8 @@ public class WifiPermissionsUtil {
         long ident = Binder.clearCallingIdentity();
         try {
             if (mContext.getPackageManager().getApplicationInfoAsUser(
-                    packageName, 0, UserHandle.getUserId(callingUid)).targetSdkVersion
+                    packageName, 0,
+                    UserHandle.getUserHandleForUid(callingUid)).targetSdkVersion
                     < versionCode) {
                 return true;
             }
@@ -363,22 +361,14 @@ public class WifiPermissionsUtil {
      */
     private boolean isCurrentProfile(int uid) {
         int currentUser = mWifiPermissionsWrapper.getCurrentUser();
-        int callingUserId = mWifiPermissionsWrapper.getCallingUserId(uid);
-        if (callingUserId == currentUser) {
-            return true;
-        } else {
-            List<UserInfo> userProfiles = mUserManager.getProfiles(currentUser);
-            for (UserInfo user : userProfiles) {
-                if (user.id == callingUserId) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        int callingUser = UserHandle.getUserHandleForUid(uid).getIdentifier();
+        return callingUser == currentUser
+                || mUserManager.isSameProfileGroup(currentUser, callingUser);
     }
 
     private boolean noteAppOpAllowed(String op, String pkgName, int uid) {
-        return mAppOps.noteOp(op, uid, pkgName, null) == AppOpsManager.MODE_ALLOWED;
+        // TODO moltmann: Set correct featureId
+        return mAppOps.noteOp(op, uid, pkgName, null, null) == AppOpsManager.MODE_ALLOWED;
     }
 
     private boolean checkAppOpAllowed(String op, String pkgName, int uid) {
@@ -473,7 +463,7 @@ public class WifiPermissionsUtil {
      */
     public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
         final int mode = mAppOps.noteOp(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, callingUid,
-                callingPackage, null);
+                callingPackage, null, null);
         if (mode == AppOpsManager.MODE_DEFAULT) {
             return mWifiPermissionsWrapper.getUidPermission(
                     Manifest.permission.SYSTEM_ALERT_WINDOW, callingUid)

@@ -85,7 +85,7 @@ public class WifiThreadRunnerTest {
 
     @Test
     public void callFailure_returnValueOnTimeout() {
-        doReturn(false).when(mHandler).runWithScissors(any(), anyLong());
+        doReturn(false).when(mHandler).post(any());
 
         Integer result = mWifiThreadRunner.call(mSupplier, VALUE_ON_TIMEOUT);
 
@@ -110,7 +110,7 @@ public class WifiThreadRunnerTest {
 
     @Test
     public void runFailure() {
-        doReturn(false).when(mHandler).runWithScissors(any(), anyLong());
+        doReturn(false).when(mHandler).post(any());
 
         boolean runSuccess = mWifiThreadRunner.run(mRunnable);
 

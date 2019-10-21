@@ -52,7 +52,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiSsid;
 import android.os.Handler;
-import android.os.HidlSupport.Mutable;
 import android.os.HwRemoteBinder;
 import android.os.Process;
 import android.os.RemoteException;
@@ -71,6 +70,7 @@ import com.android.server.wifi.hotspot2.WnmData;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
 import com.android.server.wifi.hotspot2.anqp.ANQPParser;
 import com.android.server.wifi.hotspot2.anqp.Constants;
+import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.NativeUtil;
 
 import java.io.IOException;

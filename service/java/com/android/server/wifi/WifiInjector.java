@@ -82,6 +82,7 @@ public class WifiInjector {
     private final Context mContext;
     private final FrameworkFacade mFrameworkFacade = new FrameworkFacade();
     private final DeviceConfigFacade mDeviceConfigFacade;
+    private final UserManager mUserManager;
     private final HandlerThread mAsyncChannelHandlerThread;
     private final HandlerThread mWifiHandlerThread;
     private final HandlerThread mWifiP2pServiceHandlerThread;
@@ -151,7 +152,6 @@ public class WifiInjector {
     private final DppManager mDppManager;
     private final LinkProbeManager mLinkProbeManager;
     private IpMemoryStore mIpMemoryStore;
-    private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
     private final WifiThreadRunner mWifiThreadRunner;
 
     public WifiInjector(Context context) {
@@ -176,8 +176,9 @@ public class WifiInjector {
         mWifiNetworkScoreCache = new WifiNetworkScoreCache(mContext);
         mNetworkScoreManager.registerNetworkScoreCache(NetworkKey.TYPE_WIFI,
                 mWifiNetworkScoreCache, NetworkScoreManager.CACHE_FILTER_NONE);
+        mUserManager = mContext.getSystemService(UserManager.class);
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
-                UserManager.get(mContext), this);
+                mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
         mBatteryStats = IBatteryStats.Stub.asInterface(mFrameworkFacade.getService(
                 BatteryStats.SERVICE_NAME));
@@ -201,10 +202,8 @@ public class WifiInjector {
         RttMetrics rttMetrics = new RttMetrics(mClock);
         mWifiP2pMetrics = new WifiP2pMetrics(mClock);
         mDppMetrics = new DppMetrics();
-        mCellularLinkLayerStatsCollector = new CellularLinkLayerStatsCollector(mContext);
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, wifiLooper,
-                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics, mDppMetrics,
-                mCellularLinkLayerStatsCollector);
+                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics, mDppMetrics);
         // Modules interacting with Native.
         mWifiMonitor = new WifiMonitor(this);
         mHalDeviceManager = new HalDeviceManager(mClock, wifiHandler);
@@ -245,7 +244,7 @@ public class WifiInjector {
                 mContext.getSystemService(SubscriptionManager.class);
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
-                UserManager.get(mContext), makeTelephonyManager(),
+                mUserManager, makeTelephonyManager(),
                 mWifiKeyStore, mWifiConfigStore, mWifiPermissionsUtil,
                 mWifiPermissionsWrapper, this, new NetworkListSharedStoreData(mContext),
                 new NetworkListUserStoreData(mContext),
@@ -303,7 +302,7 @@ public class WifiInjector {
         mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
                 mFrameworkFacade, wifiHandler, mContext);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
-                wifiLooper, UserManager.get(mContext),
+                wifiLooper, mUserManager,
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager);
@@ -370,7 +369,7 @@ public class WifiInjector {
     }
 
     public UserManager getUserManager() {
-        return UserManager.get(mContext);
+        return mUserManager;
     }
 
     public WifiMetrics getWifiMetrics() {

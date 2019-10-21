@@ -1293,6 +1293,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).teardownIface(IFACE_NAME_0);
         mInOrder.verify(mSupplicantStaIfaceHal).deregisterDeathHandler();
         mInOrder.verify(mSupplicantStaIfaceHal).terminate();
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
     }
 
     /**
@@ -1322,6 +1324,8 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mInOrder.verify(mSupplicantStaIfaceHal).isInitializationComplete();
         mInOrder.verify(mSupplicantStaIfaceHal).registerDeathHandler(any());
         mInOrder.verify(mSupplicantStaIfaceHal).setupIface(IFACE_NAME_0);
+        mInOrder.verify(mSupplicantStaIfaceHal).getAdvancedKeyMgmtCapabilities(IFACE_NAME_0);
+        mInOrder.verify(mWifiVendorHal).getSupportedFeatureSet(IFACE_NAME_0);
     }
 
     /**

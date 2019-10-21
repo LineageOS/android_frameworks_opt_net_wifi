@@ -141,6 +141,8 @@ public class WifiVendorHalTest extends WifiBaseTest {
     @Mock
     private IWifiApIface mIWifiApIface;
     @Mock
+    private android.hardware.wifi.V1_4.IWifiApIface mIWifiApIfaceV14;
+    @Mock
     private IWifiChip mIWifiChip;
     @Mock
     private android.hardware.wifi.V1_1.IWifiChip mIWifiChipV11;
@@ -3036,7 +3038,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
      * Verifies setMacAddress() success.
      */
     @Test
-    public void testSetMacAddressSuccess() throws Exception {
+    public void testSetStaMacAddressSuccess() throws Exception {
         // Expose the 1.2 IWifiStaIface.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
@@ -3050,7 +3052,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
      * Verifies setMacAddress() can handle failure status.
      */
     @Test
-    public void testSetMacAddressFailDueToStatusFailure() throws Exception {
+    public void testSetStaMacAddressFailDueToStatusFailure() throws Exception {
         // Expose the 1.2 IWifiStaIface.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
@@ -3064,7 +3066,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
      * Verifies setMacAddress() can handle RemoteException.
      */
     @Test
-    public void testSetMacAddressFailDueToRemoteException() throws Exception {
+    public void testSetStaMacAddressFailDueToRemoteException() throws Exception {
         // Expose the 1.2 IWifiStaIface.
         mWifiVendorHal = new WifiVendorHalSpyV1_2(mHalDeviceManager, mHandler);
         byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
@@ -3072,6 +3074,51 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         assertFalse(mWifiVendorHal.setMacAddress(TEST_IFACE_NAME, TEST_MAC_ADDRESS));
         verify(mIWifiStaIfaceV12).setMacAddress(macByteArray);
+    }
+
+    /**
+     * Verifies setMacAddress() success.
+     */
+    @Test
+    public void testSetApMacAddressSuccess() throws Exception {
+        mWifiVendorHal = spy(mWifiVendorHal);
+        when(mWifiVendorHal.getWifiApIfaceForV1_4Mockable(TEST_IFACE_NAME_1))
+                .thenReturn(mIWifiApIfaceV14);
+        byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
+        when(mIWifiApIfaceV14.setMacAddress(macByteArray)).thenReturn(mWifiStatusSuccess);
+
+        assertTrue(mWifiVendorHal.setMacAddress(TEST_IFACE_NAME_1, TEST_MAC_ADDRESS));
+        verify(mIWifiApIfaceV14).setMacAddress(macByteArray);
+    }
+
+    /**
+     * Verifies setMacAddress() can handle failure status.
+     */
+    @Test
+    public void testSetApMacAddressFailDueToStatusFailure() throws Exception {
+        mWifiVendorHal = spy(mWifiVendorHal);
+        when(mWifiVendorHal.getWifiApIfaceForV1_4Mockable(TEST_IFACE_NAME_1))
+                .thenReturn(mIWifiApIfaceV14);
+        byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
+        when(mIWifiApIfaceV14.setMacAddress(macByteArray)).thenReturn(mWifiStatusFailure);
+
+        assertFalse(mWifiVendorHal.setMacAddress(TEST_IFACE_NAME_1, TEST_MAC_ADDRESS));
+        verify(mIWifiApIfaceV14).setMacAddress(macByteArray);
+    }
+
+    /**
+     * Verifies setMacAddress() can handle RemoteException.
+     */
+    @Test
+    public void testSetApMacAddressFailDueToRemoteException() throws Exception {
+        mWifiVendorHal = spy(mWifiVendorHal);
+        when(mWifiVendorHal.getWifiApIfaceForV1_4Mockable(TEST_IFACE_NAME_1))
+                .thenReturn(mIWifiApIfaceV14);
+        byte[] macByteArray = TEST_MAC_ADDRESS.toByteArray();
+        doThrow(new RemoteException()).when(mIWifiApIfaceV14).setMacAddress(macByteArray);
+
+        assertFalse(mWifiVendorHal.setMacAddress(TEST_IFACE_NAME_1, TEST_MAC_ADDRESS));
+        verify(mIWifiApIfaceV14).setMacAddress(macByteArray);
     }
 
     /**

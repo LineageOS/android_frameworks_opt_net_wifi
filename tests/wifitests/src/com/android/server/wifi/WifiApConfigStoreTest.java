@@ -193,6 +193,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
+        assertEquals(15, config.preSharedKey.length());
     }
 
     private void verifyDefaultLocalOnlyApConfig(WifiConfiguration config, String expectedSsid,
@@ -204,6 +205,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         int randomPortion = Integer.parseInt(splitSsid[1]);
         assertTrue(randomPortion >= RAND_SSID_INT_MIN && randomPortion <= RAND_SSID_INT_MAX);
         assertTrue(config.allowedKeyManagement.get(KeyMgmt.WPA2_PSK));
+        assertEquals(15, config.preSharedKey.length());
     }
 
 

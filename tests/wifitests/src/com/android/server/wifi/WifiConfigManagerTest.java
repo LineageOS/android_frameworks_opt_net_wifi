@@ -26,7 +26,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
 import android.database.ContentObserver;
 import android.net.IpConfiguration;
 import android.net.MacAddress;
@@ -5465,10 +5464,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      * @param userId Id of the user.
      */
     private void setupUserProfiles(int userId) {
-        final UserInfo userInfo =
-                new UserInfo(userId, Integer.toString(userId), UserInfo.FLAG_PRIMARY);
-        List<UserInfo> userProfiles = Arrays.asList(userInfo);
-        when(mUserManager.getProfiles(userId)).thenReturn(userProfiles);
         when(mUserManager.isUserUnlockingOrUnlocked(userId)).thenReturn(true);
     }
 

@@ -88,6 +88,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
+import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
@@ -260,6 +261,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
+    @Mock IScanResultsListener mClientScanResultsListener;
 
     @Spy FakeWifiLog mLog;
 
@@ -288,7 +290,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mContext.getContentResolver()).thenReturn(mContentResolver);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
-        when(mPackageManager.getApplicationInfoAsUser(any(), anyInt(), anyInt()))
+        when(mPackageManager.getApplicationInfoAsUser(any(), anyInt(), any()))
                 .thenReturn(mApplicationInfo);
         when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
         doNothing().when(mFrameworkFacade).registerContentObserver(eq(mContext), any(),
@@ -2372,30 +2374,30 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         PackageManager pm = mock(PackageManager.class);
         when(mContext.getPackageManager()).thenReturn(pm);
-        when(pm.getApplicationInfoAsUser(any(), anyInt(), anyInt())).thenReturn(mApplicationInfo);
+        when(pm.getApplicationInfoAsUser(any(), anyInt(), any())).thenReturn(mApplicationInfo);
         when(mWifiPermissionsUtil.isTargetSdkLessThan(anyString(),
                 eq(Build.VERSION_CODES.Q), anyInt())).thenReturn(true);
 
         when(mPasspointManager.addOrUpdateProvider(
-                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME)))
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), eq(false)))
                 .thenReturn(true);
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mPasspointManager).addOrUpdateProvider(
-                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME));
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), eq(false));
         reset(mPasspointManager);
 
         when(mPasspointManager.addOrUpdateProvider(
-                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME)))
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), anyBoolean()))
                 .thenReturn(false);
         mLooper.startAutoDispatch();
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
         mLooper.stopAutoDispatch();
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mPasspointManager).addOrUpdateProvider(
-                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME));
+                any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), anyBoolean());
     }
 
     /**
@@ -3988,7 +3990,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         config.setHomeSp(homeSp);
 
         when(mPasspointManager.addOrUpdateProvider(
-                config, Binder.getCallingUid(), TEST_PACKAGE_NAME))
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
                 .thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
@@ -3996,7 +3998,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         reset(mPasspointManager);
 
         when(mPasspointManager.addOrUpdateProvider(
-                config, Binder.getCallingUid(), TEST_PACKAGE_NAME))
+                config, Binder.getCallingUid(), TEST_PACKAGE_NAME, false))
                 .thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
@@ -4084,5 +4086,55 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.handleUserStop(5);
         mLooper.dispatchAll();
         verify(mWifiConfigManager).handleUserStop(5);
+    }
+
+    /**
+     * Test register scan result listener without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRegisterScanResultListenerWithMissingPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
+                mClientScanResultsListener,
+                listenerIdentifier);
+    }
+
+    /**
+     * Test unregister scan result listener without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testUnregisterScanResultListenerWithMissingPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+    }
+
+    /**
+     * Test register scan result listener with illegal argument.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testRegisterScanResultListenerWithIllegalArgument() throws Exception {
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder, null, listenerIdentifier);
+    }
+
+    /**
+     * Test register and unregister listener will go to ScanRequestProxy;
+     */
+    @Test
+    public void testRegisterUnregisterScanResultListener() throws Exception {
+        final int listenerIdentifier = 1;
+        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
+                mClientScanResultsListener,
+                listenerIdentifier);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).registerScanResultsListener(eq(mAppBinder),
+                eq(mClientScanResultsListener), eq(listenerIdentifier));
+        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        mLooper.dispatchAll();
+        verify(mScanRequestProxy).unregisterScanResultsListener(eq(listenerIdentifier));
     }
 }

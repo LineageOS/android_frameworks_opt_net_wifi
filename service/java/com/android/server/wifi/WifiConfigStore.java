@@ -23,8 +23,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.content.Context;
-import android.os.Environment;
-import android.os.FileUtils;
 import android.os.Handler;
 import android.util.AtomicFile;
 import android.util.Log;
@@ -36,6 +34,8 @@ import com.android.internal.util.FastXmlSerializer;
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.util.DataIntegrityChecker;
 import com.android.server.wifi.util.EncryptedData;
+import com.android.server.wifi.util.Environment;
+import com.android.server.wifi.util.FileUtils;
 import com.android.server.wifi.util.XmlUtil;
 
 import org.xmlpull.v1.XmlPullParser;

@@ -154,7 +154,7 @@ public class PasspointProviderTest extends WifiBaseTest {
      */
     private PasspointProvider createProvider(PasspointConfiguration config) {
         return new PasspointProvider(config, mKeyStore, mSimAccessor, PROVIDER_ID, CREATOR_UID,
-                CREATOR_PACKAGE);
+                CREATOR_PACKAGE, false);
     }
 
     /**

@@ -52,6 +52,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
+import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
@@ -63,6 +64,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.WifiStackClient;
 import android.net.wifi.hotspot2.IProvisioningCallback;
@@ -128,6 +130,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -193,6 +196,8 @@ public class WifiServiceImpl extends BaseWifiService {
     private final TetheredSoftApTracker mTetheredSoftApTracker;
 
     private final LohsSoftApTracker mLohsSoftApTracker;
+
+    private WifiScanner mWifiScanner;
 
     /**
      * Callback for use with LocalOnlyHotspot to unregister requesting applications upon death.
@@ -538,7 +543,7 @@ public class WifiServiceImpl extends BaseWifiService {
         long ident = Binder.clearCallingIdentity();
         try {
             ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
-                    packageName, 0, UserHandle.getUserId(uid));
+                    packageName, 0, UserHandle.getUserHandleForUid(uid));
             return (info.flags & APP_INFO_FLAGS_SYSTEM_APP) != 0;
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume unknown app (more strict checking)
@@ -2103,7 +2108,7 @@ public class WifiServiceImpl extends BaseWifiService {
         int callingUid = Binder.getCallingUid();
         mLog.info("addorUpdatePasspointConfiguration uid=%").c(callingUid).flush();
         return mWifiThreadRunner.call(
-                () -> mPasspointManager.addOrUpdateProvider(config, callingUid, packageName),
+                () -> mPasspointManager.addOrUpdateProvider(config, callingUid, packageName, false),
                 false);
     }
 
@@ -2148,7 +2153,7 @@ public class WifiServiceImpl extends BaseWifiService {
         final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
             () -> mPasspointManager.getProviderConfigs(uid, privilegedFinal),
-            Collections.emptyList());
+                Collections.emptyList());
     }
 
     /**
@@ -3354,5 +3359,44 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         mClientModeImpl.getTxPacketCount(
                 binder, callback, callbackIdentifier, Binder.getCallingUid());
+    }
+
+    /**
+     * See {@link WifiManager#addScanResultsListener(Executor, WifiManager.ScanResultsListener)}
+     */
+    public void registerScanResultsListener(IBinder binder, IScanResultsListener listener,
+            int listenerIdentifier) {
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (listener == null) {
+            throw new IllegalArgumentException("listener must not be null");
+        }
+        enforceAccessPermission();
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("registerScanResultListener uid=%").c(Binder.getCallingUid()).flush();
+        }
+        mWifiThreadRunner.post(() -> {
+            if (!mWifiInjector.getScanRequestProxy().registerScanResultsListener(binder, listener,
+                    listenerIdentifier)) {
+                Log.e(TAG, "registerScanResultListener: Failed to add callback");
+            }
+        });
+    }
+
+    /**
+     * See {@link WifiManager#removeScanResultsListener(WifiManager.ScanResultsListener)}
+     */
+    public void unregisterScanResultsListener(int listenerIdentifier) {
+        if (mVerboseLoggingEnabled) {
+            mLog.info("unregisterScanResultCallback uid=%").c(Binder.getCallingUid()).flush();
+        }
+        enforceAccessPermission();
+        // post operation to handler thread
+        mWifiThreadRunner.post(() ->
+                mWifiInjector.getScanRequestProxy()
+                        .unregisterScanResultsListener(listenerIdentifier));
+
     }
 }

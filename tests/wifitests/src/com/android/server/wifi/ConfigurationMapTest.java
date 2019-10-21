@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.when;
 
-import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.content.pm.UserInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -49,6 +48,7 @@ import java.util.Set;
  */
 @SmallTest
 public class ConfigurationMapTest extends WifiBaseTest {
+    private static final int SYSTEM_MANAGE_PROFILE_USER_ID = 12;
     private static final List<WifiConfiguration> CONFIGS = Arrays.asList(
             WifiConfigurationTestUtil.generateWifiConfig(
                     0, 1000000, "\"red\"", true, true, null, null),
@@ -67,7 +67,7 @@ public class ConfigurationMapTest extends WifiBaseTest {
     static {
         USER_PROFILES.put(UserHandle.USER_SYSTEM, Arrays.asList(
                 new UserInfo(UserHandle.USER_SYSTEM, "Owner", 0),
-                new UserInfo(12, "Managed Profile", 0)));
+                new UserInfo(SYSTEM_MANAGE_PROFILE_USER_ID, "Managed Profile", 0)));
         USER_PROFILES.put(10, Arrays.asList(new UserInfo(10, "Alice", 0)));
         USER_PROFILES.put(11, Arrays.asList(new UserInfo(11, "Bob", 0)));
     }
@@ -84,12 +84,13 @@ public class ConfigurationMapTest extends WifiBaseTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
 
-        when(mUserManager.getProfiles(anyInt()))
-                .then(new AnswerWithArguments() {
-                    public List<UserInfo> answer(int userId) {
-                        return USER_PROFILES.get(userId);
-                    }
-                });
+        // by default, return false
+        when(mUserManager.isSameProfileGroup(anyInt(), anyInt())).thenReturn(false);
+        // return true for these 2 userids
+        when(mUserManager.isSameProfileGroup(UserHandle.USER_SYSTEM, SYSTEM_MANAGE_PROFILE_USER_ID))
+                .thenReturn(true);
+        when(mUserManager.isSameProfileGroup(SYSTEM_MANAGE_PROFILE_USER_ID, UserHandle.USER_SYSTEM))
+                .thenReturn(true);
         mConfigs = new ConfigurationMap(mUserManager);
     }
 
@@ -133,8 +134,9 @@ public class ConfigurationMapTest extends WifiBaseTest {
         // user. Also, check that *ForAllUsers() methods can be used to access all network
         // configurations, irrespective of their visibility to the current user.
         for (WifiConfiguration config : configs) {
-            if (WifiConfigurationUtil.isVisibleToAnyProfile(config,
-                    USER_PROFILES.get(mCurrentUserId))) {
+            int creatorUserId = UserHandle.getUserHandleForUid(config.creatorUid).getIdentifier();
+            if (config.shared || creatorUserId == mCurrentUserId
+                    || mUserManager.isSameProfileGroup(mCurrentUserId, creatorUserId)) {
                 configsForCurrentUser.add(config);
                 if (config.status != WifiConfiguration.Status.DISABLED) {
                     enabledConfigsForCurrentUser.add(config);
@@ -228,7 +230,7 @@ public class ConfigurationMapTest extends WifiBaseTest {
         final WifiConfiguration config1 = CONFIGS.get(0);
 
         // Verify that there are no network configurations to start with.
-        switchUser(UserHandle.getUserId(config1.creatorUid));
+        switchUser(UserHandle.getUserHandleForUid(config1.creatorUid).getIdentifier());
         verifyGetters(configs);
 
         // Add |config1|.

@@ -24,6 +24,7 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
+import android.net.MacAddress;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
@@ -244,6 +245,33 @@ public class SoftApManager implements ActiveModeManager {
         mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
     }
 
+    private int setMacAddress() {
+        boolean randomize = mContext.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported);
+        if (!randomize) {
+            MacAddress mac = mWifiNative.getFactoryMacAddress(mApInterfaceName);
+            if (mac == null) {
+                Log.e(TAG, "failed to get factory MAC address");
+                return ERROR_GENERIC;
+            }
+
+            // We're (re-)configuring the factory MAC address. Some drivers may not support setting
+            // the MAC at all, so fail soft in this case.
+            if (!mWifiNative.setMacAddress(mApInterfaceName, mac)) {
+                Log.w(TAG, "failed to reset to factory MAC address; continuing with current MAC");
+            }
+            return SUCCESS;
+        }
+
+        // We're configuring a random MAC address. In this case, driver support is mandatory.
+        MacAddress mac = MacAddress.createRandomUnicastAddress();
+        if (!mWifiNative.setMacAddress(mApInterfaceName, mac)) {
+            Log.e(TAG, "failed to set random MAC address");
+            return ERROR_GENERIC;
+        }
+        return SUCCESS;
+    }
+
     private int setCountryCode() {
         int band = mApConfig.getWifiConfiguration().apBand;
         if (TextUtils.isEmpty(mCountryCode)) {
@@ -284,7 +312,12 @@ public class SoftApManager implements ActiveModeManager {
         Log.d(TAG, "band " + config.apBand + " iface "
                 + mApInterfaceName + " country " + mCountryCode);
 
-        int result = setCountryCode();
+        int result = setMacAddress();
+        if (result != SUCCESS) {
+            return result;
+        }
+
+        result = setCountryCode();
         if (result != SUCCESS) {
             return result;
         }

@@ -1123,6 +1123,7 @@ public class WifiNative {
             }
             iface.type = Iface.IFACE_TYPE_STA_FOR_SCAN;
             stopSupplicantIfNecessary();
+            iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             Log.i(TAG, "Successfully switched to scan mode on iface=" + iface);
             return true;
         }
@@ -1162,6 +1163,7 @@ public class WifiNative {
                 return false;
             }
             iface.type = Iface.IFACE_TYPE_STA_FOR_CONNECTIVITY;
+            iface.featureSet = getSupportedFeatureSetInternal(iface.name);
             Log.i(TAG, "Successfully switched to connectivity mode on iface=" + iface);
             return true;
         }

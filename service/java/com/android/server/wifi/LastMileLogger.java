@@ -16,9 +16,9 @@
 
 package com.android.server.wifi;
 
-import android.os.FileUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.FileUtils;
 
 import libcore.io.IoUtils;
 
