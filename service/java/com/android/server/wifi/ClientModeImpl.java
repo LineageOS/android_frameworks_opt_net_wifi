@@ -5613,7 +5613,7 @@ public class ClientModeImpl extends StateMachine {
 
     private static String getLinkPropertiesSummary(LinkProperties lp) {
         List<String> attributes = new ArrayList<>(6);
-        if (lp.hasIPv4Address()) {
+        if (lp.hasIpv4Address()) {
             attributes.add("v4");
         }
         if (lp.hasIPv4DefaultRoute()) {
@@ -5622,10 +5622,10 @@ public class ClientModeImpl extends StateMachine {
         if (lp.hasIPv4DnsServer()) {
             attributes.add("v4dns");
         }
-        if (lp.hasGlobalIPv6Address()) {
+        if (lp.hasGlobalIpv6Address()) {
             attributes.add("v6");
         }
-        if (lp.hasIPv6DefaultRoute()) {
+        if (lp.hasIpv6DefaultRoute()) {
             attributes.add("v6r");
         }
         if (lp.hasIPv6DnsServer()) {
