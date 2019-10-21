@@ -49,6 +49,7 @@ import org.mockito.MockitoSession;
 @SmallTest
 public class DeviceConfigFacadeTest extends WifiBaseTest {
     @Mock Context mContext;
+    @Mock WifiMetrics mWifiMetrics;
 
     final ArgumentCaptor<OnPropertiesChangedListener> mOnPropertiesChangedListenerCaptor =
             ArgumentCaptor.forClass(OnPropertiesChangedListener.class);
@@ -88,7 +89,8 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                     }
                 });
 
-        mDeviceConfigFacade = new DeviceConfigFacade(mContext, new Handler(mLooper.getLooper()));
+        mDeviceConfigFacade = new DeviceConfigFacade(mContext, new Handler(mLooper.getLooper()),
+                mWifiMetrics);
         verify(() -> DeviceConfig.addOnPropertiesChangedListener(anyString(), any(),
                 mOnPropertiesChangedListenerCaptor.capture()));
     }
@@ -113,6 +115,16 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 mDeviceConfigFacade.getAbnormalConnectionDurationMs());
         assertEquals(false,
                 mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled());
+        assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_DURATION_MS,
+                mDeviceConfigFacade.getDataStallDurationMs());
+        assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS,
+                mDeviceConfigFacade.getDataStallTxTputThrKbps());
+        assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS,
+                mDeviceConfigFacade.getDataStallRxTputThrKbps());
+        assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_TX_PER_THR,
+                mDeviceConfigFacade.getDataStallTxPerThr());
+        assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_CCA_LEVEL_THR,
+                mDeviceConfigFacade.getDataStallCcaLevelThr());
 
         // Simulate updating the fields
         when(DeviceConfig.getBoolean(anyString(), eq("abnormal_connection_bugreport_enabled"),
@@ -122,11 +134,26 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
         when(DeviceConfig.getBoolean(anyString(),
                 eq("aggressive_randomization_ssid_whitelist_enabled"),
                 anyBoolean())).thenReturn(true);
+        when(DeviceConfig.getInt(anyString(), eq("data_stall_duration_ms"),
+                anyInt())).thenReturn(0);
+        when(DeviceConfig.getInt(anyString(), eq("data_stall_tx_tput_thr_kbps"),
+                anyInt())).thenReturn(1000);
+        when(DeviceConfig.getInt(anyString(), eq("data_stall_rx_tput_thr_kbps"),
+                anyInt())).thenReturn(1500);
+        when(DeviceConfig.getInt(anyString(), eq("data_stall_tx_per_thr"),
+                anyInt())).thenReturn(95);
+        when(DeviceConfig.getInt(anyString(), eq("data_stall_cca_level_thr"),
+                anyInt())).thenReturn(80);
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
 
         // Verifying fields are updated to the new values
         assertEquals(true, mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled());
         assertEquals(100, mDeviceConfigFacade.getAbnormalConnectionDurationMs());
         assertEquals(true, mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled());
+        assertEquals(0, mDeviceConfigFacade.getDataStallDurationMs());
+        assertEquals(1000, mDeviceConfigFacade.getDataStallTxTputThrKbps());
+        assertEquals(1500, mDeviceConfigFacade.getDataStallRxTputThrKbps());
+        assertEquals(95, mDeviceConfigFacade.getDataStallTxPerThr());
+        assertEquals(80, mDeviceConfigFacade.getDataStallCcaLevelThr());
     }
 }
