@@ -82,6 +82,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.res.Resources;
+import android.net.NetworkStack;
 import android.net.Uri;
 import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
@@ -1099,10 +1100,28 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test(expected = SecurityException.class)
     public void testStartSoftApWithoutPermissionThrowsException() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
-                                                eq("WifiService"));
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
         mWifiServiceImpl.startSoftAp(null);
+    }
+
+    /**
+     * Verify that startSoftAP() succeeds if the caller does not have the NETWORK_STACK permission
+     * but does have the MAINLINE_NETWORK_STACK permission.
+     */
+    @Test
+    public void testStartSoftApWithoutNetworkStackWithMainlineNetworkStackSucceeds() {
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        WifiConfiguration config = createValidSoftApConfiguration();
+        boolean result = mWifiServiceImpl.startSoftAp(config);
+        assertTrue(result);
+        verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
+        assertEquals(config, mSoftApModeConfigCaptor.getValue().getWifiConfiguration());
+        verify(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
     }
 
     /**
@@ -1121,9 +1140,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test(expected = SecurityException.class)
     public void testStopSoftApWithoutPermissionThrowsException() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
-                                                eq("WifiService"));
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
         mWifiServiceImpl.stopSoftAp();
     }
 
