@@ -2578,11 +2578,15 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setNetworkId(stateChangeResult.networkId);
             mWifiInfo.setBSSID(stateChangeResult.BSSID);
             mWifiInfo.setSSID(stateChangeResult.wifiSsid);
+            if (state == SupplicantState.ASSOCIATED) {
+                mWifiInfo.setWifiTechnology(mWifiNative.getWifiTechnology(mInterfaceName));
+            }
         } else {
             // Reset parameters according to WifiInfo.reset()
             mWifiInfo.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
             mWifiInfo.setBSSID(null);
             mWifiInfo.setSSID(null);
+            mWifiInfo.setWifiTechnology(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN);
         }
         updateL2KeyAndGroupHint();
         // SSID might have been updated, so call updateCapabilities

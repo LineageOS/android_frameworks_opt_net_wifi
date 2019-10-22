@@ -32,9 +32,12 @@ import android.hardware.wifi.supplicant.V1_0.IfaceType;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
+import android.hardware.wifi.supplicant.V1_3.ConnectionCapabilities;
+import android.hardware.wifi.supplicant.V1_3.WifiTechnology;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.os.Handler;
 import android.os.HwRemoteBinder;
 import android.os.RemoteException;
@@ -2691,6 +2694,66 @@ public class SupplicantStaIfaceHal {
 
         // 0 is returned in case of an error
         return keyMgmtMask.value;
+    }
+
+    private @WifiInfo.WifiTechnology int getWifiTechFromCap(ConnectionCapabilities capa) {
+        switch(capa.technology) {
+            case WifiTechnology.HE:
+                return WifiInfo.WIFI_TECHNOLOGY_11AX;
+            case WifiTechnology.VHT:
+                return WifiInfo.WIFI_TECHNOLOGY_11AC;
+            case WifiTechnology.HT:
+                return WifiInfo.WIFI_TECHNOLOGY_11N;
+            case WifiTechnology.LEGACY:
+                return WifiInfo.WIFI_TECHNOLOGY_LEGACY;
+            default:
+                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+        }
+    }
+
+    /**
+     * Returns wifi technology for connected network
+     *
+     *  This is a v1.3+ HAL feature.
+     *  On error, or if these features are not supported, 0 is returned.
+     */
+    public @WifiInfo.WifiTechnology int getWifiTechnology(@NonNull String ifaceName) {
+        final String methodStr = "getWifiTechnology";
+        MutableInt wifiTechnology = new MutableInt(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN);
+
+        if (isV1_3()) {
+            ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
+            if (iface == null) {
+                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+            }
+
+            // Get a v1.3 supplicant STA Interface
+            android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface staIfaceV13 =
+                    getStaIfaceMockableV1_3(iface);
+
+            if (staIfaceV13 == null) {
+                Log.e(TAG, methodStr
+                        + ": SupplicantStaIface is null, cannot get Connection Capabilities");
+                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+            }
+
+            try {
+                staIfaceV13.getConnectionCapabilities(
+                        (SupplicantStatus statusInternal,
+                         ConnectionCapabilities connCapabilitiesInternal) -> {
+                            if (statusInternal.code == SupplicantStatusCode.SUCCESS) {
+                                wifiTechnology.value = getWifiTechFromCap(connCapabilitiesInternal);
+                            }
+                            checkStatusAndLogFailure(statusInternal, methodStr);
+                        });
+            } catch (RemoteException e) {
+                handleRemoteException(e, methodStr);
+            }
+        } else {
+            Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
+        }
+
+        return wifiTechnology.value;
     }
 
     /**
