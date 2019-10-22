@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.net.wifi.ScanResult;
 import android.net.wifi.ScanResult.InformationElement;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.NetworkDetail;
+import com.android.server.wifi.util.InformationElementUtil.HtOperation;
+import com.android.server.wifi.util.InformationElementUtil.VhtOperation;
 
 import org.junit.Test;
 
@@ -1007,6 +1010,164 @@ public class InformationElementUtilTest extends WifiBaseTest {
         assertTrue(interworking.internet);
         assertEquals(NetworkDetail.Ant.Private, interworking.ant);
         assertEquals(0x112233445566L, interworking.hessid);
+    }
+
+    /**
+     * Verify that the expected HT Operation information element is parsed and retrieved from the
+     * list of IEs.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getHtOperationElement() throws Exception {
+        final int primaryFreq = 2467;
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_HT_OPERATION;
+        /**
+         * HT Operation Format:
+         * | Primary Channel | HT Operation Info | Basic HT-MCS Set |
+         *           1                5                 16
+         *
+         * HT Operation Info Format (relevant parts only):
+         *
+         * B0                        B1         B2          -----
+         * | Secondary Channel Offset | STA Channel Width | Other |
+         */
+        ie.bytes = new byte[22];
+        ie.bytes[0] = (byte) 11;
+        ie.bytes[1] = (byte) 0x83; //Setting Secondary channel offset = 3
+        // Remaining bytes are not relevant
+
+        HtOperation htOperation = new HtOperation();
+        htOperation.from(ie);
+
+        assertTrue(htOperation.isPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_40MHZ, htOperation.getChannelWidth());
+        assertEquals(primaryFreq - 10, htOperation.getCenterFreq0(primaryFreq));
+    }
+
+    /**
+     * Verify that the expected VHT Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel BW is set to be 20/40 MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getVhtOperationElement20_40Mhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VHT_OPERATION;
+        /**
+         * VHT Operation Format:
+         * | VHT Operation Info | Basic HT-MCS Set |
+         *           3                  2
+         *
+         * VHT Operation Info Format:
+         * | Channel Width | Channel Center Freq Seg 0 | Channel Center Freq Seg 1 |
+         *         1                      1                      1
+         */
+        ie.bytes = new byte[]{(byte) 0x00, (byte) 0xF0, (byte) 0xF1, (byte) 0x00, (byte) 0x00};
+
+        VhtOperation vhtOperation = new VhtOperation();
+        vhtOperation.from(ie);
+
+        assertTrue(vhtOperation.isPresent());
+        assertEquals(ScanResult.UNSPECIFIED, vhtOperation.getChannelWidth());
+        assertEquals(0, vhtOperation.getCenterFreq0());
+        assertEquals(0, vhtOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected VHT Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel BW is set to be 80 MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getVhtOperationElement80Mhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VHT_OPERATION;
+        /**
+         * VHT Operation Format:
+         * | VHT Operation Info | Basic HT-MCS Set |
+         *           3                  2
+         *
+         * VHT Operation Info Format:
+         * | Channel Width | Channel Center Freq Seg 0 | Channel Center Freq Seg 1 |
+         *         1                      1                      1
+         */
+        ie.bytes = new byte[]{(byte) 0x01, (byte) 36, (byte) 0x00, (byte) 0x00, (byte) 0x00};
+
+        VhtOperation vhtOperation = new VhtOperation();
+        vhtOperation.from(ie);
+
+        assertTrue(vhtOperation.isPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_80MHZ, vhtOperation.getChannelWidth());
+        assertEquals(5180, vhtOperation.getCenterFreq0());
+        assertEquals(0, vhtOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected VHT Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel BW is set to be 160 MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getVhtOperationElement160Mhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VHT_OPERATION;
+        /**
+         * VHT Operation Format:
+         * | VHT Operation Info | Basic HT-MCS Set |
+         *           3                  2
+         *
+         * VHT Operation Info Format:
+         * | Channel Width | Channel Center Freq Seg 0 | Channel Center Freq Seg 1 |
+         *         1                      1                      1
+         */
+        ie.bytes = new byte[]{(byte) 0x01, (byte) 44, (byte) 36, (byte) 0x00, (byte) 0x00};
+
+        VhtOperation vhtOperation = new VhtOperation();
+        vhtOperation.from(ie);
+
+        assertTrue(vhtOperation.isPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_160MHZ, vhtOperation.getChannelWidth());
+        assertEquals(5220, vhtOperation.getCenterFreq0());
+        assertEquals(5180, vhtOperation.getCenterFreq1());
+    }
+
+    /**
+     * Verify that the expected VHT Operation information element is parsed and retrieved from the
+     * list of IEs.
+     * In this test case Channel BW is set to be 80+80 MHz
+     *
+     * @throws Exception
+     */
+    @Test
+    public void getVhtOperationElement80PlusMhz() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VHT_OPERATION;
+        /**
+         * VHT Operation Format:
+         * | VHT Operation Info | Basic HT-MCS Set |
+         *           3                  2
+         *
+         * VHT Operation Info Format:
+         * | Channel Width | Channel Center Freq Seg 0 | Channel Center Freq Seg 1 |
+         *         1                      1                      1
+         */
+        ie.bytes = new byte[]{(byte) 0x01, (byte) 54, (byte) 36, (byte) 0x00, (byte) 0x00};
+
+        VhtOperation vhtOperation = new VhtOperation();
+        vhtOperation.from(ie);
+
+        assertTrue(vhtOperation.isPresent());
+        assertEquals(ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ, vhtOperation.getChannelWidth());
+        assertEquals(5270, vhtOperation.getCenterFreq0());
+        assertEquals(5180, vhtOperation.getCenterFreq1());
     }
 
     // TODO: SAE, OWN, SUITE_B

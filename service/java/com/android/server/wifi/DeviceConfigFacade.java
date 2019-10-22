@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class DeviceConfigFacade {
     private Context mContext;
+    private final WifiMetrics mWifiMetrics;
 
     private static final String NAMESPACE = "wifi";
 
@@ -37,15 +38,32 @@ public class DeviceConfigFacade {
     @VisibleForTesting
     protected static final int DEFAULT_ABNORMAL_CONNECTION_DURATION_MS =
             (int) TimeUnit.SECONDS.toMillis(30);
+    // Default duration for evaluating Wifi condition to trigger a data stall
+    // measured in milliseconds
+    public static final int DEFAULT_DATA_STALL_DURATION_MS = 1500;
+    // Default threshold of Tx throughput below which to trigger a data stall measured in Kbps
+    public static final int DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS = 2000;
+    // Default threshold of Rx throughput below which to trigger a data stall measured in Kbps
+    public static final int DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS = 2000;
+    // Default threshold of Tx packet error rate above which to trigger a data stall in percentage
+    public static final int DEFAULT_DATA_STALL_TX_PER_THR = 90;
+    // Default threshold of CCA level above which to trigger a data stall in percentage
+    public static final int DEFAULT_DATA_STALL_CCA_LEVEL_THR = 100;
     private boolean mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled;
 
     // Cached values of fields updated via updateDeviceConfigFlags()
     private boolean mIsAbnormalConnectionBugreportEnabled;
     private int mAbnormalConnectionDurationMs;
     private boolean mIsAggressiveMacRandomizationSsidWhitelistEnabled;
+    private int mDataStallDurationMs;
+    private int mDataStallTxTputThrKbps;
+    private int mDataStallRxTputThrKbps;
+    private int mDataStallTxPerThr;
+    private int mDataStallCcaLevelThr;
 
-    public DeviceConfigFacade(Context context, Handler handler) {
+    public DeviceConfigFacade(Context context, Handler handler, WifiMetrics wifiMetrics) {
         mContext = context;
+        mWifiMetrics = wifiMetrics;
         mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled = mContext.getResources()
                 .getBoolean(R.bool.config_wifi_aggressive_randomization_ssid_whitelist_enabled);
 
@@ -67,6 +85,22 @@ public class DeviceConfigFacade {
         mIsAggressiveMacRandomizationSsidWhitelistEnabled = DeviceConfig.getBoolean(NAMESPACE,
                 "aggressive_randomization_ssid_whitelist_enabled",
                 mDefaultMacRandomizationAggressiveModeSsidWhitelistEnabled);
+
+        mDataStallDurationMs = DeviceConfig.getInt(NAMESPACE,
+                "data_stall_duration_ms", DEFAULT_DATA_STALL_DURATION_MS);
+        mDataStallTxTputThrKbps = DeviceConfig.getInt(NAMESPACE,
+                "data_stall_tx_tput_thr_kbps", DEFAULT_DATA_STALL_TX_TPUT_THR_KBPS);
+        mDataStallRxTputThrKbps = DeviceConfig.getInt(NAMESPACE,
+                "data_stall_rx_tput_thr_kbps", DEFAULT_DATA_STALL_RX_TPUT_THR_KBPS);
+        mDataStallTxPerThr = DeviceConfig.getInt(NAMESPACE,
+                "data_stall_tx_per_thr", DEFAULT_DATA_STALL_TX_PER_THR);
+        mDataStallCcaLevelThr = DeviceConfig.getInt(NAMESPACE,
+                "data_stall_cca_level_thr", DEFAULT_DATA_STALL_CCA_LEVEL_THR);
+        mWifiMetrics.setDataStallDurationMs(mDataStallDurationMs);
+        mWifiMetrics.setDataStallTxTputThrKbps(mDataStallTxTputThrKbps);
+        mWifiMetrics.setDataStallRxTputThrKbps(mDataStallRxTputThrKbps);
+        mWifiMetrics.setDataStallTxPerThr(mDataStallTxPerThr);
+        mWifiMetrics.setDataStallCcaLevelThr(mDataStallCcaLevelThr);
     }
 
     /**
@@ -88,5 +122,40 @@ public class DeviceConfigFacade {
      */
     public boolean isAggressiveMacRandomizationSsidWhitelistEnabled() {
         return mIsAggressiveMacRandomizationSsidWhitelistEnabled;
+    }
+
+    /**
+     * Gets the duration of evaluating Wifi condition to trigger a data stall.
+     */
+    public int getDataStallDurationMs() {
+        return mDataStallDurationMs;
+    }
+
+    /**
+     * Gets the threshold of Tx throughput below which to trigger a data stall.
+     */
+    public int getDataStallTxTputThrKbps() {
+        return mDataStallTxTputThrKbps;
+    }
+
+    /**
+     * Gets the threshold of Rx throughput below which to trigger a data stall.
+     */
+    public int getDataStallRxTputThrKbps() {
+        return mDataStallRxTputThrKbps;
+    }
+
+    /**
+     * Gets the threshold of Tx packet error rate above which to trigger a data stall.
+     */
+    public int getDataStallTxPerThr() {
+        return mDataStallTxPerThr;
+    }
+
+    /**
+     * Gets the threshold of CCA level above which to trigger a data stall.
+     */
+    public int getDataStallCcaLevelThr() {
+        return mDataStallCcaLevelThr;
     }
 }

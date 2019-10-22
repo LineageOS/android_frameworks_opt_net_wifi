@@ -258,17 +258,28 @@ public class NetworkDetail {
         mANQPElements = null;
         //set up channel info
         mPrimaryFreq = freq;
+        int channelWidth = ScanResult.UNSPECIFIED;
+        int centerFreq0 = 0;
+        int centerFreq1 = 0;
 
-        if (vhtOperation.isValid()) {
-            // 80 or 160 MHz
-            mChannelWidth = vhtOperation.getChannelWidth();
-            mCenterfreq0 = vhtOperation.getCenterFreq0();
-            mCenterfreq1 = vhtOperation.getCenterFreq1();
-        } else {
-            mChannelWidth = htOperation.getChannelWidth();
-            mCenterfreq0 = htOperation.getCenterFreq0(mPrimaryFreq);
-            mCenterfreq1  = 0;
+        if (vhtOperation.isPresent()) {
+            channelWidth = vhtOperation.getChannelWidth();
+            if (channelWidth != ScanResult.UNSPECIFIED) {
+                centerFreq0 = vhtOperation.getCenterFreq0();
+                centerFreq1 = vhtOperation.getCenterFreq1();
+            }
         }
+
+        if (channelWidth == ScanResult.UNSPECIFIED) {
+            //Either no vht, or vht shows BW is 40/20 MHz
+            if (htOperation.isPresent()) {
+                channelWidth = htOperation.getChannelWidth();
+                centerFreq0 = htOperation.getCenterFreq0(mPrimaryFreq);
+            }
+        }
+        mChannelWidth = channelWidth;
+        mCenterfreq0 = centerFreq0;
+        mCenterfreq1 = centerFreq1;
 
         // If trafficIndicationMap is not valid, mDtimPeriod will be negative
         if (trafficIndicationMap.isValid()) {
@@ -287,8 +298,7 @@ public class NetworkDetail {
             maxRateA = supportedRates.mRates.get(supportedRates.mRates.size() - 1);
             mMaxRate = maxRateA > maxRateB ? maxRateA : maxRateB;
             mWifiMode = InformationElementUtil.WifiMode.determineMode(mPrimaryFreq, mMaxRate,
-                    vhtOperation.isValid(),
-                    iesFound.contains(ScanResult.InformationElement.EID_HT_OPERATION),
+                    vhtOperation.isPresent(), htOperation.isPresent(),
                     iesFound.contains(ScanResult.InformationElement.EID_ERP));
         } else {
             mWifiMode = 0;
@@ -303,9 +313,8 @@ public class NetworkDetail {
                     + ", WifiMode: " + InformationElementUtil.WifiMode.toString(mWifiMode)
                     + ", Freq: " + mPrimaryFreq
                     + ", mMaxRate: " + mMaxRate
-                    + ", VHT: " + String.valueOf(vhtOperation.isValid())
-                    + ", HT: " + String.valueOf(
-                    iesFound.contains(ScanResult.InformationElement.EID_HT_OPERATION))
+                    + ", VHT: " + String.valueOf(vhtOperation.isPresent())
+                    + ", HT: " + String.valueOf(htOperation.isPresent())
                     + ", ERP: " + String.valueOf(
                     iesFound.contains(ScanResult.InformationElement.EID_ERP))
                     + ", SupportedRates: " + supportedRates.toString()
