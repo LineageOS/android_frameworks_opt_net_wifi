@@ -72,7 +72,6 @@ import android.os.UserManager;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.Slog;
 import android.util.SparseArray;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -397,7 +396,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     mP2pStateMachine.sendMessage(Message.obtain(msg));
                     break;
                 default:
-                    Slog.d(TAG, "ClientHandler.handleMessage ignoring msg=" + msg);
+                    Log.d(TAG, "ClientHandler.handleMessage ignoring msg=" + msg);
                     break;
             }
         }
@@ -3779,12 +3778,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         @Override
         protected void logd(String s) {
-            Slog.d(TAG, s);
+            Log.d(TAG, s);
         }
 
         @Override
         protected void loge(String s) {
-            Slog.e(TAG, s);
+            Log.e(TAG, s);
         }
 
         /**

@@ -28,7 +28,6 @@ import android.os.Parcelable;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
-import android.util.Slog;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.State;
@@ -195,7 +194,7 @@ public class SupplicantStateTracker extends StateMachine {
             case UNINITIALIZED: supplState = BatteryStats.WIFI_SUPPL_STATE_UNINITIALIZED; break;
             case INVALID: supplState = BatteryStats.WIFI_SUPPL_STATE_INVALID; break;
             default:
-                Slog.w(TAG, "Unknown supplicant state " + state);
+                Log.w(TAG, "Unknown supplicant state " + state);
                 supplState = BatteryStats.WIFI_SUPPL_STATE_INVALID;
                 break;
         }

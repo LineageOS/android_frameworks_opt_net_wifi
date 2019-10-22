@@ -30,7 +30,6 @@ import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Log;
-import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.wifi.WifiInjector;
@@ -289,7 +288,7 @@ public class WifiPermissionsUtil {
         try {
             checkPackage(uid, pkgName);
         } catch (SecurityException se) {
-            Slog.e(TAG, "Package check exception - " + se);
+            Log.e(TAG, "Package check exception - " + se);
             return false;
         }
 
@@ -300,7 +299,7 @@ public class WifiPermissionsUtil {
 
         // Location mode must be enabled if needed.
         if (needLocationModeEnabled && !isLocationModeEnabled()) {
-            Slog.e(TAG, "Location mode is disabled for the device");
+            Log.e(TAG, "Location mode is disabled for the device");
             return false;
         }
 
@@ -308,7 +307,7 @@ public class WifiPermissionsUtil {
         // location information.
         if (!checkCallersLocationPermission(pkgName, uid,
                 /* coarseForTargetSdkLessThanQ */ false)) {
-            Slog.e(TAG, "UID " + uid + " has no location permission");
+            Log.e(TAG, "UID " + uid + " has no location permission");
             return false;
         }
         return true;
