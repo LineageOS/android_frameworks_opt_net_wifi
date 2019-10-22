@@ -1373,7 +1373,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // verify that tethering is not disabled
-        if (mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING)) {
+        if (mUserManager.hasUserRestrictionForUser(
+                UserManager.DISALLOW_CONFIG_TETHERING, UserHandle.getUserHandleForUid(uid))) {
             return LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED;
         }
 
@@ -2747,15 +2748,21 @@ public class WifiServiceImpl extends BaseWifiService {
             return;
         }
         mLog.info("factoryReset uid=%").c(Binder.getCallingUid()).flush();
-        if (mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)) {
+        if (mUserManager.hasUserRestrictionForUser(
+                UserManager.DISALLOW_NETWORK_RESET,
+                UserHandle.getUserHandleForUid(Binder.getCallingUid()))) {
             return;
         }
-        if (!mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING)) {
+        if (!mUserManager.hasUserRestrictionForUser(
+                UserManager.DISALLOW_CONFIG_TETHERING,
+                UserHandle.getUserHandleForUid(Binder.getCallingUid()))) {
             // Turn mobile hotspot off
             stopSoftApInternal(WifiManager.IFACE_IP_MODE_UNSPECIFIED);
         }
 
-        if (mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) {
+        if (mUserManager.hasUserRestrictionForUser(
+                UserManager.DISALLOW_CONFIG_WIFI,
+                UserHandle.getUserHandleForUid(Binder.getCallingUid()))) {
             return;
         }
         // Delete all Wifi SSIDs
