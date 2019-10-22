@@ -29,6 +29,7 @@ import android.net.wifi.WifiScanner.ChannelSpec;
 import android.net.wifi.WifiScanner.PnoSettings;
 import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiScanner.ScanSettings;
+import android.net.wifi.WifiScanner.WifiBand;
 import android.net.wifi.WifiStackClient;
 import android.os.Binder;
 import android.os.Bundle;
@@ -110,10 +111,12 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     @Override
-    public Bundle getAvailableChannels(int band) {
+    public Bundle getAvailableChannels(@WifiBand int band, String packageName) {
+        enforcePermission(Binder.getCallingUid(), packageName, false, false, false);
+
         mChannelHelper.updateChannels();
         ChannelSpec[] channelSpecs = mChannelHelper.getAvailableScanChannels(band);
-        ArrayList<Integer> list = new ArrayList<Integer>(channelSpecs.length);
+        ArrayList<Integer> list = new ArrayList<>(channelSpecs.length);
         for (ChannelSpec channelSpec : channelSpecs) {
             list.add(channelSpec.frequency);
         }
@@ -173,29 +176,39 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     /**
+     * @see #enforcePermission(int, String, boolean, boolean, boolean)
+     */
+    private void enforcePermission(int uid, Message msg) throws SecurityException {
+        enforcePermission(uid, getPackageName(msg), isPrivilegedMessage(msg.what),
+                shouldIgnoreLocationSettingsForSingleScan(msg),
+                shouldHideFromAppsForSingleScan(msg));
+    }
+
+    /**
      * Enforce the necessary client permissions for WifiScanner.
      * If the client has NETWORK_STACK permission, then it can "always" send "any" request.
      * If the client has only LOCATION_HARDWARE permission, then it can
      *    a) Only make scan related requests when location is turned on.
      *    b) Can never make one of the privileged requests.
-     *
-     * @param uid Uid of the client.
-     * @param msg {@link Message} of the incoming request.
-     * @throws {@link SecurityException} if the client does not have the necessary permissions.
+     * @param uid uid of the client
+     * @param packageName package name of the client
+     * @param isPrivilegedRequest whether we are checking for a privileged request
+     * @param shouldIgnoreLocationSettings override to ignore location settings
+     * @param shouldHideFromApps override to hide request from AppOps
      */
-    private void enforcePermission(int uid, Message msg) throws SecurityException {
+    private void enforcePermission(int uid, String packageName, boolean isPrivilegedRequest,
+            boolean shouldIgnoreLocationSettings, boolean shouldHideFromApps) {
         try {
-            /** Wifi stack issued requests.*/
+            // Wifi stack issued requests.
             enforceWifiStackPermission(uid);
         } catch (SecurityException e) {
-            /** System-app issued requests. */
-            if (isPrivilegedMessage(msg.what)) {
+            // System-app issued requests
+            if (isPrivilegedRequest) {
                 // Privileged message, only requests from clients with NETWORK_STACK allowed!
                 throw e;
             }
-            mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(
-                    getPackageName(msg), uid, shouldIgnoreLocationSettingsForSingleScan(msg),
-                    shouldHideFromAppsForSingleScan(msg));
+            mWifiPermissionsUtil.enforceCanAccessScanResultsForWifiScanner(packageName, uid,
+                    shouldIgnoreLocationSettings, shouldHideFromApps);
         }
     }
 
