@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION;
+
 import android.annotation.NonNull;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -107,7 +109,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     public void serializeData(XmlSerializer out,
             @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
-        serializeNetworkSuggestionsMap(out, mDataSource.toSerialize());
+        serializeNetworkSuggestionsMap(out, mDataSource.toSerialize(), encryptionUtil);
     }
 
     @Override
@@ -119,7 +121,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         if (in == null) {
             return;
         }
-        mDataSource.fromDeserialized(parseNetworkSuggestionsMap(in, outerTagDepth));
+        mDataSource.fromDeserialized(
+                parseNetworkSuggestionsMap(in, outerTagDepth, version, encryptionUtil));
     }
 
     @Override
@@ -149,7 +152,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestionsMap(
-            XmlSerializer out, final Map<String, PerAppInfo> networkSuggestionsMap)
+            XmlSerializer out, final Map<String, PerAppInfo> networkSuggestionsMap,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (networkSuggestionsMap == null) {
             return;
@@ -164,7 +168,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME, packageName);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_MAX_SIZE, maxSize);
-            serializeExtNetworkSuggestions(out, networkSuggestions);
+            serializeExtNetworkSuggestions(out, networkSuggestions, encryptionUtil);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
     }
@@ -176,10 +180,11 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeExtNetworkSuggestions(
-            XmlSerializer out, final Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions)
+            XmlSerializer out, final Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         for (ExtendedWifiNetworkSuggestion extNetworkSuggestion : extNetworkSuggestions) {
-            serializeNetworkSuggestion(out, extNetworkSuggestion.wns);
+            serializeNetworkSuggestion(out, extNetworkSuggestion.wns, encryptionUtil);
         }
     }
 
@@ -190,13 +195,15 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private void serializeNetworkSuggestion(XmlSerializer out,
-                                            final WifiNetworkSuggestion suggestion)
+            final WifiNetworkSuggestion suggestion,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
 
         // Serialize WifiConfiguration.
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
-        WifiConfigurationXmlUtil.writeToXmlForConfigStore(out, suggestion.wifiConfiguration);
+        WifiConfigurationXmlUtil.writeToXmlForConfigStore(
+                out, suggestion.wifiConfiguration, encryptionUtil);
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
         // Serialize enterprise configuration for enterprise networks.
         if (suggestion.wifiConfiguration.enterpriseConfig != null
@@ -205,7 +212,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextSectionStart(
                     out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
             XmlUtil.WifiEnterpriseConfigXmlUtil.writeToXml(
-                    out, suggestion.wifiConfiguration.enterpriseConfig);
+                    out, suggestion.wifiConfiguration.enterpriseConfig, encryptionUtil);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
         }
         if (suggestion.passpointConfiguration != null) {
@@ -233,7 +240,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private Map<String, PerAppInfo> parseNetworkSuggestionsMap(XmlPullParser in, int outerTagDepth)
+    private Map<String, PerAppInfo> parseNetworkSuggestionsMap(XmlPullParser in, int outerTagDepth,
+            @WifiConfigStore.Version int version,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
@@ -248,7 +257,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 int maxSize = (int) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_MAX_SIZE);
                 PerAppInfo perAppInfo = new PerAppInfo(packageName);
                 Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
-                        parseExtNetworkSuggestions(in, outerTagDepth + 1, perAppInfo);
+                        parseExtNetworkSuggestions(
+                                in, outerTagDepth + 1, version, encryptionUtil, perAppInfo);
                 perAppInfo.hasUserApproved = hasUserApproved;
                 perAppInfo.maxSize = maxSize;
                 perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
@@ -268,7 +278,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws IOException
      */
     private Set<ExtendedWifiNetworkSuggestion> parseExtNetworkSuggestions(
-            XmlPullParser in, int outerTagDepth, PerAppInfo perAppInfo)
+            XmlPullParser in, int outerTagDepth, @WifiConfigStore.Version int version,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil, PerAppInfo perAppInfo)
             throws XmlPullParserException, IOException {
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
@@ -277,7 +288,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             // fatal and should abort the entire loading process.
             try {
                 WifiNetworkSuggestion networkSuggestion =
-                        parseNetworkSuggestion(in, outerTagDepth + 1);
+                        parseNetworkSuggestion(in, outerTagDepth + 1, version, encryptionUtil);
                 extNetworkSuggestions.add(ExtendedWifiNetworkSuggestion.fromWns(
                         networkSuggestion, perAppInfo));
             } catch (RuntimeException e) {
@@ -294,7 +305,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private WifiNetworkSuggestion parseNetworkSuggestion(XmlPullParser in, int outerTagDepth)
+    private WifiNetworkSuggestion parseNetworkSuggestion(XmlPullParser in, int outerTagDepth,
+            @WifiConfigStore.Version int version,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
         WifiEnterpriseConfig enterpriseConfig = null;
@@ -340,7 +353,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                                     + XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
                         }
                         parsedConfig = WifiConfigurationXmlUtil.parseFromXml(
-                                in, outerTagDepth + 1);
+                                in, outerTagDepth + 1,
+                            version >= ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                            encryptionUtil);
                         break;
                     case XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION:
                         if (enterpriseConfig != null) {
@@ -348,7 +363,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                                     + XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
                         }
                         enterpriseConfig = XmlUtil.WifiEnterpriseConfigXmlUtil.parseFromXml(
-                                in, outerTagDepth + 1);
+                                in, outerTagDepth + 1,
+                            version >= ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                            encryptionUtil);
                         break;
                     case XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION:
                         if (passpointConfiguration != null) {
