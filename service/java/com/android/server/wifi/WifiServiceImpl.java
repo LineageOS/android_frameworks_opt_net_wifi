@@ -1321,14 +1321,9 @@ public class WifiServiceImpl extends BaseWifiService {
             return LocalOnlyHotspotCallback.ERROR_GENERIC;
         }
         enforceLocationPermission(packageName, uid);
-        long ident = Binder.clearCallingIdentity();
-        try {
-            // also need to verify that Locations services are enabled.
-            if (!mWifiPermissionsUtil.isLocationModeEnabled()) {
-                throw new SecurityException("Location mode is not enabled.");
-            }
-        } finally {
-            Binder.restoreCallingIdentity(ident);
+        // also need to verify that Locations services are enabled.
+        if (!Binder.withCleanCallingIdentity(() -> mWifiPermissionsUtil.isLocationModeEnabled())) {
+            throw new SecurityException("Location mode is not enabled.");
         }
 
         // verify that tethering is not disabled
@@ -1337,7 +1332,8 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // the app should be in the foreground
-        if (!mFrameworkFacade.isAppForeground(mContext, uid)) {
+        if (!Binder.withCleanCallingIdentity(
+                () -> mFrameworkFacade.isAppForeground(mContext, uid))) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 
