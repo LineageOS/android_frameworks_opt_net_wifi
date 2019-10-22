@@ -813,10 +813,9 @@ public class XmlUtil {
             String gatewayAddressString =
                     (String) XmlUtil.readNextValueWithName(in, XML_TAG_GATEWAY_ADDRESS);
             if (gatewayAddressString != null) {
-                LinkAddress dest = null;
                 InetAddress gateway =
                         NetworkUtils.numericToInetAddress(gatewayAddressString);
-                RouteInfo route = new RouteInfo(dest, gateway);
+                RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
                 if (route.isIPv4Default()) {
                     staticIpConfiguration.gateway = gateway;
                 } else {

@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.aware;
 
+import static android.net.RouteInfo.RTN_UNICAST;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -1532,7 +1534,8 @@ public class WifiAwareDataPathStateManager {
             linkProperties.setInterfaceName(nnri.interfaceName);
             linkProperties.addLinkAddress(new LinkAddress(linkLocal, 64));
             linkProperties.addRoute(
-                    new RouteInfo(new IpPrefix("fe80::/64"), null, nnri.interfaceName));
+                    new RouteInfo(new IpPrefix("fe80::/64"), null, nnri.interfaceName,
+                            RTN_UNICAST));
 
             return true;
         }
