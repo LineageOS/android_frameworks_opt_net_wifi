@@ -44,6 +44,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.MacAddress;
+import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
@@ -51,6 +52,7 @@ import android.net.wifi.WifiScanner;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -91,6 +93,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final String TEST_FQDN = "FQDN";
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
+    private static final int NETWORK_CALLBACK_ID = 1100;
     private static final int VALID_CARRIER_ID = 1;
 
     private @Mock Context mContext;
@@ -106,6 +109,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
     private @Mock WifiMetrics mWifiMetrics;
     private @Mock PasspointManager mPasspointManager;
+    private @Mock ISuggestionConnectionStatusListener mListener;
+    private @Mock IBinder mBinder;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
             ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
@@ -845,9 +850,13 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
      * b) The app holds location permission.
      * This should trigger a broadcast to the app.
+     * This should trigger not a connection failure callback to the app.
      */
     @Test
-    public void testOnNetworkConnectionSuccessWithOneMatch() {
+    public void testOnNetworkConnectionSuccessWithOneMatch() throws Exception {
+        assertTrue(mWifiNetworkSuggestionsManager
+                .registerSuggestionConnectionStatusListener(mBinder, mListener,
+                        NETWORK_CALLBACK_ID, TEST_PACKAGE_1));
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -880,12 +889,64 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         mInorder.verifyNoMoreInteractions();
     }
 
+    @Test
+    public void testOnNetworkConnectionFailureWithOneMatchButCallbackOnBinderDied()
+            throws Exception {
+        ArgumentCaptor<IBinder.DeathRecipient> drCaptor =
+                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
+        assertTrue(mWifiNetworkSuggestionsManager
+                .registerSuggestionConnectionStatusListener(mBinder, mListener,
+                        NETWORK_CALLBACK_ID, TEST_PACKAGE_1));
+        verify(mBinder).linkToDeath(drCaptor.capture(), anyInt());
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        // Simulate binder was died.
+        drCaptor.getValue().binderDied();
+        mLooper.dispatchAll();
+        verify(mBinder).unlinkToDeath(any(), anyInt());
+        // Simulate connecting to the network.
+        WifiConfiguration connectNetwork =
+                new WifiConfiguration(networkSuggestion.wifiConfiguration);
+        connectNetwork.fromWifiNetworkSuggestion = true;
+        connectNetwork.ephemeral = true;
+        connectNetwork.creatorName = TEST_APP_NAME_1;
+        mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
+                WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
+                connectNetwork, TEST_BSSID);
+
+        verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectFailure();
+        // Verify no connection failure event was sent out.
+        mInorder.verify(mWifiPermissionsUtil, never())
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        verify(mListener, never()).onConnectionStatus(any(), anyInt());
+
+        // Verify no more broadcast were sent out.
+        mInorder.verify(mContext,  never()).sendBroadcastAsUser(
+                any(), any());
+    }
+
     /**
      * Verify a successful lookup of a single network suggestion matching the current network
      * connection failure.
+     * a) The corresponding network suggestion has the
+     * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
+     * b) The app holds location permission.
+     * This should trigger a connection failure callback to the app
      */
     @Test
-    public void testOnNetworkConnectionFailureWithOneMatch() {
+    public void testOnNetworkConnectionFailureWithOneMatch() throws Exception {
+        assertTrue(mWifiNetworkSuggestionsManager
+                .registerSuggestionConnectionStatusListener(mBinder, mListener,
+                        NETWORK_CALLBACK_ID, TEST_PACKAGE_1));
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -906,14 +967,17 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP, connectNetwork, TEST_BSSID);
 
+        // Verify right callback were sent out.
+        mInorder.verify(mWifiPermissionsUtil)
+                .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
+        verify(mListener)
+                .onConnectionStatus(networkSuggestion,
+                        WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_IP_PROVISIONING);
         verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectFailure();
 
         // Verify no more broadcast were sent out.
-        mInorder.verify(mWifiPermissionsUtil, never()).enforceCanAccessScanResults(
-                anyString(), anyInt());
         mInorder.verify(mContext,  never()).sendBroadcastAsUser(
                 any(), any());
-
     }
 
     /**
@@ -1138,6 +1202,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
+        verify(mWifiPermissionsUtil, times(2))
+                .checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         assertFalse(mWifiNetworkSuggestionsManager.hasUserApprovedForApp(TEST_PACKAGE_1));
 
         WifiConfiguration connectNetwork =
@@ -1176,6 +1242,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
+        verify(mWifiPermissionsUtil, times(2))
+                .checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
 
         WifiConfiguration connectNetwork =
@@ -1214,6 +1282,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
+        verify(mWifiPermissionsUtil, times(2))
+                .checkNetworkCarrierProvisioningPermission(TEST_UID_1);
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
 
         doThrow(new SecurityException())
