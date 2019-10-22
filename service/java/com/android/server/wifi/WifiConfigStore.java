@@ -170,12 +170,6 @@ public class WifiConfigStore {
                 put(STORE_FILE_USER_GENERAL, STORE_FILE_NAME_USER_GENERAL);
                 put(STORE_FILE_USER_NETWORK_SUGGESTIONS, STORE_FILE_NAME_USER_NETWORK_SUGGESTIONS);
             }};
-
-    @VisibleForTesting
-    public static final EncryptedData ZEROED_ENCRYPTED_DATA =
-            new EncryptedData(
-                    new byte[EncryptedData.ENCRYPTED_DATA_LENGTH],
-                    new byte[EncryptedData.IV_LENGTH]);
     /**
      * Handler instance to post alarm timeouts to
      */

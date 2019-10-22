@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import static com.android.server.wifi.WifiConfigStore.ZEROED_ENCRYPTED_DATA;
-
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -189,7 +187,7 @@ public class WifiConfigStoreTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn(TEST_CREATOR_NAME);
         when(mEncryptionUtil.encrypt(any(byte[].class)))
-                .thenReturn(ZEROED_ENCRYPTED_DATA);
+                .thenReturn(new EncryptedData(new byte[0], new byte[0]));
         when(mEncryptionUtil.decrypt(any(EncryptedData.class)))
                 .thenReturn(new byte[0]);
         mSharedStore = new MockStoreFile(WifiConfigStore.STORE_FILE_SHARED_GENERAL);
@@ -820,8 +818,8 @@ public class WifiConfigStoreTest {
      */
     @Test
     public void testReadVersion2StoreFile() throws Exception {
-        byte[] encryptedData = new byte[EncryptedData.ENCRYPTED_DATA_LENGTH];
-        byte[] iv = new byte[EncryptedData.IV_LENGTH];
+        byte[] encryptedData = new byte[0];
+        byte[] iv = new byte[0];
         Random random = new Random();
         random.nextBytes(encryptedData);
         random.nextBytes(iv);
