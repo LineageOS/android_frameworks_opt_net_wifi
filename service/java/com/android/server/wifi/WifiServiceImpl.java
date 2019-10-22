@@ -324,10 +324,6 @@ public class WifiServiceImpl extends BaseWifiService {
                         if (mSettingsStore.handleAirplaneModeToggled()) {
                             mActiveModeWarden.airplaneModeToggled();
                         }
-                        if (mSettingsStore.isAirplaneModeOn()) {
-                            Log.d(TAG, "resetting country code because Airplane mode is ON");
-                            mCountryCode.airplaneModeEnabled();
-                        }
                     }
                 },
                 new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
