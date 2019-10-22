@@ -293,7 +293,7 @@ public class WifiScoreReport {
         synchronized (mLinkMetricsHistory) {
             history = new LinkedList<>(mLinkMetricsHistory);
         }
-        pw.println("time,session,netid,rssi,filtered_rssi,rssi_threshold, freq,txLinkSpeed,"
+        pw.println("time,session,netid,rssi,filtered_rssi,rssi_threshold,freq,txLinkSpeed,"
                 + "rxLinkSpeed,tx_good,tx_retry,tx_bad,rx_pps,nudrq,nuds,s1,s2,score");
         for (String line : history) {
             pw.println(line);
