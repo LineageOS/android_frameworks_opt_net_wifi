@@ -950,9 +950,10 @@ public class WifiConfigManager {
         if (uid == android.os.Process.SYSTEM_UID || uid == mSystemUiUid) {
             return true;
         } else {
-            int userId = UserHandle.getUserHandleForUid(uid).getIdentifier();
-            return userId == mCurrentUserId
-                    || mUserManager.isSameProfileGroup(mCurrentUserId, userId);
+            UserHandle currentUser = UserHandle.of(mCurrentUserId);
+            UserHandle callingUser = UserHandle.getUserHandleForUid(uid);
+            return currentUser.equals(callingUser)
+                    || mUserManager.isSameProfileGroup(currentUser, callingUser);
         }
     }
 
@@ -2995,7 +2996,7 @@ public class WifiConfigManager {
             mPendingUnlockStoreRead = true;
             return new HashSet<>();
         }
-        if (mUserManager.isUserUnlockingOrUnlocked(mCurrentUserId)) {
+        if (mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(mCurrentUserId))) {
             saveToStore(true);
         }
         // Remove any private networks of the old user before switching the userId.
@@ -3003,7 +3004,7 @@ public class WifiConfigManager {
         mConfiguredNetworks.setNewUser(userId);
         mCurrentUserId = userId;
 
-        if (mUserManager.isUserUnlockingOrUnlocked(mCurrentUserId)) {
+        if (mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(mCurrentUserId))) {
             handleUserUnlockOrSwitch(mCurrentUserId);
         } else {
             // Cannot read data from new user's CE store file before they log-in.
@@ -3051,7 +3052,8 @@ public class WifiConfigManager {
         if (mVerboseLoggingEnabled) {
             Log.v(TAG, "Handling user stop for " + userId);
         }
-        if (userId == mCurrentUserId && mUserManager.isUserUnlockingOrUnlocked(mCurrentUserId)) {
+        if (userId == mCurrentUserId
+                && mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(mCurrentUserId))) {
             saveToStore(true);
             clearInternalDataForCurrentUser();
         }

@@ -359,9 +359,9 @@ public class WifiPermissionsUtil {
      * current user.
      */
     private boolean isCurrentProfile(int uid) {
-        int currentUser = mWifiPermissionsWrapper.getCurrentUser();
-        int callingUser = UserHandle.getUserHandleForUid(uid).getIdentifier();
-        return callingUser == currentUser
+        UserHandle currentUser = UserHandle.of(mWifiPermissionsWrapper.getCurrentUser());
+        UserHandle callingUser = UserHandle.getUserHandleForUid(uid);
+        return currentUser.equals(callingUser)
                 || mUserManager.isSameProfileGroup(currentUser, callingUser);
     }
 

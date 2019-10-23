@@ -19,7 +19,7 @@ package com.android.server.wifi;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 import android.content.pm.UserInfo;
@@ -85,11 +85,13 @@ public class ConfigurationMapTest extends WifiBaseTest {
         MockitoAnnotations.initMocks(this);
 
         // by default, return false
-        when(mUserManager.isSameProfileGroup(anyInt(), anyInt())).thenReturn(false);
+        when(mUserManager.isSameProfileGroup(any(), any())).thenReturn(false);
         // return true for these 2 userids
-        when(mUserManager.isSameProfileGroup(UserHandle.USER_SYSTEM, SYSTEM_MANAGE_PROFILE_USER_ID))
+        when(mUserManager.isSameProfileGroup(UserHandle.SYSTEM,
+                UserHandle.of(SYSTEM_MANAGE_PROFILE_USER_ID)))
                 .thenReturn(true);
-        when(mUserManager.isSameProfileGroup(SYSTEM_MANAGE_PROFILE_USER_ID, UserHandle.USER_SYSTEM))
+        when(mUserManager.isSameProfileGroup(UserHandle.of(SYSTEM_MANAGE_PROFILE_USER_ID),
+                UserHandle.SYSTEM))
                 .thenReturn(true);
         mConfigs = new ConfigurationMap(mUserManager);
     }
@@ -134,9 +136,10 @@ public class ConfigurationMapTest extends WifiBaseTest {
         // user. Also, check that *ForAllUsers() methods can be used to access all network
         // configurations, irrespective of their visibility to the current user.
         for (WifiConfiguration config : configs) {
-            int creatorUserId = UserHandle.getUserHandleForUid(config.creatorUid).getIdentifier();
-            if (config.shared || creatorUserId == mCurrentUserId
-                    || mUserManager.isSameProfileGroup(mCurrentUserId, creatorUserId)) {
+            final UserHandle currentUser = UserHandle.of(mCurrentUserId);
+            final UserHandle creatorUser = UserHandle.getUserHandleForUid(config.creatorUid);
+            if (config.shared || currentUser.equals(creatorUser)
+                    || mUserManager.isSameProfileGroup(currentUser, creatorUser)) {
                 configsForCurrentUser.add(config);
                 if (config.status != WifiConfiguration.Status.DISABLED) {
                     enabledConfigsForCurrentUser.add(config);
