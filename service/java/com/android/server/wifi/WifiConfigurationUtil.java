@@ -62,13 +62,15 @@ public class WifiConfigurationUtil {
     private static final int SAE_ASCII_MIN_LEN = 1 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_ASCII_MAX_LEN = 63 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_HEX_LEN = 64;
+    private static final MacAddress ALL_ZEROS_MAC_ADDRESS =
+            MacAddress.fromString("00:00:00:00:00:00");
     @VisibleForTesting
     public static final String PASSWORD_MASK = "*";
     private static final String MATCH_EMPTY_SSID_PATTERN_PATH = "";
     private static final Pair<MacAddress, MacAddress> MATCH_NONE_BSSID_PATTERN =
             new Pair(MacAddress.BROADCAST_ADDRESS, MacAddress.BROADCAST_ADDRESS);
     private static final Pair<MacAddress, MacAddress> MATCH_ALL_BSSID_PATTERN =
-            new Pair(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
+            new Pair(ALL_ZEROS_MAC_ADDRESS, ALL_ZEROS_MAC_ADDRESS);
 
     /**
      * Checks if the provided |wepKeys| array contains any non-null value;
@@ -605,8 +607,8 @@ public class WifiConfigurationUtil {
             Log.e(TAG, "validateBssidPatternMatcher failed : invalid base address: " + baseAddress);
             return false;
         }
-        if (mask.equals(MacAddress.ALL_ZEROS_ADDRESS)
-                && !baseAddress.equals(MacAddress.ALL_ZEROS_ADDRESS)) {
+        if (mask.equals(ALL_ZEROS_MAC_ADDRESS)
+                && !baseAddress.equals(ALL_ZEROS_MAC_ADDRESS)) {
             Log.e(TAG, "validateBssidPatternMatcher failed : invalid mask/base: " + mask + "/"
                     + baseAddress);
             return false;

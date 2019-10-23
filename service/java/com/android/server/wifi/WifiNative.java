@@ -24,6 +24,7 @@ import android.net.TrafficStats;
 import android.net.apf.ApfCapabilities;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.INetworkManagementService;
@@ -2725,6 +2726,16 @@ public class WifiNative {
     private long getSupportedFeatureSetInternal(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.getAdvancedKeyMgmtCapabilities(ifaceName)
                 | mWifiVendorHal.getSupportedFeatureSet(ifaceName);
+    }
+
+    /**
+     * Get the connection Wifi technology
+     *
+     * @param ifaceName Name of the interface.
+     * @return Wifi technology for connection on this interface
+     */
+    public @WifiInfo.WifiTechnology int getWifiTechnology(@NonNull String ifaceName) {
+        return mSupplicantStaIfaceHal.getWifiTechnology(ifaceName);
     }
 
     /**

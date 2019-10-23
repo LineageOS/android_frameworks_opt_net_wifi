@@ -2578,11 +2578,15 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setNetworkId(stateChangeResult.networkId);
             mWifiInfo.setBSSID(stateChangeResult.BSSID);
             mWifiInfo.setSSID(stateChangeResult.wifiSsid);
+            if (state == SupplicantState.ASSOCIATED) {
+                mWifiInfo.setWifiTechnology(mWifiNative.getWifiTechnology(mInterfaceName));
+            }
         } else {
             // Reset parameters according to WifiInfo.reset()
             mWifiInfo.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
             mWifiInfo.setBSSID(null);
             mWifiInfo.setSSID(null);
+            mWifiInfo.setWifiTechnology(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN);
         }
         updateL2KeyAndGroupHint();
         // SSID might have been updated, so call updateCapabilities
@@ -5631,7 +5635,7 @@ public class ClientModeImpl extends StateMachine {
 
     private static String getLinkPropertiesSummary(LinkProperties lp) {
         List<String> attributes = new ArrayList<>(6);
-        if (lp.hasIPv4Address()) {
+        if (lp.hasIpv4Address()) {
             attributes.add("v4");
         }
         if (lp.hasIPv4DefaultRoute()) {
@@ -5640,10 +5644,10 @@ public class ClientModeImpl extends StateMachine {
         if (lp.hasIPv4DnsServer()) {
             attributes.add("v4dns");
         }
-        if (lp.hasGlobalIPv6Address()) {
+        if (lp.hasGlobalIpv6Address()) {
             attributes.add("v6");
         }
-        if (lp.hasIPv6DefaultRoute()) {
+        if (lp.hasIpv6DefaultRoute()) {
             attributes.add("v6r");
         }
         if (lp.hasIPv6DnsServer()) {

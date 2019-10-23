@@ -502,9 +502,8 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     }
                 }
                 if (gatewayAddressString != null) {
-                    LinkAddress dest = null;
                     InetAddress gateway = NetworkUtils.numericToInetAddress(gatewayAddressString);
-                    RouteInfo route = new RouteInfo(dest, gateway);
+                    RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
                     if (route.isIPv4Default()) {
                         staticIpConfiguration.gateway = gateway;
                     } else {
