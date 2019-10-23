@@ -4532,6 +4532,7 @@ public class WifiMetrics {
                 }
             }
             mWifiUsabilityStatsCounter = 0;
+            mWifiUsabilityStatsEntriesList.clear();
         }
     }
 
