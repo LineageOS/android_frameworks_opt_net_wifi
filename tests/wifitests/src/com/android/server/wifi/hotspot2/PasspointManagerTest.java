@@ -2172,4 +2172,144 @@ public class PasspointManagerTest extends WifiBaseTest {
             session.finishMocking();
         }
     }
+
+    /**
+     * Verify that the HomeProvider provider will be returned when a HomeProvider profile has
+     * not expired and RoamingProvider expiration is unset (still valid).
+     *
+     * @throws Exception
+     */
+    @Test
+    public void matchHomeProviderWhenHomeProviderNotExpired() throws Exception {
+        // static mocking
+        MockitoSession session =
+                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
+                        InformationElementUtil.class).startMocking();
+        try {
+            PasspointProvider providerHome = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            providerHome.getConfig().setSubscriptionExpirationTimeInMillis(
+                    System.currentTimeMillis() + 100000);
+            providerHome.getWifiConfig().isHomeProviderNetwork = true;
+            PasspointProvider providerRoaming = addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE, new WifiConfiguration());
+            ANQPData entry = new ANQPData(mClock, null);
+            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID;
+
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            when(providerHome.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.HomeProvider);
+            when(providerRoaming.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.RoamingProvider);
+            when(providerNone.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.None);
+
+            Pair<PasspointProvider, PasspointMatch> result =
+                    mManager.matchProvider(createTestScanResult());
+
+            assertEquals(PasspointMatch.HomeProvider, result.second);
+            assertEquals(TEST_FQDN, result.first.getConfig().getHomeSp().getFqdn());
+
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that the RoamingProvider provider will be returned when a HomeProvider profile has
+     * expired and RoamingProvider expiration is unset (still valid).
+     *
+     * @throws Exception
+     */
+    @Test
+    public void matchRoamingProviderUnsetWhenHomeProviderExpired() throws Exception {
+        // static mocking
+        MockitoSession session =
+                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
+                        InformationElementUtil.class).startMocking();
+        try {
+            PasspointProvider providerHome = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            providerHome.getConfig().setSubscriptionExpirationTimeInMillis(
+                    System.currentTimeMillis() - 10000);
+            providerHome.getWifiConfig().isHomeProviderNetwork = true;
+            PasspointProvider providerRoaming = addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE, new WifiConfiguration());
+            ANQPData entry = new ANQPData(mClock, null);
+            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID;
+
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            when(providerHome.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.HomeProvider);
+            when(providerRoaming.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.RoamingProvider);
+            when(providerNone.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.None);
+
+            Pair<PasspointProvider, PasspointMatch> result =
+                        mManager.matchProvider(createTestScanResult());
+
+            assertEquals(PasspointMatch.RoamingProvider, result.second);
+            assertEquals(TEST_FQDN2, result.first.getConfig().getHomeSp().getFqdn());
+
+        } finally {
+            session.finishMocking();
+        }
+    }
+
+    /**
+     * Verify that the RoamingProvider provider will be returned when a HomeProvider profile has
+     * expired and RoamingProvider expiration is still valid.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void matchRoamingProviderNonExpiredWhenHomeProviderExpired() throws Exception {
+        // static mocking
+        MockitoSession session =
+                com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession().mockStatic(
+                        InformationElementUtil.class).startMocking();
+        try {
+            PasspointProvider providerHome = addTestProvider(TEST_FQDN, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            providerHome.getConfig().setSubscriptionExpirationTimeInMillis(
+                    System.currentTimeMillis() - 10000);
+            providerHome.getWifiConfig().isHomeProviderNetwork = true;
+            PasspointProvider providerRoaming = addTestProvider(TEST_FQDN2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE);
+            providerRoaming.getConfig().setSubscriptionExpirationTimeInMillis(
+                    System.currentTimeMillis() + 100000);
+            PasspointProvider providerNone = addTestProvider(TEST_FQDN + 2, TEST_FRIENDLY_NAME,
+                    TEST_PACKAGE, new WifiConfiguration());
+            ANQPData entry = new ANQPData(mClock, null);
+            InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+            vsa.anqpDomainID = TEST_ANQP_DOMAIN_ID;
+
+            when(mAnqpCache.getEntry(TEST_ANQP_KEY)).thenReturn(entry);
+            when(InformationElementUtil.getHS2VendorSpecificIE(isNull())).thenReturn(vsa);
+            when(providerHome.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.HomeProvider);
+            when(providerRoaming.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.RoamingProvider);
+            when(providerNone.match(anyMap(), isNull()))
+                    .thenReturn(PasspointMatch.None);
+
+            Pair<PasspointProvider, PasspointMatch> result =
+                    mManager.matchProvider(createTestScanResult());
+
+            assertEquals(PasspointMatch.RoamingProvider, result.second);
+            assertEquals(TEST_FQDN2, result.first.getConfig().getHomeSp().getFqdn());
+
+        } finally {
+            session.finishMocking();
+        }
+    }
 }
