@@ -19,7 +19,7 @@ package com.android.server.wifi;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.util.Slog;
+import android.util.Log;
 import android.util.StatsLog;
 
 import com.android.internal.app.IBatteryStats;
@@ -75,7 +75,7 @@ public class WifiMulticastLockManager {
 
         @Override
         public void binderDied() {
-            Slog.e(TAG, "Multicaster binderDied");
+            Log.e(TAG, "Multicaster binderDied");
             synchronized (mMulticasters) {
                 int i = mMulticasters.indexOf(this);
                 if (i != -1) {

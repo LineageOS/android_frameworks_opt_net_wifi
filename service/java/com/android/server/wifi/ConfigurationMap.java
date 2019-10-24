@@ -44,9 +44,10 @@ public class ConfigurationMap {
     // RW methods:
     public WifiConfiguration put(WifiConfiguration config) {
         final WifiConfiguration current = mPerID.put(config.networkId, config);
-        final int creatorUserId = UserHandle.getUserHandleForUid(config.creatorUid).getIdentifier();
-        if (config.shared || mCurrentUserId == creatorUserId
-                || mUserManager.isSameProfileGroup(mCurrentUserId, creatorUserId)) {
+        final UserHandle currentUser = UserHandle.of(mCurrentUserId);
+        final UserHandle creatorUser = UserHandle.getUserHandleForUid(config.creatorUid);
+        if (config.shared || currentUser.equals(creatorUser)
+                || mUserManager.isSameProfileGroup(currentUser, creatorUser)) {
             mPerIDForCurrentUser.put(config.networkId, config);
             mScanResultMatchInfoMapForCurrentUser.put(
                     ScanResultMatchInfo.fromWifiConfiguration(config), config);

@@ -93,7 +93,6 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.MutableBoolean;
-import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -236,20 +235,20 @@ public class WifiServiceImpl extends BaseWifiService {
                     if (msg.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
                         mClientModeImplChannel = mCmiChannel;
                     } else {
-                        Slog.e(TAG, "ClientModeImpl connection failure, error=" + msg.arg1);
+                        Log.e(TAG, "ClientModeImpl connection failure, error=" + msg.arg1);
                         mClientModeImplChannel = null;
                     }
                     break;
                 }
                 case AsyncChannel.CMD_CHANNEL_DISCONNECTED: {
-                    Slog.e(TAG, "ClientModeImpl channel lost, msg.arg1 =" + msg.arg1);
+                    Log.e(TAG, "ClientModeImpl channel lost, msg.arg1 =" + msg.arg1);
                     mClientModeImplChannel = null;
                     //Re-establish connection to state machine
                     mCmiChannel.connect(mContext, this, mClientModeImpl.getHandler());
                     break;
                 }
                 default: {
-                    Slog.d(TAG, "ClientModeImplHandler.handleMessage ignoring msg=" + msg);
+                    Log.d(TAG, "ClientModeImplHandler.handleMessage ignoring msg=" + msg);
                     break;
                 }
             }
@@ -313,8 +312,7 @@ public class WifiServiceImpl extends BaseWifiService {
     public void checkAndStartWifi() {
         // Check if wi-fi needs to be enabled
         boolean wifiEnabled = mSettingsStore.isWifiToggleEnabled();
-        Slog.i(TAG, "WifiService starting up with Wi-Fi " +
-                (wifiEnabled ? "enabled" : "disabled"));
+        Log.i(TAG, "WifiService starting up with Wi-Fi " + (wifiEnabled ? "enabled" : "disabled"));
 
         registerForScanModeChange();
         mContext.registerReceiver(
@@ -429,7 +427,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 return false;
             }
         } catch (SecurityException e) {
-            Slog.e(TAG, "Permission violation - startScan not allowed for"
+            Log.e(TAG, "Permission violation - startScan not allowed for"
                     + " uid=" + callingUid + ", packageName=" + packageName + ", reason=" + e);
             return false;
         } finally {
@@ -783,7 +781,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mActiveModeWarden.startSoftAp(softApConfig);
             return true;
         }
-        Slog.e(TAG, "Invalid WifiConfiguration");
+        Log.e(TAG, "Invalid WifiConfiguration");
         return false;
     }
 
@@ -954,7 +952,7 @@ public class WifiServiceImpl extends BaseWifiService {
         public void updateInterfaceIpState(String ifaceName, int mode) {
             // update interface IP state related to local-only hotspot
             synchronized (mLocalOnlyHotspotRequests) {
-                Slog.d(TAG, "updateInterfaceIpState: ifaceName=" + ifaceName + " mode=" + mode
+                Log.d(TAG, "updateInterfaceIpState: ifaceName=" + ifaceName + " mode=" + mode
                         + " previous LOHS mode= " + mLohsInterfaceMode);
 
                 switch (mode) {
@@ -980,7 +978,7 @@ public class WifiServiceImpl extends BaseWifiService {
                              * If concurrent SAPs are allowed, the interface names will differ,
                              * so we don't have to check the config here.
                              */
-                            Slog.e(TAG, "Unexpected IP mode change on " + ifaceName);
+                            Log.e(TAG, "Unexpected IP mode change on " + ifaceName);
                             mLohsInterfaceName = null;
                             mLohsInterfaceMode = WifiManager.IFACE_IP_MODE_UNSPECIFIED;
                             sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(
@@ -1177,7 +1175,7 @@ public class WifiServiceImpl extends BaseWifiService {
         public void onStateChanged(int state, int failureReason) {
             // The AP state update from ClientModeImpl for softap
             synchronized (mLocalOnlyHotspotRequests) {
-                Slog.d(TAG, "lohs.onStateChanged: currentState=" + state
+                Log.d(TAG, "lohs.onStateChanged: currentState=" + state
                         + " previousState=" + mLohsState + " errorCode= " + failureReason
                         + " ifaceName=" + mLohsInterfaceName);
 
@@ -1464,7 +1462,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(wifiConfig));
             return true;
         } else {
-            Slog.e(TAG, "Invalid WifiConfiguration");
+            Log.e(TAG, "Invalid WifiConfiguration");
             return false;
         }
     }
@@ -1642,7 +1640,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 return null;
             }
         } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            Log.e(TAG, "mClientModeImplChannel is not initialized");
             return null;
         }
     }
@@ -1663,7 +1661,7 @@ public class WifiServiceImpl extends BaseWifiService {
             try {
                 mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
             } catch (SecurityException e) {
-                Slog.e(TAG, "Permission violation - getConfiguredNetworks not allowed for uid="
+                Log.e(TAG, "Permission violation - getConfiguredNetworks not allowed for uid="
                         + callingUid + ", packageName=" + packageName + ", reason=" + e);
                 return new ParceledListSlice<>(new ArrayList<>());
             } finally {
@@ -1724,7 +1722,7 @@ public class WifiServiceImpl extends BaseWifiService {
         try {
             mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, callingUid);
         } catch (SecurityException e) {
-            Slog.e(TAG, "Permission violation - getPrivilegedConfiguredNetworks not allowed for"
+            Log.e(TAG, "Permission violation - getPrivilegedConfiguredNetworks not allowed for"
                     + " uid=" + callingUid + ", packageName=" + packageName + ", reason=" + e);
             return null;
         } finally {
@@ -1855,7 +1853,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("addOrUpdateNetwork uid=%").c(Binder.getCallingUid()).flush();
 
         if (config == null) {
-            Slog.e(TAG, "bad network configuration");
+            Log.e(TAG, "bad network configuration");
             return -1;
         }
         mWifiMetrics.incrementNumAddOrUpdateNetworkCalls();
@@ -1866,7 +1864,7 @@ public class WifiServiceImpl extends BaseWifiService {
             PasspointConfiguration passpointConfig =
                     PasspointProvider.convertFromWifiConfig(config);
             if (passpointConfig == null || passpointConfig.getCredential() == null) {
-                Slog.e(TAG, "Missing credential for Passpoint profile");
+                Log.e(TAG, "Missing credential for Passpoint profile");
                 return -1;
             }
 
@@ -1882,14 +1880,14 @@ public class WifiServiceImpl extends BaseWifiService {
             passpointConfig.getCredential().setClientPrivateKey(
                     config.enterpriseConfig.getClientPrivateKey());
             if (!addOrUpdatePasspointConfiguration(passpointConfig, packageName)) {
-                Slog.e(TAG, "Failed to add Passpoint profile");
+                Log.e(TAG, "Failed to add Passpoint profile");
                 return -1;
             }
             // There is no network ID associated with a Passpoint profile.
             return 0;
         }
 
-        Slog.i("addOrUpdateNetwork", " uid = " + Binder.getCallingUid()
+        Log.i("addOrUpdateNetwork", " uid = " + Binder.getCallingUid()
                 + " SSID " + config.SSID
                 + " nid=" + config.networkId);
         return mWifiThreadRunner.call(
@@ -2089,7 +2087,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     mScanRequestProxy::getScanResults, Collections.emptyList());
             return scanResults;
         } catch (SecurityException e) {
-            Slog.e(TAG, "Permission violation - getScanResults not allowed for uid="
+            Log.e(TAG, "Permission violation - getScanResults not allowed for uid="
                     + uid + ", packageName=" + callingPackage + ", reason=" + e);
             return new ArrayList<>();
         } finally {
@@ -2341,16 +2339,16 @@ public class WifiServiceImpl extends BaseWifiService {
                 }
 
                 if (macAddress == null) {
-                    Slog.w(TAG, "Did not find remoteAddress {" + remoteIpAddress + "} in " +
-                            "/proc/net/arp");
+                    Log.w(TAG, "Did not find remoteAddress {" + remoteIpAddress + "} in "
+                            + "/proc/net/arp");
                 } else {
                     enableTdlsWithMacAddress(macAddress, enable);
                 }
 
             } catch (FileNotFoundException e) {
-                Slog.e(TAG, "Could not open /proc/net/arp to lookup mac address");
+                Log.e(TAG, "Could not open /proc/net/arp to lookup mac address");
             } catch (IOException e) {
-                Slog.e(TAG, "Could not read /proc/net/arp to lookup mac address");
+                Log.e(TAG, "Could not read /proc/net/arp to lookup mac address");
             }
             return 0;
         }
@@ -2779,16 +2777,16 @@ public class WifiServiceImpl extends BaseWifiService {
         enforceNetworkSettingsPermission();
         mLog.info("retrieveBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mClientModeImplChannel == null) {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            Log.e(TAG, "mClientModeImplChannel is not initialized");
             return null;
         }
 
-        Slog.d(TAG, "Retrieving backup data");
+        Log.d(TAG, "Retrieving backup data");
         List<WifiConfiguration> wifiConfigurations = mWifiThreadRunner.call(
                 () -> mWifiConfigManager.getConfiguredNetworksWithPasswords(), null);
         byte[] backupData =
                 mWifiBackupRestore.retrieveBackupDataFromConfigurations(wifiConfigurations);
-        Slog.d(TAG, "Retrieved backup data");
+        Log.d(TAG, "Retrieved backup data");
         return backupData;
     }
 
@@ -2799,7 +2797,7 @@ public class WifiServiceImpl extends BaseWifiService {
      */
     private void restoreNetworks(List<WifiConfiguration> configurations) {
         if (configurations == null) {
-            Slog.e(TAG, "Backup data parse failed");
+            Log.e(TAG, "Backup data parse failed");
             return;
         }
         int callingUid = Binder.getCallingUid();
@@ -2810,7 +2808,7 @@ public class WifiServiceImpl extends BaseWifiService {
                                 mWifiConfigManager.addOrUpdateNetwork(configuration, callingUid)
                                         .getNetworkId();
                         if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-                            Slog.e(TAG, "Restore network failed: " + configuration.configKey());
+                            Log.e(TAG, "Restore network failed: " + configuration.configKey());
                             continue;
                         }
                         // Enable all networks restored.
@@ -2829,15 +2827,15 @@ public class WifiServiceImpl extends BaseWifiService {
         enforceNetworkSettingsPermission();
         mLog.info("restoreBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mClientModeImplChannel == null) {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            Log.e(TAG, "mClientModeImplChannel is not initialized");
             return;
         }
 
-        Slog.d(TAG, "Restoring backup data");
+        Log.d(TAG, "Restoring backup data");
         List<WifiConfiguration> wifiConfigurations =
                 mWifiBackupRestore.retrieveConfigurationsFromBackupData(data);
         restoreNetworks(wifiConfigurations);
-        Slog.d(TAG, "Restored backup data");
+        Log.d(TAG, "Restored backup data");
     }
 
     /**
@@ -2851,16 +2849,16 @@ public class WifiServiceImpl extends BaseWifiService {
         enforceNetworkSettingsPermission();
         mLog.trace("restoreSupplicantBackupData uid=%").c(Binder.getCallingUid()).flush();
         if (mClientModeImplChannel == null) {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            Log.e(TAG, "mClientModeImplChannel is not initialized");
             return;
         }
 
-        Slog.d(TAG, "Restoring supplicant backup data");
+        Log.d(TAG, "Restoring supplicant backup data");
         List<WifiConfiguration> wifiConfigurations =
                 mWifiBackupRestore.retrieveConfigurationsFromSupplicantBackupData(
                         supplicantData, ipConfigData);
         restoreNetworks(wifiConfigurations);
-        Slog.d(TAG, "Restored supplicant backup data");
+        Log.d(TAG, "Restored supplicant backup data");
     }
 
     /**
@@ -2950,7 +2948,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (channel != null) {
             return mClientModeImpl.syncGetSupportedFeatures(channel);
         } else {
-            Slog.e(TAG, "mClientModeImplChannel is not initialized");
+            Log.e(TAG, "mClientModeImplChannel is not initialized");
             return 0;
         }
     }

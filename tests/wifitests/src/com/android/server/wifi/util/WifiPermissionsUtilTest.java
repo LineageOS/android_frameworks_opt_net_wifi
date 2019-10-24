@@ -1261,8 +1261,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
                         anyString(), anyInt());
         doAnswer(mReturnPermission).when(mMockPermissionsWrapper).getUidPermission(
                         anyString(), anyInt());
-        when(mMockUserManager.isSameProfileGroup(UserHandle.USER_SYSTEM,
-                UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID).getIdentifier()))
+        when(mMockUserManager.isSameProfileGroup(UserHandle.SYSTEM,
+                UserHandle.getUserHandleForUid(MANAGED_PROFILE_UID)))
                 .thenReturn(true);
         when(mMockPermissionsWrapper.getCurrentUser()).thenReturn(mCurrentUser);
         when(mMockPermissionsWrapper.getUidPermission(mManifestStringCoarse, mUid))

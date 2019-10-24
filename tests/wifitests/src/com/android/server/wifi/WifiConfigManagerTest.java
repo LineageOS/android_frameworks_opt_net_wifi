@@ -3072,7 +3072,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         };
         setupStoreDataForUserRead(user2Networks, new HashMap<>());
         // Now switch the user to user 2 and ensure that shared network's IDs have not changed.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         mWifiConfigManager.handleUserSwitch(user2);
         verify(mWifiConfigStore).switchUserStoresAndRead(any(List.class));
 
@@ -3150,7 +3150,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         };
         setupStoreDataForUserRead(user2Networks, new HashMap<>());
         // Now switch the user to user 2 and ensure that user 1's private network has been removed.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         Set<Integer> removedNetworks = mWifiConfigManager.handleUserSwitch(user2);
         verify(mWifiConfigStore).switchUserStoresAndRead(any(List.class));
         assertTrue((removedNetworks.size() == 1) && (removedNetworks.contains(user1NetworkId)));
@@ -3167,7 +3167,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Send another user switch  indication with the same user 2. This should be ignored and
         // hence should not remove any new networks.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         removedNetworks = mWifiConfigManager.handleUserSwitch(user2);
         assertTrue(removedNetworks.isEmpty());
     }
@@ -3211,7 +3211,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         };
         setupStoreDataForUserRead(user2Networks, new HashMap<>());
         // Now switch the user to user 2 and ensure that no private network has been removed.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         Set<Integer> removedNetworks = mWifiConfigManager.handleUserSwitch(user2);
         verify(mWifiConfigStore).switchUserStoresAndRead(any(List.class));
         assertTrue(removedNetworks.isEmpty());
@@ -3275,7 +3275,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         // Now switch the user to user2 and ensure that user 2's private network has been moved to
         // the user store.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         mWifiConfigManager.handleUserSwitch(user2);
         // Set the expected network list before comparing. user1Network should be in shared data.
         // Note: In the real world, user1Network will no longer be visible now because it should
@@ -3365,7 +3365,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         setupStoreDataForUserRead(new ArrayList<>(), new HashMap<>());
         // user2 is unlocked and switched to foreground.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         mWifiConfigManager.handleUserSwitch(user2);
         // Ensure that the read was invoked.
         mContextConfigStoreMockOrder.verify(mWifiConfigStore)
@@ -3387,7 +3387,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertTrue(mWifiConfigManager.loadFromStore());
 
         // user2 is locked and switched to foreground.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(false);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(false);
         mWifiConfigManager.handleUserSwitch(user2);
 
         // Ensure that the read was not invoked.
@@ -3420,7 +3420,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertTrue(mWifiConfigManager.loadFromStore());
 
         // Try stopping background user2 first, this should not do anything.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(false);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(false);
         mWifiConfigManager.handleUserStop(user2);
         mContextConfigStoreMockOrder.verify(mWifiConfigStore, never())
                 .switchUserStoresAndRead(any(List.class));
@@ -3644,7 +3644,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         setupStoreDataForUserRead(new ArrayList<>(), new HashMap<>());
         // user2 is unlocked and switched to foreground.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         mWifiConfigManager.handleUserSwitch(user2);
         // Ensure that the read was invoked.
         mContextConfigStoreMockOrder.verify(mWifiConfigStore)
@@ -3685,7 +3685,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         int user2 = TEST_DEFAULT_USER + 1;
         setupUserProfiles(user2);
 
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(false);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(false);
         mWifiConfigManager.handleUserSwitch(user2);
 
         // Create a network for user2 try adding it. This should be rejected.
@@ -3746,7 +3746,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         setupStoreDataForUserRead(new ArrayList<>(), new HashMap<>());
         // Now switch the user to user 2.
-        when(mUserManager.isUserUnlockingOrUnlocked(user2)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(user2))).thenReturn(true);
         mWifiConfigManager.handleUserSwitch(user2);
         // Ensure that the read was invoked.
         mContextConfigStoreMockOrder.verify(mWifiConfigStore)
@@ -5464,7 +5464,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      * @param userId Id of the user.
      */
     private void setupUserProfiles(int userId) {
-        when(mUserManager.isUserUnlockingOrUnlocked(userId)).thenReturn(true);
+        when(mUserManager.isUserUnlockingOrUnlocked(UserHandle.of(userId))).thenReturn(true);
     }
 
     private void verifyRemoveNetworksForApp() {

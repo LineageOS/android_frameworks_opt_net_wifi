@@ -25,7 +25,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
-import android.util.Slog;
+import android.util.Log;
 import android.util.SparseArray;
 import android.util.StatsLog;
 
@@ -270,7 +270,7 @@ public class WifiLockManager {
         WorkSource newWorkSource = new WorkSource(ws);
 
         if (mVerboseLoggingEnabled) {
-            Slog.d(TAG, "updateWifiLockWakeSource: " + wl + ", newWorkSource=" + newWorkSource);
+            Log.d(TAG, "updateWifiLockWakeSource: " + wl + ", newWorkSource=" + newWorkSource);
         }
 
         // Note:
@@ -309,7 +309,7 @@ public class WifiLockManager {
         mForceHiPerfMode = isEnabled;
         mForceLowLatencyMode = false;
         if (!updateOpMode()) {
-            Slog.e(TAG, "Failed to force hi-perf mode, returning to normal mode");
+            Log.e(TAG, "Failed to force hi-perf mode, returning to normal mode");
             mForceHiPerfMode = false;
             return false;
         }
@@ -326,7 +326,7 @@ public class WifiLockManager {
         mForceLowLatencyMode = isEnabled;
         mForceHiPerfMode = false;
         if (!updateOpMode()) {
-            Slog.e(TAG, "Failed to force low-latency mode, returning to normal mode");
+            Log.e(TAG, "Failed to force low-latency mode, returning to normal mode");
             mForceLowLatencyMode = false;
             return false;
         }
@@ -338,7 +338,7 @@ public class WifiLockManager {
      */
     public void handleScreenStateChanged(boolean screenOn) {
         if (mVerboseLoggingEnabled) {
-            Slog.d(TAG, "handleScreenStateChanged: screenOn = " + screenOn);
+            Log.d(TAG, "handleScreenStateChanged: screenOn = " + screenOn);
         }
 
         mScreenOn = screenOn;
@@ -418,14 +418,14 @@ public class WifiLockManager {
     private void removeUidFromLlWatchList(int uid) {
         UidRec uidRec = mLowLatencyUidWatchList.get(uid);
         if (uidRec == null) {
-            Slog.e(TAG, "Failed to find uid in low-latency watch list");
+            Log.e(TAG, "Failed to find uid in low-latency watch list");
             return;
         }
 
         if (uidRec.mLockCount > 0) {
             uidRec.mLockCount--;
         } else {
-            Slog.e(TAG, "Error, uid record conatains no locks");
+            Log.e(TAG, "Error, uid record conatains no locks");
         }
         if (uidRec.mLockCount == 0) {
             mLowLatencyUidWatchList.remove(uid);
@@ -475,12 +475,12 @@ public class WifiLockManager {
 
     private synchronized boolean addLock(WifiLock lock) {
         if (mVerboseLoggingEnabled) {
-            Slog.d(TAG, "addLock: " + lock);
+            Log.d(TAG, "addLock: " + lock);
         }
 
         if (findLockByBinder(lock.getBinder()) != null) {
             if (mVerboseLoggingEnabled) {
-                Slog.d(TAG, "attempted to add a lock when already holding one");
+                Log.d(TAG, "attempted to add a lock when already holding one");
             }
             return false;
         }
@@ -527,7 +527,7 @@ public class WifiLockManager {
         }
 
         if (mVerboseLoggingEnabled) {
-            Slog.d(TAG, "releaseLock: " + wifiLock);
+            Log.d(TAG, "releaseLock: " + wifiLock);
         }
 
         switch(wifiLock.mMode) {
@@ -568,14 +568,14 @@ public class WifiLockManager {
         }
 
         if (mVerboseLoggingEnabled) {
-            Slog.d(TAG, "Current opMode: " + mCurrentOpMode + " New LockMode: " + newLockMode);
+            Log.d(TAG, "Current opMode: " + mCurrentOpMode + " New LockMode: " + newLockMode);
         }
 
         // Otherwise, we need to change current mode, first reset it to normal
         switch (mCurrentOpMode) {
             case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                 if (!mClientModeImpl.setPowerSave(true)) {
-                    Slog.e(TAG, "Failed to reset the OpMode from hi-perf to Normal");
+                    Log.e(TAG, "Failed to reset the OpMode from hi-perf to Normal");
                     return false;
                 }
                 mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
@@ -584,7 +584,7 @@ public class WifiLockManager {
 
             case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
                 if (!setLowLatencyMode(false)) {
-                    Slog.e(TAG, "Failed to reset the OpMode from low-latency to Normal");
+                    Log.e(TAG, "Failed to reset the OpMode from low-latency to Normal");
                     return false;
                 }
                 mWifiMetrics.addWifiLockActiveSession(WifiManager.WIFI_MODE_FULL_LOW_LATENCY,
@@ -604,7 +604,7 @@ public class WifiLockManager {
         switch (newLockMode) {
             case WifiManager.WIFI_MODE_FULL_HIGH_PERF:
                 if (!mClientModeImpl.setPowerSave(false)) {
-                    Slog.e(TAG, "Failed to set the OpMode to hi-perf");
+                    Log.e(TAG, "Failed to set the OpMode to hi-perf");
                     return false;
                 }
                 mCurrentSessionStartTimeMs = mClock.getElapsedSinceBootMillis();
@@ -612,7 +612,7 @@ public class WifiLockManager {
 
             case WifiManager.WIFI_MODE_FULL_LOW_LATENCY:
                 if (!setLowLatencyMode(true)) {
-                    Slog.e(TAG, "Failed to set the OpMode to low-latency");
+                    Log.e(TAG, "Failed to set the OpMode to low-latency");
                     return false;
                 }
                 mCurrentSessionStartTimeMs = mClock.getElapsedSinceBootMillis();
@@ -624,7 +624,7 @@ public class WifiLockManager {
 
             default:
                 // Invalid mode, don't change currentOpMode , and exit with error
-                Slog.e(TAG, "Invalid new opMode: " + newLockMode);
+                Log.e(TAG, "Invalid new opMode: " + newLockMode);
                 return false;
         }
 
@@ -663,12 +663,12 @@ public class WifiLockManager {
 
         if (lowLatencySupport == LOW_LATENCY_SUPPORTED) {
             if (!mClientModeImpl.setLowLatencyMode(enabled)) {
-                Slog.e(TAG, "Failed to set low latency mode");
+                Log.e(TAG, "Failed to set low latency mode");
                 return false;
             }
 
             if (!mClientModeImpl.setPowerSave(!enabled)) {
-                Slog.e(TAG, "Failed to set power save mode");
+                Log.e(TAG, "Failed to set power save mode");
                 // Revert the low latency mode
                 mClientModeImpl.setLowLatencyMode(!enabled);
                 return false;
@@ -676,7 +676,7 @@ public class WifiLockManager {
         } else if (lowLatencySupport == LOW_LATENCY_NOT_SUPPORTED) {
             // Only set power save mode
             if (!mClientModeImpl.setPowerSave(!enabled)) {
-                Slog.e(TAG, "Failed to set power save mode");
+                Log.e(TAG, "Failed to set power save mode");
                 return false;
             }
         }
