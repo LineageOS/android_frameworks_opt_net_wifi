@@ -3090,6 +3090,25 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies that entering airplane mode does not reset country code.
+     */
+    @Test
+    public void testEnterAirplaneModeNotResetCountryCode() {
+        mWifiServiceImpl.checkAndStartWifi();
+        verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                (IntentFilter) argThat((IntentFilter filter) ->
+                        filter.hasAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)));
+
+        when(mSettingsStore.isAirplaneModeOn()).thenReturn(true);
+
+        // Send the broadcast
+        Intent intent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+        mBroadcastReceiverCaptor.getValue().onReceive(mContext, intent);
+
+        verifyNoMoreInteractions(mWifiCountryCode);
+    }
+
+    /**
      * Verify calls to notify users of a softap config change check the NETWORK_SETTINGS permission.
      */
     @Test
