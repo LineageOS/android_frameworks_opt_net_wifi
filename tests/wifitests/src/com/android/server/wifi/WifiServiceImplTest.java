@@ -4082,6 +4082,19 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertFalse(succeeded);
     }
 
+    @Test
+    public void testAllowAutojoinFailureNoNetworkSettingsPermission() throws Exception {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        try {
+            mWifiServiceImpl.allowAutojoin(0, true);
+            fail("Expected SecurityException");
+        } catch (SecurityException e) {
+            // Test succeeded
+        }
+    }
+
     /**
      * Test handle boot completed sequence.
      */

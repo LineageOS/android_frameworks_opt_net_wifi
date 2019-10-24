@@ -1264,6 +1264,31 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies the allowance/disallowance of autojoin to a network using
+     * {@link WifiConfigManager.allowAutojoin(int, boolean)}
+     */
+    @Test
+    public void testAllowDisallowAutojoin() throws Exception {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
+
+        assertTrue(mWifiConfigManager.allowAutojoin(
+                result.getNetworkId(), true));
+        WifiConfiguration retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
+        assertTrue(retrievedNetwork.allowAutojoin);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore).write(eq(true));
+
+        // Now set it disallow auto-join.
+        assertTrue(mWifiConfigManager.allowAutojoin(
+                result.getNetworkId(), false));
+        retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
+        assertFalse(retrievedNetwork.allowAutojoin);
+        mContextConfigStoreMockOrder.verify(mWifiConfigStore).write(eq(true));
+    }
+
+    /**
      * Verifies the updation of network's connectUid using
      * {@link WifiConfigManager#updateLastConnectUid(int, int)}.
      */

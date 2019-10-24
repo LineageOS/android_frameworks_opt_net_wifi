@@ -209,6 +209,70 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
     }
 
     /**
+     * Pick a worse candidate that allows auto-join over a better candidate that
+     * disallows auto-join.
+     */
+    @Test
+    public void ignoreNetworksIfAutojoinNotAllowed() {
+        String[] ssids = {"\"test1\"", "\"test2\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[ESS]", "[ESS]"};
+        int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
+        int[] securities = {SECURITY_NONE, SECURITY_NONE};
+
+        ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
+                WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
+                        freqs, caps, levels, securities, mWifiConfigManager, mClock);
+        List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
+        WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
+
+        WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, true, false, mOnConnectableListener);
+
+        ScanResult chosenScanResult = scanDetails.get(1).getScanResult();
+        WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[1], candidate);
+        WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
+                chosenScanResult, candidate);
+
+        savedConfigs[1].allowAutojoin = false;
+        candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, true, false, mOnConnectableListener);
+
+        chosenScanResult = scanDetails.get(0).getScanResult();
+        WifiConfigurationTestUtil.assertConfigurationEqual(savedConfigs[0], candidate);
+        WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
+                chosenScanResult, candidate);
+    }
+
+    /**
+     * Do not return a candidate if all networks do not {@link WifiConfiguration#allowAutojoin}
+     */
+    @Test
+    public void returnNoCandidateIfNoNetworksAllowAutojoin() {
+        String[] ssids = {"\"test1\"", "\"test2\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2470, 2437};
+        String[] caps = {"[ESS]", "[ESS]"};
+        int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
+        int[] securities = {SECURITY_NONE, SECURITY_NONE};
+
+        ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
+                WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
+                        freqs, caps, levels, securities, mWifiConfigManager, mClock);
+        List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
+        WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
+        for (WifiConfiguration wifiConfiguration : savedConfigs) {
+            wifiConfiguration.allowAutojoin = false;
+        }
+
+        WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, true, false, mOnConnectableListener);
+
+        assertNull(candidate);
+    }
+
+    /**
      * Set the candidate {@link ScanResult} for all {@link WifiConfiguration}s regardless of
      * whether they are secure saved, open saved, or {@link WifiConfiguration#useExternalScores}.
      */
