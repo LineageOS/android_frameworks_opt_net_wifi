@@ -16,20 +16,15 @@
 
 package com.android.server.wifi.hotspot2;
 
-import static com.android.server.wifi.hotspot2.Utils.isCarrierEapMethod;
-
 import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.Process;
 import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Pair;
 
-import com.android.server.wifi.CarrierNetworkConfig;
 import com.android.server.wifi.NetworkUpdateResult;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
@@ -52,9 +47,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     private final PasspointManager mPasspointManager;
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
-    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiInjector mWifiInjector;
-    private TelephonyManager mTelephonyManager;
     private SubscriptionManager mSubscriptionManager;
     /**
      * Contained information for a Passpoint network candidate.
@@ -73,21 +66,13 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
 
     public PasspointNetworkEvaluator(PasspointManager passpointManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
-            CarrierNetworkConfig carrierNetworkConfig, WifiInjector wifiInjector,
+            WifiInjector wifiInjector,
             SubscriptionManager subscriptionManager) {
         mPasspointManager = passpointManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
-        mCarrierNetworkConfig = carrierNetworkConfig;
         mWifiInjector = wifiInjector;
         mSubscriptionManager = subscriptionManager;
-    }
-
-    private TelephonyManager getTelephonyManager() {
-        if (mTelephonyManager == null) {
-            mTelephonyManager = mWifiInjector.makeTelephonyManager();
-        }
-        return mTelephonyManager;
     }
 
     @Override
@@ -123,8 +108,6 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                         return false;
                     }
                 }).collect(Collectors.toList());
-
-        createEphemeralProfileForMatchingAp(filteredScanDetails);
 
         // Go through each ScanDetail and find the best provider for each ScanDetail.
         List<PasspointNetworkCandidate> candidateList = new ArrayList<>();
@@ -175,41 +158,6 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             localLog("Passpoint network to connect to: " + config.SSID);
         }
         return config;
-    }
-
-    /**
-     * Creates an ephemeral Passpoint profile if it finds a matching Passpoint AP for MCC/MNC
-     * of the current MNO carrier on the device.
-     */
-    private void createEphemeralProfileForMatchingAp(List<ScanDetail> filteredScanDetails) {
-        TelephonyManager telephonyManager = getTelephonyManager();
-        if (telephonyManager == null) {
-            return;
-        }
-        if (TelephonyUtil.getCarrierType(telephonyManager) != TelephonyUtil.CARRIER_MNO_TYPE) {
-            return;
-        }
-        if (!mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {
-            return;
-        }
-        String mccMnc = telephonyManager
-                .createForSubscriptionId(SubscriptionManager.getDefaultDataSubscriptionId())
-                .getSimOperator();
-        if (mPasspointManager.hasCarrierProvider(mccMnc)) {
-            return;
-        }
-        int eapMethod =
-                mPasspointManager.findEapMethodFromNAIRealmMatchedWithCarrier(filteredScanDetails);
-        if (!isCarrierEapMethod(eapMethod)) {
-            return;
-        }
-        PasspointConfiguration carrierConfig =
-                mPasspointManager.createEphemeralPasspointConfigForCarrier(eapMethod);
-        if (carrierConfig == null) {
-            return;
-        }
-
-        mPasspointManager.installEphemeralPasspointConfigForCarrier(carrierConfig);
     }
 
     /**
