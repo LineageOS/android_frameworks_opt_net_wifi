@@ -461,6 +461,25 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     }
 
     /**
+     * If wifi p2p interface name pattern is defined,
+     * {@link com.android.server.connectivity.Tethering} listens to
+     * {@link android.net.wifi.p2p.WifiP2pManager#WIFI_P2P_CONNECTION_CHANGED_ACTION}
+     * events and takes over the DHCP server management automatically.
+     */
+    private boolean isDhcpServerHostedByDnsmasq() {
+        try {
+            String[] tetherableWifiP2pRegexs = mContext.getResources().getStringArray(
+                    com.android.internal.R.array.config_tether_wifi_p2p_regexs);
+            return (tetherableWifiP2pRegexs == null || tetherableWifiP2pRegexs.length == 0);
+        } catch (Resources.NotFoundException e404) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "No P2P tetherable interface pattern");
+            }
+        }
+        return true;
+    }
+
+    /**
      * Obtains the service interface for Managements services
      */
     public void connectivityServiceReady() {
@@ -3015,6 +3034,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void startDhcpServer(String intf) {
+            if (!isDhcpServerHostedByDnsmasq()) return;
+
             InterfaceConfiguration ifcg = null;
             try {
                 ifcg = mNwService.getInterfaceConfig(intf);
@@ -3041,6 +3062,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void stopDhcpServer(String intf) {
+            if (!isDhcpServerHostedByDnsmasq()) return;
+
             try {
                 mNwService.untetherInterface(intf);
                 for (String temp : mNwService.listTetheredInterfaces()) {
