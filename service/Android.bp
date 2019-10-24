@@ -115,6 +115,11 @@ java_library {
     ],
 }
 
+filegroup {
+    name: "wifi-jarjar-rules",
+    srcs: [ "jarjar-rules-shared.txt"]
+}
+
 java_defaults {
     name: "WifiStackAppCommon",
     defaults: ["WifiStackCommon"],
@@ -126,7 +131,7 @@ java_defaults {
     ],
     // Resources already included in wifi-service
     resource_dirs: [],
-    jarjar_rules: "jarjar-rules-shared.txt",
+    jarjar_rules: ":wifi-jarjar-rules",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
