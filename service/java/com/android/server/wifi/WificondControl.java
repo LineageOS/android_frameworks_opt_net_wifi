@@ -46,6 +46,7 @@ import com.android.server.wifi.wificond.ISendMgmtFrameEvent;
 import com.android.server.wifi.wificond.IWifiScannerImpl;
 import com.android.server.wifi.wificond.IWificond;
 import com.android.server.wifi.wificond.NativeScanResult;
+import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoNetwork;
 import com.android.server.wifi.wificond.PnoSettings;
 import com.android.server.wifi.wificond.RadioChainInfo;
@@ -173,8 +174,15 @@ public class WificondControl implements IBinder.DeathRecipient {
         }
 
         @Override
-        public void onNumAssociatedStationsChanged(int numStations) {
-            mSoftApListener.onNumAssociatedStationsChanged(numStations);
+        public void onConnectedClientsChanged(NativeWifiClient[] clients) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "onConnectedClientsChanged called with " + clients.length + " clients");
+                for (int i = 0; i < clients.length; i++) {
+                    Log.d(TAG, " mac " + clients[i].macAddress);
+                }
+            }
+
+            mSoftApListener.onConnectedClientsChanged(Arrays.asList(clients));
         }
 
         @Override

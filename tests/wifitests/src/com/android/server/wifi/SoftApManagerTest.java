@@ -33,7 +33,19 @@ import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERR
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import android.app.test.TestAlarmManager;
 import android.content.Context;
@@ -42,6 +54,7 @@ import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.Uri;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.UserHandle;
@@ -53,14 +66,18 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.R;
 import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.wificond.IApInterfaceEventCallback;
+import com.android.server.wifi.wificond.NativeWifiClient;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -78,6 +95,15 @@ public class SoftApManagerTest extends WifiBaseTest {
     private static final String OTHER_INTERFACE_NAME = "otherif";
     private static final int TEST_NUM_CONNECTED_CLIENTS = 4;
     private static final MacAddress TEST_MAC_ADDRESS = MacAddress.fromString("22:33:44:55:66:77");
+    private static final WifiClient TEST_CONNECTED_CLIENT = new WifiClient(TEST_MAC_ADDRESS);
+    private static final List<WifiClient> TEST_CONNECTED_CLIENTS =
+            new ArrayList(Arrays.asList(TEST_CONNECTED_CLIENT));
+    private static final NativeWifiClient TEST_NATIVE_CLIENT = new NativeWifiClient() {{
+            macAddress = TEST_MAC_ADDRESS.toByteArray();
+        }
+    };
+    private static final List<NativeWifiClient> TEST_CONNECTED_NATIVECLIENTS =
+            new ArrayList(Arrays.asList(TEST_NATIVE_CLIENT));
 
     private final WifiConfiguration mDefaultApConfig = createDefaultApConfig();
 
@@ -858,17 +884,21 @@ public class SoftApManagerTest extends WifiBaseTest {
     }
 
     @Test
-    public void updatesNumAssociatedStations() throws Exception {
+    public void updatesConnectedClients() throws Exception {
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
 
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
 
-        verify(mCallback).onNumClientsChanged(TEST_NUM_CONNECTED_CLIENTS);
-        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(TEST_NUM_CONNECTED_CLIENTS,
+        verify(mCallback).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
+        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
+                TEST_CONNECTED_CLIENTS.size(),
                 apConfig.getTargetMode());
     }
 
@@ -877,36 +907,41 @@ public class SoftApManagerTest extends WifiBaseTest {
      * trigger callbacks a second time.
      */
     @Test
-    public void testDoesNotTriggerCallbackForSameNumberClientUpdate() throws Exception {
+    public void testDoesNotTriggerCallbackForSameClients() throws Exception {
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
 
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
 
         // now trigger callback again, but we should have each method only called once
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
 
-        verify(mCallback).onNumClientsChanged(TEST_NUM_CONNECTED_CLIENTS);
-        verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(TEST_NUM_CONNECTED_CLIENTS,
+        verify(mCallback).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
+        verify(mWifiMetrics)
+                .addSoftApNumAssociatedStationsChangedEvent(
+                TEST_CONNECTED_CLIENTS.size(),
                 apConfig.getTargetMode());
     }
 
     @Test
-    public void handlesInvalidNumAssociatedStations() throws Exception {
+    public void handlesInvalidConnectedClients() throws Exception {
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
 
         /* Invalid values should be ignored */
-        final int mInvalidNumClients = -1;
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(mInvalidNumClients);
+        final List<NativeWifiClient> mInvalidClients = null;
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(mInvalidClients);
         mLooper.dispatchAll();
-        verify(mCallback, never()).onNumClientsChanged(mInvalidNumClients);
+        verify(mCallback, never()).onConnectedClientsChanged(null);
         verify(mWifiMetrics, never()).addSoftApNumAssociatedStationsChangedEvent(anyInt(),
                 anyInt());
     }
@@ -918,20 +953,23 @@ public class SoftApManagerTest extends WifiBaseTest {
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
 
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
 
-        order.verify(mCallback).onNumClientsChanged(TEST_NUM_CONNECTED_CLIENTS);
+        verify(mCallback).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
         order.verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(
-                TEST_NUM_CONNECTED_CLIENTS, apConfig.getTargetMode());
+                TEST_CONNECTED_CLIENTS.size(), apConfig.getTargetMode());
         // Verify timer is canceled at this point
         verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
 
         mSoftApManager.stop();
         mLooper.dispatchAll();
 
-        order.verify(mCallback).onNumClientsChanged(0);
+        order.verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
         order.verify(mWifiMetrics).addSoftApNumAssociatedStationsChangedEvent(0,
                 apConfig.getTargetMode());
         // Verify timer is canceled after stop softap
@@ -966,8 +1004,8 @@ public class SoftApManagerTest extends WifiBaseTest {
         SoftApModeConfiguration apConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
 
         // Verify timer is canceled
@@ -980,16 +1018,23 @@ public class SoftApManagerTest extends WifiBaseTest {
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
 
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
-        verify(mCallback).onNumClientsChanged(TEST_NUM_CONNECTED_CLIENTS);
+        verify(mCallback).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
         // Verify timer is canceled at this point
         verify(mAlarmManager.getAlarmManager()).cancel(any(WakeupMessage.class));
 
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(0);
+        List<NativeWifiClient> testClients = new ArrayList();
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
-        verify(mCallback, times(2)).onNumClientsChanged(0);
+        verify(mCallback).onConnectedClientsChanged(
+                Mockito.argThat((List<WifiClient> clients) ->
+                        clients.contains(TEST_CONNECTED_CLIENT))
+        );
         // Verify timer is scheduled again
         verify(mAlarmManager.getAlarmManager(), times(2)).setExact(anyInt(), anyLong(),
                 eq(mSoftApManager.SOFT_AP_SEND_MESSAGE_TIMEOUT_TAG), any(), any());
@@ -1065,11 +1110,12 @@ public class SoftApManagerTest extends WifiBaseTest {
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
         startSoftApAndVerifyEnabled(apConfig);
         // add some clients
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(
-                TEST_NUM_CONNECTED_CLIENTS);
+        mSoftApListenerCaptor.getValue().onConnectedClientsChanged(
+                TEST_CONNECTED_NATIVECLIENTS);
         mLooper.dispatchAll();
         // remove all clients
-        mSoftApListenerCaptor.getValue().onNumAssociatedStationsChanged(0);
+        mSoftApListenerCaptor.getValue()
+                .onConnectedClientsChanged(new ArrayList<NativeWifiClient>());
         mLooper.dispatchAll();
         // Verify timer is not scheduled
         verify(mAlarmManager.getAlarmManager(), never()).setExact(anyInt(), anyLong(),
@@ -1179,11 +1225,11 @@ public class SoftApManagerTest extends WifiBaseTest {
         mWifiNativeInterfaceCallbackCaptor.getValue().onUp(TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
         order.verify(mCallback).onStateChanged(WifiManager.WIFI_AP_STATE_ENABLED, 0);
-        order.verify(mCallback).onNumClientsChanged(0);
+        order.verify(mCallback).onConnectedClientsChanged(new ArrayList<>());
         verify(mSarManager).setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
         verify(mWifiDiagnostics).startLogging(TEST_INTERFACE_NAME);
         verify(mContext, times(2)).sendStickyBroadcastAsUser(intentCaptor.capture(),
-                                                             eq(UserHandle.ALL));
+                eq(UserHandle.ALL));
         List<Intent> capturedIntents = intentCaptor.getAllValues();
         checkApStateChangedBroadcast(capturedIntents.get(0), WIFI_AP_STATE_ENABLING,
                 WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR, TEST_INTERFACE_NAME,
@@ -1199,8 +1245,8 @@ public class SoftApManagerTest extends WifiBaseTest {
     }
 
     private void checkApStateChangedBroadcast(Intent intent, int expectedCurrentState,
-                                              int expectedPrevState, int expectedErrorCode,
-                                              String expectedIfaceName, int expectedMode) {
+            int expectedPrevState, int expectedErrorCode,
+            String expectedIfaceName, int expectedMode) {
         int currentState = intent.getIntExtra(EXTRA_WIFI_AP_STATE, WIFI_AP_STATE_DISABLED);
         int prevState = intent.getIntExtra(EXTRA_PREVIOUS_WIFI_AP_STATE, WIFI_AP_STATE_DISABLED);
         int errorCode = intent.getIntExtra(EXTRA_WIFI_AP_FAILURE_REASON, HOTSPOT_NO_ERROR);
