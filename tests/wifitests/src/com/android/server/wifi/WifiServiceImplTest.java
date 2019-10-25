@@ -99,6 +99,7 @@ import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
@@ -198,7 +199,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                     4, 1100001, "\"yellow\"", true, true, "example.org", "Yellow"),
             WifiConfigurationTestUtil.generateWifiConfig(
                     5, 1100002, "\"magenta\"", false, false, null, null));
+    private static final int TEST_AP_FREQUENCY = 2412;
+    private static final int TEST_AP_BANDWIDTH = SoftApInfo.CHANNEL_WIDTH_20MHZ;
 
+    private SoftApInfo mTestSoftApInfo;
     private AsyncChannel mAsyncChannel;
     private WifiServiceImpl mWifiServiceImpl;
     private TestLooper mLooper;
@@ -383,6 +387,9 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // permission not granted by default
         doThrow(SecurityException.class).when(mContext).enforceCallingOrSelfPermission(
                 eq(Manifest.permission.NETWORK_SETUP_WIZARD), any());
+        mTestSoftApInfo = new SoftApInfo();
+        mTestSoftApInfo.setFrequency(TEST_AP_FREQUENCY);
+        mTestSoftApInfo.setBandwidth(TEST_AP_BANDWIDTH);
     }
 
     /**
@@ -1925,6 +1932,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mClientSoftApCallback, never()).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
         verify(mClientSoftApCallback, never()).onConnectedClientsChanged(any());
+        verify(mClientSoftApCallback, never()).onInfoChanged(any());
     }
 
 
@@ -1947,6 +1955,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(callback).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
         verify(callback).onConnectedClientsChanged(Mockito.<WifiClient>anyList());
+        verify(callback).onInfoChanged(new SoftApInfo());
     }
 
     /**
@@ -2027,6 +2036,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         final List<WifiClient> testClients = new ArrayList();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
+        mStateMachineSoftApCallback.onInfoChanged(mTestSoftApInfo);
 
         // Register another callback and verify the new state is returned in the immediate callback
         final int anotherUid = 2;
@@ -2034,6 +2044,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mAnotherSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         verify(mAnotherSoftApCallback).onConnectedClientsChanged(testClients);
+        verify(mAnotherSoftApCallback).onInfoChanged(mTestSoftApInfo);
 
         // unregister the fisrt callback
         mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
@@ -2121,6 +2132,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         final List<WifiClient> testClients = new ArrayList();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
+        mStateMachineSoftApCallback.onInfoChanged(mTestSoftApInfo);
 
         // Register callback after num clients and soft AP are changed.
         final int callbackIdentifier = 1;
@@ -2129,6 +2141,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mClientSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
         verify(mClientSoftApCallback).onConnectedClientsChanged(testClients);
+        verify(mClientSoftApCallback).onInfoChanged(mTestSoftApInfo);
     }
 
     private class IntentFilterMatcher implements ArgumentMatcher<IntentFilter> {
