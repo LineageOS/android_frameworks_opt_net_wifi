@@ -30,6 +30,7 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     private boolean mIsPasspoint;
     private boolean mIsEphemeral;
     private boolean mIsTrusted;
+    private boolean mIsMetered;
     private int mEvaluatorId = -1;
     private int mEvaluatorScore = Integer.MIN_VALUE;
     private double mLastSelectionWeight;
@@ -51,6 +52,7 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
         mIsPasspoint = candidate.isPasspoint();
         mIsEphemeral = candidate.isEphemeral();
         mIsTrusted = candidate.isTrusted();
+        mIsMetered = candidate.isMetered();
         mEvaluatorId = candidate.getEvaluatorId();
         mEvaluatorScore = candidate.getEvaluatorScore();
         mLastSelectionWeight = candidate.getLastSelectionWeight();
@@ -132,6 +134,16 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     @Override
     public boolean isTrusted() {
         return mIsTrusted;
+    }
+
+    public ConcreteCandidate setMetered(boolean isMetered) {
+        mIsMetered = isMetered;
+        return this;
+    }
+
+    @Override
+    public boolean isMetered() {
+        return mIsMetered;
     }
 
     public ConcreteCandidate setEvaluatorId(int evaluatorId) {
