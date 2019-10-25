@@ -929,6 +929,43 @@ public class WifiNative {
     }
 
     /**
+     * Callback to notify when the availability of an interface has changed.
+     */
+    public interface InterfaceAvailableForRequestListener {
+        /**
+         * @param isAvailable Whether it is possible to create an iface of the specified type or
+         *                    not.
+         */
+        void onAvailabilityChanged(boolean isAvailable);
+    }
+
+    /**
+     * Register a callback to notify when the availability of Client interface has changed.
+     *
+     * It is safe to re-register the same callback object - duplicates are detected and only a
+     * single copy kept.
+     *
+     * @param listener Instance of {@link InterfaceAvailableForRequestListener}.
+     */
+    public void registerClientInterfaceAvailabilityListener(
+            @NonNull InterfaceAvailableForRequestListener listener) {
+        mWifiVendorHal.registerStaIfaceAvailabilityListener(listener);
+    }
+
+    /**
+     * Register a callback to notify when the availability of SoftAp interface has changed.
+     *
+     * It is safe to re-register the same callback object - duplicates are detected and only a
+     * single copy kept.
+     *
+     * @param listener Instance of {@link InterfaceAvailableForRequestListener}.
+     */
+    public void registerSoftApInterfaceAvailabilityListener(
+            @NonNull InterfaceAvailableForRequestListener listener) {
+        mWifiVendorHal.registerApIfaceAvailabilityListener(listener);
+    }
+
+    /**
      * Callback to notify when the associated interface is destroyed, up or down.
      */
     public interface InterfaceCallback {

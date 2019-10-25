@@ -841,7 +841,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
 
-        if (!isConcurrentLohsAndTetheringSupported()) {
+        if (!mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canRequestMoreSoftApManagers(), false)) {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
@@ -900,7 +901,8 @@ public class WifiServiceImpl extends BaseWifiService {
             return false;
         }
 
-        if (!isConcurrentLohsAndTetheringSupported()) {
+        if (!mWifiThreadRunner.call(
+                () -> mActiveModeWarden.canRequestMoreSoftApManagers(), false)) {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
@@ -1502,7 +1504,7 @@ public class WifiServiceImpl extends BaseWifiService {
                             && mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
                         // holding the required lock: send message to requestors and clear the list
                         sendHotspotStoppedMessageToAllLOHSRequestInfoEntriesLocked();
-                    } else if (!isConcurrentLohsAndTetheringSupported()) {
+                    } else {
                         // LOHS not active: report an error (still holding the required lock)
                         sendHotspotFailedMessageToAllLOHSRequestInfoEntriesLocked(ERROR_GENERIC);
                     }
@@ -1703,8 +1705,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         // check if we are currently tethering
-        // TODO(b/123227116): handle all interface combinations just by changing the HAL.
-        if (!isConcurrentLohsAndTetheringSupported()
+        if (!mActiveModeWarden.canRequestMoreSoftApManagers()
                 && mTetheredSoftApTracker.getState() == WIFI_AP_STATE_ENABLED) {
             // Tethering is enabled, cannot start LocalOnlyHotspot
             mLog.info("Cannot start localOnlyHotspot when WiFi Tethering is active.")
@@ -2822,17 +2823,6 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean isWifiStandardSupported(@ScanResult.WifiStandard int standard) {
         return mWifiThreadRunner.call(
                 () -> mClientModeImpl.isWifiStandardSupported(standard), false);
-    }
-
-    private int getMaxApInterfacesCount() {
-        //TODO (b/123227116): pull it from the HAL
-        return mContext.getResources().getInteger(
-                R.integer.config_wifi_max_ap_interfaces);
-    }
-
-    private boolean isConcurrentLohsAndTetheringSupported() {
-        // TODO(b/110697252): handle all configurations in the wifi stack (just by changing the HAL)
-        return getMaxApInterfacesCount() >= 2;
     }
 
     /**

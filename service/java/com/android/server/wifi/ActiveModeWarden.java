@@ -76,6 +76,9 @@ public class ActiveModeWarden {
     private WifiManager.SoftApCallback mSoftApCallback;
     private WifiManager.SoftApCallback mLohsCallback;
 
+    private boolean mCanRequestMoreClientModeManagers = false;
+    private boolean mCanRequestMoreSoftApManagers = false;
+
     /**
      * Called from WifiServiceImpl to register a callback for notifications from SoftApManager
      */
@@ -132,6 +135,29 @@ public class ActiveModeWarden {
                 });
             }
         });
+
+        wifiNative.registerClientInterfaceAvailabilityListener(
+                (isAvailable) -> mHandler.post(() -> {
+                    mCanRequestMoreClientModeManagers = isAvailable;
+                }));
+        wifiNative.registerSoftApInterfaceAvailabilityListener(
+                (isAvailable) -> mHandler.post(() -> {
+                    mCanRequestMoreSoftApManagers = isAvailable;
+                }));
+    }
+
+    /**
+     * @return Returns whether we can create more client mode managers or not.
+     */
+    public boolean canRequestMoreClientModeManagers() {
+        return mCanRequestMoreClientModeManagers;
+    }
+
+    /**
+     * @return Returns whether we can create more SoftAp managers or not.
+     */
+    public boolean canRequestMoreSoftApManagers() {
+        return mCanRequestMoreSoftApManagers;
     }
 
     /** Begin listening to broadcasts and start the internal state machine. */

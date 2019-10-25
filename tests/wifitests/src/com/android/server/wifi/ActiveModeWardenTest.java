@@ -23,6 +23,9 @@ import static com.android.server.wifi.ActiveModeManager.ROLE_SOFTAP_TETHERED;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
@@ -57,6 +60,7 @@ import android.util.Log;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.WifiNative.InterfaceAvailableForRequestListener;
 import com.android.server.wifi.util.GeneralUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.wifi.resources.R;
@@ -123,6 +127,10 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
     final ArgumentCaptor<WifiNative.StatusListener> mStatusListenerCaptor =
             ArgumentCaptor.forClass(WifiNative.StatusListener.class);
+    final ArgumentCaptor<InterfaceAvailableForRequestListener> mClientIfaceAvailableListener =
+            ArgumentCaptor.forClass(InterfaceAvailableForRequestListener.class);
+    final ArgumentCaptor<InterfaceAvailableForRequestListener> mSoftApIfaceAvailableListener =
+            ArgumentCaptor.forClass(InterfaceAvailableForRequestListener.class);
 
     /**
      * Set up the test environment.
@@ -175,6 +183,11 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
         verify(mWifiNative).registerStatusListener(mStatusListenerCaptor.capture());
         mWifiNativeStatusListener = mStatusListenerCaptor.getValue();
+
+        verify(mWifiNative).registerClientInterfaceAvailabilityListener(
+                mClientIfaceAvailableListener.capture());
+        verify(mWifiNative).registerSoftApInterfaceAvailabilityListener(
+                mSoftApIfaceAvailableListener.capture());
 
         mActiveModeWarden.registerSoftApCallback(mSoftApStateMachineCallback);
         mActiveModeWarden.registerLohsCallback(mLohsStateMachineCallback);
@@ -2112,4 +2125,30 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         verify(mSoftApManager, never()).updateConfiguration(any());
     }
 
+    /**
+     */
+    @Test
+    public void interfaceAvailabilityListener() throws Exception {
+        assertFalse(mActiveModeWarden.canRequestMoreClientModeManagers());
+        assertFalse(mActiveModeWarden.canRequestMoreSoftApManagers());
+
+        assertNotNull(mClientIfaceAvailableListener.getValue());
+        assertNotNull(mSoftApIfaceAvailableListener.getValue());
+
+        mClientIfaceAvailableListener.getValue().onAvailabilityChanged(true);
+        mLooper.dispatchAll();
+        assertTrue(mActiveModeWarden.canRequestMoreClientModeManagers());
+
+        mSoftApIfaceAvailableListener.getValue().onAvailabilityChanged(true);
+        mLooper.dispatchAll();
+        assertTrue(mActiveModeWarden.canRequestMoreSoftApManagers());
+
+        mClientIfaceAvailableListener.getValue().onAvailabilityChanged(false);
+        mLooper.dispatchAll();
+        assertFalse(mActiveModeWarden.canRequestMoreClientModeManagers());
+
+        mSoftApIfaceAvailableListener.getValue().onAvailabilityChanged(false);
+        mLooper.dispatchAll();
+        assertFalse(mActiveModeWarden.canRequestMoreSoftApManagers());
+    }
 }

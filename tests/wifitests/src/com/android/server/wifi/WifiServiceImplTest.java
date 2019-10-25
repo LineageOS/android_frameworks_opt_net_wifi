@@ -1229,7 +1229,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testStartSoftApWithPermissionsAndInvalidConfig() {
         boolean result = mWifiServiceImpl.startSoftAp(mApConfig);
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1297,7 +1297,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(
                 new SoftApConfiguration.Builder().build());
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1350,7 +1350,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
 
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -1397,7 +1397,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         boolean result = mWifiServiceImpl.startTetheredHotspot(config);
 
         assertFalse(result);
-        verifyZeroInteractions(mActiveModeWarden);
+        verify(mActiveModeWarden, never()).startSoftAp(any());
     }
 
     /**
@@ -4617,23 +4617,23 @@ public class WifiServiceImplTest extends WifiBaseTest {
         verify(mClientModeImpl).updateWifiUsabilityScore(anyInt(), anyInt(), anyInt());
     }
 
-    private void setupMaxApInterfaces(int val) {
-        when(mResources.getInteger(
-                eq(R.integer.config_wifi_max_ap_interfaces)))
-                .thenReturn(val);
-    }
-
-    private void startLohsAndTethering(int apCount) throws Exception {
+    private void startLohsAndTethering(boolean isApConcurrencySupported) throws Exception {
         // initialization
-        setupMaxApInterfaces(apCount);
+        when(mActiveModeWarden.canRequestMoreSoftApManagers()).thenReturn(isApConcurrencySupported);
         // For these tests, always use distinct interface names for LOHS and tethered.
         mLohsInterfaceName = WIFI_IFACE_NAME2;
 
+        mLooper.startAutoDispatch();
         setupLocalOnlyHotspot();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mActiveModeWarden);
 
+        when(mActiveModeWarden.canRequestMoreSoftApManagers()).thenReturn(isApConcurrencySupported);
+
         // start tethering
+        mLooper.startAutoDispatch();
         boolean tetheringResult = mWifiServiceImpl.startSoftAp(null);
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         assertTrue(tetheringResult);
         verify(mActiveModeWarden).startSoftAp(any());
         mWifiServiceImpl.updateInterfaceIpState(WIFI_IFACE_NAME, IFACE_IP_MODE_TETHERED);
@@ -4646,7 +4646,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartLohsAndTethering1AP() throws Exception {
-        startLohsAndTethering(1);
+        startLohsAndTethering(false);
 
         // verify LOHS got stopped
         verify(mLohsCallback).onHotspotFailed(anyInt());
@@ -4659,7 +4659,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testStartLohsAndTethering2AP() throws Exception {
-        startLohsAndTethering(2);
+        startLohsAndTethering(true);
 
         // verify LOHS didn't get stopped
         verifyZeroInteractions(ignoreStubs(mLohsCallback));
