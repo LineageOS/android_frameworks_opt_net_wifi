@@ -71,6 +71,9 @@ android_test {
         "libdexmakerjvmtiagent",
         "libstaticjvmtiagent",
     ],
+
+    jarjar_rules: ":wifi-jarjar-rules",
+
     min_sdk_version: "29",
     platform_apis: true,
     privileged: true,
