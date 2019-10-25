@@ -17,6 +17,7 @@
 package com.android.wifitrackerlib;
 
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 
 /**
  * Utility methods for testing purposes.
@@ -37,5 +38,11 @@ class TestUtils {
         final ScanResult result = buildScanResult(ssid, bssid, timestampMillis);
         result.level = rssi;
         return result;
+    }
+
+    static WifiConfiguration buildWifiConfiguration(String ssid) {
+        final WifiConfiguration config = new WifiConfiguration();
+        config.SSID = "\"" + ssid + "\"";
+        return config;
     }
 }
