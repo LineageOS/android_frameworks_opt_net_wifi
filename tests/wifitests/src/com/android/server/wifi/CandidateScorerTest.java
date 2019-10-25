@@ -166,8 +166,8 @@ public class CandidateScorerTest extends WifiBaseTest {
      */
     @Test
     public void testPreferTheCurrentNetworkEvenIfRssiDifferenceIsSignificant() throws Exception {
-        assertThat(evaluate(mCandidate1.setScanRssi(-77).setCurrentNetwork(true)),
-                greaterThan(evaluate(mCandidate2.setScanRssi(-68))));
+        assertThat(evaluate(mCandidate1.setScanRssi(-74).setCurrentNetwork(true)),
+                greaterThan(evaluate(mCandidate2.setScanRssi(-65))));
     }
 
     /**

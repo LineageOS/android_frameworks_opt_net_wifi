@@ -253,12 +253,6 @@ public class WifiCandidates {
          */
         @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group);
 
-        /**
-         * Returns true if the legacy user connect choice logic should be used.
-         *
-         * @returns false to disable the legacy logic
-         */
-        boolean userConnectChoiceOverrideWanted();
     }
 
     /**
@@ -275,16 +269,20 @@ public class WifiCandidates {
         public final double value;
         public final double err;
         public final Key candidateKey;
-        public ScoredCandidate(double value, double err, Candidate candidate) {
+        public final boolean userConnectChoiceOverride;
+        public ScoredCandidate(double value, double err, boolean userConnectChoiceOverride,
+                Candidate candidate) {
             this.value = value;
             this.err = err;
             this.candidateKey = (candidate == null) ? null : candidate.getKey();
+            this.userConnectChoiceOverride = userConnectChoiceOverride;
         }
         /**
          * Represents no score
          */
         public static final ScoredCandidate NONE =
-                new ScoredCandidate(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, null);
+                new ScoredCandidate(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY,
+                        false, null);
     }
 
     /**
