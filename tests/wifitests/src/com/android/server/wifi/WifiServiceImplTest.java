@@ -428,7 +428,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         boolean succeeded = mWifiServiceImpl.removeNetwork(0, TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         assertFalse(succeeded);
     }
 
@@ -453,7 +453,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testDumpNullArgs() {
         mLooper.startAutoDispatch();
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
 
     /**
@@ -474,7 +474,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testWifiScoreReportDump() {
         mLooper.startAutoDispatch();
         mWifiServiceImpl.dump(new FileDescriptor(), new PrintWriter(new StringWriter()), null);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         InOrder inOrder = inOrder(mClientModeImpl, mWifiScoreReport);
 
@@ -995,7 +995,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         assertEquals(apConfig, mWifiServiceImpl.getWifiApConfiguration());
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
 
     /**
@@ -1199,7 +1199,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy).startScan(Binder.getCallingUid(), SCAN_PACKAGE_NAME);
     }
 
@@ -1323,7 +1323,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getConfiguredNetworks(TEST_PACKAGE);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verify(mWifiConfigManager).getSavedNetworks(eq(Process.WIFI_UID));
         WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
@@ -1383,7 +1383,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         ParceledListSlice<WifiConfiguration> configs =
                 mWifiServiceImpl.getPrivilegedConfiguredNetworks(TEST_PACKAGE);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         WifiConfigurationTestUtil.assertConfigurationsEqualForBackup(
                 TEST_WIFI_CONFIGURATION_LIST, configs.getList());
@@ -1404,7 +1404,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         String packageName = "test.com";
         mLooper.startAutoDispatch();
         List<ScanResult> retrievedScanResultList = mWifiServiceImpl.getScanResults(packageName);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy).getScanResults();
 
         ScanTestUtil.assertScanResultsEquals(scanResults,
@@ -2417,7 +2417,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mPasspointManager).addOrUpdateProvider(
                 any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), eq(false));
@@ -2428,7 +2428,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(false);
         mLooper.startAutoDispatch();
         assertEquals(-1, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mPasspointManager).addOrUpdateProvider(
                 any(PasspointConfiguration.class), anyInt(), eq(TEST_PACKAGE_NAME), anyBoolean());
@@ -2537,7 +2537,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), false);
     }
 
@@ -2551,7 +2551,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mPasspointManager).getProviderConfigs(Binder.getCallingUid(), true);
     }
 
@@ -2575,14 +2575,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(expectedConfigs);
         mLooper.startAutoDispatch();
         assertEquals(expectedConfigs, mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mPasspointManager);
 
         when(mPasspointManager.getProviderConfigs(anyInt(), anyBoolean()))
                 .thenReturn(new ArrayList<PasspointConfiguration>());
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.getPasspointConfigurations(TEST_PACKAGE).isEmpty());
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
 
     /**
@@ -2597,7 +2597,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mPasspointManager).removeProvider(Binder.getCallingUid(), false, TEST_FQDN);
     }
 
@@ -2612,7 +2612,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.removePasspointConfiguration(TEST_FQDN, TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mPasspointManager).removeProvider(Binder.getCallingUid(), true, TEST_FQDN);
     }
 
@@ -2847,7 +2847,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         // immediately.
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mScanRequestProxy).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
     }
 
@@ -3319,7 +3319,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         mWifiServiceImpl.factoryReset(TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         // Let the final post inside the |factoryReset| method run to completion.
         mLooper.dispatchAll();
@@ -3387,7 +3387,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
@@ -3408,7 +3408,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         // Ensure that we don't check for change permission.
         verify(mContext, never()).enforceCallingOrSelfPermission(
@@ -3433,7 +3433,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
@@ -3456,7 +3456,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiPermissionsUtil).checkSystemAlertWindowPermission(anyInt(), anyString());
@@ -3479,7 +3479,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
@@ -3501,7 +3501,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
         mLooper.startAutoDispatch();
         assertEquals(0, mWifiServiceImpl.addOrUpdateNetwork(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
         verify(mWifiConfigManager).addOrUpdateNetwork(any(),  anyInt(), any());
@@ -3582,7 +3582,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.enableNetwork(TEST_NETWORK_ID, false, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mWifiConfigManager).enableNetwork(eq(TEST_NETWORK_ID), eq(false),
                 eq(Binder.getCallingUid()), eq(TEST_PACKAGE_NAME));
         verify(mWifiMetrics).incrementNumEnableNetworkCalls();
@@ -3614,14 +3614,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         when(mWifiNetworkSuggestionsManager.add(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE);
         mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE,
                 mWifiServiceImpl.addNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verify(mWifiNetworkSuggestionsManager, times(2)).add(
                 any(), eq(Binder.getCallingUid()),  eq(TEST_PACKAGE_NAME));
@@ -3655,14 +3655,14 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_REMOVE_INVALID,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         when(mWifiNetworkSuggestionsManager.remove(any(), anyInt(), anyString()))
                 .thenReturn(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
         mLooper.startAutoDispatch();
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiServiceImpl.removeNetworkSuggestions(mock(List.class), TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verify(mWifiNetworkSuggestionsManager, times(2)).remove(any(), anyInt(),
                 eq(TEST_PACKAGE_NAME));
@@ -3695,7 +3695,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiNetworkSuggestionsManager.get(anyString())).thenReturn(testList);
         mLooper.startAutoDispatch();
         assertEquals(testList, mWifiServiceImpl.getNetworkSuggestions(TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         verify(mWifiNetworkSuggestionsManager).get(eq(TEST_PACKAGE_NAME));
     }
@@ -3750,7 +3750,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         mLooper.startAutoDispatch();
         final String[] factoryMacs = mWifiServiceImpl.getFactoryMacAddresses();
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         assertEquals(1, factoryMacs.length);
         assertEquals(TEST_FACTORY_MAC, factoryMacs[0]);
         verify(mClientModeImpl).getFactoryMacAddress();
@@ -3780,7 +3780,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         mLooper.startAutoDispatch();
         assertNull(mWifiServiceImpl.getFactoryMacAddresses());
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mClientModeImpl).getFactoryMacAddress();
     }
 
@@ -3795,7 +3795,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         try {
             mLooper.startAutoDispatch();
             mWifiServiceImpl.getFactoryMacAddresses();
-            mLooper.stopAutoDispatch();
+            mLooper.stopAutoDispatchAndIgnoreExceptions();
             fail();
         } catch (SecurityException e) {
             assertTrue("Exception message should contain 'factory MAC'",
@@ -4025,7 +4025,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         boolean result = mWifiServiceImpl.removeNetwork(0, TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
 
         assertTrue(result);
         verify(mWifiConfigManager).removeNetwork(anyInt(), anyInt(), anyString());
@@ -4047,7 +4047,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mPasspointManager);
 
         when(mPasspointManager.addOrUpdateProvider(
@@ -4055,7 +4055,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.addOrUpdatePasspointConfiguration(config, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
     /**
      * Verify that removePasspointConfiguration will redirect calls to {@link PasspointManager}
@@ -4069,13 +4069,13 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(true);
         mLooper.startAutoDispatch();
         assertTrue(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         reset(mPasspointManager);
 
         when(mPasspointManager.removeProvider(anyInt(), anyBoolean(), eq(fqdn))).thenReturn(false);
         mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.removePasspointConfiguration(fqdn, TEST_PACKAGE_NAME));
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
     }
 
     /**
@@ -4092,7 +4092,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         mLooper.startAutoDispatch();
         boolean succeeded = mWifiServiceImpl.disableNetwork(0, TEST_PACKAGE_NAME);
-        mLooper.stopAutoDispatch();
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         assertFalse(succeeded);
     }
 
