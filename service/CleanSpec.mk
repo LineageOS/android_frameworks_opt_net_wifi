@@ -46,8 +46,8 @@
 #$(call add-clean-step, rm -rf $(PRODUCT_OUT)/data/*)
 #$(call add-clean-step, rm -rf $(OUT_DIR)/obj/SHARED_LIBRARIES/libdvm*)
 
-$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/etc/init/wifi_inprocess.rc)
-$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/priv-app/InProcessWifiStack)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/etc/init/wifi.rc)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/priv-app/WifiStack)
 # ************************************************
 # NEWER CLEAN STEPS MUST BE AT THE END OF THE LIST
 # ************************************************
