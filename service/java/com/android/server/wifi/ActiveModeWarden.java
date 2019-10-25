@@ -25,7 +25,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
-import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
 import android.os.Handler;
@@ -262,7 +261,9 @@ public class ActiveModeWarden {
         Preconditions.checkState(softApConfig.getTargetMode() == IFACE_IP_MODE_LOCAL_ONLY
                 || softApConfig.getTargetMode() == IFACE_IP_MODE_TETHERED);
 
-        SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
+        WifiManager.SoftApCallback callback =
+                softApConfig.getTargetMode() == IFACE_IP_MODE_LOCAL_ONLY
+                        ? mLohsCallback : mSoftApCallback;
         SoftApListener listener = new SoftApListener();
         ActiveModeManager manager =
                 mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
@@ -410,40 +411,6 @@ public class ActiveModeWarden {
 
         ActiveModeManager getActiveModeManager() {
             return mActiveManager;
-        }
-    }
-
-    private class SoftApCallbackImpl implements WifiManager.SoftApCallback {
-        private final int mIpMode;
-
-        SoftApCallbackImpl(int mode) {
-            Preconditions.checkArgument(mode == IFACE_IP_MODE_TETHERED
-                    || mode == IFACE_IP_MODE_LOCAL_ONLY);
-            mIpMode = mode;
-        }
-
-        @Override
-        public void onStateChanged(int state, int reason) {
-            switch (mIpMode) {
-                case IFACE_IP_MODE_TETHERED:
-                    if (mSoftApCallback != null) mSoftApCallback.onStateChanged(state, reason);
-                    break;
-                case IFACE_IP_MODE_LOCAL_ONLY:
-                    if (mLohsCallback != null) mLohsCallback.onStateChanged(state, reason);
-                    break;
-            }
-        }
-
-        @Override
-        public void onConnectedClientsChanged(List<WifiClient> clients) {
-            switch (mIpMode) {
-                case IFACE_IP_MODE_TETHERED:
-                    if (mSoftApCallback != null) mSoftApCallback.onConnectedClientsChanged(clients);
-                    break;
-                case IFACE_IP_MODE_LOCAL_ONLY:
-                    if (mLohsCallback != null)  mLohsCallback.onConnectedClientsChanged(clients);
-                    break;
-            }
         }
     }
 

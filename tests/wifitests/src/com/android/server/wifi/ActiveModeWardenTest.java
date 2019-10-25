@@ -644,23 +644,6 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that triggering a state change update will not crash if the callback to
-     * WifiServiceImpl is null.
-     */
-    @Test
-    public void testNullCallbackToWifiServiceImplForStateChange() throws Exception {
-        //set the callback to null
-        mActiveModeWarden.registerSoftApCallback(null);
-
-        enterSoftApActiveMode();
-
-        mSoftApManagerCallback.onStateChanged(WifiManager.WIFI_AP_STATE_DISABLING, 0);
-        mLooper.dispatchAll();
-
-        verify(mSoftApStateMachineCallback, never()).onStateChanged(anyInt(), anyInt());
-    }
-
-    /**
      * Verifies that NumClientsChanged event is being passed from SoftApManager to WifiServiceImpl
      */
     @Test
@@ -671,23 +654,6 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mSoftApStateMachineCallback).onConnectedClientsChanged(testClients);
-    }
-
-    /**
-     * Verifies that triggering a number of clients changed update will not crash if the callback to
-     * WifiServiceImpl is null.
-     */
-    @Test
-    public void testNullCallbackToWifiServiceImplForConnectedClientsChanged() throws Exception {
-        final List<WifiClient> testClients = new ArrayList();
-
-        //set the callback to null
-        mActiveModeWarden.registerSoftApCallback(null);
-
-        enterSoftApActiveMode();
-        mSoftApManagerCallback.onConnectedClientsChanged(testClients);
-
-        verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
     }
 
     /**
