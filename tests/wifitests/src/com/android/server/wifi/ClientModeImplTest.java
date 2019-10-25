@@ -1789,10 +1789,10 @@ public class ClientModeImplTest {
     /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
     @Test
     public void syncGetSupportedFeatures() {
-        final int featureAware = WifiManager.WIFI_FEATURE_AWARE;
-        final int featureInfra = WifiManager.WIFI_FEATURE_INFRA;
-        final int featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
-        final int featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
+        final long featureAware = WifiManager.WIFI_FEATURE_AWARE;
+        final long featureInfra = WifiManager.WIFI_FEATURE_INFRA;
+        final long featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
+        final long featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
         final long featureLongBits = 0x1100000000L;
 
         assertEquals(0, testGetSupportedFeaturesCase(0, false));
