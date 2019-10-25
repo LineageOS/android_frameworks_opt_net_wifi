@@ -271,6 +271,7 @@ public class WifiConfigManager {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
+    private boolean mConnectedMacRandomzationSupported;
 
     /**
      * Local log used for debugging any WifiConfigManager issues.
@@ -437,6 +438,8 @@ public class WifiConfigManager {
                     }
                 });
         updatePnoRecencySortingSetting();
+        mConnectedMacRandomzationSupported = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         try {
             mSystemUiUid = mContext.getPackageManager().getPackageUidAsUser(SYSUI_PACKAGE_NAME,
                     PackageManager.MATCH_SYSTEM_ONLY, UserHandle.USER_SYSTEM);
@@ -540,6 +543,9 @@ public class WifiConfigManager {
         if (targetUid != Process.WIFI_UID && targetUid != Process.SYSTEM_UID
                 && targetUid != configuration.creatorUid) {
             maskRandomizedMacAddressInWifiConfiguration(network);
+        }
+        if (!mConnectedMacRandomzationSupported) {
+            network.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
         return network;
     }
@@ -3088,7 +3094,7 @@ public class WifiConfigManager {
         if (mDeferredUserUnlockRead) {
             Log.i(TAG, "Handling user unlock before loading from store.");
             List<WifiConfigStore.StoreFile> userStoreFiles =
-                    WifiConfigStore.createUserFiles(mCurrentUserId, UserManager.get(mContext));
+                    WifiConfigStore.createUserFiles(mCurrentUserId);
             if (userStoreFiles == null) {
                 Log.wtf(TAG, "Failed to create user store files");
                 return false;
@@ -3098,7 +3104,7 @@ public class WifiConfigManager {
         }
         try {
             mWifiConfigStore.read();
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved networks are lost!", e);
             return false;
         } catch (XmlPullParserException e) {
@@ -3127,13 +3133,13 @@ public class WifiConfigManager {
     private boolean loadFromUserStoreAfterUnlockOrSwitch(int userId) {
         try {
             List<WifiConfigStore.StoreFile> userStoreFiles =
-                    WifiConfigStore.createUserFiles(userId, UserManager.get(mContext));
+                    WifiConfigStore.createUserFiles(userId);
             if (userStoreFiles == null) {
                 Log.e(TAG, "Failed to create user store files");
                 return false;
             }
             mWifiConfigStore.switchUserStoresAndRead(userStoreFiles);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Reading from new store failed. All saved private networks are lost!", e);
             return false;
         } catch (XmlPullParserException e) {
@@ -3208,7 +3214,7 @@ public class WifiConfigManager {
 
         try {
             mWifiConfigStore.write(forceWrite);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             Log.wtf(TAG, "Writing to store failed. Saved networks maybe lost!", e);
             return false;
         } catch (XmlPullParserException e) {

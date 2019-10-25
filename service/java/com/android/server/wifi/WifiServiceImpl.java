@@ -2971,7 +2971,18 @@ public class WifiServiceImpl extends BaseWifiService {
                 mWifiNetworkSuggestionsManager.clear();
                 mWifiInjector.getWifiScoreCard().clear();
             });
+            notifyFactoryReset();
         }
+    }
+
+    /**
+     * Notify the Factory Reset Event to application who may installed wifi configurations.
+     */
+    private void notifyFactoryReset() {
+        Intent intent = new Intent(WifiManager.WIFI_NETWORK_SETTINGS_RESET_ACTION);
+        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
     }
 
     /* private methods */
@@ -3314,11 +3325,12 @@ public class WifiServiceImpl extends BaseWifiService {
         if (mVerboseLoggingEnabled) {
             mLog.info("removeNetworkSuggestions uid=%").c(Binder.getCallingUid()).flush();
         }
+        int callingUid = Binder.getCallingUid();
         Mutable<Integer> success = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
                     success.value = mWifiNetworkSuggestionsManager.remove(
-                            networkSuggestions, callingPackageName);
+                            networkSuggestions, callingUid, callingPackageName);
                 }, RUN_WITH_SCISSORS_TIMEOUT_MILLIS);
         if (!runWithScissorsSuccess) {
             Log.e(TAG, "Failed to post runnable to remove network suggestions");

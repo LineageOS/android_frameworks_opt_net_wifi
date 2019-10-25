@@ -447,7 +447,6 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
     }
 
     private void clearVerboseLogs() {
-        mPacketFatesForLastFailure = null;
 
         for (int i = 0; i < mLastAlerts.size(); i++) {
             mLastAlerts.get(i).clearVerboseLogs();

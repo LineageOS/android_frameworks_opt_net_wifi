@@ -23,14 +23,7 @@ import android.security.keystore.KeyProperties;
 import android.text.TextUtils;
 import android.util.Log;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.security.DigestException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
@@ -56,7 +49,6 @@ import javax.crypto.spec.GCMParameterSpec;
 public class DataIntegrityChecker {
     private static final String TAG = "DataIntegrityChecker";
 
-    private static final String FILE_SUFFIX = ".encrypted-checksum";
     private static final String ALIAS_SUFFIX = ".data-integrity-checker-key";
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
     private static final String DIGEST_ALGORITHM = "SHA-256";
@@ -65,28 +57,29 @@ public class DataIntegrityChecker {
 
     /**
      * When KEYSTORE_FAILURE_RETURN_VALUE is true, all cryptographic operation failures will not
-     * enforce security and {@link #isOk(byte[])} always return true.
+     * enforce security and {@link #isOk(byte[], EncryptedData)} always return true.
      */
     private static final boolean KEYSTORE_FAILURE_RETURN_VALUE = true;
 
-    private final File mIntegrityFile;
+    private final String mDataFileName;
 
     /**
      * Construct a new integrity checker to update and check if/when a data file was altered
      * outside expected conditions.
      *
-     * @param integrityFilename The {@link File} path prefix for where the integrity data is stored.
-     *                          A file will be created in the name of integrityFile with the suffix
-     *                          {@link DataIntegrityChecker#FILE_SUFFIX} We recommend using the same
-     *                          path as the file for which integrity is performed on.
-     * @throws NullPointerException When integrity file is null or the empty string.
+     * @param dataFileName The full path of the data file for which integrity check is performed.
+     * @throws NullPointerException When data file is empty string.
      */
-    public DataIntegrityChecker(@NonNull String integrityFilename) {
-        if (TextUtils.isEmpty(integrityFilename)) {
-            throw new NullPointerException("integrityFilename must not be null or the empty "
+    public DataIntegrityChecker(@NonNull String dataFileName) {
+        if (TextUtils.isEmpty(dataFileName)) {
+            throw new NullPointerException("dataFileName must not be null or the empty "
                     + "string");
         }
-        mIntegrityFile = new File(integrityFilename + FILE_SUFFIX);
+        mDataFileName = dataFileName;
+    }
+
+    private String getKeyAlias() {
+        return mDataFileName + ALIAS_SUFFIX;
     }
 
     /**
@@ -95,66 +88,55 @@ public class DataIntegrityChecker {
      * Call this method immediately before storing the byte array
      *
      * @param data The data desired to ensure integrity
+     * @return Instance of {@link EncryptedData} containing the encrypted integrity data.
      */
-    public void update(byte[] data) {
+    public EncryptedData compute(byte[] data) {
         if (data == null || data.length < 1) {
-            reportException(new Exception("No data to update"), "No data to update.");
-            return;
+            reportException(new Exception("No data to compute"), "No data to compute.");
+            return null;
         }
         byte[] digest = getDigest(data);
         if (digest == null || digest.length < 1) {
-            return;
+            reportException(new Exception("digest null in compute"),
+                    "digest null in compute");
+            return null;
         }
-        String alias = mIntegrityFile.getName() + ALIAS_SUFFIX;
-        EncryptedData integrityData = encrypt(digest, alias);
-        if (integrityData != null) {
-            writeIntegrityData(integrityData, mIntegrityFile);
-        } else {
-            reportException(new Exception("integrityData null upon update"),
-                    "integrityData null upon update");
+        EncryptedData integrityData = encrypt(digest, getKeyAlias());
+        if (integrityData == null) {
+            reportException(new Exception("integrityData null in compute"),
+                    "integrityData null in compute");
         }
+        return integrityData;
     }
+
 
     /**
      * Check the integrity of a given byte array
      *
      * Call this method immediately before trusting the byte array. This method will return false
-     * when the byte array was altered since the last {@link #update(byte[])}
-     * call, when {@link #update(byte[])} has never been called, or if there is
-     * an underlying issue with the cryptographic functions or the key store.
+     * when the integrity data calculated on the byte array does not match the encrypted integrity
+     * data provided to compare or if there is an underlying issue with the cryptographic functions
+     * or the key store.
      *
-     * @param data The data to check if its been altered
-     * @throws DigestException The integrity mIntegrityFile cannot be read. Ensure
-     *      {@link #isOk(byte[])} is called after {@link #update(byte[])}. Otherwise, consider the
-     *      result vacuously true and immediately call {@link #update(byte[])}.
-     * @return true if the data was not altered since {@link #update(byte[])} was last called
+     * @param data The data to check if its been altered.
+     * @param integrityData Encrypted integrity data to be used for comparison.
+     * @return true if the integrity data computed on |data| matches the provided |integrityData|.
      */
-    public boolean isOk(byte[] data) throws DigestException {
+    public boolean isOk(@NonNull byte[] data, @NonNull EncryptedData integrityData) {
         if (data == null || data.length < 1) {
             return KEYSTORE_FAILURE_RETURN_VALUE;
         }
         byte[] currentDigest = getDigest(data);
         if (currentDigest == null || currentDigest.length < 1) {
+            reportException(new Exception("current digest null"), "current digest null");
             return KEYSTORE_FAILURE_RETURN_VALUE;
         }
-
-        EncryptedData encryptedData = null;
-
-        try {
-            encryptedData = readIntegrityData(mIntegrityFile);
-        } catch (IOException e) {
-            reportException(e, "readIntegrityData had an IO exception");
-            return KEYSTORE_FAILURE_RETURN_VALUE;
-        } catch (ClassNotFoundException e) {
-            reportException(e, "readIntegrityData could not find the class EncryptedData");
+        if (integrityData == null) {
+            reportException(new Exception("integrityData null in isOk"),
+                    "integrityData null in isOk");
             return KEYSTORE_FAILURE_RETURN_VALUE;
         }
-
-        if (encryptedData == null) {
-            // File not found is not considered to be an error.
-            throw new DigestException("No stored digest is available to compare.");
-        }
-        byte[] storedDigest = decrypt(encryptedData);
+        byte[] storedDigest = decrypt(integrityData, getKeyAlias());
         if (storedDigest == null) {
             return KEYSTORE_FAILURE_RETURN_VALUE;
         }
@@ -177,7 +159,7 @@ public class DataIntegrityChecker {
             SecretKey secretKeyReference = getOrCreateSecretKey(keyAlias);
             if (secretKeyReference != null) {
                 cipher.init(Cipher.ENCRYPT_MODE, secretKeyReference);
-                encryptedData = new EncryptedData(cipher.doFinal(data), cipher.getIV(), keyAlias);
+                encryptedData = new EncryptedData(cipher.doFinal(data), cipher.getIV());
             } else {
                 reportException(new Exception("secretKeyReference is null."),
                         "secretKeyReference is null.");
@@ -196,12 +178,12 @@ public class DataIntegrityChecker {
         return encryptedData;
     }
 
-    private byte[] decrypt(EncryptedData encryptedData) {
+    private byte[] decrypt(EncryptedData encryptedData, String keyAlias) {
         byte[] decryptedData = null;
         try {
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, encryptedData.getIv());
-            SecretKey secretKeyReference = getOrCreateSecretKey(encryptedData.getKeyAlias());
+            SecretKey secretKeyReference = getOrCreateSecretKey(keyAlias);
             if (secretKeyReference != null) {
                 cipher.init(Cipher.DECRYPT_MODE, secretKeyReference, spec);
                 decryptedData = cipher.doFinal(encryptedData.getEncryptedData());
@@ -268,30 +250,6 @@ public class DataIntegrityChecker {
         return secretKey;
     }
 
-    private void writeIntegrityData(EncryptedData encryptedData, File file) {
-        try (FileOutputStream fos = new FileOutputStream(file);
-             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
-            oos.writeObject(encryptedData);
-        } catch (FileNotFoundException e) {
-            reportException(e, "writeIntegrityData could not find the integrity file");
-        } catch (IOException e) {
-            reportException(e, "writeIntegrityData had an IO exception");
-        }
-    }
-
-    private EncryptedData readIntegrityData(File file) throws IOException, ClassNotFoundException  {
-        try (FileInputStream fis = new FileInputStream(file);
-             ObjectInputStream ois = new ObjectInputStream(fis)) {
-            return (EncryptedData) ois.readObject();
-        } catch (FileNotFoundException e) {
-            // File not found, this is not considered to be a real error. The file will be created
-            // by the system next time the data file is written. Note that it is not possible for
-            // non system user to delete or modify the file.
-            Log.w(TAG, "readIntegrityData could not find integrity file");
-        }
-        return null;
-    }
-
     private boolean constantTimeEquals(byte[] a, byte[] b) {
         if (a == null && b == null) {
             return true;
@@ -311,7 +269,7 @@ public class DataIntegrityChecker {
     /* TODO(b/128526030): Remove this error reporting code upon resolving the bug. */
     private static final boolean REQUEST_BUG_REPORT = false;
     private void reportException(Exception exception, String error) {
-        Log.wtf(TAG, "An irrecoverable key store error was encountered: " + error);
+        Log.wtf(TAG, "An irrecoverable key store error was encountered: " + error, exception);
         if (REQUEST_BUG_REPORT) {
             SystemProperties.set("dumpstate.options", "bugreportwifi");
             SystemProperties.set("ctl.start", "bugreport");
