@@ -3028,7 +3028,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void sendP2pPersistentGroupsChangedBroadcast() {
             if (mVerboseLoggingEnabled) logd("sending p2p persistent groups changed broadcast");
-            Intent intent = new Intent(WifiP2pManager.WIFI_P2P_PERSISTENT_GROUPS_CHANGED_ACTION);
+            Intent intent = new Intent(WifiP2pManager.ACTION_WIFI_P2P_PERSISTENT_GROUPS_CHANGED);
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
             mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
         }

@@ -676,14 +676,14 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Check the broadcast of WIFI_P2P_PERSISTENT_GROUPS_CHANGED_ACTION is sent as expected.
+     * Check the broadcast of ACTION_WIFI_P2P_PERSISTENT_GROUPS_CHANGED is sent as expected.
      */
     private void checkSendP2pPersistentGroupsChangedBroadcast() {
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         verify(mContext, atLeastOnce()).sendStickyBroadcastAsUser(
                 intentCaptor.capture(), eq(UserHandle.ALL));
         Intent intent = intentCaptor.getValue();
-        assertEquals(WifiP2pManager.WIFI_P2P_PERSISTENT_GROUPS_CHANGED_ACTION, intent.getAction());
+        assertEquals(WifiP2pManager.ACTION_WIFI_P2P_PERSISTENT_GROUPS_CHANGED, intent.getAction());
         assertEquals(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT, intent.getFlags());
     }
 
