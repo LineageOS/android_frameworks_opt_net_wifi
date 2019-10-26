@@ -721,13 +721,12 @@ public class WifiNetworkSelector {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
                             mNetworkIds.add(config.networkId);
-                            if (config.networkId == lastUserSelectedNetworkId) {
-                                wifiCandidates.add(scanDetail, config,
-                                        registeredEvaluator.getId(), score, lastSelectionWeight);
-                            } else {
-                                wifiCandidates.add(scanDetail, config,
-                                        registeredEvaluator.getId(), score);
-                            }
+                            wifiCandidates.add(scanDetail, config,
+                                    registeredEvaluator.getId(),
+                                    score,
+                                    (config.networkId == lastUserSelectedNetworkId)
+                                            ? lastSelectionWeight : 0.0,
+                                    WifiConfiguration.isMetered(config, wifiInfo));
                             mWifiMetrics.setNominatorForNetwork(config.networkId,
                                     evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
@@ -799,7 +798,7 @@ public class WifiNetworkSelector {
             String chooses = " would choose ";
             if (candidateScorer == activeScorer) {
                 chooses = " chooses ";
-                legacyOverrideWanted = candidateScorer.userConnectChoiceOverrideWanted();
+                legacyOverrideWanted = choice.userConnectChoiceOverride;
                 selectedNetworkId = networkId;
             }
             String id = candidateScorer.getIdentifier();

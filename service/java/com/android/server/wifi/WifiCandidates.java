@@ -77,6 +77,10 @@ public class WifiCandidates {
          */
         boolean isTrusted();
         /**
+         * Returns true for a metered network.
+         */
+        boolean isMetered();
+        /**
          * Returns the ID of the evaluator that provided the candidate.
          */
         @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int getEvaluatorId();
@@ -132,6 +136,7 @@ public class WifiCandidates {
         private WifiScoreCard.PerBssid mPerBssid; // For accessing the scorecard entry
         private final boolean mIsCurrentNetwork;
         private final boolean mIsCurrentBssid;
+        private final boolean mIsMetered;
 
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
@@ -141,7 +146,8 @@ public class WifiCandidates {
                 WifiScoreCard.PerBssid perBssid,
                 double lastSelectionWeight,
                 boolean isCurrentNetwork,
-                boolean isCurrentBssid) {
+                boolean isCurrentBssid,
+                boolean isMetered) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
@@ -151,6 +157,7 @@ public class WifiCandidates {
             this.lastSelectionWeight = lastSelectionWeight;
             this.mIsCurrentNetwork = isCurrentNetwork;
             this.mIsCurrentBssid = isCurrentBssid;
+            this.mIsMetered = isMetered;
         }
 
         @Override
@@ -187,6 +194,11 @@ public class WifiCandidates {
         @Override
         public boolean isTrusted() {
             return config.trusted;
+        }
+
+        @Override
+        public boolean isMetered() {
+            return (mIsMetered);
         }
 
         @Override
@@ -248,17 +260,10 @@ public class WifiCandidates {
         String getIdentifier();
 
         /**
-         * Calculates the score for a group of candidates that belong
-         * to the same network.
+         * Calculates the best score for a collection of candidates.
          */
-        @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group);
+        @Nullable ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> candidates);
 
-        /**
-         * Returns true if the legacy user connect choice logic should be used.
-         *
-         * @returns false to disable the legacy logic
-         */
-        boolean userConnectChoiceOverrideWanted();
     }
 
     /**
@@ -275,16 +280,20 @@ public class WifiCandidates {
         public final double value;
         public final double err;
         public final Key candidateKey;
-        public ScoredCandidate(double value, double err, Candidate candidate) {
+        public final boolean userConnectChoiceOverride;
+        public ScoredCandidate(double value, double err, boolean userConnectChoiceOverride,
+                Candidate candidate) {
             this.value = value;
             this.err = err;
             this.candidateKey = (candidate == null) ? null : candidate.getKey();
+            this.userConnectChoiceOverride = userConnectChoiceOverride;
         }
         /**
          * Represents no score
          */
         public static final ScoredCandidate NONE =
-                new ScoredCandidate(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, null);
+                new ScoredCandidate(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY,
+                        false, null);
     }
 
     /**
@@ -348,7 +357,8 @@ public class WifiCandidates {
                     WifiConfiguration config,
                     @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                     int evaluatorScore,
-                    double lastSelectionWeightBetweenZeroAndOne) {
+                    double lastSelectionWeightBetweenZeroAndOne,
+                    boolean isMetered) {
         if (config == null) return failure();
         if (scanDetail == null) return failure();
         ScanResult scanResult = scanDetail.getScanResult();
@@ -381,16 +391,10 @@ public class WifiCandidates {
                 scanDetail, config, evaluatorId, evaluatorScore, perBssid,
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
-                bssid.equals(mCurrentBssid));
+                bssid.equals(mCurrentBssid),
+                isMetered);
         mCandidates.put(key, candidate);
         return true;
-    }
-    /** Adds a new candidate with no user selection weight. */
-    public boolean add(ScanDetail scanDetail,
-                    WifiConfiguration config,
-                    @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
-                    int evaluatorScore) {
-        return add(scanDetail, config, evaluatorId, evaluatorScore, 0.0);
     }
 
     /**
@@ -399,7 +403,7 @@ public class WifiCandidates {
      */
     public boolean remove(Candidate candidate) {
         if (!(candidate instanceof CandidateImpl)) return failure();
-        return mCandidates.remove(((CandidateImpl) candidate).key, (CandidateImpl) candidate);
+        return mCandidates.remove(((CandidateImpl) candidate).key, candidate);
     }
 
     /**
@@ -432,14 +436,9 @@ public class WifiCandidates {
      */
     public @NonNull ScoredCandidate choose(@NonNull CandidateScorer candidateScorer) {
         Preconditions.checkNotNull(candidateScorer);
-        ScoredCandidate choice = ScoredCandidate.NONE;
-        for (Collection<Candidate> group : getGroupedCandidates()) {
-            ScoredCandidate scoredCandidate = candidateScorer.scoreCandidates(group);
-            if (scoredCandidate != null && scoredCandidate.value > choice.value) {
-                choice = scoredCandidate;
-            }
-        }
-        return choice;
+        Collection<Candidate> candidates = new ArrayList<>(mCandidates.values());
+        ScoredCandidate choice = candidateScorer.scoreCandidates(candidates);
+        return choice == null ? ScoredCandidate.NONE : choice;
     }
 
     /**

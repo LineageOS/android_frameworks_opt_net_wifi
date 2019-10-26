@@ -423,9 +423,7 @@ public class ClientModeImpl extends StateMachine {
     // Provide packet filter capabilities to ConnectivityService.
     private final NetworkMisc mNetworkMisc = new NetworkMisc();
 
-    @GuardedBy("mProcessingActionListeners")
     private final ExternalCallbackTracker<IActionListener> mProcessingActionListeners;
-    @GuardedBy("mProcessingTxPacketCountListeners")
     private final ExternalCallbackTracker<ITxPacketCountListener> mProcessingTxPacketCountListeners;
 
     /* The base for wifi message types */
@@ -589,7 +587,6 @@ public class ClientModeImpl extends StateMachine {
 
     private static final int CMD_CONNECT_NETWORK                        = BASE + 258;
     private static final int CMD_SAVE_NETWORK                           = BASE + 259;
-    private static final int CMD_FORGET_NETWORK                         = BASE + 260;
     private static final int CMD_PKT_CNT_FETCH                          = BASE + 261;
 
     // For message logging.
@@ -1177,23 +1174,9 @@ public class ClientModeImpl extends StateMachine {
      * @param forceReconnect Whether to force a connection even if we're connected to the same
      *                       network currently.
      */
-    private boolean connectToUserSelectNetwork(int netId, int uid, boolean forceReconnect) {
+    private void connectToUserSelectNetwork(int netId, int uid, boolean forceReconnect) {
         logd("connectToUserSelectNetwork netId " + netId + ", uid " + uid
                 + ", forceReconnect = " + forceReconnect);
-        WifiConfiguration config = mWifiConfigManager.getConfiguredNetwork(netId);
-        if (config == null) {
-            loge("connectToUserSelectNetwork Invalid network Id=" + netId);
-            return false;
-        }
-        if (!mWifiConfigManager.enableNetwork(netId, true, uid, null)
-                || !mWifiConfigManager.updateLastConnectUid(netId, uid)) {
-            logi("connectToUserSelectNetwork Allowing uid " + uid
-                    + " with insufficient permissions to connect=" + netId);
-        } else if (mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) {
-            // Note user connect choice here, so that it will be considered in the next network
-            // selection.
-            mWifiConnectivityManager.setUserConnectChoice(netId);
-        }
         if (!forceReconnect && mWifiInfo.getNetworkId() == netId) {
             // We're already connected to the user specified network, don't trigger a
             // reconnection unless it was forced.
@@ -1201,12 +1184,11 @@ public class ClientModeImpl extends StateMachine {
         } else {
             mWifiConnectivityManager.prepareForForcedConnection(netId);
             if (uid == Process.SYSTEM_UID) {
-                mWifiMetrics.setNominatorForNetwork(config.networkId,
+                mWifiMetrics.setNominatorForNetwork(netId,
                         WifiMetricsProto.ConnectionEvent.NOMINATOR_MANUAL);
             }
             startConnectToNetwork(netId, uid, SUPPLICANT_BSSID_ANY);
         }
-        return true;
     }
 
     /**
@@ -1865,12 +1847,14 @@ public class ClientModeImpl extends StateMachine {
                     sb.append(stateChangeResult.toString());
                 }
                 break;
-            case CMD_SAVE_NETWORK:
+            case CMD_CONNECT_NETWORK:
+            case CMD_SAVE_NETWORK: {
+                NetworkUpdateResult result = (NetworkUpdateResult) msg.obj;
                 sb.append(" ");
-                sb.append(Integer.toString(msg.arg1));
+                sb.append(Integer.toString(result.netId));
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg2));
-                config = (WifiConfiguration) msg.obj;
+                config = mWifiConfigManager.getConfiguredNetwork(result.netId);
                 if (config != null) {
                     sb.append(" ").append(config.configKey());
                     sb.append(" nid=").append(config.networkId);
@@ -1891,35 +1875,7 @@ public class ClientModeImpl extends StateMachine {
                     sb.append(" suid=").append(config.lastUpdateUid);
                 }
                 break;
-            case CMD_FORGET_NETWORK:
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg1));
-                sb.append(" ");
-                sb.append(Integer.toString(msg.arg2));
-                config = (WifiConfiguration) msg.obj;
-                if (config != null) {
-                    sb.append(" ").append(config.configKey());
-                    sb.append(" nid=").append(config.networkId);
-                    if (config.hiddenSSID) {
-                        sb.append(" hidden");
-                    }
-                    if (config.preSharedKey != null) {
-                        sb.append(" hasPSK");
-                    }
-                    if (config.ephemeral) {
-                        sb.append(" ephemeral");
-                    }
-                    if (config.selfAdded) {
-                        sb.append(" selfAdded");
-                    }
-                    sb.append(" cuid=").append(config.creatorUid);
-                    sb.append(" suid=").append(config.lastUpdateUid);
-                    WifiConfiguration.NetworkSelectionStatus netWorkSelectionStatus =
-                            config.getNetworkSelectionStatus();
-                    sb.append(" ajst=").append(
-                            netWorkSelectionStatus.getNetworkStatusString());
-                }
-                break;
+            }
             case WifiMonitor.ASSOCIATION_REJECTION_EVENT:
                 sb.append(" ");
                 sb.append(" timedOut=" + Integer.toString(msg.arg1));
@@ -2008,7 +1964,6 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(String.format(" score=%d", mWifiInfo.score));
                 break;
             case CMD_START_CONNECT:
-            case CMD_CONNECT_NETWORK:
                 sb.append(" ");
                 sb.append(Integer.toString(msg.arg1));
                 sb.append(" ");
@@ -2179,9 +2134,6 @@ public class ClientModeImpl extends StateMachine {
                 break;
             case CMD_SAVE_NETWORK:
                 s = "CMD_SAVE_NETWORK";
-                break;
-            case CMD_FORGET_NETWORK:
-                s = "CMD_FORGET_NETWORK";
                 break;
             case WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT:
                 s = "SUPPLICANT_STATE_CHANGE_EVENT";
@@ -3213,14 +3165,14 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_CONNECT_NETWORK:
+                    // wifi off, can't connect.
                     callbackIdentifier = message.arg2;
                     sendActionListenerFailure(callbackIdentifier, WifiManager.BUSY);
                     break;
-                case CMD_FORGET_NETWORK:
-                    forgetNetworkConfigAndInvokeCb(message);
-                    break;
                 case CMD_SAVE_NETWORK:
-                    saveNetworkConfigAndInvokeCb(message);
+                    // wifi off, nothing more to do here.
+                    callbackIdentifier = message.arg2;
+                    sendActionListenerSuccess(callbackIdentifier);
                     break;
                 case CMD_PKT_CNT_FETCH:
                     callbackIdentifier = message.arg2;
@@ -3827,42 +3779,19 @@ public class ClientModeImpl extends StateMachine {
                     }
                     break;
                 case CMD_CONNECT_NETWORK:
-                    /**
-                     * The connect message can contain a network id passed as arg1 on message or
-                     * or a config passed as obj on message.
-                     * For a new network, a config is passed to create and connect.
-                     * For an existing network, a network id is passed
-                     */
-                    netId = message.arg1;
-                    config = (WifiConfiguration) message.obj;
                     callbackIdentifier = message.arg2;
-                    boolean hasCredentialChanged = false;
-                    // New network addition.
-                    if (config != null) {
-                        result = mWifiConfigManager.addOrUpdateNetwork(config, message.sendingUid);
-                        if (!result.isSuccess()) {
-                            loge("CMD_CONNECT_NETWORK adding/updating config=" + config
-                                    + " failed");
-                            mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
-                            break;
-                        }
-                        netId = result.getNetworkId();
-                        hasCredentialChanged = result.hasCredentialChanged();
-                    }
-                    if (!connectToUserSelectNetwork(
-                            netId, message.sendingUid, hasCredentialChanged)) {
-                        mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-                        sendActionListenerFailure(callbackIdentifier, WifiManager.NOT_AUTHORIZED);
-                        break;
-                    }
-                    mWifiMetrics.logStaEvent(StaEvent.TYPE_CONNECT_NETWORK, config);
-                    broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
+                    result = (NetworkUpdateResult) message.obj;
+                    netId = result.getNetworkId();
+                    connectToUserSelectNetwork(
+                            netId, message.sendingUid, result.hasCredentialChanged());
+                    mWifiMetrics.logStaEvent(
+                            StaEvent.TYPE_CONNECT_NETWORK,
+                            mWifiConfigManager.getConfiguredNetwork(netId));
                     sendActionListenerSuccess(callbackIdentifier);
                     break;
                 case CMD_SAVE_NETWORK:
-                    result = saveNetworkConfigAndInvokeCb(message);
-                    if (!result.isSuccess()) break;
+                    callbackIdentifier = message.arg2;
+                    result = (NetworkUpdateResult) message.obj;
                     netId = result.getNetworkId();
                     if (mWifiInfo.getNetworkId() == netId) {
                         if (result.hasCredentialChanged()) {
@@ -3899,9 +3828,7 @@ public class ClientModeImpl extends StateMachine {
                                 + netId + " while disconnected. Connecting.");
                         startConnectToNetwork(netId, message.sendingUid, SUPPLICANT_BSSID_ANY);
                     }
-                    break;
-                case CMD_FORGET_NETWORK:
-                    forgetNetworkConfigAndInvokeCb(message);
+                    sendActionListenerSuccess(callbackIdentifier);
                     break;
                 case WifiMonitor.ASSOCIATED_BSSID_EVENT:
                     // This is where we can confirm the connection BSSID. Use it to find the
@@ -4483,16 +4410,6 @@ public class ClientModeImpl extends StateMachine {
                         transitionTo(mDisconnectingState);
                     }
                     break;
-                    /* Ignore connection to same network */
-                case CMD_CONNECT_NETWORK:
-                    int netId = message.arg1;
-                    callbackIdentifier = message.arg2;
-                    if (mWifiInfo.getNetworkId() == netId) {
-                        sendActionListenerSuccess(callbackIdentifier);
-                        break;
-                    }
-                    handleStatus = NOT_HANDLED;
-                    break;
                 case WifiMonitor.NETWORK_CONNECTION_EVENT:
                     mWifiInfo.setBSSID((String) message.obj);
                     mLastNetworkId = message.arg1;
@@ -4781,33 +4698,6 @@ public class ClientModeImpl extends StateMachine {
             boolean handleStatus = HANDLED;
 
             switch(message.what) {
-                case CMD_START_CONNECT:
-                case CMD_START_ROAM:
-                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DISCARD;
-                    break;
-                case CMD_CONNECT_NETWORK:
-                    // TODO(b/117601161) do all connect-network processing in one place
-                    // Do not disconnect if we try to connect to the same network
-                    int netId = message.arg1;
-                    if (mWifiInfo.getNetworkId() == netId) {
-                        handleStatus = NOT_HANDLED;
-                        break;
-                    }
-                    // Defer the message so it is handled after the state change
-                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
-                    deferMessage(message);
-                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
-                    reportConnectionAttemptEnd(
-                                WifiMetrics.ConnectionEvent.FAILURE_NEW_CONNECTION_ATTEMPT,
-                                WifiMetricsProto.ConnectionEvent.HLF_NONE,
-                                WifiMetricsProto.ConnectionEvent.FAILURE_REASON_UNKNOWN);
-                    mWifiNative.disconnect(mInterfaceName);
-                    transitionTo(mDisconnectingState);
-                    break;
-                case CMD_SAVE_NETWORK:
-                    mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
-                    deferMessage(message);
-                    break;
                 case WifiMonitor.NETWORK_DISCONNECTION_EVENT:
                     reportConnectionAttemptEnd(
                             WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION,
@@ -5264,6 +5154,7 @@ public class ClientModeImpl extends StateMachine {
 
             switch (message.what) {
                 case CMD_CONNECT_NETWORK:
+                case CMD_SAVE_NETWORK:
                     mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_DEFERRED;
                     deferMessage(message);
                     break;
@@ -5578,61 +5469,6 @@ public class ClientModeImpl extends StateMachine {
                 || reason == 34;        // DISASSOC_LOW_ACK
     }
 
-    /**
-     * Private method to handle calling WifiConfigManager to forget network configs and invoke
-     * corresponding callback from the sender of the outcome.
-     */
-    private boolean forgetNetworkConfigAndInvokeCb(Message message) {
-        boolean success = mWifiConfigManager.removeNetwork(message.arg1, message.sendingUid, null);
-        int callbackIdentifier = message.arg2;
-        if (success) {
-            sendActionListenerSuccess(callbackIdentifier);
-            broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_FORGOT,
-                    (WifiConfiguration) message.obj);
-            return true;
-        }
-        loge("Failed to remove network");
-        sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
-        return false;
-    }
-
-    /**
-     * Private method to handle calling WifiConfigManager to add & enable network configs and invoke
-     * corresponding callback from the sender of the outcome.
-     *
-     * @return NetworkUpdateResult with networkId of the added/updated configuration. Will return
-     * {@link WifiConfiguration#INVALID_NETWORK_ID} in case of error.
-     */
-    private NetworkUpdateResult saveNetworkConfigAndInvokeCb(Message message) {
-        WifiConfiguration config = (WifiConfiguration) message.obj;
-        int callbackIdentifier = message.arg2;
-        if (config == null) {
-            loge("CMD_SAVE_NETWORK with null configuration my state "
-                    + getCurrentState().getName());
-            mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
-            return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
-        }
-        NetworkUpdateResult result =
-                mWifiConfigManager.addOrUpdateNetwork(config, message.sendingUid);
-        if (!result.isSuccess()) {
-            loge("CMD_SAVE_NETWORK adding/updating config=" + config + " failed");
-            mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
-            return result;
-        }
-        if (!mWifiConfigManager.enableNetwork(
-                result.getNetworkId(), false, message.sendingUid, null)) {
-            loge("CMD_SAVE_NETWORK enabling config=" + config + " failed");
-            mMessageHandlingStatus = MESSAGE_HANDLING_STATUS_FAIL;
-            sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
-            return new NetworkUpdateResult(WifiConfiguration.INVALID_NETWORK_ID);
-        }
-        broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
-        sendActionListenerSuccess(callbackIdentifier);
-        return result;
-    }
-
     private static String getLinkPropertiesSummary(LinkProperties lp) {
         List<String> attributes = new ArrayList<>(6);
         if (lp.hasIpv4Address()) {
@@ -5862,14 +5698,48 @@ public class ClientModeImpl extends StateMachine {
      */
     public void connect(WifiConfiguration config, int netId, @Nullable IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier, int callingUid) {
-        if (callback != null && binder != null) {
-            synchronized (mProcessingActionListeners) {
+        mWifiInjector.getWifiThreadRunner().post(() -> {
+            if (callback != null && binder != null) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
-        }
-        Message message = obtainMessage(CMD_CONNECT_NETWORK, netId, callbackIdentifier, config);
-        message.sendingUid = callingUid;
-        sendMessage(message);
+            /**
+             * The connect message can contain a network id passed as arg1 on message or
+             * or a config passed as obj on message.
+             * For a new network, a config is passed to create and connect.
+             * For an existing network, a network id is passed
+             */
+            NetworkUpdateResult result = null;
+            if (config != null) {
+                result = mWifiConfigManager.addOrUpdateNetwork(config, callingUid);
+                if (!result.isSuccess()) {
+                    loge("connectNetwork adding/updating config=" + config + " failed");
+                    sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+                    return;
+                }
+                broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
+            } else {
+                if (mWifiConfigManager.getConfiguredNetwork(netId) == null) {
+                    loge("connectNetwork Invalid network Id=" + netId);
+                    sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+                    return;
+                }
+                result = new NetworkUpdateResult(netId);
+            }
+            final int networkId = result.getNetworkId();
+            if (!mWifiConfigManager.enableNetwork(networkId, true, callingUid, null)
+                    || !mWifiConfigManager.updateLastConnectUid(networkId, callingUid)) {
+                logi("connect Allowing uid " + callingUid
+                        + " with insufficient permissions to connect=" + networkId);
+            } else if (mWifiPermissionsUtil.checkNetworkSettingsPermission(callingUid)) {
+                // Note user connect choice here, so that it will be considered in the
+                // next network selection.
+                mWifiConnectivityManager.setUserConnectChoice(networkId);
+            }
+            Message message =
+                    obtainMessage(CMD_CONNECT_NETWORK, -1, callbackIdentifier, result);
+            message.sendingUid = callingUid;
+            sendMessage(message);
+        });
     }
 
     /**
@@ -5877,14 +5747,35 @@ public class ClientModeImpl extends StateMachine {
      */
     public void save(WifiConfiguration config, @Nullable IBinder binder,
             @Nullable IActionListener callback, int callbackIdentifier, int callingUid) {
-        if (callback != null && binder != null) {
-            synchronized (mProcessingActionListeners) {
+        mWifiInjector.getWifiThreadRunner().post(() -> {
+            if (callback != null && binder != null) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
-        }
-        Message message = obtainMessage(CMD_SAVE_NETWORK, -1, callbackIdentifier, config);
-        message.sendingUid = callingUid;
-        sendMessage(message);
+            if (config == null) {
+                loge("saveNetwork with null configuration my state "
+                        + getCurrentState().getName());
+                sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+                return;
+            }
+            NetworkUpdateResult result =
+                    mWifiConfigManager.addOrUpdateNetwork(config, callingUid);
+            if (!result.isSuccess()) {
+                loge("saveNetwork adding/updating config=" + config + " failed");
+                sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+                return;
+            }
+            if (!mWifiConfigManager.enableNetwork(
+                    result.getNetworkId(), false, callingUid, null)) {
+                loge("saveNetwork enabling config=" + config + " failed");
+                sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+                return;
+            }
+            broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_SAVED, config);
+            Message message =
+                    obtainMessage(CMD_SAVE_NETWORK, -1 , callbackIdentifier, result);
+            message.sendingUid = callingUid;
+            sendMessage(message);
+        });
     }
 
     /**
@@ -5892,14 +5783,18 @@ public class ClientModeImpl extends StateMachine {
      */
     public void forget(int netId, @Nullable IBinder binder, @Nullable IActionListener callback,
             int callbackIdentifier, int callingUid) {
-        if (callback != null && binder != null) {
-            synchronized (mProcessingActionListeners) {
+        mWifiInjector.getWifiThreadRunner().post(() -> {
+            if (callback != null && binder != null) {
                 mProcessingActionListeners.add(binder, callback, callbackIdentifier);
             }
-        }
-        Message message = obtainMessage(CMD_FORGET_NETWORK, netId, callbackIdentifier, null);
-        message.sendingUid = callingUid;
-        sendMessage(message);
+            boolean success = mWifiConfigManager.removeNetwork(netId, callingUid, null);
+            if (!success) {
+                loge("Failed to remove network");
+                sendActionListenerFailure(callbackIdentifier, WifiManager.ERROR);
+            }
+            sendActionListenerSuccess(callbackIdentifier);
+            broadcastWifiCredentialChanged(WifiManager.WIFI_CREDENTIAL_FORGOT, null);
+        });
     }
 
     /**
@@ -5907,11 +5802,12 @@ public class ClientModeImpl extends StateMachine {
      */
     public void getTxPacketCount(IBinder binder, @NonNull ITxPacketCountListener callback,
             int callbackIdentifier, int callingUid) {
-        synchronized (mProcessingTxPacketCountListeners) {
+        mWifiInjector.getWifiThreadRunner().post(() -> {
             mProcessingTxPacketCountListeners.add(binder, callback, callbackIdentifier);
-        }
-        Message message = obtainMessage(CMD_PKT_CNT_FETCH, -1, callbackIdentifier, null);
-        message.sendingUid = callingUid;
-        sendMessage(message);
+
+            Message message = obtainMessage(CMD_PKT_CNT_FETCH, -1, callbackIdentifier, null);
+            message.sendingUid = callingUid;
+            sendMessage(message);
+        });
     }
 }

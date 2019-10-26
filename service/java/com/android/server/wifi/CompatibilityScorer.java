@@ -57,6 +57,8 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_SAME_BSSID_AWARD
     public static final int SAME_BSSID_AWARD_IS_24 = 24;
 
+    private static final boolean USE_USER_CONNECT_CHOICE = true;
+
     CompatibilityScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
     }
@@ -95,13 +97,14 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
         // The old method breaks ties on the basis of RSSI, which we can
         // emulate easily since our score does not need to be an integer.
         double tieBreaker = candidate.getScanRssi() / 1000.0;
-        return new ScoredCandidate(score + tieBreaker, 10, candidate);
+        return new ScoredCandidate(score + tieBreaker, 10,
+                                   USE_USER_CONNECT_CHOICE, candidate);
     }
 
     @Override
-    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group) {
+    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> candidates) {
         ScoredCandidate choice = ScoredCandidate.NONE;
-        for (Candidate candidate : group) {
+        for (Candidate candidate : candidates) {
             ScoredCandidate scoredCandidate = scoreCandidate(candidate);
             if (scoredCandidate.value > choice.value) {
                 choice = scoredCandidate;
@@ -110,11 +113,6 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
         // Here we just return the highest scored candidate; we could
         // compute a new score, if desired.
         return choice;
-    }
-
-    @Override
-    public boolean userConnectChoiceOverrideWanted() {
-        return true;
     }
 
 }

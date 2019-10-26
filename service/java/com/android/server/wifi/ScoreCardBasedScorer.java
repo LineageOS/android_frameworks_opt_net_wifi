@@ -64,6 +64,8 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
     // Maximum allowable adjustment of the cutoff rssi (dB)
     public static final int RSSI_RAIL = 5;
 
+    private static final boolean USE_USER_CONNECT_CHOICE = true;
+
     ScoreCardBasedScorer(ScoringParams scoringParams) {
         mScoringParams = scoringParams;
     }
@@ -99,7 +101,8 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         // which evaluator added the candidate.
         score -= 1000 * candidate.getEvaluatorId();
 
-        return new ScoredCandidate(score, 10, candidate);
+        return new ScoredCandidate(score, 10,
+                                   USE_USER_CONNECT_CHOICE, candidate);
     }
 
     private int estimatedCutoff(Candidate candidate) {
@@ -121,9 +124,9 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
     }
 
     @Override
-    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> group) {
+    public ScoredCandidate scoreCandidates(@NonNull Collection<Candidate> candidates) {
         ScoredCandidate choice = ScoredCandidate.NONE;
-        for (Candidate candidate : group) {
+        for (Candidate candidate : candidates) {
             ScoredCandidate scoredCandidate = scoreCandidate(candidate);
             if (scoredCandidate.value > choice.value) {
                 choice = scoredCandidate;
@@ -132,11 +135,6 @@ final class ScoreCardBasedScorer implements WifiCandidates.CandidateScorer {
         // Here we just return the highest scored candidate; we could
         // compute a new score, if desired.
         return choice;
-    }
-
-    @Override
-    public boolean userConnectChoiceOverrideWanted() {
-        return true;
     }
 
 }

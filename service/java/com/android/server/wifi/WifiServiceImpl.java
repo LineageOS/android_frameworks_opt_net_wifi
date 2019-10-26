@@ -59,6 +59,7 @@ import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiActivityEnergyInfo;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -321,10 +322,6 @@ public class WifiServiceImpl extends BaseWifiService {
                     public void onReceive(Context context, Intent intent) {
                         if (mSettingsStore.handleAirplaneModeToggled()) {
                             mActiveModeWarden.airplaneModeToggled();
-                        }
-                        if (mSettingsStore.isAirplaneModeOn()) {
-                            Log.d(TAG, "resetting country code because Airplane mode is ON");
-                            mCountryCode.airplaneModeEnabled();
                         }
                     }
                 },
@@ -835,7 +832,7 @@ public class WifiServiceImpl extends BaseWifiService {
          */
         private final Object mLock = new Object();
         private int mTetheredSoftApState = WIFI_AP_STATE_DISABLED;
-        private int mTetheredSoftApNumClients = 0;
+        private List<WifiClient> mTetheredSoftApConnectedClients = new ArrayList<>();
 
         public int getState() {
             synchronized (mLock) {
@@ -852,8 +849,8 @@ public class WifiServiceImpl extends BaseWifiService {
             }
         }
 
-        public int getNumClients() {
-            return mTetheredSoftApNumClients;
+        public List<WifiClient> getConnectedClients() {
+            return mTetheredSoftApConnectedClients;
         }
 
         private final ExternalCallbackTracker<ISoftApCallback> mRegisteredSoftApCallbacks =
@@ -898,22 +895,22 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         /**
-         * Called when number of connected clients to soft AP changes.
+         * Called when the connected clients to soft AP changes.
          *
-         * @param numClients number of connected clients to soft AP
+         * @param clients connected clients to soft AP
          */
         @Override
-        public void onNumClientsChanged(int numClients) {
-            mTetheredSoftApNumClients = numClients;
+        public void onConnectedClientsChanged(List<WifiClient> clients) {
+            mTetheredSoftApConnectedClients = new ArrayList<>(clients);
 
             Iterator<ISoftApCallback> iterator =
                     mRegisteredSoftApCallbacks.getCallbacks().iterator();
             while (iterator.hasNext()) {
                 ISoftApCallback callback = iterator.next();
                 try {
-                    callback.onNumClientsChanged(numClients);
+                    callback.onConnectedClientsChanged(mTetheredSoftApConnectedClients);
                 } catch (RemoteException e) {
-                    Log.e(TAG, "onNumClientsChanged: remote exception -- " + e);
+                    Log.e(TAG, "onConnectedClientsChanged: remote exception -- " + e);
                     // TODO(b/138863863) remove does nothing, getCallbacks() returns a copy
                     iterator.remove();
                 }
@@ -1214,8 +1211,9 @@ public class WifiServiceImpl extends BaseWifiService {
                 mLohsState = state;
             }
         }
+
         @Override
-        public void onNumClientsChanged(int numClients) {
+        public void onConnectedClientsChanged(List<WifiClient> clients) {
             // Nothing to do
         }
     }
@@ -1258,7 +1256,7 @@ public class WifiServiceImpl extends BaseWifiService {
             // Update the client about the current state immediately after registering the callback
             try {
                 callback.onStateChanged(mTetheredSoftApTracker.getState(), 0);
-                callback.onNumClientsChanged(mTetheredSoftApTracker.getNumClients());
+                callback.onConnectedClientsChanged(mTetheredSoftApTracker.getConnectedClients());
             } catch (RemoteException e) {
                 Log.e(TAG, "registerSoftApCallback: remote exception -- " + e);
             }
@@ -2023,6 +2021,21 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
+     * See {@link android.net.wifi.WifiManager#allowAutojoin(int, boolean)}
+     * @param netId the integer that identifies the network configuration
+     * @param choice the user's choice to allow auto-join
+     */
+    @Override
+    public void allowAutojoin(int netId, boolean choice) {
+        enforceNetworkSettingsPermission();
+
+        int callingUid = Binder.getCallingUid();
+        mLog.info("allowAutojoin=% uid=%").c(choice).c(callingUid).flush();
+        mWifiThreadRunner.post(
+                () -> mWifiConfigManager.allowAutojoin(netId, choice));
+    }
+
+    /**
      * See {@link android.net.wifi.WifiManager#getConnectionInfo()}
      * @return the Wi-Fi information, contained in {@link WifiInfo}.
      */
@@ -2155,7 +2168,7 @@ public class WifiServiceImpl extends BaseWifiService {
         final boolean privilegedFinal = privileged;
         return mWifiThreadRunner.call(
             () -> mPasspointManager.getProviderConfigs(uid, privilegedFinal),
-                Collections.emptyList());
+            Collections.emptyList());
     }
 
     /**

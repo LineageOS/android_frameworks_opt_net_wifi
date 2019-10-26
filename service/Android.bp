@@ -104,7 +104,7 @@ java_library {
         "android.hardware.wifi.supplicant-V1.3-java",
         "android.hidl.manager-V1.2-java",
         "androidx.annotation_annotation",
-	"bouncycastle-unbundled",
+        "bouncycastle-unbundled",
         "wifi_service_proto",
         "ksoap2",
         "libnanohttpd",
@@ -113,6 +113,11 @@ java_library {
         "services.wifi",
         "libwificond_aidl-java",
     ],
+}
+
+filegroup {
+    name: "wifi-jarjar-rules",
+    srcs: [ "jarjar-rules-shared.txt"]
 }
 
 java_defaults {
@@ -126,7 +131,7 @@ java_defaults {
     ],
     // Resources already included in wifi-service
     resource_dirs: [],
-    jarjar_rules: "jarjar-rules-shared.txt",
+    jarjar_rules: ":wifi-jarjar-rules",
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },

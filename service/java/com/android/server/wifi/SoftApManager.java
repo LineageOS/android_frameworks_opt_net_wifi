@@ -26,6 +26,7 @@ import android.content.Intent;
 import android.database.ContentObserver;
 import android.net.MacAddress;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
@@ -46,11 +47,14 @@ import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.WifiNative.InterfaceCallback;
 import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.util.ApConfigUtil;
+import com.android.server.wifi.wificond.NativeWifiClient;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -92,7 +96,7 @@ public class SoftApManager implements ActiveModeManager {
     private int mReportedFrequency = -1;
     private int mReportedBandwidth = -1;
 
-    private int mNumAssociatedStations = 0;
+    private List<WifiClient> mConnectedClients = new ArrayList<>();
     private boolean mTimeoutEnabled = false;
 
     private final SarManager mSarManager;
@@ -114,9 +118,9 @@ public class SoftApManager implements ActiveModeManager {
         }
 
         @Override
-        public void onNumAssociatedStationsChanged(int numStations) {
-            mStateMachine.sendMessage(
-                    SoftApStateMachine.CMD_NUM_ASSOCIATED_STATIONS_CHANGED, numStations);
+        public void onConnectedClientsChanged(List<NativeWifiClient> clients) {
+            mStateMachine.sendMessage(SoftApStateMachine.CMD_ASSOCIATED_STATIONS_CHANGED,
+                    clients);
         }
 
         @Override
@@ -203,7 +207,7 @@ public class SoftApManager implements ActiveModeManager {
         pw.println("mApConfig.wifiConfiguration.SSID: " + wifiConfig.SSID);
         pw.println("mApConfig.wifiConfiguration.apBand: " + wifiConfig.apBand);
         pw.println("mApConfig.wifiConfiguration.hiddenSSID: " + wifiConfig.hiddenSSID);
-        pw.println("mNumAssociatedStations: " + mNumAssociatedStations);
+        pw.println("mConnectedClients.size(): " + mConnectedClients.size());
         pw.println("mTimeoutEnabled: " + mTimeoutEnabled);
         pw.println("mReportedFrequency: " + mReportedFrequency);
         pw.println("mReportedBandwidth: " + mReportedBandwidth);
@@ -223,9 +227,10 @@ public class SoftApManager implements ActiveModeManager {
 
     /**
      * Update AP state.
-     * @param newState new AP state
+     *
+     * @param newState     new AP state
      * @param currentState current AP state
-     * @param reason Failure reason if the new AP state is in failure state
+     * @param reason       Failure reason if the new AP state is in failure state
      */
     private void updateApState(int newState, int currentState, int reason) {
         mSoftApCallback.onStateChanged(newState, reason);
@@ -363,7 +368,7 @@ public class SoftApManager implements ActiveModeManager {
         public static final int CMD_START = 0;
         public static final int CMD_FAILURE = 2;
         public static final int CMD_INTERFACE_STATUS_CHANGED = 3;
-        public static final int CMD_NUM_ASSOCIATED_STATIONS_CHANGED = 4;
+        public static final int CMD_ASSOCIATED_STATIONS_CHANGED = 4;
         public static final int CMD_NO_ASSOCIATED_STATIONS_TIMEOUT = 5;
         public static final int CMD_TIMEOUT_TOGGLE_CHANGED = 6;
         public static final int CMD_INTERFACE_DESTROYED = 7;
@@ -439,8 +444,8 @@ public class SoftApManager implements ActiveModeManager {
                                 failureReason = WifiManager.SAP_START_FAILURE_NO_CHANNEL;
                             }
                             updateApState(WifiManager.WIFI_AP_STATE_FAILED,
-                                          WifiManager.WIFI_AP_STATE_ENABLING,
-                                          failureReason);
+                                    WifiManager.WIFI_AP_STATE_ENABLING,
+                                    failureReason);
                             stopSoftAp();
                             mWifiMetrics.incrementSoftApStartResult(false, failureReason);
                             mModeListener.onStartFailure();
@@ -463,8 +468,8 @@ public class SoftApManager implements ActiveModeManager {
             private SoftApTimeoutEnabledSettingObserver mSettingObserver;
 
             /**
-            * Observer for timeout settings changes.
-            */
+             * Observer for timeout settings changes.
+             */
             private class SoftApTimeoutEnabledSettingObserver extends ContentObserver {
                 SoftApTimeoutEnabledSettingObserver(Handler handler) {
                     super(handler);
@@ -520,35 +525,61 @@ public class SoftApManager implements ActiveModeManager {
             }
 
             /**
-             * Set number of stations associated with this soft AP
-             * @param numStations Number of connected stations
+             * Set stations associated with this soft AP
+             * @param clients The connected stations
              */
-            private void setNumAssociatedStations(int numStations) {
-                if (mNumAssociatedStations == numStations) {
+            private void setConnectedClients(List<NativeWifiClient> clients) {
+                if (clients == null) {
                     return;
                 }
-                mNumAssociatedStations = numStations;
-                Log.d(TAG, "Number of associated stations changed: " + mNumAssociatedStations);
+
+                List<WifiClient> convertedClients = createWifiClients(clients);
+                if (mConnectedClients.equals(convertedClients)) {
+                    return;
+                }
+
+                mConnectedClients = new ArrayList<>(convertedClients);
+                Log.d(TAG, "The connected wifi stations have changed with count: "
+                        + clients.size());
 
                 if (mSoftApCallback != null) {
-                    mSoftApCallback.onNumClientsChanged(mNumAssociatedStations);
+                    mSoftApCallback.onConnectedClientsChanged(mConnectedClients);
                 } else {
-                    Log.e(TAG, "SoftApCallback is null. Dropping NumClientsChanged event.");
+                    Log.e(TAG,
+                            "SoftApCallback is null. Dropping ConnectedClientsChanged event."
+                    );
                 }
-                mWifiMetrics.addSoftApNumAssociatedStationsChangedEvent(
-                        mNumAssociatedStations, mApConfig.getTargetMode());
 
-                if (mNumAssociatedStations == 0) {
+                mWifiMetrics.addSoftApNumAssociatedStationsChangedEvent(
+                        mConnectedClients.size(), mApConfig.getTargetMode());
+
+                if (mConnectedClients.size() == 0) {
                     scheduleTimeoutMessage();
                 } else {
                     cancelTimeoutMessage();
                 }
             }
 
+            private List<WifiClient> createWifiClients(List<NativeWifiClient> nativeClients) {
+                List<WifiClient> clients = new ArrayList<>();
+                if (nativeClients == null || nativeClients.size() == 0) {
+                    return clients;
+                }
+
+                for (int i = 0; i < nativeClients.size(); i++) {
+                    MacAddress macAddress = MacAddress.fromBytes(nativeClients.get(i).macAddress);
+                    WifiClient client = new WifiClient(macAddress);
+                    clients.add(client);
+                }
+
+                return clients;
+            }
+
             private void onUpChanged(boolean isUp) {
                 if (isUp == mIfaceIsUp) {
                     return;  // no change
                 }
+
                 mIfaceIsUp = isUp;
                 if (isUp) {
                     Log.d(TAG, "SoftAp is ready for use");
@@ -557,7 +588,7 @@ public class SoftApManager implements ActiveModeManager {
                     mModeListener.onStarted();
                     mWifiMetrics.incrementSoftApStartResult(true, 0);
                     if (mSoftApCallback != null) {
-                        mSoftApCallback.onNumClientsChanged(mNumAssociatedStations);
+                        mSoftApCallback.onConnectedClientsChanged(mConnectedClients);
                     }
                 } else {
                     // the interface was up, but goes down
@@ -585,8 +616,8 @@ public class SoftApManager implements ActiveModeManager {
 
                 mSarManager.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
 
-                Log.d(TAG, "Resetting num stations on start");
-                mNumAssociatedStations = 0;
+                Log.d(TAG, "Resetting connected clients on start");
+                mConnectedClients = new ArrayList<>();
                 scheduleTimeoutMessage();
             }
 
@@ -600,7 +631,7 @@ public class SoftApManager implements ActiveModeManager {
                     mSettingObserver.unregister();
                 }
                 Log.d(TAG, "Resetting num stations on stop");
-                setNumAssociatedStations(0);
+                setConnectedClients(new ArrayList<>());
                 cancelTimeoutMessage();
                 // Need this here since we are exiting |Started| state and won't handle any
                 // future CMD_INTERFACE_STATUS_CHANGED events after this point
@@ -620,9 +651,9 @@ public class SoftApManager implements ActiveModeManager {
                 int band = mApConfig.getWifiConfiguration().apBand;
                 boolean bandPreferenceViolated =
                         (band == WifiConfiguration.AP_BAND_2GHZ
-                            && ScanResult.is5GHz(mReportedFrequency))
-                        || (band == WifiConfiguration.AP_BAND_5GHZ
-                            && ScanResult.is24GHz(mReportedFrequency));
+                                && ScanResult.is5GHz(mReportedFrequency))
+                                || (band == WifiConfiguration.AP_BAND_5GHZ
+                                && ScanResult.is24GHz(mReportedFrequency));
                 if (bandPreferenceViolated) {
                     Log.e(TAG, "Channel does not satisfy user band preference: "
                             + mReportedFrequency);
@@ -633,13 +664,16 @@ public class SoftApManager implements ActiveModeManager {
             @Override
             public boolean processMessage(Message message) {
                 switch (message.what) {
-                    case CMD_NUM_ASSOCIATED_STATIONS_CHANGED:
-                        if (message.arg1 < 0) {
-                            Log.e(TAG, "Invalid number of associated stations: " + message.arg1);
+                    case CMD_ASSOCIATED_STATIONS_CHANGED:
+                        if (!(message.obj instanceof List)) {
+                            Log.e(TAG, "Invalid type returned for"
+                                    + " CMD_ASSOCIATED_STATIONS_CHANGED");
                             break;
                         }
-                        Log.d(TAG, "Setting num stations on CMD_NUM_ASSOCIATED_STATIONS_CHANGED");
-                        setNumAssociatedStations(message.arg1);
+
+                        Log.d(TAG, "Setting connected stations on"
+                                + " CMD_ASSOCIATED_STATIONS_CHANGED");
+                        setConnectedClients((List<NativeWifiClient>) message.obj);
                         break;
                     case CMD_SOFT_AP_CHANNEL_SWITCHED:
                         mReportedFrequency = message.arg1;
@@ -659,7 +693,7 @@ public class SoftApManager implements ActiveModeManager {
                         if (!mTimeoutEnabled) {
                             cancelTimeoutMessage();
                         }
-                        if (mTimeoutEnabled && mNumAssociatedStations == 0) {
+                        if (mTimeoutEnabled && mConnectedClients.size() == 0) {
                             scheduleTimeoutMessage();
                         }
                         break;
@@ -676,7 +710,7 @@ public class SoftApManager implements ActiveModeManager {
                                     + " Dropping.");
                             break;
                         }
-                        if (mNumAssociatedStations != 0) {
+                        if (mConnectedClients.size() != 0) {
                             Log.wtf(TAG, "Timeout message received but has clients. Dropping.");
                             break;
                         }

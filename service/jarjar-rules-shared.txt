@@ -18,4 +18,4 @@ rule android.util.proto.ProtoStream* com.android.server.wifi.util.proto.ProtoStr
 rule android.util.proto.ProtoOutputStream* com.android.server.wifi.util.proto.ProtoOutputStream@1
 
 # Use our statically linked bouncy castle version
-rule com.android.org.bouncycastle.asn1** com.android.server.wifi.bouncycastle.asn1@1
+rule org.bouncycastle.** com.android.server.wifi.bouncycastle.@1

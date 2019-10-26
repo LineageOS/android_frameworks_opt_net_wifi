@@ -767,12 +767,14 @@ public class PasspointManager {
         }
         Pair<PasspointProvider, PasspointMatch> bestMatch = null;
         for (Pair<PasspointProvider, PasspointMatch> match : allMatches) {
-            if (match.second == PasspointMatch.HomeProvider) {
-                bestMatch = match;
-                break;
-            }
-            if (match.second == PasspointMatch.RoamingProvider && bestMatch == null) {
-                bestMatch = match;
+            if (!isExpired(match.first.getConfig())) {
+                if (match.second == PasspointMatch.HomeProvider) {
+                    bestMatch = match;
+                    break;
+                }
+                if (match.second == PasspointMatch.RoamingProvider && bestMatch == null) {
+                    bestMatch = match;
+                }
             }
         }
         if (bestMatch != null) {
@@ -1208,5 +1210,29 @@ public class PasspointManager {
     public boolean startSubscriptionProvisioning(int callingUid, OsuProvider provider,
             IProvisioningCallback callback) {
         return mPasspointProvisioner.startSubscriptionProvisioning(callingUid, provider, callback);
+    }
+
+    /**
+     * Check if a Passpoint configuration is expired
+     *
+     * @param config {@link PasspointConfiguration} Passpoint configuration
+     * @return True if the configuration is expired, false if not or expiration is unset
+     */
+    private boolean isExpired(@NonNull PasspointConfiguration config) {
+        long expirationTime = config.getSubscriptionExpirationTimeInMillis();
+
+        if (expirationTime != Long.MIN_VALUE) {
+            long curTime = System.currentTimeMillis();
+
+            // Check expiration and return true for expired profiles
+            if (curTime >= expirationTime) {
+                Log.d(TAG, "Profile for " + config.getServiceFriendlyName() + " has expired, "
+                        + "expiration time: " + expirationTime + ", current time: "
+                        + curTime);
+                return true;
+            }
+        }
+
+        return false;
     }
 }
