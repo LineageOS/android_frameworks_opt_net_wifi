@@ -17,10 +17,8 @@
 package com.android.server.wifi;
 
 import android.os.BatteryStats;
-import android.os.RemoteException;
+import android.os.BatteryStatsManager;
 import android.util.Log;
-
-import com.android.internal.app.IBatteryStats;
 
 import java.util.concurrent.RejectedExecutionException;
 
@@ -36,9 +34,9 @@ public class WifiStateTracker {
     public static final int CONNECTED = 3;
     public static final int SOFT_AP = 4;
     private int mWifiState;
-    private IBatteryStats mBatteryStats;
+    private BatteryStatsManager mBatteryStats;
 
-    public WifiStateTracker(IBatteryStats stats) {
+    public WifiStateTracker(BatteryStatsManager stats) {
         mWifiState = INVALID;
         mBatteryStats = stats;
     }
@@ -46,8 +44,6 @@ public class WifiStateTracker {
     private void informWifiStateBatteryStats(int state) {
         try {
             mBatteryStats.noteWifiState(state, null);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Battery stats unreachable " + e.getMessage());
         } catch (RejectedExecutionException e) {
             Log.e(TAG, "Battery stats executor is being shutdown " + e.getMessage());
         }

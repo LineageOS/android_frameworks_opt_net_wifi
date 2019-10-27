@@ -30,7 +30,7 @@ import android.net.wifi.IWifiScanner;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
-import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -46,10 +46,8 @@ import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
 import com.android.internal.R;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.os.PowerProfile;
 import com.android.server.am.ActivityManagerService;
-import com.android.server.am.BatteryStatsService;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
@@ -80,7 +78,8 @@ public class WifiInjector {
     static WifiInjector sWifiInjector = null;
 
     private final Context mContext;
-    private final FrameworkFacade mFrameworkFacade = new FrameworkFacade();
+    private final BatteryStatsManager mBatteryStats;
+    private final FrameworkFacade mFrameworkFacade;
     private final DeviceConfigFacade mDeviceConfigFacade;
     private final UserManager mUserManager;
     private final HandlerThread mAsyncChannelHandlerThread;
@@ -137,7 +136,6 @@ public class WifiInjector {
     private HandlerThread mWifiAwareHandlerThread;
     private HandlerThread mRttHandlerThread;
     private HalDeviceManager mHalDeviceManager;
-    private final IBatteryStats mBatteryStats;
     private final WifiStateTracker mWifiStateTracker;
     private final SelfRecovery mSelfRecovery;
     private final WakeupController mWakeupController;
@@ -167,7 +165,9 @@ public class WifiInjector {
 
         sWifiInjector = this;
 
+        mFrameworkFacade = new FrameworkFacade();
         mContext = context;
+        mBatteryStats = context.getSystemService(BatteryStatsManager.class);
         mWifiScoreCard = new WifiScoreCard(mClock,
                 Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID));
         mSettingsStore = new WifiSettingsStore(mContext);
@@ -180,8 +180,6 @@ public class WifiInjector {
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
                 mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
-        mBatteryStats = IBatteryStats.Stub.asInterface(mFrameworkFacade.getService(
-                BatteryStats.SERVICE_NAME));
         mWifiStateTracker = new WifiStateTracker(mBatteryStats);
         // Now create and start handler threads
         mAsyncChannelHandlerThread = new HandlerThread("AsyncChannelHandlerThread");
@@ -202,7 +200,8 @@ public class WifiInjector {
         mWifiP2pMetrics = new WifiP2pMetrics(mClock);
         mDppMetrics = new DppMetrics();
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, wifiLooper,
-                awareMetrics, rttMetrics, new WifiPowerMetrics(), mWifiP2pMetrics, mDppMetrics);
+                awareMetrics, rttMetrics, new WifiPowerMetrics(mBatteryStats), mWifiP2pMetrics,
+                mDppMetrics);
         mDeviceConfigFacade = new DeviceConfigFacade(mContext, wifiHandler, mWifiMetrics);
         // Modules interacting with Native.
         mWifiMonitor = new WifiMonitor(this);
@@ -302,15 +301,17 @@ public class WifiInjector {
         mWifiMetrics.setWifiDataStall(mWifiDataStall);
         mLinkProbeManager = new LinkProbeManager(mClock, mWifiNative, mWifiMetrics,
                 mFrameworkFacade, wifiHandler, mContext);
+        SupplicantStateTracker supplicantStateTracker = new SupplicantStateTracker(
+                mContext, mWifiConfigManager, mBatteryStats, wifiHandler);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 wifiLooper, mUserManager,
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
-                mSarManager, mWifiTrafficPoller, mLinkProbeManager);
+                mSarManager, mWifiTrafficPoller, mLinkProbeManager, mBatteryStats,
+                supplicantStateTracker);
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
                 mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
                 mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);
-
         WakeupNotificationFactory wakeupNotificationFactory =
                 new WakeupNotificationFactory(mContext, this, mFrameworkFacade);
         WakeupOnboarding wakeupOnboarding = new WakeupOnboarding(mContext, mWifiConfigManager,
@@ -320,12 +321,11 @@ public class WifiInjector {
                 new WakeupEvaluator(mScoringParams), wakeupOnboarding, mWifiConfigManager,
                 mWifiConfigStore, mWifiNetworkSuggestionsManager, mWifiMetrics.getWakeupMetrics(),
                 this, mFrameworkFacade, mClock);
-        mLockManager = new WifiLockManager(mContext, BatteryStatsService.getService(),
+        mLockManager = new WifiLockManager(mContext, mBatteryStats,
                 mClientModeImpl, mFrameworkFacade, wifiHandler, mWifiNative, mClock, mWifiMetrics);
         mSelfRecovery = new SelfRecovery(mActiveModeWarden, mClock);
         mWifiMulticastLockManager = new WifiMulticastLockManager(
-                mClientModeImpl.getMcastLockManagerFilterController(),
-                BatteryStatsService.getService());
+                mClientModeImpl.getMcastLockManagerFilterController(), mBatteryStats);
         mDppManager = new DppManager(wifiHandler, mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
 

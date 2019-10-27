@@ -16,25 +16,26 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_LOCAL_ONLY;
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_TETHERED;
+
 import android.annotation.NonNull;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
-import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.RemoteException;
 import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
 import com.android.internal.util.Protocol;
@@ -67,7 +68,7 @@ public class ActiveModeWarden {
     private final WifiSettingsStore mSettingsStore;
     private final FrameworkFacade mFacade;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStatsManager;
     private final ScanRequestProxy mScanRequestProxy;
     private final WifiController mWifiController;
 
@@ -93,7 +94,7 @@ public class ActiveModeWarden {
                      Looper looper,
                      WifiNative wifiNative,
                      DefaultModeManager defaultModeManager,
-                     IBatteryStats batteryStats,
+                     BatteryStatsManager batteryStatsManager,
                      BaseWifiDiagnostics wifiDiagnostics,
                      Context context,
                      ClientModeImpl clientModeImpl,
@@ -110,7 +111,7 @@ public class ActiveModeWarden {
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mActiveModeManagers = new ArraySet<>();
         mDefaultModeManager = defaultModeManager;
-        mBatteryStats = batteryStats;
+        mBatteryStatsManager = batteryStatsManager;
         mScanRequestProxy = wifiInjector.getScanRequestProxy();
         mWifiController = new WifiController();
 
@@ -191,26 +192,57 @@ public class ActiveModeWarden {
         return !mActiveModeManagers.isEmpty();
     }
 
-    private boolean hasAnyClientModeManager() {
+    /**
+     * @return true if any mode managers in specified role.
+     */
+    private boolean hasAnyModeManagerInRole(@ActiveModeManager.Role int role) {
         for (ActiveModeManager manager : mActiveModeManagers) {
-            if (manager instanceof ClientModeManager) return true;
+            if (manager.getRole() == role) return true;
         }
         return false;
     }
 
     /**
-     * @return true if all client mode managers are in scan mode,
-     * false if there are no client mode managers present or if any of them are not in scan mode.
+     * @return true if any mode managers in one of the specified roles.
      */
-    private boolean areAllClientModeManagersInScanMode() {
+    private boolean hasAnyModeManagerInOneOfRoles(List<Integer> rolesList) {
+        for (ActiveModeManager manager : mActiveModeManagers) {
+            if (rolesList.contains(manager.getRole())) return true;
+        }
+        return false;
+    }
+
+    private boolean hasAnyClientModeManager() {
+        return hasAnyModeManagerInOneOfRoles(ActiveModeManager.CLIENT_ROLES);
+    }
+
+    private boolean hasAnyClientModeManagerInConnectivityRole() {
+        return hasAnyModeManagerInOneOfRoles(ActiveModeManager.CLIENT_CONNECTIVITY_ROLES);
+    }
+
+    private boolean hasAnySoftApManager() {
+        return hasAnyModeManagerInOneOfRoles(ActiveModeManager.SOFTAP_ROLES);
+    }
+
+    /**
+     * @return true if all the client mode managers are in scan only role,
+     * false if there are no client mode managers present or if any of them are not in scan only
+     * role.
+     */
+    private boolean areAllClientModeManagersInScanOnlyRole() {
         boolean hasAnyClientModeManager = false;
         for (ActiveModeManager manager : mActiveModeManagers) {
-            if (!(manager instanceof ClientModeManager)) continue;
-            ClientModeManager clientModeManager = (ClientModeManager) manager;
-            hasAnyClientModeManager = true;
-            if (!clientModeManager.isInScanOnlyMode()) return false;
+            if (ActiveModeManager.CLIENT_ROLES.contains(manager.getRole())) {
+                hasAnyClientModeManager = true;
+                if (manager.getRole() != ActiveModeManager.ROLE_CLIENT_SCAN_ONLY) return false;
+            }
         }
         return hasAnyClientModeManager;
+    }
+
+    private @ActiveModeManager.Role int getRoleForSoftApIpMode(int ipMode) {
+        return ipMode == IFACE_IP_MODE_TETHERED
+                ? ActiveModeManager.ROLE_SOFTAP_TETHERED : ActiveModeManager.ROLE_SOFTAP_LOCAL_ONLY;
     }
 
     /**
@@ -225,13 +257,18 @@ public class ActiveModeWarden {
     private void startSoftApModeManager(@NonNull SoftApModeConfiguration softApConfig) {
         Log.d(TAG, "Starting SoftApModeManager config = "
                 + softApConfig.getWifiConfiguration());
+        Preconditions.checkState(softApConfig.getTargetMode() == IFACE_IP_MODE_LOCAL_ONLY
+                || softApConfig.getTargetMode() == IFACE_IP_MODE_TETHERED);
 
-        SoftApCallbackImpl callback = new SoftApCallbackImpl(softApConfig.getTargetMode());
+        WifiManager.SoftApCallback callback =
+                softApConfig.getTargetMode() == IFACE_IP_MODE_LOCAL_ONLY
+                        ? mLohsCallback : mSoftApCallback;
         SoftApListener listener = new SoftApListener();
         ActiveModeManager manager =
                 mWifiInjector.makeSoftApManager(listener, callback, softApConfig);
         listener.setActiveModeManager(manager);
         manager.start();
+        manager.setRole(getRoleForSoftApIpMode(softApConfig.getTargetMode()));
         mActiveModeManagers.add(manager);
     }
 
@@ -240,22 +277,21 @@ public class ActiveModeWarden {
      *
      * This method will stop any active softAp mode managers.
      *
-     * @param mode the operating mode of APs to bring down (ex,
+     * @param ipMode the operating mode of APs to bring down (ex,
      *             {@link WifiManager#IFACE_IP_MODE_TETHERED} or
      *             {@link WifiManager#IFACE_IP_MODE_LOCAL_ONLY}).
      *             Use {@link WifiManager#IFACE_IP_MODE_UNSPECIFIED} to stop all APs.
      */
-    private void stopSoftApModeManagers(int mode) {
-        Log.d(TAG, "Shutting down all softap mode managers in mode " + mode);
+    private void stopSoftApModeManagers(int ipMode) {
+        Log.d(TAG, "Shutting down all softap mode managers in mode " + ipMode);
         for (ActiveModeManager manager : mActiveModeManagers) {
             if (!(manager instanceof SoftApManager)) continue;
             SoftApManager softApManager = (SoftApManager) manager;
 
-            if (mode != WifiManager.IFACE_IP_MODE_UNSPECIFIED
-                    && mode != softApManager.getIpMode()) {
-                continue;
+            if (ipMode == WifiManager.IFACE_IP_MODE_UNSPECIFIED
+                    || getRoleForSoftApIpMode(ipMode) == softApManager.getRole()) {
+                softApManager.stop();
             }
-            softApManager.stop();
         }
     }
 
@@ -268,7 +304,7 @@ public class ActiveModeWarden {
         ClientModeManager manager = mWifiInjector.makeClientModeManager(listener);
         listener.setActiveModeManager(manager);
         manager.start();
-        if (!switchClientMode(manager)) {
+        if (!switchClientModeManagerRole(manager)) {
             return false;
         }
         mActiveModeManagers.add(manager);
@@ -296,7 +332,7 @@ public class ActiveModeWarden {
         for (ActiveModeManager manager : mActiveModeManagers) {
             if (!(manager instanceof ClientModeManager)) continue;
             ClientModeManager clientModeManager = (ClientModeManager) manager;
-            if (!switchClientMode(clientModeManager)) {
+            if (!switchClientModeManagerRole(clientModeManager)) {
                 return false;
             }
         }
@@ -308,11 +344,11 @@ public class ActiveModeWarden {
      * Method to switch a client mode manager mode of operation (from ScanOnly To Connect &
      * vice-versa) based on the toggle state.
      */
-    private boolean switchClientMode(@NonNull ClientModeManager modeManager) {
+    private boolean switchClientModeManagerRole(@NonNull ClientModeManager modeManager) {
         if (mSettingsStore.isWifiToggleEnabled()) {
-            modeManager.switchToConnectMode();
+            modeManager.setRole(ActiveModeManager.ROLE_CLIENT_PRIMARY);
         } else if (checkScanOnlyModeAvailable()) {
-            modeManager.switchToScanOnlyMode();
+            modeManager.setRole(ActiveModeManager.ROLE_CLIENT_SCAN_ONLY);
         } else {
             Log.e(TAG, "Something is wrong, no client mode toggles enabled");
             return false;
@@ -339,10 +375,10 @@ public class ActiveModeWarden {
         pw.println("Dump of " + TAG);
         pw.println("Current wifi mode: " + getCurrentMode());
         pw.println("NumActiveModeManagers: " + mActiveModeManagers.size());
+        mWifiController.dump(fd, pw, args);
         for (ActiveModeManager manager : mActiveModeManagers) {
             manager.dump(fd, pw, args);
         }
-        mWifiController.dump(fd, pw, args);
     }
 
     @VisibleForTesting
@@ -377,47 +413,9 @@ public class ActiveModeWarden {
         }
     }
 
-    private class SoftApCallbackImpl implements WifiManager.SoftApCallback {
-        private final int mMode;
-
-        SoftApCallbackImpl(int mode) {
-            Preconditions.checkArgument(mode == WifiManager.IFACE_IP_MODE_TETHERED
-                    || mode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
-            mMode = mode;
-        }
-
-        @Override
-        public void onStateChanged(int state, int reason) {
-            switch (mMode) {
-                case WifiManager.IFACE_IP_MODE_TETHERED:
-                    if (mSoftApCallback != null) mSoftApCallback.onStateChanged(state, reason);
-                    break;
-                case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
-                    if (mLohsCallback != null) mLohsCallback.onStateChanged(state, reason);
-                    break;
-            }
-        }
-
-        @Override
-        public void onConnectedClientsChanged(List<WifiClient> clients) {
-            switch (mMode) {
-                case WifiManager.IFACE_IP_MODE_TETHERED:
-                    if (mSoftApCallback != null) {
-                        mSoftApCallback.onConnectedClientsChanged(clients);
-                    }
-                    break;
-                case WifiManager.IFACE_IP_MODE_LOCAL_ONLY:
-                    if (mLohsCallback != null) {
-                        mLohsCallback.onConnectedClientsChanged(clients);
-                    }
-                    break;
-            }
-        }
-    }
-
     private void updateBatteryStats() {
         updateBatteryStatsWifiState(hasAnyModeManager());
-        if (areAllClientModeManagersInScanMode()) {
+        if (areAllClientModeManagersInScanOnlyRole()) {
             updateBatteryStatsScanModeActive();
         }
     }
@@ -446,14 +444,14 @@ public class ActiveModeWarden {
     private class ClientListener extends ModeCallback implements ActiveModeManager.Listener {
         @Override
         public void onStarted() {
-            updateScanMode();
+            updateClientScanMode();
             updateBatteryStats();
         }
 
         @Override
         public void onStopped() {
             mActiveModeManagers.remove(getActiveModeManager());
-            updateScanMode();
+            updateClientScanMode();
             updateBatteryStats();
             mWifiController.sendMessage(WifiController.CMD_STA_STOPPED);
         }
@@ -461,30 +459,16 @@ public class ActiveModeWarden {
         @Override
         public void onStartFailure() {
             mActiveModeManagers.remove(getActiveModeManager());
-            updateScanMode();
+            updateClientScanMode();
             updateBatteryStats();
             mWifiController.sendMessage(WifiController.CMD_STA_START_FAILURE);
         }
     }
 
     // Update the scan state based on all active mode managers.
-    private void updateScanMode() {
-        boolean scanEnabled = false;
-        boolean scanningForHiddenNetworksEnabled = false;
-        for (ActiveModeManager modeManager : mActiveModeManagers) {
-            @ActiveModeManager.ScanMode int scanState = modeManager.getScanMode();
-            switch (scanState) {
-                case ActiveModeManager.SCAN_NONE:
-                    break;
-                case ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETWORKS:
-                    scanEnabled = true;
-                    break;
-                case ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS:
-                    scanEnabled = true;
-                    scanningForHiddenNetworksEnabled = true;
-                    break;
-            }
-        }
+    private void updateClientScanMode() {
+        boolean scanEnabled = hasAnyClientModeManager();
+        boolean scanningForHiddenNetworksEnabled = hasAnyClientModeManagerInConnectivityRole();
         mScanRequestProxy.enableScanning(scanEnabled, scanningForHiddenNetworksEnabled);
     }
 
@@ -494,29 +478,21 @@ public class ActiveModeWarden {
      *  @param enabled boolean indicating that some mode has been turned on or off
      */
     private void updateBatteryStatsWifiState(boolean enabled) {
-        try {
-            if (enabled) {
-                if (mActiveModeManagers.size() == 1) {
-                    // only report wifi on if we haven't already
-                    mBatteryStats.noteWifiOn();
-                }
-            } else {
-                if (mActiveModeManagers.size() == 0) {
-                    // only report if we don't have any active modes
-                    mBatteryStats.noteWifiOff();
-                }
+        if (enabled) {
+            if (mActiveModeManagers.size() == 1) {
+                // only report wifi on if we haven't already
+                mBatteryStatsManager.noteWifiOn();
             }
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to note battery stats in wifi");
+        } else {
+            if (mActiveModeManagers.size() == 0) {
+                // only report if we don't have any active modes
+                mBatteryStatsManager.noteWifiOff();
+            }
         }
     }
 
     private void updateBatteryStatsScanModeActive() {
-        try {
-            mBatteryStats.noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to note battery stats in wifi");
-        }
+        mBatteryStatsManager.noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private boolean checkScanOnlyModeAvailable() {

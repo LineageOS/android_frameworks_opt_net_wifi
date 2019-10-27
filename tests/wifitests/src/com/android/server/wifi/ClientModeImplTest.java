@@ -60,7 +60,7 @@ import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.IWifiP2pManager;
-import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -88,7 +88,6 @@ import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.R;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.IState;
 import com.android.internal.util.StateMachine;
@@ -206,9 +205,6 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         Handler handler = new Handler(mP2pThread.getLooper());
         when(p2pm.getP2pStateMachineMessenger()).thenReturn(new Messenger(handler));
-
-        IBinder batteryStatsBinder = mockService(BatteryStats.class, IBatteryStats.class);
-        when(facade.getService(BatteryStats.SERVICE_NAME)).thenReturn(batteryStatsBinder);
 
         doAnswer(new AnswerWithArguments() {
             public void answer(
@@ -388,6 +384,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock AsyncChannel mNullAsyncChannel;
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock Handler mNetworkAgentHandler;
+    @Mock BatteryStatsManager mBatteryStatsManager;
 
     final ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener> mConfigUpdateListenerCaptor =
             ArgumentCaptor.forClass(WifiConfigManager.OnNetworkUpdateListener.class);
@@ -482,10 +479,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO)).thenReturn(
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO);
 
-        when(mFrameworkFacade.makeSupplicantStateTracker(
-                any(Context.class), any(WifiConfigManager.class),
-                any(Handler.class))).thenReturn(mSupplicantStateTracker);
-
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -547,7 +540,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
                 mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
-                mLinkProbeManager);
+                mLinkProbeManager, mBatteryStatsManager, mSupplicantStateTracker);
         mCmi.start();
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 

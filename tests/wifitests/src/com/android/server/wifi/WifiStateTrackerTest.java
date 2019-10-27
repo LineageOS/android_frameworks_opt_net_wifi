@@ -21,9 +21,9 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import androidx.test.filters.SmallTest;
+import android.os.BatteryStatsManager;
 
-import com.android.internal.app.IBatteryStats;
+import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +37,8 @@ import org.mockito.MockitoAnnotations;
 public class WifiStateTrackerTest extends WifiBaseTest {
 
     private static final String TAG = "WifiStateTrackerTest";
-    @Mock IBatteryStats mBatteryStats;
+    @Mock
+    BatteryStatsManager mBatteryStats;
     private WifiStateTracker mWifiStateTracker;
 
     /**

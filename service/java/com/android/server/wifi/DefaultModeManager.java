@@ -18,6 +18,8 @@ package com.android.server.wifi;
 
 import android.content.Context;
 
+import com.android.internal.util.Preconditions;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 
@@ -34,18 +36,29 @@ public class DefaultModeManager implements ActiveModeManager {
     /**
      * Start is not used in default mode.
      */
+    @Override
     public void start() { };
 
     /**
      * Stop is not used in default mode.
      */
+    @Override
     public void stop() { };
 
     /**
-     * Scanning is disabled in default mode.
+     * No role specified in default mode.
      */
-    public @ScanMode int getScanMode() {
-        return SCAN_NONE;
+    @Override
+    public @Role int getRole() {
+        return ROLE_UNSPECIFIED;
+    }
+
+    /**
+     * No role specified in default mode.
+     */
+    @Override
+    public void setRole(@Role int role) {
+        Preconditions.checkState(role == ROLE_UNSPECIFIED);
     }
 
     /**

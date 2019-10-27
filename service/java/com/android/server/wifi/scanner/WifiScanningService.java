@@ -17,11 +17,11 @@
 package com.android.server.wifi.scanner;
 
 import android.content.Context;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.HandlerThread;
 import android.util.Log;
 
-import com.android.server.am.BatteryStatsService;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiServiceBase;
 
@@ -39,7 +39,8 @@ public class WifiScanningService implements WifiServiceBase {
         mHandlerThread = new HandlerThread("WifiScanningService");
         mHandlerThread.start();
         mImpl = new WifiScanningServiceImpl(context, mHandlerThread.getLooper(),
-                WifiScannerImpl.DEFAULT_FACTORY, BatteryStatsService.getService(),
+                WifiScannerImpl.DEFAULT_FACTORY,
+                context.getSystemService(BatteryStatsManager.class),
                 WifiInjector.getInstance());
     }
 

@@ -118,7 +118,7 @@ public class ClientModeManagerTest extends WifiBaseTest {
                 ClientModeImpl.SCAN_ONLY_MODE, TEST_INTERFACE_NAME);
         mLooper.dispatchAll();
 
-        mClientModeManager.switchToConnectMode();
+        mClientModeManager.setRole(ActiveModeManager.ROLE_CLIENT_PRIMARY);
         mLooper.dispatchAll();
 
         verify(mWifiNative).switchClientInterfaceToConnectivityMode(TEST_INTERFACE_NAME);
@@ -208,7 +208,7 @@ public class ClientModeManagerTest extends WifiBaseTest {
 
         when(mWifiNative.switchClientInterfaceToConnectivityMode(any()))
                 .thenReturn(true);
-        mClientModeManager.switchToConnectMode();
+        mClientModeManager.setRole(ActiveModeManager.ROLE_CLIENT_PRIMARY);
         mLooper.dispatchAll();
 
         verify(mSarManager).setScanOnlyWifiState(WIFI_STATE_DISABLED);
@@ -242,7 +242,7 @@ public class ClientModeManagerTest extends WifiBaseTest {
 
         when(mWifiNative.switchClientInterfaceToScanMode(any()))
                 .thenReturn(true);
-        mClientModeManager.switchToScanOnlyMode();
+        mClientModeManager.setRole(ActiveModeManager.ROLE_CLIENT_SCAN_ONLY);
         mLooper.dispatchAll();
 
         verifyConnectModeNotificationsForCleanShutdown(WIFI_STATE_ENABLED);
@@ -273,7 +273,7 @@ public class ClientModeManagerTest extends WifiBaseTest {
         mClientModeManager.start();
         mLooper.dispatchAll();
 
-        mClientModeManager.switchToConnectMode();
+        mClientModeManager.setRole(ActiveModeManager.ROLE_CLIENT_PRIMARY);
         mLooper.dispatchAll();
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);

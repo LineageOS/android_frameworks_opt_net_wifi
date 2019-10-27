@@ -22,14 +22,13 @@ import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Parcelable;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
@@ -48,7 +47,7 @@ public class SupplicantStateTracker extends StateMachine {
     private static boolean DBG = false;
     private final WifiConfigManager mWifiConfigManager;
     private FrameworkFacade mFacade;
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStats;
     /* Indicates authentication failure in supplicant broadcast.
      * TODO: enhance auth failure reporting to include notification
      * for all type of failures: EAP, WPS & WPA networks */
@@ -93,13 +92,12 @@ public class SupplicantStateTracker extends StateMachine {
     }
 
     public SupplicantStateTracker(Context c, WifiConfigManager wcs,
-            FrameworkFacade facade, Handler t) {
+            BatteryStatsManager batteryStats, Handler t) {
         super(TAG, t.getLooper());
 
         mContext = c;
         mWifiConfigManager = wcs;
-        mFacade = facade;
-        mBatteryStats = mFacade.getBatteryService();
+        mBatteryStats = batteryStats;
         // CHECKSTYLE:OFF IndentationCheck
         addState(mDefaultState);
             addState(mUninitializedState, mDefaultState);
@@ -198,11 +196,7 @@ public class SupplicantStateTracker extends StateMachine {
                 supplState = BatteryStats.WIFI_SUPPL_STATE_INVALID;
                 break;
         }
-        try {
-            mBatteryStats.noteWifiSupplicantStateChanged(supplState, failedAuth);
-        } catch (RemoteException e) {
-            // Won't happen.
-        }
+        mBatteryStats.noteWifiSupplicantStateChanged(supplState, failedAuth);
         Intent intent = new Intent(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                 | Intent.FLAG_RECEIVER_REPLACE_PENDING);
