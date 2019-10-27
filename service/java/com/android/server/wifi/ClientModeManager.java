@@ -27,6 +27,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.util.IState;
+import com.android.internal.util.Preconditions;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.WifiNative.InterfaceCallback;
@@ -52,6 +53,7 @@ public class ClientModeManager implements ActiveModeManager {
 
     private String mClientInterfaceName;
     private boolean mIfaceIsUp = false;
+    private @Role int mRole = ROLE_UNSPECIFIED;
 
     ClientModeManager(Context context, @NonNull Looper looper, WifiNative wifiNative,
             Listener listener, WifiMetrics wifiMetrics, SarManager sarManager,
@@ -69,6 +71,7 @@ public class ClientModeManager implements ActiveModeManager {
     /**
      * Start client mode.
      */
+    @Override
     public void start() {
         mStateMachine.sendMessage(ClientModeStateMachine.CMD_START);
     }
@@ -76,51 +79,45 @@ public class ClientModeManager implements ActiveModeManager {
     /**
      * Disconnect from any currently connected networks and stop client mode.
      */
+    @Override
     public void stop() {
         Log.d(TAG, " currentstate: " + getCurrentStateName());
-        if (isInConnectMode()) {
-            if (mIfaceIsUp) {
-                updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
-                                WifiManager.WIFI_STATE_ENABLED);
-            } else {
-                updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
-                                WifiManager.WIFI_STATE_ENABLING);
-            }
+        if (mIfaceIsUp) {
+            updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
+                    WifiManager.WIFI_STATE_ENABLED);
+        } else {
+            updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
+                    WifiManager.WIFI_STATE_ENABLING);
         }
         mStateMachine.quitNow();
     }
 
-    public @ScanMode int getScanMode() {
-        if (isInConnectMode()) {
-            return SCAN_WITH_HIDDEN_NETWORKS;
-        } else if (isInScanOnlyMode()) {
-            return SCAN_WITHOUT_HIDDEN_NETWORKS;
-        } else {
-            return SCAN_NONE;
+    @Override
+    public @Role int getRole() {
+        return mRole;
+    }
+
+    @Override
+    public void setRole(@Role int role) {
+        Preconditions.checkState(CLIENT_ROLES.contains(role));
+        if (role == ROLE_CLIENT_SCAN_ONLY) {
+            // Switch client mode manager to scan only mode.
+            mStateMachine.sendMessage(ClientModeStateMachine.CMD_SWITCH_TO_SCAN_ONLY_MODE);
+        } else if (CLIENT_CONNECTIVITY_ROLES.contains(role)) {
+            // Switch client mode manager to connect mode.
+            mStateMachine.sendMessage(ClientModeStateMachine.CMD_SWITCH_TO_CONNECT_MODE, role);
         }
-    }
-
-    /**
-     * Switch client mode manager to scan only mode.
-     */
-    public void switchToScanOnlyMode() {
-        mStateMachine.sendMessage(ClientModeStateMachine.CMD_SWITCH_TO_SCAN_ONLY_MODE);
-    }
-
-    /**
-     * Switch client mode manager to connect mode.
-     */
-    public void switchToConnectMode() {
-        mStateMachine.sendMessage(ClientModeStateMachine.CMD_SWITCH_TO_CONNECT_MODE);
     }
 
     /**
      * Dump info about this ClientMode manager.
      */
+    @Override
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("--Dump of ClientModeManager--");
 
         pw.println("current StateMachine mode: " + getCurrentStateName());
+        pw.println("mRole: " + mRole);
         pw.println("mClientInterfaceName: " + mClientInterfaceName);
         pw.println("mIfaceIsUp: " + mIfaceIsUp);
         mStateMachine.dump(fd, pw, args);
@@ -146,6 +143,10 @@ public class ClientModeManager implements ActiveModeManager {
             // do not need to broadcast failure to system
             return;
         }
+        if (mRole != ROLE_CLIENT_PRIMARY) {
+            // do not raise public broadcast unless this is the primary client mode manager
+            return;
+        }
 
         mClientModeImpl.setWifiStateForApiCalls(newState);
 
@@ -154,14 +155,6 @@ public class ClientModeManager implements ActiveModeManager {
         intent.putExtra(WifiManager.EXTRA_WIFI_STATE, newState);
         intent.putExtra(WifiManager.EXTRA_PREVIOUS_WIFI_STATE, currentState);
         mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
-    }
-
-    public boolean isInConnectMode() {
-        return mStateMachine.getCurrentState() == mStateMachine.mConnectModeState;
-    }
-
-    public boolean isInScanOnlyMode() {
-        return mStateMachine.getCurrentState() == mStateMachine.mScanOnlyModeState;
     }
 
     private class ClientModeStateMachine extends StateMachine {
@@ -280,6 +273,7 @@ public class ClientModeManager implements ActiveModeManager {
                         // Already started, ignore this command.
                         break;
                     case CMD_SWITCH_TO_CONNECT_MODE:
+                        mRole = message.arg1; // could be any one of possible connect mode roles.
                         updateConnectModeState(WifiManager.WIFI_STATE_ENABLING,
                                 WifiManager.WIFI_STATE_DISABLED);
                         if (!mWifiNative.switchClientInterfaceToConnectivityMode(
@@ -294,12 +288,12 @@ public class ClientModeManager implements ActiveModeManager {
                         transitionTo(mConnectModeState);
                         break;
                     case CMD_SWITCH_TO_SCAN_ONLY_MODE:
+                        updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
+                                WifiManager.WIFI_STATE_ENABLED);
                         if (!mWifiNative.switchClientInterfaceToScanMode(mClientInterfaceName)) {
                             mModeListener.onStartFailure();
                             break;
                         }
-                        updateConnectModeState(WifiManager.WIFI_STATE_DISABLING,
-                                WifiManager.WIFI_STATE_ENABLED);
                         transitionTo(mScanOnlyModeState);
                         break;
                     case CMD_INTERFACE_DOWN:
@@ -337,6 +331,7 @@ public class ClientModeManager implements ActiveModeManager {
                 }
 
                 // once we leave started, nothing else to do...  stop the state machine
+                mRole = ROLE_UNSPECIFIED;
                 mStateMachine.quitNow();
                 mModeListener.onStopped();
             }
@@ -349,6 +344,7 @@ public class ClientModeManager implements ActiveModeManager {
                 mClientModeImpl.setOperationalMode(ClientModeImpl.SCAN_ONLY_MODE,
                         mClientInterfaceName);
                 mModeListener.onStarted();
+                mRole = ROLE_CLIENT_SCAN_ONLY;
 
                 // Inform sar manager that scan only is being enabled
                 mSarManager.setScanOnlyWifiState(WifiManager.WIFI_STATE_ENABLED);
@@ -393,6 +389,7 @@ public class ClientModeManager implements ActiveModeManager {
             public boolean processMessage(Message message) {
                 switch (message.what) {
                     case CMD_SWITCH_TO_CONNECT_MODE:
+                        mRole = message.arg1;
                         // Already in connect mode, ignore this command.
                         break;
                     case CMD_SWITCH_TO_SCAN_ONLY_MODE:
