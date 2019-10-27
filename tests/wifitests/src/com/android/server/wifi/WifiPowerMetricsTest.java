@@ -18,13 +18,12 @@ package com.android.server.wifi;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
-import android.os.RemoteException;
+import android.os.BatteryStatsManager;
 import android.os.connectivity.WifiBatteryStats;
 import android.text.format.DateUtils;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.app.IBatteryStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiPowerStats;
 import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
 
@@ -41,7 +40,8 @@ import java.io.PrintWriter;
  */
 @SmallTest
 public class WifiPowerMetricsTest extends WifiBaseTest {
-    @Mock IBatteryStats mBatteryStats;
+    @Mock
+    BatteryStatsManager mBatteryStats;
     WifiPowerMetrics mWifiPowerMetrics;
 
     private static final long DEFAULT_VALUE = 0;
@@ -62,8 +62,8 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
         final long loggingDuration = 280;
         final long scanTime = 23;
         WifiBatteryStats wifiBatteryStats = new WifiBatteryStats();
-        wifiBatteryStats.setLoggingDurationMs(loggingDuration);
-        wifiBatteryStats.setScanTimeMs(scanTime);
+        wifiBatteryStats.setLoggingDurationMillis(loggingDuration);
+        wifiBatteryStats.setScanTimeMillis(scanTime);
         when(mBatteryStats.getWifiBatteryStats()).thenReturn(wifiBatteryStats);
         WifiRadioUsage wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
         verify(mBatteryStats).getWifiBatteryStats();
@@ -74,7 +74,7 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
     }
 
     /**
-     * Tests that WifiRadioUsage has its fields set to the |DEFAULT_VALUE| when IBatteryStats
+     * Tests that WifiRadioUsage has its fields set to the |DEFAULT_VALUE| when BatteryStatsManager
      * returns null
      * @throws Exception
      */
@@ -90,23 +90,7 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
     }
 
     /**
-     * Tests that WifiRadioUsage has its fields set to the |DEFAULT_VALUE| when IBatteryStats
-     * throws a RemoteException
-     * @throws Exception
-     */
-    @Test
-    public void testBuildWifiRadioUsageProtoRemoteException() throws Exception {
-        doThrow(new RemoteException()).when(mBatteryStats).getWifiBatteryStats();
-        WifiRadioUsage wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
-        verify(mBatteryStats).getWifiBatteryStats();
-        assertEquals("loggingDurationMs must be default value when getWifiBatteryStats throws "
-                        + "RemoteException", DEFAULT_VALUE, wifiRadioUsage.loggingDurationMs);
-        assertEquals("scanTimeMs must be default value when getWifiBatteryStats throws "
-                        + "RemoteException", DEFAULT_VALUE, wifiRadioUsage.scanTimeMs);
-    }
-
-    /**
-     * Tests that dump() pulls data from IBatteryStats
+     * Tests that dump() pulls data from BatteryStatsManager
      * @throws Exception
      */
     @Test
@@ -128,7 +112,7 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
         final double monitoredRailEnergyConsumedMah = monitoredRailEnergyConsumedMaMs
                 / ((double) DateUtils.HOUR_IN_MILLIS);
         WifiBatteryStats wifiBatteryStats = new WifiBatteryStats();
-        wifiBatteryStats.setEnergyConsumedMaMs(monitoredRailEnergyConsumedMaMs);
+        wifiBatteryStats.setEnergyConsumedMaMillis(monitoredRailEnergyConsumedMaMs);
         when(mBatteryStats.getWifiBatteryStats()).thenReturn(wifiBatteryStats);
         WifiPowerStats wifiPowerStats = mWifiPowerMetrics.buildProto();
         verify(mBatteryStats).getWifiBatteryStats();
@@ -138,7 +122,7 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
     }
 
     /**
-     * Tests that WifiPowerStats has its fields set to the |DEFAULT_VALUE| when IBatteryStats
+     * Tests that WifiPowerStats has its fields set to the |DEFAULT_VALUE| when BatteryStatsManager
      * returns null
      * @throws Exception
      */
@@ -150,20 +134,5 @@ public class WifiPowerMetricsTest extends WifiBaseTest {
         assertEquals("monitoredRailEnergyConsumedMah must be default value when getWifiBatteryStats"
                 + " returns null", DEFAULT_VALUE, wifiPowerStats.monitoredRailEnergyConsumedMah,
                 0.01);
-    }
-
-    /**
-     * Tests that WifiPowerStats has its fields set to the |DEFAULT_VALUE| when IBatteryStats
-     * throws a RemoteException
-     * @throws Exception
-     */
-    @Test
-    public void testBuildProtoRemoteException() throws Exception {
-        doThrow(new RemoteException()).when(mBatteryStats).getWifiBatteryStats();
-        WifiPowerStats wifiPowerStats = mWifiPowerMetrics.buildProto();
-        verify(mBatteryStats).getWifiBatteryStats();
-        assertEquals("monitoredRailEnergyConsumedMah must be default value when getWifiBatteryStats"
-                + " throws RemoteException", DEFAULT_VALUE,
-                wifiPowerStats.monitoredRailEnergyConsumedMah, 0.01);
     }
 }

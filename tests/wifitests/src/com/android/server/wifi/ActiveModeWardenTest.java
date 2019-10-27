@@ -47,13 +47,13 @@ import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.test.TestLooper;
 import android.util.Log;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
-import com.android.internal.app.IBatteryStats;
 import com.android.server.wifi.util.GeneralUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -95,7 +95,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     @Mock ClientModeManager mClientModeManager;
     @Mock SoftApManager mSoftApManager;
     @Mock DefaultModeManager mDefaultModeManager;
-    @Mock IBatteryStats mBatteryStats;
+    @Mock BatteryStatsManager mBatteryStats;
     @Mock SelfRecovery mSelfRecovery;
     @Mock BaseWifiDiagnostics mWifiDiagnostics;
     @Mock ScanRequestProxy mScanRequestProxy;

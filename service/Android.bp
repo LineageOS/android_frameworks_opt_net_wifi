@@ -108,7 +108,6 @@ java_library {
         "wifi_service_proto",
         "ksoap2",
         "libnanohttpd",
-        "services.core",
         "services.net",
         "services.wifi",
         "libwificond_aidl-java",

@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.net.wifi.WifiManager;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -28,8 +29,6 @@ import android.os.WorkSource.WorkChain;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.StatsLog;
-
-import com.android.internal.app.IBatteryStats;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -54,7 +53,7 @@ public class WifiLockManager {
 
     private final Clock mClock;
     private final Context mContext;
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStats;
     private final FrameworkFacade mFrameworkFacade;
     private final ClientModeImpl mClientModeImpl;
     private final ActivityManager mActivityManager;
@@ -80,7 +79,7 @@ public class WifiLockManager {
     private int mFullLowLatencyLocksReleased;
     private long mCurrentSessionStartTimeMs;
 
-    WifiLockManager(Context context, IBatteryStats batteryStats,
+    WifiLockManager(Context context, BatteryStatsManager batteryStats,
             ClientModeImpl clientModeImpl, FrameworkFacade frameworkFacade, Handler handler,
             WifiNative wifiNative, Clock clock, WifiMetrics wifiMetrics) {
         mContext = context;
@@ -719,8 +718,6 @@ public class WifiLockManager {
                         StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
                         WifiManager.WIFI_MODE_FULL_HIGH_PERF);
             }
-        } catch (RemoteException e) {
-            // nop
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
@@ -730,18 +727,16 @@ public class WifiLockManager {
         long ident = Binder.clearCallingIdentity();
         try {
             if (shouldBlame) {
-                mBatteryStats.noteFullWifiLockAcquired(uid);
+                mBatteryStats.noteFullWifiLockAcquiredFromSource(new WorkSource(uid));
                 StatsLog.write_non_chained(StatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__ON,
                         WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
             } else {
-                mBatteryStats.noteFullWifiLockReleased(uid);
+                mBatteryStats.noteFullWifiLockReleasedFromSource(new WorkSource(uid));
                 StatsLog.write_non_chained(StatsLog.WIFI_LOCK_STATE_CHANGED, uid, null,
                         StatsLog.WIFI_LOCK_STATE_CHANGED__STATE__OFF,
                         WifiManager.WIFI_MODE_FULL_LOW_LATENCY);
             }
-        } catch (RemoteException e) {
-            // nop
         } finally {
             Binder.restoreCallingIdentity(ident);
         }

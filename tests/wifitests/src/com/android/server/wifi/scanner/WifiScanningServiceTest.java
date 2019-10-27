@@ -62,6 +62,7 @@ import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiStackClient;
+import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -74,7 +75,6 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
 import com.android.internal.util.test.BidirectionalAsyncChannel;
@@ -132,7 +132,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Mock WifiScannerImpl mWifiScannerImpl0;
     @Mock WifiScannerImpl mWifiScannerImpl1;
     @Mock WifiScannerImpl.WifiScannerImplFactory mWifiScannerImplFactory;
-    @Mock IBatteryStats mBatteryStats;
+    @Mock BatteryStatsManager mBatteryStats;
     @Mock WifiInjector mWifiInjector;
     @Mock FrameworkFacade mFrameworkFacade;
     @Mock Clock mClock;

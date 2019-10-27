@@ -25,16 +25,15 @@ import android.location.LocationManager;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
+import android.os.BatteryStatsManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.RemoteException;
 import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
 import com.android.internal.util.Protocol;
@@ -67,7 +66,7 @@ public class ActiveModeWarden {
     private final WifiSettingsStore mSettingsStore;
     private final FrameworkFacade mFacade;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
-    private final IBatteryStats mBatteryStats;
+    private final BatteryStatsManager mBatteryStatsManager;
     private final ScanRequestProxy mScanRequestProxy;
     private final WifiController mWifiController;
 
@@ -93,7 +92,7 @@ public class ActiveModeWarden {
                      Looper looper,
                      WifiNative wifiNative,
                      DefaultModeManager defaultModeManager,
-                     IBatteryStats batteryStats,
+                     BatteryStatsManager batteryStatsManager,
                      BaseWifiDiagnostics wifiDiagnostics,
                      Context context,
                      ClientModeImpl clientModeImpl,
@@ -110,7 +109,7 @@ public class ActiveModeWarden {
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mActiveModeManagers = new ArraySet<>();
         mDefaultModeManager = defaultModeManager;
-        mBatteryStats = batteryStats;
+        mBatteryStatsManager = batteryStatsManager;
         mScanRequestProxy = wifiInjector.getScanRequestProxy();
         mWifiController = new WifiController();
 
@@ -494,29 +493,21 @@ public class ActiveModeWarden {
      *  @param enabled boolean indicating that some mode has been turned on or off
      */
     private void updateBatteryStatsWifiState(boolean enabled) {
-        try {
-            if (enabled) {
-                if (mActiveModeManagers.size() == 1) {
-                    // only report wifi on if we haven't already
-                    mBatteryStats.noteWifiOn();
-                }
-            } else {
-                if (mActiveModeManagers.size() == 0) {
-                    // only report if we don't have any active modes
-                    mBatteryStats.noteWifiOff();
-                }
+        if (enabled) {
+            if (mActiveModeManagers.size() == 1) {
+                // only report wifi on if we haven't already
+                mBatteryStatsManager.noteWifiOn();
             }
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to note battery stats in wifi");
+        } else {
+            if (mActiveModeManagers.size() == 0) {
+                // only report if we don't have any active modes
+                mBatteryStatsManager.noteWifiOff();
+            }
         }
     }
 
     private void updateBatteryStatsScanModeActive() {
-        try {
-            mBatteryStats.noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to note battery stats in wifi");
-        }
+        mBatteryStatsManager.noteWifiState(BatteryStats.WIFI_STATE_OFF_SCANNING, null);
     }
 
     private boolean checkScanOnlyModeAvailable() {
