@@ -133,7 +133,7 @@ public class SystemInfo {
      * @return the build release version.
      */
     public String getSoftwareVersion() {
-         return new StringBuffer("Android ").append(Build.VERSION.RELEASE).toString();
+         return new StringBuffer("Android ").append(Build.VERSION.RELEASE_OR_CODENAME).toString();
     }
 
     /**
