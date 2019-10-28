@@ -986,8 +986,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
      */
     @Test
     public void testGetWifiApConfigurationSuccess() throws Exception {
-        mWifiServiceImpl = new WifiServiceImpl(mContext, mWifiInjector, mAsyncChannel);
-
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(true);
         WifiConfiguration apConfig = new WifiConfiguration();
