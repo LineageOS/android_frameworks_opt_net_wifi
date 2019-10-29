@@ -4271,4 +4271,17 @@ public class WifiServiceImplTest {
         } catch (RemoteException e) {
         }
     }
+
+    /**
+     * Test to verify that the lock mode is verified before dispatching the operation
+     *
+     * Steps: call acquireWifiLock with an invalid lock mode.
+     * Expected: the call should throw an IllegalArgumentException.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void acquireWifiLockShouldThrowExceptionOnInvalidLockMode() throws Exception {
+        final int wifiLockModeInvalid = -1;
+
+        mWifiServiceImpl.acquireWifiLock(mAppBinder, wifiLockModeInvalid, "", null);
+    }
 }
