@@ -43,7 +43,6 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -239,8 +238,7 @@ public class WifiConnectivityManager {
      */
     private boolean handleScanResults(List<ScanDetail> scanDetails, String listenerName) {
         // Check if any blocklisted BSSIDs can be freed.
-        HashSet<String> bssidBlocklist =
-                new HashSet<>(mBssidBlocklistMonitor.updateAndGetBssidBlocklist());
+        Set<String> bssidBlocklist = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
 
         if (mStateMachine.isSupplicantTransientState()) {
             localLog(listenerName
