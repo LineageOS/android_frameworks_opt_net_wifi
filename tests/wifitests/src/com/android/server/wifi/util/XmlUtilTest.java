@@ -228,7 +228,6 @@ public class XmlUtilTest extends WifiBaseTest {
         configuration.requirePMF = true;
         configuration.validatedInternetAccess = true;
         configuration.noInternetAccessExpected = true;
-        configuration.userApproved = WifiConfiguration.USER_UNSPECIFIED;
         configuration.meteredHint = true;
         configuration.useExternalScores = true;
         configuration.numAssociation = 5;

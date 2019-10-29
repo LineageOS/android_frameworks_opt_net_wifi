@@ -282,7 +282,7 @@ public class WifiMetricsTest extends WifiBaseTest {
             + NUM_WPA3_PERSONAL_NETWORKS + NUM_WPA3_ENTERPRISE_NETWORKS;
     private static final int NUM_HIDDEN_NETWORKS = NUM_OPEN_NETWORKS;
     private static final int NUM_PASSPOINT_NETWORKS = NUM_LEGACY_ENTERPRISE_NETWORKS;
-    private static final int NUM_NETWORKS_ADDED_BY_USER = 1;
+    private static final int NUM_NETWORKS_ADDED_BY_USER = 0;
     private static final int NUM_NETWORKS_ADDED_BY_APPS = NUM_SAVED_NETWORKS
             - NUM_NETWORKS_ADDED_BY_USER;
     private static final boolean TEST_VAL_IS_LOCATION_ENABLED = true;
@@ -523,7 +523,6 @@ public class WifiMetricsTest extends WifiBaseTest {
         for (int i = 0; i < NUM_WPA3_ENTERPRISE_NETWORKS; i++) {
             testSavedNetworks.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
         }
-        testSavedNetworks.get(0).selfAdded = true;
         testSavedNetworks.get(0).macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         return testSavedNetworks;
     }

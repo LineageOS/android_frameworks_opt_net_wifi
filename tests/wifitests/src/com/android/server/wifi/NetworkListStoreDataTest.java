@@ -46,7 +46,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -89,7 +88,6 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                     + "<null name=\"DefaultGwMacAddress\" />\n"
                     + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
                     + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
-                    + "<int name=\"UserApproved\" value=\"0\" />\n"
                     + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
                     + "<int name=\"MeteredOverride\" value=\"2\" />\n"
                     + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
@@ -146,7 +144,6 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                     + "<null name=\"DefaultGwMacAddress\" />\n"
                     + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
                     + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
-                    + "<int name=\"UserApproved\" value=\"0\" />\n"
                     + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
                     + "<int name=\"MeteredOverride\" value=\"0\" />\n"
                     + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
@@ -340,7 +337,7 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
         List<WifiConfiguration> networkList = getTestNetworksConfig(true /* shared */);
         mNetworkListSharedStoreData.setConfigurations(networkList);
         byte[] expectedData = getTestNetworksXmlBytes(networkList.get(0), networkList.get(1));
-        assertTrue(Arrays.equals(expectedData, serializeData()));
+        assertArrayEquals(expectedData, serializeData());
     }
 
     /**
@@ -385,7 +382,6 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                         + "<null name=\"DefaultGwMacAddress\" />\n"
                         + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
                         + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
-                        + "<int name=\"UserApproved\" value=\"0\" />\n"
                         + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
                         + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
                         + "<int name=\"NumAssociation\" value=\"0\" />\n"

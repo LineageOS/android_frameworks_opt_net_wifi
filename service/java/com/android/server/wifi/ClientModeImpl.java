@@ -1828,9 +1828,6 @@ public class ClientModeImpl extends StateMachine {
                     if (config.ephemeral) {
                         sb.append(" ephemeral");
                     }
-                    if (config.selfAdded) {
-                        sb.append(" selfAdded");
-                    }
                     sb.append(" cuid=").append(config.creatorUid);
                     sb.append(" suid=").append(config.lastUpdateUid);
                 }
