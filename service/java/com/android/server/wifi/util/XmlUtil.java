@@ -16,7 +16,6 @@
 
 package com.android.server.wifi.util;
 
-import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.IpConfiguration;
 import android.net.IpConfiguration.IpAssignment;
@@ -477,7 +476,7 @@ public class XmlUtil {
          */
         public static void writeToXmlForConfigStore(
                 XmlSerializer out, WifiConfiguration configuration,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             writeCommonElementsToXml(out, configuration, encryptionUtil);
             XmlUtil.writeNextValue(out, XML_TAG_STATUS, configuration.status);
@@ -555,7 +554,7 @@ public class XmlUtil {
          */
         public static Pair<String, WifiConfiguration> parseFromXml(
                 XmlPullParser in, int outerTagDepth, boolean shouldExpectEncryptedCredentials,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiConfiguration configuration = new WifiConfiguration();
             String configKeyInData = null;
@@ -715,7 +714,7 @@ public class XmlUtil {
                     }
                     switch (tagName) {
                         case XML_TAG_PRE_SHARED_KEY:
-                            if (!shouldExpectEncryptedCredentials) {
+                            if (!shouldExpectEncryptedCredentials || encryptionUtil == null) {
                                 throw new XmlPullParserException(
                                         "Encrypted preSharedKey section not expected");
                             }
@@ -1094,7 +1093,7 @@ public class XmlUtil {
          */
         private static void writePasswordToXml(
                 XmlSerializer out, String password,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             EncryptedData encryptedData = null;
             if (encryptionUtil != null) {
@@ -1124,7 +1123,7 @@ public class XmlUtil {
          * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          */
         public static void writeToXml(XmlSerializer out, WifiEnterpriseConfig enterpriseConfig,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             XmlUtil.writeNextValue(out, XML_TAG_IDENTITY,
                     enterpriseConfig.getFieldValue(WifiEnterpriseConfig.IDENTITY_KEY));
@@ -1168,7 +1167,7 @@ public class XmlUtil {
          */
         public static WifiEnterpriseConfig parseFromXml(XmlPullParser in, int outerTagDepth,
                 boolean shouldExpectEncryptedCredentials,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
 
@@ -1260,7 +1259,7 @@ public class XmlUtil {
                     }
                     switch (tagName) {
                         case XML_TAG_PASSWORD:
-                            if (!shouldExpectEncryptedCredentials) {
+                            if (!shouldExpectEncryptedCredentials || encryptionUtil == null) {
                                 throw new XmlPullParserException(
                                         "encrypted password section not expected");
                             }

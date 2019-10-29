@@ -18,7 +18,7 @@ package com.android.server.wifi;
 
 import static com.android.server.wifi.WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION;
 
-import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.content.Context;
 import android.net.IpConfiguration;
 import android.net.wifi.WifiConfiguration;
@@ -71,7 +71,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
 
     @Override
     public void serializeData(XmlSerializer out,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         serializeNetworkList(out, mConfigurations, encryptionUtil);
     }
@@ -79,7 +79,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
     @Override
     public void deserializeData(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {
@@ -130,7 +130,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      * @throws IOException
      */
     private void serializeNetworkList(XmlSerializer out, List<WifiConfiguration> networkList,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (networkList == null) {
             return;
@@ -150,7 +150,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      * @throws IOException
      */
     private void serializeNetwork(XmlSerializer out, WifiConfiguration config,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK);
 
@@ -194,7 +194,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      */
     private List<WifiConfiguration> parseNetworkList(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         List<WifiConfiguration> networkList = new ArrayList<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(in, XML_TAG_SECTION_HEADER_NETWORK,
@@ -226,7 +226,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      */
     private WifiConfiguration parseNetwork(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
         NetworkSelectionStatus status = null;
