@@ -732,7 +732,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 IWifiStaIface.StaIfaceCapabilityMask.BACKGROUND_SCAN
                 | IWifiStaIface.StaIfaceCapabilityMask.LINK_LAYER_STATS
             );
-        int expected = (
+        long expected = (
                 WifiManager.WIFI_FEATURE_SCANNER
                 | WifiManager.WIFI_FEATURE_LINK_LAYER_STATS);
         assertEquals(expected, mWifiVendorHal.wifiFeatureMaskFromStaCapabilities(caps));
@@ -751,7 +751,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
                         | android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.D2D_RTT
                         | android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.D2AP_RTT
         );
-        int expected = (
+        long expected = (
                 WifiManager.WIFI_FEATURE_TX_POWER_LIMIT
                         | WifiManager.WIFI_FEATURE_D2D_RTT
                         | WifiManager.WIFI_FEATURE_D2AP_RTT
@@ -770,7 +770,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 android.hardware.wifi.V1_3.IWifiChip.ChipCapabilityMask.SET_LATENCY_MODE
                         | android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.D2D_RTT
         );
-        int expected = (
+        long expected = (
                 WifiManager.WIFI_FEATURE_LOW_LATENCY
                         | WifiManager.WIFI_FEATURE_D2D_RTT
         );
@@ -796,7 +796,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
                 add(IfaceType.STA);
                 add(IfaceType.P2P);
             }};
-        int expectedFeatureSet = (
+        long expectedFeatureSet = (
                 WifiManager.WIFI_FEATURE_SCANNER
                         | WifiManager.WIFI_FEATURE_LINK_LAYER_STATS
                         | WifiManager.WIFI_FEATURE_TX_POWER_LIMIT
