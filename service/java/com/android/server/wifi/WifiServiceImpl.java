@@ -2591,6 +2591,10 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
+        if (!WifiLockManager.isValidLockMode(lockMode)) {
+            throw new IllegalArgumentException("lockMode =" + lockMode);
+        }
+
         return mWifiThreadRunner.call(() ->
                 mWifiLockManager.acquireWifiLock(lockMode, tag, binder, updatedWs), false);
     }
