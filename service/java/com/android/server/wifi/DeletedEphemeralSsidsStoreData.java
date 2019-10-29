@@ -16,8 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
 import android.util.Log;
-import android.annotation.NonNull;
 
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 import com.android.server.wifi.util.XmlUtil;
@@ -50,7 +50,7 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
 
     @Override
     public void serializeData(XmlSerializer out,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (mSsidToTimeMap != null) {
             XmlUtil.writeNextValue(out, XML_TAG_SSID_LIST, mSsidToTimeMap);
@@ -60,7 +60,7 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
     @Override
     public void deserializeData(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {

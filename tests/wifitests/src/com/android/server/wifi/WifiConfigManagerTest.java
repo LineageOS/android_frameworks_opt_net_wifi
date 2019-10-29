@@ -237,7 +237,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
                 .strictness(Strictness.LENIENT)
                 .startMocking();
-        when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
+        when(WifiConfigStore.createUserFiles(anyInt(), anyBoolean())).thenReturn(mock(List.class));
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
     }
 

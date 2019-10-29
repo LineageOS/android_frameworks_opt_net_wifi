@@ -16,8 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
 import android.util.Log;
-import android.annotation.NonNull;
 
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 import com.android.server.wifi.util.XmlUtil;
@@ -46,7 +46,7 @@ public class RandomizedMacStoreData implements WifiConfigStore.StoreData {
 
     @Override
     public void serializeData(XmlSerializer out,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (mMacMapping != null) {
             XmlUtil.writeNextValue(out, XML_TAG_MAC_MAP, mMacMapping);
@@ -56,7 +56,7 @@ public class RandomizedMacStoreData implements WifiConfigStore.StoreData {
     @Override
     public void deserializeData(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {

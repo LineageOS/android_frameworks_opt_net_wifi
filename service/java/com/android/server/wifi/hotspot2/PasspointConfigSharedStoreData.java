@@ -16,8 +16,8 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.annotation.Nullable;
 import android.util.Log;
-import android.annotation.NonNull;
 
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
@@ -78,7 +78,7 @@ public class PasspointConfigSharedStoreData implements WifiConfigStore.StoreData
 
     @Override
     public void serializeData(XmlSerializer out,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         serializeShareData(out);
     }
@@ -86,7 +86,7 @@ public class PasspointConfigSharedStoreData implements WifiConfigStore.StoreData
     @Override
     public void deserializeData(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         // Ignore empty reads.
         if (in == null) {

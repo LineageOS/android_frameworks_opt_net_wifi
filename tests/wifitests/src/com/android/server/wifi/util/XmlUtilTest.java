@@ -39,8 +39,6 @@ import com.android.server.wifi.util.XmlUtil.WifiEnterpriseConfigXmlUtil;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -79,7 +77,7 @@ public class XmlUtilTest extends WifiBaseTest {
     private static final int TEST_PHASE2_METHOD = WifiEnterpriseConfig.Phase2.MSCHAPV2;
     private final String mXmlDocHeader = "XmlUtilTest";
 
-    @Mock private WifiConfigStoreEncryptionUtil mWifiConfigStoreEncryptionUtil;
+    private WifiConfigStoreEncryptionUtil mWifiConfigStoreEncryptionUtil = null;
 
     @Before
     public void setUp() throws Exception {
@@ -119,6 +117,7 @@ public class XmlUtilTest extends WifiBaseTest {
     @Test
     public void testPskWifiConfigurationSerializeDeserializeWithEncryption()
             throws IOException, XmlPullParserException {
+        mWifiConfigStoreEncryptionUtil = mock(WifiConfigStoreEncryptionUtil.class);
         WifiConfiguration pskNetwork = WifiConfigurationTestUtil.createPskNetwork();
         EncryptedData encryptedData = new EncryptedData(new byte[0], new byte[0]);
         when(mWifiConfigStoreEncryptionUtil.encrypt(pskNetwork.preSharedKey.getBytes()))
@@ -431,6 +430,7 @@ public class XmlUtilTest extends WifiBaseTest {
         config.setEapMethod(TEST_EAP_METHOD);
         config.setPhase2Method(TEST_PHASE2_METHOD);
 
+        mWifiConfigStoreEncryptionUtil = mock(WifiConfigStoreEncryptionUtil.class);
         EncryptedData encryptedData = new EncryptedData(new byte[0], new byte[0]);
         when(mWifiConfigStoreEncryptionUtil.encrypt(TEST_PASSWORD.getBytes()))
                 .thenReturn(encryptedData);
