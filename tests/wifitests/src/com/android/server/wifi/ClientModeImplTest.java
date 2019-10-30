@@ -1834,7 +1834,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mPropertyService, never()).set(anyString(), anyString());
     }
 
-    private long testGetSupportedFeaturesCase(long supportedFeatures, boolean rttDisabled) {
+    private long testGetSupportedFeaturesCaseForRtt(long supportedFeatures, boolean rttDisabled) {
         AsyncChannel channel = mock(AsyncChannel.class);
         Message reply = Message.obtain();
         reply.obj = Long.valueOf(supportedFeatures);
@@ -1842,6 +1842,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(channel.sendMessageSynchronously(ClientModeImpl.CMD_GET_SUPPORTED_FEATURES))
                 .thenReturn(reply);
 
+        // ugly, this is set to true by default in setup.
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, false);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT)).thenReturn(
                 !rttDisabled);
         return mCmi.syncGetSupportedFeatures(channel);
@@ -1849,38 +1851,81 @@ public class ClientModeImplTest extends WifiBaseTest {
 
     /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
     @Test
-    public void syncGetSupportedFeatures() {
+    public void syncGetSupportedFeaturesForRtt() {
         final long featureAware = WifiManager.WIFI_FEATURE_AWARE;
         final long featureInfra = WifiManager.WIFI_FEATURE_INFRA;
         final long featureD2dRtt = WifiManager.WIFI_FEATURE_D2D_RTT;
         final long featureD2apRtt = WifiManager.WIFI_FEATURE_D2AP_RTT;
-        final long featureLongBits = 0x1100000000L;
+        final long featureLongBits = 0x1000000000L;
 
-        assertEquals(0, testGetSupportedFeaturesCase(0, false));
-        assertEquals(0, testGetSupportedFeaturesCase(0, true));
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, false));
+        assertEquals(0, testGetSupportedFeaturesCaseForRtt(0, true));
         assertEquals(featureAware | featureInfra,
-                testGetSupportedFeaturesCase(featureAware | featureInfra, false));
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, false));
         assertEquals(featureAware | featureInfra,
-                testGetSupportedFeaturesCase(featureAware | featureInfra, true));
+                testGetSupportedFeaturesCaseForRtt(featureAware | featureInfra, true));
         assertEquals(featureInfra | featureD2dRtt,
-                testGetSupportedFeaturesCase(featureInfra | featureD2dRtt, false));
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, false));
         assertEquals(featureInfra,
-                testGetSupportedFeaturesCase(featureInfra | featureD2dRtt, true));
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2dRtt, true));
         assertEquals(featureInfra | featureD2apRtt,
-                testGetSupportedFeaturesCase(featureInfra | featureD2apRtt, false));
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, false));
         assertEquals(featureInfra,
-                testGetSupportedFeaturesCase(featureInfra | featureD2apRtt, true));
+                testGetSupportedFeaturesCaseForRtt(featureInfra | featureD2apRtt, true));
         assertEquals(featureInfra | featureD2dRtt | featureD2apRtt,
-                testGetSupportedFeaturesCase(featureInfra | featureD2dRtt | featureD2apRtt, false));
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, false));
         assertEquals(featureInfra,
-                testGetSupportedFeaturesCase(featureInfra | featureD2dRtt | featureD2apRtt, true));
+                testGetSupportedFeaturesCaseForRtt(
+                        featureInfra | featureD2dRtt | featureD2apRtt, true));
 
         assertEquals(featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt,
-                testGetSupportedFeaturesCase(
+                testGetSupportedFeaturesCaseForRtt(
                 featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, false));
         assertEquals(featureLongBits | featureInfra,
-                testGetSupportedFeaturesCase(
+                testGetSupportedFeaturesCaseForRtt(
                 featureLongBits | featureInfra | featureD2dRtt | featureD2apRtt, true));
+    }
+
+    private long testGetSupportedFeaturesCaseForMacRandomization(
+            long supportedFeatures, boolean apMacRandomizationEnabled,
+            boolean staConnectedMacRandomizationEnabled, boolean p2pMacRandomizationEnabled) {
+        AsyncChannel channel = mock(AsyncChannel.class);
+        Message reply = Message.obtain();
+        reply.obj = Long.valueOf(supportedFeatures);
+        reset(mPropertyService);  // Ignore calls made in setUp()
+        when(channel.sendMessageSynchronously(ClientModeImpl.CMD_GET_SUPPORTED_FEATURES))
+                .thenReturn(reply);
+
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported,
+                staConnectedMacRandomizationEnabled);
+        mResources.setBoolean(R.bool.config_wifi_ap_mac_randomization_supported,
+                apMacRandomizationEnabled);
+        mResources.setBoolean(R.bool.config_wifi_p2p_mac_randomization_supported,
+                p2pMacRandomizationEnabled);
+        return mCmi.syncGetSupportedFeatures(channel);
+    }
+
+    /** Verifies that syncGetSupportedFeatures() masks out capabilities based on system flags. */
+    @Test
+    public void syncGetSupportedFeaturesForMacRandomization() {
+        final long featureStaConnectedMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        final long featureApMacRandomization =
+                WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        final long featureP2pMacRandomization =
+                WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization
+                        | featureP2pMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, true));
+        // p2p supported by HAL, but disabled by overlay.
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(
+                        featureP2pMacRandomization, true, true, false));
+        assertEquals(featureStaConnectedMacRandomization | featureApMacRandomization,
+                testGetSupportedFeaturesCaseForMacRandomization(0, true, true, false));
     }
 
     /**
