@@ -37,6 +37,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.text.TextUtils;
@@ -51,6 +52,7 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -90,6 +92,10 @@ public class WifiNetworkSuggestionsManager {
     @VisibleForTesting
     public static final String EXTRA_UID =
             "com.android.server.wifi.extra.NetworkSuggestion.UID";
+    /**
+     * Limit number of hidden networks attach to scan
+     */
+    private static final int NUMBER_OF_HIDDEN_NETWORK_FOR_ONE_SCAN = 100;
 
     private final Context mContext;
     private final Resources mResources;
@@ -564,6 +570,8 @@ public class WifiNetworkSuggestionsManager {
             if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
                 Log.i(TAG, "Setting the carrier provisioning app approved");
                 perAppInfo.hasUserApproved = true;
+            } else {
+                sendUserApprovalNotification(packageName, uid);
             }
         }
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
@@ -753,10 +761,11 @@ public class WifiNetworkSuggestionsManager {
                 PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    private @NonNull CharSequence getAppName(@NonNull String packageName) {
+    private @NonNull CharSequence getAppName(@NonNull String packageName, int uid) {
         ApplicationInfo applicationInfo = null;
         try {
-            applicationInfo = mPackageManager.getApplicationInfo(packageName, 0);
+            applicationInfo = mContext.getPackageManager().getApplicationInfoAsUser(
+                packageName, 0, UserHandle.getUserId(uid));
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Failed to find app name for " + packageName);
             return "";
@@ -779,13 +788,14 @@ public class WifiNetworkSuggestionsManager {
                                 packageName, uid))
                         .build();
 
-        CharSequence appName = getAppName(packageName);
+        CharSequence appName = getAppName(packageName, uid);
         Notification notification = new Notification.Builder(
                 mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
                 .setTicker(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))
-                .setContentText(mResources.getString(R.string.wifi_suggestion_content, appName))
+                .setStyle(new Notification.BigTextStyle()
+                        .bigText(mResources.getString(R.string.wifi_suggestion_content, appName)))
                 .setDeleteIntent(getPrivateBroadcast(NOTIFICATION_USER_DISMISSED_INTENT_ACTION,
                         packageName, uid))
                 .setShowWhen(false)
@@ -919,6 +929,28 @@ public class WifiNetworkSuggestionsManager {
                     + "[" + wifiConfiguration.allowedKeyManagement + "]");
         }
         return approvedExtNetworkSuggestions;
+    }
+
+    /**
+     * Get hidden network from active network suggestions.
+     * Todo(): Now limit by a fixed number, maybe we can try rotation?
+     * @return set of WifiConfigurations
+     */
+    public List<WifiScanner.ScanSettings.HiddenNetwork> retrieveHiddenNetworkList() {
+        List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworks = new ArrayList<>();
+        for (PerAppInfo appInfo : mActiveNetworkSuggestionsPerApp.values()) {
+            if (!appInfo.hasUserApproved) continue;
+            for (ExtendedWifiNetworkSuggestion ewns : appInfo.extNetworkSuggestions) {
+                if (!ewns.wns.wifiConfiguration.hiddenSSID) continue;
+                hiddenNetworks.add(
+                        new WifiScanner.ScanSettings.HiddenNetwork(
+                                ewns.wns.wifiConfiguration.SSID));
+                if (hiddenNetworks.size() >= NUMBER_OF_HIDDEN_NETWORK_FOR_ONE_SCAN) {
+                    return hiddenNetworks;
+                }
+            }
+        }
+        return hiddenNetworks;
     }
 
     /**

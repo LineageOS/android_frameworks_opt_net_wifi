@@ -68,6 +68,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -97,6 +98,9 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     public static final String UI_START_INTENT_EXTRA_REQUEST_IS_FOR_SINGLE_NETWORK =
             "com.android.settings.wifi.extra.REQUEST_IS_FOR_SINGLE_NETWORK";
+    // Capacity limit of approved Access Point per App
+    @VisibleForTesting
+    public static final int NUM_OF_ACCESS_POINT_LIMIT_PER_APP = 50;
 
     private final Context mContext;
     private final ActivityManager mActivityManager;
@@ -117,8 +121,8 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final ExternalCallbackTracker<INetworkRequestMatchCallback> mRegisteredCallbacks;
     private final Messenger mSrcMessenger;
     // Store all user approved access points for apps.
-    // TODO(b/122658039): Persist this.
-    private final Map<String, Set<AccessPoint>> mUserApprovedAccessPointMap = new HashMap<>();
+    @VisibleForTesting
+    public final Map<String, LinkedHashSet<AccessPoint>> mUserApprovedAccessPointMap;
     private WifiScanner mWifiScanner;
 
     private int mGenericConnectionReqCount = 0;
@@ -346,12 +350,13 @@ public class WifiNetworkFactory extends NetworkFactory {
         public Map<String, Set<AccessPoint>> toSerialize() {
             // Clear the flag after writing to disk.
             mHasNewDataToSerialize = false;
-            return mUserApprovedAccessPointMap;
+            return new HashMap<>(mUserApprovedAccessPointMap);
         }
 
         @Override
         public void fromDeserialized(Map<String, Set<AccessPoint>> approvedAccessPointMap) {
-            mUserApprovedAccessPointMap.putAll(approvedAccessPointMap);
+            approvedAccessPointMap.forEach((key, value) ->
+                    mUserApprovedAccessPointMap.put(key, new LinkedHashSet<>(value)));
         }
 
         @Override
@@ -397,6 +402,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mConnectionTimeoutAlarmListener = new ConnectionTimeoutAlarmListener();
         mRegisteredCallbacks = new ExternalCallbackTracker<INetworkRequestMatchCallback>(mHandler);
         mSrcMessenger = new Messenger(new Handler(looper, mNetworkConnectionTriggerCallback));
+        mUserApprovedAccessPointMap = new HashMap<>();
 
         // register the data store for serializing/deserializing data.
         configStore.registerStoreData(
@@ -1135,10 +1141,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         mConnectionTimeoutSet = true;
     }
 
-    private @NonNull CharSequence getAppName(@NonNull String packageName) {
+    private @NonNull CharSequence getAppName(@NonNull String packageName, int uid) {
         ApplicationInfo applicationInfo = null;
         try {
-            applicationInfo = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            applicationInfo = mContext.getPackageManager().getApplicationInfoAsUser(
+                packageName, 0, UserHandle.getUserId(uid));
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Failed to find app name for " + packageName);
             return "";
@@ -1153,7 +1160,8 @@ public class WifiNetworkFactory extends NetworkFactory {
         intent.addCategory(UI_START_INTENT_CATEGORY);
         intent.setFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(UI_START_INTENT_EXTRA_APP_NAME,
-                getAppName(mActiveSpecificNetworkRequestSpecifier.requestorPackageName));
+                getAppName(mActiveSpecificNetworkRequestSpecifier.requestorPackageName,
+                           mActiveSpecificNetworkRequestSpecifier.requestorUid));
         intent.putExtra(UI_START_INTENT_EXTRA_REQUEST_IS_FOR_SINGLE_NETWORK,
                 isActiveRequestForSingleNetwork());
         mContext.startActivityAsUser(intent, UserHandle.getUserHandleForUid(
@@ -1235,6 +1243,9 @@ public class WifiNetworkFactory extends NetworkFactory {
                     new AccessPoint(scanResult.SSID,
                             MacAddress.fromString(scanResult.BSSID), fromScanResult.networkType);
             if (approvedAccessPoints.contains(accessPoint)) {
+                // keep the most recently used AP in the end
+                approvedAccessPoints.remove(accessPoint);
+                approvedAccessPoints.add(accessPoint);
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "Found " + accessPoint
                             + " in user approved access point for " + requestorPackageName);
@@ -1254,10 +1265,11 @@ public class WifiNetworkFactory extends NetworkFactory {
         // object representing an entire network from UI, we need to ensure that all the visible
         // BSSIDs matching the original request and the selected network are stored.
         Set<AccessPoint> newUserApprovedAccessPoints = new HashSet<>();
+
+        ScanResultMatchInfo fromWifiConfiguration =
+                ScanResultMatchInfo.fromWifiConfiguration(network);
         for (ScanResult scanResult : mActiveMatchedScanResults) {
             ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
-            ScanResultMatchInfo fromWifiConfiguration =
-                    ScanResultMatchInfo.fromWifiConfiguration(network);
             if (fromScanResult.equals(fromWifiConfiguration)) {
                 AccessPoint approvedAccessPoint =
                         new AccessPoint(scanResult.SSID, MacAddress.fromString(scanResult.BSSID),
@@ -1268,10 +1280,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         if (newUserApprovedAccessPoints.isEmpty()) return;
 
         String requestorPackageName = mActiveSpecificNetworkRequestSpecifier.requestorPackageName;
-        Set<AccessPoint> approvedAccessPoints =
+        LinkedHashSet<AccessPoint> approvedAccessPoints =
                 mUserApprovedAccessPointMap.get(requestorPackageName);
         if (approvedAccessPoints == null) {
-            approvedAccessPoints = new HashSet<>();
+            approvedAccessPoints = new LinkedHashSet<>();
             mUserApprovedAccessPointMap.put(requestorPackageName, approvedAccessPoints);
             // Note the new app in metrics.
             mWifiMetrics.incrementNetworkRequestApiNumApps();
@@ -1280,22 +1292,33 @@ public class WifiNetworkFactory extends NetworkFactory {
             Log.v(TAG, "Adding " + newUserApprovedAccessPoints
                     + " to user approved access point for " + requestorPackageName);
         }
+        // keep the most recently added APs in the end
+        approvedAccessPoints.removeAll(newUserApprovedAccessPoints);
         approvedAccessPoints.addAll(newUserApprovedAccessPoints);
+        cleanUpLRUAccessPoints(approvedAccessPoints);
         saveToStore();
+    }
+
+    /**
+     * Clean up least recently used Access Points if specified app reach the limit.
+     */
+    private static void cleanUpLRUAccessPoints(Set<AccessPoint> approvedAccessPoints) {
+        if (approvedAccessPoints.size() <= NUM_OF_ACCESS_POINT_LIMIT_PER_APP) {
+            return;
+        }
+        Iterator iter = approvedAccessPoints.iterator();
+        while (iter.hasNext() && approvedAccessPoints.size() > NUM_OF_ACCESS_POINT_LIMIT_PER_APP) {
+            iter.next();
+            iter.remove();
+        }
     }
 
     /**
      * Remove all user approved access points for the specified app.
      */
     public void removeUserApprovedAccessPointsForApp(@NonNull String packageName) {
-        Iterator<Map.Entry<String, Set<AccessPoint>>> iter =
-                mUserApprovedAccessPointMap.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<String, Set<AccessPoint>> entry = iter.next();
-            if (packageName.equals(entry.getKey())) {
-                Log.i(TAG, "Removing all approved access points for " + packageName);
-                iter.remove();
-            }
+        if (mUserApprovedAccessPointMap.remove(packageName) != null) {
+            Log.i(TAG, "Removing all approved access points for " + packageName);
         }
         saveToStore();
     }
