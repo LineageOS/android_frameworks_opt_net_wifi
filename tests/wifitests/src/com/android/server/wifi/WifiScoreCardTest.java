@@ -34,6 +34,7 @@ import com.android.server.wifi.WifiScoreCardProto.Event;
 import com.android.server.wifi.WifiScoreCardProto.Network;
 import com.android.server.wifi.WifiScoreCardProto.NetworkList;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
+import com.android.server.wifi.util.IntHistogram;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -98,6 +99,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
         mWifiInfo.setNetworkId(TEST_NETWORK_CONFIG_ID);
         millisecondsPass(0);
         mWifiScoreCard = new WifiScoreCard(mClock, "some seed");
+        mWifiScoreCard.mPersistentHistograms = true; // TODO - remove when ready
     }
 
     /**
@@ -256,6 +258,15 @@ public class WifiScoreCardTest extends WifiBaseTest {
         millisecondsPass(1000);
         mWifiInfo.setRssi(-44);
         mWifiScoreCard.noteSignalPoll(mWifiInfo);
+        mWifiInfo.setFrequency(2432);
+        for (int round = 0; round < 4; round++) {
+            for (int i = 0; i < HISTOGRAM_COUNT.length; i++) {
+                if (HISTOGRAM_COUNT[i] > round) {
+                    mWifiInfo.setRssi(HISTOGRAM_RSSI[i]);
+                    mWifiScoreCard.noteSignalPoll(mWifiInfo);
+                }
+            }
+        }
         WifiScoreCard.PerBssid perBssid = mWifiScoreCard.fetchByBssid(TEST_BSSID_1);
         perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalMean = -42.0;
         perBssid.lookupSignal(Event.SIGNAL_POLL, 2412).rssi.historicalVariance = 4.0;
@@ -263,6 +274,21 @@ public class WifiScoreCardTest extends WifiBaseTest {
         // Now convert to protobuf form
         byte[] serialized = perBssid.toAccessPoint().toByteArray();
         return serialized;
+    }
+    private static final int[] HISTOGRAM_RSSI = {-80, -79, -78};
+    private static final int[] HISTOGRAM_COUNT = {3, 1, 4};
+
+    private void checkHistogramExample(String diag, IntHistogram rssiHistogram) {
+        int i = 0;
+        for (IntHistogram.Bucket bucket : rssiHistogram) {
+            if (bucket.count != 0) {
+                assertTrue(diag, i < HISTOGRAM_COUNT.length);
+                assertEquals(diag, HISTOGRAM_RSSI[i], bucket.start);
+                assertEquals(diag, HISTOGRAM_COUNT[i], bucket.count);
+                i++;
+            }
+        }
+        assertEquals(diag, HISTOGRAM_COUNT.length, i);
     }
 
     /**
@@ -283,6 +309,8 @@ public class WifiScoreCardTest extends WifiBaseTest {
                 .rssi.historicalMean, TOL);
         assertEquals(diag, 4.0, perBssid.lookupSignal(Event.SIGNAL_POLL, 2412)
                 .rssi.historicalVariance, TOL);
+        checkHistogramExample(diag, perBssid.lookupSignal(Event.SIGNAL_POLL,
+                2432).rssi.intHistogram);
     }
 
     /**
@@ -294,12 +322,18 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
         // Verify by parsing it and checking that we see the expected results
         AccessPoint ap = AccessPoint.parseFrom(serialized);
-        assertEquals(4, ap.getEventStatsCount());
+        assertEquals(5, ap.getEventStatsCount());
         for (Signal signal: ap.getEventStatsList()) {
             if (signal.getFrequency() == 2412) {
                 assertFalse(signal.getRssi().hasCount());
                 assertEquals(-42.0, signal.getRssi().getHistoricalMean(), TOL);
                 assertEquals(4.0, signal.getRssi().getHistoricalVariance(), TOL);
+                continue;
+            }
+            if (signal.getFrequency() == 2432) {
+                assertEquals(Event.SIGNAL_POLL, signal.getEvent());
+                assertEquals(HISTOGRAM_RSSI[2], signal.getRssi().getBuckets(2).getLow());
+                assertEquals(HISTOGRAM_COUNT[2], signal.getRssi().getBuckets(2).getNumber());
                 continue;
             }
             assertEquals(5805, signal.getFrequency());
