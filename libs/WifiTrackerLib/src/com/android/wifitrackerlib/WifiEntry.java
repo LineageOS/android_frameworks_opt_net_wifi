@@ -30,10 +30,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 
 /**
- * Abstract base class for an entry representing a Wi-Fi network in a Wi-Fi picker.
+ * Abstract base class for an entry representing a Wi-Fi network in a Wi-Fi picker/settings.
  *
- * Clients implementing a Wi-Fi picker should receive WifiEntry objects from WifiTracker2, and rely
- * on the given API for all user-displayable information and actions on the represented network.
+ * Clients implementing a Wi-Fi picker/settings should receive WifiEntry objects from classes
+ * implementing BaseWifiTracker, and rely on the given API for all user-displayable information and
+ * actions on the represented network.
  */
 public abstract class WifiEntry implements Comparable<WifiEntry> {
     @Retention(RetentionPolicy.SOURCE)
