@@ -82,6 +82,23 @@ class StandardWifiEntry extends WifiEntry {
         mWifiConfig = config;
     }
 
+    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull String key) {
+        // TODO: second argument (isSaved = false) is bogus in this context
+        super(callbackHandler, false);
+
+        if (!key.startsWith(KEY_PREFIX)) {
+            throw new IllegalArgumentException("Key does not start with correct prefix!");
+        }
+        mKey = key;
+        try {
+            final int securityDelimiter = key.lastIndexOf(",");
+            mSsid = key.substring(KEY_PREFIX.length(), securityDelimiter);
+            mSecurity = Integer.valueOf(key.substring(securityDelimiter + 1));
+        } catch (StringIndexOutOfBoundsException | NumberFormatException e) {
+            throw new IllegalArgumentException("Malformed key: " + key);
+        }
+    }
+
     @Override
     public String getKey() {
         return mKey;
