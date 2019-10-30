@@ -110,6 +110,7 @@ public class PasspointXmlUtils {
     private static final String XML_TAG_USAGE_LIMIT_START_TIME = "UsageLimitStartTime";
     private static final String XML_TAG_USAGE_LIMIT_DATA_LIMIT = "UsageLimitDataLimit";
     private static final String XML_TAG_USAGE_LIMIT_TIME_LIMIT = "UsageLimitTimeLimit";
+    private static final String XML_TAG_CARRIER_ID = "CarrierId";
 
     /**
      * Serialize a {@link PasspointConfiguration} to the output stream as a XML block.
@@ -146,6 +147,7 @@ public class PasspointXmlUtils {
             XmlUtil.writeNextValue(out, XML_TAG_FRIENDLY_NAME_LIST,
                     config.getServiceFriendlyNames());
         }
+        XmlUtil.writeNextValue(out, XML_TAG_CARRIER_ID, config.getCarrierId());
     }
 
     /**
@@ -198,6 +200,9 @@ public class PasspointXmlUtils {
                         break;
                     case XML_TAG_FRIENDLY_NAME_LIST:
                         config.setServiceFriendlyNames((Map<String, String>) value);
+                        break;
+                    case XML_TAG_CARRIER_ID:
+                        config.setCarrierId((int) value);
                         break;
                     default:
                         throw new XmlPullParserException("Unknown value under "

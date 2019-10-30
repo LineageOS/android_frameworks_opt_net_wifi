@@ -964,6 +964,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertNull(wifiInfo.getPasspointProviderFriendlyName());
         // Ensure the connection stats for the network is updated.
         verify(mWifiConfigManager).updateNetworkAfterConnect(FRAMEWORK_NETWORK_ID);
+        verify(mWifiConfigManager).updateRandomizedMacExpireTime(any(), anyLong());
 
         // Anonymous Identity is not set.
         assertEquals("", mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());

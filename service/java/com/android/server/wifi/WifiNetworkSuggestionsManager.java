@@ -40,6 +40,7 @@ import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
@@ -599,6 +600,9 @@ public class WifiNetworkSuggestionsManager {
             Log.w(TAG, "Empty list of network suggestions for " + packageName + ". Ignoring");
             return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
         }
+        if (!validateNetworkSuggestions(networkSuggestions, uid, packageName)) {
+            return WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED;
+        }
         PerAppInfo perAppInfo = mActiveNetworkSuggestionsPerApp.get(packageName);
         if (perAppInfo == null) {
             perAppInfo = new PerAppInfo(packageName);
@@ -652,6 +656,23 @@ public class WifiNetworkSuggestionsManager {
         mWifiMetrics.incrementNetworkSuggestionApiNumModification();
         mWifiMetrics.noteNetworkSuggestionApiListSizeHistogram(getAllMaxSizes());
         return WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS;
+    }
+
+    private boolean validateNetworkSuggestions(
+            List<WifiNetworkSuggestion> networkSuggestions, int uid, String packageName) {
+        if (mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(uid)) {
+            return true;
+        }
+        for (WifiNetworkSuggestion suggestion : networkSuggestions) {
+            WifiConfiguration config = suggestion.wifiConfiguration;
+            if (config != null
+                    && config.carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                Log.e(TAG, "bad wifi suggestion from app: " + packageName);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void stopTrackingAppOpsChange(@NonNull String packageName) {

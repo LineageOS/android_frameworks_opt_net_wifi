@@ -2755,6 +2755,8 @@ public class ClientModeImpl extends StateMachine {
         if (config != null) {
             mWifiInfo.setEphemeral(config.ephemeral);
             mWifiInfo.setTrusted(config.trusted);
+            mWifiConfigManager.updateRandomizedMacExpireTime(config,
+                    dhcpResults.getLeaseDuration());
         }
 
         // Set meteredHint if DHCP result says network is metered

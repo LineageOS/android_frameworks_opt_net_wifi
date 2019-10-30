@@ -105,12 +105,13 @@ java_library {
         "android.hidl.manager-V1.2-java",
         "androidx.annotation_annotation",
         "bouncycastle-unbundled",
-        "wifi_service_proto",
         "ksoap2",
         "libnanohttpd",
         "services.net",
         "services.wifi",
         "libwificond_aidl-java",
+        "wifi_proto_scorecard",
+        "wifi_proto_metrics",
     ],
 }
 

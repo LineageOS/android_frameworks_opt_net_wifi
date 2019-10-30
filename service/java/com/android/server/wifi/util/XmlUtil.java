@@ -349,6 +349,7 @@ public class XmlUtil {
         public static final String XML_TAG_RANDOMIZED_MAC_ADDRESS = "RandomizedMacAddress";
         public static final String XML_TAG_MAC_RANDOMIZATION_SETTING = "MacRandomizationSetting";
         public static final String XML_TAG_SAE_PASSWORD_ID_KEY = "SaePasswordId";
+        public static final String XML_TAG_CARRIER_ID = "CarrierId";
 
         /**
          * Write WepKeys to the XML stream.
@@ -479,6 +480,7 @@ public class XmlUtil {
                     configuration.getRandomizedMacAddress().toString());
             XmlUtil.writeNextValue(out, XML_TAG_MAC_RANDOMIZATION_SETTING,
                     configuration.macRandomizationSetting);
+            XmlUtil.writeNextValue(out, XML_TAG_CARRIER_ID, configuration.carrierId);
         }
 
         /**
@@ -665,6 +667,9 @@ public class XmlUtil {
                     case XML_TAG_MAC_RANDOMIZATION_SETTING:
                         configuration.macRandomizationSetting = (int) value;
                         macRandomizationSettingExists = true;
+                        break;
+                    case XML_TAG_CARRIER_ID:
+                        configuration.carrierId = (int) value;
                         break;
                     default:
                         throw new XmlPullParserException(
