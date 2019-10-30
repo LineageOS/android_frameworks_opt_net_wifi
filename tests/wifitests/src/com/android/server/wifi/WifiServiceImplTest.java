@@ -24,6 +24,7 @@ import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_GENERI
 import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
 import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_NO_CHANNEL;
 import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED;
+import static android.net.wifi.WifiManager.LocalOnlyHotspotCallback.REQUEST_REGISTERED;
 import static android.net.wifi.WifiManager.SAP_START_FAILURE_GENERAL;
 import static android.net.wifi.WifiManager.SAP_START_FAILURE_NO_CHANNEL;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
@@ -34,6 +35,8 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_INFRA_5G;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
 
 import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERROR;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -95,6 +98,7 @@ import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
@@ -145,7 +149,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.Spy;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -268,7 +271,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
     @Mock IScanResultsListener mClientScanResultsListener;
 
-    @Spy FakeWifiLog mLog;
+    WifiLog mLog = new LogcatLog(TAG);
 
     @Before public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
@@ -376,6 +379,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 return null;
             }
         };
+
+        // permission not granted by default
+        doThrow(SecurityException.class).when(mContext).enforceCallingOrSelfPermission(
+                eq(Manifest.permission.NETWORK_SETUP_WIZARD), any());
     }
 
     /**
@@ -1432,13 +1439,16 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertTrue(retrievedScanResultList.isEmpty());
     }
 
-    private void registerLOHSRequestFull() {
-        // allow test to proceed without a permission check failure
+    private void setupLohsPermissions() {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
         when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
                 .thenReturn(false);
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+    }
+
+    private void registerLOHSRequestFull() {
+        setupLohsPermissions();
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME, null);
         assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
         verifyCheckChangePermission(TEST_PACKAGE_NAME);
     }
@@ -1644,9 +1654,172 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private void verifyLohsBand(int expectedBand) {
         verify(mActiveModeWarden).startSoftAp(mSoftApModeConfigCaptor.capture());
-        final WifiConfiguration configuration = mSoftApModeConfigCaptor.getValue().mConfig;
+        final WifiConfiguration configuration =
+                mSoftApModeConfigCaptor.getValue().getWifiConfiguration();
         assertNotNull(configuration);
         assertEquals(expectedBand, configuration.apBand);
+    }
+
+    private static class FakeLohsCallback extends ILocalOnlyHotspotCallback.Stub {
+        boolean mIsStarted = false;
+        WifiConfiguration mWifiConfig = null;
+
+        @Override
+        public void onHotspotStarted(WifiConfiguration wifiConfig) {
+            mIsStarted = true;
+            this.mWifiConfig = wifiConfig;
+        }
+
+        @Override
+        public void onHotspotStopped() {
+            mIsStarted = false;
+            mWifiConfig = null;
+        }
+
+        @Override
+        public void onHotspotFailed(int i) {
+            mIsStarted = false;
+            mWifiConfig = null;
+        }
+    }
+
+    private void setupForCustomLohs() {
+        setupLohsPermissions();
+        when(mContext.checkPermission(eq(Manifest.permission.NETWORK_SETUP_WIZARD),
+                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
+        setupWardenForCustomLohs();
+    }
+
+    private void setupWardenForCustomLohs() {
+        doAnswer(invocation -> {
+            changeLohsState(WIFI_AP_STATE_ENABLED, WIFI_AP_STATE_DISABLED, HOTSPOT_NO_ERROR);
+            mWifiServiceImpl.updateInterfaceIpState(mLohsInterfaceName, IFACE_IP_MODE_LOCAL_ONLY);
+            return null;
+        }).when(mActiveModeWarden).startSoftAp(any());
+    }
+
+    @Test(expected = SecurityException.class)
+    public void testCustomLohs_FailsWithoutPermission() {
+        SoftApConfiguration customConfig = new SoftApConfiguration.Builder()
+                .setSsid("customConfig")
+                .build();
+        // set up basic permissions, but not NETWORK_SETUP_WIZARD
+        setupLohsPermissions();
+        setupWardenForCustomLohs();
+        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME, customConfig);
+    }
+
+    private static void nopDeathCallback(LocalOnlyHotspotRequestInfo requestor) {
+    }
+
+    @Test
+    public void testCustomLohs_ExclusiveAfterShared() {
+        FakeLohsCallback sharedCallback = new FakeLohsCallback();
+        FakeLohsCallback exclusiveCallback = new FakeLohsCallback();
+        SoftApConfiguration exclusiveConfig = new SoftApConfiguration.Builder()
+                .setSsid("customSsid")
+                .build();
+
+        setupForCustomLohs();
+        mWifiServiceImpl.registerLOHSForTest(mPid, new LocalOnlyHotspotRequestInfo(
+                sharedCallback, WifiServiceImplTest::nopDeathCallback, null));
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(
+                exclusiveCallback, TEST_PACKAGE_NAME, exclusiveConfig))
+                .isEqualTo(ERROR_GENERIC);
+        mLooper.dispatchAll();
+
+        assertThat(sharedCallback.mIsStarted).isTrue();
+        assertThat(exclusiveCallback.mIsStarted).isFalse();
+    }
+
+    @Test
+    public void testCustomLohs_ExclusiveBeforeShared() {
+        FakeLohsCallback sharedCallback = new FakeLohsCallback();
+        FakeLohsCallback exclusiveCallback = new FakeLohsCallback();
+        SoftApConfiguration exclusiveConfig = new SoftApConfiguration.Builder()
+                .setSsid("customSsid")
+                .build();
+
+        setupForCustomLohs();
+        mWifiServiceImpl.registerLOHSForTest(mPid, new LocalOnlyHotspotRequestInfo(
+                exclusiveCallback, WifiServiceImplTest::nopDeathCallback, exclusiveConfig));
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(
+                sharedCallback, TEST_PACKAGE_NAME, null))
+                .isEqualTo(ERROR_GENERIC);
+        mLooper.dispatchAll();
+
+        assertThat(exclusiveCallback.mIsStarted).isTrue();
+        assertThat(sharedCallback.mIsStarted).isFalse();
+    }
+
+    @Test
+    public void testCustomLohs_Wpa2() {
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("customSsid")
+                .setWpa2Passphrase("passphrase")
+                .build();
+        FakeLohsCallback callback = new FakeLohsCallback();
+
+        setupForCustomLohs();
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(callback, TEST_PACKAGE_NAME, config))
+                .isEqualTo(REQUEST_REGISTERED);
+        mLooper.dispatchAll();
+
+        assertThat(callback.mIsStarted).isTrue();
+        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
+        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.WPA2_PSK);
+        assertThat(callback.mWifiConfig.preSharedKey).isEqualTo("passphrase");
+    }
+
+    @Test
+    public void testCustomLohs_Open() {
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setSsid("customSsid")
+                .build();
+        FakeLohsCallback callback = new FakeLohsCallback();
+
+        setupForCustomLohs();
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(callback, TEST_PACKAGE_NAME, config))
+                .isEqualTo(REQUEST_REGISTERED);
+        mLooper.dispatchAll();
+
+        assertThat(callback.mIsStarted).isTrue();
+        assertThat(callback.mWifiConfig.SSID).isEqualTo("customSsid");
+        assertThat(callback.mWifiConfig.getAuthType()).isEqualTo(KeyMgmt.NONE);
+        assertThat(callback.mWifiConfig.preSharedKey).isNull();
+    }
+
+    @Test
+    public void testCustomLohs_GeneratesSsidIfAbsent() {
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setWpa2Passphrase("passphrase")
+                .build();
+        FakeLohsCallback callback = new FakeLohsCallback();
+
+        setupForCustomLohs();
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(callback, TEST_PACKAGE_NAME, config))
+                .isEqualTo(REQUEST_REGISTERED);
+        mLooper.dispatchAll();
+
+        assertThat(callback.mIsStarted).isTrue();
+        assertThat(callback.mWifiConfig.SSID).isNotEmpty();
+    }
+
+    @Test
+    public void testCustomLohs_ForwardsBssid() {
+        SoftApConfiguration config = new SoftApConfiguration.Builder()
+                .setBssid(MacAddress.fromString("aa:bb:cc:dd:ee:ff"))
+                .build();
+        FakeLohsCallback callback = new FakeLohsCallback();
+
+        setupForCustomLohs();
+        assertThat(mWifiServiceImpl.startLocalOnlyHotspot(callback, TEST_PACKAGE_NAME, config))
+                .isEqualTo(REQUEST_REGISTERED);
+        mLooper.dispatchAll();
+
+        assertThat(callback.mIsStarted).isTrue();
+        assertThat(callback.mWifiConfig.BSSID)
+                .ignoringCase().isEqualTo("aa:bb:cc:dd:ee:ff");
     }
 
     /**

@@ -22,6 +22,7 @@ import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_FAILURE_REASON;
 import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_INTERFACE_NAME;
 import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_MODE;
 import static android.net.wifi.WifiManager.EXTRA_WIFI_AP_STATE;
+import static android.net.wifi.WifiManager.IFACE_IP_MODE_LOCAL_ONLY;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLED;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_DISABLING;
 import static android.net.wifi.WifiManager.WIFI_AP_STATE_ENABLED;
@@ -37,7 +38,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -148,6 +148,8 @@ public class SoftApManagerTest extends WifiBaseTest {
                 TEST_INTERFACE_NAME, TEST_COUNTRY_CODE.toUpperCase(Locale.ROOT)))
                 .thenReturn(true);
         when(mWifiNative.getFactoryMacAddress(any())).thenReturn(TEST_MAC_ADDRESS);
+        when(mWifiApConfigStore.randomizeBssidIfUnset(any(), any())).thenAnswer(
+                (invocation) -> invocation.getArgument(1));
     }
 
     private WifiConfiguration createDefaultApConfig() {
@@ -1134,34 +1136,13 @@ public class SoftApManagerTest extends WifiBaseTest {
     }
 
     @Test
-    public void setsRandomMacWhenEnabled() throws Exception {
-        SoftApModeConfiguration apConfig =
-                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
-        when(mResources.getBoolean(R.bool.config_wifi_ap_mac_randomization_supported))
-                .thenReturn(true);
-        ArgumentCaptor<MacAddress> mac = ArgumentCaptor.forClass(MacAddress.class);
-        when(mWifiNative.setMacAddress(eq(TEST_INTERFACE_NAME), mac.capture())).thenReturn(true);
-
-        startSoftApAndVerifyEnabled(apConfig);
-        mSoftApManager.stop();
-        mLooper.dispatchAll();
-
-        clearInvocations(mWifiNative, mCallback, mSarManager, mWifiDiagnostics, mWifiMetrics,
-                mListener, mFrameworkFacade, mContext);
-
-        startSoftApAndVerifyEnabled(apConfig);
-        mSoftApManager.stop();
-
-        assertThat(mac.getAllValues()).hasSize(2);
-        assertThat(mac.getAllValues()).containsNoDuplicates();
-    }
-
-    @Test
     public void resetsFactoryMacWhenRandomizationOff() throws Exception {
-        when(mResources.getBoolean(R.bool.config_wifi_ap_mac_randomization_supported))
-                .thenReturn(false);
+        WifiConfiguration config = new WifiConfiguration();
+        config.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        config.SSID = TEST_SSID;
+        config.BSSID = null;
         SoftApModeConfiguration apConfig =
-                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
+                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, config);
         ArgumentCaptor<MacAddress> mac = ArgumentCaptor.forClass(MacAddress.class);
         when(mWifiNative.getFactoryMacAddress(TEST_INTERFACE_NAME)).thenReturn(TEST_MAC_ADDRESS);
         when(mWifiNative.setMacAddress(eq(TEST_INTERFACE_NAME), mac.capture())).thenReturn(true);
@@ -1169,6 +1150,22 @@ public class SoftApManagerTest extends WifiBaseTest {
         startSoftApAndVerifyEnabled(apConfig);
 
         assertThat(mac.getValue()).isEqualTo(TEST_MAC_ADDRESS);
+    }
+
+    @Test
+    public void setsCustomMac() throws Exception {
+        WifiConfiguration config = new WifiConfiguration();
+        config.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        config.SSID = TEST_SSID;
+        config.BSSID = "23:34:45:56:67:78";
+        SoftApModeConfiguration apConfig = new SoftApModeConfiguration(
+                IFACE_IP_MODE_LOCAL_ONLY, config);
+        ArgumentCaptor<MacAddress> mac = ArgumentCaptor.forClass(MacAddress.class);
+        when(mWifiNative.setMacAddress(eq(TEST_INTERFACE_NAME), mac.capture())).thenReturn(true);
+
+        startSoftApAndVerifyEnabled(apConfig);
+
+        assertThat(mac.getValue()).isEqualTo(MacAddress.fromString("23:34:45:56:67:78"));
     }
 
     @Test
@@ -1238,7 +1235,7 @@ public class SoftApManagerTest extends WifiBaseTest {
                 WIFI_AP_STATE_ENABLING, HOTSPOT_NO_ERROR, TEST_INTERFACE_NAME,
                 softApConfig.getTargetMode());
         verify(mListener).onStarted();
-        verify(mWifiMetrics).addSoftApUpChangedEvent(true, softApConfig.mTargetMode);
+        verify(mWifiMetrics).addSoftApUpChangedEvent(true, softApConfig.getTargetMode());
         verify(mFrameworkFacade).registerContentObserver(eq(mContext), any(Uri.class), eq(true),
                 observerCaptor.capture());
         mContentObserver = observerCaptor.getValue();

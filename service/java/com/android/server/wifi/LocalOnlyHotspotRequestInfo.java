@@ -17,7 +17,9 @@
 package com.android.server.wifi;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.net.wifi.ILocalOnlyHotspotCallback;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.os.Binder;
 import android.os.IBinder;
@@ -30,17 +32,18 @@ import com.android.internal.util.Preconditions;
  *
  * @hide
  */
-public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
+class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
     static final int HOTSPOT_NO_ERROR = -1;
 
     private final int mPid;
     private final ILocalOnlyHotspotCallback mCallback;
     private final RequestingApplicationDeathCallback mDeathCallback;
+    private final SoftApConfiguration mCustomConfig;
 
     /**
      * Callback for use with LocalOnlyHotspot to unregister requesting applications upon death.
      */
-    public interface RequestingApplicationDeathCallback {
+    interface RequestingApplicationDeathCallback {
         /**
          * Called when requesting app has died.
          */
@@ -48,10 +51,12 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
     }
 
     LocalOnlyHotspotRequestInfo(@NonNull ILocalOnlyHotspotCallback callback,
-            @NonNull RequestingApplicationDeathCallback deathCallback) {
+            @NonNull RequestingApplicationDeathCallback deathCallback,
+            @Nullable SoftApConfiguration customConfig) {
         mPid = Binder.getCallingPid();
         mCallback = Preconditions.checkNotNull(callback);
         mDeathCallback = Preconditions.checkNotNull(deathCallback);
+        mCustomConfig = customConfig;
 
         try {
             mCallback.asBinder().linkToDeath(this, 0);
@@ -108,5 +113,9 @@ public class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
 
     public int getPid() {
         return mPid;
+    }
+
+    public SoftApConfiguration getCustomConfig() {
+        return mCustomConfig;
     }
 }
