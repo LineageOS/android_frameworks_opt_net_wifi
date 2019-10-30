@@ -55,12 +55,12 @@ import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.test.suitebuilder.annotation.SmallTest;
 
-import com.android.internal.R;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Test;

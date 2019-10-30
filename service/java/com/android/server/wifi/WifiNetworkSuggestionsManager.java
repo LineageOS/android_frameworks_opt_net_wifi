@@ -45,11 +45,11 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -882,7 +882,7 @@ public class WifiNetworkSuggestionsManager {
         CharSequence appName = getAppName(packageName, uid);
         Notification notification = new Notification.Builder(
                 mContext, SystemNotificationChannels.NETWORK_STATUS)
-                .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setTicker(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))
                 .setStyle(new Notification.BigTextStyle()
@@ -891,7 +891,7 @@ public class WifiNetworkSuggestionsManager {
                         packageName, uid))
                 .setShowWhen(false)
                 .setLocalOnly(true)
-                .setColor(mResources.getColor(R.color.system_notification_accent_color,
+                .setColor(mResources.getColor(android.R.color.system_notification_accent_color,
                         mContext.getTheme()))
                 .addAction(userAllowAppNotificationAction)
                 .addAction(userDisallowAppNotificationAction)

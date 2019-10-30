@@ -1646,7 +1646,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testStartLocalOnlyHotspotAt5Ghz() {
         when(mResources.getBoolean(
-                eq(com.android.internal.R.bool.config_wifi_local_only_hotspot_5ghz)))
+                eq(com.android.wifi.R.bool.config_wifi_local_only_hotspot_5ghz)))
                 .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
@@ -3196,7 +3196,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedTrue() {
         when(mResources.getBoolean(
-                eq(com.android.internal.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(true);
         assertTrue(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
 
@@ -3211,7 +3211,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedFalse() {
         when(mResources.getBoolean(
-                eq(com.android.internal.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(false);
 
         assertFalse(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
@@ -4120,7 +4120,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private void setupMaxApInterfaces(int val) {
         when(mResources.getInteger(
-                eq(com.android.internal.R.integer.config_wifi_max_ap_interfaces)))
+                eq(com.android.wifi.R.integer.config_wifi_max_ap_interfaces)))
                 .thenReturn(val);
     }
 

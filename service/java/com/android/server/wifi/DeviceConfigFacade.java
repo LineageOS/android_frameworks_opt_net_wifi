@@ -20,8 +20,8 @@ import android.content.Context;
 import android.os.Handler;
 import android.provider.DeviceConfig;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.wifi.R;
 
 import java.util.concurrent.TimeUnit;
 

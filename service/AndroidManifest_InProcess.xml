@@ -27,12 +27,9 @@
 
     <application
         android:persistent="true"
-        android:directBootAware="true"
-        android:process="system"
-        android:label="@string/wifiAppLabel">
+        android:process="system">
         <service
-            android:name="com.android.server.wifi.WifiStackService"
-            android:directBootAware="true">
+            android:name="com.android.server.wifi.WifiStackService">
             <intent-filter>
                 <action android:name="android.net.wifi.IWifiStackConnector.InProcess"/>
             </intent-filter>

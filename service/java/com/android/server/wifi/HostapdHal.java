@@ -29,11 +29,11 @@ import android.os.HwRemoteBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.WifiNative.HostapdDeathEventHandler;
 import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.NativeUtil;
+import com.android.wifi.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;

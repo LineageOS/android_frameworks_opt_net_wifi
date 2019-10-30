@@ -109,6 +109,7 @@ import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
@@ -1139,7 +1140,7 @@ public class WifiServiceImpl extends BaseWifiService {
         private void startForFirstRequestLocked(LocalOnlyHotspotRequestInfo request) {
             boolean is5Ghz = hasAutomotiveFeature(mContext)
                     && mContext.getResources().getBoolean(
-                    com.android.internal.R.bool.config_wifi_local_only_hotspot_5ghz)
+                    R.bool.config_wifi_local_only_hotspot_5ghz)
                     && is5GhzSupported();
 
             int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
@@ -2318,13 +2319,13 @@ public class WifiServiceImpl extends BaseWifiService {
         }
 
         return mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_wifi_dual_band_support);
+                R.bool.config_wifi_dual_band_support);
     }
 
     private int getMaxApInterfacesCount() {
         //TODO (b/123227116): pull it from the HAL
         return mContext.getResources().getInteger(
-                com.android.internal.R.integer.config_wifi_max_ap_interfaces);
+                R.integer.config_wifi_max_ap_interfaces);
     }
 
     private boolean isConcurrentLohsAndTetheringSupported() {
@@ -2346,7 +2347,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mLog.info("needs5GHzToAnyApBandConversion uid=%").c(Binder.getCallingUid()).flush();
         }
         return mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_wifi_convert_apband_5ghz_to_any);
+                R.bool.config_wifi_convert_apband_5ghz_to_any);
     }
 
     /**
@@ -2550,7 +2551,7 @@ public class WifiServiceImpl extends BaseWifiService {
         intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
 
         boolean trackEmergencyCallState = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_wifi_turn_off_during_emergency_call);
+                R.bool.config_wifi_turn_off_during_emergency_call);
         if (trackEmergencyCallState) {
             intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
         }

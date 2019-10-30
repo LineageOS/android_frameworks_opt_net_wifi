@@ -45,7 +45,6 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
-import com.android.internal.R;
 import com.android.internal.os.PowerProfile;
 import com.android.server.am.ActivityManagerService;
 import com.android.server.wifi.aware.WifiAwareMetrics;
@@ -60,6 +59,7 @@ import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.server.wifi.wificond.IWificond;
+import com.android.wifi.R;
 
 import java.util.Random;
 

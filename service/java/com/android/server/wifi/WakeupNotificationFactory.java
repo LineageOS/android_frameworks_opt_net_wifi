@@ -21,9 +21,9 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
-import com.android.internal.R;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
+import com.android.wifi.R;
 
 
 /** Factory for Wifi Wake notifications. */
@@ -60,7 +60,7 @@ public class WakeupNotificationFactory {
         CharSequence content = mContext.getText(R.string.wifi_wakeup_onboarding_subtext);
         CharSequence disableText = mContext.getText(R.string.wifi_wakeup_onboarding_action_disable);
         int color = mContext.getResources()
-                .getColor(R.color.system_notification_accent_color, mContext.getTheme());
+                .getColor(android.R.color.system_notification_accent_color, mContext.getTheme());
 
         final Notification.Action disableAction = new Notification.Action.Builder(
                 null /* icon */, disableText, getPrivateBroadcast(ACTION_TURN_OFF_WIFI_WAKE))

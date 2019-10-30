@@ -33,10 +33,10 @@ import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
+import com.android.wifi.R;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -217,7 +217,7 @@ public class WifiApConfigStore {
                 mContext.getResources().getText(R.string.wifi_softap_config_change_detailed);
         int color =
                 mContext.getResources().getColor(
-                        R.color.system_notification_accent_color, mContext.getTheme());
+                        android.R.color.system_notification_accent_color, mContext.getTheme());
 
         return new Notification.Builder(mContext, SystemNotificationChannels.NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)

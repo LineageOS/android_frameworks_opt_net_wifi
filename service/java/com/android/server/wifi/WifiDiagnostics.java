@@ -23,10 +23,10 @@ import android.util.Base64;
 import android.util.Log;
 import android.util.SparseLongArray;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.ByteArrayRingBuffer;
 import com.android.server.wifi.util.StringUtil;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;

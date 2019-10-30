@@ -96,7 +96,6 @@ import android.util.Pair;
 import android.util.SparseArray;
 import android.util.StatsLog;
 
-import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
@@ -121,6 +120,7 @@ import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;

@@ -25,7 +25,7 @@ import android.provider.Settings;
 import android.util.KeyValueListParser;
 import android.util.Log;
 
-import com.android.internal.R;
+import com.android.wifi.R;
 
 /**
  * Holds parameters used for scoring networks.

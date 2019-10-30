@@ -81,7 +81,6 @@ import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
@@ -95,6 +94,7 @@ import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -452,7 +452,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 PackageManager.FEATURE_WIFI_DIRECT);
 
         mThisDevice.primaryDeviceType = mContext.getResources().getString(
-                com.android.internal.R.string.config_wifi_p2p_device_type);
+                R.string.config_wifi_p2p_device_type);
 
         HandlerThread wifiP2pThread = mWifiInjector.getWifiP2pServiceHandlerThread();
         mClientHandler = new ClientHandler(TAG, wifiP2pThread.getLooper());

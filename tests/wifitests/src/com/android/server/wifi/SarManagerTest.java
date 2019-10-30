@@ -40,7 +40,7 @@ import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
+import com.android.wifi.R;
 
 import org.junit.After;
 import org.junit.Before;

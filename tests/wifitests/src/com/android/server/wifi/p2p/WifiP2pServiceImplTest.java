@@ -74,7 +74,6 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.server.wifi.FakeWifiLog;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.HalDeviceManager;
@@ -83,6 +82,7 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Test;

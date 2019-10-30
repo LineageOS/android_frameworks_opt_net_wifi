@@ -48,12 +48,12 @@ import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import org.xmlpull.v1.XmlPullParserException;
 
