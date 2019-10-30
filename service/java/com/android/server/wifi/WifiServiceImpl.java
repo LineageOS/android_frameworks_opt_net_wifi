@@ -2823,6 +2823,10 @@ public class WifiServiceImpl extends BaseWifiService {
         WorkSource updatedWs = (ws == null || ws.isEmpty())
                 ? new WorkSource(Binder.getCallingUid()) : ws;
 
+        if (!WifiLockManager.isValidLockMode(lockMode)) {
+            throw new IllegalArgumentException("lockMode =" + lockMode);
+        }
+
         Mutable<Boolean> lockSuccess = new Mutable<>();
         boolean runWithScissorsSuccess = mWifiInjector.getClientModeImplHandler().runWithScissors(
                 () -> {
