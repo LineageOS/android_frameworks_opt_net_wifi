@@ -57,13 +57,20 @@ public class WifiPickerTrackerTest {
     private static final long MAX_SCAN_AGE_MILLIS = 15_000;
     private static final long SCAN_INTERVAL_MILLIS = 10_000;
 
-    @Mock private Lifecycle mMockLifecycle;
-    @Mock private Context mMockContext;
-    @Mock private WifiManager mMockWifiManager;
-    @Mock private ConnectivityManager mMockConnectivityManager;
-    @Mock private NetworkScoreManager mMockNetworkScoreManager;
-    @Mock private Clock mMockClock;
-    @Mock private WifiPickerTracker.WifiPickerTrackerCallback mMockWifiTrackerCallback;
+    @Mock
+    private Lifecycle mMockLifecycle;
+    @Mock
+    private Context mMockContext;
+    @Mock
+    private WifiManager mMockWifiManager;
+    @Mock
+    private ConnectivityManager mMockConnectivityManager;
+    @Mock
+    private NetworkScoreManager mMockNetworkScoreManager;
+    @Mock
+    private Clock mMockClock;
+    @Mock
+    private WifiPickerTracker.WifiPickerTrackerCallback mMockWifiTrackerCallback;
 
     private TestLooper mTestLooper;
 
@@ -125,7 +132,7 @@ public class WifiPickerTrackerTest {
      * Tests that receiving a wifi state change broadcast notifies the listener.
      */
     @Test
-    public void testWifiStateChangeBroadcast_NotifiesListener() {
+    public void testWifiStateChangeBroadcast_notifiesListener() {
         final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
@@ -136,6 +143,24 @@ public class WifiPickerTrackerTest {
         mTestLooper.dispatchAll();
 
         verify(mMockWifiTrackerCallback, atLeastOnce()).onWifiStateChanged();
+    }
+
+    /**
+     * Tests that a CONFIGURED_NETWORKS_CHANGED broadcast notifies the listener for
+     * numSavedNetworksChanged.
+     */
+    @Test
+    public void testConfiguredNetworksChanged_notifiesListener() {
+        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        wifiPickerTracker.onStart();
+        verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
+                any(), any(), any());
+
+        mBroadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION));
+        mTestLooper.dispatchAll();
+
+        verify(mMockWifiTrackerCallback, atLeastOnce()).onNumSavedNetworksChanged();
     }
 
     /**

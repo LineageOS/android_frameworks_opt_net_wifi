@@ -94,7 +94,19 @@ message UnivariateStatistic {
   // more recent measurements get a higher weight.
   optional double historical_mean = 6;     // Long-term average
   optional double historical_variance = 7; // Long-term variance
+
+  // Arranged by increasing value
+  repeated HistogramBucket buckets = 8;
 };
+
+message HistogramBucket {
+  // Lower bound (inclusive) for values falling in this bucket.
+  // Compact signed encoding used here, because rssi values are negative.
+  // The upper bound is not stored explicitly.
+  optional sint64 low = 1;
+  // Number of occurences for this value or bucket.
+  optional int64 number = 2;
+}
 
 // Events where statistics may be collected
 enum Event {

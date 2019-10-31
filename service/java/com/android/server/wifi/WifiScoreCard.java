@@ -33,11 +33,13 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
 import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.WifiScoreCardProto.HistogramBucket;
 import com.android.server.wifi.WifiScoreCardProto.Network;
 import com.android.server.wifi.WifiScoreCardProto.NetworkList;
 import com.android.server.wifi.WifiScoreCardProto.SecurityType;
 import com.android.server.wifi.WifiScoreCardProto.Signal;
 import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
+import com.android.server.wifi.util.IntHistogram;
 import com.android.server.wifi.util.NativeUtil;
 
 import com.google.protobuf.ByteString;
@@ -68,11 +70,20 @@ public class WifiScoreCard {
     private static final String TAG = "WifiScoreCard";
     private static final boolean DBG = false;
 
+    @VisibleForTesting
+    boolean mPersistentHistograms = false; // not ready yet
+
     private static final int TARGET_IN_MEMORY_ENTRIES = 50;
 
     private final Clock mClock;
     private final String mL2KeySeed;
     private MemoryStore mMemoryStore;
+
+    @VisibleForTesting
+    static final int[] RSSI_BUCKETS =
+            {-99, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73,
+                    -72, -71, -70, -66, -55};
+
 
     /** Our view of the memory store */
     public interface MemoryStore {
@@ -393,17 +404,19 @@ public class WifiScoreCard {
             PerSignal perSignal = lookupSignal(event, frequency);
             if (rssi != INVALID_RSSI) {
                 perSignal.rssi.update(rssi);
+                changed = true;
             }
             if (linkspeed > 0) {
                 perSignal.linkspeed.update(linkspeed);
+                changed = true;
             }
             if (perSignal.elapsedMs != null && mTsConnectionAttemptStart > TS_NONE) {
                 long millis = mClock.getElapsedSinceBootMillis() - mTsConnectionAttemptStart;
                 if (millis >= 0) {
                     perSignal.elapsedMs.update(millis);
+                    changed = true;
                 }
             }
-            changed = true;
         }
         PerSignal lookupSignal(Event event, int frequency) {
             finishPendingRead();
@@ -470,7 +483,8 @@ public class WifiScoreCard {
                 Pair<Event, Integer> key = new Pair<>(signal.getEvent(), signal.getFrequency());
                 PerSignal perSignal = mSignalForEventAndFrequency.get(key);
                 if (perSignal == null) {
-                    mSignalForEventAndFrequency.put(key, new PerSignal(signal));
+                    mSignalForEventAndFrequency.put(key,
+                            new PerSignal(key.first, key.second).merge(signal));
                     // No need to set changed for this, since we are in sync with what's stored
                 } else {
                     perSignal.merge(signal);
@@ -690,7 +704,8 @@ public class WifiScoreCard {
         PerSignal(Event event, int frequency) {
             this.event = event;
             this.frequency = frequency;
-            this.rssi = new PerUnivariateStatistic();
+            // TODO(b/136675430) - histograms not needed for all events?
+            this.rssi = new PerUnivariateStatistic(RSSI_BUCKETS);
             this.linkspeed = new PerUnivariateStatistic();
             switch (event) {
                 case FIRST_POLL_AFTER_CONNECTION:
@@ -706,18 +721,7 @@ public class WifiScoreCard {
                     break;
             }
         }
-        PerSignal(Signal signal) {
-            this.event = signal.getEvent();
-            this.frequency = signal.getFrequency();
-            this.rssi = new PerUnivariateStatistic(signal.getRssi());
-            this.linkspeed = new PerUnivariateStatistic(signal.getLinkspeed());
-            if (signal.hasElapsedMs()) {
-                this.elapsedMs = new PerUnivariateStatistic(signal.getElapsedMs());
-            } else {
-                this.elapsedMs = null;
-            }
-        }
-        void merge(Signal signal) {
+        PerSignal merge(Signal signal) {
             Preconditions.checkArgument(event == signal.getEvent());
             Preconditions.checkArgument(frequency == signal.getFrequency());
             rssi.merge(signal.getRssi());
@@ -725,6 +729,7 @@ public class WifiScoreCard {
             if (signal.hasElapsedMs()) {
                 elapsedMs.merge(signal.getElapsedMs());
             }
+            return this;
         }
         Signal toSignal() {
             Signal.Builder builder = Signal.newBuilder();
@@ -734,6 +739,9 @@ public class WifiScoreCard {
                     .setLinkspeed(linkspeed.toUnivariateStatistic());
             if (elapsedMs != null) {
                 builder.setElapsedMs(elapsedMs.toUnivariateStatistic());
+            }
+            if (DBG && rssi.intHistogram != null && rssi.intHistogram.numNonEmptyBuckets() > 0) {
+                Log.d(TAG, "Histogram " + event + " RSSI" + rssi.intHistogram);
             }
             return builder.build();
         }
@@ -747,25 +755,10 @@ public class WifiScoreCard {
         public double maxValue = Double.NEGATIVE_INFINITY;
         public double historicalMean = 0.0;
         public double historicalVariance = Double.POSITIVE_INFINITY;
+        public IntHistogram intHistogram = null;
         PerUnivariateStatistic() {}
-        PerUnivariateStatistic(UnivariateStatistic stats) {
-            if (stats.hasCount()) {
-                this.count = stats.getCount();
-                this.sum = stats.getSum();
-                this.sumOfSquares = stats.getSumOfSquares();
-            }
-            if (stats.hasMinValue()) {
-                this.minValue = stats.getMinValue();
-            }
-            if (stats.hasMaxValue()) {
-                this.maxValue = stats.getMaxValue();
-            }
-            if (stats.hasHistoricalMean()) {
-                this.historicalMean = stats.getHistoricalMean();
-            }
-            if (stats.hasHistoricalVariance()) {
-                this.historicalVariance = stats.getHistoricalVariance();
-            }
+        PerUnivariateStatistic(int[] bucketBoundaries) {
+            intHistogram = new IntHistogram(bucketBoundaries);
         }
         void update(double value) {
             count++;
@@ -773,6 +766,9 @@ public class WifiScoreCard {
             sumOfSquares += value * value;
             minValue = Math.min(minValue, value);
             maxValue = Math.max(maxValue, value);
+            if (intHistogram != null) {
+                intHistogram.add(Math.round((float) value), 1);
+            }
         }
         void age() {
             //TODO  Fold the current stats into the historical stats
@@ -806,6 +802,18 @@ public class WifiScoreCard {
                     historicalVariance = stats.getHistoricalVariance();
                 }
             }
+            if (intHistogram != null) {
+                for (HistogramBucket bucket : stats.getBucketsList()) {
+                    long low = bucket.getLow();
+                    long count = bucket.getNumber();
+                    if (low != (int) low || count != (int) count || count < 0) {
+                        Log.e(TAG, "Found corrupted histogram! Clearing.");
+                        intHistogram.clear();
+                        break;
+                    }
+                    intHistogram.add((int) low, (int) count);
+                }
+            }
         }
         UnivariateStatistic toUnivariateStatistic() {
             UnivariateStatistic.Builder builder = UnivariateStatistic.newBuilder();
@@ -819,6 +827,14 @@ public class WifiScoreCard {
             if (historicalVariance < Double.POSITIVE_INFINITY) {
                 builder.setHistoricalMean(historicalMean)
                         .setHistoricalVariance(historicalVariance);
+            }
+            if (mPersistentHistograms
+                    && intHistogram != null && intHistogram.numNonEmptyBuckets() > 0) {
+                for (IntHistogram.Bucket b : intHistogram) {
+                    if (b.count == 0) continue;
+                    builder.addBuckets(
+                            HistogramBucket.newBuilder().setLow(b.start).setNumber(b.count));
+                }
             }
             return builder.build();
         }
