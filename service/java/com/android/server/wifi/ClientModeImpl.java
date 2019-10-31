@@ -3916,7 +3916,6 @@ public class ClientModeImpl extends StateMachine {
                     log("resetting EAP-SIM/AKA/AKA' networks since SIM was changed");
                     boolean simPresent = message.arg1 == 1;
                     if (!simPresent) {
-                        mPasspointManager.removeEphemeralProviders();
                         mWifiConfigManager.resetSimNetworks();
                     }
                     break;

@@ -3569,7 +3569,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, false);
         mLooper.dispatchAll();
 
-        verify(mPasspointManager).removeEphemeralProviders();
         verify(mWifiConfigManager).resetSimNetworks();
     }
 
