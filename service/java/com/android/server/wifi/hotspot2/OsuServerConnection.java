@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
 import java.security.KeyManagementException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -163,11 +164,19 @@ public class OsuServerConnection {
      */
     public boolean connect(@NonNull URL url, @NonNull Network network) {
         if (url == null) {
-            Log.e(TAG, "url is null");
+            Log.e(TAG, "URL is null");
             return false;
         }
         if (network == null) {
             Log.e(TAG, "network is null");
+            return false;
+        }
+
+        String protocol = url.getProtocol();
+        // According to section 7.5.1 OSU operational requirements, in HS2.0 R3 specification,
+        // the URL must be HTTPS. Enforce it here.
+        if (!TextUtils.equals(protocol, "https")) {
+            Log.e(TAG, "OSU server URL must be HTTPS");
             return false;
         }
 
@@ -179,27 +188,25 @@ public class OsuServerConnection {
      * Validates the service provider by comparing its identities found in OSU Server cert
      * to the friendlyName obtained from ANQP exchange that is displayed to the user.
      *
-     * @param locale       a {@link Locale} object used for matching the friendly name in
-     *                     subjectAltName section of the certificate along with
-     *                     {@param friendlyName}.
-     * @param friendlyName a string of the friendly name used for finding the same name in
-     *                     subjectAltName section of the certificate.
+     * @param friendlyNames the friendly names used for finding the same name in
+     *                     subjectAltName section of the certificate, which is a map of language
+     *                     codes from ISO-639 and names.
      * @return boolean true if friendlyName shows up as one of the identities in the cert
      */
-    public boolean validateProvider(Locale locale,
-            String friendlyName) {
+    public boolean validateProvider(
+            Map<String, String> friendlyNames) {
 
-        if (locale == null || TextUtils.isEmpty(friendlyName)) {
+        if (friendlyNames.size() == 0) {
             return false;
         }
 
         for (Pair<Locale, String> identity : ServiceProviderVerifier.getProviderNames(
                 mTrustManager.getProviderCert())) {
-            if (identity.first == null) continue;
+            if (identity.first == null || TextUtils.isEmpty(identity.second)) continue;
 
             // Compare the language code for ISO-639.
-            if (identity.first.getISO3Language().equals(locale.getISO3Language()) &&
-                    TextUtils.equals(identity.second, friendlyName)) {
+            if (TextUtils.equals(identity.second,
+                    friendlyNames.get(identity.first.getISO3Language()))) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "OSU certificate is valid for "
                             + identity.first.getISO3Language() + "/" + identity.second);
@@ -271,13 +278,37 @@ public class OsuServerConnection {
         mNetwork = network;
         mUrl = url;
 
-        HttpsURLConnection urlConnection;
+        URLConnection urlConnection;
+        HttpsURLConnection httpsURLConnection;
+
         try {
-            urlConnection = (HttpsURLConnection) mNetwork.openConnection(mUrl);
-            urlConnection.setSSLSocketFactory(mSocketFactory);
-            urlConnection.setConnectTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
-            urlConnection.setReadTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
-            urlConnection.connect();
+            urlConnection = mNetwork.openConnection(mUrl);
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to establish a URL connection: " + e);
+            if (mOsuServerCallbacks != null) {
+                mOsuServerCallbacks.onServerConnectionStatus(
+                        mOsuServerCallbacks.getSessionId(),
+                        false);
+            }
+            return;
+        }
+
+        if (urlConnection instanceof HttpsURLConnection) {
+            httpsURLConnection = (HttpsURLConnection) urlConnection;
+        } else {
+            Log.e(TAG, "Invalid URL connection");
+            if (mOsuServerCallbacks != null) {
+                mOsuServerCallbacks.onServerConnectionStatus(mOsuServerCallbacks.getSessionId(),
+                        false);
+            }
+            return;
+        }
+
+        try {
+            httpsURLConnection.setSSLSocketFactory(mSocketFactory);
+            httpsURLConnection.setConnectTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
+            httpsURLConnection.setReadTimeout(HttpsServiceConnection.DEFAULT_TIMEOUT_MS);
+            httpsURLConnection.connect();
         } catch (IOException e) {
             Log.e(TAG, "Unable to establish a URL connection: " + e);
             if (mOsuServerCallbacks != null) {
@@ -286,7 +317,7 @@ public class OsuServerConnection {
             }
             return;
         }
-        mUrlConnection = urlConnection;
+        mUrlConnection = httpsURLConnection;
         if (mOsuServerCallbacks != null) {
             mOsuServerCallbacks.onServerConnectionStatus(mOsuServerCallbacks.getSessionId(), true);
         }
@@ -572,9 +603,15 @@ public class OsuServerConnection {
                         (SSLSocket) null);
                 certsValid = true;
             } catch (CertificateException e) {
-                Log.e(TAG, "Unable to validate certs " + e);
-                if (mVerboseLoggingEnabled) {
-                    e.printStackTrace();
+                Log.e(TAG, "Certificate validation failure: " + e);
+                int i = 0;
+                for (X509Certificate cert : chain) {
+                    // Provide some more details about the invalid certificate
+                    Log.e(TAG, "Cert " + i + " details: " + cert.getSubjectDN());
+                    Log.e(TAG, "Not before: " + cert.getNotBefore() + ", not after: "
+                            + cert.getNotAfter());
+                    Log.e(TAG, "Cert " + i + " issuer: " + cert.getIssuerDN());
+                    i++;
                 }
             }
             if (mOsuServerCallbacks != null) {

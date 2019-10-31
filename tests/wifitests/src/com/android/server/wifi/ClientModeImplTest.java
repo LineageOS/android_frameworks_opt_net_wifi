@@ -3340,7 +3340,7 @@ public class ClientModeImplTest {
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(newLLStats);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
-        verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats);
+        verify(mWifiDataStall).checkForDataStall(oldLLStats, newLLStats, mCmi.getWifiInfo());
         verify(mWifiMetrics).incrementWifiLinkLayerUsageStats(newLLStats);
     }
 
@@ -3356,7 +3356,7 @@ public class ClientModeImplTest {
 
         WifiLinkLayerStats stats = new WifiLinkLayerStats();
         when(mWifiNative.getWifiLinkLayerStats(any())).thenReturn(stats);
-        when(mWifiDataStall.checkForDataStall(any(), any()))
+        when(mWifiDataStall.checkForDataStall(any(), any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_UNKNOWN);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
@@ -3364,11 +3364,16 @@ public class ClientModeImplTest {
         verify(mWifiMetrics, never()).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 eq(anyInt()), eq(-1));
 
-        when(mWifiDataStall.checkForDataStall(any(), any()))
+        when(mWifiDataStall.checkForDataStall(any(), any(), any()))
                 .thenReturn(WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX);
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(10L);
         mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
         mLooper.dispatchAll();
         verify(mWifiMetrics, times(2)).updateWifiUsabilityStatsEntries(any(), eq(stats));
+        when(mClock.getElapsedSinceBootMillis())
+                .thenReturn(10L + ClientModeImpl.DURATION_TO_WAIT_ADD_STATS_AFTER_DATA_STALL_MS);
+        mCmi.sendMessage(ClientModeImpl.CMD_RSSI_POLL, 1);
+        mLooper.dispatchAll();
         verify(mWifiMetrics).addToWifiUsabilityStatsList(WifiUsabilityStats.LABEL_BAD,
                 WifiIsUnusableEvent.TYPE_DATA_STALL_BAD_TX, -1);
     }

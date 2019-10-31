@@ -20,7 +20,7 @@ import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
 import static android.app.AppOpsManager.OP_CHANGE_WIFI_STATE;
-import static android.app.Notification.EXTRA_TEXT;
+import static android.app.Notification.EXTRA_BIG_TEXT;
 
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION;
 import static com.android.server.wifi.WifiNetworkSuggestionsManager.NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION;
@@ -48,6 +48,7 @@ import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
@@ -149,10 +150,12 @@ public class WifiNetworkSuggestionsManagerTest {
         when(mContext.getApplicationInfo()).thenReturn(ourAppInfo);
         // test app info
         ApplicationInfo appInfO1 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfo(TEST_PACKAGE_1, 0)).thenReturn(appInfO1);
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_1), eq(0), anyInt()))
+            .thenReturn(appInfO1);
         when(mPackageManager.getApplicationLabel(appInfO1)).thenReturn(TEST_APP_NAME_1);
         ApplicationInfo appInfO2 = new ApplicationInfo();
-        when(mPackageManager.getApplicationInfo(TEST_PACKAGE_2, 0)).thenReturn(appInfO2);
+        when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_2), eq(0), anyInt()))
+            .thenReturn(appInfO2);
         when(mPackageManager.getApplicationLabel(appInfO2)).thenReturn(TEST_APP_NAME_2);
 
         mWifiNetworkSuggestionsManager =
@@ -836,7 +839,7 @@ public class WifiNetworkSuggestionsManagerTest {
         validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion);
 
         // Verify no more broadcast were sent out.
-        verifyNoMoreInteractions(mContext);
+        mInorder.verifyNoMoreInteractions();
     }
 
     /**
@@ -865,7 +868,11 @@ public class WifiNetworkSuggestionsManagerTest {
         verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectFailure();
 
         // Verify no more broadcast were sent out.
-        verifyNoMoreInteractions(mContext);
+        mInorder.verify(mWifiPermissionsUtil, never()).enforceCanAccessScanResults(
+                anyString(), anyInt());
+        mInorder.verify(mContext,  never()).sendBroadcastAsUser(
+                any(), any());
+
     }
 
     /**
@@ -926,7 +933,7 @@ public class WifiNetworkSuggestionsManagerTest {
         }
 
         // Verify no more broadcast were sent out.
-        verifyNoMoreInteractions(mContext);
+        mInorder.verifyNoMoreInteractions();
     }
 
     /**
@@ -988,7 +995,7 @@ public class WifiNetworkSuggestionsManagerTest {
         }
 
         // Verify no more broadcast were sent out.
-        verifyNoMoreInteractions(mContext);
+        mInorder.verifyNoMoreInteractions();
     }
 
     /**
@@ -1051,7 +1058,7 @@ public class WifiNetworkSuggestionsManagerTest {
         }
 
         // Verify no more broadcast were sent out.
-        verifyNoMoreInteractions(mContext);
+        mInorder.verifyNoMoreInteractions();
     }
 
     /**
@@ -1083,7 +1090,10 @@ public class WifiNetworkSuggestionsManagerTest {
                 TEST_BSSID);
 
         // Verify no broadcast was sent out.
-        verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
+        mInorder.verify(mWifiPermissionsUtil, never()).enforceCanAccessScanResults(
+                anyString(), anyInt());
+        mInorder.verify(mContext,  never()).sendBroadcastAsUser(
+                any(), any());
     }
 
     /**
@@ -1114,7 +1124,10 @@ public class WifiNetworkSuggestionsManagerTest {
                 TEST_BSSID);
 
         // Verify no broadcast was sent out.
-        verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
+        mInorder.verify(mWifiPermissionsUtil, never()).enforceCanAccessScanResults(
+                anyString(), anyInt());
+        mInorder.verify(mContext,  never()).sendBroadcastAsUser(
+                any(), any());
     }
 
     /**
@@ -1151,7 +1164,7 @@ public class WifiNetworkSuggestionsManagerTest {
                 .enforceCanAccessScanResults(TEST_PACKAGE_1, TEST_UID_1);
 
         // Verify no broadcast was sent out.
-        verifyNoMoreInteractions(mContext, mWifiPermissionsUtil);
+        mInorder.verifyNoMoreInteractions();
     }
 
     /**
@@ -1841,10 +1854,11 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify handling of user dismissal of the user approval notification.
+     * Verify user dismissal notification when first time add suggestions and dismissal the user
+     * approval notification when framework gets scan results.
      */
     @Test
-    public void testUserApprovalNotificationDismissal() {
+    public void testUserApprovalNotificationDismissalWhenGetScanResult() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1855,6 +1869,11 @@ public class WifiNetworkSuggestionsManagerTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+        // Simulate user dismissal notification.
+        sendBroadcastForUserAction(
+                NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
+        reset(mNotificationManger);
 
         // Simulate finding the network in scan results.
         mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
@@ -1876,10 +1895,11 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify handling of user clicking allow on the user approval notification.
+     * Verify user dismissal notification when first time add suggestions and click on allow on
+     * the user approval notification when framework gets scan results.
      */
     @Test
-    public void testUserApprovalNotificationClickOnAllow() {
+    public void testUserApprovalNotificationClickOnAllowWhenGetScanResult() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1890,6 +1910,12 @@ public class WifiNetworkSuggestionsManagerTest {
         assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
                 mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+
+        // Simulate user dismissal notification.
+        sendBroadcastForUserAction(
+                NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
+        reset(mNotificationManger);
 
         // Simulate finding the network in scan results.
         mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
@@ -1915,10 +1941,11 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
-     * Verify handling of user clicking disallow on the user approval notification.
+     * Verify user dismissal notification when first time add suggestions and click on disallow on
+     * the user approval notification when framework gets scan results.
      */
     @Test
-    public void testUserApprovalNotificationClickOnDisallow() {
+    public void testUserApprovalNotificationClickOnDisallowWhenGetScanResult() {
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
                 TEST_PACKAGE_1);
@@ -1931,6 +1958,12 @@ public class WifiNetworkSuggestionsManagerTest {
                         TEST_PACKAGE_1));
         verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE),
                 eq(TEST_PACKAGE_1), mAppOpChangedListenerCaptor.capture());
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+
+        // Simulate user dismissal notification.
+        sendBroadcastForUserAction(
+                NOTIFICATION_USER_DISMISSED_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
+        reset(mNotificationManger);
 
         // Simulate finding the network in scan results.
         mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
@@ -2009,6 +2042,134 @@ public class WifiNetworkSuggestionsManagerTest {
     }
 
     /**
+     * Verify get hidden networks from All user approve network suggestions
+     */
+    @Test
+    public void testGetHiddenNetworks() {
+
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion hiddenNetworkSuggestion1 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskHiddenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        WifiNetworkSuggestion hiddenNetworkSuggestion2 = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createPskHiddenNetwork(), true, false, TEST_UID_2,
+                TEST_PACKAGE_2);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                    add(hiddenNetworkSuggestion1);
+                }};
+        List<WifiNetworkSuggestion> networkSuggestionList2 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(hiddenNetworkSuggestion2);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList2, TEST_UID_2,
+                        TEST_PACKAGE_2));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(false, TEST_PACKAGE_2);
+        List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworks =
+                mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList();
+        assertEquals(1, hiddenNetworks.size());
+        assertEquals(hiddenNetworkSuggestion1.wifiConfiguration.SSID, hiddenNetworks.get(0).ssid);
+    }
+
+    /**
+     * Verify handling of user clicking allow on the user approval notification when first time
+     * add suggestions.
+     */
+    @Test
+    public void testUserApprovalNotificationClickOnAllowDuringAddingSuggestions() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+
+        // Simulate user clicking on allow in the notification.
+        sendBroadcastForUserAction(
+                NOTIFICATION_USER_ALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
+        // Cancel the notification.
+        verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+
+        // Verify config store interactions.
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+
+        reset(mNotificationManger);
+        // We should not resend the notification next time the network is found in scan results.
+        mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(
+                createScanDetailForNetwork(networkSuggestion.wifiConfiguration));
+        verifyNoMoreInteractions(mNotificationManger);
+    }
+
+    /**
+     * Verify handling of user clicking Disallow on the user approval notification when first time
+     * add suggestions.
+     */
+    @Test
+    public void testUserApprovalNotificationClickOnDisallowWhenAddSuggestions() {
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), true, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        verify(mAppOpsManager).startWatchingMode(eq(OPSTR_CHANGE_WIFI_STATE),
+                eq(TEST_PACKAGE_1), mAppOpChangedListenerCaptor.capture());
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+
+        // Simulate user clicking on disallow in the notification.
+        sendBroadcastForUserAction(
+                NOTIFICATION_USER_DISALLOWED_APP_INTENT_ACTION, TEST_PACKAGE_1, TEST_UID_1);
+        // Ensure we turn off CHANGE_WIFI_STATE app-ops.
+        verify(mAppOpsManager).setMode(
+                OP_CHANGE_WIFI_STATE, TEST_UID_1,
+                TEST_PACKAGE_1, MODE_IGNORED);
+        // Cancel the notification.
+        verify(mNotificationManger).cancel(SystemMessage.NOTE_NETWORK_SUGGESTION_AVAILABLE);
+
+        // Verify config store interactions.
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        assertTrue(mDataSource.hasNewDataToSerialize());
+
+        reset(mNotificationManger);
+
+        // Now trigger the app-ops callback to ensure we remove all of their suggestions.
+        AppOpsManager.OnOpChangedListener listener = mAppOpChangedListenerCaptor.getValue();
+        assertNotNull(listener);
+        when(mAppOpsManager.unsafeCheckOpNoThrow(
+                OPSTR_CHANGE_WIFI_STATE, TEST_UID_1,
+                TEST_PACKAGE_1))
+                .thenReturn(MODE_IGNORED);
+        listener.onOpChanged(OPSTR_CHANGE_WIFI_STATE, TEST_PACKAGE_1);
+        mLooper.dispatchAll();
+        assertTrue(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions().isEmpty());
+
+        // Assuming the user re-enabled the app again & added the same suggestions back.
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
+                        TEST_PACKAGE_1));
+        validateUserApprovalNotification(TEST_APP_NAME_1);
+        verifyNoMoreInteractions(mNotificationManger);
+    }
+
+    /**
      * Creates a scan detail corresponding to the provided network values.
      */
     private ScanDetail createScanDetailForNetwork(WifiConfiguration configuration) {
@@ -2037,7 +2198,7 @@ public class WifiNetworkSuggestionsManagerTest {
 
     private boolean checkUserApprovalNotificationParams(
             Notification notification, String expectedAppName) {
-        if (!notification.extras.getString(EXTRA_TEXT).contains(expectedAppName)) return false;
+        if (!notification.extras.getString(EXTRA_BIG_TEXT).contains(expectedAppName)) return false;
         return true;
     }
 

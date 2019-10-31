@@ -97,7 +97,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
@@ -224,8 +223,8 @@ public class PasspointProvisionerTest {
                 mPasspointManager, mWifiMetrics);
         when(mOsuNetworkConnection.connect(any(WifiSsid.class), any(), any())).thenReturn(true);
         when(mOsuServerConnection.connect(any(URL.class), any(Network.class))).thenReturn(true);
-        when(mOsuServerConnection.validateProvider(any(Locale.class),
-                any(String.class))).thenReturn(true);
+        when(mOsuServerConnection.validateProvider(
+                anyMap())).thenReturn(true);
         when(mOsuServerConnection.canValidateServer()).thenReturn(true);
         mPasspointProvisioner.enableVerboseLogging(1);
         mOsuProvider = PasspointProvisioningTestUtil.generateOsuProvider(true);
@@ -728,8 +727,8 @@ public class PasspointProvisionerTest {
      */
     @Test
     public void verifyProviderVerificationFailure() throws RemoteException {
-        when(mOsuServerConnection.validateProvider(any(Locale.class),
-                any(String.class))).thenReturn(false);
+        when(mOsuServerConnection.validateProvider(
+                anyMap())).thenReturn(false);
         stopAfterStep(STEP_SERVER_CONNECT);
 
         // Wait for OSU server validation callback
