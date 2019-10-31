@@ -91,6 +91,7 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     @Mock private IScanResultsListener mAnotherScanResultsListener;
     @Mock private TestLooper mLooper;
     @Mock private IBinder mBinder;
+    @Mock private IBinder mAnotherBinder;
 
     private ArgumentCaptor<WorkSource> mWorkSourceArgumentCaptor =
             ArgumentCaptor.forClass(WorkSource.class);
@@ -956,18 +957,16 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     }
 
     /**
-     * Test register scan result listener from different apps, all of them will receive the event.
+     * Test register two different scan result listener, all of them will receive the event.
      */
     @Test
-    public void testScanSuccessWithMultipleListenerFromDifferentApps() throws Exception {
-        final int listenerIdentifier1 = 1;
-        final int listenerIdentifier2 = 2;
+    public void testScanSuccessWithMultipleListener() throws Exception {
         Binder binder1 = new Binder();
         Binder binder2 = new Binder();
         mScanRequestProxy.registerScanResultsListener(binder1, mScanResultsListener,
-                listenerIdentifier1);
+                mScanResultsListener.hashCode());
         mScanRequestProxy.registerScanResultsListener(binder2, mAnotherScanResultsListener,
-                listenerIdentifier2);
+                mAnotherScanResultsListener.hashCode());
         mLooper.dispatchAll();
         testStartScanSuccess();
         // Verify the scan results processing.
@@ -979,7 +978,7 @@ public class ScanRequestProxyTest extends WifiBaseTest {
 
         reset(mScanResultsListener);
         reset(mAnotherScanResultsListener);
-        mScanRequestProxy.unregisterScanResultsListener(listenerIdentifier1);
+        mScanRequestProxy.unregisterScanResultsListener(mScanResultsListener.hashCode());
         mLooper.dispatchAll();
         mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
         mLooper.dispatchAll();
@@ -989,16 +988,20 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     }
 
     /**
-     * Test same app register scan result listener second time will replace the first one.
+     * Verify that registering twice with same listenerIdentifier will replace the first listener.
      */
     @Test
-    public void testScanSuccessWithMultipleListenerFromSameApps() throws Exception {
-        final int listenerIdentifier = 1;
-        Binder binder = new Binder();
-        mScanRequestProxy.registerScanResultsListener(binder, mScanResultsListener,
-                listenerIdentifier);
-        mScanRequestProxy.registerScanResultsListener(binder, mAnotherScanResultsListener,
-                listenerIdentifier);
+    public void testReplacesOldListenerWithNewListenerWhenRegisteringTwice() throws Exception {
+        mScanRequestProxy.registerScanResultsListener(mBinder, mScanResultsListener,
+                mScanResultsListener.hashCode());
+        mScanRequestProxy.registerScanResultsListener(mAnotherBinder, mAnotherScanResultsListener,
+                mScanResultsListener.hashCode());
+        mLooper.dispatchAll();
+        // Verify old listener is replaced.
+        verify(mBinder).linkToDeath(any(), anyInt());
+        verify(mBinder).unlinkToDeath(any(), anyInt());
+        verify(mAnotherBinder).linkToDeath(any(), anyInt());
+        verify(mAnotherBinder, never()).unlinkToDeath(any(), anyInt());
         testStartScanSuccess();
         // Verify the scan results processing.
         mGlobalScanListenerArgumentCaptor.getValue().onResults(mTestScanDatas1);
