@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,8 +56,8 @@ public class BssidBlocklistMonitor {
     public static final int REASON_AUTHENTICATION_FAILURE = 6;
     // DHCP failures
     public static final int REASON_DHCP_FAILURE = 7;
-    // Local constant being used to keep track of how many failure reasons there are.
-    private static final int NUMBER_REASON_CODES = 8;
+    // Constant being used to keep track of how many failure reasons there are.
+    public static final int NUMBER_REASON_CODES = 8;
 
     @IntDef(prefix = { "REASON_" }, value = {
             REASON_AP_UNABLE_TO_HANDLE_NEW_STA,
@@ -69,7 +70,7 @@ public class BssidBlocklistMonitor {
             REASON_DHCP_FAILURE
     })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface BssidBlocklistMonitorFailureReason {}
+    public @interface FailureReason {}
 
     public static final int[] FAILURE_COUNT_DISABLE_THRESHOLD = {
             1,  //  threshold for REASON_AP_UNABLE_TO_HANDLE_NEW_STA
@@ -83,7 +84,9 @@ public class BssidBlocklistMonitor {
     };
 
     private static final int FAILURE_COUNTER_THRESHOLD = 3;
-    private static final long BASE_BLOCKLIST_DURATION = 5 * 60 * 1000; // 5 minutes
+    private static final long BASE_BLOCKLIST_DURATION = TimeUnit.MINUTES.toMillis(5); // 5 minutes
+    private static final long MAX_BLOCKLIST_DURATION = TimeUnit.HOURS.toMillis(18); // 18 hours
+    private static final int FAILURE_STREAK_CAP = 7;
     private static final String TAG = "BssidBlocklistMonitor";
 
     private final WifiLastResortWatchdog mWifiLastResortWatchdog;
@@ -91,6 +94,7 @@ public class BssidBlocklistMonitor {
     private final Clock mClock;
     private final LocalLog mLocalLog;
     private final Calendar mCalendar;
+    private final WifiScoreCard mWifiScoreCard;
 
     // Map of bssid to BssidStatus
     private Map<String, BssidStatus> mBssidStatusMap = new ArrayMap<>();
@@ -99,12 +103,14 @@ public class BssidBlocklistMonitor {
      * Create a new instance of BssidBlocklistMonitor
      */
     BssidBlocklistMonitor(WifiConnectivityHelper connectivityHelper,
-            WifiLastResortWatchdog wifiLastResortWatchdog, Clock clock, LocalLog localLog) {
+            WifiLastResortWatchdog wifiLastResortWatchdog, Clock clock, LocalLog localLog,
+            WifiScoreCard wifiScoreCard) {
         mConnectivityHelper = connectivityHelper;
         mWifiLastResortWatchdog = wifiLastResortWatchdog;
         mClock = clock;
         mLocalLog = localLog;
         mCalendar = Calendar.getInstance();
+        mWifiScoreCard = wifiScoreCard;
     }
 
     // A helper to log debugging information in the local log buffer, which can
@@ -113,10 +119,21 @@ public class BssidBlocklistMonitor {
         mLocalLog.log(log);
     }
 
-    private long getBlocklistDurationWithExponentialBackoff(String bssid) {
-        // TODO: b/139287182 implement exponential backoff to extend the blocklist duration for
-        // BSSIDs that continue to fail.
-        return BASE_BLOCKLIST_DURATION;
+    /**
+     * calculates the blocklist duration based on the current failure streak with exponential
+     * backoff.
+     * @param failureStreak should be greater or equal to 0.
+     * @return duration to block the BSSID in milliseconds
+     */
+    private long getBlocklistDurationWithExponentialBackoff(int failureStreak) {
+        if (failureStreak > FAILURE_STREAK_CAP) {
+            return MAX_BLOCKLIST_DURATION;
+        }
+        if (failureStreak < 1) {
+            return BASE_BLOCKLIST_DURATION;
+        }
+        long duration = (long) (Math.pow(2.0, (double) failureStreak) * BASE_BLOCKLIST_DURATION);
+        return Math.min(MAX_BLOCKLIST_DURATION, duration);
     }
 
     /**
@@ -129,14 +146,14 @@ public class BssidBlocklistMonitor {
         pw.println("BssidBlocklistMonitor - Bssid blocklist End ----");
     }
 
-    private boolean addToBlocklist(@NonNull BssidStatus entry) {
+    private boolean addToBlocklist(@NonNull BssidStatus entry, int failureStreak) {
         // Call mWifiLastResortWatchdog.shouldIgnoreBssidUpdate to give watchdog a chance to
         // trigger before blocklisting the bssid.
         String bssid = entry.bssid;
         if (mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid)) {
             return false;
         }
-        long durationMs = getBlocklistDurationWithExponentialBackoff(bssid);
+        long durationMs = getBlocklistDurationWithExponentialBackoff(failureStreak);
         entry.addToBlocklist(durationMs);
         localLog(TAG + " addToBlocklist: bssid=" + bssid + ", ssid=" + entry.ssid
                 + ", durationMs=" + durationMs);
@@ -168,7 +185,7 @@ public class BssidBlocklistMonitor {
      * @return True if the blocklist has been modified.
      */
     public boolean handleBssidConnectionFailure(String bssid, String ssid,
-            @BssidBlocklistMonitorFailureReason int reasonCode) {
+            @FailureReason int reasonCode) {
         if (bssid == null || ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)
                 || bssid.equals(ClientModeImpl.SUPPLICANT_BSSID_ANY)
                 || reasonCode < 0 || reasonCode >= NUMBER_REASON_CODES) {
@@ -178,8 +195,12 @@ public class BssidBlocklistMonitor {
         }
         boolean result = false;
         BssidStatus entry = incrementFailureCountForBssid(bssid, ssid, reasonCode);
-        if (entry.failureCount[reasonCode] >= FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode]) {
-            result = addToBlocklist(entry);
+
+        int currentStreak = mWifiScoreCard.getBssidBlocklistStreak(ssid, bssid, reasonCode);
+        if (currentStreak > 0
+                || entry.failureCount[reasonCode] >= FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode]) {
+            result = addToBlocklist(entry, currentStreak);
+            mWifiScoreCard.incrementBssidBlocklistStreak(ssid, bssid, reasonCode);
         }
         return result;
     }
@@ -187,7 +208,19 @@ public class BssidBlocklistMonitor {
     /**
      * Note a connection success event on a bssid and clear appropriate failure counters.
      */
-    public void handleBssidConnectionSuccess(@NonNull String bssid) {
+    public void handleBssidConnectionSuccess(@NonNull String bssid, @NonNull String ssid) {
+        /**
+         * First reset the blocklist streak.
+         * This needs to be done even if a BssidStatus is not found, since the BssidStatus may
+         * have been removed due to blocklist timeout.
+         */
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_WRONG_PASSWORD);
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_EAP_FAILURE);
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ASSOCIATION_REJECTION);
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ASSOCIATION_TIMEOUT);
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_AUTHENTICATION_FAILURE);
+
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null) {
             return;
@@ -204,7 +237,8 @@ public class BssidBlocklistMonitor {
     /**
      * Note a successful network validation on a BSSID and clear appropriate failure counters.
      */
-    public void handleNetworkValidationSuccess(@NonNull String bssid) {
+    public void handleNetworkValidationSuccess(@NonNull String bssid, @NonNull String ssid) {
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_NETWORK_VALIDATION_FAILURE);
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null) {
             return;
@@ -215,7 +249,8 @@ public class BssidBlocklistMonitor {
     /**
      * Note a successful DHCP provisioning and clear appropriate faliure counters.
      */
-    public void handleDhcpProvisioningSuccess(@NonNull String bssid) {
+    public void handleDhcpProvisioningSuccess(@NonNull String bssid, @NonNull String ssid) {
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_DHCP_FAILURE);
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null) {
             return;
