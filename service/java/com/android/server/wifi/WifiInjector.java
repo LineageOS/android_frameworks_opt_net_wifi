@@ -151,6 +151,7 @@ public class WifiInjector {
     private final LinkProbeManager mLinkProbeManager;
     private IpMemoryStore mIpMemoryStore;
     private final WifiThreadRunner mWifiThreadRunner;
+    private BssidBlocklistMonitor mBssidBlocklistMonitor;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -579,6 +580,8 @@ public class WifiInjector {
         mWifiLastResortWatchdog = new WifiLastResortWatchdog(this, mContext, mClock,
                 mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade,
                 mWifiThreadRunner);
+        mBssidBlocklistMonitor = new BssidBlocklistMonitor(mWifiConnectivityHelper,
+                mWifiLastResortWatchdog, mClock, mConnectivityLocalLog);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
@@ -719,6 +722,10 @@ public class WifiInjector {
             mIpMemoryStore = IpMemoryStore.getMemoryStore(mContext);
         }
         return mIpMemoryStore;
+    }
+
+    public BssidBlocklistMonitor getBssidBlocklistMonitor() {
+        return mBssidBlocklistMonitor;
     }
 
     public HostapdHal getHostapdHal() {

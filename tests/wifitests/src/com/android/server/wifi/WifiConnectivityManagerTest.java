@@ -69,6 +69,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -98,6 +99,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList())
                 .thenReturn(new ArrayList<>());
+        when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
         mWifiConnectivityManager = createConnectivityManager();
         verify(mWifiConfigManager).addOnNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
@@ -142,6 +144,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Mock private WifiMetrics mWifiMetrics;
     @Mock private WifiNetworkScoreCache mScoreCache;
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
+    @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
     @Captor ArgumentCaptor<ScanResult> mCandidateScanResultCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mBssidBlacklistCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mSsidWhitelistCaptor;
@@ -286,6 +289,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         candidateScanResult.BSSID = CANDIDATE_BSSID;
         candidate.getNetworkSelectionStatus().setCandidate(candidateScanResult);
 
+        when(mWifiConfigManager.getConfiguredNetwork(CANDIDATE_NETWORK_ID)).thenReturn(candidate);
         when(ns.selectNetwork(anyObject(), anyObject(), anyObject(), anyBoolean(),
                 anyBoolean(), anyBoolean())).thenReturn(candidate);
         return ns;
@@ -1329,143 +1333,33 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     }
 
     /**
-     *  Verify the BSSID blacklist implementation.
-     *
-     * Expected behavior: A BSSID gets blacklisted after being disabled
-     * for 3 times, and becomes available after being re-enabled. Firmware
-     * controlled roaming is supported, its roaming configuration needs to be
-     * updated as well.
-     */
-    @Test
-    public void blacklistAndReenableBssid() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
-        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-        // Verify that a BSSID gets blacklisted only after being disabled
-        // for BSSID_BLACKLIST_THRESHOLD times for reasons other than
-        // REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
-        for (int i = 0; i < WifiConnectivityManager.BSSID_BLACKLIST_THRESHOLD; i++) {
-            assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-            mWifiConnectivityManager.trackBssid(bssid, false, 1);
-        }
-
-        // Verify the BSSID is now blacklisted.
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets sent to firmware.
-        verify(mWifiConnectivityHelper).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-
-        // Re-enable the bssid.
-        mWifiConnectivityManager.trackBssid(bssid, true, 1);
-
-        // Verify the bssid is no longer blacklisted.
-        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets cleared from firmware.
-        verify(mWifiConnectivityHelper, times(2)).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertFalse(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-    }
-
-    /**
-     *  Verify that a network gets blacklisted immediately if it is unable
-     *  to handle new stations.
-     */
-    @Test
-    public void blacklistNetworkImmediatelyIfApHasNoCapacityForNewStation() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
-        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-        // Blacklist the BSSID
-        mWifiConnectivityManager.trackBssid(bssid, false,
-                WifiConnectivityManager.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA);
-
-        // Verify the BSSID is now blacklisted.
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets sent to firmware.
-        verify(mWifiConnectivityHelper).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-    }
-
-    /**
      *  Verify that a blacklisted BSSID becomes available only after
      *  BSSID_BLACKLIST_EXPIRE_TIME_MS.
      */
     @Test
     public void verifyBlacklistRefreshedAfterScanResults() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
         when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-        // Blacklist the BSSID.
-        mWifiConnectivityManager.trackBssid(bssid, false,
-                WifiConnectivityManager.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA);
 
-        // Verify the BSSID is now blacklisted.
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets sent to firmware.
-        verify(mWifiConnectivityHelper).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-
-        // Force a connectivity scan in less than BSSID_BLACKLIST_EXPIRE_TIME_MS.
-        // Arrival of scan results will trigger WifiConnectivityManager to refresh its
-        // BSSID blacklist. Verify that the blacklisted BSSId is not freed because
-        // its blacklist expiration time hasn't reached yet.
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime()
-                + WifiConnectivityManager.BSSID_BLACKLIST_EXPIRE_TIME_MS / 2);
+        // Force a connectivity scan
+        verify(mBssidBlocklistMonitor, never()).updateAndGetBssidBlocklist();
         mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-
-        // Force another connectivity scan at BSSID_BLACKLIST_EXPIRE_TIME_MS from when the
-        // BSSID was blacklisted. Verify that the blacklisted BSSId is freed.
-        when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime()
-                + WifiConnectivityManager.BSSID_BLACKLIST_EXPIRE_TIME_MS);
-        mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
-
-        // Verify the BSSID is no longer blacklisted.
-        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets cleared from firmware.
-        verify(mWifiConnectivityHelper, times(2)).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertFalse(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
+        verify(mBssidBlocklistMonitor).updateAndGetBssidBlocklist();
     }
 
     /**
      *  Verify that BSSID blacklist gets cleared when exiting Wifi client mode.
      */
     @Test
-    public void clearBssidBlacklistWhenExitingWifiClientMode() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
+    public void clearBssidBlocklistWhenExitingWifiClientMode() {
         when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
 
-        // Blacklist the BSSID.
-        mWifiConnectivityManager.trackBssid(bssid, false,
-                WifiConnectivityManager.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA);
-
-        // Verify the BSSID is now blacklisted.
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets sent to firmware.
-        verify(mWifiConnectivityHelper).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-
+        // Verify the BSSID blacklist is cleared at start up.
+        verify(mBssidBlocklistMonitor).clearBssidBlocklist();
         // Exit Wifi client mode.
         mWifiConnectivityManager.setWifiEnabled(false);
 
-        // Verify the BSSID blacklist is empty.
-        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-        verify(mWifiConnectivityHelper, times(2)).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().isEmpty());
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
+        // Verify the BSSID blacklist is cleared again.
+        verify(mBssidBlocklistMonitor, times(2)).clearBssidBlocklist();
     }
 
     /**
@@ -1473,55 +1367,14 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      *  initiated by user/app.
      */
     @Test
-    public void clearBssidBlacklistWhenPreparingForForcedConnection() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
+    public void clearBssidBlocklistWhenPreparingForForcedConnection() {
         when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-
-        // Blacklist the BSSID.
-        mWifiConnectivityManager.trackBssid(bssid, false,
-                WifiConnectivityManager.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA);
-
-        // Verify the BSSID is now blacklisted.
-        assertTrue(mWifiConnectivityManager.isBssidDisabled(bssid));
-        // Verify the BSSID gets sent to firmware.
-        verify(mWifiConnectivityHelper).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().contains(bssid));
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-
         // Prepare for a forced connection attempt.
+        WifiConfiguration currentNetwork = generateWifiConfig(
+                0, CANDIDATE_NETWORK_ID, CANDIDATE_SSID, false, true, null, null);
+        when(mWifiConfigManager.getConfiguredNetwork(anyInt())).thenReturn(currentNetwork);
         mWifiConnectivityManager.prepareForForcedConnection(1);
-
-        // Verify the BSSID blacklist is empty.
-        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-        verify(mWifiConnectivityHelper, times(2)).setFirmwareRoamingConfiguration(
-                mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-        assertTrue(mBssidBlacklistCaptor.getValue().isEmpty());
-        assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-    }
-
-    /**
-    /**
-     *  Verify that BSSID blacklist gets trimmed down to fit firmware capability.
-     */
-    @Test
-    public void trimDownBssidBlacklistForFirmware() {
-        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-
-        // Blacklist more than MAX_BSSID_BLACKLIST_SIZE BSSIDs.
-        for (int i = 0; i < MAX_BSSID_BLACKLIST_SIZE + 6; i++) {
-            StringBuilder bssid = new StringBuilder("55:44:33:22:11:00");
-            bssid.setCharAt(16, (char) ('0' + i));
-            mWifiConnectivityManager.trackBssid(bssid.toString(), false,
-                    WifiConnectivityManager.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA);
-            // Verify that up to MAX_BSSID_BLACKLIST_SIZE BSSIDs gets sent to firmware.
-            verify(mWifiConnectivityHelper, times(i + 1)).setFirmwareRoamingConfiguration(
-                    mBssidBlacklistCaptor.capture(), mSsidWhitelistCaptor.capture());
-            assertEquals((i + 1) <  MAX_BSSID_BLACKLIST_SIZE ? (i + 1) : MAX_BSSID_BLACKLIST_SIZE,
-                    mBssidBlacklistCaptor.getValue().size());
-            assertTrue(mSsidWhitelistCaptor.getValue().isEmpty());
-        }
+        verify(mBssidBlocklistMonitor).clearBssidBlocklistForSsid(CANDIDATE_SSID);
     }
 
     /**
@@ -1884,7 +1737,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         final List<ScanDetail> capturedScanDetails = new ArrayList<>();
         doAnswer(new AnswerWithArguments() {
             public WifiConfiguration answer(
-                    List<ScanDetail> scanDetails, HashSet<String> bssidBlacklist, WifiInfo wifiInfo,
+                    List<ScanDetail> scanDetails, Set<String> bssidBlacklist, WifiInfo wifiInfo,
                     boolean connected, boolean disconnected, boolean untrustedNetworkAllowed)
                     throws Exception {
                 capturedScanDetails.addAll(scanDetails);
@@ -1940,7 +1793,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         final List<ScanDetail> capturedScanDetails = new ArrayList<>();
         doAnswer(new AnswerWithArguments() {
             public WifiConfiguration answer(
-                    List<ScanDetail> scanDetails, HashSet<String> bssidBlacklist, WifiInfo wifiInfo,
+                    List<ScanDetail> scanDetails, Set<String> bssidBlacklist, WifiInfo wifiInfo,
                     boolean connected, boolean disconnected, boolean untrustedNetworkAllowed)
                     throws Exception {
                 capturedScanDetails.addAll(scanDetails);
@@ -2154,30 +2007,5 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
         inOrder.verifyNoMoreInteractions();
-    }
-
-    /**
-     * Verifies BSSID blacklist consistent with Watchdog trigger.
-     *
-     * Expected behavior: A BSSID won't gets blacklisted if there only BSSID
-     * of its SSID be observed and Watchdog trigger is activated.
-     */
-    @Test
-    public void verifyConsistentWatchdogAndBssidBlacklist() {
-        String bssid = "6c:f3:7f:ae:8c:f3";
-
-        // If there only one BSSID is available and Watchdog trigger is activated.
-        when(mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(anyString())).thenReturn(true);
-        when(mWifiConnectivityHelper.isFirmwareRoamingSupported()).thenReturn(true);
-
-        // Verify that a BSSID won't gets blacklisted if there only one BSSID is available
-        // and watchdog recover is not triggered.
-        for (int i = 0; i < WifiConnectivityManager.BSSID_BLACKLIST_THRESHOLD; i++) {
-            assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
-            mWifiConnectivityManager.trackBssid(bssid, false, 1);
-        }
-
-        // Verify the BSSID is not blacklisted.
-        assertFalse(mWifiConnectivityManager.isBssidDisabled(bssid));
     }
 }

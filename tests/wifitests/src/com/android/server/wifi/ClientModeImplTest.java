@@ -318,7 +318,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     static final String   sSSID = "\"GoogleGuest\"";
-    static final WifiSsid sWifiSsid = WifiSsid.createFromAsciiEncoded(sSSID);
+    static final String   SSID_NO_QUOTE = sSSID.replace("\"", "");
+    static final WifiSsid sWifiSsid = WifiSsid.createFromAsciiEncoded(SSID_NO_QUOTE);
     static final String   sBSSID = "01:02:03:04:05:06";
     static final String   sBSSID1 = "02:01:04:03:06:05";
     static final int      sFreq = 2437;
@@ -349,6 +350,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock WifiCountryCode mCountryCode;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiLastResortWatchdog mWifiLastResortWatchdog;
+    @Mock BssidBlocklistMonitor mBssidBlocklistMonitor;
     @Mock PropertyService mPropertyService;
     @Mock BuildProperties mBuildProperties;
     @Mock IBinder mPackageManagerBinder;
@@ -442,6 +444,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
+        when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
         when(mWifiNative.initialize()).thenReturn(true);
@@ -1449,12 +1452,12 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
+        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID);
         mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
 
         assertEquals("ObtainingIpState", getCurrentState().getName());
-
         injectDhcpFailure();
         mLooper.dispatchAll();
 
@@ -1463,6 +1466,12 @@ public class ClientModeImplTest extends WifiBaseTest {
         // by DHCP failure
         verify(mWifiLastResortWatchdog, times(2)).noteConnectionFailureAndTriggerIfNeeded(
                 sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_DHCP);
+        verify(mBssidBlocklistMonitor, times(2)).handleBssidConnectionFailure(sBSSID,
+                sSSID, BssidBlocklistMonitor.REASON_DHCP_FAILURE);
+        verify(mBssidBlocklistMonitor, times(2)).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_DHCP_FAILURE);
+        verify(mBssidBlocklistMonitor, never()).handleDhcpProvisioningSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID);
     }
 
     /**
@@ -2803,6 +2812,42 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies that WifiLastResortWatchdog and BssidBlocklistMonitor is notified of
+     * association rejection of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
+     * @throws Exception
+     */
+    @Test
+    public void testAssociationRejectionWithReasonApUnableToHandleNewStaUpdatesWatchdog()
+            throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
+                ClientModeImpl.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
+    }
+
+    /**
+     * Verifies that WifiLastResortWatchdog and BssidBlocklistMonitor is notified of
+     * general association rejection failures.
+     * @throws Exception
+     */
+    @Test
+    public void testAssociationRejectionUpdatesWatchdog() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION);
+    }
+
+    /**
      * Verifies that WifiLastResortWatchdog is not notified of authentication failures of type
      * ERROR_AUTH_FAILURE_WRONG_PSWD.
      * @throws Exception
@@ -2812,11 +2857,15 @@ public class ClientModeImplTest extends WifiBaseTest {
         // Setup CONNECT_MODE & a WifiConfiguration
         initializeAndAddNetworkAndVerifySuccess();
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
         mLooper.dispatchAll();
         verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
     }
 
     /**
@@ -2828,11 +2877,32 @@ public class ClientModeImplTest extends WifiBaseTest {
         // Setup CONNECT_MODE & a WifiConfiguration
         initializeAndAddNetworkAndVerifySuccess();
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
                 WifiManager.ERROR_AUTH_FAILURE_TIMEOUT);
         mLooper.dispatchAll();
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
+    }
+
+    /**
+     * Verify that BssidBlocklistMonitor is notified of the SSID pre-connection so that it could
+     * send down to firmware the list of blocked BSSIDs.
+     */
+    @Test
+    public void testBssidBlocklistSentToFirmwareAfterCmdStartConnect() throws Exception {
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        verify(mBssidBlocklistMonitor, never()).updateFirmwareRoamingConfiguration(sSSID);
+        mLooper.dispatchAll();
+        verify(mBssidBlocklistMonitor).updateFirmwareRoamingConfiguration(sSSID);
+        // But don't expect to see connection success yet
+        verify(mWifiScoreCard, never()).noteIpConfiguration(any());
+        // And certainly not validation success
+        verify(mWifiScoreCard, never()).noteValidationSuccess(any());
     }
 
     /**
@@ -2904,6 +2974,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiScoreCard, never()).noteIpConfiguration(any());
         // And certainly not validation success
         verify(mWifiScoreCard, never()).noteValidationSuccess(any());
+
     }
 
     /**
@@ -3081,6 +3152,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         WifiConfiguration currentNetwork = new WifiConfiguration();
         currentNetwork.networkId = FRAMEWORK_NETWORK_ID;
+        currentNetwork.SSID = DEFAULT_TEST_SSID;
         currentNetwork.noInternetAccessExpected = false;
         currentNetwork.numNoInternetAccessReports = 1;
         when(mWifiConfigManager.getConfiguredNetwork(FRAMEWORK_NETWORK_ID))
@@ -3098,6 +3170,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .incrementNetworkNoInternetAccessReports(FRAMEWORK_NETWORK_ID);
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, DISABLED_NO_INTERNET_TEMPORARY);
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE);
     }
 
     /**
@@ -3176,6 +3250,10 @@ public class ClientModeImplTest extends WifiBaseTest {
     public void verifyNetworkSelectionEnableOnInternetValidation() throws Exception {
         // Simulate the first connection.
         connect();
+        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor).handleDhcpProvisioningSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID);
+
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
         verify(mConnectivityManager).registerNetworkAgent(messengerCaptor.capture(),
                 any(NetworkInfo.class), any(LinkProperties.class), any(NetworkCapabilities.class),
@@ -3195,6 +3273,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
         verify(mWifiScoreCard).noteValidationSuccess(any());
+        verify(mBssidBlocklistMonitor).handleNetworkValidationSuccess(sBSSID);
     }
 
     /**
@@ -3520,6 +3599,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertEquals("DisconnectedState", getCurrentState().getName());
         verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
                 sSSID, sBSSID, WifiLastResortWatchdog.FAILURE_CODE_AUTHENTICATION);
+
     }
 
     /**

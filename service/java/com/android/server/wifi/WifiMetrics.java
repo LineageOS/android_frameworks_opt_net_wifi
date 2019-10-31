@@ -1087,8 +1087,8 @@ public class WifiMetrics {
 
     /**
      * End a Connection event record. Call when wifi connection attempt succeeds or fails.
-     * If a Connection event has not been started and is active when .end is called, a new one is
-     * created with zero duration.
+     * If a Connection event has not been started and is active when .end is called, then this
+     * method will do nothing.
      *
      * @param level2FailureCode Level 2 failure code returned by supplicant
      * @param connectivityFailureCode WifiMetricsProto.ConnectionEvent.HLF_X
