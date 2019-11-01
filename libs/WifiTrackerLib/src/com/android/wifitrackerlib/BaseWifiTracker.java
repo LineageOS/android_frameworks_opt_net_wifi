@@ -38,12 +38,12 @@ import androidx.lifecycle.OnLifecycleEvent;
 import java.time.Clock;
 
 /**
- * Abstract base for WifiTracker functionality.
+ * Base class for WifiTracker functionality.
  *
  * This class provides the basic functions of issuing scans, receiving Wi-Fi related broadcasts, and
  * keeping track of the Wi-Fi state.
  *
- * Subclasses are expected to provide their own API to clients and implement the abstract broadcast
+ * Subclasses are expected to provide their own API to clients and override the empty broadcast
  * handling methods here to populate the data returned by their API.
  *
  * This class runs on two threads:
@@ -62,7 +62,7 @@ import java.time.Clock;
  * the worker thread and consumed by the main thread.
 */
 
-public abstract class BaseWifiTracker implements LifecycleObserver {
+public class BaseWifiTracker implements LifecycleObserver {
     private final String mTag;
 
     private static boolean sVerboseLogging;
@@ -100,6 +100,8 @@ public abstract class BaseWifiTracker implements LifecycleObserver {
                 handleScanResultsAvailableAction(intent);
             } else if (WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION.equals(action)) {
                 handleConfiguredNetworksChangedAction(intent);
+            } else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)) {
+                handleNetworkStateChangedAction(intent);
             }
         }
     };
@@ -170,6 +172,7 @@ public abstract class BaseWifiTracker implements LifecycleObserver {
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         filter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
         filter.addAction(WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION);
+        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         mContext.registerReceiver(mBroadcastReceiver, filter,
                 /* broadcastPermission */ null, mWorkerHandler);
         if (mWifiManager.getWifiState() == WifiManager.WIFI_STATE_ENABLED) {
@@ -210,25 +213,41 @@ public abstract class BaseWifiTracker implements LifecycleObserver {
      * Data that can be updated immediately after onStart should be populated here.
      */
     @WorkerThread
-    protected abstract void handleOnStart();
+    protected  void handleOnStart() {
+        // Do nothing.
+    };
 
     /**
      * Handle receiving the WifiManager.WIFI_STATE_CHANGED_ACTION broadcast
      */
     @WorkerThread
-    protected abstract void handleWifiStateChangedAction();
+    protected void handleWifiStateChangedAction() {
+        // Do nothing.
+    };
 
     /**
      * Handle receiving the WifiManager.SCAN_RESULTS_AVAILABLE_ACTION broadcast
      */
     @WorkerThread
-    protected abstract void handleScanResultsAvailableAction(@NonNull Intent intent);
+    protected void handleScanResultsAvailableAction(@NonNull Intent intent) {
+        // Do nothing.
+    };
 
     /**
      * Handle receiving the WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION broadcast
      */
     @WorkerThread
-    protected abstract void handleConfiguredNetworksChangedAction(@NonNull Intent intent);
+    protected void handleConfiguredNetworksChangedAction(@NonNull Intent intent) {
+        // Do nothing.
+    };
+
+    /**
+     * Handle receiving the WifiManager.NETWORK_STATE_CHANGED_ACTION broadcast
+     */
+    @WorkerThread
+    protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
+        // Do nothing.
+    };
 
     /**
      * Scanner to handle starting scans every SCAN_INTERVAL_MILLIS

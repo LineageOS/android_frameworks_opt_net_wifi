@@ -19,6 +19,9 @@ package com.android.wifitrackerlib;
 import static androidx.core.util.Preconditions.checkNotNull;
 
 import static com.android.wifitrackerlib.StandardWifiEntry.wifiConfigToStandardWifiEntryKey;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTED;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_CONNECTING;
+import static com.android.wifitrackerlib.WifiEntry.CONNECTED_STATE_DISCONNECTED;
 import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_UNREACHABLE;
 
 import static java.util.stream.Collectors.groupingBy;
@@ -27,9 +30,11 @@ import static java.util.stream.Collectors.toList;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.NetworkScoreManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -72,6 +77,8 @@ public class WifiPickerTracker extends BaseWifiTracker {
     private final Object mLock = new Object();
     // List representing return value of the getWifiEntries() API
     @GuardedBy("mLock") private final List<WifiEntry> mWifiEntries = new ArrayList<>();
+    // Reference to the WifiEntry representing the network that is currently connected to
+    private WifiEntry mConnectedWifiEntry;
     // Cache containing visible StandardWifiEntries. Must be accessed only by the worker thread.
     private final Map<String, StandardWifiEntry> mStandardWifiEntryCache = new HashMap<>();
 
@@ -113,8 +120,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
      */
     @AnyThread
     public @Nullable WifiEntry getConnectedWifiEntry() {
-        // TODO (b/70983952): Fill in this method.
-        return null;
+        return mConnectedWifiEntry;
     }
 
     /**
@@ -154,6 +160,11 @@ public class WifiPickerTracker extends BaseWifiTracker {
         mScanResultUpdater.update(mWifiManager.getScanResults());
         conditionallyUpdateScanResults(true /* lastScanSucceeded */);
         updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());
+        final WifiInfo wifiInfo = mWifiManager.getConnectionInfo();
+        final NetworkInfo networkInfo = mConnectivityManager.getActiveNetworkInfo();
+        updateStandardWifiEntryConnectionInfo(wifiInfo, networkInfo);
+        // Create a StandardWifiEntry for the current connection if there are no scan results yet.
+        conditionallyCreateConnectedStandardWifiEntry(wifiInfo, networkInfo);
         updateWifiEntries();
     }
 
@@ -191,6 +202,15 @@ public class WifiPickerTracker extends BaseWifiTracker {
         updateWifiEntries();
     }
 
+    @WorkerThread
+    @Override
+    protected void handleNetworkStateChangedAction(@NonNull Intent intent) {
+        checkNotNull(intent, "Intent cannot be null!");
+        updateStandardWifiEntryConnectionInfo(mWifiManager.getConnectionInfo(),
+                (NetworkInfo) intent.getExtra(WifiManager.EXTRA_NETWORK_INFO));
+        updateWifiEntries();
+    }
+
     /**
      * Update the list returned by getWifiEntries() with the current states of the entry caches.
      */
@@ -198,13 +218,19 @@ public class WifiPickerTracker extends BaseWifiTracker {
     private void updateWifiEntries() {
         synchronized (mLock) {
             mWifiEntries.clear();
-            mWifiEntries.addAll(mStandardWifiEntryCache.values().stream().filter(
-                    entry -> entry.getLevel() != WIFI_LEVEL_UNREACHABLE).collect(toList()));
+            mWifiEntries.addAll(mStandardWifiEntryCache.values().stream().filter(entry ->
+                    entry.getConnectedState() == CONNECTED_STATE_DISCONNECTED).collect(toList()));
             // mWifiEntries.addAll(mPasspointWifiEntryCache);
             // mWifiEntries.addAll(mCarrierWifiEntryCache);
             // mWifiEntries.addAll(mSuggestionWifiEntryCache);
+            mConnectedWifiEntry = mStandardWifiEntryCache.values().stream().filter(entry -> {
+                final @WifiEntry.ConnectedState int connectedState = entry.getConnectedState();
+                return connectedState == CONNECTED_STATE_CONNECTED
+                        || connectedState == CONNECTED_STATE_CONNECTING;
+            }).findAny().orElse(null /* other */);
             Collections.sort(mWifiEntries);
             if (isVerboseLoggingEnabled()) {
+                Log.v(TAG, "Connected WifiEntry: " + mConnectedWifiEntry);
                 Log.v(TAG, "Updated WifiEntries: " + Arrays.toString(mWifiEntries.toArray()));
             }
         }
@@ -317,6 +343,41 @@ public class WifiPickerTracker extends BaseWifiTracker {
             final String key = wifiEntry.getKey();
             wifiEntry.updateConfig(wifiConfigsByKey.get(key));
         });
+    }
+
+    /**
+     * Updates all StandardWifiEntries with the current connection info.
+     * @param wifiInfo WifiInfo of the current connection
+     * @param networkInfo NetworkInfo of the current connection
+     */
+    @WorkerThread
+    private void updateStandardWifiEntryConnectionInfo(@Nullable WifiInfo wifiInfo,
+            @Nullable NetworkInfo networkInfo) {
+        for (StandardWifiEntry entry : mStandardWifiEntryCache.values()) {
+            entry.updateConnectionInfo(wifiInfo, networkInfo);
+        }
+    }
+
+    /**
+     * Creates and caches a StandardWifiEntry representing the current connection using the current
+     * WifiInfo and NetworkInfo if there are no scans results available for the network yet.
+     * @param wifiInfo WifiInfo of the current connection
+     * @param networkInfo NetworkInfo of the current connection
+     */
+    @WorkerThread
+    private void conditionallyCreateConnectedStandardWifiEntry(@Nullable WifiInfo wifiInfo,
+            @Nullable NetworkInfo networkInfo) {
+        final int connectedNetId = wifiInfo.getNetworkId();
+        mWifiManager.getConfiguredNetworks().stream()
+                .filter(config ->
+                    config.networkId == connectedNetId && !mStandardWifiEntryCache.containsKey(
+                        wifiConfigToStandardWifiEntryKey(config)))
+                .findAny().ifPresent(config -> {
+                    final StandardWifiEntry connectedEntry =
+                            new StandardWifiEntry(mMainHandler, config, mWifiManager);
+                    connectedEntry.updateConnectionInfo(wifiInfo, networkInfo);
+                    mStandardWifiEntryCache.put(connectedEntry.getKey(), connectedEntry);
+                });
     }
 
     /**

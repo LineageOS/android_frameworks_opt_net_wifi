@@ -16,6 +16,7 @@
 
 package com.android.wifitrackerlib;
 
+import static android.net.wifi.WifiInfo.INVALID_RSSI;
 import static android.net.wifi.WifiInfo.removeDoubleQuotes;
 
 import static androidx.core.util.Preconditions.checkNotNull;
@@ -24,8 +25,10 @@ import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 import static com.android.wifitrackerlib.Utils.getSecurityFromScanResult;
 import static com.android.wifitrackerlib.Utils.getSecurityFromWifiConfiguration;
 
+import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -36,6 +39,7 @@ import androidx.annotation.WorkerThread;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * WifiEntry representation of a logical Wi-Fi network, uniquely identified by SSID and security.
@@ -51,6 +55,7 @@ class StandardWifiEntry extends WifiEntry {
     @NonNull private final String mSsid;
     private final @Security int mSecurity;
     @Nullable private WifiConfiguration mWifiConfig;
+    @Nullable private NetworkInfo mNetworkInfo;
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
@@ -108,8 +113,23 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     @ConnectedState
     public int getConnectedState() {
-        // TODO(b/70983952): Fill this method in
-        return CONNECTED_STATE_DISCONNECTED;
+        if (mNetworkInfo == null) {
+            return CONNECTED_STATE_DISCONNECTED;
+        }
+
+        switch (mNetworkInfo.getDetailedState()) {
+            case SCANNING:
+            case CONNECTING:
+            case AUTHENTICATING:
+            case OBTAINING_IPADDR:
+            case VERIFYING_POOR_LINK:
+            case CAPTIVE_PORTAL_CHECK:
+                return CONNECTED_STATE_CONNECTING;
+            case CONNECTED:
+                return CONNECTED_STATE_CONNECTED;
+            default:
+                return CONNECTED_STATE_DISCONNECTED;
+        }
     }
 
     @Override
@@ -119,11 +139,13 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public String getSummary() {
-        // TODO(b/70983952): Fill this method in
-        if (mForSavedNetworksPage) return null;
-
-        if (isSaved()) return "Saved"; // Placeholder for visual verification
-        return null;
+        // TODO(b/70983952): Fill this method in and replace placeholders with resource strings
+        StringJoiner sj = new StringJoiner(" / ");
+        // Placeholder text
+        if (getConnectedState() == CONNECTED_STATE_CONNECTING) sj.add("Connecting...");
+        if (getConnectedState() == CONNECTED_STATE_CONNECTED) sj.add("Connected");
+        if (isSaved() && !mForSavedNetworksPage) sj.add("Saved");
+        return sj.toString();
     }
 
     @Override
@@ -355,6 +377,26 @@ class StandardWifiEntry extends WifiEntry {
         }
 
         mWifiConfig = wifiConfig;
+        notifyOnUpdated();
+    }
+
+    /**
+     * Updates information regarding the current network connection. If the supplied WifiInfo and
+     * NetworkInfo do not represent this WifiEntry, then the WifiEntry will update to be
+     * unconnected.
+     */
+    @WorkerThread
+    void updateConnectionInfo(@Nullable WifiInfo wifiInfo, @Nullable NetworkInfo networkInfo) {
+        if (mWifiConfig != null && wifiInfo != null
+                && mWifiConfig.networkId == wifiInfo.getNetworkId()) {
+            mNetworkInfo = networkInfo;
+            final int wifiInfoRssi = wifiInfo.getRssi();
+            if (wifiInfoRssi != INVALID_RSSI) {
+                mLevel = mWifiManager.calculateSignalLevel(wifiInfoRssi, WifiManager.RSSI_LEVELS);
+            }
+        } else {
+            mNetworkInfo = null;
+        }
         notifyOnUpdated();
     }
 
