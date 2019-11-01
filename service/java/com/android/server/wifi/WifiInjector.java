@@ -153,6 +153,7 @@ public class WifiInjector {
     private final WifiThreadRunner mWifiThreadRunner;
     private BssidBlocklistMonitor mBssidBlocklistMonitor;
     private final MacAddressUtil mMacAddressUtil;
+    private final MboOceController mMboOceController;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -306,12 +307,13 @@ public class WifiInjector {
                 mFrameworkFacade, wifiHandler, mContext);
         SupplicantStateTracker supplicantStateTracker = new SupplicantStateTracker(
                 mContext, mWifiConfigManager, mBatteryStats, wifiHandler);
+        mMboOceController = new MboOceController(makeTelephonyManager(), mWifiNative);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 wifiLooper, mUserManager,
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager, mBatteryStats,
-                supplicantStateTracker);
+                supplicantStateTracker, mMboOceController);
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
                 mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
                 mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);

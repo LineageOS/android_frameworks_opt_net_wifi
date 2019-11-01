@@ -2725,7 +2725,8 @@ public class WifiNative {
      */
     private long getSupportedFeatureSetInternal(@NonNull String ifaceName) {
         return mSupplicantStaIfaceHal.getAdvancedKeyMgmtCapabilities(ifaceName)
-                | mWifiVendorHal.getSupportedFeatureSet(ifaceName);
+                | mWifiVendorHal.getSupportedFeatureSet(ifaceName)
+                | mSupplicantStaIfaceHal.getWpaDriverFeatureSet(ifaceName);
     }
 
     /**
@@ -3344,6 +3345,18 @@ public class WifiNative {
      */
     public boolean selectTxPowerScenario(SarInfo sarInfo) {
         return mWifiVendorHal.selectTxPowerScenario(sarInfo);
+    }
+
+    /**
+     * Set MBO cellular data status
+     *
+     * @param ifaceName Name of the interface.
+     * @param available cellular data status,
+     *        true means cellular data available, false otherwise.
+     */
+    public void setMboCellularDataStatus(@NonNull String ifaceName, boolean available) {
+        mSupplicantStaIfaceHal.setMboCellularDataStatus(ifaceName, available);
+        return;
     }
 
     /********************************************************
