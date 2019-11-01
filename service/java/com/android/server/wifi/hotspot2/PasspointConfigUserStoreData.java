@@ -18,6 +18,7 @@ package com.android.server.wifi.hotspot2;
 
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.android.internal.util.XmlUtils;
 import com.android.server.wifi.SIMAccessor;
@@ -51,6 +52,7 @@ import java.util.List;
  *
  */
 public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
+    private static final String TAG = "PasspointConfigUserStoreData";
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_CONFIG_DATA =
             "PasspointConfigData";
     private static final String XML_TAG_SECTION_HEADER_PASSPOINT_PROVIDER_LIST =
@@ -226,8 +228,8 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                     mDataSource.setProviders(deserializeProviderList(in, outerTagDepth + 1));
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown Passpoint user store data "
-                            + headerName[0]);
+                    Log.w(TAG, "Ignoring unknown Passpoint user store data " + headerName[0]);
+                    break;
             }
         }
     }
@@ -312,15 +314,19 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
                     case XML_TAG_IS_FROM_SUGGESTION:
                         isFromSuggestion = (boolean) value;
                         break;
+                    default:
+                        Log.w(TAG, "Ignoring unknown value name found " + name[0]);
+                        break;
                 }
             } else {
-                if (!TextUtils.equals(in.getName(),
+                if (TextUtils.equals(in.getName(),
                         XML_TAG_SECTION_HEADER_PASSPOINT_CONFIGURATION)) {
-                    throw new XmlPullParserException("Unexpected section under Provider: "
+                    config = PasspointXmlUtils.deserializePasspointConfiguration(in,
+                            outerTagDepth + 1);
+                } else {
+                    Log.w(TAG, "Ignoring unexpected section under Provider: "
                             + in.getName());
                 }
-                config = PasspointXmlUtils.deserializePasspointConfiguration(in,
-                        outerTagDepth + 1);
             }
         }
         if (providerId == Long.MIN_VALUE) {

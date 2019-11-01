@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import android.util.Log;
+
 import com.android.server.wifi.util.XmlUtil;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -32,6 +34,7 @@ import java.util.Set;
  * deleted ephemeral SSIDs (XML block data inside <DeletedEphemeralSSIDList> tag).
  */
 public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData {
+    private static final String TAG = "DeletedEphemeralSsidsStoreData";
     private static final String XML_TAG_SECTION_HEADER_DELETED_EPHEMERAL_SSID_LIST =
             "DeletedEphemeralSSIDList";
     private static final String XML_TAG_SSID_LIST = "SSIDList";
@@ -79,9 +82,10 @@ public class DeletedEphemeralSsidsStoreData implements WifiConfigStore.StoreData
                     }
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown tag under "
+                    Log.w(TAG, "Unknown tag under "
                             + XML_TAG_SECTION_HEADER_DELETED_EPHEMERAL_SSID_LIST
                             + ": " + valueName[0]);
+                    break;
             }
         }
     }

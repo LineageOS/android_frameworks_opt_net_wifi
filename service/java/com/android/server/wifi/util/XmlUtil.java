@@ -672,8 +672,8 @@ public class XmlUtil {
                         configuration.carrierId = (int) value;
                         break;
                     default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+                        Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
+                        break;
                 }
             }
             if (!macRandomizationSettingExists) {
@@ -765,6 +765,8 @@ public class XmlUtil {
                             out, ipConfiguration.getStaticIpConfiguration());
                     break;
                 default:
+                    Log.w(TAG, "Ignoring unknown ip assignment type: "
+                            + ipConfiguration.proxySettings);
                     break;
             }
 
@@ -790,6 +792,8 @@ public class XmlUtil {
                             ipConfiguration.httpProxy.getPacFileUrl().toString());
                     break;
                 default:
+                    Log.w(TAG, "Ignoring unknown proxy settings type: "
+                            + ipConfiguration.proxySettings);
                     break;
             }
         }
@@ -864,7 +868,8 @@ public class XmlUtil {
                 case UNASSIGNED:
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown ip assignment type: " + ipAssignment);
+                    Log.w(TAG, "Ignoring unknown ip assignment type: " + ipAssignment);
+                    break;
             }
 
             // Parse out the proxy settings next.
@@ -893,8 +898,8 @@ public class XmlUtil {
                 case UNASSIGNED:
                     break;
                 default:
-                    throw new XmlPullParserException(
-                            "Unknown proxy settings type: " + proxySettings);
+                    Log.w(TAG, "Ignoring unknown proxy settings type: " + proxySettings);
+                    break;
             }
             return ipConfiguration;
         }
@@ -974,8 +979,8 @@ public class XmlUtil {
                         selectionStatus.setHasEverConnected((boolean) value);
                         break;
                     default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+                        Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
+                        break;
                 }
             }
             // Now figure out the network selection status codes from |selectionStatusString| &
@@ -1151,8 +1156,8 @@ public class XmlUtil {
                         enterpriseConfig.setRealm((String) value);
                         break;
                     default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+                        Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
+                        break;
                 }
             }
             return enterpriseConfig;

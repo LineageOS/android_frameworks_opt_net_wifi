@@ -200,7 +200,8 @@ public class WakeupConfigStoreData implements StoreData {
                     notificationsShown = (Integer) value;
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown value found: " + valueName[0]);
+                    Log.w(TAG, "Unknown value found: " + valueName[0]);
+                    break;
             }
         }
 
@@ -235,8 +236,8 @@ public class WakeupConfigStoreData implements StoreData {
                     scanResultMatchInfo.networkType = (int) value;
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown tag under " + TAG + ": "
-                            + valueName[0]);
+                    Log.w(TAG, "Ignoring unknown tag under " + TAG + ": " + valueName[0]);
+                    break;
             }
         }
 
