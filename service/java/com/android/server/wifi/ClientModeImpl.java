@@ -163,7 +163,7 @@ public class ClientModeImpl extends StateMachine {
     private static final String EXTRA_UID = "uid";
     private static final String EXTRA_PACKAGE_NAME = "PackageName";
     private static final String EXTRA_PASSPOINT_CONFIGURATION = "PasspointConfiguration";
-    private static final int IPCLIENT_TIMEOUT_MS = 10_000;
+    private static final int IPCLIENT_TIMEOUT_MS = 60_000;
 
     private boolean mVerboseLoggingEnabled = false;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
