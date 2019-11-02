@@ -459,7 +459,7 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
     @Test
     public void userHasDisallowConfigWifiRestriction_notificationNotDisplayed() {
         // TODO (b/142234604): This will not work on multi-user device scenarios.
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI,
+        when(mUserManager.hasUserRestrictionForUser(UserManager.DISALLOW_CONFIG_WIFI,
               UserHandle.CURRENT_OR_SELF))
                 .thenReturn(true);
 
@@ -480,7 +480,7 @@ public class OpenNetworkNotifierTest extends WifiBaseTest {
         verify(mNotificationManager).notify(anyInt(), any());
 
         // TODO (b/142234604): This will not work on multi-user device scenarios.
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI,
+        when(mUserManager.hasUserRestrictionForUser(UserManager.DISALLOW_CONFIG_WIFI,
               UserHandle.CURRENT_OR_SELF))
                 .thenReturn(true);
 

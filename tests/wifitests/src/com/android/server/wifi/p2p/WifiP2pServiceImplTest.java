@@ -1736,9 +1736,9 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // permissions for factory reset
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt()))
                 .thenReturn(true);
-        when(mUserManager.hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET)))
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
                 .thenReturn(false);
-        when(mUserManager.hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI)))
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any()))
                 .thenReturn(false);
 
         ArgumentCaptor<WifiP2pGroupList> groupsCaptor =
@@ -1904,9 +1904,9 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // permissions for factory reset
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt()))
                 .thenReturn(true);
-        when(mUserManager.hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET)))
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
                 .thenReturn(false);
-        when(mUserManager.hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI)))
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any()))
                 .thenReturn(false);
 
         // There is one group hosted by this device in mGroups.
@@ -3104,16 +3104,19 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn("testPkg");
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)).thenReturn(false);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)).thenReturn(false);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
+                .thenReturn(false);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any()))
+                .thenReturn(false);
         when(mWifiNative.p2pListNetworks(any())).thenReturn(true);
         sendSimpleMsg(mClientMessenger, WifiP2pManager.FACTORY_RESET);
         checkSendP2pPersistentGroupsChangedBroadcast();
         verify(mWifiInjector).getUserManager();
         verify(mPackageManager).getNameForUid(anyInt());
         verify(mWifiPermissionsUtil).checkNetworkSettingsPermission(anyInt());
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET));
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI));
+        verify(mUserManager).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_NETWORK_RESET), any());
+        verify(mUserManager).hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any());
         verify(mWifiNative, atLeastOnce()).p2pListNetworks(any());
         verify(mFrameworkFacade).setIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET), eq(0));
@@ -3131,15 +3134,18 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn("testPkg");
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)).thenReturn(false);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)).thenReturn(false);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
+                .thenReturn(false);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any()))
+                .thenReturn(false);
         when(mWifiNative.p2pListNetworks(any())).thenReturn(true);
         sendSimpleMsg(mClientMessenger, WifiP2pManager.FACTORY_RESET);
         verify(mWifiInjector).getUserManager();
         verify(mPackageManager).getNameForUid(anyInt());
         verify(mWifiPermissionsUtil).checkNetworkSettingsPermission(anyInt());
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET));
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI));
+        verify(mUserManager).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_NETWORK_RESET), any());
+        verify(mUserManager).hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any());
         verify(mWifiNative, never()).p2pListNetworks(any());
         verify(mFrameworkFacade).setIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET), eq(1));
@@ -3154,8 +3160,10 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         verify(mWifiInjector, times(2)).getUserManager();
         verify(mPackageManager, times(2)).getNameForUid(anyInt());
         verify(mWifiPermissionsUtil, times(2)).checkNetworkSettingsPermission(anyInt());
-        verify(mUserManager, times(2)).hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET));
-        verify(mUserManager, times(2)).hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI));
+        verify(mUserManager, times(2)).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_NETWORK_RESET), any());
+        verify(mUserManager, times(2)).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_CONFIG_WIFI), any());
         verify(mWifiNative, atLeastOnce()).p2pListNetworks(any());
         verify(mFrameworkFacade).getIntegerSetting(eq(mContext),
                 eq(Settings.Global.WIFI_P2P_PENDING_FACTORY_RESET), eq(0));
@@ -3196,12 +3204,14 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn("testPkg");
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)).thenReturn(true);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
+                .thenReturn(true);
         sendSimpleMsg(mClientMessenger, WifiP2pManager.FACTORY_RESET);
         verify(mWifiInjector).getUserManager();
         verify(mPackageManager).getNameForUid(anyInt());
         verify(mWifiPermissionsUtil).checkNetworkSettingsPermission(anyInt());
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET));
+        verify(mUserManager).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_NETWORK_RESET), any());
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.FACTORY_RESET_FAILED, message.what);
@@ -3219,14 +3229,17 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getUserManager()).thenReturn(mUserManager);
         when(mPackageManager.getNameForUid(anyInt())).thenReturn("testPkg");
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)).thenReturn(false);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)).thenReturn(true);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_NETWORK_RESET), any()))
+                .thenReturn(false);
+        when(mUserManager.hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any()))
+                .thenReturn(true);
         sendSimpleMsg(mClientMessenger, WifiP2pManager.FACTORY_RESET);
         verify(mWifiInjector).getUserManager();
         verify(mPackageManager).getNameForUid(anyInt());
         verify(mWifiPermissionsUtil).checkNetworkSettingsPermission(anyInt());
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_NETWORK_RESET));
-        verify(mUserManager).hasUserRestriction(eq(UserManager.DISALLOW_CONFIG_WIFI));
+        verify(mUserManager).hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_NETWORK_RESET), any());
+        verify(mUserManager).hasUserRestrictionForUser(eq(UserManager.DISALLOW_CONFIG_WIFI), any());
         verify(mClientHandler).sendMessage(mMessageCaptor.capture());
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.FACTORY_RESET_FAILED, message.what);

@@ -1442,7 +1442,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
     private void setupLohsPermissions() {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
+        when(mUserManager.hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_CONFIG_TETHERING), any()))
                 .thenReturn(false);
     }
 
@@ -1553,7 +1554,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testHotspotDoesNotStartWhenTetheringDisallowed() throws Exception {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
-        when(mUserManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_TETHERING))
+        when(mUserManager.hasUserRestrictionForUser(
+                eq(UserManager.DISALLOW_CONFIG_TETHERING), any()))
                 .thenReturn(true);
         int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
         assertEquals(ERROR_TETHERING_DISALLOWED, returnCode);

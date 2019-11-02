@@ -44,9 +44,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class looks at all the connectivity scan results then
@@ -371,7 +371,7 @@ public class WifiNetworkSelector {
     }
 
     private List<ScanDetail> filterScanResults(List<ScanDetail> scanDetails,
-                HashSet<String> bssidBlacklist, boolean isConnected, String currentBssid) {
+                Set<String> bssidBlacklist, boolean isConnected, String currentBssid) {
         ArrayList<NetworkKey> unscoredNetworks = new ArrayList<NetworkKey>();
         List<ScanDetail> validScanDetails = new ArrayList<ScanDetail>();
         StringBuffer noValidSsid = new StringBuffer();
@@ -665,7 +665,7 @@ public class WifiNetworkSelector {
      */
     @Nullable
     public WifiConfiguration selectNetwork(List<ScanDetail> scanDetails,
-            HashSet<String> bssidBlacklist, WifiInfo wifiInfo,
+            Set<String> bssidBlacklist, WifiInfo wifiInfo,
             boolean connected, boolean disconnected, boolean untrustedNetworkAllowed) {
         mFilteredNetworks.clear();
         mConnectableNetworks.clear();

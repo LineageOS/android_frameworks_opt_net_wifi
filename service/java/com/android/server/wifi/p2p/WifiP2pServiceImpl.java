@@ -4121,9 +4121,12 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
             if (!mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)) return false;
 
-            if (userManager.hasUserRestriction(UserManager.DISALLOW_NETWORK_RESET)) return false;
-
-            if (userManager.hasUserRestriction(UserManager.DISALLOW_CONFIG_WIFI)) return false;
+            if (userManager.hasUserRestrictionForUser(
+                    UserManager.DISALLOW_NETWORK_RESET, UserHandle.getUserHandleForUid(uid))
+                    || userManager.hasUserRestrictionForUser(
+                    UserManager.DISALLOW_CONFIG_WIFI, UserHandle.getUserHandleForUid(uid))) {
+                return false;
+            }
 
             Log.i(TAG, "factoryReset uid=" + uid + " pkg=" + pkgName);
 
