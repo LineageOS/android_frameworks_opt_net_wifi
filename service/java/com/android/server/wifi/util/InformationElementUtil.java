@@ -31,7 +31,7 @@ import java.util.BitSet;
 
 public class InformationElementUtil {
     private static final String TAG = "InformationElementUtil";
-
+    private static final boolean DBG = false;
     public static InformationElement[] parseInformationElements(byte[] bytes) {
         if (bytes == null) {
             return new InformationElement[0];
@@ -421,7 +421,9 @@ public class InformationElementUtil {
 
             // Make sure the byte array length is at least the fixed size
             if (ie.bytes.length < HE_OPERATION_BASIC_LENGTH) {
-                Log.w(TAG, "Invalid HE_OPERATION len: " + ie.bytes.length);
+                if (DBG) {
+                    Log.w(TAG, "Invalid HE_OPERATION len: " + ie.bytes.length);
+                }
                 // Skipping parsing of the IE
                 return;
             }
@@ -434,7 +436,9 @@ public class InformationElementUtil {
 
             // Make sure the byte array length is at least fitting the known parameters
             if (ie.bytes.length < expectedLen) {
-                Log.w(TAG, "Invalid HE_OPERATION len: " + ie.bytes.length);
+                if (DBG) {
+                    Log.w(TAG, "Invalid HE_OPERATION len: " + ie.bytes.length);
+                }
                 // Skipping parsing of the IE
                 return;
             }
@@ -459,6 +463,146 @@ public class InformationElementUtil {
                 mCenterFreqSeg1 = ie.bytes[startIndx + 3] & Constants.BYTE_MASK;
             }
         }
+    }
+
+    /**
+     * HtCapabilities: represents the HT Capabilities IE
+     */
+    public static class HtCapabilities {
+        private int mMaxNumberSpatialStreams  = 1;
+        private boolean mPresent = false;
+        /** Returns whether HT Capabilities IE is present */
+        public boolean isPresent() {
+            return mPresent;
+        }
+        /**
+         * Returns max number of spatial streams if HT Capabilities IE is found and parsed,
+         * or 1 otherwise
+         */
+        public int getMaxNumberSpatialStreams() {
+            return mMaxNumberSpatialStreams;
+        }
+
+        /** Parse HT Capabilities IE */
+        public void from(InformationElement ie) {
+            if (ie.id != InformationElement.EID_HT_CAPABILITIES) {
+                throw new IllegalArgumentException("Element id is not HT_CAPABILITIES: " + ie.id);
+            }
+            if (ie.bytes.length < 26) {
+                if (DBG) {
+                    Log.w(TAG, "Invalid HtCapabilities len: " + ie.bytes.length);
+                }
+                return;
+            }
+            int stream1 = ie.bytes[3] & Constants.BYTE_MASK;
+            int stream2 = ie.bytes[4] & Constants.BYTE_MASK;
+            int stream3 = ie.bytes[5] & Constants.BYTE_MASK;
+            int stream4 = ie.bytes[6] & Constants.BYTE_MASK;
+            if (DBG) {
+                Log.d(TAG, "HT Rx MCS set4: " + Integer.toHexString(stream4));
+                Log.d(TAG, "HT Rx MCS set3: " + Integer.toHexString(stream3));
+                Log.d(TAG, "HT Rx MCS set2: " + Integer.toHexString(stream2));
+                Log.d(TAG, "HT Rx MCS set1: " + Integer.toHexString(stream1));
+            }
+            mMaxNumberSpatialStreams = (stream4 > 0) ? 4 :
+                    ((stream3 > 0) ? 3 :
+                    ((stream2 > 0) ? 2 : 1));
+            mPresent = true;
+        }
+    }
+
+    /**
+     * VhtCapabilities: represents the VHT Capabilities IE
+     */
+    public static class VhtCapabilities {
+        private int mMaxNumberSpatialStreams = 1;
+        private boolean mPresent = false;
+        /** Returns whether VHT Capabilities IE is present */
+        public boolean isPresent() {
+            return mPresent;
+        }
+        /**
+         * Returns max number of spatial streams if VHT Capabilities IE is found and parsed,
+         * or 1 otherwise
+         */
+        public int getMaxNumberSpatialStreams() {
+            return mMaxNumberSpatialStreams;
+        }
+        /** Parse VHT Capabilities IE */
+        public void from(InformationElement ie) {
+            if (ie.id != InformationElement.EID_VHT_CAPABILITIES) {
+                throw new IllegalArgumentException("Element id is not VHT_CAPABILITIES: " + ie.id);
+            }
+            if (ie.bytes.length < 12) {
+                if (DBG) {
+                    Log.w(TAG, "Invalid VHT_CAPABILITIES len: " + ie.bytes.length);
+                }
+                return;
+            }
+            int mcsMap = ((ie.bytes[5] & Constants.BYTE_MASK) << 8)
+                    + (ie.bytes[4] & Constants.BYTE_MASK);
+            mMaxNumberSpatialStreams = parseMaxNumberSpatialStreamsFromMcsMap(mcsMap);
+            mPresent = true;
+        }
+    }
+
+    /**
+     * HeCapabilities: represents the HE Capabilities IE
+     */
+    public static class HeCapabilities {
+        private int mMaxNumberSpatialStreams = 1;
+        private boolean mPresent = false;
+        /** Returns whether HE Capabilities IE is present */
+        public boolean isPresent() {
+            return mPresent;
+        }
+        /**
+         * Returns max number of spatial streams if HE Capabilities IE is found and parsed,
+         * or 1 otherwise
+         */
+        public int getMaxNumberSpatialStreams() {
+            return mMaxNumberSpatialStreams;
+        }
+        /** Parse HE Capabilities IE */
+        public void from(InformationElement ie) {
+            if (ie.id != InformationElement.EID_EXTENSION_PRESENT
+                    || ie.idExt != InformationElement.EID_EXT_HE_CAPABILITIES) {
+                throw new IllegalArgumentException("Element id is not HE_CAPABILITIES: " + ie.id);
+            }
+            if (ie.bytes.length < 21) {
+                if (DBG) {
+                    Log.w(TAG, "Invalid HE_CAPABILITIES len: " + ie.bytes.length);
+                }
+                return;
+            }
+            int mcsMap = ((ie.bytes[18] & Constants.BYTE_MASK) << 8)
+                    + (ie.bytes[17] & Constants.BYTE_MASK);
+            mMaxNumberSpatialStreams = parseMaxNumberSpatialStreamsFromMcsMap(mcsMap);
+            mPresent = true;
+        }
+    }
+
+    private static int parseMaxNumberSpatialStreamsFromMcsMap(int mcsMap) {
+        int maxNumberSpatialStreams = 1;
+        for (int i = 8; i >= 1; --i) {
+            int streamMap = mcsMapToStreamMap(mcsMap, i);
+            // 3 means unsupported
+            if (streamMap != 3) {
+                maxNumberSpatialStreams = i;
+                break;
+            }
+        }
+        if (DBG) {
+            for (int i = 8; i >= 1; --i) {
+                int streamMap = mcsMapToStreamMap(mcsMap, i);
+                Log.d(TAG, "Rx MCS set " + i + " : " + streamMap);
+            }
+        }
+        return maxNumberSpatialStreams;
+    }
+
+    private static int mcsMapToStreamMap(int mcsMap, int i) {
+        return (mcsMap >> ((i - 1) * 2)) & 0x3;
     }
 
     public static class Interworking {
