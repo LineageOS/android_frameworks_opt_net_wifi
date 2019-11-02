@@ -1050,8 +1050,7 @@ public class XmlUtil {
                     Arrays.asList(NetworkSelectionStatus.QUALITY_NETWORK_SELECTION_STATUS)
                             .indexOf(statusString);
             int disableReason =
-                    Arrays.asList(NetworkSelectionStatus.QUALITY_NETWORK_SELECTION_DISABLE_REASON)
-                            .indexOf(disableReasonString);
+                    NetworkSelectionStatus.getDisableReasonByString(disableReasonString);
 
             // If either of the above codes are invalid or if the network was temporarily disabled
             // (blacklisted), restore the status as enabled. We don't want to persist blacklists

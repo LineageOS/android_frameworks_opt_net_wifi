@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLE_REASON_INFOS;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -32,6 +34,8 @@ import android.net.StaticIpConfiguration;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
+import android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DisableReasonInfo;
+import android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NetworkSelectionDisableReason;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -108,54 +112,7 @@ public class WifiConfigManager {
      */
     @VisibleForTesting
     public static final String SYSUI_PACKAGE_NAME = "com.android.systemui";
-    /**
-     * Network Selection disable reason thresholds. These numbers are used to debounce network
-     * failures before we disable them.
-     * These are indexed using the disable reason constants defined in
-     * {@link android.net.wifi.WifiConfiguration.NetworkSelectionStatus}.
-     */
-    @VisibleForTesting
-    public static final int[] NETWORK_SELECTION_DISABLE_THRESHOLD = {
-            -1, //  threshold for NETWORK_SELECTION_ENABLE
-            1,  //  threshold for DISABLED_BAD_LINK
-            5,  //  threshold for DISABLED_ASSOCIATION_REJECTION
-            5,  //  threshold for DISABLED_AUTHENTICATION_FAILURE
-            5,  //  threshold for DISABLED_DHCP_FAILURE
-            5,  //  threshold for DISABLED_DNS_FAILURE
-            1,  //  threshold for DISABLED_NO_INTERNET_TEMPORARY
-            1,  //  threshold for DISABLED_WPS_START
-            6,  //  threshold for DISABLED_TLS_VERSION_MISMATCH
-            1,  //  threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
-            1,  //  threshold for DISABLED_NO_INTERNET_PERMANENT
-            1,  //  threshold for DISABLED_BY_WIFI_MANAGER
-            1,  //  threshold for DISABLED_BY_USER_SWITCH
-            1,  //  threshold for DISABLED_BY_WRONG_PASSWORD
-            1   //  threshold for DISABLED_AUTHENTICATION_NO_SUBSCRIBED
-    };
-    /**
-     * Network Selection disable timeout for each kind of error. After the timeout milliseconds,
-     * enable the network again.
-     * These are indexed using the disable reason constants defined in
-     * {@link android.net.wifi.WifiConfiguration.NetworkSelectionStatus}.
-     */
-    @VisibleForTesting
-    public static final int[] NETWORK_SELECTION_DISABLE_TIMEOUT_MS = {
-            Integer.MAX_VALUE,  // threshold for NETWORK_SELECTION_ENABLE
-            15 * 60 * 1000,     // threshold for DISABLED_BAD_LINK
-            5 * 60 * 1000,      // threshold for DISABLED_ASSOCIATION_REJECTION
-            5 * 60 * 1000,      // threshold for DISABLED_AUTHENTICATION_FAILURE
-            5 * 60 * 1000,      // threshold for DISABLED_DHCP_FAILURE
-            5 * 60 * 1000,      // threshold for DISABLED_DNS_FAILURE
-            10 * 60 * 1000,     // threshold for DISABLED_NO_INTERNET_TEMPORARY
-            0 * 60 * 1000,      // threshold for DISABLED_WPS_START
-            Integer.MAX_VALUE,  // threshold for DISABLED_TLS_VERSION
-            Integer.MAX_VALUE,  // threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
-            Integer.MAX_VALUE,  // threshold for DISABLED_NO_INTERNET_PERMANENT
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_WIFI_MANAGER
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_USER_SWITCH
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_WRONG_PASSWORD
-            Integer.MAX_VALUE   // threshold for DISABLED_AUTHENTICATION_NO_SUBSCRIBED
-    };
+
     /**
      * Interface for other modules to listen to the network updated
      * events.
@@ -483,6 +440,41 @@ public class WifiConfigManager {
         if (mMac == null) {
             Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
                     + " All randomized MAC addresses are lost!");
+        }
+    }
+
+    /**
+     * Network Selection disable reason thresholds. These numbers are used to debounce network
+     * failures before we disable them.
+     *
+     * @param reason int reason code
+     * @return the disable threshold, or -1 if not found.
+     */
+    @VisibleForTesting
+    public static int getNetworkSelectionDisableThreshold(
+            @NetworkSelectionDisableReason int reason) {
+        DisableReasonInfo info = DISABLE_REASON_INFOS.get(reason);
+        if (info == null) {
+            Log.e(TAG, "Unrecognized network disable reason code for disable threshold: " + reason);
+            return -1;
+        } else {
+            return info.mDisableThreshold;
+        }
+    }
+
+    /**
+     * Network Selection disable timeout for each kind of error. After the timeout in milliseconds,
+     * enable the network again.
+     */
+    @VisibleForTesting
+    public static int getNetworkSelectionDisableTimeoutMillis(
+            @NetworkSelectionDisableReason int reason) {
+        DisableReasonInfo info = DISABLE_REASON_INFOS.get(reason);
+        if (info == null) {
+            Log.e(TAG, "Unrecognized network disable reason code for disable timeout: " + reason);
+            return -1;
+        } else {
+            return info.mDisableTimeoutMillis;
         }
     }
 
@@ -1800,7 +1792,7 @@ public class WifiConfigManager {
             // For network disable reasons, we should only update the status if we cross the
             // threshold.
             int disableReasonCounter = networkStatus.getDisableReasonCounter(reason);
-            int disableReasonThreshold = NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+            int disableReasonThreshold = getNetworkSelectionDisableThreshold(reason);
             if (disableReasonCounter < disableReasonThreshold) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "Disable counter for network " + config.getPrintableSsid()
@@ -1862,7 +1854,7 @@ public class WifiConfigManager {
             long disableTimeoutMs = 0;
             if (blockedBssids > 0) {
                 double multiplier = Math.pow(2.0, blockedBssids - 1.0);
-                disableTimeoutMs = (long) (NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+                disableTimeoutMs = (long) (getNetworkSelectionDisableTimeoutMillis(disableReason)
                         * multiplier);
             }
             if (timeDifferenceMs >= disableTimeoutMs) {

@@ -1031,7 +1031,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // disable it 5 times to actually mark it temporarily disabled.
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result.getNetworkId(), assocRejectReason, i);
         }
@@ -1127,7 +1127,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
 
         int disableThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
         for (int i = 1; i <= disableThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result.getNetworkId(), reason, i);
         }
@@ -1170,7 +1170,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
             int numBssidsInBlocklist = i;
             when(mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(anyString()))
                     .thenReturn(numBssidsInBlocklist);
-            timeout = WifiConfigManager.NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+            timeout = WifiConfigManager.getNetworkSelectionDisableTimeoutMillis(disableReason)
                     * multiplier;
             multiplier *= 2;
             verifyNetworkIsEnabledAfter(result.getNetworkId(),
@@ -2602,7 +2602,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // disable it 5 times to actually mark it temporarily disabled.
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result1.getNetworkId(), assocRejectReason, i);
         }
@@ -5417,7 +5417,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         long retrievedDisableTime = retrievedStatus.getDisableTime();
         int retrievedDisableReasonCounter = retrievedStatus.getDisableReasonCounter(reason);
         int disableReasonThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
 
         if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
             assertEquals(reason, retrievedDisableReason);
@@ -5592,7 +5592,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             assertFalse(mWifiConfigManager.updateNetworkSelectionStatus(
                         networkId, assocRejectReason));
