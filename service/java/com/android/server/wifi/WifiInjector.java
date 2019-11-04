@@ -152,6 +152,7 @@ public class WifiInjector {
     private IpMemoryStore mIpMemoryStore;
     private final WifiThreadRunner mWifiThreadRunner;
     private BssidBlocklistMonitor mBssidBlocklistMonitor;
+    private final MacAddressUtil mMacAddressUtil;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -167,6 +168,7 @@ public class WifiInjector {
         sWifiInjector = this;
 
         mFrameworkFacade = new FrameworkFacade();
+        mMacAddressUtil = new MacAddressUtil();
         mContext = context;
         mBatteryStats = context.getSystemService(BatteryStatsManager.class);
         mWifiScoreCard = new WifiScoreCard(mClock,
@@ -664,6 +666,10 @@ public class WifiInjector {
             mRttHandlerThread.start();
         }
         return mRttHandlerThread;
+    }
+
+    public MacAddressUtil getMacAddressUtil() {
+        return mMacAddressUtil;
     }
 
     /**
