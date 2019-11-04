@@ -135,6 +135,7 @@ public class WifiConfigManagerTest {
     @Mock private WifiConfigManager.OnSavedNetworkUpdateListener mWcmListener;
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
+    @Mock private MacAddressUtil mMacAddressUtil;
 
     private MockResources mResources;
     private InOrder mContextConfigStoreMockOrder;
@@ -218,6 +219,10 @@ public class WifiConfigManagerTest {
         when(mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate())
                 .thenReturn(false);
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
+        when(mWifiInjector.getMacAddressUtil()).thenReturn(mMacAddressUtil);
+        when(mMacAddressUtil.calculatePersistentMacForConfiguration(any(), any()))
+                .thenReturn(TEST_RANDOMIZED_MAC);
+
         createWifiConfigManager();
         mWifiConfigManager.setOnSavedNetworkUpdateListener(mWcmListener);
         ArgumentCaptor<ContentObserver> observerCaptor =
@@ -233,13 +238,10 @@ public class WifiConfigManagerTest {
         // static mocking
         mSession = ExtendedMockito.mockitoSession()
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
-                .spyStatic(WifiConfigurationUtil.class)
                 .strictness(Strictness.LENIENT)
                 .startMocking();
         when(WifiConfigStore.createUserFiles(anyInt(), anyBoolean())).thenReturn(mock(List.class));
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
-        when(WifiConfigurationUtil.calculatePersistentMacForConfiguration(any(), any()))
-                .thenReturn(TEST_RANDOMIZED_MAC);
     }
 
     /**

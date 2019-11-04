@@ -276,6 +276,7 @@ public class WifiConfigManager {
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
+    private final MacAddressUtil mMacAddressUtil;
     private boolean mConnectedMacRandomzationSupported;
     private final Mac mMac;
 
@@ -452,7 +453,8 @@ public class WifiConfigManager {
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Unable to resolve SystemUI's UID.");
         }
-        mMac = WifiConfigurationUtil.obtainMacRandHashFunction(Process.WIFI_UID);
+        mMacAddressUtil = mWifiInjector.getMacAddressUtil();
+        mMac = mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID);
         if (mMac == null) {
             Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
                     + " All randomized MAC addresses are lost!");
@@ -508,7 +510,7 @@ public class WifiConfigManager {
                 mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
             }
         }
-        return WifiConfigurationUtil.calculatePersistentMacForConfiguration(config, mMac);
+        return mMacAddressUtil.calculatePersistentMacForConfiguration(config, mMac);
     }
 
     /**
