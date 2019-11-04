@@ -2477,7 +2477,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
             mWifiInfo.setBSSID(null);
             mWifiInfo.setSSID(null);
-            mWifiInfo.setWifiStandard(WifiInfo.WIFI_STANDARD_UNKNOWN);
+            mWifiInfo.setWifiStandard(ScanResult.WIFI_STANDARD_UNKNOWN);
         }
         updateL2KeyAndGroupHint();
         // SSID might have been updated, so call updateCapabilities
