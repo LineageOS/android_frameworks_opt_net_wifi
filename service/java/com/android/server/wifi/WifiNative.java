@@ -2730,13 +2730,13 @@ public class WifiNative {
     }
 
     /**
-     * Get the connection Wifi technology
+     * Get the connection Wifi standard
      *
      * @param ifaceName Name of the interface.
-     * @return Wifi technology for connection on this interface
+     * @return Wifi standard for connection on this interface
      */
-    public @WifiInfo.WifiTechnology int getWifiTechnology(@NonNull String ifaceName) {
-        return mSupplicantStaIfaceHal.getWifiTechnology(ifaceName);
+    public @WifiInfo.WifiStandard int getWifiStandard(@NonNull String ifaceName) {
+        return mSupplicantStaIfaceHal.getWifiStandard(ifaceName);
     }
 
     /**

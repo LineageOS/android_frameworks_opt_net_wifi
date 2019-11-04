@@ -1725,15 +1725,15 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
-     * Test getWifiTechnology
+     * Test getWifiStandard
      * Should fail if running HAL lower than V1_3
      */
     @Test
-    public void testGetWifiTechnologyV1_2() throws Exception {
+    public void testGetWifiStandardV1_2() throws Exception {
         setupMocksForHalV1_2();
         executeAndValidateInitializationSequenceV1_2();
 
-        assertEquals(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN, mDut.getWifiTechnology(WLAN0_IFACE_NAME));
+        assertEquals(WifiInfo.WIFI_STANDARD_UNKNOWN, mDut.getWifiStandard(WLAN0_IFACE_NAME));
     }
 
     private class GetConnCapabilitiesAnswer extends MockAnswerUtil.AnswerWithArguments {
@@ -1751,22 +1751,22 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
-     * Test getWifiTechnology if running with HAL V1_3
+     * Test getWifiStandard if running with HAL V1_3
      */
     @Test
-    public void testGetWifiTechnologyV1_3() throws Exception {
+    public void testGetWifiStandardV1_3() throws Exception {
         setupMocksForHalV1_3();
 
         executeAndValidateInitializationSequenceV1_3();
         int testWifiTechnologyHal = WifiTechnology.VHT;
-        int testWifiTechnologyWifiInfo = WifiInfo.WIFI_TECHNOLOGY_11AC;
+        int testWifiStandardWifiInfo = WifiInfo.WIFI_STANDARD_11AC;
 
         doAnswer(new GetConnCapabilitiesAnswer(testWifiTechnologyHal))
                 .when(mISupplicantStaIfaceMockV13).getConnectionCapabilities(any(
                 android.hardware.wifi.supplicant.V1_3.ISupplicantStaIface
                         .getConnectionCapabilitiesCallback.class));
 
-        assertEquals(testWifiTechnologyWifiInfo, mDut.getWifiTechnology(WLAN0_IFACE_NAME));
+        assertEquals(testWifiStandardWifiInfo, mDut.getWifiStandard(WLAN0_IFACE_NAME));
     }
 
     private WifiConfiguration createTestWifiConfiguration() {

@@ -2696,35 +2696,35 @@ public class SupplicantStaIfaceHal {
         return keyMgmtMask.value;
     }
 
-    private @WifiInfo.WifiTechnology int getWifiTechFromCap(ConnectionCapabilities capa) {
+    private @WifiInfo.WifiStandard int getWifiStandardFromCap(ConnectionCapabilities capa) {
         switch(capa.technology) {
             case WifiTechnology.HE:
-                return WifiInfo.WIFI_TECHNOLOGY_11AX;
+                return WifiInfo.WIFI_STANDARD_11AX;
             case WifiTechnology.VHT:
-                return WifiInfo.WIFI_TECHNOLOGY_11AC;
+                return WifiInfo.WIFI_STANDARD_11AC;
             case WifiTechnology.HT:
-                return WifiInfo.WIFI_TECHNOLOGY_11N;
+                return WifiInfo.WIFI_STANDARD_11N;
             case WifiTechnology.LEGACY:
-                return WifiInfo.WIFI_TECHNOLOGY_LEGACY;
+                return WifiInfo.WIFI_STANDARD_LEGACY;
             default:
-                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+                return WifiInfo.WIFI_STANDARD_UNKNOWN;
         }
     }
 
     /**
-     * Returns wifi technology for connected network
+     * Returns wifi standard for connected network
      *
      *  This is a v1.3+ HAL feature.
      *  On error, or if these features are not supported, 0 is returned.
      */
-    public @WifiInfo.WifiTechnology int getWifiTechnology(@NonNull String ifaceName) {
-        final String methodStr = "getWifiTechnology";
-        MutableInt wifiTechnology = new MutableInt(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN);
+    public @WifiInfo.WifiStandard int getWifiStandard(@NonNull String ifaceName) {
+        final String methodStr = "getWifiStandard";
+        MutableInt wifiStandard = new MutableInt(WifiInfo.WIFI_STANDARD_UNKNOWN);
 
         if (isV1_3()) {
             ISupplicantStaIface iface = checkSupplicantStaIfaceAndLogFailure(ifaceName, methodStr);
             if (iface == null) {
-                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+                return WifiInfo.WIFI_STANDARD_UNKNOWN;
             }
 
             // Get a v1.3 supplicant STA Interface
@@ -2734,7 +2734,7 @@ public class SupplicantStaIfaceHal {
             if (staIfaceV13 == null) {
                 Log.e(TAG, methodStr
                         + ": SupplicantStaIface is null, cannot get Connection Capabilities");
-                return WifiInfo.WIFI_TECHNOLOGY_UNKNOWN;
+                return WifiInfo.WIFI_STANDARD_UNKNOWN;
             }
 
             try {
@@ -2742,7 +2742,8 @@ public class SupplicantStaIfaceHal {
                         (SupplicantStatus statusInternal,
                          ConnectionCapabilities connCapabilitiesInternal) -> {
                             if (statusInternal.code == SupplicantStatusCode.SUCCESS) {
-                                wifiTechnology.value = getWifiTechFromCap(connCapabilitiesInternal);
+                                wifiStandard.value =
+                                        getWifiStandardFromCap(connCapabilitiesInternal);
                             }
                             checkStatusAndLogFailure(statusInternal, methodStr);
                         });
@@ -2753,7 +2754,7 @@ public class SupplicantStaIfaceHal {
             Log.e(TAG, "Method " + methodStr + " is not supported in existing HAL");
         }
 
-        return wifiTechnology.value;
+        return wifiStandard.value;
     }
 
     /**
