@@ -188,7 +188,7 @@ public class WifiInjector {
         mWifiHandlerThread = new HandlerThread("WifiHandlerThread");
         mWifiHandlerThread.start();
         Looper wifiLooper = mWifiHandlerThread.getLooper();
-        Handler wifiHandler = mWifiHandlerThread.getThreadHandler();
+        Handler wifiHandler = new Handler(wifiLooper);
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
@@ -587,7 +587,7 @@ public class WifiInjector {
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
                 mWifiNetworkSelector, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, mWifiHandlerThread.getThreadHandler(),
+                mCarrierNetworkConfig, mWifiMetrics, new Handler(mWifiHandlerThread.getLooper()),
                 mClock, mConnectivityLocalLog);
     }
 

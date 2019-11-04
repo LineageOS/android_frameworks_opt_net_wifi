@@ -17,6 +17,8 @@ rule android.util.Rational* com.android.server.wifi.util.Rational@1
 rule android.util.proto.ProtoStream* com.android.server.wifi.util.proto.ProtoStream@1
 rule android.util.proto.ProtoOutputStream* com.android.server.wifi.util.proto.ProtoOutputStream@1
 
+rule android.os.HandlerExecutor* com.android.server.wifi.os.HandlerExecutor@1
+
 # Use our statically linked bouncy castle library
 rule org.bouncycastle.** com.android.server.wifi.bouncycastle.@1
 # Use our statically linked protobuf library
