@@ -100,6 +100,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
         when(mWifiNetworkSuggestionsManager.retrieveHiddenNetworkList())
                 .thenReturn(new ArrayList<>());
         when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
+        when(mWifiInjector.getWifiChannelUtilization()).thenReturn(mWifiChannelUtilization);
         mWifiConnectivityManager = createConnectivityManager();
         verify(mWifiConfigManager).addOnNetworkUpdateListener(anyObject());
         mWifiConnectivityManager.setTrustedConnectionAllowed(true);
@@ -145,6 +146,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     @Mock private WifiNetworkScoreCache mScoreCache;
     @Mock private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
+    @Mock private WifiChannelUtilization mWifiChannelUtilization;
     @Captor ArgumentCaptor<ScanResult> mCandidateScanResultCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mBssidBlacklistCaptor;
     @Captor ArgumentCaptor<ArrayList<String>> mSsidWhitelistCaptor;
@@ -2007,5 +2009,51 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
 
         inOrder.verifyNoMoreInteractions();
+    }
+
+    /**
+     *  Verify that WifiChannelUtilization is updated after a scan
+     */
+    @Test
+    public void verifyWifiChannelUtilizationRefreshedAfterScanResults() {
+        WifiLinkLayerStats llstats = new WifiLinkLayerStats();
+        when(mClientModeImpl.getWifiLinkLayerStats()).thenReturn(llstats);
+
+        // Force a connectivity scan
+        mWifiConnectivityManager.forceConnectivityScan(WIFI_WORK_SOURCE);
+
+        verify(mWifiChannelUtilization).refreshChannelStatsAndChannelUtilization(llstats);
+    }
+
+    /**
+     *  Verify that WifiChannelUtilization is initialized properly
+     */
+    @Test
+    public void verifyWifiChannelUtilizationInitAfterWifiToggle() {
+        verify(mWifiChannelUtilization, times(1)).init(null);
+        WifiLinkLayerStats llstats = new WifiLinkLayerStats();
+        when(mClientModeImpl.getWifiLinkLayerStats()).thenReturn(llstats);
+
+        mWifiConnectivityManager.setWifiEnabled(false);
+        mWifiConnectivityManager.setWifiEnabled(true);
+        verify(mWifiChannelUtilization, times(1)).init(llstats);
+    }
+
+    /**
+     *  Verify that WifiChannelUtilization sets mobility state correctly
+     */
+    @Test
+    public void verifyWifiChannelUtilizationSetMobilityState() {
+        WifiLinkLayerStats llstats = new WifiLinkLayerStats();
+        when(mClientModeImpl.getWifiLinkLayerStats()).thenReturn(llstats);
+
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+        verify(mWifiChannelUtilization).setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_HIGH_MVMT);
+        mWifiConnectivityManager.setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        verify(mWifiChannelUtilization).setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
     }
 }

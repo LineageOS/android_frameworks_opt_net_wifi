@@ -136,9 +136,12 @@ public class InformationElementUtil {
     }
 
     public static class BssLoad {
-        public int stationCount = 0;
-        public int channelUtilization = 0;
-        public int capacity = 0;
+        public static final int INVALID = -1;
+        public static final int MAX_CHANNEL_UTILIZATION = 255;
+        public static final int MIN_CHANNEL_UTILIZATION = 0;
+        public int stationCount = INVALID;
+        public int channelUtilization = INVALID;
+        public int capacity = INVALID;
 
         public void from(InformationElement ie) {
             if (ie.id != InformationElement.EID_BSS_LOAD) {
