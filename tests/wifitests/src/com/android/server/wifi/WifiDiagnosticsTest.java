@@ -857,6 +857,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     }
 
     @Test
+    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportCallsActivityManagerOnUserDebug() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         mWifiDiagnostics.takeBugReport("", "");
@@ -865,6 +866,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     }
 
     @Test
+    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportSwallowsExceptions() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         doThrow(new RuntimeException()).when(mActivityManagerService).requestWifiBugReport(
