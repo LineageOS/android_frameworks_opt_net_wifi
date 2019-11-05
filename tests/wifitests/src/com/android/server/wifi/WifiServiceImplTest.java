@@ -85,6 +85,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.res.Resources;
+import android.net.NetworkStack;
 import android.net.Uri;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -1209,9 +1210,10 @@ public class WifiServiceImplTest {
      */
     @Test(expected = SecurityException.class)
     public void testStartSoftApWithoutPermissionThrowsException() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
-                                                eq("WifiService"));
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
         mWifiServiceImpl.startSoftAp(null);
     }
 
@@ -1244,9 +1246,10 @@ public class WifiServiceImplTest {
      */
     @Test(expected = SecurityException.class)
     public void testStopSoftApWithoutPermissionThrowsException() throws Exception {
-        doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_STACK),
-                                                eq("WifiService"));
+        when(mContext.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_STACK))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK), any());
         mWifiServiceImpl.stopSoftAp();
     }
 
