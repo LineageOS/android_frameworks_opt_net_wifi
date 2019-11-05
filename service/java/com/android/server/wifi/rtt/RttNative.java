@@ -530,81 +530,81 @@ public class RttNative {
             ArrayList<RangingResult> rangingResults = convertHalResultsRangingResults(halResults);
             mRttService.onRangingResults(cmdId, rangingResults);
         }
+    }
 
-        private ArrayList<RangingResult> convertHalResultsRangingResults(
-                ArrayList<RttResult> halResults) {
-            ArrayList<RangingResult> rangingResults = new ArrayList<>();
-            for (RttResult rttResult : halResults) {
-                byte[] lci = NativeUtil.byteArrayFromArrayList(rttResult.lci.data);
-                byte[] lcr = NativeUtil.byteArrayFromArrayList(rttResult.lcr.data);
-                ResponderLocation responderLocation;
-                try {
-                    responderLocation = new ResponderLocation(lci, lcr);
-                    if (!responderLocation.isValid()) {
-                        responderLocation = null;
-                    }
-                } catch (Exception e) {
+    private ArrayList<RangingResult> convertHalResultsRangingResults(
+            ArrayList<RttResult> halResults) {
+        ArrayList<RangingResult> rangingResults = new ArrayList<>();
+        for (RttResult rttResult : halResults) {
+            byte[] lci = NativeUtil.byteArrayFromArrayList(rttResult.lci.data);
+            byte[] lcr = NativeUtil.byteArrayFromArrayList(rttResult.lcr.data);
+            ResponderLocation responderLocation;
+            try {
+                responderLocation = new ResponderLocation(lci, lcr);
+                if (!responderLocation.isValid()) {
                     responderLocation = null;
-                    Log.e(TAG,
-                            "ResponderLocation: lci/lcr parser failed exception -- " + e);
                 }
-                if (rttResult.successNumber <= 1
-                        && rttResult.distanceSdInMm != 0) {
-                    if (mDbg) {
-                        Log.w(TAG, "postProcessResults: non-zero distance stdev with 0||1 num "
-                                + "samples!? result=" + rttResult);
-                    }
-                    rttResult.distanceSdInMm = 0;
-                }
-                rangingResults.add(new RangingResult(
-                        convertHalStatusToFrameworkStatus(rttResult.status),
-                        MacAddress.fromBytes(rttResult.addr),
-                        rttResult.distanceInMm, rttResult.distanceSdInMm,
-                        rttResult.rssi / -2, rttResult.numberPerBurstPeer,
-                        rttResult.successNumber, lci, lcr, responderLocation,
-                        rttResult.timeStampInUs / CONVERSION_US_TO_MS));
+            } catch (Exception e) {
+                responderLocation = null;
+                Log.e(TAG,
+                        "ResponderLocation: lci/lcr parser failed exception -- " + e);
             }
-            return rangingResults;
+            if (rttResult.successNumber <= 1
+                    && rttResult.distanceSdInMm != 0) {
+                if (mDbg) {
+                    Log.w(TAG, "postProcessResults: non-zero distance stdev with 0||1 num "
+                            + "samples!? result=" + rttResult);
+                }
+                rttResult.distanceSdInMm = 0;
+            }
+            rangingResults.add(new RangingResult(
+                    convertHalStatusToFrameworkStatus(rttResult.status),
+                    MacAddress.fromBytes(rttResult.addr),
+                    rttResult.distanceInMm, rttResult.distanceSdInMm,
+                    rttResult.rssi / -2, rttResult.numberPerBurstPeer,
+                    rttResult.successNumber, lci, lcr, responderLocation,
+                    rttResult.timeStampInUs / CONVERSION_US_TO_MS));
         }
+        return rangingResults;
+    }
 
-        private @FrameworkRttStatus int convertHalStatusToFrameworkStatus(int halStatus) {
-            switch (halStatus) {
-                case RttStatus.SUCCESS:
-                    return FRAMEWORK_RTT_STATUS_SUCCESS;
-                case RttStatus.FAILURE:
-                    return FRAMEWORK_RTT_STATUS_FAILURE;
-                case RttStatus.FAIL_NO_RSP:
-                    return FRAMEWORK_RTT_STATUS_FAIL_NO_RSP;
-                case RttStatus.FAIL_REJECTED:
-                    return FRAMEWORK_RTT_STATUS_FAIL_REJECTED;
-                case RttStatus.FAIL_NOT_SCHEDULED_YET:
-                    return FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET;
-                case RttStatus.FAIL_TM_TIMEOUT:
-                    return FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT;
-                case RttStatus.FAIL_AP_ON_DIFF_CHANNEL:
-                    return FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL;
-                case RttStatus.FAIL_NO_CAPABILITY:
-                    return FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY;
-                case RttStatus.ABORTED:
-                    return FRAMEWORK_RTT_STATUS_ABORTED;
-                case RttStatus.FAIL_INVALID_TS:
-                    return FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS;
-                case RttStatus.FAIL_PROTOCOL:
-                    return FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL;
-                case RttStatus.FAIL_SCHEDULE:
-                    return FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE;
-                case RttStatus.FAIL_BUSY_TRY_LATER:
-                    return FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER;
-                case RttStatus.INVALID_REQ:
-                    return FRAMEWORK_RTT_STATUS_INVALID_REQ;
-                case RttStatus.NO_WIFI:
-                    return FRAMEWORK_RTT_STATUS_NO_WIFI;
-                case RttStatus.FAIL_FTM_PARAM_OVERRIDE:
-                    return FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE;
-                default:
-                    Log.e(TAG, "Unrecognized RttStatus: " + halStatus);
-                    return FRAMEWORK_RTT_STATUS_UNKNOWN;
-            }
+    private @FrameworkRttStatus int convertHalStatusToFrameworkStatus(int halStatus) {
+        switch (halStatus) {
+            case RttStatus.SUCCESS:
+                return FRAMEWORK_RTT_STATUS_SUCCESS;
+            case RttStatus.FAILURE:
+                return FRAMEWORK_RTT_STATUS_FAILURE;
+            case RttStatus.FAIL_NO_RSP:
+                return FRAMEWORK_RTT_STATUS_FAIL_NO_RSP;
+            case RttStatus.FAIL_REJECTED:
+                return FRAMEWORK_RTT_STATUS_FAIL_REJECTED;
+            case RttStatus.FAIL_NOT_SCHEDULED_YET:
+                return FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET;
+            case RttStatus.FAIL_TM_TIMEOUT:
+                return FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT;
+            case RttStatus.FAIL_AP_ON_DIFF_CHANNEL:
+                return FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL;
+            case RttStatus.FAIL_NO_CAPABILITY:
+                return FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY;
+            case RttStatus.ABORTED:
+                return FRAMEWORK_RTT_STATUS_ABORTED;
+            case RttStatus.FAIL_INVALID_TS:
+                return FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS;
+            case RttStatus.FAIL_PROTOCOL:
+                return FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL;
+            case RttStatus.FAIL_SCHEDULE:
+                return FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE;
+            case RttStatus.FAIL_BUSY_TRY_LATER:
+                return FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER;
+            case RttStatus.INVALID_REQ:
+                return FRAMEWORK_RTT_STATUS_INVALID_REQ;
+            case RttStatus.NO_WIFI:
+                return FRAMEWORK_RTT_STATUS_NO_WIFI;
+            case RttStatus.FAIL_FTM_PARAM_OVERRIDE:
+                return FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE;
+            default:
+                Log.e(TAG, "Unrecognized RttStatus: " + halStatus);
+                return FRAMEWORK_RTT_STATUS_UNKNOWN;
         }
     }
 
