@@ -245,8 +245,9 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
                             WifiEnterpriseConfigXmlUtil.parseFromXml(in, outerTagDepth + 1);
                     break;
                 default:
-                    throw new XmlPullParserException("Unknown tag under "
-                            + XML_TAG_SECTION_HEADER_NETWORK + ": " + headerName[0]);
+                    Log.w(TAG, "Ignoring unknown tag under " + XML_TAG_SECTION_HEADER_NETWORK
+                            + ": " + headerName[0]);
+                    break;
             }
         }
         if (parsedConfig == null || parsedConfig.first == null || parsedConfig.second == null) {

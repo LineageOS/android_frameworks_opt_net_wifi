@@ -354,12 +354,8 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that a XmlPullParserException will be thrown when parsing a <Network> block
-     * containing an unknown tag.
-     *
-     * @throws Exception
+     * Verify that we ignore any unknown tags when parsing a <Network> block.
      */
-    @Test(expected = XmlPullParserException.class)
     public void parseNetworkWithUnknownTag() throws Exception {
         String configFormat =
                 "<Network>\n"
@@ -420,7 +416,12 @@ public class NetworkListStoreDataTest extends WifiBaseTest {
                 openNetwork.SSID.replaceAll("\"", "&quot;"),
                 openNetwork.shared, openNetwork.creatorUid, openNetwork.getRandomizedMacAddress())
             .getBytes(StandardCharsets.UTF_8);
-        deserializeData(xmlData);
+        List<WifiConfiguration> deserializedConfigs = deserializeData(xmlData);
+        assertEquals(1, deserializedConfigs.size());
+        WifiConfiguration deserializedConfig  = deserializedConfigs.get(0);
+
+        assertEquals(openNetwork.SSID, deserializedConfig.SSID);
+        assertEquals(openNetwork.configKey(), deserializedConfig.configKey());
     }
 
     /**

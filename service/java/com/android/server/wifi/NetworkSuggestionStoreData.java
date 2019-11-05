@@ -319,8 +319,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         suggestorPackageName = (String) value;
                         break;
                     default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+                        Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
+                        break;
                 }
             } else {
                 String tagName = in.getName();
@@ -354,8 +354,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                                 .deserializePasspointConfiguration(in, outerTagDepth + 1);
                         break;
                     default:
-                        throw new XmlPullParserException("Unknown tag under "
+                        Log.w(TAG, "Ignoring unknown tag under "
                                 + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION + ": " + in.getName());
+                        break;
                 }
             }
         }

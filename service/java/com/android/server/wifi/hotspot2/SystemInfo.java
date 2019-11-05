@@ -20,15 +20,16 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemProperties;
+import android.sysprop.TelephonyProperties;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.TelephonyProperties;
 import com.android.server.wifi.WifiNative;
 
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Provide APIs for retrieving system information, so that they can be mocked for unit tests.
@@ -141,9 +142,11 @@ public class SystemInfo {
      * @return the version that consists of build id and baseband version.
      */
     public String getFirmwareVersion() {
+        String version = TelephonyProperties.baseband_version().stream()
+                .map(elem -> elem == null ? "" : elem).collect(Collectors.joining(","));
         return new StringBuffer(Build.ID)
                 .append("/")
-                .append(SystemProperties.get(TelephonyProperties.PROPERTY_BASEBAND_VERSION,
-                        UNKNOWN_INFO)).toString();
+                .append(version.isEmpty() ? UNKNOWN_INFO : version)
+                .toString();
     }
 }

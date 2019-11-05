@@ -2470,14 +2470,14 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setBSSID(stateChangeResult.BSSID);
             mWifiInfo.setSSID(stateChangeResult.wifiSsid);
             if (state == SupplicantState.ASSOCIATED) {
-                mWifiInfo.setWifiTechnology(mWifiNative.getWifiTechnology(mInterfaceName));
+                mWifiInfo.setWifiStandard(mWifiNative.getWifiStandard(mInterfaceName));
             }
         } else {
             // Reset parameters according to WifiInfo.reset()
             mWifiInfo.setNetworkId(WifiConfiguration.INVALID_NETWORK_ID);
             mWifiInfo.setBSSID(null);
             mWifiInfo.setSSID(null);
-            mWifiInfo.setWifiTechnology(WifiInfo.WIFI_TECHNOLOGY_UNKNOWN);
+            mWifiInfo.setWifiStandard(ScanResult.WIFI_STANDARD_UNKNOWN);
         }
         updateL2KeyAndGroupHint();
         // SSID might have been updated, so call updateCapabilities
