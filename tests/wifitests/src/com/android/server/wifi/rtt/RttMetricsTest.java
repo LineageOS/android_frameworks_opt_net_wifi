@@ -19,10 +19,9 @@ package com.android.server.wifi.rtt;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.mockito.Mockito.when;
 
-import android.hardware.wifi.V1_0.RttResult;
-import android.hardware.wifi.V1_0.RttStatus;
 import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
+import android.net.wifi.rtt.RangingResult;
 import android.net.wifi.rtt.ResponderConfig;
 import android.os.WorkSource;
 import android.util.Log;
@@ -217,10 +216,14 @@ public class RttMetricsTest extends WifiBaseTest {
         RangingRequest requestAp6 = getDummyRangingRequest(6, 0);
 
         mDut.clear();
-        mDut.recordResult(requestAp1, getDummyRangingResults(requestAp1, 5, 0));
-        mDut.recordResult(requestAp2, getDummyRangingResults(requestAp2, 10, 30));
-        mDut.recordResult(requestAp5, getDummyRangingResults(requestAp5, 0.3, -0.2));
-        mDut.recordResult(requestAp6, getDummyRangingResults(requestAp6, 40, 30));
+        mDut.recordResult(requestAp1, getDummyRangingResults(RttNative.FRAMEWORK_RTT_STATUS_SUCCESS,
+                requestAp1, 5, 0));
+        mDut.recordResult(requestAp2, getDummyRangingResults(RttNative.FRAMEWORK_RTT_STATUS_SUCCESS,
+                requestAp2, 10, 30));
+        mDut.recordResult(requestAp5, getDummyRangingResults(RttNative.FRAMEWORK_RTT_STATUS_SUCCESS,
+                requestAp5, 0.3, -0.2));
+        mDut.recordResult(requestAp6, getDummyRangingResults(RttNative.FRAMEWORK_RTT_STATUS_SUCCESS,
+                requestAp6, 40, 30));
         log = mDut.consolidateProto();
 
         checkMainStats("Sequence AP-only", log, 0, 0);
@@ -253,10 +256,14 @@ public class RttMetricsTest extends WifiBaseTest {
         RangingRequest requestMixed08 = getDummyRangingRequest(0, 8);
 
         mDut.clear();
-        mDut.recordResult(requestMixed03, getDummyRangingResults(requestMixed03, 5, 0));
-        mDut.recordResult(requestMixed25, getDummyRangingResults(requestMixed25, 10, 30));
-        mDut.recordResult(requestMixed50, getDummyRangingResults(requestMixed50, 0.3, -0.2));
-        mDut.recordResult(requestMixed08, getDummyRangingResults(requestMixed08, 40, 30));
+        mDut.recordResult(requestMixed03, getDummyRangingResults(
+                RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, requestMixed03, 5, 0));
+        mDut.recordResult(requestMixed25, getDummyRangingResults(
+                RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, requestMixed25, 10, 30));
+        mDut.recordResult(requestMixed50, getDummyRangingResults(
+                RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, requestMixed50, 0.3, -0.2));
+        mDut.recordResult(requestMixed08, getDummyRangingResults(
+                RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, requestMixed08, 40, 30));
         log = mDut.consolidateProto();
 
         checkMainStats("Sequence Mixed AP/Aware", log, 0, 0);
@@ -302,7 +309,8 @@ public class RttMetricsTest extends WifiBaseTest {
 
         mDut.clear();
         RangingRequest requestMixed25 = getDummyRangingRequest(2, 5);
-        List<RttResult> resultMixed25 = getDummyRangingResults(requestMixed25, 10, 30);
+        List<RangingResult> resultMixed25 = getDummyRangingResults(
+                RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, requestMixed25, 10, 30);
         // remove some results
         resultMixed25.remove(3); // Second Aware result: distance = 100
         resultMixed25.remove(0); // First AP result: distance = 10
@@ -382,22 +390,22 @@ public class RttMetricsTest extends WifiBaseTest {
 
         mDut.clear();
 
-        recordResultNTimes(RttStatus.SUCCESS, 5);
-        recordResultNTimes(RttStatus.FAILURE, 6);
-        recordResultNTimes(RttStatus.FAIL_NO_RSP, 7);
-        recordResultNTimes(RttStatus.FAIL_REJECTED, 8);
-        recordResultNTimes(RttStatus.FAIL_NOT_SCHEDULED_YET, 9);
-        recordResultNTimes(RttStatus.FAIL_TM_TIMEOUT, 10);
-        recordResultNTimes(RttStatus.FAIL_AP_ON_DIFF_CHANNEL, 11);
-        recordResultNTimes(RttStatus.FAIL_NO_CAPABILITY, 12);
-        recordResultNTimes(RttStatus.ABORTED, 13);
-        recordResultNTimes(RttStatus.FAIL_INVALID_TS, 14);
-        recordResultNTimes(RttStatus.FAIL_PROTOCOL, 15);
-        recordResultNTimes(RttStatus.FAIL_SCHEDULE, 16);
-        recordResultNTimes(RttStatus.FAIL_BUSY_TRY_LATER, 17);
-        recordResultNTimes(RttStatus.INVALID_REQ, 18);
-        recordResultNTimes(RttStatus.NO_WIFI, 19);
-        recordResultNTimes(RttStatus.FAIL_FTM_PARAM_OVERRIDE, 20);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_SUCCESS, 5);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAILURE, 6);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_NO_RSP, 7);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_REJECTED, 8);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET, 9);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT, 10);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL, 11);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY, 12);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_ABORTED, 13);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS, 14);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL, 15);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE, 16);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER, 17);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_INVALID_REQ, 18);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_NO_WIFI, 19);
+        recordResultNTimes(RttNative.FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE, 20);
 
         log = mDut.consolidateProto();
 
@@ -576,28 +584,25 @@ public class RttMetricsTest extends WifiBaseTest {
         return builder.build();
     }
 
-    private List<RttResult> getDummyRangingResults(RangingRequest request, double baseDistanceM,
-            double incrDistanceM) {
-        List<RttResult> halResults = new ArrayList<>();
+    private List<RangingResult> getDummyRangingResults(int status, RangingRequest request,
+            double baseDistanceM, double incrDistanceM) {
+        List<RangingResult> rangingResults = new ArrayList<>();
         double distance = baseDistanceM;
 
         for (ResponderConfig peer : request.mRttPeers) {
-            RttResult rttResult = new RttResult();
-            rttResult.status = RttStatus.SUCCESS;
-            System.arraycopy(peer.macAddress.toByteArray(), 0, rttResult.addr, 0, 6);
-            rttResult.distanceInMm = (int) (distance * 1000);
+
+            RangingResult rttResult = new RangingResult(status, peer.macAddress,
+                    (int) (distance * 1000), 0, 0, 8, 8, null, null, null, 0);
             distance += incrDistanceM;
-            halResults.add(rttResult);
+            rangingResults.add(rttResult);
         }
 
-        return halResults;
+        return rangingResults;
     }
 
     private void recordResultNTimes(int status, int n) {
         RangingRequest request = getDummyRangingRequest(1, 0);
-        List<RttResult> results = getDummyRangingResults(request, 0, 0);
-        RttResult result = results.get(0);
-        result.status = status;
+        List<RangingResult> results = getDummyRangingResults(status, request, 0, 0);
 
         for (int i = 0; i < n; ++i) {
             mDut.recordResult(request, results);
