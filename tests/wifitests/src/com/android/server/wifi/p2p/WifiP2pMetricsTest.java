@@ -25,9 +25,9 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.WifiBaseTest;
-import com.android.server.wifi.nano.WifiMetricsProto.GroupEvent;
-import com.android.server.wifi.nano.WifiMetricsProto.P2pConnectionEvent;
-import com.android.server.wifi.nano.WifiMetricsProto.WifiP2pStats;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.GroupEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiP2pStats;
 
 import org.junit.Before;
 import org.junit.Test;

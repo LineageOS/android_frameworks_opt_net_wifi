@@ -54,8 +54,8 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.nano.WifiMetricsProto;
-import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
 
 import org.junit.Before;
 import org.junit.Test;

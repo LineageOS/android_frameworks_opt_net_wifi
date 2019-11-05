@@ -1,1 +1,2 @@
-# TBD
+# Prevent proguard from stripping out any proto fields.
+-keep class com.android.server.wifi.proto.** { *; }

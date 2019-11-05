@@ -29,11 +29,11 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
-import com.android.server.wifi.WifiScoreCardProto.Event;
-import com.android.server.wifi.WifiScoreCardProto.Network;
-import com.android.server.wifi.WifiScoreCardProto.NetworkList;
-import com.android.server.wifi.WifiScoreCardProto.Signal;
+import com.android.server.wifi.proto.WifiScoreCardProto.AccessPoint;
+import com.android.server.wifi.proto.WifiScoreCardProto.Event;
+import com.android.server.wifi.proto.WifiScoreCardProto.Network;
+import com.android.server.wifi.proto.WifiScoreCardProto.NetworkList;
+import com.android.server.wifi.proto.WifiScoreCardProto.Signal;
 import com.android.server.wifi.util.IntHistogram;
 
 import org.junit.Before;

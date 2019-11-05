@@ -80,7 +80,7 @@ import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.HalDeviceManager;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
-import com.android.server.wifi.nano.WifiMetricsProto.P2pConnectionEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 

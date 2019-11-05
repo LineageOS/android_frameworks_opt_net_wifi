@@ -24,7 +24,7 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
-import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.HistogramBucketInt32;
 
 import org.junit.Before;
 import org.junit.Rule;

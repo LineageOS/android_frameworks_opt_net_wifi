@@ -29,7 +29,7 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 
 import org.junit.Before;
 import org.junit.Test;

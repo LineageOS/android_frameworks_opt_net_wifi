@@ -60,7 +60,7 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiHandler;

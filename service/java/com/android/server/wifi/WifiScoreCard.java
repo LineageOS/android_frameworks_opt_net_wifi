@@ -31,14 +31,15 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
-import com.android.server.wifi.WifiScoreCardProto.AccessPoint;
-import com.android.server.wifi.WifiScoreCardProto.Event;
-import com.android.server.wifi.WifiScoreCardProto.HistogramBucket;
-import com.android.server.wifi.WifiScoreCardProto.Network;
-import com.android.server.wifi.WifiScoreCardProto.NetworkList;
-import com.android.server.wifi.WifiScoreCardProto.SecurityType;
-import com.android.server.wifi.WifiScoreCardProto.Signal;
-import com.android.server.wifi.WifiScoreCardProto.UnivariateStatistic;
+import com.android.server.wifi.proto.WifiScoreCardProto;
+import com.android.server.wifi.proto.WifiScoreCardProto.AccessPoint;
+import com.android.server.wifi.proto.WifiScoreCardProto.Event;
+import com.android.server.wifi.proto.WifiScoreCardProto.HistogramBucket;
+import com.android.server.wifi.proto.WifiScoreCardProto.Network;
+import com.android.server.wifi.proto.WifiScoreCardProto.NetworkList;
+import com.android.server.wifi.proto.WifiScoreCardProto.SecurityType;
+import com.android.server.wifi.proto.WifiScoreCardProto.Signal;
+import com.android.server.wifi.proto.WifiScoreCardProto.UnivariateStatistic;
 import com.android.server.wifi.util.IntHistogram;
 import com.android.server.wifi.util.NativeUtil;
 
