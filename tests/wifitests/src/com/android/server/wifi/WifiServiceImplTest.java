@@ -38,6 +38,7 @@ import static com.android.server.wifi.LocalOnlyHotspotRequestInfo.HOTSPOT_NO_ERR
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -3973,7 +3974,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        assertArrayEquals(new String[0], mWifiServiceImpl.getFactoryMacAddresses());
         mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mClientModeImpl, never()).getFactoryMacAddress();
     }
@@ -3986,7 +3987,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mClientModeImpl.getFactoryMacAddress()).thenReturn(null);
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         mLooper.startAutoDispatch();
-        assertNull(mWifiServiceImpl.getFactoryMacAddresses());
+        assertArrayEquals(new String[0], mWifiServiceImpl.getFactoryMacAddresses());
         mLooper.stopAutoDispatchAndIgnoreExceptions();
         verify(mClientModeImpl).getFactoryMacAddress();
     }
