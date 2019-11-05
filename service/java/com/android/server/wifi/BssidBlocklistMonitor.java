@@ -259,6 +259,16 @@ public class BssidBlocklistMonitor {
     }
 
     /**
+     * Note the removal of a network from the Wifi stack's internal database and reset
+     * appropriate failure counters.
+     * @param ssid
+     */
+    public void handleNetworkRemoved(@NonNull String ssid) {
+        clearBssidBlocklistForSsid(ssid);
+        mWifiScoreCard.resetBssidBlocklistStreakForSsid(ssid);
+    }
+
+    /**
      * Clears the blocklist for BSSIDs associated with the input SSID only.
      * @param ssid
      */

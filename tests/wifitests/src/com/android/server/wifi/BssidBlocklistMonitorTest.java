@@ -449,7 +449,8 @@ public class BssidBlocklistMonitorTest {
     }
 
     /**
-     * Verify that the BSSID blocklist is cleared for the entire network.
+     * Verify that clearBssidBlocklistForSsid removes all BSSIDs for that network from the
+     * blocklist.
      */
     @Test
     public void testClearBssidBlocklistForSsid() {
@@ -462,5 +463,24 @@ public class BssidBlocklistMonitorTest {
         Set<String> bssidList = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
         assertEquals(1, bssidList.size());
         assertTrue(bssidList.contains(TEST_BSSID_3));
+        verify(mWifiScoreCard, never()).resetBssidBlocklistStreakForSsid(TEST_SSID_1);
+    }
+
+    /**
+     * Verify that handleNetworkRemoved removes all BSSIDs for that network from the blocklist
+     * and also reset the blocklist streak count from WifiScoreCard.
+     */
+    @Test
+    public void testHandleNetworkRemovedResetsState() {
+        verifyAddMultipleBssidsToBlocklist();
+
+        // Clear the blocklist for SSID 1.
+        mBssidBlocklistMonitor.handleNetworkRemoved(TEST_SSID_1);
+
+        // Verify that the blocklist is deleted for SSID 1 and the BSSID for SSID 2 still remains.
+        Set<String> bssidList = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
+        assertEquals(1, bssidList.size());
+        assertTrue(bssidList.contains(TEST_BSSID_3));
+        verify(mWifiScoreCard).resetBssidBlocklistStreakForSsid(TEST_SSID_1);
     }
 }

@@ -406,6 +406,22 @@ public class WifiScoreCard {
         lookupBssid(ssid, bssid).blocklistStreakCount[reason] = 0;
     }
 
+    /**
+     * Clear the blocklist streak count for all APs that belong to this SSID.
+     */
+    public void resetBssidBlocklistStreakForSsid(@NonNull String ssid) {
+        Iterator<Map.Entry<MacAddress, PerBssid>> it = mApForBssid.entrySet().iterator();
+        while (it.hasNext()) {
+            PerBssid perBssid = it.next().getValue();
+            if (!ssid.equals(perBssid.ssid)) {
+                continue;
+            }
+            for (int i = 0; i < perBssid.blocklistStreakCount.length; i++) {
+                perBssid.blocklistStreakCount[i] = 0;
+            }
+        }
+    }
+
     final class PerBssid {
         public int id;
         public final String l2Key;
