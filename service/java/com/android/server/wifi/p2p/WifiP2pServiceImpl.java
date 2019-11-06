@@ -1077,6 +1077,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                                 maybeEraseOwnDeviceAddress(mGroup, message.sendingUid));
                         break;
                     case WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO:
+                        if (!checkNetworkSettingsOrNetworkStackOrReadWifiCredentialPermission(
+                                message.sendingUid)) {
+                            loge("Permission violation - none of NETWORK_SETTING, NETWORK_STACK,"
+                                    + " or READ_WIFI_CREDENTIAL permission, uid = "
+                                    + message.sendingUid);
+                            replyToMessage(message, WifiP2pManager.RESPONSE_PERSISTENT_GROUP_INFO,
+                                    new WifiP2pGroupList());
+                            break;
+                        }
                         replyToMessage(message, WifiP2pManager.RESPONSE_PERSISTENT_GROUP_INFO,
                                 new WifiP2pGroupList(
                                         maybeEraseOwnDeviceAddress(mGroups, message.sendingUid),
@@ -1477,6 +1486,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         break;
                     case WifiP2pManager.SET_DEVICE_NAME:
                     {
+                        if (!checkNetworkSettingsOrNetworkStackOrOverrideWifiConfigPermission(
+                                message.sendingUid)) {
+                            loge("Permission violation - none of NETWORK_SETTING, NETWORK_STACK,"
+                                    + " or OVERRIDE_WIFI_CONFIG permission, uid = "
+                                    + message.sendingUid);
+                            replyToMessage(message, WifiP2pManager.SET_DEVICE_NAME_FAILED,
+                                    WifiP2pManager.ERROR);
+                            break;
+                        }
                         WifiP2pDevice d = (WifiP2pDevice) message.obj;
                         if (d != null && setAndPersistDeviceName(d.deviceName)) {
                             if (mVerboseLoggingEnabled) logd("set device name " + d.deviceName);
@@ -1674,6 +1692,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         break;
                     case WifiP2pManager.DELETE_PERSISTENT_GROUP:
+                        if (!checkNetworkSettingsOrNetworkStackOrOverrideWifiConfigPermission(
+                                message.sendingUid)) {
+                            loge("Permission violation - none of NETWORK_SETTING, NETWORK_STACK,"
+                                    + " or OVERRIDE_WIFI_CONFIG permission, uid = "
+                                    + message.sendingUid);
+                            replyToMessage(message, WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED,
+                                    WifiP2pManager.ERROR);
+                            break;
+                        }
                         if (mVerboseLoggingEnabled) logd(getName() + " delete persistent group");
                         mGroups.remove(message.arg1);
                         mWifiP2pMetrics.updatePersistentGroup(mGroups);
@@ -1715,6 +1742,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         mWifiNative.p2pFlush();
                         break;
                     case WifiP2pManager.SET_CHANNEL:
+                        if (!checkNetworkSettingsOrNetworkStackOrOverrideWifiConfigPermission(
+                                message.sendingUid)) {
+                            loge("Permission violation - none of NETWORK_SETTING, NETWORK_STACK,"
+                                    + " or OVERRIDE_WIFI_CONFIG permission, uid = "
+                                    + message.sendingUid);
+                            replyToMessage(message, WifiP2pManager.SET_CHANNEL_FAILED,
+                                    WifiP2pManager.ERROR);
+                            break;
+                        }
                         Bundle p2pChannels = (Bundle) message.obj;
                         int lc = p2pChannels.getInt("lc", 0);
                         int oc = p2pChannels.getInt("oc", 0);
@@ -2031,6 +2067,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         mWifiNative.p2pFlush();
                         break;
                     case WifiP2pManager.SET_CHANNEL:
+                        if (!checkNetworkSettingsOrNetworkStackOrOverrideWifiConfigPermission(
+                                message.sendingUid)) {
+                            loge("Permission violation - none of NETWORK_SETTING, NETWORK_STACK,"
+                                    + " or OVERRIDE_WIFI_CONFIG permission, uid = "
+                                    + message.sendingUid);
+                            replyToMessage(message, WifiP2pManager.SET_CHANNEL_FAILED,
+                                    WifiP2pManager.ERROR);
+                            break;
+                        }
                         if (message.obj == null) {
                             Log.e(TAG, "Illegal arguments(s)");
                             break;
@@ -4196,5 +4241,35 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             mReqList = new SparseArray();
             mServList = new ArrayList<WifiP2pServiceInfo>();
         }
+    }
+
+    /**
+     * Check that the UID has one of the following permissions:
+     * {@link android.Manifest.permission.NETWORK_SETTINGS}
+     * {@link android.Manifest.permission.NETWORK_STACK}
+     * {@link android.Manifest.permission.OVERRIDE_WIFI_CONFIG}
+     *
+     * @param uid the UID to check
+     * @return whether the UID has any of the above permissions
+     */
+    private boolean checkNetworkSettingsOrNetworkStackOrOverrideWifiConfigPermission(int uid) {
+        return mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                || mWifiPermissionsUtil.checkNetworkStackPermission(uid)
+                || mWifiPermissionsUtil.checkConfigOverridePermission(uid);
+    }
+
+    /**
+     * Check that the UID has one of the following permissions:
+     * {@link android.Manifest.permission.NETWORK_SETTINGS}
+     * {@link android.Manifest.permission.NETWORK_STACK}
+     * {@link android.Manifest.permission.READ_WIFI_CREDENTIAL}
+     *
+     * @param uid the UID to check
+     * @return whether the UID has any of the above permissions
+     */
+    private boolean checkNetworkSettingsOrNetworkStackOrReadWifiCredentialPermission(int uid) {
+        return mWifiPermissionsUtil.checkNetworkSettingsPermission(uid)
+                || mWifiPermissionsUtil.checkNetworkStackPermission(uid)
+                || mWifiPermissionsUtil.checkReadWifiCredentialPermission(uid);
     }
 }

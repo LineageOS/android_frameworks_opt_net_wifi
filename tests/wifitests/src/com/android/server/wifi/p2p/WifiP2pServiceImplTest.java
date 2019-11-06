@@ -725,6 +725,11 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiP2pNative()).thenReturn(mWifiNative);
         when(mWifiInjector.getWifiP2pServiceHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
+        // enable all permissions, disable specific permissions in tests
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkReadWifiCredentialPermission(anyInt())).thenReturn(true);
+        when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(true);
         when(mWifiNative.setupInterface(any(), any())).thenReturn(IFACE_NAME_P2P);
         when(mWifiNative.p2pGetDeviceAddress()).thenReturn(thisDeviceMac);
         doAnswer(new AnswerWithArguments() {
@@ -1688,6 +1693,27 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that respond with DELETE_PERSISTENT_GROUP_FAILED
+     * when caller sends DELETE_PERSISTENT_GROUP and doesn't have the necessary permissions.
+     */
+    @Test
+    public void testDeletePersistentGroupFailureWhenNoPermissions() throws Exception {
+        // Move to enabled state
+        forceP2pEnabled(mClient1);
+
+        // no permissions held
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(false);
+
+        sendDeletePersistentGroupMsg(mClientMessenger, WifiP2pGroup.PERSISTENT_NET_ID);
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(WifiP2pManager.DELETE_PERSISTENT_GROUP_FAILED, message.what);
+        assertEquals(WifiP2pManager.ERROR, message.arg1);
+    }
+
+    /**
      * Verify the peer scan counter is increased while receiving WifiP2pManager.DISCOVER_PEERS at
      * P2pEnabledState.
      */
@@ -2445,6 +2471,29 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     *  Verify WifiP2pManager.SET_CHANNEL_FAILED is returned when no permissions are held.
+     */
+    @Test
+    public void testSetChannelFailureWhenNoPermissions() throws Exception {
+        // Move to enabled state
+        forceP2pEnabled(mClient1);
+
+        // no permissions held
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(false);
+
+        Bundle p2pChannels = new Bundle();
+        p2pChannels.putInt("lc", 1);
+        p2pChannels.putInt("oc", 2);
+        sendSetChannelMsg(mClientMessenger, p2pChannels);
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(WifiP2pManager.SET_CHANNEL_FAILED, message.what);
+        assertEquals(WifiP2pManager.ERROR, message.arg1);
+    }
+
+    /**
      *  Verify p2pSetChannel doesn't been called when message contain null object.
      */
     @Test
@@ -2684,7 +2733,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify WifiP2pManager.SET_DEVICE_NAME_FAILED is returned when p2p device is null.
+     * Verify WifiP2pManager.SET_DEVICE_NAME_FAILED is returned when native call failed.
      */
     @Test
     public void testSetDeviceNameFailureWhenNativeCallFailure() throws Exception {
@@ -2754,6 +2803,26 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         Message message = mMessageCaptor.getValue();
         assertEquals(WifiP2pManager.SET_DEVICE_NAME_FAILED, message.what);
         assertEquals(WifiP2pManager.P2P_UNSUPPORTED, message.arg1);
+    }
+
+    /**
+     * Verify WifiP2pManager.SET_DEVICE_NAME_FAILED is returned when no permissions are held.
+     */
+    @Test
+    public void testSetDeviceNameFailureWhenNoPermissions() throws Exception {
+        // Move to enabled state
+        forceP2pEnabled(mClient1);
+
+        // no permissions held
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkConfigOverridePermission(anyInt())).thenReturn(false);
+
+        sendSetDeviceNameMsg(mClientMessenger, null);
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        assertEquals(WifiP2pManager.SET_DEVICE_NAME_FAILED, message.what);
+        assertEquals(WifiP2pManager.ERROR, message.arg1);
     }
 
     /**
@@ -3368,6 +3437,32 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         // WifiP2pGroupList does not implement equals operator,
         // use toString to compare two lists.
         assertEquals(mGroups.toString(), groups.toString());
+    }
+
+    /**
+     * Verify that when no permissions are held, an empty {@link WifiP2pGroupList} is returned.
+     */
+    @Test
+    public void testRequestPersistentGroupInfoNoPermissionFailure() throws Exception {
+        // Ensure our own MAC address is not anonymized in the result
+        when(mWifiPermissionsUtil.checkLocalMacAddressPermission(anyInt())).thenReturn(true);
+        forceP2pEnabled(mClient1);
+
+        // no permissions held
+        when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkNetworkStackPermission(anyInt())).thenReturn(false);
+        when(mWifiPermissionsUtil.checkReadWifiCredentialPermission(anyInt())).thenReturn(false);
+
+        sendSimpleMsg(mClientMessenger, WifiP2pManager.REQUEST_PERSISTENT_GROUP_INFO);
+
+        verify(mClientHandler).sendMessage(mMessageCaptor.capture());
+        Message message = mMessageCaptor.getValue();
+        WifiP2pGroupList groups = (WifiP2pGroupList) message.obj;
+        assertEquals(WifiP2pManager.RESPONSE_PERSISTENT_GROUP_INFO, message.what);
+        // WifiP2pGroupList does not implement equals operator,
+        // use toString to compare two lists.
+        // Expect empty WifiP2pGroupList()
+        assertEquals(new WifiP2pGroupList().toString(), groups.toString());
     }
 
     /**
