@@ -1112,15 +1112,21 @@ public class WifiServiceImpl extends BaseWifiService {
 
                 // Never accept exclusive requests (with custom configuration) at the same time as
                 // shared requests.
-                if (mActiveConfig != null) {
+                if (!mLocalOnlyHotspotRequests.isEmpty()) {
                     boolean requestIsExclusive = request.getCustomConfig() != null;
                     if (mIsExclusive || requestIsExclusive) {
+                        mLog.trace("Cannot share with existing LOHS request due to custom config")
+                                .flush();
                         return LocalOnlyHotspotCallback.ERROR_GENERIC;
                     }
                 }
 
-                // If a local-only AP is already active, send the current config.
-                if (mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
+                // At this point, the request is accepted.
+                if (mLocalOnlyHotspotRequests.isEmpty()) {
+                    startForFirstRequestLocked(request);
+                } else if (mLohsInterfaceMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY) {
+                    // LOHS has already started up for an earlier request, so we can send the
+                    // current config to the incoming request right away.
                     try {
                         mLog.trace("LOHS already up, trigger onStarted callback").flush();
                         request.sendHotspotStartedMessage(mActiveConfig.getWifiConfiguration());
@@ -1129,11 +1135,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     }
                 }
 
-                if (mLocalOnlyHotspotRequests.isEmpty()) {
-                    startForFirstRequestLocked(request);
-                }
                 mLocalOnlyHotspotRequests.put(pid, request);
-
                 return LocalOnlyHotspotCallback.REQUEST_REGISTERED;
             }
         }
