@@ -22,9 +22,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.net.wifi.WifiEnterpriseConfig;
-import android.os.Process;
-import android.security.Credentials;
-import android.security.KeyStore;
 
 import androidx.test.filters.SmallTest;
 
@@ -33,6 +30,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.security.KeyStore;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiConfigManager}.
@@ -71,18 +70,15 @@ public class WifiKeyStoreTest extends WifiBaseTest {
      * Verifies that keys and certs are removed when they were installed by an app.
      */
     @Test
-    public void testRemoveKeysForAppInstalledCerts() {
+    public void testRemoveKeysForAppInstalledCerts() throws Exception {
         when(mWifiEnterpriseConfig.isAppInstalledDeviceKeyAndCert()).thenReturn(true);
         when(mWifiEnterpriseConfig.isAppInstalledCaCert()).thenReturn(true);
         mWifiKeyStore.removeKeys(mWifiEnterpriseConfig);
 
         // Method calls the KeyStore#delete method 4 times, user key, user cert, and 2 CA cert
-        verify(mKeyStore).delete(Credentials.USER_PRIVATE_KEY + USER_CERT_ALIAS, Process.WIFI_UID);
-        verify(mKeyStore).delete(Credentials.USER_CERTIFICATE + USER_CERT_ALIAS, Process.WIFI_UID);
-        verify(mKeyStore).delete(Credentials.CA_CERTIFICATE + USER_CA_CERT_ALIAS[0],
-                Process.WIFI_UID);
-        verify(mKeyStore).delete(Credentials.CA_CERTIFICATE + USER_CA_CERT_ALIAS[1],
-                Process.WIFI_UID);
+        verify(mKeyStore).deleteEntry(USER_CERT_ALIAS);
+        verify(mKeyStore).deleteEntry(USER_CA_CERT_ALIAS[0]);
+        verify(mKeyStore).deleteEntry(USER_CA_CERT_ALIAS[1]);
     }
 
     /**
@@ -90,14 +86,13 @@ public class WifiKeyStoreTest extends WifiBaseTest {
      * when CA certs are installed by the user.
      */
     @Test
-    public void testRemoveKeysForMixedInstalledCerts1() {
+    public void testRemoveKeysForMixedInstalledCerts1() throws Exception {
         when(mWifiEnterpriseConfig.isAppInstalledDeviceKeyAndCert()).thenReturn(true);
         when(mWifiEnterpriseConfig.isAppInstalledCaCert()).thenReturn(false);
         mWifiKeyStore.removeKeys(mWifiEnterpriseConfig);
 
-        // Method calls the KeyStore#delete method 2 times: user key and user cert
-        verify(mKeyStore).delete(Credentials.USER_PRIVATE_KEY + USER_CERT_ALIAS, Process.WIFI_UID);
-        verify(mKeyStore).delete(Credentials.USER_CERTIFICATE + USER_CERT_ALIAS, Process.WIFI_UID);
+        // Method calls the KeyStore#deleteEntry method: user key and user cert
+        verify(mKeyStore).deleteEntry(USER_CERT_ALIAS);
         verifyNoMoreInteractions(mKeyStore);
     }
 
@@ -106,16 +101,14 @@ public class WifiKeyStoreTest extends WifiBaseTest {
      * removed when CA certs are installed by the app.
      */
     @Test
-    public void testRemoveKeysForMixedInstalledCerts2() {
+    public void testRemoveKeysForMixedInstalledCerts2() throws Exception {
         when(mWifiEnterpriseConfig.isAppInstalledDeviceKeyAndCert()).thenReturn(false);
         when(mWifiEnterpriseConfig.isAppInstalledCaCert()).thenReturn(true);
         mWifiKeyStore.removeKeys(mWifiEnterpriseConfig);
 
         // Method calls the KeyStore#delete method 2 times: 2 CA certs
-        verify(mKeyStore).delete(Credentials.CA_CERTIFICATE + USER_CA_CERT_ALIAS[0],
-                Process.WIFI_UID);
-        verify(mKeyStore).delete(Credentials.CA_CERTIFICATE + USER_CA_CERT_ALIAS[1],
-                Process.WIFI_UID);
+        verify(mKeyStore).deleteEntry(USER_CA_CERT_ALIAS[0]);
+        verify(mKeyStore).deleteEntry(USER_CA_CERT_ALIAS[1]);
         verifyNoMoreInteractions(mKeyStore);
     }
 

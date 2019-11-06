@@ -61,8 +61,7 @@ import java.util.Map;
 public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
     private static final String TEST_CA_CERTIFICATE_ALIAS = "CaCert";
     private static final String TEST_CA_CERTIFICATE_ALIAS_2 = "CaCert_2";
-    private static final String TEST_CLIENT_CERTIFICATE_ALIAS = "ClientCert";
-    private static final String TEST_CLIENT_PRIVATE_KEY_ALIAS = "ClientPrivateKey";
+    private static final String TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS = "ClientPrivateKeyAndCert";
     private static final String TEST_REMEDIATION_CA_CERTIFICATE_ALIAS = "CaCert_3";
     private static final String TEST_CREATOR_PACKAGE = "com.android.test";
     private static final long TEST_PROVIDER_ID = 1;
@@ -247,13 +246,13 @@ public class PasspointConfigUserStoreDataTest extends WifiBaseTest {
         List<PasspointProvider> providerList = new ArrayList<>();
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mSimAccessor, TEST_PROVIDER_ID, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
-                false, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS), TEST_CLIENT_CERTIFICATE_ALIAS,
-                TEST_CLIENT_PRIVATE_KEY_ALIAS, null, TEST_HAS_EVER_CONNECTED, TEST_SHARED));
+                false, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS),
+                TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, null,
+                TEST_HAS_EVER_CONNECTED, TEST_SHARED));
         providerList.add(new PasspointProvider(createFullPasspointConfiguration(),
                 mKeyStore, mSimAccessor, TEST_PROVIDER_ID_2, TEST_CREATOR_UID, TEST_CREATOR_PACKAGE,
                 true, Arrays.asList(TEST_CA_CERTIFICATE_ALIAS, TEST_CA_CERTIFICATE_ALIAS_2),
-                TEST_CLIENT_CERTIFICATE_ALIAS,
-                TEST_CLIENT_PRIVATE_KEY_ALIAS, TEST_REMEDIATION_CA_CERTIFICATE_ALIAS,
+                TEST_CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, TEST_REMEDIATION_CA_CERTIFICATE_ALIAS,
                 TEST_HAS_EVER_CONNECTED, TEST_SHARED));
 
         // Serialize data for user store.

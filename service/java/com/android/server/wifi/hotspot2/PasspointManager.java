@@ -957,7 +957,6 @@ public class PasspointManager {
         PasspointProvider provider = new PasspointProvider(passpointConfig, mKeyStore,
                 mSimAccessor, mProviderIndex++, wifiConfig.creatorUid, null, false,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
-                enterpriseConfig.getClientCertificateAlias(),
                 enterpriseConfig.getClientCertificateAlias(), null, false, false);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);
         return true;

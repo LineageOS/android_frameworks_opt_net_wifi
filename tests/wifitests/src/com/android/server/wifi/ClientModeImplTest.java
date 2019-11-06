@@ -77,7 +77,6 @@ import android.os.Process;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.provider.Settings;
-import android.security.KeyStore;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -421,7 +420,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
         when(mWifiInjector.getPropertyService()).thenReturn(mPropertyService);
         when(mWifiInjector.getBuildProperties()).thenReturn(mBuildProperties);
-        when(mWifiInjector.getKeyStore()).thenReturn(mock(KeyStore.class));
         when(mWifiInjector.getWifiBackupRestore()).thenReturn(mock(WifiBackupRestore.class));
         when(mWifiInjector.getWifiDiagnostics()).thenReturn(mWifiDiagnostics);
         when(mWifiInjector.getWifiConfigManager()).thenReturn(mWifiConfigManager);

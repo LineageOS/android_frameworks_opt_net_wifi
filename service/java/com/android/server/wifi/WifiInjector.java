@@ -35,11 +35,12 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.INetworkManagementService;
 import android.os.Looper;
+import android.os.Process;
 import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserManager;
 import android.provider.Settings.Secure;
-import android.security.KeyStore;
+import android.security.keystore.AndroidKeyStoreProvider;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
@@ -61,6 +62,9 @@ import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.server.wifi.wificond.IWificond;
 import com.android.wifi.R;
 
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchProviderException;
 import java.util.Random;
 
 /**
@@ -112,7 +116,6 @@ public class WifiInjector {
     private WifiLastResortWatchdog mWifiLastResortWatchdog;
     private final PropertyService mPropertyService = new SystemPropertyService();
     private final BuildProperties mBuildProperties = new SystemBuildProperties();
-    private final KeyStore mKeyStore = KeyStore.getInstance();
     private final WifiBackupRestore mWifiBackupRestore;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final WifiConfigStore mWifiConfigStore;
@@ -156,6 +159,7 @@ public class WifiInjector {
     private final MboOceController mMboOceController;
     private final TelephonyUtil mTelephonyUtil;
     private WifiChannelUtilization mWifiChannelUtilization;
+    private final KeyStore mKeyStore;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -241,8 +245,14 @@ public class WifiInjector {
                 mContext,this, wifiHandler, mBackupManagerProxy, mFrameworkFacade);
 
         // WifiConfigManager/Store objects and their dependencies.
-        // New config store
+        KeyStore keyStore = null;
+        try {
+            keyStore = AndroidKeyStoreProvider.getKeyStoreForUid(Process.WIFI_UID);
+        } catch (KeyStoreException | NoSuchProviderException e) {
+        }
+        mKeyStore = keyStore;
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
+        // New config store
         mWifiConfigStore = new WifiConfigStore(mContext, wifiHandler, mClock, mWifiMetrics,
                 WifiConfigStore.createSharedFile(mFrameworkFacade.isNiapModeOn(mContext)));
         SubscriptionManager subscriptionManager =
@@ -463,10 +473,6 @@ public class WifiInjector {
 
     public BuildProperties getBuildProperties() {
         return mBuildProperties;
-    }
-
-    public KeyStore getKeyStore() {
-        return mKeyStore;
     }
 
     public WifiBackupRestore getWifiBackupRestore() {
