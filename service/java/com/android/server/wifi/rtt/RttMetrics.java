@@ -21,10 +21,9 @@ import static com.android.server.wifi.util.MetricsUtils.addValueToLogHistogram;
 import static com.android.server.wifi.util.MetricsUtils.linearHistogramToGenericBuckets;
 import static com.android.server.wifi.util.MetricsUtils.logHistogramToGenericBuckets;
 
-import android.hardware.wifi.V1_0.RttResult;
-import android.hardware.wifi.V1_0.RttStatus;
 import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
+import android.net.wifi.rtt.RangingResult;
 import android.net.wifi.rtt.ResponderConfig;
 import android.os.WorkSource;
 import android.util.Log;
@@ -151,19 +150,18 @@ public class RttMetrics {
     /**
      * Record metrics for the range results.
      */
-    public void recordResult(RangingRequest requests, List<RttResult> results) {
+    public void recordResult(RangingRequest requests, List<RangingResult> results) {
         Map<MacAddress, ResponderConfig> requestEntries = new HashMap<>();
         for (ResponderConfig responder : requests.mRttPeers) {
             requestEntries.put(responder.macAddress, responder);
         }
 
         if (results != null) {
-            for (RttResult result : results) {
+            for (RangingResult result : results) {
                 if (result == null) {
                     continue;
                 }
-                ResponderConfig responder = requestEntries.remove(
-                        MacAddress.fromBytes(result.addr));
+                ResponderConfig responder = requestEntries.remove(result.getMacAddress());
                 if (responder == null) {
                     Log.e(TAG,
                             "recordResult: found a result which doesn't match any requests: "
@@ -237,10 +235,13 @@ public class RttMetrics {
         }
     }
 
-    private void updatePeerInfoWithResultInfo(PerPeerTypeInfo peerInfo, RttResult result) {
-        int protoStatus = convertRttStatusTypeToProtoEnum(result.status);
+    private void updatePeerInfoWithResultInfo(PerPeerTypeInfo peerInfo, RangingResult result) {
+        int protoStatus = convertRttStatusTypeToProtoEnum(result.getStatus());
         peerInfo.statusHistogram.put(protoStatus, peerInfo.statusHistogram.get(protoStatus) + 1);
-        addValueToLinearHistogram(result.distanceInMm, peerInfo.measuredDistanceHistogram,
+        if (result.getStatus() != RangingResult.STATUS_SUCCESS) {
+            return;
+        }
+        addValueToLinearHistogram(result.getDistanceMm(), peerInfo.measuredDistanceHistogram,
                 DISTANCE_MM_HISTOGRAM);
     }
 
@@ -377,37 +378,37 @@ public class RttMetrics {
      */
     public static int convertRttStatusTypeToProtoEnum(int rttStatusType) {
         switch (rttStatusType) {
-            case RttStatus.SUCCESS:
+            case RttNative.FRAMEWORK_RTT_STATUS_SUCCESS:
                 return WifiMetricsProto.WifiRttLog.SUCCESS;
-            case RttStatus.FAILURE:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAILURE:
                 return WifiMetricsProto.WifiRttLog.FAILURE;
-            case RttStatus.FAIL_NO_RSP:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_NO_RSP:
                 return WifiMetricsProto.WifiRttLog.FAIL_NO_RSP;
-            case RttStatus.FAIL_REJECTED:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_REJECTED:
                 return WifiMetricsProto.WifiRttLog.FAIL_REJECTED;
-            case RttStatus.FAIL_NOT_SCHEDULED_YET:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET:
                 return WifiMetricsProto.WifiRttLog.FAIL_NOT_SCHEDULED_YET;
-            case RttStatus.FAIL_TM_TIMEOUT:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT:
                 return WifiMetricsProto.WifiRttLog.FAIL_TM_TIMEOUT;
-            case RttStatus.FAIL_AP_ON_DIFF_CHANNEL:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL:
                 return WifiMetricsProto.WifiRttLog.FAIL_AP_ON_DIFF_CHANNEL;
-            case RttStatus.FAIL_NO_CAPABILITY:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY:
                 return WifiMetricsProto.WifiRttLog.FAIL_NO_CAPABILITY;
-            case RttStatus.ABORTED:
+            case RttNative.FRAMEWORK_RTT_STATUS_ABORTED:
                 return WifiMetricsProto.WifiRttLog.ABORTED;
-            case RttStatus.FAIL_INVALID_TS:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS:
                 return WifiMetricsProto.WifiRttLog.FAIL_INVALID_TS;
-            case RttStatus.FAIL_PROTOCOL:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL:
                 return WifiMetricsProto.WifiRttLog.FAIL_PROTOCOL;
-            case RttStatus.FAIL_SCHEDULE:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE:
                 return WifiMetricsProto.WifiRttLog.FAIL_SCHEDULE;
-            case RttStatus.FAIL_BUSY_TRY_LATER:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER:
                 return WifiMetricsProto.WifiRttLog.FAIL_BUSY_TRY_LATER;
-            case RttStatus.INVALID_REQ:
+            case RttNative.FRAMEWORK_RTT_STATUS_INVALID_REQ:
                 return WifiMetricsProto.WifiRttLog.INVALID_REQ;
-            case RttStatus.NO_WIFI:
+            case RttNative.FRAMEWORK_RTT_STATUS_NO_WIFI:
                 return WifiMetricsProto.WifiRttLog.NO_WIFI;
-            case RttStatus.FAIL_FTM_PARAM_OVERRIDE:
+            case RttNative.FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE:
                 return WifiMetricsProto.WifiRttLog.FAIL_FTM_PARAM_OVERRIDE;
             default:
                 Log.e(TAG, "Unrecognized RttStatus: " + rttStatusType);

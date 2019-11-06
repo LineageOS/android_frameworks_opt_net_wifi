@@ -85,6 +85,7 @@ java_library {
 
     libs: [
         "error_prone_annotations",
+        "libprotobuf-java-lite",
         "jsr305",
         "services",
     ],
@@ -105,11 +106,6 @@ java_library {
         "androidx.annotation_annotation",
         "bouncycastle-unbundled",
         "ksoap2",
-	// Note: libprotobuf-java-lite uses a few core platform APIs which
-	// does show up as @hide API usage. But, this can be safely ignored
-	// since the library uses reflection to ensure that the OS does provide
-	// the necessary core platform APIs.
-        "libprotobuf-java-lite",
         "libnanohttpd",
         "services.net",
         "services.wifi",

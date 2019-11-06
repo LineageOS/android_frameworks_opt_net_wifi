@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.rtt;
 
+import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.hardware.wifi.V1_0.IWifiRttController;
 import android.hardware.wifi.V1_0.IWifiRttControllerEventCallback;
@@ -25,30 +26,85 @@ import android.hardware.wifi.V1_0.RttConfig;
 import android.hardware.wifi.V1_0.RttPeerType;
 import android.hardware.wifi.V1_0.RttPreamble;
 import android.hardware.wifi.V1_0.RttResult;
+import android.hardware.wifi.V1_0.RttStatus;
 import android.hardware.wifi.V1_0.RttType;
 import android.hardware.wifi.V1_0.WifiChannelWidthInMhz;
 import android.hardware.wifi.V1_0.WifiStatus;
 import android.hardware.wifi.V1_0.WifiStatusCode;
+import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
+import android.net.wifi.rtt.RangingResult;
 import android.net.wifi.rtt.ResponderConfig;
+import android.net.wifi.rtt.ResponderLocation;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.util.Log;
 
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.util.NativeUtil;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
-import java.util.ListIterator;
+import java.util.Objects;
 
 /**
  * TBD
  */
-public class RttNative extends IWifiRttControllerEventCallback.Stub {
+public class RttNative {
     private static final String TAG = "RttNative";
     private static final boolean VDBG = false; // STOPSHIP if true
     /* package */ boolean mDbg = false;
+
+    /** Unknown status */
+    public static final int FRAMEWORK_RTT_STATUS_UNKNOWN = -1;
+    /** Success */
+    public static final int FRAMEWORK_RTT_STATUS_SUCCESS = 0;
+    /** General failure status */
+    public static final int FRAMEWORK_RTT_STATUS_FAILURE = 1;
+    /** Target STA does not respond to request */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_NO_RSP = 2;
+    /** Request rejected. Applies to 2-sided RTT only */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_REJECTED = 3;
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET = 4;
+    /** Timing measurement times out */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT = 5;
+    /** Target on different channel, cannot range */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL = 6;
+    /** Ranging not supported */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY = 7;
+    /** Request aborted for unknown reason */
+    public static final int FRAMEWORK_RTT_STATUS_ABORTED = 8;
+    /** Invalid T1-T4 timestamp */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS = 9;
+    /** 11mc protocol failed */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL = 10;
+    /** Request could not be scheduled */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE = 11;
+    /** Responder cannot collaborate at time of request */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER = 12;
+    /** Bad request args */
+    public static final int FRAMEWORK_RTT_STATUS_INVALID_REQ = 13;
+    /** WiFi not enabled. */
+    public static final int FRAMEWORK_RTT_STATUS_NO_WIFI = 14;
+    /** Responder overrides param info, cannot range with new params */
+    public static final int FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE = 15;
+
+    /** @hide */
+    @IntDef(prefix = "FRAMEWORK_RTT_STATUS_", value = {FRAMEWORK_RTT_STATUS_UNKNOWN,
+            FRAMEWORK_RTT_STATUS_SUCCESS, FRAMEWORK_RTT_STATUS_FAILURE,
+            FRAMEWORK_RTT_STATUS_FAIL_NO_RSP, FRAMEWORK_RTT_STATUS_FAIL_REJECTED,
+            FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET, FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT,
+            FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL, FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY,
+            FRAMEWORK_RTT_STATUS_ABORTED, FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS,
+            FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL, FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE,
+            FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER, FRAMEWORK_RTT_STATUS_INVALID_REQ,
+            FRAMEWORK_RTT_STATUS_NO_WIFI, FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface FrameworkRttStatus {}
+
 
     private final RttServiceImpl mRttService;
     private final HalDeviceManager mHalDeviceManager;
@@ -56,7 +112,9 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
     private Object mLock = new Object();
 
     private volatile IWifiRttController mIWifiRttController;
-    private volatile RttCapabilities mRttCapabilities;
+    private volatile Capabilities mRttCapabilities;
+    private final WifiRttControllerEventCallback mWifiRttControllerEventCallback;
+    private static final int CONVERSION_US_TO_MS = 1_000;
 
     private final HalDeviceManager.InterfaceRttControllerLifecycleCallback mRttLifecycleCb =
             new HalDeviceManager.InterfaceRttControllerLifecycleCallback() {
@@ -65,7 +123,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
                     if (mDbg) Log.d(TAG, "onNewRttController: controller=" + controller);
                     synchronized (mLock) {
                         try {
-                            controller.registerEventCallback(RttNative.this);
+                            controller.registerEventCallback(mWifiRttControllerEventCallback);
                         } catch (RemoteException e) {
                             Log.e(TAG, "onNewRttController: exception registering callback: " + e);
                             if (mIWifiRttController != null) {
@@ -74,7 +132,6 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
                             }
                             return;
                         }
-
                         mIWifiRttController = controller;
                         mRttService.enableIfPossible();
                         updateRttCapabilities();
@@ -95,6 +152,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
     public RttNative(RttServiceImpl rttService, HalDeviceManager halDeviceManager) {
         mRttService = rttService;
         mHalDeviceManager = halDeviceManager;
+        mWifiRttControllerEventCallback = new WifiRttControllerEventCallback();
     }
 
     /**
@@ -127,7 +185,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      * Returns the RTT capabilities. Will only be null when disabled (e.g. no STA interface
      * available - not necessarily up).
      */
-    public @Nullable RttCapabilities getRttCapabilities() {
+    public @Nullable Capabilities getRttCapabilities() {
         return mRttCapabilities;
     }
 
@@ -157,7 +215,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
                                 Log.v(TAG, "updateRttCapabilities: RTT capabilities="
                                         + capabilities);
                             }
-                            mRttCapabilities = capabilities;
+                            mRttCapabilities = new Capabilities(capabilities);
                         });
             } catch (RemoteException e) {
                 Log.e(TAG, "updateRttCapabilities: exception requesting capabilities: " + e);
@@ -174,7 +232,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      * Issue a range request to the HAL.
      *
      * @param cmdId Command ID for the request. Will be used in the corresponding
-     * {@link #onResults(int, ArrayList)}.
+     * {@link WifiRttControllerEventCallback#onResults(int, ArrayList)}.
      * @param request Range request.
      * @param isCalledFromPrivilegedContext Indicates whether privileged APIs are permitted,
      *                                      initially: support for one-sided RTT.
@@ -253,32 +311,8 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
         }
     }
 
-    /**
-     * Callback from HAL with range results.
-     *
-     * @param cmdId Command ID specified in the original request
-     * {@link #rangeRequest(int, RangingRequest, boolean)}.
-     * @param halResults A list of range results.
-     */
-    @Override
-    public void onResults(int cmdId, ArrayList<RttResult> halResults) {
-        if (mDbg) Log.v(TAG, "onResults: cmdId=" + cmdId + ", # of results=" + halResults.size());
-
-        // sanitize HAL results
-        if (halResults == null) {
-            halResults = new ArrayList<>();
-        }
-        ListIterator<RttResult> lit = halResults.listIterator();
-        while (lit.hasNext()) {
-            if (lit.next() == null) {
-                lit.remove();
-            }
-        }
-        mRttService.onRangingResults(cmdId, halResults);
-    }
-
     private static ArrayList<RttConfig> convertRangingRequestToRttConfigs(RangingRequest request,
-            boolean isCalledFromPrivilegedContext, RttCapabilities cap) {
+            boolean isCalledFromPrivilegedContext, Capabilities cap) {
         ArrayList<RttConfig> rttConfigs = new ArrayList<>(request.mRttPeers.size());
 
         // Skipping any configurations which have an error (printing out a message).
@@ -298,7 +332,7 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
 
             try {
                 config.type = responder.supports80211mc ? RttType.TWO_SIDED : RttType.ONE_SIDED;
-                if (config.type == RttType.ONE_SIDED && cap != null && !cap.rttOneSidedSupported) {
+                if (config.type == RttType.ONE_SIDED && cap != null && !cap.oneSidedRttSupported) {
                     Log.w(TAG, "Device does not support one-sided RTT");
                     continue;
                 }
@@ -394,7 +428,6 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
             case ResponderConfig.CHANNEL_WIDTH_80MHZ:
                 return RttBw.BW_80MHZ;
             case ResponderConfig.CHANNEL_WIDTH_160MHZ:
-                return RttBw.BW_160MHZ;
             case ResponderConfig.CHANNEL_WIDTH_80MHZ_PLUS_MHZ:
                 return RttBw.BW_160MHZ;
             default:
@@ -426,8 +459,8 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      * specifications).
      */
     private static int halRttChannelBandwidthCapabilityLimiter(int halRttChannelBandwidth,
-            RttCapabilities cap) {
-        while ((halRttChannelBandwidth != 0) && ((halRttChannelBandwidth & cap.bwSupport) == 0)) {
+            Capabilities cap) {
+        while ((halRttChannelBandwidth != 0) && ((halRttChannelBandwidth & cap.bwSupported) == 0)) {
             halRttChannelBandwidth >>= 1;
         }
 
@@ -448,8 +481,8 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
      * Note: the halRttPreamble is a single bit flag of the ones used in cap.preambleSupport (HAL
      * specifications).
      */
-    private static int halRttPreambleCapabilityLimiter(int halRttPreamble, RttCapabilities cap) {
-        while ((halRttPreamble != 0) && ((halRttPreamble & cap.preambleSupport) == 0)) {
+    private static int halRttPreambleCapabilityLimiter(int halRttPreamble, Capabilities cap) {
+        while ((halRttPreamble != 0) && ((halRttPreamble & cap.preambleSupported) == 0)) {
             halRttPreamble >>= 1;
         }
 
@@ -471,5 +504,140 @@ public class RttNative extends IWifiRttControllerEventCallback.Stub {
         pw.println("  mHalDeviceManager: " + mHalDeviceManager);
         pw.println("  mIWifiRttController: " + mIWifiRttController);
         pw.println("  mRttCapabilities: " + mRttCapabilities);
+    }
+
+    /**
+     *  Callback for events on 1.0 WifiRttController
+     */
+    private class WifiRttControllerEventCallback extends IWifiRttControllerEventCallback.Stub {
+        /**
+         * Callback from HAL with range results.
+         *
+         * @param cmdId Command ID specified in the original request
+         * {@link #rangeRequest(int, RangingRequest, boolean)}.
+         * @param halResults A list of range results.
+         */
+        @Override
+        public void onResults(int cmdId, ArrayList<RttResult> halResults) {
+            // sanitize HAL results
+            if (halResults == null) {
+                halResults = new ArrayList<>();
+            }
+            halResults.removeIf(Objects::isNull);
+            if (mDbg) {
+                Log.v(TAG, "onResults: cmdId=" + cmdId + ", # of results=" + halResults.size());
+            }
+            ArrayList<RangingResult> rangingResults = convertHalResultsRangingResults(halResults);
+            mRttService.onRangingResults(cmdId, rangingResults);
+        }
+
+        private ArrayList<RangingResult> convertHalResultsRangingResults(
+                ArrayList<RttResult> halResults) {
+            ArrayList<RangingResult> rangingResults = new ArrayList<>();
+            for (RttResult rttResult : halResults) {
+                byte[] lci = NativeUtil.byteArrayFromArrayList(rttResult.lci.data);
+                byte[] lcr = NativeUtil.byteArrayFromArrayList(rttResult.lcr.data);
+                ResponderLocation responderLocation;
+                try {
+                    responderLocation = new ResponderLocation(lci, lcr);
+                    if (!responderLocation.isValid()) {
+                        responderLocation = null;
+                    }
+                } catch (Exception e) {
+                    responderLocation = null;
+                    Log.e(TAG,
+                            "ResponderLocation: lci/lcr parser failed exception -- " + e);
+                }
+                if (rttResult.successNumber <= 1
+                        && rttResult.distanceSdInMm != 0) {
+                    if (mDbg) {
+                        Log.w(TAG, "postProcessResults: non-zero distance stdev with 0||1 num "
+                                + "samples!? result=" + rttResult);
+                    }
+                    rttResult.distanceSdInMm = 0;
+                }
+                rangingResults.add(new RangingResult(
+                        convertHalStatusToFrameworkStatus(rttResult.status),
+                        MacAddress.fromBytes(rttResult.addr),
+                        rttResult.distanceInMm, rttResult.distanceSdInMm,
+                        rttResult.rssi / -2, rttResult.numberPerBurstPeer,
+                        rttResult.successNumber, lci, lcr, responderLocation,
+                        rttResult.timeStampInUs / CONVERSION_US_TO_MS));
+            }
+            return rangingResults;
+        }
+
+        private @FrameworkRttStatus int convertHalStatusToFrameworkStatus(int halStatus) {
+            switch (halStatus) {
+                case RttStatus.SUCCESS:
+                    return FRAMEWORK_RTT_STATUS_SUCCESS;
+                case RttStatus.FAILURE:
+                    return FRAMEWORK_RTT_STATUS_FAILURE;
+                case RttStatus.FAIL_NO_RSP:
+                    return FRAMEWORK_RTT_STATUS_FAIL_NO_RSP;
+                case RttStatus.FAIL_REJECTED:
+                    return FRAMEWORK_RTT_STATUS_FAIL_REJECTED;
+                case RttStatus.FAIL_NOT_SCHEDULED_YET:
+                    return FRAMEWORK_RTT_STATUS_FAIL_NOT_SCHEDULED_YET;
+                case RttStatus.FAIL_TM_TIMEOUT:
+                    return FRAMEWORK_RTT_STATUS_FAIL_TM_TIMEOUT;
+                case RttStatus.FAIL_AP_ON_DIFF_CHANNEL:
+                    return FRAMEWORK_RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL;
+                case RttStatus.FAIL_NO_CAPABILITY:
+                    return FRAMEWORK_RTT_STATUS_FAIL_NO_CAPABILITY;
+                case RttStatus.ABORTED:
+                    return FRAMEWORK_RTT_STATUS_ABORTED;
+                case RttStatus.FAIL_INVALID_TS:
+                    return FRAMEWORK_RTT_STATUS_FAIL_INVALID_TS;
+                case RttStatus.FAIL_PROTOCOL:
+                    return FRAMEWORK_RTT_STATUS_FAIL_PROTOCOL;
+                case RttStatus.FAIL_SCHEDULE:
+                    return FRAMEWORK_RTT_STATUS_FAIL_SCHEDULE;
+                case RttStatus.FAIL_BUSY_TRY_LATER:
+                    return FRAMEWORK_RTT_STATUS_FAIL_BUSY_TRY_LATER;
+                case RttStatus.INVALID_REQ:
+                    return FRAMEWORK_RTT_STATUS_INVALID_REQ;
+                case RttStatus.NO_WIFI:
+                    return FRAMEWORK_RTT_STATUS_NO_WIFI;
+                case RttStatus.FAIL_FTM_PARAM_OVERRIDE:
+                    return FRAMEWORK_RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE;
+                default:
+                    Log.e(TAG, "Unrecognized RttStatus: " + halStatus);
+                    return FRAMEWORK_RTT_STATUS_UNKNOWN;
+            }
+        }
+    }
+
+    /**
+     * Rtt capabilities inside framework
+     */
+    public class Capabilities {
+        //1-sided rtt measurement is supported
+        public boolean oneSidedRttSupported;
+        //location configuration information supported
+        public boolean lciSupported;
+        //location civic records supported
+        public boolean lcrSupported;
+        //preamble supported, see bit mask definition above
+        public int preambleSupported;
+        //RTT bandwidth supported
+        public int bwSupported;
+        // Whether STA responder role is supported.
+        public boolean responderSupported;
+        //Draft 11mc version supported, including major and minor version. e.g, draft 4.3 is 43.
+        public byte mcVersion;
+        //if ftm rtt data collection is supported.
+        public boolean rttFtmSupported;
+
+        public Capabilities(RttCapabilities rttHalCapabilities) {
+            oneSidedRttSupported = rttHalCapabilities.rttOneSidedSupported;
+            lciSupported = rttHalCapabilities.lciSupported;
+            lcrSupported = rttHalCapabilities.lcrSupported;
+            responderSupported = rttHalCapabilities.responderSupported;
+            preambleSupported = rttHalCapabilities.preambleSupport;
+            mcVersion = rttHalCapabilities.mcVersion;
+            bwSupported = rttHalCapabilities.bwSupport;
+            rttFtmSupported = rttHalCapabilities.rttFtmSupported;
+        }
     }
 }
