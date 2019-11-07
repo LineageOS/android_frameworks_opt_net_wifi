@@ -20,7 +20,8 @@ import android.annotation.NonNull;
 
 import com.android.server.wifi.WifiCandidates.Candidate;
 import com.android.server.wifi.WifiCandidates.ScoredCandidate;
-import com.android.server.wifi.WifiScoreCardProto.Event;
+import com.android.server.wifi.proto.WifiScoreCardProto;
+import com.android.server.wifi.proto.WifiScoreCardProto.Event;
 
 import java.util.Collection;
 

@@ -18,6 +18,8 @@ package com.android.server.wifi;
 
 import android.util.ArrayMap;
 
+import com.android.server.wifi.proto.WifiScoreCardProto;
+
 import java.util.Map;
 
 public final class ConcreteCandidate implements WifiCandidates.Candidate {

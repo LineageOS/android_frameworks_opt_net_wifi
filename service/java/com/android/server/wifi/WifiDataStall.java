@@ -20,7 +20,7 @@ import android.content.Context;
 import android.net.wifi.WifiInfo;
 import android.provider.Settings;
 
-import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 
 /**
  * Looks for Wifi data stalls

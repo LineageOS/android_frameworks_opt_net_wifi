@@ -68,7 +68,7 @@ import android.util.Xml;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.WifiNetworkFactory.AccessPoint;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 

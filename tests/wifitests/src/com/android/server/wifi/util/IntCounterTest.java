@@ -22,7 +22,7 @@ import static com.android.server.wifi.WifiMetricsTestUtil.buildInt32Count;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
-import com.android.server.wifi.nano.WifiMetricsProto.Int32Count;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.Int32Count;
 
 import org.junit.Test;
 

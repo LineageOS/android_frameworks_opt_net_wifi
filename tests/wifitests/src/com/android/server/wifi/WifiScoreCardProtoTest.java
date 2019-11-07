@@ -22,12 +22,14 @@ import android.net.wifi.WifiConfiguration;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.proto.WifiScoreCardProto;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Unit tests for {@link com.android.server.wifi.WifiScoreCardProto}.
+ * Unit tests for {@link com.android.server.wifi.proto.WifiScoreCardProto}.
  */
 @SmallTest
 public class WifiScoreCardProtoTest extends WifiBaseTest {

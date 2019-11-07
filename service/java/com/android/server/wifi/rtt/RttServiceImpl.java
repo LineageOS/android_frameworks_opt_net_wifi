@@ -57,7 +57,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.json.JSONException;

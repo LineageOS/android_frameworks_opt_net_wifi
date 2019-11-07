@@ -34,8 +34,8 @@ import static org.junit.Assert.assertTrue;
 
 import android.test.suitebuilder.annotation.SmallTest;
 
-import com.android.server.wifi.nano.WifiMetricsProto;
-import com.android.server.wifi.nano.WifiMetricsProto.HistogramBucketInt32;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.HistogramBucketInt32;
 
 import org.junit.After;
 import org.junit.Before;
