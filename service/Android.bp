@@ -73,7 +73,7 @@ cc_library_shared {
 
 // Build the wifi-service static library
 // ============================================================
-java_library {
+android_library {
     name: "wifi-service",
     installable: true,
     defaults: ["WifiStackCommon"],
@@ -88,6 +88,8 @@ java_library {
         "jsr305",
         "services",
     ],
+
+    manifest: "AndroidManifestBase.xml",
 
     static_libs: [
         "android.hardware.wifi-V1.0-java",

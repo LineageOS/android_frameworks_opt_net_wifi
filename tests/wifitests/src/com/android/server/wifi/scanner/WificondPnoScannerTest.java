@@ -30,7 +30,6 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.MockResources;
 import com.android.server.wifi.MockWifiMonitor;
@@ -39,6 +38,7 @@ import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Test;

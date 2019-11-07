@@ -39,8 +39,8 @@ import android.content.Context;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.server.am.ActivityManagerService;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Ignore;

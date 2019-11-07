@@ -96,7 +96,6 @@ import android.util.Pair;
 import android.util.SparseArray;
 import android.util.StatsLog;
 
-import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
@@ -121,6 +120,7 @@ import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
@@ -1611,10 +1611,25 @@ public class ClientModeImpl extends StateMachine {
         boolean rttSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_RTT);
         if (!rttSupported) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
             supportedFeatureSet &=
                     ~(WifiManager.WIFI_FEATURE_D2D_RTT | WifiManager.WIFI_FEATURE_D2AP_RTT);
         }
-
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported)) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &= ~WifiManager.WIFI_FEATURE_P2P_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        }
         return supportedFeatureSet;
     }
 

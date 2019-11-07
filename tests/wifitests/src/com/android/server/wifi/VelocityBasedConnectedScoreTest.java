@@ -26,7 +26,7 @@ import android.net.wifi.WifiInfo;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Test;

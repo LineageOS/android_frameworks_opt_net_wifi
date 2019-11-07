@@ -64,10 +64,10 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.wificond.IApInterfaceEventCallback;
 import com.android.server.wifi.wificond.NativeWifiClient;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Test;
