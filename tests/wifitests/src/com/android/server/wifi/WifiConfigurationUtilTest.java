@@ -25,6 +25,7 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
+import android.os.Binder;
 import android.os.PatternMatcher;
 import android.os.UserHandle;
 import android.util.Pair;
@@ -38,6 +39,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import javax.crypto.Mac;
 
 /**
  * Unit tests for {@link com.android.server.wifi.WifiConfigurationUtil}.
@@ -959,6 +962,33 @@ public class WifiConfigurationUtilTest {
         newConfig.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         assertFalse(WifiConfigurationUtil.hasMacRandomizationSettingsChanged(
                 existingConfig, newConfig));
+    }
+
+    /**
+     * Verifies that calculatePersistentMacForConfiguration produces persistent, locally generated
+     * MAC addresses that are valid for MAC randomization.
+     */
+    @Test
+    public void testCalculatePersistentMacForConfiguration() {
+        // verify null inputs
+        assertNull(WifiConfigurationUtil.calculatePersistentMacForConfiguration(null, null));
+
+        // test multiple times since there is some randomness involved with hashing
+        int uid = Binder.getCallingUid();
+        for (int i = 0; i < 10; i++) {
+            // Verify that a the MAC address calculated is valid
+            WifiConfiguration config = WifiConfigurationTestUtil.createOpenNetwork();
+            Mac hashFunction = WifiConfigurationUtil.obtainMacRandHashFunction(uid);
+            MacAddress macAddress = WifiConfigurationUtil.calculatePersistentMacForConfiguration(
+                    config, hashFunction);
+            assertTrue(WifiConfiguration.isValidMacAddressForRandomization(macAddress));
+
+            // Verify that the secret used to generate MAC address is persistent
+            Mac hashFunction2 = WifiConfigurationUtil.obtainMacRandHashFunction(uid);
+            MacAddress macAddress2 = WifiConfigurationUtil.calculatePersistentMacForConfiguration(
+                    config, hashFunction2);
+            assertEquals(macAddress, macAddress2);
+        }
     }
 
     private static class EnterpriseConfig {
