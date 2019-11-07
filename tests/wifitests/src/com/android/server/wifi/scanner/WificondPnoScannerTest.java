@@ -77,7 +77,8 @@ public class WificondPnoScannerTest extends WifiBaseTest {
         setupMockChannels(mWifiNative,
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
-                new int[]{5600, 5650});
+                new int[]{5600, 5650},
+                new int[]{5945, 5985});
 
         when(mWifiNative.getClientInterfaceName()).thenReturn(IFACE_NAME);
         when(mContext.getSystemService(Context.ALARM_SERVICE))

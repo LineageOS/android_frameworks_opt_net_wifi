@@ -110,6 +110,8 @@ public class ChannelHelperTest extends WifiBaseTest {
                 WifiScanner.WIFI_BAND_BOTH));
         assertEquals("24Ghz & 5Ghz (DFS incl)", ChannelHelper.bandToString(
                 WifiScanner.WIFI_BAND_BOTH_WITH_DFS));
+        assertEquals("24Ghz & 5Ghz (DFS incl) & 6Ghz", ChannelHelper.bandToString(
+                WifiScanner.WIFI_BAND_24_5_WITH_DFS_6_GHZ));
         assertEquals("invalid band", ChannelHelper.bandToString(-235342));
     }
 
