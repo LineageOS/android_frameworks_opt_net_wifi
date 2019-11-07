@@ -299,7 +299,8 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
      * Initiates a system-level bugreport, in a non-blocking fashion.
      */
     public void takeBugReport(String bugTitle, String bugDetail) {
-        if (mBuildProperties.isUserBuild()) {
+        // TODO (b/143494985): Re-enable it once we have a formal API.
+        if (true || mBuildProperties.isUserBuild()) {
             return;
         }
 
