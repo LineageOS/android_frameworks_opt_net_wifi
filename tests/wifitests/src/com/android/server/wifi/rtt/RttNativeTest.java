@@ -121,6 +121,8 @@ public class RttNativeTest extends WifiBaseTest {
         verify(mockRttController).getCapabilities(mGetCapCbCatpr.capture());
         // will override capabilities (just call cb again) for specific tests
         mGetCapCbCatpr.getValue().onValues(mStatusSuccess, getFullRttCapabilities());
+        // This is for the castFrom() call
+        verify(mockRttController).asBinder();
         assertTrue(mDut.isReady());
     }
 
@@ -367,6 +369,8 @@ public class RttNativeTest extends WifiBaseTest {
         verify(mockRttController, times(2)).registerEventCallback(any());
         verify(mockRttServiceImpl, times(2)).enableIfPossible();
         verify(mockRttController, times(2)).getCapabilities(mGetCapCbCatpr.capture());
+        // This is for the castFrom() calls
+        verify(mockRttController, times(2)).asBinder();
         assertTrue(mDut.isReady());
 
         verifyNoMoreInteractions(mockRttServiceImpl, mockRttController);
@@ -487,7 +491,8 @@ public class RttNativeTest extends WifiBaseTest {
         cap.lciSupported = true;
         cap.lcrSupported = true;
         cap.responderSupported = true; // unused
-        cap.preambleSupport = RttPreamble.LEGACY | RttPreamble.HT | RttPreamble.VHT;
+        cap.preambleSupport = RttPreamble.LEGACY | RttPreamble.HT | RttPreamble.VHT
+                | android.hardware.wifi.V1_4.RttPreamble.HE;
         cap.bwSupport =
                 RttBw.BW_5MHZ | RttBw.BW_10MHZ | RttBw.BW_20MHZ | RttBw.BW_40MHZ | RttBw.BW_80MHZ
                         | RttBw.BW_160MHZ;
