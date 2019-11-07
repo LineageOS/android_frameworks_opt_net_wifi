@@ -120,12 +120,19 @@ public class KnownBandsChannelHelperTest {
         }
 
         private void testBand(int[] expectedChannels, int band) {
-            WifiScanner.ChannelSpec[] channels =
+            WifiScanner.ChannelSpec[][] channels =
                     mChannelHelper.getAvailableScanChannels(band);
-            assertEquals("nun channels", expectedChannels.length, channels.length);
+            int len = 0;
             for (int i = 0; i < channels.length; ++i) {
-                assertEquals("channels[" + i + "].frequency",
-                        expectedChannels[i], channels[i].frequency);
+                len += channels[i].length;
+            }
+            assertEquals("num channels", expectedChannels.length, len);
+            int index = 0;
+            for (int i = 0; i < channels.length; ++i) {
+                for (int j = 0; j < channels[i].length; ++j) {
+                    assertEquals("channels[" + index + "].frequency",
+                            expectedChannels[index++], channels[i][j].frequency);
+                }
             }
         }
 
