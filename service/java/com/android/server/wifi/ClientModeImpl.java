@@ -5330,8 +5330,7 @@ public class ClientModeImpl extends StateMachine {
             intent.putExtra(WifiManager.EXTRA_WIFI_CREDENTIAL_SSID, config.SSID);
             intent.putExtra(WifiManager.EXTRA_WIFI_CREDENTIAL_EVENT_TYPE,
                     wifiCredentialEventType);
-            // TODO (b/142234604): This will not work on multi-user device scenarios.
-            mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT_OR_SELF,
+            mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT,
                     android.Manifest.permission.RECEIVE_WIFI_CREDENTIAL_CHANGE);
         }
     }

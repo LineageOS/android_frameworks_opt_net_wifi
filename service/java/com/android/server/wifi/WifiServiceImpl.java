@@ -59,6 +59,7 @@ import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
@@ -838,6 +839,7 @@ public class WifiServiceImpl extends BaseWifiService {
         private final Object mLock = new Object();
         private int mTetheredSoftApState = WIFI_AP_STATE_DISABLED;
         private List<WifiClient> mTetheredSoftApConnectedClients = new ArrayList<>();
+        private SoftApInfo mTetheredSoftApInfo = new SoftApInfo();
 
         public int getState() {
             synchronized (mLock) {
@@ -856,6 +858,10 @@ public class WifiServiceImpl extends BaseWifiService {
 
         public List<WifiClient> getConnectedClients() {
             return mTetheredSoftApConnectedClients;
+        }
+
+        public SoftApInfo getSoftApInfo() {
+            return mTetheredSoftApInfo;
         }
 
         private final ExternalCallbackTracker<ISoftApCallback> mRegisteredSoftApCallbacks =
@@ -918,6 +924,27 @@ public class WifiServiceImpl extends BaseWifiService {
                     Log.e(TAG, "onConnectedClientsChanged: remote exception -- " + e);
                     // TODO(b/138863863) remove does nothing, getCallbacks() returns a copy
                     iterator.remove();
+                }
+            }
+        }
+
+        /**
+         * Called when information of softap changes.
+         *
+         * @param softApInfo is the softap information. {@link SoftApInfo}
+         */
+        @Override
+        public void onInfoChanged(SoftApInfo softApInfo) {
+            mTetheredSoftApInfo = new SoftApInfo(softApInfo);
+
+            Iterator<ISoftApCallback> iterator =
+                    mRegisteredSoftApCallbacks.getCallbacks().iterator();
+            while (iterator.hasNext()) {
+                ISoftApCallback callback = iterator.next();
+                try {
+                    callback.onInfoChanged(mTetheredSoftApInfo);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "onInfoChanged: remote exception -- " + e);
                 }
             }
         }
@@ -1247,6 +1274,16 @@ public class WifiServiceImpl extends BaseWifiService {
         public void onConnectedClientsChanged(List<WifiClient> clients) {
             // Nothing to do
         }
+
+        /**
+         * Called when information of softap changes.
+         *
+         * @param softApInfo is the softap information. {@link SoftApInfo}
+         */
+        @Override
+        public void onInfoChanged(SoftApInfo softApInfo) {
+            // Nothing to do
+        }
     }
 
     /**
@@ -1288,6 +1325,7 @@ public class WifiServiceImpl extends BaseWifiService {
             try {
                 callback.onStateChanged(mTetheredSoftApTracker.getState(), 0);
                 callback.onConnectedClientsChanged(mTetheredSoftApTracker.getConnectedClients());
+                callback.onInfoChanged(mTetheredSoftApTracker.getSoftApInfo());
             } catch (RemoteException e) {
                 Log.e(TAG, "registerSoftApCallback: remote exception -- " + e);
             }

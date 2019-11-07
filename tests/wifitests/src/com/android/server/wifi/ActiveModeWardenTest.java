@@ -45,6 +45,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.location.LocationManager;
+import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
@@ -87,6 +88,8 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
     private static final String WIFI_IFACE_NAME = "mockWlan";
     private static final int TEST_WIFI_RECOVERY_DELAY_MS = 2000;
+    private static final int TEST_AP_FREQUENCY = 2412;
+    private static final int TEST_AP_BANDWIDTH = SoftApInfo.CHANNEL_WIDTH_20MHZ;
 
     TestLooper mLooper;
     @Mock WifiInjector mWifiInjector;
@@ -114,6 +117,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     @Mock WifiManager.SoftApCallback mLohsStateMachineCallback;
     WifiNative.StatusListener mWifiNativeStatusListener;
     ActiveModeWarden mActiveModeWarden;
+    private SoftApInfo mTestSoftApInfo;
 
     final ArgumentCaptor<WifiNative.StatusListener> mStatusListenerCaptor =
             ArgumentCaptor.forClass(WifiNative.StatusListener.class);
@@ -170,6 +174,9 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
         mActiveModeWarden.registerSoftApCallback(mSoftApStateMachineCallback);
         mActiveModeWarden.registerLohsCallback(mLohsStateMachineCallback);
+        mTestSoftApInfo = new SoftApInfo();
+        mTestSoftApInfo.setFrequency(TEST_AP_FREQUENCY);
+        mTestSoftApInfo.setBandwidth(TEST_AP_BANDWIDTH);
     }
 
     private ActiveModeWarden createActiveModeWarden() {
@@ -641,6 +648,7 @@ public class ActiveModeWardenTest extends WifiBaseTest {
 
         verify(mSoftApStateMachineCallback, never()).onStateChanged(anyInt(), anyInt());
         verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
+        verify(mSoftApStateMachineCallback, never()).onInfoChanged(any());
     }
 
     /**
@@ -654,6 +662,18 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mSoftApStateMachineCallback).onConnectedClientsChanged(testClients);
+    }
+
+    /**
+     * Verifies that SoftApInfoChanged event is being passed from SoftApManager to WifiServiceImpl
+     */
+    @Test
+    public void callsWifiServiceCallbackOnSoftApInfoChanged() throws Exception {
+        enterSoftApActiveMode();
+        mSoftApManagerCallback.onInfoChanged(mTestSoftApInfo);
+        mLooper.dispatchAll();
+
+        verify(mSoftApStateMachineCallback).onInfoChanged(mTestSoftApInfo);
     }
 
     /**
