@@ -549,6 +549,9 @@ public class WifiScoreCard {
         } catch (IllegalArgumentException e) {
             return mDummyPerBssid;
         }
+        if (mac.equals(mDummyPerBssid.bssid)) {
+            return mDummyPerBssid;
+        }
         PerBssid ans = mApForBssid.get(mac);
         if (ans == null || !ans.ssid.equals(ssid)) {
             ans = new PerBssid(ssid, mac);
