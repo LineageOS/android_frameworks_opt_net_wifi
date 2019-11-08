@@ -221,6 +221,7 @@ public class ClientModeImpl extends StateMachine {
     private final PasspointManager mPasspointManager;
     private final WifiDataStall mWifiDataStall;
     private final LinkProbeManager mLinkProbeManager;
+    private final MboOceController mMboOceController;
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
     private final ActivityManager mActivityManager;
@@ -709,7 +710,8 @@ public class ClientModeImpl extends StateMachine {
                             SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
                             LinkProbeManager linkProbeManager,
                             BatteryStatsManager batteryStatsManager,
-                            SupplicantStateTracker supplicantStateTracker) {
+                            SupplicantStateTracker supplicantStateTracker,
+                            MboOceController mboOceController) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -725,6 +727,7 @@ public class ClientModeImpl extends StateMachine {
         mSarManager = sarManager;
         mWifiTrafficPoller = wifiTrafficPoller;
         mLinkProbeManager = linkProbeManager;
+        mMboOceController = mboOceController;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStatsManager = batteryStatsManager;
@@ -1118,6 +1121,7 @@ public class ClientModeImpl extends StateMachine {
         mPasspointManager.enableVerboseLogging(verbose);
         mNetworkFactory.enableVerboseLogging(verbose);
         mLinkProbeManager.enableVerboseLogging(mVerboseLoggingEnabled);
+        mMboOceController.enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
@@ -3303,6 +3307,8 @@ public class ClientModeImpl extends StateMachine {
         mWifiDiagnostics.startPktFateMonitoring(mInterfaceName);
         mWifiDiagnostics.startLogging(mInterfaceName);
 
+        mMboOceController.enable();
+
         /**
          * Enable bluetooth coexistence scan mode when bluetooth connection is active.
          * When this mode is on, some of the low-level scan parameters used by the
@@ -3339,6 +3345,7 @@ public class ClientModeImpl extends StateMachine {
         // exiting supplicant started state is now only applicable to client mode
         mWifiDiagnostics.stopLogging(mInterfaceName);
 
+        mMboOceController.disable();
         if (mIpClient != null && mIpClient.shutdown()) {
             // Block to make sure IpClient has really shut down, lest cleanup
             // race with, say, bringup code over in tethering.

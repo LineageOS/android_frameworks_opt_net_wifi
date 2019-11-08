@@ -387,6 +387,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock Handler mNetworkAgentHandler;
     @Mock BatteryStatsManager mBatteryStatsManager;
+    @Mock MboOceController mMboOceController;
 
     final ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener> mConfigUpdateListenerCaptor =
             ArgumentCaptor.forClass(WifiConfigManager.OnNetworkUpdateListener.class);
@@ -543,7 +544,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi = new ClientModeImpl(mContext, mFrameworkFacade, mLooper.getLooper(),
                 mUserManager, mWifiInjector, mBackupManagerProxy, mCountryCode, mWifiNative,
                 mWrongPasswordNotifier, mSarManager, mWifiTrafficPoller,
-                mLinkProbeManager, mBatteryStatsManager, mSupplicantStateTracker);
+                mLinkProbeManager, mBatteryStatsManager, mSupplicantStateTracker,
+                mMboOceController);
         mCmi.start();
         mWifiCoreThread = getCmiHandlerThread(mCmi);
 
@@ -3824,5 +3826,17 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         assertEquals("ConnectedState", getCurrentState().getName());
+    }
+
+    /**
+     * Verify that MboOce initialization/Deinitialization methods are called in ClientMode.
+     */
+    @Test
+    public void verifyMboOceInitAndDeinitInClientMode() throws Exception {
+        startSupplicantAndDispatchMessages();
+        verify(mMboOceController).enable();
+        mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
+        mLooper.dispatchAll();
+        verify(mMboOceController).disable();
     }
 }
