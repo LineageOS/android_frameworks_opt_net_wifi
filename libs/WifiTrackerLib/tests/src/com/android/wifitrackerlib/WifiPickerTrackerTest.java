@@ -70,14 +70,14 @@ public class WifiPickerTrackerTest {
     @Mock
     private Clock mMockClock;
     @Mock
-    private WifiPickerTracker.WifiPickerTrackerCallback mMockWifiTrackerCallback;
+    private WifiPickerTracker.WifiPickerTrackerCallback mMockCallback;
 
     private TestLooper mTestLooper;
 
     private final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
             ArgumentCaptor.forClass(BroadcastReceiver.class);
 
-    private WifiPickerTracker createTestWifiTracker2() {
+    private WifiPickerTracker createTestWifiPickerTracker() {
         final Handler testHandler = new Handler(mTestLooper.getLooper());
 
         return new WifiPickerTracker(mMockLifecycle, mMockContext,
@@ -89,7 +89,7 @@ public class WifiPickerTrackerTest {
                 mMockClock,
                 MAX_SCAN_AGE_MILLIS,
                 SCAN_INTERVAL_MILLIS,
-                mMockWifiTrackerCallback);
+                mMockCallback);
     }
 
     @Before
@@ -107,7 +107,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testWifiStateChangeBroadcast_updatesWifiState() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -133,7 +133,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testWifiStateChangeBroadcast_notifiesListener() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -142,7 +142,7 @@ public class WifiPickerTrackerTest {
                 new Intent(WifiManager.WIFI_STATE_CHANGED_ACTION));
         mTestLooper.dispatchAll();
 
-        verify(mMockWifiTrackerCallback, atLeastOnce()).onWifiStateChanged();
+        verify(mMockCallback, atLeastOnce()).onWifiStateChanged();
     }
 
     /**
@@ -151,7 +151,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testConfiguredNetworksChanged_notifiesListener() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -160,7 +160,7 @@ public class WifiPickerTrackerTest {
                 new Intent(WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION));
         mTestLooper.dispatchAll();
 
-        verify(mMockWifiTrackerCallback, atLeastOnce()).onNumSavedNetworksChanged();
+        verify(mMockCallback, atLeastOnce()).onNumSavedNetworksChanged();
     }
 
     /**
@@ -168,7 +168,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testOnStart_setsWifiState() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
 
         // Set the wifi state to disabled
         when(mMockWifiManager.getWifiState()).thenReturn(WifiManager.WIFI_STATE_DISABLED);
@@ -191,7 +191,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testScanResultsAvailableAction_notifiesListener() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -200,7 +200,7 @@ public class WifiPickerTrackerTest {
                 new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
         mTestLooper.dispatchAll();
 
-        verify(mMockWifiTrackerCallback, atLeastOnce()).onWifiEntriesChanged();
+        verify(mMockCallback, atLeastOnce()).onWifiEntriesChanged();
     }
 
     /**
@@ -208,7 +208,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_noScans_emptyList() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -228,7 +228,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_wifiNetworkEntries_createdForEachSsidAndSecurityPair() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -263,7 +263,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_wifiNetworkEntries_oldEntriesTimedOut() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -300,7 +300,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_wifiNetworkEntries_useOldEntriesOnFailedScan() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -340,7 +340,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_configuredNetworksChanged_unsavedToSaved() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         wifiPickerTracker.onStart();
         verify(mMockContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 any(), any(), any());
@@ -370,7 +370,7 @@ public class WifiPickerTrackerTest {
      */
     @Test
     public void testGetWifiEntries_configuredNetworksChanged_savedToUnsaved() {
-        final WifiPickerTracker wifiPickerTracker = createTestWifiTracker2();
+        final WifiPickerTracker wifiPickerTracker = createTestWifiPickerTracker();
         final WifiConfiguration config = new WifiConfiguration();
         config.SSID = "\"ssid\"";
         when(mMockWifiManager.getConfiguredNetworks())
