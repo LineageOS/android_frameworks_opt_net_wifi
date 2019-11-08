@@ -95,6 +95,7 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ISoftApCallback;
+import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
@@ -201,6 +202,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
                     5, 1100002, "\"magenta\"", false, false, null, null));
     private static final int TEST_AP_FREQUENCY = 2412;
     private static final int TEST_AP_BANDWIDTH = SoftApInfo.CHANNEL_WIDTH_20MHZ;
+    private static final int NETWORK_CALLBACK_ID = 1100;
 
     private SoftApInfo mTestSoftApInfo;
     private AsyncChannel mAsyncChannel;
@@ -274,6 +276,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock SarManager mSarManager;
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
     @Mock IScanResultsListener mClientScanResultsListener;
+    @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
 
     WifiLog mLog = new LogcatLog(TAG);
 
@@ -4388,6 +4391,55 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
         mLooper.dispatchAll();
         verify(mScanRequestProxy).unregisterScanResultsListener(eq(listenerIdentifier));
+    }
+
+    /**
+     * Test register callback without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRegisterSuggestionNetworkCallbackWithMissingPermission() {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        mWifiServiceImpl.registerSuggestionConnectionStatusListener(mAppBinder,
+                mSuggestionConnectionStatusListener, NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME);
+    }
+
+    /**
+     * Test register callback without callback
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testRegisterSuggestionNetworkCallbackWithIllegalArgument() {
+        mWifiServiceImpl.registerSuggestionConnectionStatusListener(mAppBinder, null,
+                NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME);
+    }
+
+    /**
+     * Test unregister callback without permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testUnregisterSuggestionNetworkCallbackWithMissingPermission() {
+        doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+        mWifiServiceImpl.unregisterSuggestionConnectionStatusListener(
+                NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME);
+    }
+
+    /**
+     * Test register nad unregister callback will go to WifiNetworkSuggestionManager
+     */
+    @Test
+    public void testRegisterUnregisterSuggestionNetworkCallback() throws Exception {
+        mWifiServiceImpl.registerSuggestionConnectionStatusListener(mAppBinder,
+                mSuggestionConnectionStatusListener, NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager).registerSuggestionConnectionStatusListener(
+                eq(mAppBinder), eq(mSuggestionConnectionStatusListener), eq(NETWORK_CALLBACK_ID),
+                eq(TEST_PACKAGE_NAME));
+        mWifiServiceImpl.unregisterSuggestionConnectionStatusListener(NETWORK_CALLBACK_ID,
+                TEST_PACKAGE_NAME);
+        mLooper.dispatchAll();
+        verify(mWifiNetworkSuggestionsManager).unregisterSuggestionConnectionStatusListener(
+                eq(NETWORK_CALLBACK_ID), eq(TEST_PACKAGE_NAME));
     }
 
 

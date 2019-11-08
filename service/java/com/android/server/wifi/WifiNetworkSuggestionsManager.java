@@ -33,12 +33,15 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.net.MacAddress;
+import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -48,6 +51,7 @@ import android.util.Pair;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
+import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.wifi.R;
 
@@ -238,6 +242,9 @@ public class WifiNetworkSuggestionsManager {
 
     private final Map<String, Set<ExtendedWifiNetworkSuggestion>>
             mPasspointInfo = new HashMap<>();
+
+    private final HashMap<String, ExternalCallbackTracker<ISuggestionConnectionStatusListener>>
+            mSuggestionStatusListenerPerApp = new HashMap<>();
 
     /**
      * Intent filter for processing notification actions.
@@ -764,6 +771,9 @@ public class WifiNetworkSuggestionsManager {
         removeInternal(Collections.EMPTY_LIST, packageName, perAppInfo);
         // Remove the package fully from the internal database.
         mActiveNetworkSuggestionsPerApp.remove(packageName);
+        ExternalCallbackTracker<ISuggestionConnectionStatusListener> listenerTracker =
+                mSuggestionStatusListenerPerApp.remove(packageName);
+        if (listenerTracker != null) listenerTracker.clear();
         saveToStore();
         Log.i(TAG, "Removed " + packageName);
     }
@@ -795,6 +805,7 @@ public class WifiNetworkSuggestionsManager {
             removeInternal(Collections.EMPTY_LIST, entry.getKey(), entry.getValue());
             iter.remove();
         }
+        mSuggestionStatusListenerPerApp.clear();
         saveToStore();
         Log.i(TAG, "Cleared all internal state");
     }
@@ -1090,6 +1101,7 @@ public class WifiNetworkSuggestionsManager {
             mWifiPermissionsUtil.enforceCanAccessScanResults(
                     packageName, matchingSuggestion.suggestorUid);
         } catch (SecurityException se) {
+            Log.w(TAG, "Permission denied for sending post connection broadcast to " + packageName);
             return;
         }
         if (mVerboseLoggingEnabled) {
@@ -1145,9 +1157,10 @@ public class WifiNetworkSuggestionsManager {
      *
      * @param network {@link WifiConfiguration} representing the network that connection failed to.
      * @param bssid BSSID of the network connection failed to if known, else null.
+     * @param failureCode failure reason code.
      */
     private void handleConnectionFailure(@NonNull WifiConfiguration network,
-                                         @Nullable String bssid) {
+                                         @Nullable String bssid, int failureCode) {
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                 getNetworkSuggestionsForWifiConfiguration(network, bssid);
         if (mVerboseLoggingEnabled) {
@@ -1160,6 +1173,12 @@ public class WifiNetworkSuggestionsManager {
         mWifiMetrics.incrementNetworkSuggestionApiNumConnectFailure();
         // TODO (b/115504887, b/112196799): Blacklist the corresponding network suggestion if
         // the connection failed.
+
+        for (ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion
+                : matchingExtNetworkSuggestions) {
+            sendConnectionFailureIfAllowed(matchingExtNetworkSuggestion.perAppInfo.packageName,
+                    matchingExtNetworkSuggestion.wns, failureCode);
+        }
     }
 
     private void resetConnectionState() {
@@ -1182,7 +1201,7 @@ public class WifiNetworkSuggestionsManager {
         if (failureCode == WifiMetrics.ConnectionEvent.FAILURE_NONE) {
             handleConnectionSuccess(network, bssid);
         } else {
-            handleConnectionFailure(network, bssid);
+            handleConnectionFailure(network, bssid, failureCode);
         }
     }
 
@@ -1194,6 +1213,95 @@ public class WifiNetworkSuggestionsManager {
             Log.v(TAG, "handleDisconnect " + network);
         }
         resetConnectionState();
+    }
+
+    /**
+     * Send network connection failure event to app when an connection attempt failure.
+     * @param packageName package name to send event
+     * @param matchingSuggestion suggestion on this connection failure
+     * @param connectionEvent connection failure code
+     */
+    private void sendConnectionFailureIfAllowed(String packageName,
+            @NonNull WifiNetworkSuggestion matchingSuggestion,
+            int connectionEvent) {
+        ExternalCallbackTracker<ISuggestionConnectionStatusListener> listenersTracker =
+                mSuggestionStatusListenerPerApp.get(packageName);
+        if (listenersTracker == null || listenersTracker.getNumCallbacks() == 0) {
+            return;
+        }
+        try {
+            mWifiPermissionsUtil.enforceCanAccessScanResults(
+                    packageName, matchingSuggestion.suggestorUid);
+        } catch (SecurityException se) {
+            Log.w(TAG, "Permission denied for sending connection failure event to " + packageName);
+            return;
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Sending connection failure event to " + packageName);
+        }
+        for (ISuggestionConnectionStatusListener listener : listenersTracker.getCallbacks()) {
+            try {
+                listener.onConnectionStatus(matchingSuggestion,
+                        internalConnectionEventToSuggestionFailureCode(connectionEvent));
+            } catch (RemoteException e) {
+                Log.e(TAG, "sendNetworkCallback: remote exception -- " + e);
+            }
+        }
+    }
+
+    private @WifiManager.SuggestionConnectionStatusCode
+            int internalConnectionEventToSuggestionFailureCode(int connectionEvent) {
+        switch (connectionEvent) {
+            case WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION:
+            case WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_TIMED_OUT:
+                return WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_ASSOCIATION;
+            case WifiMetrics.ConnectionEvent.FAILURE_SSID_TEMP_DISABLED:
+            case WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE:
+                return WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_AUTHENTICATION;
+            case WifiMetrics.ConnectionEvent.FAILURE_DHCP:
+                return WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_IP_PROVISIONING;
+            default:
+                return WifiManager.STATUS_SUGGESTION_CONNECTION_FAILURE_UNKNOWN;
+        }
+
+    }
+
+    /**
+     * Register a SuggestionConnectionStatusListener on network connection failure.
+     * @param binder IBinder instance to allow cleanup if the app dies.
+     * @param listener ISuggestionNetworkCallback instance to add.
+     * @param listenerIdentifier identifier of the listener, should be hash code of listener.
+     * @return true if succeed otherwise false.
+     */
+    public boolean registerSuggestionConnectionStatusListener(@NonNull IBinder binder,
+            @NonNull ISuggestionConnectionStatusListener listener,
+            int listenerIdentifier, String packageName) {
+        ExternalCallbackTracker<ISuggestionConnectionStatusListener> listenersTracker =
+                mSuggestionStatusListenerPerApp.get(packageName);
+        if (listenersTracker == null) {
+            listenersTracker =
+                    new ExternalCallbackTracker<>(mHandler);
+        }
+        listenersTracker.add(binder, listener, listenerIdentifier);
+        mSuggestionStatusListenerPerApp.put(packageName, listenersTracker);
+        return true;
+    }
+
+    /**
+     * Unregister a listener on network connection failure.
+     * @param listenerIdentifier identifier of the listener, should be hash code of listener.
+     */
+    public void unregisterSuggestionConnectionStatusListener(int listenerIdentifier,
+            String packageName) {
+        ExternalCallbackTracker<ISuggestionConnectionStatusListener> listenersTracker =
+                mSuggestionStatusListenerPerApp.get(packageName);
+        if (listenersTracker == null || listenersTracker.remove(listenerIdentifier) == null) {
+            Log.w(TAG, "unregisterSuggestionConnectionStatusListener: Listener["
+                    + listenerIdentifier + "] from " + packageName + " already unregister.");
+        }
+        if (listenersTracker.getNumCallbacks() == 0) {
+            mSuggestionStatusListenerPerApp.remove(packageName);
+        }
     }
 
     /**

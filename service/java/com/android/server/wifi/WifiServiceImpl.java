@@ -55,6 +55,7 @@ import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsListener;
 import android.net.wifi.ISoftApCallback;
+import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
@@ -67,6 +68,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
+import android.net.wifi.WifiManager.SuggestionConnectionStatusListener;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
@@ -3480,7 +3482,7 @@ public class WifiServiceImpl extends BaseWifiService {
     /**
      * See {@link WifiManager#addScanResultsListener(Executor, WifiManager.ScanResultsListener)}
      */
-    public void registerScanResultsListener(IBinder binder, IScanResultsListener listener,
+    public void registerScanResultsListener(IBinder binder, @NonNull IScanResultsListener listener,
             int listenerIdentifier) {
         if (binder == null) {
             throw new IllegalArgumentException("Binder must not be null");
@@ -3514,5 +3516,47 @@ public class WifiServiceImpl extends BaseWifiService {
                 mWifiInjector.getScanRequestProxy()
                         .unregisterScanResultsListener(listenerIdentifier));
 
+    }
+
+    /**
+     * See {@link WifiManager#addSuggestionConnectionStatusListener(Executor,
+     * SuggestionConnectionStatusListener)}
+     */
+    public void registerSuggestionConnectionStatusListener(IBinder binder,
+            @NonNull ISuggestionConnectionStatusListener listener,
+            int listenerIdentifier, String packageName) {
+        if (binder == null) {
+            throw new IllegalArgumentException("Binder must not be null");
+        }
+        if (listener == null) {
+            throw new IllegalArgumentException("listener must not be null");
+        }
+        final int uid = Binder.getCallingUid();
+        enforceAccessPermission();
+        enforceLocationPermission(packageName, uid);
+        if (mVerboseLoggingEnabled) {
+            mLog.info("registerSuggestionConnectionStatusListener uid=%").c(uid).flush();
+        }
+        mWifiThreadRunner.post(() ->
+                mWifiNetworkSuggestionsManager
+                        .registerSuggestionConnectionStatusListener(binder, listener,
+                                listenerIdentifier, packageName));
+    }
+
+    /**
+     * See {@link WifiManager#removeSuggestionConnectionStatusListener(
+     * SuggestionConnectionStatusListener)}
+     */
+    public void unregisterSuggestionConnectionStatusListener(
+            int listenerIdentifier, String packageName) {
+        enforceAccessPermission();
+        if (mVerboseLoggingEnabled) {
+            mLog.info("unregisterSuggestionConnectionStatusListener uid=%")
+                    .c(Binder.getCallingUid()).flush();
+        }
+        mWifiThreadRunner.post(() ->
+                mWifiNetworkSuggestionsManager
+                        .unregisterSuggestionConnectionStatusListener(listenerIdentifier,
+                                packageName));
     }
 }
