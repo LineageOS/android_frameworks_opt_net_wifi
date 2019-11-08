@@ -138,7 +138,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Mock private WifiConfigManager.OnNetworkUpdateListener mWcmListener;
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private DeviceConfigFacade mDeviceConfigFacade;
-    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private MacAddressUtil mMacAddressUtil;
     @Mock private BssidBlocklistMonitor mBssidBlocklistMonitor;
 
@@ -222,11 +221,11 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
         when(mWifiInjector.getWifiLastResortWatchdog().shouldIgnoreSsidUpdate())
                 .thenReturn(false);
-        when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getMacAddressUtil()).thenReturn(mMacAddressUtil);
         when(mMacAddressUtil.calculatePersistentMac(any(), any())).thenReturn(TEST_RANDOMIZED_MAC);
 
-        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
+        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
+                mock(FrameworkFacade.class), mock(Context.class), mock(Handler.class));
         createWifiConfigManager();
         mWifiConfigManager.addOnNetworkUpdateListener(mWcmListener);
         ArgumentCaptor<ContentObserver> observerCaptor =
@@ -4661,9 +4660,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
     /**
      * {@link WifiConfigManager#resetSimNetworks()} should reset all non-PEAP SIM networks, no
-     * matter if {@link com.android.server.wifi.util.TelephonyUtil#getSimIdentity(TelephonyManager,
-     * TelephonyUtil, WifiConfiguration, CarrierNetworkConfig) TelephonyUtil#getSimIdentity}
-     * returns null or not.
+     * matter if {@link TelephonyUtil#getSimIdentity()} returns null or not.
      */
     @Test
     public void testResetSimNetworks_getSimIdentityNull_shouldResetAllNonPeapSimIdentities() {

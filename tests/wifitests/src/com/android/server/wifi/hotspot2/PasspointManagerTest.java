@@ -87,6 +87,7 @@ import androidx.test.filters.SmallTest;
 import com.android.server.wifi.ClientModeImpl;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FakeKeys;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigStore;
@@ -223,7 +224,8 @@ public class PasspointManagerTest extends WifiBaseTest {
         when(mWifiInjector.getClientModeImpl()).thenReturn(mClientModeImpl);
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
-        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
+        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
+                mock(FrameworkFacade.class), mock(Context.class), mock(Handler.class));
         mLooper = new TestLooper();
         mHandler = new Handler(mLooper.getLooper());
         mManager = new PasspointManager(mContext, mWifiInjector, mHandler, mWifiNative,

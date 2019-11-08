@@ -34,7 +34,6 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.NativeUtil;
-import com.android.server.wifi.util.TelephonyUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
@@ -219,7 +218,7 @@ public class WifiConfigurationUtil {
                                   newEnterpriseConfig.getIdentity())) {
                 return true;
             }
-            if (!TelephonyUtil.isSimEapMethod(existingEnterpriseConfig.getEapMethod())
+            if (!existingEnterpriseConfig.requireSimCredential()
                     && !TextUtils.equals(existingEnterpriseConfig.getAnonymousIdentity(),
                     newEnterpriseConfig.getAnonymousIdentity())) {
                 return true;

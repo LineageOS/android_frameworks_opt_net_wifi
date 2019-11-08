@@ -106,7 +106,6 @@ public class WifiInjector {
     private final ActiveModeWarden mActiveModeWarden;
     private final WifiSettingsStore mSettingsStore;
     private OpenNetworkNotifier mOpenNetworkNotifier;
-    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final WifiLockManager mLockManager;
     private final WificondControl mWificondControl;
     private final Clock mClock = new Clock();
@@ -128,7 +127,6 @@ public class WifiInjector {
     private final NetworkSuggestionNominator mNetworkSuggestionNominator;
     private final PasspointNetworkNominator mPasspointNetworkNominator;
     private final ScoredNetworkNominator mScoredNetworkNominator;
-    private final CarrierNetworkNominator mCarrierNetworkNominator;
     private final WifiNetworkScoreCache mWifiNetworkScoreCache;
     private final NetworkScoreManager mNetworkScoreManager;
     private WifiScanner mWifiScanner;
@@ -210,7 +208,6 @@ public class WifiInjector {
         mPasspointProvisionerHandlerThread =
                 new HandlerThread("PasspointProvisionerHandlerThread");
         mPasspointProvisionerHandlerThread.start();
-        mCarrierNetworkConfig = new CarrierNetworkConfig(mContext, wifiHandler, mFrameworkFacade);
         WifiAwareMetrics awareMetrics = new WifiAwareMetrics(mClock);
         RttMetrics rttMetrics = new RttMetrics(mClock);
         mWifiP2pMetrics = new WifiP2pMetrics(mClock);
@@ -232,7 +229,7 @@ public class WifiInjector {
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mPropertyService, mWifiMetrics,
-                mCarrierNetworkConfig, wifiHandler, new Random(), this);
+                wifiHandler, new Random(), this);
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
         mWifiP2pNative = new WifiP2pNative(
@@ -257,7 +254,8 @@ public class WifiInjector {
                 WifiConfigStore.createSharedFiles(mFrameworkFacade.isNiapModeOn(mContext)));
         SubscriptionManager subscriptionManager =
                 mContext.getSystemService(SubscriptionManager.class);
-        mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager);
+        mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager,
+                mFrameworkFacade, mContext, wifiHandler);
         // Config Manager
         mWifiConfigManager = new WifiConfigManager(mContext, mClock,
                 mUserManager, mTelephonyUtil,
@@ -301,8 +299,6 @@ public class WifiInjector {
                 mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
                 mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
-        mCarrierNetworkNominator = new CarrierNetworkNominator(mWifiConfigManager,
-                mCarrierNetworkConfig, mConnectivityLocalLog, this);
         mPasspointManager = new PasspointManager(mContext, this,
                 wifiHandler, mWifiNative, mWifiKeyStore, mClock, new PasspointObjectFactory(),
                 mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyUtil);
@@ -358,7 +354,6 @@ public class WifiInjector {
         mWifiNetworkSelector.registerNetworkNominator(mSavedNetworkNominator);
         mWifiNetworkSelector.registerNetworkNominator(mNetworkSuggestionNominator);
         mWifiNetworkSelector.registerNetworkNominator(mPasspointNetworkNominator);
-        mWifiNetworkSelector.registerNetworkNominator(mCarrierNetworkNominator);
         mWifiNetworkSelector.registerNetworkNominator(mScoredNetworkNominator);
 
         mClientModeImpl.start();
@@ -388,10 +383,10 @@ public class WifiInjector {
         mHalDeviceManager.enableVerboseLogging(verbose);
         mScanRequestProxy.enableVerboseLogging(verbose);
         mWakeupController.enableVerboseLogging(verbose);
-        mCarrierNetworkConfig.enableVerboseLogging(verbose);
         mWifiNetworkSuggestionsManager.enableVerboseLogging(verbose);
         LogcatLog.enableVerboseLogging(verbose);
         mDppManager.enableVerboseLogging(verbose);
+        mTelephonyUtil.enableVerboseLogging(verbose);
     }
 
     public UserManager getUserManager() {
@@ -500,10 +495,6 @@ public class WifiInjector {
 
     public PasspointManager getPasspointManager() {
         return mPasspointManager;
-    }
-
-    public CarrierNetworkConfig getCarrierNetworkConfig() {
-        return mCarrierNetworkConfig;
     }
 
     public WakeupController getWakeupController() {
@@ -615,7 +606,7 @@ public class WifiInjector {
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
                 mWifiNetworkSelector, mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mOpenNetworkNotifier,
-                mCarrierNetworkConfig, mWifiMetrics, new Handler(mWifiHandlerThread.getLooper()),
+                mWifiMetrics, new Handler(mWifiHandlerThread.getLooper()),
                 mClock, mConnectivityLocalLog);
     }
 

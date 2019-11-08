@@ -22,10 +22,20 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.ContentObserver;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.net.wifi.hotspot2.pps.Credential;
+import android.os.Handler;
+import android.os.PersistableBundle;
+import android.os.test.TestLooper;
+import android.telephony.CarrierConfigManager;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -36,6 +46,7 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
@@ -44,6 +55,7 @@ import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
@@ -81,11 +93,14 @@ public class TelephonyUtilTest extends WifiBaseTest {
     private static final String DATA_OPERATOR_NUMERIC = "123456";
     private static final String NON_DATA_OPERATOR_NUMERIC = "123456";
     private static final String NO_MATCH_OPERATOR_NUMERIC = "654321";
+    private static final String TEST_SSID = "Test SSID";
 
-    private List<SubscriptionInfo> mSubInfoList;
-
-    MockitoSession mMockingSession = null;
-
+    @Mock
+    CarrierConfigManager mCarrierConfigManager;
+    @Mock
+    Context mContext;
+    @Mock
+    FrameworkFacade mFrameworkFacade;
     @Mock
     TelephonyManager mTelephonyManager;
     @Mock
@@ -99,10 +114,17 @@ public class TelephonyUtilTest extends WifiBaseTest {
     @Mock
     SubscriptionInfo mNonDataSubscriptionInfo;
 
+    private List<SubscriptionInfo> mSubInfoList;
+
+    MockitoSession mMockingSession = null;
+    TestLooper mLooper;
+
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
+        mLooper = new TestLooper();
+        mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
+                mFrameworkFacade, mContext, new Handler(mLooper.getLooper()));
         mSubInfoList = new ArrayList<>();
         mSubInfoList.add(mDataSubscriptionInfo);
         mSubInfoList.add(mNonDataSubscriptionInfo);
@@ -134,6 +156,9 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mNonDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mSubscriptionManager.getActiveSubscriptionIdList())
                 .thenReturn(new int[]{DATA_SUBID, NON_DATA_SUBID});
+
+        when(mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE))
+                .thenReturn(mCarrierConfigManager);
     }
 
     @After
@@ -141,6 +166,152 @@ public class TelephonyUtilTest extends WifiBaseTest {
         if (mMockingSession != null) {
             mMockingSession.finishMocking();
         }
+    }
+
+    /**
+     * Verify that the IMSI encryption info is not updated  when non
+     * {@link CarrierConfigManager#ACTION_CARRIER_CONFIG_CHANGED} intent is received.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void receivedNonCarrierConfigChangedIntent() throws Exception {
+        ArgumentCaptor<BroadcastReceiver> receiver =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+        verify(mContext).registerReceiver(receiver.capture(), any(IntentFilter.class));
+        receiver.getValue().onReceive(mContext, new Intent("dummyIntent"));
+        verify(mCarrierConfigManager, never()).getConfig();
+    }
+
+    private PersistableBundle generateTestCarrierConfig(boolean requiresImsiEncryption) {
+        PersistableBundle bundle = new PersistableBundle();
+        if (requiresImsiEncryption) {
+            bundle.putInt(CarrierConfigManager.IMSI_KEY_AVAILABILITY_INT,
+                    TelephonyManager.KEY_TYPE_WLAN);
+        }
+        return bundle;
+    }
+
+    /**
+     * Verify getting value about that if the IMSI encryption is required or not when
+     * {@link CarrierConfigManager#ACTION_CARRIER_CONFIG_CHANGED} intent is received.
+     */
+    @Test
+    public void receivedCarrierConfigChangedIntent() throws Exception {
+        when(mCarrierConfigManager.getConfigForSubId(DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        when(mCarrierConfigManager.getConfigForSubId(NON_DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(false));
+        ArgumentCaptor<BroadcastReceiver> receiver =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+        verify(mContext).registerReceiver(receiver.capture(), any(IntentFilter.class));
+
+        receiver.getValue().onReceive(mContext,
+                new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
+
+        assertTrue(mTelephonyUtil.requiresImsiEncryption(DATA_SUBID));
+        assertFalse(mTelephonyUtil.requiresImsiEncryption(NON_DATA_SUBID));
+    }
+
+    /**
+     * Verify the IMSI encryption is cleared when the configuration in CarrierConfig is removed.
+     */
+    @Test
+    public void imsiEncryptionRequiredInfoIsCleared() {
+        when(mCarrierConfigManager.getConfigForSubId(DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        when(mCarrierConfigManager.getConfigForSubId(NON_DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        ArgumentCaptor<BroadcastReceiver> receiver =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+        verify(mContext).registerReceiver(receiver.capture(), any(IntentFilter.class));
+
+        receiver.getValue().onReceive(mContext,
+                new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
+
+        assertTrue(mTelephonyUtil.requiresImsiEncryption(DATA_SUBID));
+        assertTrue(mTelephonyUtil.requiresImsiEncryption(NON_DATA_SUBID));
+
+        when(mCarrierConfigManager.getConfigForSubId(DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(false));
+        when(mCarrierConfigManager.getConfigForSubId(NON_DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(false));
+        receiver.getValue().onReceive(mContext,
+                new Intent(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED));
+
+        assertFalse(mTelephonyUtil.requiresImsiEncryption(DATA_SUBID));
+        assertFalse(mTelephonyUtil.requiresImsiEncryption(NON_DATA_SUBID));
+    }
+
+    /**
+     * Verify that if the IMSI encryption is downloaded.
+     */
+    @Test
+    public void availableOfImsiEncryptionInfoIsUpdated() {
+        when(mCarrierConfigManager.getConfigForSubId(DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        when(mCarrierConfigManager.getConfigForSubId(NON_DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(false));
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
+                .thenReturn(null);
+        when(mNonDataTelephonyManager
+                .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN)).thenReturn(null);
+
+        ArgumentCaptor<ContentObserver> observerCaptor =
+                ArgumentCaptor.forClass(ContentObserver.class);
+        verify(mFrameworkFacade).registerContentObserver(eq(mContext), any(Uri.class), eq(false),
+                observerCaptor.capture());
+        ContentObserver observer = observerCaptor.getValue();
+
+        observer.onChange(false);
+
+        assertTrue(mTelephonyUtil.requiresImsiEncryption(DATA_SUBID));
+        assertFalse(mTelephonyUtil.isImsiEncryptionInfoAvailable(DATA_SUBID));
+
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
+                .thenReturn(mock(ImsiEncryptionInfo.class));
+
+        observer.onChange(false);
+
+        assertTrue(mTelephonyUtil.requiresImsiEncryption(DATA_SUBID));
+        assertTrue(mTelephonyUtil.isImsiEncryptionInfoAvailable(DATA_SUBID));
+    }
+
+    /**
+     * Verify that if the IMSI encryption information is cleared
+     */
+    @Test
+    public void availableOfImsiEncryptionInfoIsCleared() {
+        when(mCarrierConfigManager.getConfigForSubId(DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        when(mCarrierConfigManager.getConfigForSubId(NON_DATA_SUBID))
+                .thenReturn(generateTestCarrierConfig(true));
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
+                .thenReturn(mock(ImsiEncryptionInfo.class));
+        when(mNonDataTelephonyManager
+                .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
+                        .thenReturn(mock(ImsiEncryptionInfo.class));
+
+        ArgumentCaptor<ContentObserver> observerCaptor =
+                ArgumentCaptor.forClass(ContentObserver.class);
+        verify(mFrameworkFacade).registerContentObserver(eq(mContext), any(Uri.class), eq(false),
+                observerCaptor.capture());
+        ContentObserver observer = observerCaptor.getValue();
+
+        observer.onChange(false);
+
+        assertTrue(mTelephonyUtil.isImsiEncryptionInfoAvailable(DATA_SUBID));
+        assertTrue(mTelephonyUtil.isImsiEncryptionInfoAvailable(NON_DATA_SUBID));
+
+        when(mDataTelephonyManager.getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN))
+                .thenReturn(null);
+        when(mNonDataTelephonyManager
+                .getCarrierInfoForImsiEncryption(TelephonyManager.KEY_TYPE_WLAN)).thenReturn(null);
+
+        observer.onChange(false);
+
+        assertFalse(mTelephonyUtil.isImsiEncryptionInfoAvailable(DATA_SUBID));
+        assertFalse(mTelephonyUtil.isImsiEncryptionInfoAvailable(NON_DATA_SUBID));
     }
 
     @Test
@@ -810,6 +981,19 @@ public class TelephonyUtilTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that a SIM is matched with carrier ID, and it requires IMSI encryption,
+     * when the IMSI encryption info is not available, it should return null.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdWithValidCarrierIdForImsiEncryptionCheck() {
+        TelephonyUtil spyTu = spy(mTelephonyUtil);
+        doReturn(true).when(spyTu).requiresImsiEncryption(DATA_SUBID);
+        doReturn(false).when(spyTu).isImsiEncryptionInfoAvailable(DATA_SUBID);
+
+        assertNull(spyTu.getMatchingImsi(DATA_CARRIER_ID));
+    }
+
+    /**
      * Verify that if there is SIM card whose carrier ID is the same as the input, the correct IMSI
      * and carrier ID would be returned.
      */
@@ -959,6 +1143,28 @@ public class TelephonyUtilTest extends WifiBaseTest {
 
         assertEquals(new Pair<>(NON_DATA_FULL_IMSI, NON_DATA_CARRIER_ID),
                 mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that a SIM is matched, and it requires IMSI encryption, when the IMSI encryption
+     * info is not available, it should return null.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdForImsiEncryptionCheck() {
+        // data SIM is MNO.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        // non data SIM does not match.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
+        when(mNonDataTelephonyManager.getSimOperator())
+                .thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+        TelephonyUtil spyTu = spy(mTelephonyUtil);
+        doReturn(true).when(spyTu).requiresImsiEncryption(eq(DATA_SUBID));
+        doReturn(false).when(spyTu).isImsiEncryptionInfoAvailable(eq(DATA_SUBID));
+
+        assertNull(spyTu.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
     }
 
     /**

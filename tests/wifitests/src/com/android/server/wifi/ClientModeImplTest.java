@@ -371,7 +371,6 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock PackageManager mPackageManager;
     @Mock WifiLockManager mWifiLockManager;
     @Mock AsyncChannel mNullAsyncChannel;
-    @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock Handler mNetworkAgentHandler;
     @Mock BatteryStatsManager mBatteryStatsManager;
     @Mock MboOceController mMboOceController;
@@ -430,7 +429,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
-        when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
         when(mWifiInjector.makeConnectionFailureNotifier(any()))
@@ -488,7 +486,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mSubscriptionManager.getActiveSubscriptionIdList())
                 .thenReturn(new int[]{DATA_SUBID});
 
-        TelephonyUtil tu = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
+        TelephonyUtil tu = new TelephonyUtil(mTelephonyManager, mSubscriptionManager,
+                mock(FrameworkFacade.class), mock(Context.class), mock(Handler.class));
         mTelephonyUtil = spy(tu);
         // static mocking
         mSession = ExtendedMockito.mockitoSession().strictness(Strictness.LENIENT)
@@ -1065,7 +1064,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .mockStatic(SubscriptionManager.class)
                 .startMocking();
         when(SubscriptionManager.getDefaultDataSubscriptionId()).thenReturn(DATA_SUBID);
-        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        doReturn(true).when(mTelephonyUtil).isImsiEncryptionInfoAvailable(anyInt());
 
         // Initial value should be "not set"
         assertEquals("", mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
@@ -1121,7 +1120,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .mockStatic(SubscriptionManager.class)
                 .startMocking();
         when(SubscriptionManager.getDefaultDataSubscriptionId()).thenReturn(DATA_SUBID);
-        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        doReturn(true).when(mTelephonyUtil).isImsiEncryptionInfoAvailable(anyInt());
 
         triggerConnect();
 
@@ -1175,7 +1174,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .mockStatic(SubscriptionManager.class)
                 .startMocking();
         when(SubscriptionManager.getDefaultDataSubscriptionId()).thenReturn(DATA_SUBID);
-        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+        doReturn(true).when(mTelephonyUtil).isImsiEncryptionInfoAvailable(anyInt());
 
         triggerConnect();
 
