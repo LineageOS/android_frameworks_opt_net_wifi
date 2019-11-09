@@ -448,12 +448,17 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         enforceAccessPermission();
         enforceChangePermission();
         mWifiPermissionsUtil.enforceFineLocationPermission(callingPackage, callingFeatureId, uid);
+
+        final WorkSource ws;
         if (workSource != null) {
             enforceLocationHardware();
             // We only care about UIDs in the incoming worksources and not their associated
             // tags. Clear names so that other operations involving wakesources become simpler.
-            workSource.clearNames();
+            ws = workSource.withoutNames();
+        } else {
+            ws = null;
         }
+
         boolean isCalledFromPrivilegedContext =
                 checkLocationHardware() && mShellCommand.getControlParam(
                         CONTROL_PARAM_OVERRIDE_ASSUME_NO_PRIVILEGE_NAME) == 0;
@@ -479,8 +484,8 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         }
 
         mRttServiceSynchronized.mHandler.post(() -> {
-            WorkSource sourceToUse = workSource;
-            if (workSource == null || workSource.isEmpty()) {
+            WorkSource sourceToUse = ws;
+            if (ws == null || ws.isEmpty()) {
                 sourceToUse = new WorkSource(uid);
             }
             mRttServiceSynchronized.queueRangingRequest(uid, sourceToUse, binder, dr,
@@ -493,19 +498,17 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     public void cancelRanging(WorkSource workSource) throws RemoteException {
         if (VDBG) Log.v(TAG, "cancelRanging: workSource=" + workSource);
         enforceLocationHardware();
-        if (workSource != null) {
-            // We only care about UIDs in the incoming worksources and not their associated
-            // tags. Clear names so that other operations involving wakesources become simpler.
-            workSource.clearNames();
-        }
+        // We only care about UIDs in the incoming worksources and not their associated
+        // tags. Clear names so that other operations involving wakesources become simpler.
+        final WorkSource ws = (workSource != null) ? workSource.withoutNames() : null;
 
-        if (workSource == null || workSource.isEmpty()) {
-            Log.e(TAG, "cancelRanging: invalid work-source -- " + workSource);
+        if (ws == null || ws.isEmpty()) {
+            Log.e(TAG, "cancelRanging: invalid work-source -- " + ws);
             return;
         }
 
         mRttServiceSynchronized.mHandler.post(() -> {
-            mRttServiceSynchronized.cleanUpClientRequests(0, workSource);
+            mRttServiceSynchronized.cleanUpClientRequests(0, ws);
         });
     }
 
@@ -739,11 +742,11 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
 
             for (RttRequestInfo rri : mRttRequestQueue) {
                 for (int i = 0; i < rri.workSource.size(); ++i) {
-                    int uid = rri.workSource.get(i);
+                    int uid = rri.workSource.getUid(i);
                     counts.put(uid, counts.get(uid) + 1);
                 }
 
-                final ArrayList<WorkChain> workChains = rri.workSource.getWorkChains();
+                final List<WorkChain> workChains = rri.workSource.getWorkChains();
                 if (workChains != null) {
                     for (int i = 0; i < workChains.size(); ++i) {
                         final int uid = workChains.get(i).getAttributionUid();
@@ -753,12 +756,12 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             }
 
             for (int i = 0; i < ws.size(); ++i) {
-                if (counts.get(ws.get(i)) < MAX_QUEUED_PER_UID) {
+                if (counts.get(ws.getUid(i)) < MAX_QUEUED_PER_UID) {
                     return false;
                 }
             }
 
-            final ArrayList<WorkChain> workChains = ws.getWorkChains();
+            final List<WorkChain> workChains = ws.getWorkChains();
             if (workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
                     final int uid = workChains.get(i).getAttributionUid();
@@ -887,9 +890,9 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             // are all UIDs running in the background or is at least 1 in the foreground?
             boolean allUidsInBackground = true;
             for (int i = 0; i < ws.size(); ++i) {
-                int uidImportance = mActivityManager.getUidImportance(ws.get(i));
+                int uidImportance = mActivityManager.getUidImportance(ws.getUid(i));
                 if (VDBG) {
-                    Log.v(TAG, "preExecThrottleCheck: uid=" + ws.get(i) + " -> importance="
+                    Log.v(TAG, "preExecThrottleCheck: uid=" + ws.getUid(i) + " -> importance="
                             + uidImportance);
                 }
                 if (uidImportance <= IMPORTANCE_FOREGROUND_SERVICE) {
@@ -898,7 +901,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                 }
             }
 
-            final ArrayList<WorkChain> workChains = ws.getWorkChains();
+            final List<WorkChain> workChains = ws.getWorkChains();
             if (allUidsInBackground && workChains != null) {
                 for (int i = 0; i < workChains.size(); ++i) {
                     final WorkChain wc = workChains.get(i);
@@ -922,7 +925,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
                     mClock.getElapsedSinceBootMillis() - mBackgroundProcessExecGapMs;
             if (allUidsInBackground) {
                 for (int i = 0; i < ws.size(); ++i) {
-                    RttRequesterInfo info = mRttRequesterInfo.get(ws.get(i));
+                    RttRequesterInfo info = mRttRequesterInfo.get(ws.getUid(i));
                     if (info == null || info.lastRangingExecuted < mostRecentExecutionPermitted) {
                         allowExecution = true;
                         break;
@@ -947,10 +950,10 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             // update exec time
             if (allowExecution) {
                 for (int i = 0; i < ws.size(); ++i) {
-                    RttRequesterInfo info = mRttRequesterInfo.get(ws.get(i));
+                    RttRequesterInfo info = mRttRequesterInfo.get(ws.getUid(i));
                     if (info == null) {
                         info = new RttRequesterInfo();
-                        mRttRequesterInfo.put(ws.get(i), info);
+                        mRttRequesterInfo.put(ws.getUid(i), info);
                     }
                     info.lastRangingExecuted = mClock.getElapsedSinceBootMillis();
                 }

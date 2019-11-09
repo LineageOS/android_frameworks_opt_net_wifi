@@ -443,7 +443,7 @@ public class WifiLockManager {
     private void addWsToLlWatchList(WorkSource ws) {
         int wsSize = ws.size();
         for (int i = 0; i < wsSize; i++) {
-            final int uid = ws.get(i);
+            final int uid = ws.getUid(i);
             addUidToLlWatchList(uid);
         }
 
@@ -460,7 +460,7 @@ public class WifiLockManager {
     private void removeWsFromLlWatchList(WorkSource ws) {
         int wsSize = ws.size();
         for (int i = 0; i < wsSize; i++) {
-            final int uid = ws.get(i);
+            final int uid = ws.getUid(i);
             removeUidFromLlWatchList(uid);
         }
 

@@ -502,12 +502,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     private WorkSource computeWorkSource(ClientInfo ci, WorkSource requestedWorkSource) {
-        if (requestedWorkSource != null) {
-            requestedWorkSource.clearNames();
-
-            if (!requestedWorkSource.isEmpty()) {
-                return requestedWorkSource;
-            }
+        if (requestedWorkSource != null && !requestedWorkSource.isEmpty()) {
+            return requestedWorkSource.withoutNames();
         }
 
         if (ci.getUid() > 0) {

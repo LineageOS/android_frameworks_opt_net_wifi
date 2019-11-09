@@ -215,7 +215,7 @@ public class RttMetrics {
         boolean recordedIntervals = false;
 
         for (int i = 0; i < ws.size(); ++i) {
-            int uid = ws.get(i);
+            int uid = ws.getUid(i);
 
             PerUidInfo perUidInfo = peerInfo.perUidInfo.get(uid);
             if (perUidInfo == null) {
