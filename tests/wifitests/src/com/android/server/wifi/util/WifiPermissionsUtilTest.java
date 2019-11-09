@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -83,6 +84,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
     private static final String TEST_WIFI_STACK_APK_NAME = "com.android.wifi";
     private static final String TEST_PACKAGE_NAME = "com.google.somePackage";
+    private static final String TEST_FEATURE_ID = "com.google.someFeature";
     private static final String INVALID_PACKAGE  = "BAD_PACKAGE";
     private static final int MANAGED_PROFILE_UID = 1100000;
     private static final int OTHER_USER_UID = 1200000;
@@ -177,7 +179,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -199,7 +201,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -216,7 +218,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -243,7 +246,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -264,7 +267,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -288,7 +292,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -314,7 +319,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -335,7 +340,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -363,7 +369,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -395,7 +402,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -428,7 +436,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -464,7 +473,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -499,7 +509,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -532,7 +542,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -567,7 +578,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -599,7 +610,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -631,7 +642,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -663,7 +674,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
 
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid, null);
     }
 
     /**
@@ -676,7 +687,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceCanAccessScanResults(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid,
+                    null);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -698,7 +710,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid);
 
         // verify that checking FINE for legacy apps!
         verify(mMockAppOps).noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(),
@@ -721,7 +733,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid);
         verify(mMockAppOps)
                 .noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), anyInt(), anyString(), any(), any());
     }
@@ -745,7 +757,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+            codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid);
             fail("Expected SecurityException not thrown");
         } catch (SecurityException e) {
             // empty
@@ -937,7 +949,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, mUid);
+        codeUnderTest.enforceLocationPermission(TEST_PACKAGE_NAME, TEST_FEATURE_ID, mUid);
     }
 
     /**
@@ -960,13 +972,13 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, TEST_FEATURE_ID,
+                mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
 
         verify(mMockAppOps, never())
                 .unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME);
-        verify(mMockAppOps)
-                .noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null, null);
+        verify(mMockAppOps).noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME,
+                TEST_FEATURE_ID, null);
     }
 
     /**
@@ -990,8 +1002,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                IGNORE_LOCATION_SETTINGS, HIDE_FROM_APP_OPS);
+        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, TEST_FEATURE_ID,
+                mUid, IGNORE_LOCATION_SETTINGS, HIDE_FROM_APP_OPS);
 
         verify(mMockAppOps).unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid,
                 TEST_PACKAGE_NAME);
@@ -1022,8 +1034,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1050,8 +1062,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1079,8 +1091,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1107,8 +1119,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1135,8 +1147,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1163,8 +1175,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         setupTestCase();
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
-        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                IGNORE_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+        codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, TEST_FEATURE_ID,
+                mUid, IGNORE_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
     }
 
     /**
@@ -1188,8 +1200,8 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
                 mMockContext, mMockUserManager, mWifiInjector);
         try {
-            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME, mUid,
-                    CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
+            codeUnderTest.enforceCanAccessScanResultsForWifiScanner(TEST_PACKAGE_NAME,
+                    TEST_FEATURE_ID, mUid, CHECK_LOCATION_SETTINGS, DONT_HIDE_FROM_APP_OPS);
             fail("Expected SecurityException is not thrown");
         } catch (SecurityException e) {
         }
@@ -1217,12 +1229,14 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         when(mMockPkgMgr.getApplicationInfoAsUser(eq(TEST_PACKAGE_NAME), eq(0), any()))
             .thenReturn(mMockApplInfo);
         when(mMockContext.getPackageManager()).thenReturn(mMockPkgMgr);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_WIFI_SCAN, mUid, TEST_PACKAGE_NAME, null, null))
-                .thenReturn(mWifiScanAllowApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_COARSE_LOCATION, mUid, TEST_PACKAGE_NAME, null,
-                null)).thenReturn(mAllowCoarseLocationApps);
-        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME, null,
-                null)).thenReturn(mAllowFineLocationApps);
+        when(mMockAppOps.noteOp(AppOpsManager.OPSTR_WIFI_SCAN, mUid, TEST_PACKAGE_NAME,
+                TEST_FEATURE_ID, null)).thenReturn(mWifiScanAllowApps);
+        when(mMockAppOps.noteOp(eq(AppOpsManager.OPSTR_COARSE_LOCATION), eq(mUid),
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), nullable(String.class)))
+                .thenReturn(mAllowCoarseLocationApps);
+        when(mMockAppOps.noteOp(eq(AppOpsManager.OPSTR_FINE_LOCATION), eq(mUid),
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), nullable(String.class)))
+                .thenReturn(mAllowFineLocationApps);
         when(mMockAppOps.unsafeCheckOp(AppOpsManager.OPSTR_FINE_LOCATION, mUid, TEST_PACKAGE_NAME))
                 .thenReturn(mAllowFineLocationApps);
         if (mThrowSecurityException) {

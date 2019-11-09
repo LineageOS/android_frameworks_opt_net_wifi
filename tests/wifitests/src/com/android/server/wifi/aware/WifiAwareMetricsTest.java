@@ -239,25 +239,25 @@ public class WifiAwareMetricsTest extends WifiBaseTest {
 
         // uid1: session 1
         clients.put(10,
-                new WifiAwareClientState(mMockContext, 10, uid1, 0, null, null, null, false,
+                new WifiAwareClientState(mMockContext, 10, uid1, 0, null, null, null, null, false,
                         mClock.getElapsedSinceBootMillis(), mWifiPermissionsUtil));
         mDut.recordAttachSession(uid1, false, clients);
 
         // uid1: session 2
         clients.put(11,
-                new WifiAwareClientState(mMockContext, 11, uid1, 0, null, null, null, false,
+                new WifiAwareClientState(mMockContext, 11, uid1, 0, null, null, null, null, false,
                         mClock.getElapsedSinceBootMillis(), mWifiPermissionsUtil));
         mDut.recordAttachSession(uid1, false, clients);
 
         // uid2: session 1
         clients.put(12,
-                new WifiAwareClientState(mMockContext, 12, uid2, 0, null, null, null, false,
+                new WifiAwareClientState(mMockContext, 12, uid2, 0, null, null, null, null, false,
                         mClock.getElapsedSinceBootMillis(), mWifiPermissionsUtil));
         mDut.recordAttachSession(uid2, false, clients);
 
         // uid2: session 2
         clients.put(13,
-                new WifiAwareClientState(mMockContext, 13, uid2, 0, null, null, null, true,
+                new WifiAwareClientState(mMockContext, 13, uid2, 0, null, null, null, null, true,
                         mClock.getElapsedSinceBootMillis(), mWifiPermissionsUtil));
         mDut.recordAttachSession(uid2, true, clients);
 
@@ -273,7 +273,7 @@ public class WifiAwareMetricsTest extends WifiBaseTest {
 
         // uid2: session 3
         clients.put(14,
-                new WifiAwareClientState(mMockContext, 14, uid2, 0, null, null, null, false,
+                new WifiAwareClientState(mMockContext, 14, uid2, 0, null, null, null, null, false,
                         mClock.getElapsedSinceBootMillis(), mWifiPermissionsUtil));
         mDut.recordAttachSession(uid2, false, clients);
 
@@ -317,11 +317,11 @@ public class WifiAwareMetricsTest extends WifiBaseTest {
 
         setTime(5);
         WifiAwareClientState client1 = new WifiAwareClientState(mMockContext, 10, uid1, 0, null,
-                null, null, false, 0, mWifiPermissionsUtil);
+                null, null, null, false, 0, mWifiPermissionsUtil);
         WifiAwareClientState client2 = new WifiAwareClientState(mMockContext, 11, uid2, 0, null,
-                null, null, false, 0, mWifiPermissionsUtil);
+                null, null, null, false, 0, mWifiPermissionsUtil);
         WifiAwareClientState client3 = new WifiAwareClientState(mMockContext, 12, uid3, 0, null,
-                null, null, false, 0, mWifiPermissionsUtil);
+                null, null, null, false, 0, mWifiPermissionsUtil);
         clients.put(10, client1);
         clients.put(11, client2);
         clients.put(12, client3);
