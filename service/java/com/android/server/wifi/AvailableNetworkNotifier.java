@@ -46,7 +46,8 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.nano.WifiMetricsProto.ConnectToNetworkNotificationAndActionCount;
+import com.android.server.wifi.proto.nano.WifiMetricsProto
+        .ConnectToNetworkNotificationAndActionCount;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.io.FileDescriptor;
@@ -141,7 +142,8 @@ public class AvailableNetworkNotifier {
 
     /**
      * The nominator id for this class, from
-     * {@link com.android.server.wifi.nano.WifiMetricsProto.ConnectionEvent.ConnectionNominator}
+     * {@link com.android.server.wifi.proto.nano.WifiMetricsProto.ConnectionEvent.
+     * ConnectionNominator}
      */
     private final int mNominatorId;
 

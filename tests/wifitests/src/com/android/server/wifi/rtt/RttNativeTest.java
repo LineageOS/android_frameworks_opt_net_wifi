@@ -45,6 +45,7 @@ import android.hardware.wifi.V1_0.WifiStatusCode;
 import android.net.MacAddress;
 import android.net.wifi.rtt.RangingRequest;
 import android.net.wifi.rtt.RangingResult;
+import android.net.wifi.rtt.ResponderConfig;
 
 import androidx.test.filters.SmallTest;
 
@@ -121,6 +122,8 @@ public class RttNativeTest extends WifiBaseTest {
         verify(mockRttController).getCapabilities(mGetCapCbCatpr.capture());
         // will override capabilities (just call cb again) for specific tests
         mGetCapCbCatpr.getValue().onValues(mStatusSuccess, getFullRttCapabilities());
+        // This is for the castFrom() call
+        verify(mockRttController).asBinder();
         assertTrue(mDut.isReady());
     }
 
@@ -367,6 +370,8 @@ public class RttNativeTest extends WifiBaseTest {
         verify(mockRttController, times(2)).registerEventCallback(any());
         verify(mockRttServiceImpl, times(2)).enableIfPossible();
         verify(mockRttController, times(2)).getCapabilities(mGetCapCbCatpr.capture());
+        // This is for the castFrom() calls
+        verify(mockRttController, times(2)).asBinder();
         assertTrue(mDut.isReady());
 
         verifyNoMoreInteractions(mockRttServiceImpl, mockRttController);
@@ -472,6 +477,28 @@ public class RttNativeTest extends WifiBaseTest {
         }
     }
 
+    /**
+     * Validation ranging with invalid bw and preamble combination will be ignored.
+     */
+    @Test
+    public void testRangingWithInvalidParameterCombination() throws Exception {
+        int cmdId = 88;
+        RangingRequest request = new RangingRequest.Builder().build();
+        ResponderConfig invalidConfig = new ResponderConfig(
+                MacAddress.fromString("08:09:08:07:06:88"), ResponderConfig.RESPONDER_AP, true,
+                ResponderConfig.CHANNEL_WIDTH_80MHZ, 0, 0, 0, ResponderConfig.PREAMBLE_HT);
+        ResponderConfig config = new ResponderConfig(MacAddress.fromString("08:09:08:07:06:89"),
+                ResponderConfig.RESPONDER_AP, true,
+                ResponderConfig.CHANNEL_WIDTH_80MHZ, 0, 0, 0, ResponderConfig.PREAMBLE_VHT);
+
+        // Add a ResponderConfig with invalid parameter, should be ignored.
+        request.mRttPeers.add(invalidConfig);
+        request.mRttPeers.add(config);
+        mDut.rangeRequest(cmdId, request, true);
+        verify(mockRttController).rangeRequest(eq(cmdId), mRttConfigCaptor.capture());
+        assertEquals(request.mRttPeers.size() - 1, mRttConfigCaptor.getValue().size());
+    }
+
     // Utilities
 
     /**
@@ -487,7 +514,8 @@ public class RttNativeTest extends WifiBaseTest {
         cap.lciSupported = true;
         cap.lcrSupported = true;
         cap.responderSupported = true; // unused
-        cap.preambleSupport = RttPreamble.LEGACY | RttPreamble.HT | RttPreamble.VHT;
+        cap.preambleSupport = RttPreamble.LEGACY | RttPreamble.HT | RttPreamble.VHT
+                | android.hardware.wifi.V1_4.RttPreamble.HE;
         cap.bwSupport =
                 RttBw.BW_5MHZ | RttBw.BW_10MHZ | RttBw.BW_20MHZ | RttBw.BW_40MHZ | RttBw.BW_80MHZ
                         | RttBw.BW_160MHZ;

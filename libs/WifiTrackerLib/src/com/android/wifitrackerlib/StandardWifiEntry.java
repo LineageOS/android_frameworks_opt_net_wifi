@@ -56,7 +56,7 @@ class StandardWifiEntry extends WifiEntry {
 
     StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull List<ScanResult> scanResults)
             throws IllegalArgumentException {
-        super(callbackHandler);
+        super(callbackHandler, false /* forSavedNetworksPage */);
 
         checkNotNull(scanResults, "Cannot construct with null ScanResult list!");
         if (scanResults.isEmpty()) {
@@ -71,7 +71,7 @@ class StandardWifiEntry extends WifiEntry {
 
     StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull WifiConfiguration config)
             throws IllegalArgumentException {
-        super(callbackHandler);
+        super(callbackHandler, true /* forSavedNetworksPage */);
 
         checkNotNull(config, "Cannot construct with null config!");
         checkNotNull(config.SSID, "Supplied config must have an SSID!");
@@ -102,6 +102,8 @@ class StandardWifiEntry extends WifiEntry {
     @Override
     public String getSummary() {
         // TODO(b/70983952): Fill this method in
+        if (mForSavedNetworksPage) return null;
+
         if (isSaved()) return "Saved"; // Placeholder for visual verification
         return null;
     }

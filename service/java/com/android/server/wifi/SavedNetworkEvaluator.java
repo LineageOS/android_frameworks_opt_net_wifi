@@ -23,9 +23,9 @@ import android.net.wifi.WifiConfiguration;
 import android.telephony.SubscriptionManager;
 import android.util.LocalLog;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.TelephonyUtil;
+import com.android.wifi.R;
 
 import java.util.List;
 

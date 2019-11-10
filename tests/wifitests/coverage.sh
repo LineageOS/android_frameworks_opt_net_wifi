@@ -20,28 +20,19 @@ BUILD_OUT_DIR=$OUTPUT_DIR/out
 
 cd "$(dirname $0)" #cd to directory containing this script
 
-REPORTER_JAR=$ANDROID_HOST_OUT/framework/jacoco-cli.jar
-if [ -f $REPORTER_JAR ]; then
-  echo "jacoco-cli.jar found, skipping uninstrumented build"
-else
-  echo "Building jacoco cli and adb"
-  $ANDROID_BUILD_TOP/build/soong/soong_ui.bash --make-mode \
-      MODULES-IN-system-core MODULES-IN-external-jacoco || exit 1
-fi
-
 echo "Running tests and generating coverage report"
 echo "Output dir: $OUTPUT_DIR"
 
 REMOTE_COVERAGE_OUTPUT_FILE=/data/data/com.android.server.wifi.test/files/coverage.ec
 COVERAGE_OUTPUT_FILE=$OUTPUT_DIR/wifi_coverage.ec
 
-set -e # fail early
-set -x # print commands
 
+# Note - the $VARs in the following are expanded by the here-file redirection!
+echo "Building for coverage report"
 bash <<END_OF_BUILD_SCRIPT || { exit 1; }
   cd $ANDROID_BUILD_TOP
   source build/make/envsetup.sh
-  tapas FrameworksWifiTests
+  tapas FrameworksWifiTests jacoco-cli
   export OUT_DIR=$BUILD_OUT_DIR
   export TARGET_PRODUCT=$TARGET_PRODUCT
   export EMMA_INSTRUMENT=true
@@ -52,7 +43,13 @@ bash <<END_OF_BUILD_SCRIPT || { exit 1; }
   m
 END_OF_BUILD_SCRIPT
 
-APK_NAME="$(ls -t $(find $BUILD_OUT_DIR -name FrameworksWifiTests.apk) | head -n 1)"
+APK_NAME="$(find $BUILD_OUT_DIR/target -name FrameworksWifiTests.apk)"
+REPORTER_JAR="$(find $BUILD_OUT_DIR/host -name jacoco-cli.jar)"
+
+set -e # fail early
+set -x # print commands
+test -f "$APK_NAME"
+test -f "$REPORTER_JAR"
 
 adb root
 adb wait-for-device
@@ -61,19 +58,19 @@ adb shell rm -f $REMOTE_COVERAGE_OUTPUT_FILE
 
 adb install -r -g "$APK_NAME"
 
-adb shell am instrument -e coverage true --no-hidden-api-checks -w 'com.android.server.wifi.test/com.android.server.wifi.CustomTestRunner'
-
+adb shell am instrument -e coverage true --no-hidden-api-checks \
+  -w 'com.android.server.wifi.test/com.android.server.wifi.CustomTestRunner'
 
 adb pull $REMOTE_COVERAGE_OUTPUT_FILE $COVERAGE_OUTPUT_FILE
 
 java -jar $REPORTER_JAR \
   report \
-  --classfiles $ANDROID_BUILD_TOP/out/soong/.intermediates/frameworks/opt/net/wifi/service/wifi-service/android_common/javac/classes/ \
   --html $OUTPUT_DIR \
-  --sourcefiles $ANDROID_BUILD_TOP/frameworks/opt/net/wifi/tests/wifitests/src \
+  --classfiles $BUILD_OUT_DIR/target/common/obj/APPS/FrameworksWifiTests_intermediates/jacoco-report-classes.jar \
   --sourcefiles $ANDROID_BUILD_TOP/frameworks/opt/net/wifi/service/java \
   --name wifi-coverage \
   $COVERAGE_OUTPUT_FILE
+set +x
 
-echo Created report at $OUTPUT_DIR/index.html
+echo Created report at file://$OUTPUT_DIR/index.html
 

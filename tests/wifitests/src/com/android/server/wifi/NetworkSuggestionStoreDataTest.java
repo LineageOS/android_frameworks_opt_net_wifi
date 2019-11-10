@@ -28,6 +28,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
+import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -53,6 +54,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     private static final int TEST_UID_2 = 14536;
     private static final String TEST_PACKAGE_NAME_1 = "com.android.test.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.android.test.2";
+    private static final String  TEST_FEATURE_ID = "com.android.feature.1";
     private static final String TEST_CORRUPT_DATA_INVALID_SSID =
             "<NetworkSuggestionPerApp>\n"
             + "<string name=\"SuggestorPackageName\">com.android.test.1</string>\n"
@@ -119,7 +121,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mNetworkSuggestionStoreData.serializeData(out);
+        mNetworkSuggestionStoreData.serializeData(out, mock(WifiConfigStoreEncryptionUtil.class));
         out.flush();
         return outputStream.toByteArray();
     }
@@ -131,7 +133,9 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
-        mNetworkSuggestionStoreData.deserializeData(in, in.getDepth());
+        mNetworkSuggestionStoreData.deserializeData(in, in.getDepth(),
+                WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                mock(WifiConfigStoreEncryptionUtil.class));
     }
 
     /**
@@ -150,7 +154,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeSingleNetworkSuggestionFromSingleApp() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_NAME_1);
+        PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
 
         WifiConfiguration configuration = WifiConfigurationTestUtil.createEapNetwork();
         configuration.enterpriseConfig =
@@ -184,7 +188,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeSingleNetworkSuggestionFromMultipleApps() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1);
+        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
@@ -193,7 +197,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
-        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2);
+        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_2,
                 TEST_PACKAGE_NAME_2);
@@ -212,7 +216,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeMultipleNetworkSuggestionFromMultipleApps() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1);
+        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, TEST_UID_1,
                 TEST_PACKAGE_NAME_1);
@@ -226,7 +230,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo1));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
-        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2);
+        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
                 WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, TEST_UID_2,
                 TEST_PACKAGE_NAME_2);

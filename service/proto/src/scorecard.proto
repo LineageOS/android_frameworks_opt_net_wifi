@@ -18,7 +18,7 @@ syntax = "proto2";
 
 package com_android_server_wifi;
 
-option java_package = "com.android.server.wifi";
+option java_package = "com.android.server.wifi.proto";
 option java_outer_classname = "WifiScoreCardProto";
 
 message NetworkList {

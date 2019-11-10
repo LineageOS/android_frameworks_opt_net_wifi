@@ -31,7 +31,7 @@ import android.net.wifi.EasyConnectStatusCallback;
 import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.IntHistogram;
 
 import java.io.PrintWriter;

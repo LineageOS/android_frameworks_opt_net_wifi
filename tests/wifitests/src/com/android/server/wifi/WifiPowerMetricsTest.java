@@ -24,8 +24,8 @@ import android.text.format.DateUtils;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.nano.WifiMetricsProto.WifiPowerStats;
-import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiPowerStats;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiRadioUsage;
 
 import org.junit.Before;
 import org.junit.Test;

@@ -31,10 +31,9 @@ import android.telephony.SubscriptionManager;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
 
-
-import com.android.internal.R;
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
+import com.android.wifi.R;
 
 import org.junit.After;
 import org.junit.Before;

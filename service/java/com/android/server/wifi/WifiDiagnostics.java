@@ -23,10 +23,10 @@ import android.util.Base64;
 import android.util.Log;
 import android.util.SparseLongArray;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.ByteArrayRingBuffer;
 import com.android.server.wifi.util.StringUtil;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -299,7 +299,8 @@ class WifiDiagnostics extends BaseWifiDiagnostics {
      * Initiates a system-level bugreport, in a non-blocking fashion.
      */
     public void takeBugReport(String bugTitle, String bugDetail) {
-        if (mBuildProperties.isUserBuild()) {
+        // TODO (b/143494985): Re-enable it once we have a formal API.
+        if (true || mBuildProperties.isUserBuild()) {
             return;
         }
 

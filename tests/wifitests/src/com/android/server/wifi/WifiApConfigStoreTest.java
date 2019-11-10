@@ -43,8 +43,8 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
+import com.android.wifi.R;
 
 import org.junit.After;
 import org.junit.Before;

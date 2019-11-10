@@ -68,8 +68,9 @@ import android.util.Xml;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.WifiNetworkFactory.AccessPoint;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
 import org.junit.After;
@@ -2959,7 +2960,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mNetworkRequestStoreData.serializeData(out);
+        mNetworkRequestStoreData.serializeData(out, mock(WifiConfigStoreEncryptionUtil.class));
         out.flush();
         return outputStream.toByteArray();
     }
@@ -2974,6 +2975,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         final XmlPullParser in = Xml.newPullParser();
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
-        mNetworkRequestStoreData.deserializeData(in, in.getDepth());
+        mNetworkRequestStoreData.deserializeData(in, in.getDepth(),
+                WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                mock(WifiConfigStoreEncryptionUtil.class));
     }
 }

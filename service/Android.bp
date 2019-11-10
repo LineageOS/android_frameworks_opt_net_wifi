@@ -73,7 +73,7 @@ cc_library_shared {
 
 // Build the wifi-service static library
 // ============================================================
-java_library {
+android_library {
     name: "wifi-service",
     installable: true,
     defaults: ["WifiStackCommon"],
@@ -85,10 +85,11 @@ java_library {
 
     libs: [
         "error_prone_annotations",
-        "libprotobuf-java-lite",
         "jsr305",
         "services",
     ],
+
+    manifest: "AndroidManifestBase.xml",
 
     static_libs: [
         "android.hardware.wifi-V1.0-java",
@@ -106,6 +107,11 @@ java_library {
         "androidx.annotation_annotation",
         "bouncycastle-unbundled",
         "ksoap2",
+	// Note: libprotobuf-java-lite uses a few core platform APIs which
+	// does show up as @hide API usage. But, this can be safely ignored
+	// since the library uses reflection to ensure that the OS does provide
+	// the necessary core platform APIs.
+        "libprotobuf-java-lite",
         "libnanohttpd",
         "services.net",
         "services.wifi",

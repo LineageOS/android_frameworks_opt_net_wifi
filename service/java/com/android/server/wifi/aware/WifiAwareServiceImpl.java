@@ -173,7 +173,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     }
 
     @Override
-    public void connect(final IBinder binder, String callingPackage,
+    public void connect(final IBinder binder, String callingPackage, String callingFeatureId,
             IWifiAwareEventCallback callback, ConfigRequest configRequest,
             boolean notifyOnIdentityChanged) {
         enforceAccessPermission();
@@ -190,7 +190,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
         }
 
         if (notifyOnIdentityChanged) {
-            enforceLocationPermission(callingPackage, getMockableCallingUid());
+            enforceLocationPermission(callingPackage, callingFeatureId, getMockableCallingUid());
         }
 
         if (configRequest != null) {
@@ -245,8 +245,8 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
             mUidByClientId.put(clientId, uid);
         }
 
-        mStateManager.connect(clientId, uid, pid, callingPackage, callback, configRequest,
-                notifyOnIdentityChanged);
+        mStateManager.connect(clientId, uid, pid, callingPackage, callingFeatureId, callback,
+                configRequest, notifyOnIdentityChanged);
     }
 
     @Override
@@ -290,15 +290,15 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     }
 
     @Override
-    public void publish(String callingPackage, int clientId, PublishConfig publishConfig,
-            IWifiAwareDiscoverySessionCallback callback) {
+    public void publish(String callingPackage, String callingFeatureId, int clientId,
+            PublishConfig publishConfig, IWifiAwareDiscoverySessionCallback callback) {
         enforceAccessPermission();
         enforceChangePermission();
 
         int uid = getMockableCallingUid();
         mAppOps.checkPackage(uid, callingPackage);
 
-        enforceLocationPermission(callingPackage, getMockableCallingUid());
+        enforceLocationPermission(callingPackage, callingFeatureId, getMockableCallingUid());
 
         if (callback == null) {
             throw new IllegalArgumentException("Callback must not be null");
@@ -340,15 +340,15 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     }
 
     @Override
-    public void subscribe(String callingPackage, int clientId, SubscribeConfig subscribeConfig,
-            IWifiAwareDiscoverySessionCallback callback) {
+    public void subscribe(String callingPackage, String callingFeatureId, int clientId,
+            SubscribeConfig subscribeConfig, IWifiAwareDiscoverySessionCallback callback) {
         enforceAccessPermission();
         enforceChangePermission();
 
         int uid = getMockableCallingUid();
         mAppOps.checkPackage(uid, callingPackage);
 
-        enforceLocationPermission(callingPackage, getMockableCallingUid());
+        enforceLocationPermission(callingPackage, callingFeatureId, getMockableCallingUid());
 
         if (callback == null) {
             throw new IllegalArgumentException("Callback must not be null");
@@ -469,8 +469,9 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.CHANGE_WIFI_STATE, TAG);
     }
 
-    private void enforceLocationPermission(String callingPackage, int uid) {
-        mWifiPermissionsUtil.enforceLocationPermission(callingPackage, uid);
+    private void enforceLocationPermission(String callingPackage, String callingFeatureId,
+            int uid) {
+        mWifiPermissionsUtil.enforceLocationPermission(callingPackage, callingFeatureId, uid);
     }
 
     private void enforceNetworkStackPermission() {

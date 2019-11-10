@@ -21,7 +21,7 @@ import android.os.Looper;
 import android.provider.Settings;
 
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.server.wifi.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 
 /**
  * This class handles the "open wi-fi network available" notification

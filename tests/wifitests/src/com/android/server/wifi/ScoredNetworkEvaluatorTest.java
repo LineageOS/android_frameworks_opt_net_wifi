@@ -237,7 +237,7 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                any(), anyInt());
+                any(), any(), anyInt(), any());
 
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs = WifiNetworkSelectorTestUtil
                 .setupScanDetailsAndConfigStore(
@@ -247,7 +247,7 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
 
         verify(mNetworkScoreManager, never()).requestScores(any());
         verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                eq(TEST_PACKAGE_NAME), eq(TEST_UID));
+                eq(TEST_PACKAGE_NAME), eq(null), eq(TEST_UID), nullable(String.class));
     }
 
     @Test
@@ -260,7 +260,7 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
         int[] levels = {mThresholdQualifiedRssi2G + 8, mThresholdQualifiedRssi2G + 10};
 
         doThrow(new SecurityException()).when(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                any(), anyInt());
+                any(), any(), anyInt(), any());
 
         ScanDetailsAndWifiConfigs scanDetailsAndConfigs = WifiNetworkSelectorTestUtil
                 .setupScanDetailsAndConfigStore(
@@ -270,7 +270,7 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
 
         verify(mNetworkScoreManager, never()).requestScores(any());
         verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                eq(TEST_PACKAGE_NAME), eq(TEST_UID));
+                eq(TEST_PACKAGE_NAME), eq(null), eq(TEST_UID), nullable(String.class));
     }
 
     /**

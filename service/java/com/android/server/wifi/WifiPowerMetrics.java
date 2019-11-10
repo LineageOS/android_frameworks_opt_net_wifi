@@ -19,8 +19,8 @@ import android.os.BatteryStatsManager;
 import android.os.connectivity.WifiBatteryStats;
 import android.text.format.DateUtils;
 
-import com.android.server.wifi.nano.WifiMetricsProto.WifiPowerStats;
-import com.android.server.wifi.nano.WifiMetricsProto.WifiRadioUsage;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiPowerStats;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiRadioUsage;
 
 import java.io.PrintWriter;
 import java.text.DecimalFormat;

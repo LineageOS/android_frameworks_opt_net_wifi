@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ import android.provider.Settings;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -150,7 +152,9 @@ public class WakeupControllerTest extends WifiBaseTest {
 
     private void readUserStore() {
         try {
-            mWakeupConfigStoreData.deserializeData(null, 0);
+            mWakeupConfigStoreData.deserializeData(null, 0,
+                    WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                    mock(WifiConfigStoreEncryptionUtil.class));
         } catch (XmlPullParserException | IOException e) {
             // unreachable
         }

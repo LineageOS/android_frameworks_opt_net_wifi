@@ -24,9 +24,9 @@ import android.os.Handler;
 import android.provider.Settings;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.TimedQuotaManager;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

@@ -39,8 +39,8 @@ import android.content.Context;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.R;
 import com.android.server.am.ActivityManagerService;
+import com.android.wifi.R;
 
 import org.junit.Before;
 import org.junit.Ignore;
@@ -857,6 +857,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     }
 
     @Test
+    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportCallsActivityManagerOnUserDebug() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         mWifiDiagnostics.takeBugReport("", "");
@@ -865,6 +866,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     }
 
     @Test
+    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportSwallowsExceptions() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         doThrow(new RuntimeException()).when(mActivityManagerService).requestWifiBugReport(

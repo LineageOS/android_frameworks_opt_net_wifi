@@ -45,7 +45,6 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
-import com.android.internal.R;
 import com.android.internal.os.PowerProfile;
 import com.android.server.am.ActivityManagerService;
 import com.android.server.wifi.aware.WifiAwareMetrics;
@@ -60,6 +59,7 @@ import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.server.wifi.wificond.IWificond;
+import com.android.wifi.R;
 
 import java.util.Random;
 
@@ -153,6 +153,7 @@ public class WifiInjector {
     private final WifiThreadRunner mWifiThreadRunner;
     private BssidBlocklistMonitor mBssidBlocklistMonitor;
     private final MacAddressUtil mMacAddressUtil;
+    private final MboOceController mMboOceController;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -241,7 +242,7 @@ public class WifiInjector {
         // New config store
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
         mWifiConfigStore = new WifiConfigStore(mContext, wifiHandler, mClock, mWifiMetrics,
-                WifiConfigStore.createSharedFile());
+                WifiConfigStore.createSharedFile(mFrameworkFacade.isNiapModeOn(mContext)));
         SubscriptionManager subscriptionManager =
                 mContext.getSystemService(SubscriptionManager.class);
         // Config Manager
@@ -306,12 +307,13 @@ public class WifiInjector {
                 mFrameworkFacade, wifiHandler, mContext);
         SupplicantStateTracker supplicantStateTracker = new SupplicantStateTracker(
                 mContext, mWifiConfigManager, mBatteryStats, wifiHandler);
+        mMboOceController = new MboOceController(makeTelephonyManager(), mWifiNative);
         mClientModeImpl = new ClientModeImpl(mContext, mFrameworkFacade,
                 wifiLooper, mUserManager,
                 this, mBackupManagerProxy, mCountryCode, mWifiNative,
                 new WrongPasswordNotifier(mContext, mFrameworkFacade),
                 mSarManager, mWifiTrafficPoller, mLinkProbeManager, mBatteryStats,
-                supplicantStateTracker);
+                supplicantStateTracker, mMboOceController);
         mActiveModeWarden = new ActiveModeWarden(this, wifiLooper,
                 mWifiNative, new DefaultModeManager(mContext), mBatteryStats, mWifiDiagnostics,
                 mContext, mClientModeImpl, mSettingsStore, mFrameworkFacade, mWifiPermissionsUtil);

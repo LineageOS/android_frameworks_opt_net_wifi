@@ -2249,15 +2249,30 @@ public class HalDeviceManager {
 
                 Mutable<IWifiRttController> rttResp = new Mutable<>();
                 try {
-                    chipInfo.chip.createRttController(null,
-                            (WifiStatus status, IWifiRttController rtt) -> {
-                                if (status.code == WifiStatusCode.SUCCESS) {
-                                    rttResp.value = rtt;
-                                } else {
-                                    Log.e(TAG, "IWifiChip.createRttController failed: "
-                                            + statusString(status));
-                                }
-                            });
+                    android.hardware.wifi.V1_4.IWifiChip chip14 =
+                            android.hardware.wifi.V1_4.IWifiChip.castFrom(chipInfo.chip);
+                    if (chip14 != null) {
+                        chip14.createRttController_1_4(null,
+                                (WifiStatus status,
+                                 android.hardware.wifi.V1_4.IWifiRttController rtt) -> {
+                                    if (status.code == WifiStatusCode.SUCCESS) {
+                                        rttResp.value = rtt;
+                                    } else {
+                                        Log.e(TAG, "IWifiChip.createRttController_1_4 failed: "
+                                                + statusString(status));
+                                    }
+                                });
+                    } else {
+                        chipInfo.chip.createRttController(null,
+                                (WifiStatus status, IWifiRttController rtt) -> {
+                                    if (status.code == WifiStatusCode.SUCCESS) {
+                                        rttResp.value = rtt;
+                                    } else {
+                                        Log.e(TAG, "IWifiChip.createRttController failed: "
+                                                + statusString(status));
+                                    }
+                                });
+                    }
                 } catch (RemoteException e) {
                     Log.e(TAG, "IWifiChip.createRttController exception: " + e);
                 }

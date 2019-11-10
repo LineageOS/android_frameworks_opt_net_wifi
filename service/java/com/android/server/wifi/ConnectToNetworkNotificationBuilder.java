@@ -24,8 +24,8 @@ import android.content.res.Resources;
 import android.net.wifi.ScanResult;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.notification.SystemNotificationChannels;
+import com.android.wifi.R;
 
 /**
  * Helper to create notifications for {@link OpenNetworkNotifier}.
@@ -161,14 +161,14 @@ public class ConnectToNetworkNotificationBuilder {
             CharSequence title, CharSequence content, String extraData) {
         return mFrameworkFacade.makeNotificationBuilder(mContext,
                 SystemNotificationChannels.NETWORK_AVAILABLE)
-                .setSmallIcon(R.drawable.stat_notify_wifi_in_range)
+                .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setTicker(title)
                 .setContentTitle(title)
                 .setContentText(content)
                 .setDeleteIntent(getPrivateBroadcast(ACTION_USER_DISMISSED_NOTIFICATION, extraData))
                 .setShowWhen(false)
                 .setLocalOnly(true)
-                .setColor(mResources.getColor(R.color.system_notification_accent_color,
+                .setColor(mResources.getColor(android.R.color.system_notification_accent_color,
                         mContext.getTheme()));
     }
 

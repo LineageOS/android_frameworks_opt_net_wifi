@@ -29,8 +29,7 @@ import static com.android.server.wifi.ScanTestUtil.channelsToSpec;
 import static com.android.server.wifi.ScanTestUtil.computeSingleScanNativeSettings;
 import static com.android.server.wifi.ScanTestUtil.createRequest;
 import static com.android.server.wifi.ScanTestUtil.createSingleScanNativeSettingsForChannels;
-import static com.android.server.wifi.scanner.WifiScanningServiceImpl.WifiSingleScanStateMachine
-        .CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS;
+import static com.android.server.wifi.scanner.WifiScanningServiceImpl.WifiSingleScanStateMachine.CACHED_SCAN_RESULTS_MAX_AGE_IN_MILLIS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -89,8 +88,8 @@ import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.WifiPowerMetrics;
 import com.android.server.wifi.aware.WifiAwareMetrics;
-import com.android.server.wifi.nano.WifiMetricsProto;
 import com.android.server.wifi.p2p.WifiP2pMetrics;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -122,6 +121,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
     private static final int TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES = 8;
     private static final String TEST_PACKAGE_NAME = "com.test.123";
+    private static final String TEST_FEATURE_ID = "test.feature";
     private static final String TEST_IFACE_NAME_0 = "wlan0";
     private static final String TEST_IFACE_NAME_1 = "wlan1";
     private static final WifiScanner.ScanData DUMMY_SCAN_DATA =
@@ -2690,7 +2690,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Location permission or mode check fail.
         doThrow(new SecurityException()).when(mWifiPermissionsUtil)
-                .enforceCanAccessScanResultsForWifiScanner(any(), eq(Binder.getCallingUid()),
+                .enforceCanAccessScanResultsForWifiScanner(any(), any(), eq(Binder.getCallingUid()),
                         eq(false), eq(false));
 
         Handler handler = mock(Handler.class);
@@ -2751,6 +2751,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
+        bundle.putString(WifiScanner.REQUEST_FEATURE_ID_KEY, TEST_FEATURE_ID);
         WifiScanner.ScanSettings scanSettings = new WifiScanner.ScanSettings();
 
         // send single scan request (ignoreLocationSettings == true).
@@ -2764,7 +2765,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Verify the permission check params (ignoreLocationSettings == true).
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(true), eq(false));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(true),
+                eq(false));
 
         // send single scan request (ignoreLocationSettings == false).
         scanSettings.ignoreLocationSettings = false;
@@ -2777,7 +2779,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Verify the permission check params (ignoreLocationSettings == true).
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false), eq(false));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(false),
+                eq(false));
 
         // send background scan request (ignoreLocationSettings == true).
         scanSettings.ignoreLocationSettings = true;
@@ -2790,7 +2793,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         // Verify the permission check params (ignoreLocationSettings == false), the field
         // is ignored for any requests other than single scan.
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false), eq(false));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(false),
+                eq(false));
     }
 
     /**
@@ -2815,6 +2819,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
+        bundle.putString(WifiScanner.REQUEST_FEATURE_ID_KEY, TEST_FEATURE_ID);
         WifiScanner.ScanSettings scanSettings = new WifiScanner.ScanSettings();
 
         // send single scan request (hideFromAppOps == true).
@@ -2828,7 +2833,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Verify the permission check params (hideFromAppOps == true).
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false), eq(true));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(false),
+                eq(true));
 
         // send single scan request (hideFromAppOps == false).
         scanSettings.hideFromAppOps = false;
@@ -2841,7 +2847,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Verify the permission check params (hideFromAppOps == false).
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false), eq(false));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(false),
+                eq(false));
 
         // send background scan request (hideFromAppOps == true).
         scanSettings.hideFromAppOps = true;
@@ -2854,7 +2861,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         // Verify the permission check params (hideFromAppOps == false), the field
         // is ignored for any requests other than single scan.
         verify(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), eq(false), eq(false));
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()), eq(false),
+                eq(false));
     }
 
     /**
@@ -2878,6 +2886,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
+        bundle.putString(WifiScanner.REQUEST_FEATURE_ID_KEY, TEST_FEATURE_ID);
         WifiScanner.ScanSettings scanSettings = new WifiScanner.ScanSettings();
 
         // send single scan request (hideFromAppOps == true, ignoreLocationSettings = true).
@@ -2892,7 +2901,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // Verify that we didn't invoke the location permission check.
         verify(mWifiPermissionsUtil, never()).enforceCanAccessScanResultsForWifiScanner(
-                eq(TEST_PACKAGE_NAME), eq(Binder.getCallingUid()), anyBoolean(), anyBoolean());
+                eq(TEST_PACKAGE_NAME), eq(TEST_FEATURE_ID), eq(Binder.getCallingUid()),
+                anyBoolean(), anyBoolean());
     }
 
     /**
@@ -3508,10 +3518,10 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         // Location permission or mode check fail.
         doThrow(new SecurityException())
                 .when(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                        TEST_PACKAGE_NAME, Binder.getCallingUid(), false, false);
+                TEST_PACKAGE_NAME, TEST_FEATURE_ID, Binder.getCallingUid(), false, false);
 
         mWifiScanningServiceImpl.getAvailableChannels(WifiScanner.WIFI_BAND_24_GHZ,
-                TEST_PACKAGE_NAME);
+                TEST_PACKAGE_NAME, TEST_FEATURE_ID);
     }
 
     /**
@@ -3529,10 +3539,10 @@ public class WifiScanningServiceTest extends WifiBaseTest {
 
         // has access scan results permission
         doNothing().when(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(
-                TEST_PACKAGE_NAME, Binder.getCallingUid(), false, false);
+                TEST_PACKAGE_NAME, TEST_FEATURE_ID, Binder.getCallingUid(), false, false);
 
         Bundle bundle = mWifiScanningServiceImpl.getAvailableChannels(
-                WifiScanner.WIFI_BAND_24_GHZ, TEST_PACKAGE_NAME);
+                WifiScanner.WIFI_BAND_24_GHZ, TEST_PACKAGE_NAME, TEST_FEATURE_ID);
         List<Integer> actual = bundle.getIntegerArrayList(GET_AVAILABLE_CHANNELS_EXTRA);
 
         List<Integer> expected = Arrays.asList(2400, 2450);

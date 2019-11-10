@@ -96,7 +96,6 @@ import android.util.Pair;
 import android.util.SparseArray;
 import android.util.StatsLog;
 
-import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
@@ -109,11 +108,11 @@ import com.android.server.wifi.hotspot2.IconEvent;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.WnmData;
-import com.android.server.wifi.nano.WifiMetricsProto;
-import com.android.server.wifi.nano.WifiMetricsProto.StaEvent;
-import com.android.server.wifi.nano.WifiMetricsProto.WifiIsUnusableEvent;
-import com.android.server.wifi.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.p2p.WifiP2pServiceImpl;
+import com.android.server.wifi.proto.nano.WifiMetricsProto;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.StaEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -121,6 +120,7 @@ import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
@@ -221,6 +221,7 @@ public class ClientModeImpl extends StateMachine {
     private final PasspointManager mPasspointManager;
     private final WifiDataStall mWifiDataStall;
     private final LinkProbeManager mLinkProbeManager;
+    private final MboOceController mMboOceController;
 
     private final McastLockManagerFilterController mMcastLockManagerFilterController;
     private final ActivityManager mActivityManager;
@@ -709,7 +710,8 @@ public class ClientModeImpl extends StateMachine {
                             SarManager sarManager, WifiTrafficPoller wifiTrafficPoller,
                             LinkProbeManager linkProbeManager,
                             BatteryStatsManager batteryStatsManager,
-                            SupplicantStateTracker supplicantStateTracker) {
+                            SupplicantStateTracker supplicantStateTracker,
+                            MboOceController mboOceController) {
         super(TAG, looper);
         mWifiInjector = wifiInjector;
         mWifiMetrics = mWifiInjector.getWifiMetrics();
@@ -725,6 +727,7 @@ public class ClientModeImpl extends StateMachine {
         mSarManager = sarManager;
         mWifiTrafficPoller = wifiTrafficPoller;
         mLinkProbeManager = linkProbeManager;
+        mMboOceController = mboOceController;
 
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStatsManager = batteryStatsManager;
@@ -1118,6 +1121,7 @@ public class ClientModeImpl extends StateMachine {
         mPasspointManager.enableVerboseLogging(verbose);
         mNetworkFactory.enableVerboseLogging(verbose);
         mLinkProbeManager.enableVerboseLogging(mVerboseLoggingEnabled);
+        mMboOceController.enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
@@ -1611,10 +1615,25 @@ public class ClientModeImpl extends StateMachine {
         boolean rttSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_RTT);
         if (!rttSupported) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
             supportedFeatureSet &=
                     ~(WifiManager.WIFI_FEATURE_D2D_RTT | WifiManager.WIFI_FEATURE_D2AP_RTT);
         }
-
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_p2p_mac_randomization_supported)) {
+            // flags filled in by vendor HAL, remove if overlay disables it.
+            supportedFeatureSet &= ~WifiManager.WIFI_FEATURE_P2P_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_CONNECTED_RAND_MAC;
+        }
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_ap_mac_randomization_supported)) {
+            // no corresponding flags in vendor HAL, set if overlay enables it.
+            supportedFeatureSet |= WifiManager.WIFI_FEATURE_AP_RAND_MAC;
+        }
         return supportedFeatureSet;
     }
 
@@ -3288,6 +3307,8 @@ public class ClientModeImpl extends StateMachine {
         mWifiDiagnostics.startPktFateMonitoring(mInterfaceName);
         mWifiDiagnostics.startLogging(mInterfaceName);
 
+        mMboOceController.enable();
+
         /**
          * Enable bluetooth coexistence scan mode when bluetooth connection is active.
          * When this mode is on, some of the low-level scan parameters used by the
@@ -3324,6 +3345,7 @@ public class ClientModeImpl extends StateMachine {
         // exiting supplicant started state is now only applicable to client mode
         mWifiDiagnostics.stopLogging(mInterfaceName);
 
+        mMboOceController.disable();
         if (mIpClient != null && mIpClient.shutdown()) {
             // Block to make sure IpClient has really shut down, lest cleanup
             // race with, say, bringup code over in tethering.

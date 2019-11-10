@@ -24,6 +24,7 @@ import android.net.wifi.WifiConfiguration;
 import android.util.ArrayMap;
 
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.proto.WifiScoreCardProto;
 
 import java.util.ArrayList;
 import java.util.Collection;

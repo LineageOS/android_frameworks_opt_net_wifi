@@ -39,8 +39,8 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.server.wifi.util.WifiHandler;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

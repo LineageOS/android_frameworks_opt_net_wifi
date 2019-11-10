@@ -40,7 +40,6 @@ import android.os.UserHandle;
 import android.os.storage.StorageManager;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.wifi.aware.WifiAwareService;
 import com.android.server.wifi.p2p.WifiP2pService;
@@ -141,20 +140,20 @@ public class WifiStackService extends Service {
         List<NotificationChannel> channelsList = new ArrayList<>();
         final NotificationChannel networkStatusChannel = new NotificationChannel(
                 NETWORK_STATUS,
-                getString(R.string.notification_channel_network_status),
+                getString(android.R.string.notification_channel_network_status),
                 NotificationManager.IMPORTANCE_LOW);
         channelsList.add(networkStatusChannel);
 
         final NotificationChannel networkAlertsChannel = new NotificationChannel(
                 NETWORK_ALERTS,
-                getString(R.string.notification_channel_network_alerts),
+                getString(android.R.string.notification_channel_network_alerts),
                 NotificationManager.IMPORTANCE_HIGH);
         networkAlertsChannel.setBlockableSystem(true);
         channelsList.add(networkAlertsChannel);
 
         final NotificationChannel networkAvailable = new NotificationChannel(
                 NETWORK_AVAILABLE,
-                getString(R.string.notification_channel_network_available),
+                getString(android.R.string.notification_channel_network_available),
                 NotificationManager.IMPORTANCE_LOW);
         networkAvailable.setBlockableSystem(true);
         channelsList.add(networkAvailable);

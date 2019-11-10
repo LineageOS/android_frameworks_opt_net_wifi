@@ -16,6 +16,7 @@
 
 package com.android.server.wifi.p2p;
 
+import android.annotation.Nullable;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -81,7 +82,6 @@ import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
@@ -90,11 +90,12 @@ import com.android.internal.util.StateMachine;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
-import com.android.server.wifi.nano.WifiMetricsProto.P2pConnectionEvent;
+import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -452,7 +453,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 PackageManager.FEATURE_WIFI_DIRECT);
 
         mThisDevice.primaryDeviceType = mContext.getResources().getString(
-                com.android.internal.R.string.config_wifi_p2p_device_type);
+                R.string.config_wifi_p2p_device_type);
 
         HandlerThread wifiP2pThread = mWifiInjector.getWifiP2pServiceHandlerThread();
         mClientHandler = new ClientHandler(TAG, wifiP2pThread.getLooper());
@@ -1059,7 +1060,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.REQUEST_PEERS:
                         replyToMessage(message, WifiP2pManager.RESPONSE_PEERS,
                                 getPeers(getCallingPkgName(message.sendingUid, message.replyTo),
-                                message.sendingUid));
+                                        getCallingFeatureId(message.sendingUid, message.replyTo),
+                                        message.sendingUid));
                         break;
                     case WifiP2pManager.REQUEST_CONNECTION_INFO:
                         replyToMessage(message, WifiP2pManager.RESPONSE_CONNECTION_INFO,
@@ -1068,6 +1070,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.REQUEST_GROUP_INFO:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.RESPONSE_GROUP_INFO, null);
                             // remain at this state.
@@ -1202,6 +1205,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                         }
                         Bundle bundle = (Bundle) message.obj;
                         String pkgName = bundle.getString(WifiP2pManager.CALLING_PACKAGE);
+                        String featureId = bundle.getString(WifiP2pManager.CALLING_FEATURE_ID);
                         IBinder binder = bundle.getBinder(WifiP2pManager.CALLING_BINDER);
                         try {
                             mWifiPermissionsUtil.checkPackage(message.sendingUid, pkgName);
@@ -1213,11 +1217,13 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                             mClientChannelList.put(binder, message.replyTo);
                             ClientInfo clientInfo = getClientInfo(message.replyTo, true);
                             clientInfo.mPackageName = pkgName;
+                            clientInfo.mFeatureId = featureId;
                         }
                         break;
                     case WifiP2pManager.REQUEST_DEVICE_INFO:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.RESPONSE_DEVICE_INFO, null);
                             break;
@@ -1529,6 +1535,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.DISCOVER_PEERS:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, true)) {
                             replyToMessage(message, WifiP2pManager.DISCOVER_PEERS_FAILED,
                                     WifiP2pManager.ERROR);
@@ -1565,6 +1572,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.DISCOVER_SERVICES:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, true)) {
                             replyToMessage(message, WifiP2pManager.DISCOVER_SERVICES_FAILED,
                                     WifiP2pManager.ERROR);
@@ -1615,6 +1623,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.ADD_LOCAL_SERVICE:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.ADD_LOCAL_SERVICE_FAILED);
                             // remain at this state.
@@ -1768,6 +1777,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.CONNECT:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
                             // remain at this state.
@@ -1927,6 +1937,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.CREATE_GROUP:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.CREATE_GROUP_FAILED,
                                     WifiP2pManager.ERROR);
@@ -2771,6 +2782,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                     case WifiP2pManager.CONNECT:
                         if (!mWifiPermissionsUtil.checkCanAccessWifiDirect(
                                 getCallingPkgName(message.sendingUid, message.replyTo),
+                                getCallingFeatureId(message.sendingUid, message.replyTo),
                                 message.sendingUid, false)) {
                             replyToMessage(message, WifiP2pManager.CONNECT_FAILED);
                             // remain at this state.
@@ -4083,14 +4095,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         /**
          * Enforces permissions on the caller who is requesting for P2p Peers
-         * @param pkg Bundle containing the calling package string
+         * @param pkgName Package name of the caller
+         * @param featureId Feature in the package of the caller
          * @param uid of the caller
          * @return WifiP2pDeviceList the peer list
          */
-        private WifiP2pDeviceList getPeers(String pkgName, int uid) {
+        private WifiP2pDeviceList getPeers(String pkgName, @Nullable String featureId, int uid) {
             // getPeers() is guaranteed to be invoked after Wifi Service is up
             // This ensures getInstance() will return a non-null object now
-            if (mWifiPermissionsUtil.checkCanAccessWifiDirect(pkgName, uid, true)) {
+            if (mWifiPermissionsUtil.checkCanAccessWifiDirect(pkgName, featureId, uid, true)) {
                 return new WifiP2pDeviceList(mPeers);
             } else {
                 return new WifiP2pDeviceList();
@@ -4158,7 +4171,21 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
             if (uid == Process.SYSTEM_UID) return mContext.getOpPackageName();
             return null;
+        }
 
+        /**
+         * Get calling feature id from Client HashMap
+         *
+         * @param uid The uid of the caller
+         * @param replyMessenger AsyncChannel handler in caller
+         */
+        private String getCallingFeatureId(int uid, Messenger replyMessenger) {
+            ClientInfo clientInfo = mClientInfoList.get(replyMessenger);
+            if (clientInfo != null) {
+                return clientInfo.mFeatureId;
+            }
+            if (uid == Process.SYSTEM_UID) return mContext.getFeatureId();
+            return null;
         }
 
         /**
@@ -4182,6 +4209,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         // The response of this request is notified to WifiP2pManager.Channel handler
         private Messenger mMessenger;
         private String mPackageName;
+        private @Nullable String mFeatureId;
 
 
         // A service discovery request list.
@@ -4193,6 +4221,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private ClientInfo(Messenger m) {
             mMessenger = m;
             mPackageName = null;
+            mFeatureId = null;
             mReqList = new SparseArray();
             mServList = new ArrayList<WifiP2pServiceInfo>();
         }

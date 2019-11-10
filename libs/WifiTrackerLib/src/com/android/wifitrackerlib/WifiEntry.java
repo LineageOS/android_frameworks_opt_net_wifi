@@ -126,13 +126,17 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int FREQUENCY_6_GHZ = 6_000;
     public static final int FREQUENCY_UNKNOWN = -1;
 
+    protected final boolean mForSavedNetworksPage;
+
     // Callback associated with this WifiEntry. Subclasses should call its methods appropriately.
     private WifiEntryCallback mListener;
     private Handler mCallbackHandler;
 
-    WifiEntry(@NonNull Handler callbackHandler) throws IllegalArgumentException {
+    WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage)
+            throws IllegalArgumentException {
         checkNotNull(callbackHandler, "Cannot construct with null handler!");
         mCallbackHandler = callbackHandler;
+        mForSavedNetworksPage = forSavedNetworksPage;
     }
 
     // Info available for all WifiEntries //

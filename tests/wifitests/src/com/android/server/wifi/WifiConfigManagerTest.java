@@ -49,10 +49,10 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.internal.R;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -237,7 +237,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .mockStatic(WifiConfigStore.class, withSettings().lenient())
                 .strictness(Strictness.LENIENT)
                 .startMocking();
-        when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
+        when(WifiConfigStore.createUserFiles(anyInt(), anyBoolean())).thenReturn(mock(List.class));
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
     }
 

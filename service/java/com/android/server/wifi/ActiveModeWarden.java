@@ -34,7 +34,6 @@ import android.os.Message;
 import android.util.ArraySet;
 import android.util.Log;
 
-import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.IState;
 import com.android.internal.util.Preconditions;
@@ -42,6 +41,7 @@ import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.util.WifiPermissionsUtil;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
