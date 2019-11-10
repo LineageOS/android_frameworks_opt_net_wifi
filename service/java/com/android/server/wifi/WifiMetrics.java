@@ -2096,13 +2096,6 @@ public class WifiMetrics {
         }
     }
 
-    /** Increment the failure count of SAR sensor listener registration */
-    public void incrementNumSarSensorRegistrationFailures() {
-        synchronized (mLock) {
-            mWifiLogProto.numSarSensorRegistrationFailures++;
-        }
-    }
-
     /**
      * Increment N-Way network selection decision histograms:
      * Counts the size of various sets of scanDetails within a scan, and increment the occurrence
@@ -2577,8 +2570,6 @@ public class WifiMetrics {
                         + mWifiLogProto.numSetupSoftApInterfaceFailureDueToWificond);
                 pw.println("mWifiLogProto.numSetupSoftApInterfaceFailureDueToHostapd="
                         + mWifiLogProto.numSetupSoftApInterfaceFailureDueToHostapd);
-                pw.println("mWifiLogProto.numSarSensorRegistrationFailures="
-                        + mWifiLogProto.numSarSensorRegistrationFailures);
                 pw.println("StaEventList:");
                 for (StaEventWithTime event : mStaEventList) {
                     pw.println(event);
