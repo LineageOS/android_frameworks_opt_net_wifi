@@ -1047,6 +1047,9 @@ public class ClientModeImplTest {
 
         when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
 
+        // Initial value should be "not set"
+        assertEquals("", mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
+
         triggerConnect();
 
         // CMD_START_CONNECT should have set anonymousIdentity to anonymous@<realm>
@@ -1066,15 +1069,15 @@ public class ClientModeImplTest {
         mLooper.dispatchAll();
 
         verify(mWifiNative).getEapAnonymousIdentity(any());
-        // check that the anonymous identity remains anonymous@<realm> for subsequent connections.
-        assertEquals(expectedAnonymousIdentity,
-                mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
-        // verify that WifiConfigManager#addOrUpdateNetwork() was never called if there is no
-        // real pseudonym to be stored. i.e. Encrypted IMSI will be always used
+
+        // Post connection value should remain "not set"
+        assertEquals("", mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
+        // verify that WifiConfigManager#addOrUpdateNetwork() was called to clear any previously
+        // stored pseudonym. i.e. to enable Encrypted IMSI for subsequent connections.
         // Note: This test will fail if future logic will have additional conditions that would
         // trigger "add or update network" operation. The test needs to be updated to account for
         // this change.
-        verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(), anyInt());
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt());
     }
 
     /**
@@ -1126,6 +1129,55 @@ public class ClientModeImplTest {
         verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt());
     }
 
+    /**
+     * Tests anonymous identity is set again whenever a connection is established for the carrier
+     * that supports encrypted IMSI and anonymous identity but real but not decorated pseudonym was
+     * provided for subsequent connections.
+     */
+    @Test
+    public void testSetAnonymousIdentityWhenConnectionIsEstablishedWithNonDecoratedPseudonym()
+            throws Exception {
+        mConnectedNetwork = spy(WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE));
+        when(mDataTelephonyManager.getSimOperator()).thenReturn("123456");
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        mConnectedNetwork.enterpriseConfig.setAnonymousIdentity("");
+
+        String realm = "wlan.mnc456.mcc123.3gppnetwork.org";
+        String expectedAnonymousIdentity = "anonymous";
+        String pseudonym = "83bcca9384fca";
+
+        when(mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()).thenReturn(true);
+
+        triggerConnect();
+
+        // CMD_START_CONNECT should have set anonymousIdentity to anonymous@<realm>
+        assertEquals(expectedAnonymousIdentity + "@" + realm,
+                mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
+
+        when(mWifiConfigManager.getScanDetailCacheForNetwork(FRAMEWORK_NETWORK_ID))
+                .thenReturn(mScanDetailCache);
+        when(mScanDetailCache.getScanDetail(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq));
+        when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
+                getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq).getScanResult());
+        when(mWifiNative.getEapAnonymousIdentity(anyString()))
+                .thenReturn(pseudonym);
+
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+
+        verify(mWifiNative).getEapAnonymousIdentity(any());
+        assertEquals(pseudonym + "@" + realm,
+                mConnectedNetwork.enterpriseConfig.getAnonymousIdentity());
+        // Verify that WifiConfigManager#addOrUpdateNetwork() was called if there we received a
+        // real pseudonym to be stored. i.e. Encrypted IMSI will be used once, followed by
+        // pseudonym usage in all subsequent connections.
+        // Note: This test will fail if future logic will have additional conditions that would
+        // trigger "add or update network" operation. The test needs to be updated to account for
+        // this change.
+        verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt());
+    }
     /**
      * Tests the Passpoint information is set in WifiInfo for Passpoint AP connection.
      */
