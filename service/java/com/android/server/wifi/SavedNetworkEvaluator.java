@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.telephony.SubscriptionManager;
 import android.util.LocalLog;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -39,7 +38,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     private final Clock mClock;
     private final LocalLog mLocalLog;
     private final WifiConnectivityHelper mConnectivityHelper;
-    private final SubscriptionManager mSubscriptionManager;
+    private final TelephonyUtil mTelephonyUtil;
     private final int mRssiScoreSlope;
     private final int mRssiScoreOffset;
     private final int mSameBssidAward;
@@ -59,13 +58,13 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     SavedNetworkEvaluator(final Context context, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock,
             LocalLog localLog, WifiConnectivityHelper connectivityHelper,
-            SubscriptionManager subscriptionManager) {
+            TelephonyUtil telephonyUtil) {
         mScoringParams = scoringParams;
         mWifiConfigManager = configManager;
         mClock = clock;
         mLocalLog = localLog;
         mConnectivityHelper = connectivityHelper;
-        mSubscriptionManager = subscriptionManager;
+        mTelephonyUtil = telephonyUtil;
 
         mRssiScoreSlope = context.getResources().getInteger(
                 R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
@@ -235,10 +234,15 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                         + " has specified BSSID " + network.BSSID + ". Skip "
                         + scanResult.BSSID);
                 continue;
-            } else if (TelephonyUtil.isSimConfig(network)
-                    && !TelephonyUtil.isSimPresent(mSubscriptionManager)) {
-                // Don't select if security type is EAP SIM/AKA/AKA' when SIM is not present.
-                continue;
+            } else if (network.enterpriseConfig != null
+                    && network.enterpriseConfig.requireSimCredential()) {
+                int subId = mTelephonyUtil.getBestMatchSubscriptionId(network);
+                if (!mTelephonyUtil.isSimPresent(subId)) {
+                    // Don't select if security type is EAP SIM/AKA/AKA' when SIM is not present.
+                    localLog("No SIM card is good for Network "
+                            + WifiNetworkSelector.toNetworkString(network));
+                    continue;
+                }
             }
 
             int score = calculateBssidScore(scanResult, network, currentNetwork, currentBssid,

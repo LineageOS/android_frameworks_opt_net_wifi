@@ -41,7 +41,6 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
-import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.LocalLog;
@@ -275,7 +274,6 @@ public class WifiConfigManager {
     private final Clock mClock;
     private final UserManager mUserManager;
     private final BackupManagerProxy mBackupManagerProxy;
-    private final TelephonyManager mTelephonyManager;
     private final WifiKeyStore mWifiKeyStore;
     private final WifiConfigStore mWifiConfigStore;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
@@ -284,6 +282,7 @@ public class WifiConfigManager {
     private final MacAddressUtil mMacAddressUtil;
     private boolean mConnectedMacRandomzationSupported;
     private final Mac mMac;
+    private final TelephonyUtil mTelephonyUtil;
 
     /**
      * Local log used for debugging any WifiConfigManager issues.
@@ -394,7 +393,7 @@ public class WifiConfigManager {
      */
     WifiConfigManager(
             Context context, Clock clock, UserManager userManager,
-            TelephonyManager telephonyManager, WifiKeyStore wifiKeyStore,
+            TelephonyUtil telephonyUtil, WifiKeyStore wifiKeyStore,
             WifiConfigStore wifiConfigStore,
             WifiPermissionsUtil wifiPermissionsUtil,
             WifiPermissionsWrapper wifiPermissionsWrapper,
@@ -409,7 +408,7 @@ public class WifiConfigManager {
         mClock = clock;
         mUserManager = userManager;
         mBackupManagerProxy = new BackupManagerProxy();
-        mTelephonyManager = telephonyManager;
+        mTelephonyUtil = telephonyUtil;
         mWifiKeyStore = wifiKeyStore;
         mWifiConfigStore = wifiConfigStore;
         mWifiPermissionsUtil = wifiPermissionsUtil;
@@ -1148,6 +1147,7 @@ public class WifiConfigManager {
 
         // Copy over macRandomizationSetting
         internalConfig.macRandomizationSetting = externalConfig.macRandomizationSetting;
+        internalConfig.carrierId = externalConfig.carrierId;
     }
 
     /**
@@ -2978,13 +2978,13 @@ public class WifiConfigManager {
     public void resetSimNetworks() {
         if (mVerboseLoggingEnabled) localLog("resetSimNetworks");
         for (WifiConfiguration config : getInternalConfiguredNetworks()) {
-            if (!TelephonyUtil.isSimConfig(config)) {
+            if (config.enterpriseConfig == null
+                    || !config.enterpriseConfig.requireSimCredential()) {
                 continue;
             }
             if (config.enterpriseConfig.getEapMethod() == WifiEnterpriseConfig.Eap.PEAP) {
-                Pair<String, String> currentIdentity = TelephonyUtil.getSimIdentity(
-                        mTelephonyManager, new TelephonyUtil(), config,
-                        mWifiInjector.getCarrierNetworkConfig());
+                Pair<String, String> currentIdentity =
+                        mTelephonyUtil.getSimIdentity(config);
                 if (mVerboseLoggingEnabled) {
                     Log.d(TAG, "New identity for config " + config + ": " + currentIdentity);
                 }

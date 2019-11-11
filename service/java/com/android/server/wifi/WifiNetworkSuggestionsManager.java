@@ -52,6 +52,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.wifi.util.ExternalCallbackTracker;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.wifi.R;
 
@@ -113,6 +114,7 @@ public class WifiNetworkSuggestionsManager {
     private final WifiMetrics mWifiMetrics;
     private final WifiInjector mWifiInjector;
     private final FrameworkFacade mFrameworkFacade;
+    private final TelephonyUtil mTelephonyUtil;
 
     /**
      * Per app meta data to store network suggestions, status, etc for each app providing network
@@ -406,7 +408,8 @@ public class WifiNetworkSuggestionsManager {
                                          WifiPermissionsUtil wifiPermissionsUtil,
                                          WifiConfigManager wifiConfigManager,
                                          WifiConfigStore wifiConfigStore,
-                                         WifiMetrics wifiMetrics) {
+                                         WifiMetrics wifiMetrics,
+                                         TelephonyUtil telephonyUtil) {
         mContext = context;
         mResources = context.getResources();
         mHandler = handler;
@@ -419,6 +422,7 @@ public class WifiNetworkSuggestionsManager {
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
+        mTelephonyUtil = telephonyUtil;
 
         // register the data store for serializing/deserializing data.
         wifiConfigStore.registerStoreData(
@@ -1000,7 +1004,23 @@ public class WifiNetworkSuggestionsManager {
         Set<ExtendedWifiNetworkSuggestion> approvedExtNetworkSuggestions =
                 extNetworkSuggestions
                         .stream()
-                        .filter(n -> n.perAppInfo.hasUserApproved)
+                        .filter(n -> {
+                            if (!n.perAppInfo.hasUserApproved) {
+                                return false;
+                            }
+                            WifiConfiguration config = n.wns.wifiConfiguration;
+                            if (config != null && config.enterpriseConfig != null
+                                    && config.enterpriseConfig.requireSimCredential()) {
+                                int subId = mTelephonyUtil.getBestMatchSubscriptionId(config);
+                                if (!mTelephonyUtil.isSimPresent(subId)) {
+                                    if (mVerboseLoggingEnabled) {
+                                        Log.v(TAG, "No SIM is matched, ignore the config.");
+                                    }
+                                    return false;
+                                }
+                            }
+                            return true;
+                        })
                         .collect(Collectors.toSet());
         // If there is no active notification, check if we need to get approval for any of the apps
         // & send a notification for one of them. If there are multiple packages awaiting approval,
