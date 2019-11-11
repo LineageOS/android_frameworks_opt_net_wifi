@@ -25,7 +25,7 @@ public class NetworkDetail {
 
     private static final boolean DBG = false;
 
-    private static final String TAG = "NetworkDetail:";
+    private static final String TAG = "NetworkDetail";
 
     public enum Ant {
         Private,
@@ -88,6 +88,7 @@ public class NetworkDetail {
      */
     private final int mWifiMode;
     private final int mMaxRate;
+    private final int mMaxNumberSpatialStreams;
 
     /*
      * From Interworking element:
@@ -145,6 +146,13 @@ public class NetworkDetail {
                 new InformationElementUtil.VhtOperation();
         InformationElementUtil.HeOperation heOperation = new InformationElementUtil.HeOperation();
 
+        InformationElementUtil.HtCapabilities htCapabilities =
+                new InformationElementUtil.HtCapabilities();
+        InformationElementUtil.VhtCapabilities vhtCapabilities =
+                new InformationElementUtil.VhtCapabilities();
+        InformationElementUtil.HeCapabilities heCapabilities =
+                new InformationElementUtil.HeCapabilities();
+
         InformationElementUtil.ExtendedCapabilities extendedCapabilities =
                 new InformationElementUtil.ExtendedCapabilities();
 
@@ -175,6 +183,12 @@ public class NetworkDetail {
                     case ScanResult.InformationElement.EID_VHT_OPERATION:
                         vhtOperation.from(ie);
                         break;
+                    case ScanResult.InformationElement.EID_HT_CAPABILITIES:
+                        htCapabilities.from(ie);
+                        break;
+                    case ScanResult.InformationElement.EID_VHT_CAPABILITIES:
+                        vhtCapabilities.from(ie);
+                        break;
                     case ScanResult.InformationElement.EID_INTERWORKING:
                         interworking.from(ie);
                         break;
@@ -200,6 +214,9 @@ public class NetworkDetail {
                         switch(ie.idExt) {
                             case ScanResult.InformationElement.EID_EXT_HE_OPERATION:
                                 heOperation.from(ie);
+                                break;
+                            case ScanResult.InformationElement.EID_EXT_HE_CAPABILITIES:
+                                heCapabilities.from(ie);
                                 break;
                             default:
                                 break;
@@ -315,6 +332,10 @@ public class NetworkDetail {
             mDtimInterval = trafficIndicationMap.mDtimPeriod;
         }
 
+        mMaxNumberSpatialStreams = Math.max(heCapabilities.getMaxNumberSpatialStreams(),
+                Math.max(vhtCapabilities.getMaxNumberSpatialStreams(),
+                htCapabilities.getMaxNumberSpatialStreams()));
+
         int maxRateA = 0;
         int maxRateB = 0;
         // If we got some Extended supported rates, consider them, if not default to 0
@@ -334,10 +355,11 @@ public class NetworkDetail {
             mMaxRate = 0;
         }
         if (DBG) {
-            Log.d(TAG, mSSID + "ChannelWidth is: " + mChannelWidth + " PrimaryFreq: " + mPrimaryFreq
-                    + " mCenterfreq0: " + mCenterfreq0 + " mCenterfreq1: " + mCenterfreq1
-                    + (extendedCapabilities.is80211McRTTResponder() ? "Support RTT responder"
-                    : "Do not support RTT responder"));
+            Log.d(TAG, mSSID + "ChannelWidth is: " + mChannelWidth + " PrimaryFreq: "
+                    + mPrimaryFreq + " mCenterfreq0: " + mCenterfreq0 + " mCenterfreq1: "
+                    + mCenterfreq1 + (extendedCapabilities.is80211McRTTResponder()
+                    ? " Support RTT responder" : " Do not support RTT responder")
+                    + " mMaxNumberSpatialStreams: " + mMaxNumberSpatialStreams);
             Log.v("WifiMode", mSSID
                     + ", WifiMode: " + InformationElementUtil.WifiMode.toString(mWifiMode)
                     + ", Freq: " + mPrimaryFreq
@@ -383,6 +405,7 @@ public class NetworkDetail {
         mDtimInterval = base.mDtimInterval;
         mWifiMode = base.mWifiMode;
         mMaxRate = base.mMaxRate;
+        mMaxNumberSpatialStreams = base.mMaxNumberSpatialStreams;
     }
 
     public NetworkDetail complete(Map<Constants.ANQPElementType, ANQPElement> anqpElements) {
@@ -492,6 +515,10 @@ public class NetworkDetail {
 
     public int getWifiMode() {
         return mWifiMode;
+    }
+
+    public int getMaxNumberSpatialStreams() {
+        return mMaxNumberSpatialStreams;
     }
 
     public int getDtimInterval() {
