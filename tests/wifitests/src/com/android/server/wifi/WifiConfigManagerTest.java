@@ -5594,6 +5594,33 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies that isInFlakyRandomizationSsidHotlist returns true if the network's SSID is in
+     * the hotlist and the network is using randomized MAC.
+     */
+    @Test
+    public void testFlakyRandomizationSsidHotlist() {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
+        int networkId = result.getNetworkId();
+
+        // should return false when there is nothing in the hotlist
+        assertFalse(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+
+        // add the network's SSID to the hotlist and verify the method returns true
+        Set<String> ssidHotlist = new HashSet<>();
+        ssidHotlist.add(openNetwork.SSID);
+        when(mDeviceConfigFacade.getRandomizationFlakySsidHotlist()).thenReturn(ssidHotlist);
+        assertTrue(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+
+        // Now change the macRandomizationSetting to "trusted" and then verify
+        // isInFlakyRandomizationSsidHotlist returns false
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        NetworkUpdateResult networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
+        assertNotEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
+        assertFalse(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+    }
+
+    /**
      * Verifies that when scanning a WPA3 in transition mode AP, and there is a matching WPA2 saved
      * network, {@link WifiConfigManager#getConfiguredNetworkForScanDetailAndCache(ScanDetail)}
      * clones a new WPA3 saved network that will be used to connect to it.
