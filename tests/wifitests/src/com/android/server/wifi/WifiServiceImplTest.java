@@ -1492,7 +1492,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         doThrow(new SecurityException()).when(mContext)
                 .enforceCallingOrSelfPermission(eq(android.Manifest.permission.CHANGE_WIFI_STATE),
                                                 eq("WifiService"));
-        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
     }
 
     /**
@@ -1505,7 +1506,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
                 .when(mWifiPermissionsUtil).enforceLocationPermission(eq(TEST_PACKAGE_NAME),
                                                                       eq(TEST_FEATURE_ID),
                                                                       anyInt());
-        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
     }
 
     /**
@@ -1515,7 +1517,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testStartLocalOnlyHotspotThrowsSecurityExceptionWithoutLocationEnabled() {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(false);
-        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
     }
 
     /**
@@ -1526,7 +1529,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
 
         when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(false);
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
         assertEquals(LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE, result);
     }
 
@@ -1564,7 +1568,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiPermissionsUtil.isLocationModeEnabled()).thenReturn(true);
         when(mFrameworkFacade.isAppForeground(any(), anyInt())).thenReturn(true);
         mLooper.dispatchAll();
-        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
         assertEquals(ERROR_INCOMPATIBLE_MODE, returnCode);
     }
 
@@ -1578,7 +1583,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mUserManager.hasUserRestrictionForUser(
                 eq(UserManager.DISALLOW_CONFIG_TETHERING), any()))
                 .thenReturn(true);
-        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        int returnCode = mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
         assertEquals(ERROR_TETHERING_DISALLOWED, returnCode);
     }
 
@@ -1590,7 +1596,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         registerLOHSRequestFull();
 
         // now do the second request that will fail
-        mWifiServiceImpl.startLocalOnlyHotspot(mLohsCallback, TEST_PACKAGE_NAME);
+        mWifiServiceImpl.startLocalOnlyHotspot(
+                mLohsCallback, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
     }
 
     /**
@@ -2547,7 +2554,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         ILocalOnlyHotspotCallback callback2 = mock(ILocalOnlyHotspotCallback.class);
         when(callback2.asBinder()).thenReturn(mock(IBinder.class));
 
-        int result = mWifiServiceImpl.startLocalOnlyHotspot(callback2, TEST_PACKAGE_NAME);
+        int result = mWifiServiceImpl.startLocalOnlyHotspot(
+                callback2, TEST_PACKAGE_NAME, TEST_FEATURE_ID, null);
         assertEquals(LocalOnlyHotspotCallback.REQUEST_REGISTERED, result);
         mLooper.dispatchAll();
 
