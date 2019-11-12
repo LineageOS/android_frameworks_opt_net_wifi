@@ -46,6 +46,7 @@ import android.content.res.Resources;
 import android.net.MacAddress;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
@@ -61,6 +62,7 @@ import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.hotspot2.PasspointManager;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.wifi.R;
 
@@ -95,7 +97,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private static final int TEST_UID_1 = 5667;
     private static final int TEST_UID_2 = 4537;
     private static final int NETWORK_CALLBACK_ID = 1100;
-    private static final int VALID_CARRIER_ID = 1;
+    private static final int VALID_CARRIER_ID = 100;
+    private static final int TEST_SUBID = 1;
 
     private @Mock Context mContext;
     private @Mock Resources mResources;
@@ -109,6 +112,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock WifiConfigManager mWifiConfigManager;
     private @Mock NetworkSuggestionStoreData mNetworkSuggestionStoreData;
     private @Mock WifiMetrics mWifiMetrics;
+    private @Mock TelephonyUtil mTelephonyUtil;
     private @Mock PasspointManager mPasspointManager;
     private @Mock ISuggestionConnectionStatusListener mListener;
     private @Mock IBinder mBinder;
@@ -171,7 +175,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         mWifiNetworkSuggestionsManager =
                 new WifiNetworkSuggestionsManager(mContext, new Handler(mLooper.getLooper()),
                         mWifiInjector, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore,
-                        mWifiMetrics);
+                        mWifiMetrics, mTelephonyUtil);
         verify(mContext).getResources();
         verify(mContext).getSystemService(Context.APP_OPS_SERVICE);
         verify(mContext).getSystemService(Context.NOTIFICATION_SERVICE);
@@ -520,6 +524,40 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                     add(networkSuggestion);
                 }};
         assertEquals(expectedMatchingNetworkSuggestions, matchingNetworkSuggestions);
+    }
+
+    /**
+     * Do not evaluate the suggested network which requires SIM card, but the SIM is absent.
+     */
+    @Test
+    public void testGetNetworkSuggestionsForScanDtailIgnoreEapSimNetworkForAbsentSim() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = VALID_CARRIER_ID;
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, false, false, TEST_UID_1,
+                TEST_PACKAGE_1);
+        List<WifiNetworkSuggestion> networkSuggestionList1 =
+                new ArrayList<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(eq(TEST_UID_1)))
+                .thenReturn(true);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS,
+                mWifiNetworkSuggestionsManager.add(networkSuggestionList1, TEST_UID_1,
+                        TEST_PACKAGE_1, TEST_FEATURE));
+        mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
+
+        ScanDetail scanDetail = createScanDetailForNetwork(networkSuggestion.wifiConfiguration);
+
+        when(mTelephonyUtil.getBestMatchSubscriptionId(any(WifiConfiguration.class)))
+                .thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.isSimPresent(eq(TEST_SUBID))).thenReturn(false);
+
+        Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+
+        assertNull(matchingNetworkSuggestions);
     }
 
     /**

@@ -1362,6 +1362,96 @@ public class InformationElementUtilTest extends WifiBaseTest {
         assertEquals(5200, vhtOperation.getCenterFreq0());
         assertEquals(0, vhtOperation.getCenterFreq1());
     }
+    /**
+     * Verify that the expected max number of spatial stream is parsed correctly from
+     * HT capabilities IE
+     *
+     * HT capabilities IE Format:
+     * | HT Capability Information | A-MPDU Parameters | Supported MCS Set
+     *               2                      1                   16
+     * | HT Extended Capabilities | Transmit Beamforming Capabilities | ASEL Capabilities |
+     *               2                      4                                   1
+     *
+     *  Supported MCS Set Format:
+     *    B0                   B8                    B16                  B23
+     *  | Rx MCS Bitmask 1SS | Rx MCS Bitmask 2SS  | Rx MCS Bitmask 3SS | Rx MCS Bitmask 4SS
+     */
+    @Test
+    public void getMaxNumberSpatialStreamsWithHtCapabilitiesIE() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_HT_CAPABILITIES;
+        ie.bytes = new byte[]{(byte) 0xee, (byte) 0x01, (byte) 0x17, (byte) 0xff, (byte) 0xff,
+                (byte) 0xff, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+                (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+                (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+                (byte) 0x00, (byte) 0x00, (byte) 0x00};
+        InformationElementUtil.HtCapabilities htCapabilities =
+                new InformationElementUtil.HtCapabilities();
+        htCapabilities.from(ie);
+        assertEquals(3, htCapabilities.getMaxNumberSpatialStreams());
+        assertEquals(true, htCapabilities.isPresent());
+    }
+
+    /**
+     * Verify that the expected max number of spatial stream is parsed correctly from
+     * VHT capabilities IE
+     */
+    @Test
+    public void getMaxNumberSpatialStreamsWithVhtCapabilitiesIE() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VHT_CAPABILITIES;
+        /**
+         * VHT Capabilities IE Format:
+         * | VHT capabilities Info |  Supported VHT-MCS and NSS Set |
+         *           4                              8
+         *
+         * Supported VHT-MCS set Format:
+         *   B0                B2                B4                B6
+         * | Max MCS For 1SS | Max MCS For 2SS | Max MCS For 3SS | Max MCS For 4SS
+         *   B8                B10               B12               B14
+         * | Max MCS For 5SS | Max MCS For 6SS | Max MCS For 7SS | Max MCS For 8SS
+         */
+        ie.bytes = new byte[]{(byte) 0x92, (byte) 0x01, (byte) 0x80, (byte) 0x33, (byte) 0xaa,
+                (byte) 0xff, (byte) 0x00, (byte) 0x00, (byte) 0xaa, (byte) 0xff, (byte) 0x00,
+                (byte) 0x00};
+        InformationElementUtil.VhtCapabilities vhtCapabilities =
+                new InformationElementUtil.VhtCapabilities();
+        vhtCapabilities.from(ie);
+        assertEquals(4, vhtCapabilities.getMaxNumberSpatialStreams());
+        assertEquals(true, vhtCapabilities.isPresent());
+    }
+
+    /**
+     * Verify that the expected max number of spatial stream is parsed correctly from
+     * HE capabilities IE
+     */
+    @Test
+    public void getMaxNumberSpatialStreamsWithHeCapabilitiesIE() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_EXTENSION_PRESENT;
+        ie.idExt = InformationElement.EID_EXT_HE_CAPABILITIES;
+        /**
+         * HE Capabilities IE Format:
+         * | HE MAC Capabilities Info | HE PHY Capabilities Info | Supported HE-MCS and NSS Set |
+         *           6                              11                     4
+         *
+         * Supported HE-MCS set Format:
+         *   B0                B2                B4                B6
+         * | Max MCS For 1SS | Max MCS For 2SS | Max MCS For 3SS | Max MCS For 4SS
+         *   B8                B10               B12               B14
+         * | Max MCS For 5SS | Max MCS For 6SS | Max MCS For 7SS | Max MCS For 8SS
+         */
+        ie.bytes = new byte[]{(byte) 0x09, (byte) 0x01, (byte) 0x00, (byte) 0x02, (byte) 0x40,
+                (byte) 0x04, (byte) 0x70, (byte) 0x0c, (byte) 0x80, (byte) 0x00, (byte) 0x07,
+                (byte) 0x80, (byte) 0x04, (byte) 0x00, (byte) 0xaa, (byte) 0xaa, (byte) 0xaa,
+                (byte) 0xaa, (byte) 0x7f, (byte) 0x1c, (byte) 0xc7, (byte) 0x71, (byte) 0x1c,
+                (byte) 0xc7, (byte) 0x71};
+        InformationElementUtil.HeCapabilities heCapabilities =
+                new InformationElementUtil.HeCapabilities();
+        heCapabilities.from(ie);
+        assertEquals(8, heCapabilities.getMaxNumberSpatialStreams());
+        assertEquals(true, heCapabilities.isPresent());
+    }
 
     // TODO: SAE, OWN, SUITE_B
 }

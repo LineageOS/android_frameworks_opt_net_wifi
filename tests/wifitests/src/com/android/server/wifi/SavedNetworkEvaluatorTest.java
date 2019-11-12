@@ -27,12 +27,12 @@ import android.content.res.Resources;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.SystemClock;
-import android.telephony.SubscriptionManager;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
 
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.wifi.R;
 
 import org.junit.After;
@@ -41,7 +41,6 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -77,10 +76,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
 
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext,
                 new ScoringParams(mContext), mWifiConfigManager,
-                mClock, mLocalLog, mWifiConnectivityHelper, mSubscriptionManager);
-        // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionInfoList())
-                .thenReturn(Collections.emptyList());
+                mClock, mLocalLog, mWifiConnectivityHelper, mTelephonyUtil);
     }
 
     /** Cleans up test. */
@@ -89,6 +85,9 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
         validateMockitoUsage();
     }
 
+    private static final int INVALID_SUBID = 1;
+    private static final int TEST_CARRIER_ID = 100;
+
     private SavedNetworkEvaluator mSavedNetworkEvaluator;
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private WifiConnectivityHelper mWifiConnectivityHelper;
@@ -96,7 +95,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
     @Mock private Resources mResource;
     @Mock private Clock mClock;
     @Mock private OnConnectableListener mOnConnectableListener;
-    @Mock private SubscriptionManager mSubscriptionManager;
+    @Mock private TelephonyUtil mTelephonyUtil;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
     private int mThresholdMinimumRssi5G;
@@ -173,6 +172,33 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
         for (WifiConfiguration wifiConfiguration : savedConfigs) {
             wifiConfiguration.useExternalScores = true;
         }
+
+        WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+                null, null, true, false, mOnConnectableListener);
+
+        assertNull(candidate);
+    }
+
+    /**
+     * Do not evaluate networks which require SIM card when the SIM card is absent.
+     */
+    @Test
+    public void ignoreNetworkIfSimIsAbsentForEapSimNetwork() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {2470};
+        int[] levels = {mThresholdQualifiedRssi2G + 8};
+
+        ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
+                WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigForEapSimNetwork(ssids, bssids,
+                        freqs, levels, mWifiConfigManager, mClock);
+        List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
+        WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
+        savedConfigs[0].carrierId = TEST_CARRIER_ID;
+        // SIM is absent
+        when(mTelephonyUtil.getBestMatchSubscriptionId(any(WifiConfiguration.class)))
+                .thenReturn(INVALID_SUBID);
+        when(mTelephonyUtil.isSimPresent(eq(INVALID_SUBID))).thenReturn(false);
 
         WifiConfiguration candidate = mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
