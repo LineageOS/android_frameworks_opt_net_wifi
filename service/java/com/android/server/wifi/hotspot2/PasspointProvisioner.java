@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.net.Network;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -1017,7 +1018,8 @@ public class PasspointProvisioner {
                                 Constants.ANQPElementType.HSOSUProviders);
                 if (element == null) continue;
                 for (OsuProviderInfo info : element.getProviders()) {
-                    OsuProvider candidate = new OsuProvider(null, info.getFriendlyNames(),
+                    OsuProvider candidate = new OsuProvider(
+                            (WifiSsid) null, info.getFriendlyNames(),
                             info.getServiceDescription(), info.getServerUri(),
                             info.getNetworkAccessIdentifier(), info.getMethodList(), null);
                     if (candidate.equals(osuProvider)) {

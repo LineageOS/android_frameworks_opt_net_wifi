@@ -1250,7 +1250,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         WifiInfo connectionInfo = mWifiServiceImpl.getConnectionInfo(TEST_PACKAGE, TEST_FEATURE_ID);
 
-        assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
+        assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }
@@ -1268,7 +1268,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
         WifiInfo connectionInfo = mWifiServiceImpl.getConnectionInfo(TEST_PACKAGE, TEST_FEATURE_ID);
 
-        assertEquals(WifiSsid.NONE, connectionInfo.getSSID());
+        assertEquals(WifiManager.UNKNOWN_SSID, connectionInfo.getSSID());
         assertEquals(WifiInfo.DEFAULT_MAC_ADDRESS, connectionInfo.getBSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, connectionInfo.getNetworkId());
     }

@@ -18,7 +18,7 @@ package com.android.server.wifi;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.net.wifi.WifiSsid;
+import android.net.wifi.WifiManager;
 import android.util.ArrayMap;
 import android.util.LocalLog;
 import android.util.Log;
@@ -169,7 +169,7 @@ public class BssidBlocklistMonitor {
      */
     public boolean handleBssidConnectionFailure(String bssid, String ssid,
             @BssidBlocklistMonitorFailureReason int reasonCode) {
-        if (bssid == null || ssid == null || WifiSsid.NONE.equals(ssid)
+        if (bssid == null || ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)
                 || bssid.equals(ClientModeImpl.SUPPLICANT_BSSID_ANY)
                 || reasonCode < 0 || reasonCode >= NUMBER_REASON_CODES) {
             Log.e(TAG, "Invalid input: BSSID=" + bssid + ", SSID=" + ssid

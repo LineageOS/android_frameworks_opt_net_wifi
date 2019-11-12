@@ -37,6 +37,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiManager;
+import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -789,7 +790,7 @@ public class PasspointManager {
                 // Set null for OSU-SSID in the class because OSU-SSID is a factor for hotspot
                 // operator rather than service provider, which means it can be different for
                 // each hotspot operators.
-                OsuProvider provider = new OsuProvider(null, info.getFriendlyNames(),
+                OsuProvider provider = new OsuProvider((WifiSsid) null, info.getFriendlyNames(),
                         info.getServiceDescription(), info.getServerUri(),
                         info.getNetworkAccessIdentifier(), info.getMethodList(), null);
                 List<ScanResult> matchingScanResults = osuProviders.get(provider);

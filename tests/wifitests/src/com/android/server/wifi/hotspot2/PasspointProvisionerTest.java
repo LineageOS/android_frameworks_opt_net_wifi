@@ -509,7 +509,7 @@ public class PasspointProvisionerTest extends WifiBaseTest {
             }
         }).when(mPasspointManager).getANQPElements(any(ScanResult.class));
         OsuProviderInfo info = OsuProviderInfoTestUtil.TEST_OSU_PROVIDER_INFO;
-        mOsuProvider = new OsuProvider(null, info.getFriendlyNames(),
+        mOsuProvider = new OsuProvider((WifiSsid) null, info.getFriendlyNames(),
                 info.getServiceDescription(),
                 info.getServerUri(),
                 info.getNetworkAccessIdentifier(), info.getMethodList(), null);
