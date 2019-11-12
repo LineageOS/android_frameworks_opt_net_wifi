@@ -214,4 +214,6 @@
     <!-- Do not translate. Default access point SSID used for local only hotspot -->
     <string name="wifi_localhotspot_configure_ssid_default" translatable="false">AndroidShare</string>
 
+    <!-- Indicates that a full bugreport should be triggered when wifi diagnostics detects an error on non-user (i.e debug) builds -->
+    <bool translatable="false" name="config_wifi_diagnostics_bugreport_enabled">false</bool>
 </resources>
