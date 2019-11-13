@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Copyright (C) 2019 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+ -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- no translation found for wifiAppLabel (6877485722596193996) -->
+    <skip />
+    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
+      <item quantity="other">WLANs verfügbar</item>
+      <item quantity="one">WLAN verfügbar</item>
+    </plurals>
+    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
+      <item quantity="other">Verfügbare WLANs öffnen</item>
+      <item quantity="one">Verfügbares WLAN öffnen</item>
+    </plurals>
+    <string name="wifi_available_title" msgid="2844963247498642107">"Mit offenem WLAN verbinden"</string>
+    <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Verbindung zu WLAN wird hergestellt"</string>
+    <string name="wifi_available_title_connected" msgid="922603556292157664">"Mit WLAN verbunden"</string>
+    <string name="wifi_available_title_failed_to_connect" msgid="2304443371893419545">"WLAN-Verbindung konnte nicht hergestellt werden"</string>
+    <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Tippen, um alle Netzwerke zu sehen"</string>
+    <string name="wifi_available_action_connect" msgid="7989951293406720158">"Verbinden"</string>
+    <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Alle Netzwerke"</string>
+    <string name="wifi_suggestion_title" msgid="8724552631151189767">"Vorgeschlagene WLANs zulassen?"</string>
+    <string name="wifi_suggestion_content" msgid="7796523101671166285">"Von <xliff:g id="NAME">%s</xliff:g> vorgeschlagene Netzwerke. Gerät verbindet sich möglicherweise automatisch."</string>
+    <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Zulassen"</string>
+    <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Nein danke"</string>
+    <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"WLAN wird automatisch aktiviert"</string>
+    <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Wenn du in der Nähe eines sicheren gespeicherten Netzwerks bist"</string>
+    <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Nicht wieder aktivieren"</string>
+    <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"WLAN automatisch aktiviert"</string>
+    <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Du bist in der Nähe eines gespeicherten Netzwerks: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
+    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Änderungen an deinen Hotspot-Einstellungen"</string>
+    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Dein Hotspot-Band hat sich geändert."</string>
+    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"Dieses Gerät unterstützt die ausschließliche Nutzung von 5 GHz nicht. Es greift aber immer auf das 5-GHz-Band zurück, wenn dieses verfügbar ist."</string>
+    <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Es konnte keine WLAN-Verbindung hergestellt werden."</string>
+    <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" hat eine schlechte Internetverbindung."</string>
+    <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Verbindung zulassen?"</string>
+    <string name="wifi_connect_alert_message" msgid="3123801378559831220">"Die App \"%1$s\" möchte eine Verbindung zum WLAN %2$s herstellen."</string>
+    <string name="wifi_connect_default_application" msgid="6164721692891325243">"Eine App"</string>
+    <string name="wifi_p2p_dialog_title" msgid="5241179009534993267">"Wi-Fi Direct"</string>
+    <string name="wifi_p2p_turnon_message" msgid="1913312569911955507">"Wi-Fi Direct-Betrieb starten. Hierdurch wird der WLAN-Client-/-Hotspot-Betrieb deaktiviert."</string>
+    <string name="wifi_p2p_failed_message" msgid="891756863555089693">"Starten von Wi-Fi Direct nicht möglich"</string>
+    <string name="wifi_p2p_enabled_notification_title" msgid="1370672816157426391">"Wi-Fi Direct ist aktiviert."</string>
+    <string name="wifi_p2p_enabled_notification_message" msgid="4796109304869784386">"Für Einstellungen tippen"</string>
+    <string name="accept" msgid="5931271886782610829">"Akzeptieren"</string>
+    <string name="decline" msgid="6874256900873707640">"Ablehnen"</string>
+    <string name="ok" msgid="4215387532539340948">"Ok"</string>
+    <string name="wifi_p2p_invitation_sent_title" msgid="6684220950195735982">"Einladung gesendet"</string>
+    <string name="wifi_p2p_invitation_to_connect_title" msgid="5020192895172598089">"Einladung zum Aufbau einer Verbindung"</string>
+    <string name="wifi_p2p_from_message" msgid="3857436922001981191">"Von:"</string>
+    <string name="wifi_p2p_to_message" msgid="6664932426704362946">"An:"</string>
+    <string name="wifi_p2p_enter_pin_message" msgid="5661843905965463456">"Gib die PIN ein:"</string>
+    <string name="wifi_p2p_show_pin_message" msgid="4332876077723766909">"PIN:"</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="tablet" msgid="3372859876274663802">"Das Tablet wird vorübergehend vom WLAN getrennt, während eine Verbindung mit <xliff:g id="DEVICE_NAME">%1$s</xliff:g> besteht."</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"Das Android TV-Gerät wird vorübergehend vom WLAN getrennt, während es mit \"<xliff:g id="DEVICE_NAME">%1$s</xliff:g>\" verbunden ist."</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Das Telefon wird vorübergehend vom WLAN getrennt, während eine Verbindung mit <xliff:g id="DEVICE_NAME">%1$s</xliff:g> hergestellt wird."</string>
+    <string name="dlg_ok" msgid="3250085870426030310">"Ok"</string>
+</resources>

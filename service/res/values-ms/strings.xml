@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  Copyright (C) 2019 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+ -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- no translation found for wifiAppLabel (6877485722596193996) -->
+    <skip />
+    <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
+      <item quantity="other">Rangkaian Wi-Fi tersedia</item>
+      <item quantity="one">Rangkaian Wi-Fi tersedia</item>
+    </plurals>
+    <plurals name="wifi_available_detailed" formatted="false" msgid="8803777215287123629">
+      <item quantity="other">Rangkaian Wi-Fi terbuka tersedia</item>
+      <item quantity="one">Rangkaian Wi-Fi terbuka tersedia</item>
+    </plurals>
+    <string name="wifi_available_title" msgid="2844963247498642107">"Sambung ke rangkaian Wi-Fi terbuka"</string>
+    <string name="wifi_available_title_connecting" msgid="4308431577637294026">"Menyambung ke rangkaian Wi-Fi"</string>
+    <string name="wifi_available_title_connected" msgid="922603556292157664">"Disambungkan ke rangkaian Wi-Fi"</string>
+    <string name="wifi_available_title_failed_to_connect" msgid="2304443371893419545">"Tidak dapat menyambung ke rangkaian Wi-Fi"</string>
+    <string name="wifi_available_content_failed_to_connect" msgid="3171283790496729136">"Ketik untuk melihat semua rangkaian"</string>
+    <string name="wifi_available_action_connect" msgid="7989951293406720158">"Sambung"</string>
+    <string name="wifi_available_action_all_networks" msgid="2616926772813472478">"Semua rangkaian"</string>
+    <string name="wifi_suggestion_title" msgid="8724552631151189767">"Benarkan rangkaian Wi-Fi yang dicadangkan?"</string>
+    <string name="wifi_suggestion_content" msgid="7796523101671166285">"Rangkaian yang dicadangkan oleh <xliff:g id="NAME">%s</xliff:g>. Peranti mungkin disambungkan secara automatik."</string>
+    <string name="wifi_suggestion_action_allow_app" msgid="1269853856167682235">"Benarkan"</string>
+    <string name="wifi_suggestion_action_disallow_app" msgid="4844316521687534924">"Tidak perlu"</string>
+    <string name="wifi_wakeup_onboarding_title" msgid="8825510461478671504">"Wi‑Fi akan dihidupkan secara automatik"</string>
+    <string name="wifi_wakeup_onboarding_subtext" msgid="2525097093651287599">"Apabila anda berada berdekatan dengan rangkaian disimpan yang berkualiti tinggi"</string>
+    <string name="wifi_wakeup_onboarding_action_disable" msgid="672002169958868470">"Jangan hidupkan kembali"</string>
+    <string name="wifi_wakeup_enabled_title" msgid="7758584632765597662">"Wi‑Fi dihidupkan secara automatik"</string>
+    <string name="wifi_wakeup_enabled_content" msgid="4713038331224656338">"Anda berada berdekatan rangkaian yang disimpan: <xliff:g id="NETWORK_SSID">%1$s</xliff:g>"</string>
+    <string name="wifi_softap_config_change" msgid="1210975707034881716">"Perubahan kepada tetapan tempat liputan anda"</string>
+    <string name="wifi_softap_config_change_summary" msgid="3365591437678425926">"Jalur tempat liputan anda telah berubah."</string>
+    <string name="wifi_softap_config_change_detailed" msgid="7903167280566447558">"Peranti ini tidak menyokong pilihan anda untuk 5GHz sahaja. Sebaliknya, peranti ini akan menggunakan jalur 5GHz apabila tersedia."</string>
+    <string name="wifi_watchdog_network_disabled" msgid="688248897654073438">"Tidak boleh menyambung kepada Wi-Fi"</string>
+    <string name="wifi_watchdog_network_disabled_detailed" msgid="2946200607682633112">" mempunyai sambungan internet yang kurang baik."</string>
+    <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Benarkan sambungan?"</string>
+    <string name="wifi_connect_alert_message" msgid="3123801378559831220">"Aplikasi %1$s ingin menyambung ke Rangkaian Wifi %2$s"</string>
+    <string name="wifi_connect_default_application" msgid="6164721692891325243">"Satu aplikasi"</string>
+    <string name="wifi_p2p_dialog_title" msgid="5241179009534993267">"Wi-Fi Langsung"</string>
+    <string name="wifi_p2p_turnon_message" msgid="1913312569911955507">"Mulakan Wi-Fi Langsung. Hal ini akan mematikan pengendalian klien/liputan Wi-Fi."</string>
+    <string name="wifi_p2p_failed_message" msgid="891756863555089693">"Tidak dapat memulakan Wi-Fi Langsung."</string>
+    <string name="wifi_p2p_enabled_notification_title" msgid="1370672816157426391">"Wi-Fi Direct dihidupkan"</string>
+    <string name="wifi_p2p_enabled_notification_message" msgid="4796109304869784386">"Ketik untuk mendapatkan tetapan"</string>
+    <string name="accept" msgid="5931271886782610829">"Terima"</string>
+    <string name="decline" msgid="6874256900873707640">"Tolak"</string>
+    <string name="ok" msgid="4215387532539340948">"OK"</string>
+    <string name="wifi_p2p_invitation_sent_title" msgid="6684220950195735982">"Jemputan dihantar"</string>
+    <string name="wifi_p2p_invitation_to_connect_title" msgid="5020192895172598089">"Jemputan untuk menyambung"</string>
+    <string name="wifi_p2p_from_message" msgid="3857436922001981191">"Daripada:"</string>
+    <string name="wifi_p2p_to_message" msgid="6664932426704362946">"Kepada:"</string>
+    <string name="wifi_p2p_enter_pin_message" msgid="5661843905965463456">"Taipkan PIN yang diperlukan:"</string>
+    <string name="wifi_p2p_show_pin_message" msgid="4332876077723766909">"PIN:"</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="tablet" msgid="3372859876274663802">"Sambungan tablet ke Wi-Fi akan diputuskan buat sementara waktu semasa tablet bersambung ke <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="tv" msgid="406603193215934517">"Peranti Android TV anda akan diputuskan sambungan daripada Wi-Fi untuk sementara waktu semasa peranti ini disambungkan ke <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
+    <string name="wifi_p2p_frequency_conflict_message" product="default" msgid="2723785832319900478">"Sambungan telefon ke Wi-Fi akan diputuskan buat sementara waktu semasa telefon bersambung ke <xliff:g id="DEVICE_NAME">%1$s</xliff:g>"</string>
+    <string name="dlg_ok" msgid="3250085870426030310">"OK"</string>
+</resources>
