@@ -123,8 +123,10 @@ public class WifiKeyStore {
                 caCertificateAliases.add(alias);
             }
         }
-        // Remove old private keys.
-        removeEntryFromKeyStore(existingAlias);
+        if (existingAlias != null) {
+            // Remove old private keys.
+            removeEntryFromKeyStore(existingAlias);
+        }
         // Remove any old CA certs.
         for (String oldAlias : oldCaCertificatesToRemove) {
             removeEntryFromKeyStore(oldAlias);
@@ -245,21 +247,25 @@ public class WifiKeyStore {
     public boolean updateNetworkKeys(WifiConfiguration config, WifiConfiguration existingConfig) {
         Preconditions.checkNotNull(mKeyStore);
         Preconditions.checkNotNull(config.enterpriseConfig);
-        Preconditions.checkNotNull(existingConfig.enterpriseConfig);
         WifiEnterpriseConfig enterpriseConfig = config.enterpriseConfig;
+        /* config passed may include only fields being updated.
+         * In order to generate the key id, fetch uninitialized
+         * fields from the currently tracked configuration
+         */
+        String keyId = config.getKeyIdForCredentials(existingConfig);
+        WifiEnterpriseConfig existingEnterpriseConfig = null;
+        String existingKeyId = null;
+        if (existingConfig != null) {
+            Preconditions.checkNotNull(existingConfig.enterpriseConfig);
+            existingEnterpriseConfig = existingConfig.enterpriseConfig;
+            existingKeyId = existingConfig.getKeyIdForCredentials(existingConfig);
+        }
         if (!needsKeyStore(enterpriseConfig)) {
             return true;
         }
 
         try {
-            /* config passed may include only fields being updated.
-             * In order to generate the key id, fetch uninitialized
-             * fields from the currently tracked configuration
-             */
-            String keyId = config.getKeyIdForCredentials(existingConfig);
-            String existingKeyId = existingConfig.getKeyIdForCredentials(existingConfig);
-            if (!installKeys(existingConfig.enterpriseConfig, enterpriseConfig,
-                    existingKeyId, keyId)) {
+            if (!installKeys(existingEnterpriseConfig, enterpriseConfig, existingKeyId, keyId)) {
                 Log.e(TAG, config.SSID + ": failed to install keys");
                 return false;
             }
