@@ -46,7 +46,6 @@ import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
 import com.android.internal.os.PowerProfile;
-import com.android.server.am.ActivityManagerService;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
@@ -725,10 +724,6 @@ public class WifiInjector {
 
     public Runtime getJavaRuntime() {
         return Runtime.getRuntime();
-    }
-
-    public ActivityManagerService getActivityManagerService() {
-        return (ActivityManagerService) ActivityManager.getService();
     }
 
     public WifiDataStall getWifiDataStall() {

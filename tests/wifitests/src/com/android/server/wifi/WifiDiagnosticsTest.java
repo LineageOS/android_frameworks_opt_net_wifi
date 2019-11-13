@@ -41,7 +41,6 @@ import android.os.UserHandle;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.am.ActivityManagerService;
 import com.android.wifi.R;
 
 import org.junit.Before;
@@ -70,7 +69,6 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     @Mock LastMileLogger mLastMileLogger;
     @Mock Runtime mJavaRuntime;
     @Mock Process mExternalProcess;
-    @Mock ActivityManagerService mActivityManagerService;
     @Mock WifiMetrics mWifiMetrics;
     @Mock Clock mClock;
     MockResources mResources;
@@ -132,7 +130,6 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getJavaRuntime()).thenReturn(mJavaRuntime);
-        when(mWifiInjector.getActivityManagerService()).thenReturn(mActivityManagerService);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
 
         mWifiDiagnostics = new WifiDiagnostics(
