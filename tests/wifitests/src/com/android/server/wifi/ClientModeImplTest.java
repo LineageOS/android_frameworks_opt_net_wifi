@@ -397,6 +397,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock BatteryStatsManager mBatteryStatsManager;
     @Mock MboOceController mMboOceController;
     @Mock SubscriptionManager mSubscriptionManager;
+    @Mock ConnectionFailureNotifier mConnectionFailureNotifier;
 
     final ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener> mConfigUpdateListenerCaptor =
             ArgumentCaptor.forClass(WifiConfigManager.OnNetworkUpdateListener.class);
@@ -453,6 +454,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
+        when(mWifiInjector.makeConnectionFailureNotifier(any()))
+                .thenReturn(mConnectionFailureNotifier);
         when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
@@ -492,7 +495,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 Settings.Global.WIFI_FREQUENCY_BAND,
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO)).thenReturn(
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO);
-
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -2820,6 +2822,44 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         connect();
         verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
+    }
+
+    /**
+     * Verifies that a notification is posted when a connection failure happens on a network
+     * in the hotlist. Then verify that tapping on the notification launches an dialog, which
+     * could be used to set the randomization setting for a network to "Trusted".
+     */
+    @Test
+    public void testConnectionFailureSendRandomizationSettingsNotification() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_TIMEOUT);
+        mLooper.dispatchAll();
+
+        WifiConfiguration config = mCmi.getCurrentWifiConfiguration();
+        verify(mConnectionFailureNotifier)
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(FRAMEWORK_NETWORK_ID);
+    }
+
+    /**
+     * Verifies that a notification is not posted when a wrong password failure happens on a
+     * network in the hotlist.
+     */
+    @Test
+    public void testNotCallingIsInFlakyRandomizationSsidHotlistOnWrongPassword() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
+        mLooper.dispatchAll();
+
+        verify(mConnectionFailureNotifier, never())
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(anyInt());
     }
 
     /**

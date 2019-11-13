@@ -689,6 +689,7 @@ public class ClientModeImpl extends StateMachine {
     private WifiStateTracker mWifiStateTracker;
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
+    private final ConnectionFailureNotifier mConnectionFailureNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     // Maximum duration to continue to log Wifi usability stats after a data stall is triggered.
     @VisibleForTesting
@@ -745,6 +746,8 @@ public class ClientModeImpl extends StateMachine {
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
+        mConnectionFailureNotifier = mWifiInjector.makeConnectionFailureNotifier(
+                mWifiConnectivityManager);
 
         mLinkProperties = new LinkProperties();
         mMcastLockManagerFilterController = new McastLockManagerFilterController();
@@ -2721,6 +2724,16 @@ public class ClientModeImpl extends StateMachine {
                 mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid,
                         bssidBlocklistMonitorReason);
             }
+        }
+        boolean isAssociationRejection = level2FailureCode
+                == WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION;
+        boolean isAuthenticationFailure = level2FailureCode
+                == WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE
+                && level2FailureReason != WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD;
+        if ((isAssociationRejection || isAuthenticationFailure)
+                && mWifiConfigManager.isInFlakyRandomizationSsidHotlist(mTargetNetworkId)) {
+            mConnectionFailureNotifier
+                    .showFailedToConnectDueToNoRandomizedMacSupportNotification(mTargetNetworkId);
         }
         // if connected, this should be non-null.
         WifiConfiguration configuration = getCurrentWifiConfiguration();
