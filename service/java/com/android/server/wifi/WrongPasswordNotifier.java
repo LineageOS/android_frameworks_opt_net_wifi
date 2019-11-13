@@ -25,7 +25,6 @@ import android.provider.Settings;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.wifi.util.NativeUtil;
 
 /**
@@ -82,7 +81,7 @@ public class WrongPasswordNotifier {
         Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
         intent.putExtra("wifi_start_connect_ssid", NativeUtil.removeEnclosingQuotes(ssid));
         Notification.Builder builder = mFrameworkFacade.makeNotificationBuilder(mContext,
-                SystemNotificationChannels.NETWORK_ALERTS)
+                WifiStackService.NOTIFICATION_NETWORK_ALERTS)
                 .setAutoCancel(true)
                 .setTimeoutAfter(CANCEL_TIMEOUT_MILLISECONDS)
                 // TODO(zqiu): consider creating a new icon.

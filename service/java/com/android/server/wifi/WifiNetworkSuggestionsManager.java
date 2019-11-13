@@ -50,7 +50,6 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
@@ -902,7 +901,7 @@ public class WifiNetworkSuggestionsManager {
 
         CharSequence appName = getAppName(packageName, uid);
         Notification notification = new Notification.Builder(
-                mContext, SystemNotificationChannels.NETWORK_STATUS)
+                mContext, WifiStackService.NOTIFICATION_NETWORK_STATUS)
                 .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setTicker(mResources.getString(R.string.wifi_suggestion_title))
                 .setContentTitle(mResources.getString(R.string.wifi_suggestion_title))

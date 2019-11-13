@@ -16,10 +16,6 @@
 
 package com.android.server.wifi;
 
-import static com.android.internal.notification.SystemNotificationChannels.NETWORK_ALERTS;
-import static com.android.internal.notification.SystemNotificationChannels.NETWORK_AVAILABLE;
-import static com.android.internal.notification.SystemNotificationChannels.NETWORK_STATUS;
-
 import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.NotificationChannel;
@@ -56,6 +52,12 @@ import java.util.stream.Collectors;
  */
 public class WifiStackService extends Service {
     private static final String TAG = WifiStackService.class.getSimpleName();
+
+    // Notification channels used by the wifi stack.
+    public static final String NOTIFICATION_NETWORK_STATUS = "NETWORK_STATUS";
+    public static final String NOTIFICATION_NETWORK_ALERTS = "NETWORK_ALERTS";
+    public static final String NOTIFICATION_NETWORK_AVAILABLE = "NETWORK_AVAILABLE";
+
     // Ordered list of wifi services. The ordering determines the order in which the events
     // are delivered to the services.
     @GuardedBy("mApiServices")
@@ -139,20 +141,20 @@ public class WifiStackService extends Service {
         final NotificationManager nm = getSystemService(NotificationManager.class);
         List<NotificationChannel> channelsList = new ArrayList<>();
         final NotificationChannel networkStatusChannel = new NotificationChannel(
-                NETWORK_STATUS,
+                NOTIFICATION_NETWORK_STATUS,
                 getString(android.R.string.notification_channel_network_status),
                 NotificationManager.IMPORTANCE_LOW);
         channelsList.add(networkStatusChannel);
 
         final NotificationChannel networkAlertsChannel = new NotificationChannel(
-                NETWORK_ALERTS,
+                NOTIFICATION_NETWORK_ALERTS,
                 getString(android.R.string.notification_channel_network_alerts),
                 NotificationManager.IMPORTANCE_HIGH);
         networkAlertsChannel.setBlockableSystem(true);
         channelsList.add(networkAlertsChannel);
 
         final NotificationChannel networkAvailable = new NotificationChannel(
-                NETWORK_AVAILABLE,
+                NOTIFICATION_NETWORK_AVAILABLE,
                 getString(android.R.string.notification_channel_network_available),
                 NotificationManager.IMPORTANCE_LOW);
         networkAvailable.setBlockableSystem(true);

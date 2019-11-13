@@ -35,7 +35,6 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.internal.notification.SystemNotificationChannels;
 import com.android.wifi.R;
 
 import java.io.BufferedInputStream;
@@ -219,7 +218,7 @@ public class WifiApConfigStore {
                 mContext.getResources().getColor(
                         android.R.color.system_notification_accent_color, mContext.getTheme());
 
-        return new Notification.Builder(mContext, SystemNotificationChannels.NETWORK_STATUS)
+        return new Notification.Builder(mContext, WifiStackService.NOTIFICATION_NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setCategory(Notification.CATEGORY_SYSTEM)
