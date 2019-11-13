@@ -85,6 +85,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.res.Resources;
+import android.net.MacAddress;
 import android.net.NetworkStack;
 import android.net.Uri;
 import android.net.wifi.IDppCallback;
@@ -93,6 +94,7 @@ import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ITrafficStateCallback;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -139,6 +141,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
@@ -203,6 +206,7 @@ public class WifiServiceImplTest {
     private SoftApCallback mStateMachineSoftApCallback;
     private ApplicationInfo mApplicationInfo;
     private static final String DPP_URI = "DPP:some_dpp_uri";
+    private static final MacAddress TEST_FACTORY_MAC_ADDR = MacAddress.fromString(TEST_FACTORY_MAC);
 
     final ArgumentCaptor<BroadcastReceiver> mBroadcastReceiverCaptor =
             ArgumentCaptor.forClass(BroadcastReceiver.class);
@@ -1863,7 +1867,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.registerSoftApCallback(mAppBinder, mClientSoftApCallback, 1);
         mLooper.dispatchAll();
         verify(mClientSoftApCallback, never()).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
-        verify(mClientSoftApCallback, never()).onNumClientsChanged(0);
+        verify(mClientSoftApCallback, never()).onConnectedClientsChanged(any());
     }
 
 
@@ -1885,7 +1889,7 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.registerSoftApCallback(binder, callback, callbackIdentifier);
         mLooper.dispatchAll();
         verify(callback).onStateChanged(WIFI_AP_STATE_DISABLED, 0);
-        verify(callback).onNumClientsChanged(0);
+        verify(callback).onConnectedClientsChanged(Mockito.<WifiClient>anyList());
     }
 
     /**
@@ -1905,12 +1909,14 @@ public class WifiServiceImplTest {
         verify(mAnotherAppBinder).linkToDeath(any(), anyInt());
         verify(mAnotherAppBinder, never()).unlinkToDeath(any(), anyInt());
 
-        final int testNumClients = 4;
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        final WifiClient testClient = new WifiClient(TEST_FACTORY_MAC_ADDR);
+        final List<WifiClient> testClients = new ArrayList();
+        testClients.add(testClient);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
         // Verify only the second callback is being called
-        verify(mClientSoftApCallback, never()).onNumClientsChanged(testNumClients);
-        verify(mAnotherSoftApCallback).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback, never()).onConnectedClientsChanged(testClients);
+        verify(mAnotherSoftApCallback).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -1926,10 +1932,12 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
         mLooper.dispatchAll();
 
-        final int testNumClients = 4;
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        final WifiClient testClient = new WifiClient(TEST_FACTORY_MAC_ADDR);
+        final List<WifiClient> testClients = new ArrayList();
+        testClients.add(testClient);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
-        verify(mClientSoftApCallback, never()).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback, never()).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -1947,10 +1955,12 @@ public class WifiServiceImplTest {
         mWifiServiceImpl.unregisterSoftApCallback(differentCallbackIdentifier);
         mLooper.dispatchAll();
 
-        final int testNumClients = 4;
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        final WifiClient testClient = new WifiClient(TEST_FACTORY_MAC_ADDR);
+        final List<WifiClient> testClients = new ArrayList();
+        testClients.add(testClient);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
-        verify(mClientSoftApCallback).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -1965,16 +1975,16 @@ public class WifiServiceImplTest {
                 callbackIdentifier);
 
         // Change state from default before registering the second callback
-        final int testNumClients = 4;
+        final List<WifiClient> testClients = new ArrayList();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
 
         // Register another callback and verify the new state is returned in the immediate callback
         final int anotherUid = 2;
         mWifiServiceImpl.registerSoftApCallback(mAppBinder, mAnotherSoftApCallback, anotherUid);
         mLooper.dispatchAll();
         verify(mAnotherSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
-        verify(mAnotherSoftApCallback).onNumClientsChanged(testNumClients);
+        verify(mAnotherSoftApCallback).onConnectedClientsChanged(testClients);
 
         // unregister the fisrt callback
         mWifiServiceImpl.unregisterSoftApCallback(callbackIdentifier);
@@ -2020,26 +2030,30 @@ public class WifiServiceImplTest {
         verify(mAppBinder).unlinkToDeath(drCaptor.getValue(), 0);
 
         // Verify callback is removed from the list as well
-        final int testNumClients = 4;
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        final WifiClient testClient = new WifiClient(TEST_FACTORY_MAC_ADDR);
+        final List<WifiClient> testClients = new ArrayList();
+        testClients.add(testClient);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
-        verify(mClientSoftApCallback, never()).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback, never()).onConnectedClientsChanged(testClients);
     }
 
     /**
      * Verify that soft AP callback is called on NumClientsChanged event
      */
     @Test
-    public void callsRegisteredCallbacksOnNumClientsChangedEvent() throws Exception {
+    public void callsRegisteredCallbacksOnConnectedClientsChangedEvent() throws Exception {
         setupClientModeImplHandlerForPost();
 
         final int callbackIdentifier = 1;
         registerSoftApCallbackAndVerify(mClientSoftApCallback, callbackIdentifier);
 
-        final int testNumClients = 4;
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        final WifiClient testClient = new WifiClient(TEST_FACTORY_MAC_ADDR);
+        final List<WifiClient> testClients = new ArrayList();
+        testClients.add(testClient);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
-        verify(mClientSoftApCallback).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -2062,12 +2076,12 @@ public class WifiServiceImplTest {
      * Ap events, even when no callbacks are registered.
      */
     @Test
-    public void updatesSoftApStateAndNumClientsOnSoftApEvents() throws Exception {
+    public void updatesSoftApStateAndConnectedClientsOnSoftApEvents() throws Exception {
         setupClientModeImplHandlerForPost();
 
-        final int testNumClients = 4;
+        final List<WifiClient> testClients = new ArrayList();
         mStateMachineSoftApCallback.onStateChanged(WIFI_AP_STATE_ENABLED, 0);
-        mStateMachineSoftApCallback.onNumClientsChanged(testNumClients);
+        mStateMachineSoftApCallback.onConnectedClientsChanged(testClients);
 
         // Register callback after num clients and soft AP are changed.
         final int callbackIdentifier = 1;
@@ -2075,7 +2089,7 @@ public class WifiServiceImplTest {
                 callbackIdentifier);
         mLooper.dispatchAll();
         verify(mClientSoftApCallback).onStateChanged(WIFI_AP_STATE_ENABLED, 0);
-        verify(mClientSoftApCallback).onNumClientsChanged(testNumClients);
+        verify(mClientSoftApCallback).onConnectedClientsChanged(testClients);
     }
 
     private class IntentFilterMatcher implements ArgumentMatcher<IntentFilter> {
