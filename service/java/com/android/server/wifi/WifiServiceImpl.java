@@ -1294,7 +1294,7 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * see {@link android.net.wifi.WifiManager#registerSoftApCallback(SoftApCallback, Handler)}
+     * see {@link android.net.wifi.WifiManager#registerSoftApCallback(Executor, SoftApCallback)}
      *
      * @param binder IBinder instance to allow cleanup if the app dies
      * @param callback Soft AP callback to register
