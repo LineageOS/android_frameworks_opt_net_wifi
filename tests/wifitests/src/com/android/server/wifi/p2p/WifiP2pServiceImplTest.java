@@ -150,7 +150,6 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
     @Spy FakeWifiLog mLog;
     @Spy MockWifiP2pMonitor mWifiMonitor;
 
-
     private void generatorTestData() {
         mTestWifiP2pGroup = new WifiP2pGroup();
         mTestWifiP2pGroup.setNetworkName("TestGroupName");
@@ -646,8 +645,8 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         String[] permission_gold = new String[] {android.Manifest.permission.ACCESS_FINE_LOCATION,
                                                  android.Manifest.permission.ACCESS_WIFI_STATE};
         ArgumentCaptor<String []> permissionCaptor = ArgumentCaptor.forClass(String[].class);
-        verify(mContext, atLeastOnce()).sendBroadcastAsUserMultiplePermissions(
-                intentCaptor.capture(), eq(UserHandle.ALL), permissionCaptor.capture());
+        verify(mContext, atLeastOnce()).sendBroadcastMultiplePermissions(
+                intentCaptor.capture(), permissionCaptor.capture());
         String [] permission = permissionCaptor.getValue();
         Arrays.sort(permission);
         Arrays.sort(permission_gold);
@@ -769,6 +768,8 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         setUpWifiP2pServiceImpl(true);
         mClient1 = new Binder();
         mClient2 = new Binder();
+
+        when(mContext.createContextAsUser(any(), anyInt())).thenReturn(mContext);
     }
 
     /**
