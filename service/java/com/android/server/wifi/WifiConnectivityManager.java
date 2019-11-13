@@ -180,6 +180,8 @@ public class WifiConnectivityManager {
     private int mRssiScoreSlope;
     private int mPnoScanIntervalMs;
 
+    private WifiChannelUtilization mWifiChannelUtilization;
+
     // A helper to log debugging information in the local log buffer, which can
     // be retrieved in bugreport.
     private void localLog(String log) {
@@ -237,6 +239,9 @@ public class WifiConnectivityManager {
      *         false - if no candidate is selected by WifiNetworkSelector
      */
     private boolean handleScanResults(List<ScanDetail> scanDetails, String listenerName) {
+        mWifiChannelUtilization.refreshChannelStatsAndChannelUtilization(
+                mStateMachine.getWifiLinkLayerStats());
+
         // Check if any blocklisted BSSIDs can be freed.
         Set<String> bssidBlocklist = mBssidBlocklistMonitor.updateAndGetBssidBlocklist();
 
@@ -607,6 +612,7 @@ public class WifiConnectivityManager {
         // Listen to WifiConfigManager network update events
         mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
+        mWifiChannelUtilization = mWifiInjector.getWifiChannelUtilization();
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */
@@ -922,13 +928,15 @@ public class WifiConnectivityManager {
     }
 
     /**
-     * Alters the PNO scan interval based on the current device mobility state.
+     * Pass device mobility state to WifiChannelUtilization and
+     * alter the PNO scan interval based on the current device mobility state.
      * If the device is stationary, it will likely not find many new Wifi networks. Thus, increase
      * the interval between scans. Decrease the interval between scans if the device begins to move
      * again.
      * @param newState the new device mobility state
      */
     public void setDeviceMobilityState(@DeviceMobilityState int newState) {
+        mWifiChannelUtilization.setDeviceMobilityState(newState);
         int newPnoScanIntervalMs = deviceMobilityStateToPnoScanIntervalMs(newState);
         if (newPnoScanIntervalMs < 0) {
             Log.e(TAG, "Invalid device mobility state: " + newState);
@@ -1258,6 +1266,7 @@ public class WifiConnectivityManager {
         retrieveWifiScanner();
         mConnectivityHelper.getFirmwareRoamingInfo();
         mBssidBlocklistMonitor.clearBssidBlocklist();
+        mWifiChannelUtilization.init(mStateMachine.getWifiLinkLayerStats());
         mRunning = true;
     }
 

@@ -156,6 +156,7 @@ public class WifiInjector {
     private final MacAddressUtil mMacAddressUtil;
     private final MboOceController mMboOceController;
     private final TelephonyUtil mTelephonyUtil;
+    private WifiChannelUtilization mWifiChannelUtilization;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -594,6 +595,7 @@ public class WifiInjector {
                 mWifiThreadRunner);
         mBssidBlocklistMonitor = new BssidBlocklistMonitor(mWifiConnectivityHelper,
                 mWifiLastResortWatchdog, mClock, mConnectivityLocalLog);
+        mWifiChannelUtilization = new WifiChannelUtilization(mClock);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,
                 mWifiConfigManager, clientModeImpl.getWifiInfo(),
@@ -754,5 +756,9 @@ public class WifiInjector {
 
     public WifiThreadRunner getWifiThreadRunner() {
         return mWifiThreadRunner;
+    }
+
+    public WifiChannelUtilization getWifiChannelUtilization() {
+        return mWifiChannelUtilization;
     }
 }
