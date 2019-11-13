@@ -21,10 +21,21 @@ import static com.android.server.wifi.ActiveModeManager.SCAN_WITHOUT_HIDDEN_NETW
 import static com.android.server.wifi.ActiveModeManager.SCAN_WITH_HIDDEN_NETWORKS;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
@@ -46,6 +57,8 @@ import org.mockito.stubbing.Answer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Unit tests for {@link com.android.server.wifi.ActiveModeWarden}.
@@ -450,7 +463,7 @@ public class ActiveModeWardenTest {
         mLooper.dispatchAll();
 
         verify(mSoftApStateMachineCallback, never()).onStateChanged(anyInt(), anyInt());
-        verify(mSoftApStateMachineCallback, never()).onNumClientsChanged(anyInt());
+        verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
     }
 
     /**
@@ -474,13 +487,13 @@ public class ActiveModeWardenTest {
      * Verifies that NumClientsChanged event is being passed from SoftApManager to WifiServiceImpl
      */
     @Test
-    public void callsWifiServiceCallbackOnSoftApNumClientsChanged() throws Exception {
-        final int testNumClients = 3;
+    public void callsWifiServiceCallbackOnSoftApConnectedClientsChanged() throws Exception {
+        final List<WifiClient> testClients = new ArrayList();
         enterSoftApActiveMode();
-        mSoftApManagerCallback.onNumClientsChanged(testNumClients);
+        mSoftApManagerCallback.onConnectedClientsChanged(testClients);
         mLooper.dispatchAll();
 
-        verify(mSoftApStateMachineCallback).onNumClientsChanged(testNumClients);
+        verify(mSoftApStateMachineCallback).onConnectedClientsChanged(testClients);
     }
 
     /**
@@ -488,17 +501,16 @@ public class ActiveModeWardenTest {
      * WifiServiceImpl is null.
      */
     @Test
-    public void testNullCallbackToWifiServiceImplForNumClientsChanged() throws Exception {
-
-        final int testNumClients = 3;
+    public void testNullCallbackToWifiServiceImplForConnectedClientsChanged() throws Exception {
+        final List<WifiClient> testClients = new ArrayList();
 
         //set the callback to null
         mActiveModeWarden.registerSoftApCallback(null);
 
         enterSoftApActiveMode();
-        mSoftApManagerCallback.onNumClientsChanged(testNumClients);
+        mSoftApManagerCallback.onConnectedClientsChanged(testClients);
 
-        verify(mSoftApStateMachineCallback, never()).onNumClientsChanged(anyInt());
+        verify(mSoftApStateMachineCallback, never()).onConnectedClientsChanged(any());
     }
 
     /**

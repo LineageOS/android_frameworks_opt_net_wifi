@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
@@ -36,6 +37,7 @@ import com.android.server.wifi.WifiNative.StatusListener;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.List;
 
 /**
  * This class provides the implementation for different WiFi operating modes.
@@ -578,11 +580,11 @@ public class ActiveModeWarden {
         }
 
         @Override
-        public void onNumClientsChanged(int numClients) {
+        public void onConnectedClientsChanged(List<WifiClient> clients) {
             if (mSoftApCallback == null) {
-                Log.d(TAG, "SoftApCallback is null. Dropping NumClientsChanged event.");
+                Log.d(TAG, "SoftApCallback is null. Dropping ConnectedClientsChanged event.");
             } else if (mMode == WifiManager.IFACE_IP_MODE_TETHERED) {
-                mSoftApCallback.onNumClientsChanged(numClients);
+                mSoftApCallback.onConnectedClientsChanged(clients);
             }
         }
     }

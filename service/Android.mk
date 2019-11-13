@@ -28,7 +28,8 @@ LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/java $(wificond_aidl_path)
 LOCAL_SRC_FILES := $(call all-java-files-under, java) \
 	$(call all-Iaidl-files-under, java) \
 	$(call all-Iaidl-files-under, $(wificond_aidl_rel_path)) \
-	$(call all-logtags-files-under, java)
+	$(call all-logtags-files-under, java) \
+	$(wificond_aidl_rel_path)/com/android/server/wifi/wificond/NativeWifiClient.aidl
 
 LOCAL_JAVA_LIBRARIES := \
 	android.hidl.manager-V1.2-java \

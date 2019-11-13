@@ -47,12 +47,14 @@ import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
 import com.android.server.wifi.wificond.NativeScanResult;
+import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoNetwork;
 import com.android.server.wifi.wificond.PnoSettings;
 import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,8 +185,15 @@ public class WificondControl implements IBinder.DeathRecipient {
         }
 
         @Override
-        public void onNumAssociatedStationsChanged(int numStations) {
-            mSoftApListener.onNumAssociatedStationsChanged(numStations);
+        public void onConnectedClientsChanged(NativeWifiClient[] clients) {
+            if (mVerboseLoggingEnabled) {
+                Log.d(TAG, "onConnectedClientsChanged called with " + clients.length + " clients");
+                for (int i = 0; i < clients.length; i++) {
+                    Log.d(TAG, " mac " + clients[i].macAddress);
+                }
+            }
+
+            mSoftApListener.onConnectedClientsChanged(Arrays.asList(clients));
         }
 
         @Override
