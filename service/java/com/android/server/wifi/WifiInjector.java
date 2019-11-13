@@ -21,7 +21,6 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.content.Context;
-import android.hardware.SystemSensorManager;
 import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
@@ -300,8 +299,7 @@ public class WifiInjector {
                 this, mWifiConfigManager,
                 mWifiPermissionsUtil, mWifiMetrics, mClock, mFrameworkFacade, wifiHandler);
         mSarManager = new SarManager(mContext, makeTelephonyManager(), wifiLooper,
-                mWifiNative, new SystemSensorManager(mContext, wifiLooper),
-                mWifiMetrics);
+                mWifiNative);
         mWifiDiagnostics = new WifiDiagnostics(
                 mContext, this, mWifiNative, mBuildProperties,
                 new LastMileLogger(this), mClock);
