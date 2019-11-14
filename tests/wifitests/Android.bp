@@ -250,6 +250,7 @@ android_test {
                 "com.android.server.wifi.SoftApManager",
                 "com.android.server.wifi.SoftApManager.*",
                 "com.android.server.wifi.SoftApModeConfiguration",
+                "com.android.server.wifi.SoftApStoreData",
                 "com.android.server.wifi.SsidSetStoreData",
                 "com.android.server.wifi.SsidSetStoreData.*",
                 "com.android.server.wifi.StateChangeResult",
