@@ -34,7 +34,6 @@ import com.android.server.wifi.WifiNative;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -135,8 +134,12 @@ public class TelephonyUtil {
      * @return true if the subId is active, otherwise false.
      */
     public boolean isSimPresent(int subId) {
-        return Arrays.stream(mSubscriptionManager.getActiveSubscriptionIdList())
-                .anyMatch(id -> id == subId);
+        List<SubscriptionInfo> subInfoList = mSubscriptionManager.getActiveSubscriptionInfoList();
+        if (subInfoList == null || subInfoList.isEmpty()) {
+            return false;
+        }
+        return subInfoList.stream()
+                .anyMatch(info -> info.getSubscriptionId() == subId);
     }
     /**
      * Get the identity for the current SIM or null if the SIM is not available
