@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static com.android.server.wifi.WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION;
+
 import android.annotation.NonNull;
 import android.content.Context;
 import android.net.IpConfiguration;
@@ -71,7 +73,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
     public void serializeData(XmlSerializer out,
             @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
-        serializeNetworkList(out, mConfigurations);
+        serializeNetworkList(out, mConfigurations, encryptionUtil);
     }
 
     @Override
@@ -83,7 +85,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
         if (in == null) {
             return;
         }
-        mConfigurations = parseNetworkList(in, outerTagDepth);
+        mConfigurations = parseNetworkList(in, outerTagDepth, version, encryptionUtil);
     }
 
     @Override
@@ -123,33 +125,38 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      *
      * @param out The output stream to serialize the data to
      * @param networkList The network list to serialize
+     * @param encryptionUtil Instance of {@link WifiConfigStoreEncryptionUtil}
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private void serializeNetworkList(XmlSerializer out, List<WifiConfiguration> networkList)
+    private void serializeNetworkList(XmlSerializer out, List<WifiConfiguration> networkList,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (networkList == null) {
             return;
         }
         for (WifiConfiguration network : networkList) {
-            serializeNetwork(out, network);
+            serializeNetwork(out, network, encryptionUtil);
         }
     }
 
     /**
      * Serialize a {@link WifiConfiguration} to an output stream in XML format.
-     * @param out
-     * @param config
+     *
+     * @param out The output stream to serialize the data to
+     * @param config The network config to serialize
+     * @param encryptionUtil Instance of {@link WifiConfigStoreEncryptionUtil}
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private void serializeNetwork(XmlSerializer out, WifiConfiguration config)
+    private void serializeNetwork(XmlSerializer out, WifiConfiguration config,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK);
 
         // Serialize WifiConfiguration.
         XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
-        WifiConfigurationXmlUtil.writeToXmlForConfigStore(out, config);
+        WifiConfigurationXmlUtil.writeToXmlForConfigStore(out, config, encryptionUtil);
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
 
         // Serialize network selection status.
@@ -167,7 +174,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
                 && config.enterpriseConfig.getEapMethod() != WifiEnterpriseConfig.Eap.NONE) {
             XmlUtil.writeNextSectionStart(
                     out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
-            WifiEnterpriseConfigXmlUtil.writeToXml(out, config.enterpriseConfig);
+            WifiEnterpriseConfigXmlUtil.writeToXml(out, config.enterpriseConfig, encryptionUtil);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
         }
 
@@ -179,11 +186,15 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      *
      * @param in The input stream to read from
      * @param outerTagDepth The XML tag depth of the outer XML block
+     * @param version Version of config store file.
+     * @param encryptionUtil Instance of {@link WifiConfigStoreEncryptionUtil}
      * @return List of {@link WifiConfiguration}
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private List<WifiConfiguration> parseNetworkList(XmlPullParser in, int outerTagDepth)
+    private List<WifiConfiguration> parseNetworkList(XmlPullParser in, int outerTagDepth,
+            @WifiConfigStore.Version int version,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         List<WifiConfiguration> networkList = new ArrayList<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(in, XML_TAG_SECTION_HEADER_NETWORK,
@@ -191,7 +202,8 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
             // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are
             // fatal and should abort the entire loading process.
             try {
-                WifiConfiguration config = parseNetwork(in, outerTagDepth + 1);
+                WifiConfiguration config =
+                        parseNetwork(in, outerTagDepth + 1, version, encryptionUtil);
                 networkList.add(config);
             } catch (RuntimeException e) {
                 // Failed to parse this network, skip it.
@@ -206,11 +218,15 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
      *
      * @param in The input stream to read from
      * @param outerTagDepth The XML tag depth of the outer XML block
+     * @param version Version of config store file.
+     * @param encryptionUtil Instance of {@link WifiConfigStoreEncryptionUtil}
      * @return {@link WifiConfiguration}
      * @throws XmlPullParserException
      * @throws IOException
      */
-    private WifiConfiguration parseNetwork(XmlPullParser in, int outerTagDepth)
+    private WifiConfiguration parseNetwork(XmlPullParser in, int outerTagDepth,
+            @WifiConfigStore.Version int version,
+            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
         NetworkSelectionStatus status = null;
@@ -225,7 +241,9 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
                         throw new XmlPullParserException("Detected duplicate tag for: "
                                 + XML_TAG_SECTION_HEADER_WIFI_CONFIGURATION);
                     }
-                    parsedConfig = WifiConfigurationXmlUtil.parseFromXml(in, outerTagDepth + 1);
+                    parsedConfig = WifiConfigurationXmlUtil.parseFromXml(in, outerTagDepth + 1,
+                            version >= ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                            encryptionUtil);
                     break;
                 case XML_TAG_SECTION_HEADER_NETWORK_STATUS:
                     if (status != null) {
@@ -247,7 +265,9 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
                                 + XML_TAG_SECTION_HEADER_WIFI_ENTERPRISE_CONFIGURATION);
                     }
                     enterpriseConfig =
-                            WifiEnterpriseConfigXmlUtil.parseFromXml(in, outerTagDepth + 1);
+                            WifiEnterpriseConfigXmlUtil.parseFromXml(in, outerTagDepth + 1,
+                            version >= ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
+                            encryptionUtil);
                     break;
                 default:
                     throw new XmlPullParserException("Unknown tag under "

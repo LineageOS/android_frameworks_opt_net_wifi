@@ -473,7 +473,8 @@ public class XmlUtilTest {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
         XmlUtil.writeDocumentStart(out, mXmlDocHeader);
-        WifiConfigurationXmlUtil.writeToXmlForConfigStore(out, configuration);
+        WifiConfigurationXmlUtil.writeToXmlForConfigStore(
+                out, configuration, mock(WifiConfigStoreEncryptionUtil.class));
         XmlUtil.writeDocumentEnd(out, mXmlDocHeader);
         return outputStream.toByteArray();
     }
@@ -485,7 +486,8 @@ public class XmlUtilTest {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
         XmlUtil.gotoDocumentStart(in, mXmlDocHeader);
-        return WifiConfigurationXmlUtil.parseFromXml(in, in.getDepth());
+        return WifiConfigurationXmlUtil.parseFromXml(
+                in, in.getDepth(), false, mock(WifiConfigStoreEncryptionUtil.class));
     }
 
     /**
@@ -593,7 +595,8 @@ public class XmlUtilTest {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
         XmlUtil.writeDocumentStart(out, mXmlDocHeader);
-        WifiEnterpriseConfigXmlUtil.writeToXml(out, config);
+        WifiEnterpriseConfigXmlUtil.writeToXml(
+                out, config, mock(WifiConfigStoreEncryptionUtil.class));
         XmlUtil.writeDocumentEnd(out, mXmlDocHeader);
         return outputStream.toByteArray();
     }
@@ -604,7 +607,8 @@ public class XmlUtilTest {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
         XmlUtil.gotoDocumentStart(in, mXmlDocHeader);
-        return WifiEnterpriseConfigXmlUtil.parseFromXml(in, in.getDepth());
+        return WifiEnterpriseConfigXmlUtil.parseFromXml(
+                in, in.getDepth(), false, mock(WifiConfigStoreEncryptionUtil.class));
     }
 
     private void serializeDeserializeWifiEnterpriseConfig(WifiEnterpriseConfig config)

@@ -100,8 +100,6 @@ public class WifiConfigStore {
     private static final String XML_TAG_DOCUMENT_HEADER = "WifiConfigStoreData";
     private static final String XML_TAG_VERSION = "Version";
     private static final String XML_TAG_HEADER_INTEGRITY = "Integrity";
-    private static final String XML_TAG_INTEGRITY_ENCRYPTED_DATA = "EncryptedData";
-    private static final String XML_TAG_INTEGRITY_IV = "IV";
     /**
      * Current config store data version. This will be incremented for any additions.
      */
@@ -669,8 +667,7 @@ public class WifiConfigStore {
     private static void parseAndDiscardIntegrityDataFromXml(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
         XmlUtil.gotoNextSectionWithName(in, XML_TAG_HEADER_INTEGRITY, outerTagDepth);
-        XmlUtil.readNextValueWithName(in, XML_TAG_INTEGRITY_ENCRYPTED_DATA);
-        XmlUtil.readNextValueWithName(in, XML_TAG_INTEGRITY_IV);
+        XmlUtil.EncryptedDataXmlUtil.parseFromXml(in, outerTagDepth + 1);
     }
 
     /**

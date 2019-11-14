@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.util;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.net.IpConfiguration;
 import android.net.IpConfiguration.IpAssignment;
 import android.net.IpConfiguration.ProxySettings;
@@ -380,11 +382,13 @@ public class XmlUtil {
          * Write the Configuration data elements that are common for backup & config store to the
          * XML stream.
          *
-         * @param out           XmlSerializer instance pointing to the XML stream.
+         * @param out XmlSerializer instance pointing to the XML stream.
          * @param configuration WifiConfiguration object to be serialized.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          */
         public static void writeCommonElementsToXml(
-                XmlSerializer out, WifiConfiguration configuration)
+                XmlSerializer out, WifiConfiguration configuration,
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             XmlUtil.writeNextValue(out, XML_TAG_CONFIG_KEY, configuration.configKey());
             XmlUtil.writeNextValue(out, XML_TAG_SSID, configuration.SSID);
@@ -428,7 +432,7 @@ public class XmlUtil {
          */
         public static void writeToXmlForBackup(XmlSerializer out, WifiConfiguration configuration)
                 throws XmlPullParserException, IOException {
-            writeCommonElementsToXml(out, configuration);
+            writeCommonElementsToXml(out, configuration, null);
             XmlUtil.writeNextValue(out, XML_TAG_METERED_OVERRIDE, configuration.meteredOverride);
         }
 
@@ -436,13 +440,15 @@ public class XmlUtil {
          * Write the Configuration data elements for config store from the provided Configuration
          * to the XML stream.
          *
-         * @param out           XmlSerializer instance pointing to the XML stream.
+         * @param out XmlSerializer instance pointing to the XML stream.
          * @param configuration WifiConfiguration object to be serialized.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          */
         public static void writeToXmlForConfigStore(
-                XmlSerializer out, WifiConfiguration configuration)
+                XmlSerializer out, WifiConfiguration configuration,
+                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
-            writeCommonElementsToXml(out, configuration);
+            writeCommonElementsToXml(out, configuration, encryptionUtil);
             XmlUtil.writeNextValue(out, XML_TAG_STATUS, configuration.status);
             XmlUtil.writeNextValue(out, XML_TAG_FQDN, configuration.FQDN);
             XmlUtil.writeNextValue(
@@ -509,13 +515,16 @@ public class XmlUtil {
          * Note: This is used for parsing both backup data and config store data. Looping through
          * the tags make it easy to add or remove elements in the future versions if needed.
          *
-         * @param in            XmlPullParser instance pointing to the XML stream.
+         * @param in XmlPullParser instance pointing to the XML stream.
          * @param outerTagDepth depth of the outer tag in the XML document.
+         * @param areCredentialsEncrypted Whether credentials are encrypted or not.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          * @return Pair<Config key, WifiConfiguration object> if parsing is successful,
          * null otherwise.
          */
         public static Pair<String, WifiConfiguration> parseFromXml(
-                XmlPullParser in, int outerTagDepth)
+                XmlPullParser in, int outerTagDepth, boolean areCredentialsEncrypted,
+                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiConfiguration configuration = new WifiConfiguration();
             String configKeyInData = null;
@@ -1022,10 +1031,12 @@ public class XmlUtil {
          * Write the WifiEnterpriseConfig data elements from the provided config to the XML
          * stream.
          *
-         * @param out              XmlSerializer instance pointing to the XML stream.
+         * @param out XmlSerializer instance pointing to the XML stream.
          * @param enterpriseConfig WifiEnterpriseConfig object to be serialized.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          */
-        public static void writeToXml(XmlSerializer out, WifiEnterpriseConfig enterpriseConfig)
+        public static void writeToXml(XmlSerializer out, WifiEnterpriseConfig enterpriseConfig,
+                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             XmlUtil.writeNextValue(out, XML_TAG_IDENTITY,
                     enterpriseConfig.getFieldValue(WifiEnterpriseConfig.IDENTITY_KEY));
@@ -1060,11 +1071,15 @@ public class XmlUtil {
         /**
          * Parses the data elements from the provided XML stream to a WifiEnterpriseConfig object.
          *
-         * @param in            XmlPullParser instance pointing to the XML stream.
+         * @param in XmlPullParser instance pointing to the XML stream.
          * @param outerTagDepth depth of the outer tag in the XML document.
+         * @param areCredentialsEncrypted Whether credentials are encrypted or not.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          * @return WifiEnterpriseConfig object if parsing is successful, null otherwise.
          */
-        public static WifiEnterpriseConfig parseFromXml(XmlPullParser in, int outerTagDepth)
+        public static WifiEnterpriseConfig parseFromXml(XmlPullParser in, int outerTagDepth,
+                boolean areCredentialsEncrypted,
+                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
 
@@ -1142,6 +1157,67 @@ public class XmlUtil {
                 }
             }
             return enterpriseConfig;
+        }
+    }
+
+    /**
+     * Utility class to serialize and deseriaize {@link EncryptedData} object to XML &
+     * vice versa. This is used by {@link com.android.server.wifi.WifiConfigStore} module.
+     */
+    public static class EncryptedDataXmlUtil {
+        /**
+         * List of XML tags corresponding to EncryptedData object elements.
+         */
+        private static final String XML_TAG_ENCRYPTED_DATA = "EncryptedData";
+        private static final String XML_TAG_IV = "IV";
+
+        /**
+         * Write the NetworkSelectionStatus data elements from the provided status to the XML
+         * stream.
+         *
+         * @param out           XmlSerializer instance pointing to the XML stream.
+         * @param encryptedData EncryptedData object to be serialized.
+         */
+        public static void writeToXml(XmlSerializer out, EncryptedData encryptedData)
+                throws XmlPullParserException, IOException {
+            XmlUtil.writeNextValue(
+                    out, XML_TAG_ENCRYPTED_DATA, encryptedData.getEncryptedData());
+            XmlUtil.writeNextValue(out, XML_TAG_IV, encryptedData.getIv());
+        }
+
+        /**
+         * Parses the EncryptedData data elements from the provided XML stream to a
+         * EncryptedData object.
+         *
+         * @param in            XmlPullParser instance pointing to the XML stream.
+         * @param outerTagDepth depth of the outer tag in the XML document.
+         * @return EncryptedData object if parsing is successful, null otherwise.
+         */
+        public static EncryptedData parseFromXml(XmlPullParser in, int outerTagDepth)
+                throws XmlPullParserException, IOException {
+            byte[] encryptedData = null;
+            byte[] iv = null;
+
+            // Loop through and parse out all the elements from the stream within this section.
+            while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
+                String[] valueName = new String[1];
+                Object value = XmlUtil.readCurrentValue(in, valueName);
+                if (valueName[0] == null) {
+                    throw new XmlPullParserException("Missing value name");
+                }
+                switch (valueName[0]) {
+                    case XML_TAG_ENCRYPTED_DATA:
+                        encryptedData = (byte[]) value;
+                        break;
+                    case XML_TAG_IV:
+                        iv = (byte[]) value;
+                        break;
+                    default:
+                        throw new XmlPullParserException(
+                                "Unknown value name found: " + valueName[0]);
+                }
+            }
+            return new EncryptedData(encryptedData, iv);
         }
     }
 }
