@@ -30,6 +30,7 @@ import android.net.StaticIpConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
@@ -379,12 +380,42 @@ public class XmlUtil {
         }
 
         /**
+         * Write preshared key to the XML stream.
+         *
+         * If encryptionUtil is null or if encryption fails for some reason, the pre-shared
+         * key is stored in plaintext, else the encrypted psk is stored.
+         */
+        private static void writePreSharedKeyToXml(
+                XmlSerializer out, String preSharedKey,
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
+                throws XmlPullParserException, IOException {
+            EncryptedData encryptedData = null;
+            if (encryptionUtil != null) {
+                if (preSharedKey != null) {
+                    encryptedData = encryptionUtil.encrypt(preSharedKey.getBytes());
+                    if (encryptedData == null) {
+                        // We silently fail encryption failures!
+                        Log.wtf(TAG, "Encryption of preSharedKey failed");
+                    }
+                }
+            }
+            if (encryptedData != null) {
+                XmlUtil.writeNextSectionStart(out, XML_TAG_PRE_SHARED_KEY);
+                EncryptedDataXmlUtil.writeToXml(out, encryptedData);
+                XmlUtil.writeNextSectionEnd(out, XML_TAG_PRE_SHARED_KEY);
+            } else {
+                XmlUtil.writeNextValue(out, XML_TAG_PRE_SHARED_KEY, preSharedKey);
+            }
+        }
+
+        /**
          * Write the Configuration data elements that are common for backup & config store to the
          * XML stream.
          *
          * @param out XmlSerializer instance pointing to the XML stream.
          * @param configuration WifiConfiguration object to be serialized.
-         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
+         * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}. Backup/restore stores
+         *                       keys unencrypted.
          */
         public static void writeCommonElementsToXml(
                 XmlSerializer out, WifiConfiguration configuration,
@@ -393,7 +424,7 @@ public class XmlUtil {
             XmlUtil.writeNextValue(out, XML_TAG_CONFIG_KEY, configuration.configKey());
             XmlUtil.writeNextValue(out, XML_TAG_SSID, configuration.SSID);
             XmlUtil.writeNextValue(out, XML_TAG_BSSID, configuration.BSSID);
-            XmlUtil.writeNextValue(out, XML_TAG_PRE_SHARED_KEY, configuration.preSharedKey);
+            writePreSharedKeyToXml(out, configuration.preSharedKey, encryptionUtil);
             writeWepKeysToXml(out, configuration.wepKeys);
             XmlUtil.writeNextValue(out, XML_TAG_WEP_TX_KEY_INDEX, configuration.wepTxKeyIndex);
             XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, configuration.hiddenSSID);
@@ -517,13 +548,13 @@ public class XmlUtil {
          *
          * @param in XmlPullParser instance pointing to the XML stream.
          * @param outerTagDepth depth of the outer tag in the XML document.
-         * @param areCredentialsEncrypted Whether credentials are encrypted or not.
+         * @param shouldExpectEncryptedCredentials Whether to expect encrypted credentials or not.
          * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          * @return Pair<Config key, WifiConfiguration object> if parsing is successful,
          * null otherwise.
          */
         public static Pair<String, WifiConfiguration> parseFromXml(
-                XmlPullParser in, int outerTagDepth, boolean areCredentialsEncrypted,
+                XmlPullParser in, int outerTagDepth, boolean shouldExpectEncryptedCredentials,
                 @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiConfiguration configuration = new WifiConfiguration();
@@ -532,147 +563,175 @@ public class XmlUtil {
 
             // Loop through and parse out all the elements from the stream within this section.
             while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
-                String[] valueName = new String[1];
-                Object value = XmlUtil.readCurrentValue(in, valueName);
-                if (valueName[0] == null) {
-                    throw new XmlPullParserException("Missing value name");
-                }
-                switch (valueName[0]) {
-                    case XML_TAG_CONFIG_KEY:
-                        configKeyInData = (String) value;
-                        break;
-                    case XML_TAG_SSID:
-                        configuration.SSID = (String) value;
-                        break;
-                    case XML_TAG_BSSID:
-                        configuration.BSSID = (String) value;
-                        break;
-                    case XML_TAG_PRE_SHARED_KEY:
-                        configuration.preSharedKey = (String) value;
-                        break;
-                    case XML_TAG_WEP_KEYS:
-                        populateWepKeysFromXmlValue(value, configuration.wepKeys);
-                        break;
-                    case XML_TAG_WEP_TX_KEY_INDEX:
-                        configuration.wepTxKeyIndex = (int) value;
-                        break;
-                    case XML_TAG_HIDDEN_SSID:
-                        configuration.hiddenSSID = (boolean) value;
-                        break;
-                    case XML_TAG_REQUIRE_PMF:
-                        configuration.requirePMF = (boolean) value;
-                        break;
-                    case XML_TAG_ALLOWED_KEY_MGMT:
-                        byte[] allowedKeyMgmt = (byte[]) value;
-                        configuration.allowedKeyManagement = BitSet.valueOf(allowedKeyMgmt);
-                        break;
-                    case XML_TAG_ALLOWED_PROTOCOLS:
-                        byte[] allowedProtocols = (byte[]) value;
-                        configuration.allowedProtocols = BitSet.valueOf(allowedProtocols);
-                        break;
-                    case XML_TAG_ALLOWED_AUTH_ALGOS:
-                        byte[] allowedAuthAlgorithms = (byte[]) value;
-                        configuration.allowedAuthAlgorithms = BitSet.valueOf(allowedAuthAlgorithms);
-                        break;
-                    case XML_TAG_ALLOWED_GROUP_CIPHERS:
-                        byte[] allowedGroupCiphers = (byte[]) value;
-                        configuration.allowedGroupCiphers = BitSet.valueOf(allowedGroupCiphers);
-                        break;
-                    case XML_TAG_ALLOWED_PAIRWISE_CIPHERS:
-                        byte[] allowedPairwiseCiphers = (byte[]) value;
-                        configuration.allowedPairwiseCiphers =
-                                BitSet.valueOf(allowedPairwiseCiphers);
-                        break;
-                    case XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS:
-                        byte[] allowedGroupMgmtCiphers = (byte[]) value;
-                        configuration.allowedGroupManagementCiphers =
-                                BitSet.valueOf(allowedGroupMgmtCiphers);
-                        break;
-                    case XML_TAG_ALLOWED_SUITE_B_CIPHERS:
-                        byte[] allowedSuiteBCiphers = (byte[]) value;
-                        configuration.allowedSuiteBCiphers =
-                                BitSet.valueOf(allowedSuiteBCiphers);
-                        break;
-                    case XML_TAG_SHARED:
-                        configuration.shared = (boolean) value;
-                        break;
-                    case XML_TAG_STATUS:
-                        int status = (int) value;
-                        // Any network which was CURRENT before reboot needs
-                        // to be restored to ENABLED.
-                        if (status == WifiConfiguration.Status.CURRENT) {
-                            status = WifiConfiguration.Status.ENABLED;
-                        }
-                        configuration.status = status;
-                        break;
-                    case XML_TAG_FQDN:
-                        configuration.FQDN = (String) value;
-                        break;
-                    case XML_TAG_PROVIDER_FRIENDLY_NAME:
-                        configuration.providerFriendlyName = (String) value;
-                        break;
-                    case XML_TAG_LINKED_NETWORKS_LIST:
-                        configuration.linkedConfigurations = (HashMap<String, Integer>) value;
-                        break;
-                    case XML_TAG_DEFAULT_GW_MAC_ADDRESS:
-                        configuration.defaultGwMacAddress = (String) value;
-                        break;
-                    case XML_TAG_VALIDATED_INTERNET_ACCESS:
-                        configuration.validatedInternetAccess = (boolean) value;
-                        break;
-                    case XML_TAG_NO_INTERNET_ACCESS_EXPECTED:
-                        configuration.noInternetAccessExpected = (boolean) value;
-                        break;
-                    case XML_TAG_USER_APPROVED:
-                        configuration.userApproved = (int) value;
-                        break;
-                    case XML_TAG_METERED_HINT:
-                        configuration.meteredHint = (boolean) value;
-                        break;
-                    case XML_TAG_METERED_OVERRIDE:
-                        configuration.meteredOverride = (int) value;
-                        break;
-                    case XML_TAG_USE_EXTERNAL_SCORES:
-                        configuration.useExternalScores = (boolean) value;
-                        break;
-                    case XML_TAG_NUM_ASSOCIATION:
-                        configuration.numAssociation = (int) value;
-                        break;
-                    case XML_TAG_CREATOR_UID:
-                        configuration.creatorUid = (int) value;
-                        break;
-                    case XML_TAG_CREATOR_NAME:
-                        configuration.creatorName = (String) value;
-                        break;
-                    case XML_TAG_CREATION_TIME:
-                        configuration.creationTime = (String) value;
-                        break;
-                    case XML_TAG_LAST_UPDATE_UID:
-                        configuration.lastUpdateUid = (int) value;
-                        break;
-                    case XML_TAG_LAST_UPDATE_NAME:
-                        configuration.lastUpdateName = (String) value;
-                        break;
-                    case XML_TAG_LAST_CONNECT_UID:
-                        configuration.lastConnectUid = (int) value;
-                        break;
-                    case XML_TAG_IS_LEGACY_PASSPOINT_CONFIG:
-                        configuration.isLegacyPasspointConfig = (boolean) value;
-                        break;
-                    case XML_TAG_ROAMING_CONSORTIUM_OIS:
-                        configuration.roamingConsortiumIds = (long[]) value;
-                        break;
-                    case XML_TAG_RANDOMIZED_MAC_ADDRESS:
-                        configuration.setRandomizedMacAddress(
-                                MacAddress.fromString((String) value));
-                        break;
-                    case XML_TAG_MAC_RANDOMIZATION_SETTING:
-                        configuration.macRandomizationSetting = (int) value;
-                        macRandomizationSettingExists = true;
-                        break;
-                    default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+                if (in.getAttributeValue(null, "name") != null) {
+                    // Value elements.
+                    String[] valueName = new String[1];
+                    Object value = XmlUtil.readCurrentValue(in, valueName);
+                    if (valueName[0] == null) {
+                        throw new XmlPullParserException("Missing value name");
+                    }
+                    switch (valueName[0]) {
+                        case XML_TAG_CONFIG_KEY:
+                            configKeyInData = (String) value;
+                            break;
+                        case XML_TAG_SSID:
+                            configuration.SSID = (String) value;
+                            break;
+                        case XML_TAG_BSSID:
+                            configuration.BSSID = (String) value;
+                            break;
+                        case XML_TAG_PRE_SHARED_KEY:
+                            configuration.preSharedKey = (String) value;
+                            break;
+                        case XML_TAG_WEP_KEYS:
+                            populateWepKeysFromXmlValue(value, configuration.wepKeys);
+                            break;
+                        case XML_TAG_WEP_TX_KEY_INDEX:
+                            configuration.wepTxKeyIndex = (int) value;
+                            break;
+                        case XML_TAG_HIDDEN_SSID:
+                            configuration.hiddenSSID = (boolean) value;
+                            break;
+                        case XML_TAG_REQUIRE_PMF:
+                            configuration.requirePMF = (boolean) value;
+                            break;
+                        case XML_TAG_ALLOWED_KEY_MGMT:
+                            byte[] allowedKeyMgmt = (byte[]) value;
+                            configuration.allowedKeyManagement = BitSet.valueOf(allowedKeyMgmt);
+                            break;
+                        case XML_TAG_ALLOWED_PROTOCOLS:
+                            byte[] allowedProtocols = (byte[]) value;
+                            configuration.allowedProtocols = BitSet.valueOf(allowedProtocols);
+                            break;
+                        case XML_TAG_ALLOWED_AUTH_ALGOS:
+                            byte[] allowedAuthAlgorithms = (byte[]) value;
+                            configuration.allowedAuthAlgorithms = BitSet.valueOf(
+                                    allowedAuthAlgorithms);
+                            break;
+                        case XML_TAG_ALLOWED_GROUP_CIPHERS:
+                            byte[] allowedGroupCiphers = (byte[]) value;
+                            configuration.allowedGroupCiphers = BitSet.valueOf(allowedGroupCiphers);
+                            break;
+                        case XML_TAG_ALLOWED_PAIRWISE_CIPHERS:
+                            byte[] allowedPairwiseCiphers = (byte[]) value;
+                            configuration.allowedPairwiseCiphers =
+                                    BitSet.valueOf(allowedPairwiseCiphers);
+                            break;
+                        case XML_TAG_ALLOWED_GROUP_MGMT_CIPHERS:
+                            byte[] allowedGroupMgmtCiphers = (byte[]) value;
+                            configuration.allowedGroupManagementCiphers =
+                                    BitSet.valueOf(allowedGroupMgmtCiphers);
+                            break;
+                        case XML_TAG_ALLOWED_SUITE_B_CIPHERS:
+                            byte[] allowedSuiteBCiphers = (byte[]) value;
+                            configuration.allowedSuiteBCiphers =
+                                    BitSet.valueOf(allowedSuiteBCiphers);
+                            break;
+                        case XML_TAG_SHARED:
+                            configuration.shared = (boolean) value;
+                            break;
+                        case XML_TAG_STATUS:
+                            int status = (int) value;
+                            // Any network which was CURRENT before reboot needs
+                            // to be restored to ENABLED.
+                            if (status == WifiConfiguration.Status.CURRENT) {
+                                status = WifiConfiguration.Status.ENABLED;
+                            }
+                            configuration.status = status;
+                            break;
+                        case XML_TAG_FQDN:
+                            configuration.FQDN = (String) value;
+                            break;
+                        case XML_TAG_PROVIDER_FRIENDLY_NAME:
+                            configuration.providerFriendlyName = (String) value;
+                            break;
+                        case XML_TAG_LINKED_NETWORKS_LIST:
+                            configuration.linkedConfigurations = (HashMap<String, Integer>) value;
+                            break;
+                        case XML_TAG_DEFAULT_GW_MAC_ADDRESS:
+                            configuration.defaultGwMacAddress = (String) value;
+                            break;
+                        case XML_TAG_VALIDATED_INTERNET_ACCESS:
+                            configuration.validatedInternetAccess = (boolean) value;
+                            break;
+                        case XML_TAG_NO_INTERNET_ACCESS_EXPECTED:
+                            configuration.noInternetAccessExpected = (boolean) value;
+                            break;
+                        case XML_TAG_USER_APPROVED:
+                            configuration.userApproved = (int) value;
+                            break;
+                        case XML_TAG_METERED_HINT:
+                            configuration.meteredHint = (boolean) value;
+                            break;
+                        case XML_TAG_METERED_OVERRIDE:
+                            configuration.meteredOverride = (int) value;
+                            break;
+                        case XML_TAG_USE_EXTERNAL_SCORES:
+                            configuration.useExternalScores = (boolean) value;
+                            break;
+                        case XML_TAG_NUM_ASSOCIATION:
+                            configuration.numAssociation = (int) value;
+                            break;
+                        case XML_TAG_CREATOR_UID:
+                            configuration.creatorUid = (int) value;
+                            break;
+                        case XML_TAG_CREATOR_NAME:
+                            configuration.creatorName = (String) value;
+                            break;
+                        case XML_TAG_CREATION_TIME:
+                            configuration.creationTime = (String) value;
+                            break;
+                        case XML_TAG_LAST_UPDATE_UID:
+                            configuration.lastUpdateUid = (int) value;
+                            break;
+                        case XML_TAG_LAST_UPDATE_NAME:
+                            configuration.lastUpdateName = (String) value;
+                            break;
+                        case XML_TAG_LAST_CONNECT_UID:
+                            configuration.lastConnectUid = (int) value;
+                            break;
+                        case XML_TAG_IS_LEGACY_PASSPOINT_CONFIG:
+                            configuration.isLegacyPasspointConfig = (boolean) value;
+                            break;
+                        case XML_TAG_ROAMING_CONSORTIUM_OIS:
+                            configuration.roamingConsortiumIds = (long[]) value;
+                            break;
+                        case XML_TAG_RANDOMIZED_MAC_ADDRESS:
+                            configuration.setRandomizedMacAddress(
+                                    MacAddress.fromString((String) value));
+                            break;
+                        case XML_TAG_MAC_RANDOMIZATION_SETTING:
+                            configuration.macRandomizationSetting = (int) value;
+                            macRandomizationSettingExists = true;
+                            break;
+                        default:
+                            throw new XmlPullParserException(
+                                  "Unknown value name found: " + valueName[0]);
+                    }
+                } else {
+                    String tagName = in.getName();
+                    if (tagName == null) {
+                        throw new XmlPullParserException("Unexpected null tag found");
+                    }
+                    switch (tagName) {
+                        case XML_TAG_PRE_SHARED_KEY:
+                            if (!shouldExpectEncryptedCredentials) {
+                                throw new XmlPullParserException(
+                                        "Encrypted preSharedKey section not expected");
+                            }
+                            EncryptedData encryptedData =
+                                    EncryptedDataXmlUtil.parseFromXml(in, outerTagDepth + 1);
+                            byte[] preSharedKeyBytes = encryptionUtil.decrypt(encryptedData);
+                            if (preSharedKeyBytes == null) {
+                                Log.wtf(TAG, "Decryption of preSharedKey failed");
+                            } else {
+                                configuration.preSharedKey = new String(preSharedKeyBytes);
+                            }
+                            break;
+                        default:
+                            throw new XmlPullParserException(
+                                  "Unknown tag name found: " + tagName);
+                    }
                 }
             }
             if (!macRandomizationSettingExists) {
@@ -1028,6 +1087,35 @@ public class XmlUtil {
         public static final String XML_TAG_REALM = "Realm";
 
         /**
+         * Write password key to the XML stream.
+         *
+         * If encryptionUtil is null or if encryption fails for some reason, the password is stored
+         * in plaintext, else the encrypted psk is stored.
+         */
+        private static void writePasswordToXml(
+                XmlSerializer out, String password,
+                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                throws XmlPullParserException, IOException {
+            EncryptedData encryptedData = null;
+            if (encryptionUtil != null) {
+                if (password != null) {
+                    encryptedData = encryptionUtil.encrypt(password.getBytes());
+                    if (encryptedData == null) {
+                        // We silently fail encryption failures!
+                        Log.wtf(TAG, "Encryption of password failed");
+                    }
+                }
+            }
+            if (encryptedData != null) {
+                XmlUtil.writeNextSectionStart(out, XML_TAG_PASSWORD);
+                EncryptedDataXmlUtil.writeToXml(out, encryptedData);
+                XmlUtil.writeNextSectionEnd(out, XML_TAG_PASSWORD);
+            } else {
+                XmlUtil.writeNextValue(out, XML_TAG_PASSWORD, password);
+            }
+        }
+
+        /**
          * Write the WifiEnterpriseConfig data elements from the provided config to the XML
          * stream.
          *
@@ -1042,8 +1130,9 @@ public class XmlUtil {
                     enterpriseConfig.getFieldValue(WifiEnterpriseConfig.IDENTITY_KEY));
             XmlUtil.writeNextValue(out, XML_TAG_ANON_IDENTITY,
                     enterpriseConfig.getFieldValue(WifiEnterpriseConfig.ANON_IDENTITY_KEY));
-            XmlUtil.writeNextValue(out, XML_TAG_PASSWORD,
-                    enterpriseConfig.getFieldValue(WifiEnterpriseConfig.PASSWORD_KEY));
+            writePasswordToXml(
+                    out, enterpriseConfig.getFieldValue(WifiEnterpriseConfig.PASSWORD_KEY),
+                    encryptionUtil);
             XmlUtil.writeNextValue(out, XML_TAG_CLIENT_CERT,
                     enterpriseConfig.getFieldValue(WifiEnterpriseConfig.CLIENT_CERT_KEY));
             XmlUtil.writeNextValue(out, XML_TAG_CA_CERT,
@@ -1073,87 +1162,123 @@ public class XmlUtil {
          *
          * @param in XmlPullParser instance pointing to the XML stream.
          * @param outerTagDepth depth of the outer tag in the XML document.
-         * @param areCredentialsEncrypted Whether credentials are encrypted or not.
+         * @param shouldExpectEncryptedCredentials Whether to expect encrypted credentials or not.
          * @param encryptionUtil Instance of {@link EncryptedDataXmlUtil}.
          * @return WifiEnterpriseConfig object if parsing is successful, null otherwise.
          */
         public static WifiEnterpriseConfig parseFromXml(XmlPullParser in, int outerTagDepth,
-                boolean areCredentialsEncrypted,
+                boolean shouldExpectEncryptedCredentials,
                 @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
             WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
 
             // Loop through and parse out all the elements from the stream within this section.
-            while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
-                String[] valueName = new String[1];
-                Object value = XmlUtil.readCurrentValue(in, valueName);
-                if (valueName[0] == null) {
-                    throw new XmlPullParserException("Missing value name");
-                }
-                switch (valueName[0]) {
-                    case XML_TAG_IDENTITY:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.IDENTITY_KEY, (String) value);
-                        break;
-                    case XML_TAG_ANON_IDENTITY:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.ANON_IDENTITY_KEY, (String) value);
-                        break;
-                    case XML_TAG_PASSWORD:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.PASSWORD_KEY, (String) value);
-                        break;
-                    case XML_TAG_CLIENT_CERT:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.CLIENT_CERT_KEY, (String) value);
-                        break;
-                    case XML_TAG_CA_CERT:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.CA_CERT_KEY, (String) value);
-                        break;
-                    case XML_TAG_SUBJECT_MATCH:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.SUBJECT_MATCH_KEY, (String) value);
-                        break;
-                    case XML_TAG_ENGINE:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.ENGINE_KEY, (String) value);
-                        break;
-                    case XML_TAG_ENGINE_ID:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.ENGINE_ID_KEY, (String) value);
-                        break;
-                    case XML_TAG_PRIVATE_KEY_ID:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.PRIVATE_KEY_ID_KEY, (String) value);
-                        break;
-                    case XML_TAG_ALT_SUBJECT_MATCH:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.ALTSUBJECT_MATCH_KEY, (String) value);
-                        break;
-                    case XML_TAG_DOM_SUFFIX_MATCH:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.DOM_SUFFIX_MATCH_KEY, (String) value);
-                        break;
-                    case XML_TAG_CA_PATH:
-                        enterpriseConfig.setFieldValue(
-                                WifiEnterpriseConfig.CA_PATH_KEY, (String) value);
-                        break;
-                    case XML_TAG_EAP_METHOD:
-                        enterpriseConfig.setEapMethod((int) value);
-                        break;
-                    case XML_TAG_PHASE2_METHOD:
-                        enterpriseConfig.setPhase2Method((int) value);
-                        break;
-                    case XML_TAG_PLMN:
-                        enterpriseConfig.setPlmn((String) value);
-                        break;
-                    case XML_TAG_REALM:
-                        enterpriseConfig.setRealm((String) value);
-                        break;
-                    default:
-                        throw new XmlPullParserException(
-                                "Unknown value name found: " + valueName[0]);
+            while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
+                if (in.getAttributeValue(null, "name") != null) {
+                    // Value elements.
+                    String[] valueName = new String[1];
+                    Object value = XmlUtil.readCurrentValue(in, valueName);
+                    if (valueName[0] == null) {
+                        throw new XmlPullParserException("Missing value name");
+                    }
+                    switch (valueName[0]) {
+                        case XML_TAG_IDENTITY:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.IDENTITY_KEY, (String) value);
+                            break;
+                        case XML_TAG_ANON_IDENTITY:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.ANON_IDENTITY_KEY, (String) value);
+                            break;
+                        case XML_TAG_PASSWORD:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.PASSWORD_KEY, (String) value);
+                            if (shouldExpectEncryptedCredentials
+                                    && !TextUtils.isEmpty(enterpriseConfig.getFieldValue(
+                                            WifiEnterpriseConfig.PASSWORD_KEY))) {
+                                // Indicates that encryption of password failed when it was last
+                                // written.
+                                Log.e(TAG, "password value not expected");
+                            }
+                            break;
+                        case XML_TAG_CLIENT_CERT:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.CLIENT_CERT_KEY, (String) value);
+                            break;
+                        case XML_TAG_CA_CERT:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.CA_CERT_KEY, (String) value);
+                            break;
+                        case XML_TAG_SUBJECT_MATCH:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.SUBJECT_MATCH_KEY, (String) value);
+                            break;
+                        case XML_TAG_ENGINE:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.ENGINE_KEY, (String) value);
+                            break;
+                        case XML_TAG_ENGINE_ID:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.ENGINE_ID_KEY, (String) value);
+                            break;
+                        case XML_TAG_PRIVATE_KEY_ID:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.PRIVATE_KEY_ID_KEY, (String) value);
+                            break;
+                        case XML_TAG_ALT_SUBJECT_MATCH:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.ALTSUBJECT_MATCH_KEY, (String) value);
+                            break;
+                        case XML_TAG_DOM_SUFFIX_MATCH:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.DOM_SUFFIX_MATCH_KEY, (String) value);
+                            break;
+                        case XML_TAG_CA_PATH:
+                            enterpriseConfig.setFieldValue(
+                                    WifiEnterpriseConfig.CA_PATH_KEY, (String) value);
+                            break;
+                        case XML_TAG_EAP_METHOD:
+                            enterpriseConfig.setEapMethod((int) value);
+                            break;
+                        case XML_TAG_PHASE2_METHOD:
+                            enterpriseConfig.setPhase2Method((int) value);
+                            break;
+                        case XML_TAG_PLMN:
+                            enterpriseConfig.setPlmn((String) value);
+                            break;
+                        case XML_TAG_REALM:
+                            enterpriseConfig.setRealm((String) value);
+                            break;
+                        default:
+                            throw new XmlPullParserException(
+                                  "Unknown value name found: " + valueName[0]);
+                    }
+                } else {
+                    String tagName = in.getName();
+                    if (tagName == null) {
+                        throw new XmlPullParserException("Unexpected null tag found");
+                    }
+                    switch (tagName) {
+                        case XML_TAG_PASSWORD:
+                            if (!shouldExpectEncryptedCredentials) {
+                                throw new XmlPullParserException(
+                                        "encrypted password section not expected");
+                            }
+                            EncryptedData encryptedData =
+                                    EncryptedDataXmlUtil.parseFromXml(in, outerTagDepth + 1);
+                            byte[] passwordBytes = encryptionUtil.decrypt(encryptedData);
+                            if (passwordBytes == null) {
+                                Log.wtf(TAG, "Decryption of password failed");
+                            } else {
+                                enterpriseConfig.setFieldValue(
+                                        WifiEnterpriseConfig.PASSWORD_KEY,
+                                        new String(passwordBytes));
+                            }
+                            break;
+                        default:
+                            throw new XmlPullParserException(
+                                  "Unknown tag name found: " + tagName);
+                    }
                 }
             }
             return enterpriseConfig;
