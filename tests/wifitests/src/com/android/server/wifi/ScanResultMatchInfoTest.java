@@ -92,7 +92,7 @@ public class ScanResultMatchInfoTest {
     @Test
     public void testEqualityRulesForTransitionMode() {
         WifiConfiguration wifiConfiguration =
-                WifiConfigurationTestUtil.createPskNetwork("\"Transition is Hard\"");
+                WifiConfigurationTestUtil.createSaeNetwork("\"Transition is Hard\"");
         ScanDetail scanDetail = createScanDetailForWpa2Wpa3TransitionModeNetwork(wifiConfiguration,
                 "AA:BB:CC:DD:CC:BB");
 
