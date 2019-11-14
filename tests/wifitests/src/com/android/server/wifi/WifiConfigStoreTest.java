@@ -51,6 +51,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -212,7 +213,7 @@ public class WifiConfigStoreTest extends WifiBaseTest {
         setupMocks();
 
         mWifiConfigStore = new WifiConfigStore(mContext, new Handler(mLooper.getLooper()), mClock,
-                mWifiMetrics, mSharedStore);
+                mWifiMetrics, Arrays.asList(mSharedStore));
         // Enable verbose logging before tests.
         mWifiConfigStore.enableVerboseLogging(true);
     }
@@ -420,7 +421,6 @@ public class WifiConfigStoreTest extends WifiBaseTest {
         // |readRawData| would return null.
         mWifiConfigStore.registerStoreData(sharedStoreData);
         mWifiConfigStore.registerStoreData(userStoreData);
-        assertFalse(mWifiConfigStore.areStoresPresent());
         mWifiConfigStore.read();
 
         // Ensure that we got the call to deserialize empty shared data, but no user data.
@@ -450,7 +450,6 @@ public class WifiConfigStoreTest extends WifiBaseTest {
         mWifiConfigStore.registerStoreData(userStoreData);
         // Read both share and user config store.
         mWifiConfigStore.setUserStores(mUserStores);
-        assertFalse(mWifiConfigStore.areStoresPresent());
         mWifiConfigStore.read();
 
         // Ensure that we got the call to deserialize empty shared & user data.

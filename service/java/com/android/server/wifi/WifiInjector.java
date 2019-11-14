@@ -254,7 +254,7 @@ public class WifiInjector {
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
         // New config store
         mWifiConfigStore = new WifiConfigStore(mContext, wifiHandler, mClock, mWifiMetrics,
-                WifiConfigStore.createSharedFile(mFrameworkFacade.isNiapModeOn(mContext)));
+                WifiConfigStore.createSharedFiles(mFrameworkFacade.isNiapModeOn(mContext)));
         SubscriptionManager subscriptionManager =
                 mContext.getSystemService(SubscriptionManager.class);
         mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager);
