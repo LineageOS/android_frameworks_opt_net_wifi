@@ -42,9 +42,11 @@ import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Utils for manipulating XML data. This is essentially a wrapper over XmlUtils provided by core.
@@ -777,41 +779,36 @@ public class XmlUtil {
         private static void writeStaticIpConfigurationToXml(
                 XmlSerializer out, StaticIpConfiguration staticIpConfiguration)
                 throws XmlPullParserException, IOException {
-            if (staticIpConfiguration.ipAddress != null) {
+            if (staticIpConfiguration.getIpAddress() != null) {
                 XmlUtil.writeNextValue(
                         out, XML_TAG_LINK_ADDRESS,
-                        staticIpConfiguration.ipAddress.getAddress().getHostAddress());
+                        staticIpConfiguration.getIpAddress().getAddress().getHostAddress());
                 XmlUtil.writeNextValue(
                         out, XML_TAG_LINK_PREFIX_LENGTH,
-                        staticIpConfiguration.ipAddress.getPrefixLength());
+                        staticIpConfiguration.getIpAddress().getPrefixLength());
             } else {
                 XmlUtil.writeNextValue(
                         out, XML_TAG_LINK_ADDRESS, null);
                 XmlUtil.writeNextValue(
                         out, XML_TAG_LINK_PREFIX_LENGTH, null);
             }
-            if (staticIpConfiguration.gateway != null) {
+            if (staticIpConfiguration.getGateway() != null) {
                 XmlUtil.writeNextValue(
                         out, XML_TAG_GATEWAY_ADDRESS,
-                        staticIpConfiguration.gateway.getHostAddress());
+                        staticIpConfiguration.getGateway().getHostAddress());
             } else {
                 XmlUtil.writeNextValue(
                         out, XML_TAG_GATEWAY_ADDRESS, null);
 
             }
-            if (staticIpConfiguration.dnsServers != null) {
-                // Create a string array of DNS server addresses
-                String[] dnsServers = new String[staticIpConfiguration.dnsServers.size()];
-                int dnsServerIdx = 0;
-                for (InetAddress inetAddr : staticIpConfiguration.dnsServers) {
-                    dnsServers[dnsServerIdx++] = inetAddr.getHostAddress();
-                }
-                XmlUtil.writeNextValue(
-                        out, XML_TAG_DNS_SERVER_ADDRESSES, dnsServers);
-            } else {
-                XmlUtil.writeNextValue(
-                        out, XML_TAG_DNS_SERVER_ADDRESSES, null);
+            // Create a string array of DNS server addresses
+            String[] dnsServers = new String[staticIpConfiguration.getDnsServers().size()];
+            int dnsServerIdx = 0;
+            for (InetAddress inetAddr : staticIpConfiguration.getDnsServers()) {
+                dnsServers[dnsServerIdx++] = inetAddr.getHostAddress();
             }
+            XmlUtil.writeNextValue(
+                    out, XML_TAG_DNS_SERVER_ADDRESSES, dnsServers);
         }
 
         /**
@@ -870,7 +867,7 @@ public class XmlUtil {
          */
         private static StaticIpConfiguration parseStaticIpConfigurationFromXml(XmlPullParser in)
                 throws XmlPullParserException, IOException {
-            StaticIpConfiguration staticIpConfiguration = new StaticIpConfiguration();
+            StaticIpConfiguration.Builder builder = new StaticIpConfiguration.Builder();
 
             String linkAddressString =
                     (String) XmlUtil.readNextValueWithName(in, XML_TAG_LINK_ADDRESS);
@@ -881,7 +878,7 @@ public class XmlUtil {
                         NetworkUtils.numericToInetAddress(linkAddressString),
                         linkPrefixLength);
                 if (linkAddress.getAddress() instanceof Inet4Address) {
-                    staticIpConfiguration.ipAddress = linkAddress;
+                    builder.setIpAddress(linkAddress);
                 } else {
                     Log.w(TAG, "Non-IPv4 address: " + linkAddress);
                 }
@@ -893,7 +890,7 @@ public class XmlUtil {
                         NetworkUtils.numericToInetAddress(gatewayAddressString);
                 RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
                 if (route.isIPv4Default()) {
-                    staticIpConfiguration.gateway = gateway;
+                    builder.setGateway(gateway);
                 } else {
                     Log.w(TAG, "Non-IPv4 default route: " + route);
                 }
@@ -901,13 +898,15 @@ public class XmlUtil {
             String[] dnsServerAddressesString =
                     (String[]) XmlUtil.readNextValueWithName(in, XML_TAG_DNS_SERVER_ADDRESSES);
             if (dnsServerAddressesString != null) {
+                List<InetAddress> dnsServerAddresses = new ArrayList<>();
                 for (String dnsServerAddressString : dnsServerAddressesString) {
                     InetAddress dnsServerAddress =
                             NetworkUtils.numericToInetAddress(dnsServerAddressString);
-                    staticIpConfiguration.dnsServers.add(dnsServerAddress);
+                    dnsServerAddresses.add(dnsServerAddress);
                 }
+                builder.setDnsServers(dnsServerAddresses);
             }
-            return staticIpConfiguration;
+            return builder.build();
         }
 
         /**
