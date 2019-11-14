@@ -400,7 +400,6 @@ public class WifiMetricsTest extends WifiBaseTest {
     private static final boolean LINK_SPEED_COUNTS_LOGGING_SETTING = true;
     private static final int DATA_STALL_MIN_TX_BAD_SETTING = 5;
     private static final int DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING = 75;
-    private static final int NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES = 5;
     private static final int NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS = 4;
     private static final int NUM_ADD_OR_UPDATE_NETWORK_CALLS = 5;
     private static final int NUM_ENABLE_NETWORK_CALLS = 6;
@@ -854,9 +853,6 @@ public class WifiMetricsTest extends WifiBaseTest {
         for (int i = 0; i < NUM_WPS_CANCELLATION; i++) {
             mWifiMetrics.incrementWpsCancellationCount();
         }
-        for (int i = 0; i < NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES; i++) {
-            mWifiMetrics.incrementNumSarSensorRegistrationFailures();
-        }
         for (int i = 0; i < NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS; i++) {
             mWifiMetrics.incrementOneshotScanWithDfsCount();
         }
@@ -1200,9 +1196,6 @@ public class WifiMetricsTest extends WifiBaseTest {
                 mDecodedProto.experimentValues.wifiDataStallMinTxBad);
         assertEquals(DATA_STALL_MIN_TX_SUCCESS_WITHOUT_RX_SETTING,
                 mDecodedProto.experimentValues.wifiDataStallMinTxSuccessWithoutRx);
-
-        assertEquals(NUM_SAR_SENSOR_LISTENER_REGISTRATION_FAILURES,
-                mDecodedProto.numSarSensorRegistrationFailures);
         assertEquals(NUM_ONESHOT_SCAN_REQUESTS_WITH_DFS_CHANNELS,
                 mDecodedProto.numOneshotHasDfsChannelScans);
         assertEquals(NUM_ADD_OR_UPDATE_NETWORK_CALLS, mDecodedProto.numAddOrUpdateNetworkCalls);

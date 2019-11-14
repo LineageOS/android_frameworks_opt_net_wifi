@@ -62,6 +62,7 @@ import org.mockito.Mock;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -80,15 +81,10 @@ public class PasspointProviderTest extends WifiBaseTest {
     private static final long PROVIDER_ID = 12L;
     private static final int CREATOR_UID = 1234;
     private static final String CREATOR_PACKAGE = "com.android.test";
-    private static final String CA_CERTIFICATE_NAME = "CACERT_HS2_12_0";
-    private static final String CA_CERTIFICATE_NAME_2 = "CACERT_HS2_12_1";
-    private static final String CLIENT_CERTIFICATE_NAME = "USRCERT_HS2_12";
-    private static final String CLIENT_PRIVATE_KEY_NAME = "USRPKEY_HS2_12";
-    private static final String REMEDIATION_CA_CERTIFICATE_NAME = "CACERT_HS2_REMEDIATION_12";
     private static final String CA_CERTIFICATE_ALIAS = "HS2_12_0";
     private static final String CA_CERTIFICATE_ALIAS_2 = "HS2_12_1";
     private static final String CLIENT_CERTIFICATE_ALIAS = "HS2_12";
-    private static final String CLIENT_PRIVATE_KEY_ALIAS = "HS2_12";
+    private static final String CLIENT_PRIVATE_KEY_AND_CERT_ALIAS = "HS2_12";
     private static final String REMEDIATION_CA_CERTIFICATE_ALIAS = "HS2_REMEDIATION_12";
     private static final String SYSTEM_CA_STORE_PATH = "/system/etc/security/cacerts";
 
@@ -377,8 +373,6 @@ public class PasspointProviderTest extends WifiBaseTest {
             assertEquals("anonymous@" + credential.getRealm(),
                     wifiEnterpriseConfig.getAnonymousIdentity());
             assertEquals(WifiEnterpriseConfig.Eap.TLS, wifiEnterpriseConfig.getEapMethod());
-            assertEquals(CLIENT_CERTIFICATE_ALIAS,
-                    wifiEnterpriseConfig.getClientCertificateAlias());
             assertEquals(WifiConfiguration.METERED_OVERRIDE_METERED, wifiConfig.meteredOverride);
             // Domain suffix match
             if (ArrayUtils.isEmpty(passpointConfig.getAaaServerTrustedNames())) {
@@ -488,15 +482,15 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install client certificate and key to the keystore successfully.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME_2, FakeKeys.CA_CERT1))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS_2, FakeKeys.CA_CERT1))
                 .thenReturn(true);
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(REMEDIATION_CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
@@ -511,8 +505,10 @@ public class PasspointProviderTest extends WifiBaseTest {
         }
         assertTrue(mProvider.getCaCertificateAliases().equals(
                 Arrays.asList(CA_CERTIFICATE_ALIAS, CA_CERTIFICATE_ALIAS_2)));
-        assertTrue(mProvider.getClientPrivateKeyAlias().equals(CLIENT_PRIVATE_KEY_ALIAS));
-        assertTrue(mProvider.getClientCertificateAlias().equals(CLIENT_CERTIFICATE_ALIAS));
+        assertTrue(mProvider.getClientPrivateKeyAndCertificateAlias()
+                .equals(CLIENT_PRIVATE_KEY_AND_CERT_ALIAS));
+        assertTrue(mProvider.getClientPrivateKeyAndCertificateAlias()
+                .equals(CLIENT_PRIVATE_KEY_AND_CERT_ALIAS));
         assertTrue(TextUtils.equals(mProvider.getRemediationCaCertificateAlias(), mExpectedResult));
     }
 
@@ -535,15 +531,15 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Failed to install client certificate to the keystore.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME_2, FakeKeys.CA_CERT1))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS_2, FakeKeys.CA_CERT1))
                 .thenReturn(false);
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(REMEDIATION_CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
         assertFalse(mProvider.installCertsAndKeys());
 
@@ -557,8 +553,7 @@ public class PasspointProviderTest extends WifiBaseTest {
             assertTrue(curConfig.getSubscriptionUpdate().getCaCertificate() != null);
         }
         assertTrue(mProvider.getCaCertificateAliases() == null);
-        assertTrue(mProvider.getClientPrivateKeyAlias() == null);
-        assertTrue(mProvider.getClientCertificateAlias() == null);
+        assertTrue(mProvider.getClientPrivateKeyAndCertificateAlias() == null);
         assertTrue(mProvider.getRemediationCaCertificateAlias() == null);
     }
 
@@ -582,36 +577,35 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install client certificate and key to the keystore successfully.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME_2, FakeKeys.CA_CERT1))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS_2, FakeKeys.CA_CERT1))
                 .thenReturn(true);
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(REMEDIATION_CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(REMEDIATION_CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
         assertTrue(mProvider.getCaCertificateAliases().equals(
                 Arrays.asList(CA_CERTIFICATE_ALIAS, CA_CERTIFICATE_ALIAS_2)));
-        assertTrue(mProvider.getClientPrivateKeyAlias().equals(CLIENT_PRIVATE_KEY_ALIAS));
-        assertTrue(mProvider.getClientCertificateAlias().equals(CLIENT_CERTIFICATE_ALIAS));
+        assertTrue(mProvider.getClientPrivateKeyAndCertificateAlias()
+                .equals(CLIENT_PRIVATE_KEY_AND_CERT_ALIAS));
         assertTrue(TextUtils.equals(mProvider.getRemediationCaCertificateAlias(), mExpectedResult));
 
         // Uninstall certificates and key from the keystore.
         mProvider.uninstallCertsAndKeys();
-        verify(mKeyStore).removeEntryFromKeyStore(CA_CERTIFICATE_NAME);
-        verify(mKeyStore).removeEntryFromKeyStore(CA_CERTIFICATE_NAME_2);
-        verify(mKeyStore).removeEntryFromKeyStore(CLIENT_CERTIFICATE_NAME);
-        verify(mKeyStore).removeEntryFromKeyStore(CLIENT_PRIVATE_KEY_NAME);
+        verify(mKeyStore).removeEntryFromKeyStore(CA_CERTIFICATE_ALIAS);
+        verify(mKeyStore).removeEntryFromKeyStore(CA_CERTIFICATE_ALIAS_2);
+        verify(mKeyStore).removeEntryFromKeyStore(CLIENT_CERTIFICATE_ALIAS);
+        verify(mKeyStore).removeEntryFromKeyStore(CLIENT_PRIVATE_KEY_AND_CERT_ALIAS);
         if (mRemediationCaCertificate != null) {
-            verify(mKeyStore).removeEntryFromKeyStore(REMEDIATION_CA_CERTIFICATE_NAME);
+            verify(mKeyStore).removeEntryFromKeyStore(REMEDIATION_CA_CERTIFICATE_ALIAS);
         }
 
         assertTrue(mProvider.getCaCertificateAliases() == null);
-        assertTrue(mProvider.getClientPrivateKeyAlias() == null);
-        assertTrue(mProvider.getClientCertificateAlias() == null);
+        assertTrue(mProvider.getClientPrivateKeyAndCertificateAlias() == null);
         assertTrue(mProvider.getRemediationCaCertificateAlias() == null);
     }
 
@@ -1009,7 +1003,7 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install certificate.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
@@ -1042,7 +1036,7 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install certificate.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
@@ -1090,11 +1084,11 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install certificate.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
@@ -1118,11 +1112,11 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install certificate.
-        when(mKeyStore.putCertInKeyStore(CA_CERTIFICATE_NAME, FakeKeys.CA_CERT0))
+        when(mKeyStore.putCaCertInKeyStore(CA_CERTIFICATE_ALIAS, FakeKeys.CA_CERT0))
                 .thenReturn(true);
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 
@@ -1146,9 +1140,9 @@ public class PasspointProviderTest extends WifiBaseTest {
         mProvider = createProvider(config);
 
         // Install certificate.
-        when(mKeyStore.putKeyInKeyStore(CLIENT_PRIVATE_KEY_NAME, FakeKeys.RSA_KEY1))
-                .thenReturn(true);
-        when(mKeyStore.putCertInKeyStore(CLIENT_CERTIFICATE_NAME, FakeKeys.CLIENT_CERT))
+        when(mKeyStore.putUserPrivKeyAndCertsInKeyStore(
+                CLIENT_PRIVATE_KEY_AND_CERT_ALIAS, FakeKeys.RSA_KEY1,
+                new Certificate[] {FakeKeys.CLIENT_CERT}))
                 .thenReturn(true);
         assertTrue(mProvider.installCertsAndKeys());
 

@@ -36,10 +36,11 @@ import static org.mockito.Mockito.when;
 
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.content.Context;
+import android.content.Intent;
+import android.os.UserHandle;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.am.ActivityManagerService;
 import com.android.wifi.R;
 
 import org.junit.Before;
@@ -68,9 +69,9 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     @Mock LastMileLogger mLastMileLogger;
     @Mock Runtime mJavaRuntime;
     @Mock Process mExternalProcess;
-    @Mock ActivityManagerService mActivityManagerService;
     @Mock WifiMetrics mWifiMetrics;
     @Mock Clock mClock;
+    MockResources mResources;
     WifiDiagnostics mWifiDiagnostics;
 
     private static final String FAKE_RING_BUFFER_NAME = "fake-ring-buffer";
@@ -118,17 +119,17 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
         when(mExternalProcess.getErrorStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(mJavaRuntime.exec(anyString())).thenReturn(mExternalProcess);
 
-        MockResources resources = new MockResources();
-        resources.setInteger(R.integer.config_wifi_logger_ring_buffer_default_size_limit_kb,
+        mResources = new MockResources();
+        mResources.setInteger(R.integer.config_wifi_logger_ring_buffer_default_size_limit_kb,
                 SMALL_RING_BUFFER_SIZE_KB);
-        resources.setInteger(R.integer.config_wifi_logger_ring_buffer_verbose_size_limit_kb,
+        mResources.setInteger(R.integer.config_wifi_logger_ring_buffer_verbose_size_limit_kb,
                 LARGE_RING_BUFFER_SIZE_KB);
-        resources.setIntArray(R.array.config_wifi_fatal_firmware_alert_error_code_list,
+        mResources.setIntArray(R.array.config_wifi_fatal_firmware_alert_error_code_list,
                 FATAL_FW_ALERT_LIST);
-        when(mContext.getResources()).thenReturn(resources);
+        mResources.setBoolean(R.bool.config_wifi_diagnostics_bugreport_enabled, true);
+        when(mContext.getResources()).thenReturn(mResources);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getJavaRuntime()).thenReturn(mJavaRuntime);
-        when(mWifiInjector.getActivityManagerService()).thenReturn(mActivityManagerService);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
 
         mWifiDiagnostics = new WifiDiagnostics(
@@ -857,30 +858,41 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     }
 
     @Test
-    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportCallsActivityManagerOnUserDebug() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mActivityManagerService, times(1)).requestWifiBugReport(
-                anyString(), anyString());
+        verify(mContext, times(1)).sendBroadcastAsUser(
+                any(Intent.class), any(UserHandle.class));
     }
 
     @Test
-    @Ignore("TODO(b/143494985): re-enabled this @Test")
     public void takeBugReportSwallowsExceptions() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
-        doThrow(new RuntimeException()).when(mActivityManagerService).requestWifiBugReport(
-                anyString(), anyString());
+        doThrow(new RuntimeException()).when(mContext).sendBroadcastAsUser(
+                any(Intent.class), any(UserHandle.class));
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mActivityManagerService, times(1)).requestWifiBugReport(
-                anyString(), anyString());
+        verify(mContext, times(1)).sendBroadcastAsUser(
+                any(Intent.class), any(UserHandle.class));
     }
 
     @Test
     public void takeBugReportDoesNothingOnUserBuild() {
         when(mBuildProperties.isUserBuild()).thenReturn(true);
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mActivityManagerService, never()).requestWifiBugReport(anyString(), anyString());
+        verify(mContext, never()).sendBroadcastAsUser(
+                any(Intent.class), any(UserHandle.class));
+    }
+
+    @Test
+    public void takeBugReportDoesNothingWhenConfigOverlayDisabled() {
+        when(mBuildProperties.isUserBuild()).thenReturn(false);
+        mResources.setBoolean(R.bool.config_wifi_diagnostics_bugreport_enabled, false);
+        mWifiDiagnostics = new WifiDiagnostics(
+                mContext, mWifiInjector, mWifiNative, mBuildProperties, mLastMileLogger, mClock);
+
+        mWifiDiagnostics.takeBugReport("", "");
+        verify(mContext, never()).sendBroadcastAsUser(
+                any(Intent.class), any(UserHandle.class));
     }
 
     /** Verifies that we flush HAL ringbuffer when capture bugreport. */

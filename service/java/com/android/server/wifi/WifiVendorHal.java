@@ -2370,16 +2370,8 @@ public class WifiVendorHal {
      * sarPowerBackoffRequired_1_2()
      * This method checks if we need to backoff wifi Tx power due to SAR requirements.
      * It handles the case when the device is running the V1_2 version of WifiChip HAL
-     * In that HAL version, behavior depends on if SAR sensor input is considered in this device.
-     * If it is, then whenever the device is near the user body/hand/head, back-off is required.
-     * Otherwise, we should revert to the V1_1 HAL behavior which is only to perform backoff when
-     * a voice call is ongoing.
      */
     private boolean sarPowerBackoffRequired_1_2(SarInfo sarInfo) {
-        /* If SAR sensor is supported, output only dependent on device proximity */
-        if (sarInfo.sarSensorSupported) {
-            return (sarInfo.sensorState != SarInfo.SAR_SENSOR_FREE_SPACE);
-        }
         if (sarInfo.sarSapSupported && sarInfo.isWifiSapEnabled) {
             return true;
         }
@@ -2393,45 +2385,15 @@ public class WifiVendorHal {
      * frameworkToHalTxPowerScenario_1_2()
      * This method maps the information inside the SarInfo instance into a SAR scenario
      * when device is running the V1_2 version of WifiChip HAL.
-     * In this HAL version, behavior depends on if SAR sensor input is considered in this device.
-     * If it is, then based on regulatory compliance requirements,
-     *   - There is no need to treat NEAR_HAND different from NEAR_BODY, both can be considered
-     *     near the user body.
-     *   - Running in softAP mode can be treated the same way as running a voice call from tx power
-     *     backoff perspective.
-     * If SAR sensor input is not supported in this device, but SoftAP is,
+     * If SAR SoftAP input is supported,
      * we make these assumptions:
      *   - All voice calls are treated as if device is near the head.
      *   - SoftAP scenario is treated as if device is near the body.
-     * In case neither SAR sensor, nor SoftAP is supported, then we should revert to the V1_1 HAL
+     * In case SoftAP is not supported, then we should revert to the V1_1 HAL
      * behavior, and the only valid scenario would be when a voice call is ongoing.
      */
     private int frameworkToHalTxPowerScenario_1_2(SarInfo sarInfo) {
-        if (sarInfo.sarSensorSupported) {
-            switch(sarInfo.sensorState) {
-                case SarInfo.SAR_SENSOR_NEAR_BODY:
-                case SarInfo.SAR_SENSOR_NEAR_HAND:
-                    if (sarInfo.isVoiceCall || sarInfo.isWifiSapEnabled) {
-                        return android.hardware.wifi.V1_2.IWifiChip
-                                .TxPowerScenario.ON_BODY_CELL_ON;
-                    } else {
-                        return android.hardware.wifi.V1_2.IWifiChip
-                                .TxPowerScenario.ON_BODY_CELL_OFF;
-                    }
-
-                case SarInfo.SAR_SENSOR_NEAR_HEAD:
-                    if (sarInfo.isVoiceCall || sarInfo.isWifiSapEnabled) {
-                        return android.hardware.wifi.V1_2.IWifiChip
-                                .TxPowerScenario.ON_HEAD_CELL_ON;
-                    } else {
-                        return android.hardware.wifi.V1_2.IWifiChip
-                                .TxPowerScenario.ON_HEAD_CELL_OFF;
-                    }
-
-                default:
-                    throw new IllegalArgumentException("bad scenario: Invalid sensor state");
-            }
-        } else if (sarInfo.sarSapSupported && sarInfo.sarVoiceCallSupported) {
+        if (sarInfo.sarSapSupported && sarInfo.sarVoiceCallSupported) {
             if (sarInfo.isVoiceCall || sarInfo.isEarPieceActive) {
                 return android.hardware.wifi.V1_2.IWifiChip
                         .TxPowerScenario.ON_HEAD_CELL_ON;
@@ -2442,7 +2404,7 @@ public class WifiVendorHal {
                 throw new IllegalArgumentException("bad scenario: no voice call/softAP active");
             }
         } else if (sarInfo.sarVoiceCallSupported) {
-            /* SAR Sensors and SoftAP not supported, act like V1_1 */
+            /* SAR SoftAP input not supported, act like V1_1 */
             if (sarInfo.isVoiceCall || sarInfo.isEarPieceActive) {
                 return android.hardware.wifi.V1_1.IWifiChip.TxPowerScenario.VOICE_CALL;
             } else {
@@ -2463,8 +2425,6 @@ public class WifiVendorHal {
      *       in that case, we should not call the hal unless there is a change in scenario.
      * Note: It is assumed that this method is only called if SAR is enabled. The logic of whether
      *       to call it or not resides in SarManager class.
-     * Note: This method is called whether SAR sensor is supported or not. The passed SarInfo object
-     *       contains a flag to indicate the SAR sensor support.
      *
      * @param sarInfo The collection of inputs to select the SAR scenario.
      * @return true for success; false for failure or if the HAL version does not support this API.
