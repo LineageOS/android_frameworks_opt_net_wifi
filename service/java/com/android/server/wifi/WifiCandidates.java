@@ -117,6 +117,10 @@ public class WifiCandidates {
          */
         int getFrequency();
         /**
+         * Gets the predicted throughput in Mbps
+         */
+        int getPredictedThroughputMbps();
+        /**
          * Gets statistics from the scorecard.
          */
         @Nullable WifiScoreCardProto.Signal getEventStatistics(WifiScoreCardProto.Event event);
@@ -138,6 +142,7 @@ public class WifiCandidates {
         private final boolean mIsCurrentNetwork;
         private final boolean mIsCurrentBssid;
         private final boolean mIsMetered;
+        private final int mPredictedThroughputMbps;
 
         CandidateImpl(Key key,
                 ScanDetail scanDetail,
@@ -148,7 +153,8 @@ public class WifiCandidates {
                 double lastSelectionWeight,
                 boolean isCurrentNetwork,
                 boolean isCurrentBssid,
-                boolean isMetered) {
+                boolean isMetered,
+                int predictedThroughputMbps) {
             this.key = key;
             this.scanDetail = scanDetail;
             this.config = config;
@@ -159,6 +165,7 @@ public class WifiCandidates {
             this.mIsCurrentNetwork = isCurrentNetwork;
             this.mIsCurrentBssid = isCurrentBssid;
             this.mIsMetered = isMetered;
+            this.mPredictedThroughputMbps = predictedThroughputMbps;
         }
 
         @Override
@@ -235,6 +242,11 @@ public class WifiCandidates {
         @Override
         public int getFrequency() {
             return scanDetail.getScanResult().frequency;
+        }
+
+        @Override
+        public int getPredictedThroughputMbps() {
+            return mPredictedThroughputMbps;
         }
 
         /**
@@ -359,7 +371,8 @@ public class WifiCandidates {
                     @WifiNetworkSelector.NetworkEvaluator.EvaluatorId int evaluatorId,
                     int evaluatorScore,
                     double lastSelectionWeightBetweenZeroAndOne,
-                    boolean isMetered) {
+                    boolean isMetered,
+                    int predictedThroughputMbps) {
         if (config == null) return failure();
         if (scanDetail == null) return failure();
         ScanResult scanResult = scanDetail.getScanResult();
@@ -393,7 +406,8 @@ public class WifiCandidates {
                 Math.min(Math.max(lastSelectionWeightBetweenZeroAndOne, 0.0), 1.0),
                 config.networkId == mCurrentNetworkId,
                 bssid.equals(mCurrentBssid),
-                isMetered);
+                isMetered,
+                predictedThroughputMbps);
         mCandidates.put(key, candidate);
         return true;
     }

@@ -80,6 +80,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         setupThresholds();
 
         mLocalLog = new LocalLog(512);
+        mThroughputPredictor = new ThroughputPredictor(mContext);
 
         mWifiNetworkSelector = new WifiNetworkSelector(mContext,
                 mWifiScoreCard,
@@ -87,7 +88,9 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 mWifiConfigManager, mClock,
                 mLocalLog,
                 mWifiMetrics,
-                mWifiNative);
+                mWifiNative,
+                mThroughputPredictor
+        );
         mWifiNetworkSelector.registerNetworkEvaluator(mDummyEvaluator);
         mDummyEvaluator.setEvaluatorToSelectCandidate(true);
         when(mClock.getElapsedSinceBootMillis()).thenReturn(SystemClock.elapsedRealtime());
@@ -95,6 +98,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         when(mWifiScoreCard.lookupBssid(any(), any())).thenReturn(mPerBssid);
         mCompatibilityScorer = new CompatibilityScorer(mScoringParams);
         mScoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
+        mThroughputScorer = new ThroughputScorer(mScoringParams);
         when(mWifiNative.getClientInterfaceName()).thenReturn("wlan0");
     }
 
@@ -210,6 +214,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     private int mStayOnNetworkMinimumRxRate;
     private CompatibilityScorer mCompatibilityScorer;
     private ScoreCardBasedScorer mScoreCardBasedScorer;
+    private ThroughputScorer mThroughputScorer;
+    private ThroughputPredictor mThroughputPredictor;
 
     private void setupContext() {
         when(mContext.getResources()).thenReturn(mResource);
@@ -228,6 +234,11 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network, 16);
         mStayOnNetworkMinimumRxRate = setupIntegerResource(
                 R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network, 16);
+        doReturn(false).when(mResource).getBoolean(R.bool.config_wifi_11ax_supported);
+        doReturn(false).when(mResource).getBoolean(
+                R.bool.config_wifi_contiguous_160mhz_supported);
+        doReturn(2).when(mResource).getInteger(
+                R.integer.config_wifi_max_num_spatial_stream_supported);
     }
 
     private void setupThresholds() {
@@ -1155,8 +1166,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         HashSet<String> blacklist = new HashSet<String>();
         // DummyNetworkEvaluator always return the first network in the scan results
         // for connection, so this should connect to the first network.
-        WifiConfiguration candidate = mWifiNetworkSelector.selectNetwork(
-                scanDetails,
+        WifiConfiguration candidate = mWifiNetworkSelector.selectNetwork(scanDetails,
                 blacklist, mWifiInfo, false, true, true);
         assertNotNull("Result should be not null", candidate);
         WifiNetworkSelectorTestUtil.verifySelectedScanResult(mWifiConfigManager,
@@ -1581,5 +1591,26 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
 
         int expid = CompatibilityScorer.COMPATIBILITY_SCORER_DEFAULT_EXPID;
         verify(mWifiMetrics, atLeastOnce()).setNetworkSelectorExperimentId(eq(expid));
+    }
+
+    /**
+     * Tests that metrics are recorded for legacy scorer and throughput scorer.
+     */
+    @Test
+    public void testCandidateScorerMetricsThrougputScorer() {
+        mWifiNetworkSelector.registerCandidateScorer(mThroughputScorer);
+
+        // add a second NetworkEvaluator that returns the second network in the scan list
+        mWifiNetworkSelector.registerNetworkEvaluator(
+                new DummyNetworkEvaluator(1, DUMMY_EVALUATOR_ID_2));
+
+        test2GhzHighQuality5GhzAvailable();
+
+        int throughputExpId = experimentIdFromIdentifier(mThroughputScorer.getIdentifier());
+
+        // Wanted 2 times since test2GhzHighQuality5GhzAvailable() calls
+        // WifiNetworkSelector.selectNetwork() twice
+        verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(throughputExpId,
+                WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, true, 2);
     }
 }

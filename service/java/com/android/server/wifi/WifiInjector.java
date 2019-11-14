@@ -159,6 +159,7 @@ public class WifiInjector {
     private final TelephonyUtil mTelephonyUtil;
     private WifiChannelUtilization mWifiChannelUtilization;
     private final KeyStore mKeyStore;
+    private final ThroughputPredictor mThroughputPredictor;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -271,14 +272,18 @@ public class WifiInjector {
                 mContext.getSystemService(ActivityManager.class).isLowRamDevice() ? 256 : 512);
         mScoringParams = new ScoringParams(mContext, mFrameworkFacade, wifiHandler);
         mWifiMetrics.setScoringParams(mScoringParams);
+        mThroughputPredictor = new ThroughputPredictor(mContext);
         mWifiNetworkSelector = new WifiNetworkSelector(mContext, mWifiScoreCard, mScoringParams,
-                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiMetrics, mWifiNative);
+                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiMetrics, mWifiNative,
+                mThroughputPredictor);
         CompatibilityScorer compatibilityScorer = new CompatibilityScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(compatibilityScorer);
         ScoreCardBasedScorer scoreCardBasedScorer = new ScoreCardBasedScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(scoreCardBasedScorer);
         BubbleFunScorer bubbleFunScorer = new BubbleFunScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(bubbleFunScorer);
+        ThroughputScorer throughputScorer = new ThroughputScorer(mScoringParams);
+        mWifiNetworkSelector.registerCandidateScorer(throughputScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
         mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
                 mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper,

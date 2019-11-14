@@ -73,6 +73,13 @@ public class CandidateScorerTest extends WifiBaseTest {
                 new BubbleFunScorer(sp),
                 sp});
 
+        sp = new ScoringParams();
+        ans.add(new Object[]{
+                "Throughput Scorer",
+                ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID,
+                new ThroughputScorer(sp),
+                sp});
+
         return ans;
     }
 
@@ -167,7 +174,7 @@ public class CandidateScorerTest extends WifiBaseTest {
     @Test
     public void testPreferTheCurrentNetworkEvenIfRssiDifferenceIsSignificant() throws Exception {
         assertThat(evaluate(mCandidate1.setScanRssi(-74).setCurrentNetwork(true)),
-                greaterThan(evaluate(mCandidate2.setScanRssi(-65))));
+                greaterThan(evaluate(mCandidate2.setScanRssi(-70))));
     }
 
     /**
@@ -181,4 +188,16 @@ public class CandidateScorerTest extends WifiBaseTest {
                 greaterThan(evaluate(mCandidate2.setScanRssi(unbelievablyGoodRssi))));
     }
 
+    /**
+     * Prefer high throughput network
+     */
+    @Test
+    public void testPreferHighThroughputNetwork() throws Exception {
+        if (mExpectedExpId == ThroughputScorer.THROUGHPUT_SCORER_DEFAULT_EXPID) {
+            assertThat(evaluate(mCandidate1.setScanRssi(-74)
+                            .setPredictedThroughputMbps(100)),
+                    greaterThan(evaluate(mCandidate2.setScanRssi(-74)
+                            .setPredictedThroughputMbps(50))));
+        }
+    }
 }

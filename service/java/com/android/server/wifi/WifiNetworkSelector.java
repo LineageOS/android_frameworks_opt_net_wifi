@@ -37,6 +37,7 @@ import android.util.Pair;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
+import com.android.server.wifi.util.InformationElementUtil.BssLoad;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.wifi.R;
 
@@ -119,6 +120,9 @@ public class WifiNetworkSelector {
     private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
     private boolean mIsEnhancedOpenSupportedInitialized = false;
     private boolean mIsEnhancedOpenSupported;
+    private ThroughputPredictor mThroughputPredictor;
+    private boolean mIsBluetoothConnected = false;
+    private WifiChannelUtilization mWifiChannelUtilization;
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
@@ -726,7 +730,8 @@ public class WifiNetworkSelector {
                                     score,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
-                                    WifiConfiguration.isMetered(config, wifiInfo));
+                                    WifiConfiguration.isMetered(config, wifiInfo),
+                                    predictThroughput(scanDetail));
                             mWifiMetrics.setNominatorForNetwork(config.networkId,
                                     evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
@@ -883,6 +888,27 @@ public class WifiNetworkSelector {
         return ans;
     }
 
+    private int predictThroughput(@NonNull ScanDetail scanDetail) {
+        if (scanDetail.getScanResult() == null || scanDetail.getNetworkDetail() == null) {
+            return 0;
+        }
+        int channelUtilizationLinkLayerStats = BssLoad.INVALID;
+        if (mWifiChannelUtilization != null) {
+            channelUtilizationLinkLayerStats =
+                    mWifiChannelUtilization.getUtilizationRatio(
+                            scanDetail.getScanResult().frequency);
+        }
+        return mThroughputPredictor.predictThroughput(
+                scanDetail.getScanResult().getWifiStandard(),
+                scanDetail.getScanResult().channelWidth,
+                scanDetail.getScanResult().level,
+                scanDetail.getScanResult().frequency,
+                scanDetail.getNetworkDetail().getMaxNumberSpatialStreams(),
+                scanDetail.getNetworkDetail().getChannelUtilization(),
+                channelUtilizationLinkLayerStats,
+                mIsBluetoothConnected);
+    }
+
     /**
      * Register a network evaluator
      *
@@ -928,9 +954,24 @@ public class WifiNetworkSelector {
     private static final int ID_PREFIX = 42;
     private static final int MIN_SCORER_EXP_ID = ID_PREFIX * ID_SUFFIX_MOD;
 
+    /**
+     * Set Wifi channel utilization calculated from link layer stats
+     */
+    public void setWifiChannelUtilization(WifiChannelUtilization wifiChannelUtilization) {
+        mWifiChannelUtilization = wifiChannelUtilization;
+    }
+
+    /**
+     * Set whether bluetooth is in the connected state
+     */
+    public void setBluetoothConnected(boolean isBlueToothConnected) {
+        mIsBluetoothConnected = isBlueToothConnected;
+    }
+
     WifiNetworkSelector(Context context, WifiScoreCard wifiScoreCard, ScoringParams scoringParams,
             WifiConfigManager configManager, Clock clock, LocalLog localLog,
-            WifiMetrics wifiMetrics, WifiNative wifiNative) {
+            WifiMetrics wifiMetrics, WifiNative wifiNative,
+            ThroughputPredictor throughputPredictor) {
         mWifiConfigManager = configManager;
         mClock = clock;
         mWifiScoreCard = wifiScoreCard;
@@ -938,7 +979,7 @@ public class WifiNetworkSelector {
         mLocalLog = localLog;
         mWifiMetrics = wifiMetrics;
         mWifiNative = wifiNative;
-
+        mThroughputPredictor = throughputPredictor;
         mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_enable_associated_network_selection);
         mStayOnNetworkMinimumTxRate = context.getResources().getInteger(
