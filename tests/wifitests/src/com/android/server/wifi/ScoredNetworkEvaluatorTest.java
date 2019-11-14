@@ -24,6 +24,8 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
@@ -72,6 +74,7 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
     @Mock private Clock mClock;
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private NetworkScoreManager mNetworkScoreManager;
+    @Mock private PackageManager mPackageManager;
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock private OnConnectableListener mOnConnectableListener;
@@ -91,13 +94,18 @@ public class ScoredNetworkEvaluatorTest extends WifiBaseTest {
         when(mFrameworkFacade.getIntegerSetting(mContext,
                 Settings.Global.NETWORK_RECOMMENDATIONS_ENABLED, 0))
                 .thenReturn(1);
+        ApplicationInfo appInfo = new ApplicationInfo();
+        appInfo.uid = TEST_UID;
+        when(mPackageManager.getApplicationInfo(any(), anyInt()))
+                .thenReturn(appInfo);
 
         ArgumentCaptor<ContentObserver> observerCaptor =
                 ArgumentCaptor.forClass(ContentObserver.class);
         mScoreCache = new WifiNetworkScoreCache(mContext);
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext,
                 new Handler(Looper.getMainLooper()), mFrameworkFacade, mNetworkScoreManager,
-                mWifiConfigManager, new LocalLog(0), mScoreCache, mWifiPermissionsUtil);
+                mPackageManager, mWifiConfigManager, new LocalLog(0), mScoreCache,
+                mWifiPermissionsUtil);
         verify(mFrameworkFacade).registerContentObserver(eq(mContext), any(Uri.class), eq(false),
                 observerCaptor.capture());
         mContentObserver = observerCaptor.getValue();

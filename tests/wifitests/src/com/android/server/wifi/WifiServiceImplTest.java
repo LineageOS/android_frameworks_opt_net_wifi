@@ -110,6 +110,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
+import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.WifiStackClient;
@@ -341,6 +342,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getSarManager()).thenReturn(mSarManager);
+        when(mWifiInjector.getWifiNetworkScoreCache())
+                .thenReturn(mock(WifiNetworkScoreCache.class));
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
