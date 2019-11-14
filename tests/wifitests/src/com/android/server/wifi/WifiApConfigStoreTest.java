@@ -84,6 +84,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     private static final String TEST_STRING_UTF8_WITH_32_BYTES = "ΣωκράτηςΣωκράτης";
     private static final String TEST_STRING_UTF8_WITH_33_BYTES = "一片汪洋大海中的一條魚";
     private static final String TEST_STRING_UTF8_WITH_34_BYTES = "Ευπροσηγοροςγινου";
+    private static final MacAddress TEST_RANDOMIZED_MAC =
+            MacAddress.fromString("d2:11:19:34:a5:20");
 
     @Mock private Context mContext;
     @Mock private WifiInjector mWifiInjector;
@@ -96,6 +98,7 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     @Mock private ApplicationInfo mMockApplInfo;
     private BroadcastReceiver mBroadcastReceiver;
     @Mock private NotificationManager mNotificationManager;
+    @Mock private MacAddressUtil mMacAddressUtil;
     private ArrayList<Integer> mKnownGood2GChannelList;
 
     @Before
@@ -132,6 +135,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         mKnownGood2GChannelList = new ArrayList(Arrays.asList(1, 2, 3, 4, 5, 6));
 
         mRandom = new Random();
+        when(mWifiInjector.getMacAddressUtil()).thenReturn(mMacAddressUtil);
+        when(mMacAddressUtil.calculatePersistentMac(any(), any())).thenReturn(TEST_RANDOMIZED_MAC);
     }
 
     @After
@@ -591,14 +596,9 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         WifiConfiguration baseConfig = new WifiConfiguration();
 
         WifiApConfigStore store = createWifiApConfigStore();
-        WifiConfiguration config1 = store.randomizeBssidIfUnset(mContext, baseConfig);
-        WifiConfiguration config2 = store.randomizeBssidIfUnset(mContext, baseConfig);
+        WifiConfiguration config = store.randomizeBssidIfUnset(mContext, baseConfig);
 
-        assertThat(config1.BSSID).isNotNull();
-        assertThat(config2.BSSID).isNotNull();
-        MacAddress mac1 = MacAddress.fromString(config1.BSSID);
-        MacAddress mac2 = MacAddress.fromString(config2.BSSID);
-        assertThat(mac1).isNotEqualTo(mac2);
+        assertEquals(TEST_RANDOMIZED_MAC.toString(), config.BSSID);
     }
 
     @Test

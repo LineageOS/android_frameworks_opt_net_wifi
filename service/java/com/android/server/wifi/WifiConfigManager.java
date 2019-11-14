@@ -572,7 +572,7 @@ public class WifiConfigManager {
                 mRandomizedMacAddressMapping.remove(config.getSsidAndSecurityTypeString());
             }
         }
-        return mMacAddressUtil.calculatePersistentMacForConfiguration(config, mMac);
+        return mMacAddressUtil.calculatePersistentMac(config.getSsidAndSecurityTypeString(), mMac);
     }
 
     /**
