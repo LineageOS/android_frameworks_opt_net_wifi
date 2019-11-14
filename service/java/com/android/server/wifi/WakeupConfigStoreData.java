@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -97,7 +97,7 @@ public class WakeupConfigStoreData implements StoreData {
 
     @Override
     public void serializeData(XmlSerializer out,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         writeFeatureState(out);
 
@@ -146,7 +146,7 @@ public class WakeupConfigStoreData implements StoreData {
     @Override
     public void deserializeData(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
         if (!mHasBeenRead) {
             Log.d(TAG, "WifiWake user data has been read");

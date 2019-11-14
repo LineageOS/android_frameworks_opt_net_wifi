@@ -234,7 +234,7 @@ public class WifiConfigManagerTest {
                 .spyStatic(WifiConfigurationUtil.class)
                 .strictness(Strictness.LENIENT)
                 .startMocking();
-        when(WifiConfigStore.createUserFiles(anyInt())).thenReturn(mock(List.class));
+        when(WifiConfigStore.createUserFiles(anyInt(), anyBoolean())).thenReturn(mock(List.class));
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
         when(WifiConfigurationUtil.calculatePersistentMacForConfiguration(any(), any()))
                 .thenReturn(TEST_RANDOMIZED_MAC);

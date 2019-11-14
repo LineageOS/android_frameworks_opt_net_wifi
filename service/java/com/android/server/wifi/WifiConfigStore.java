@@ -61,6 +61,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class provides a mechanism to save data to persistent store files {@link StoreFile}.
@@ -287,9 +288,11 @@ public class WifiConfigStore {
      * @param storeBaseDir Base directory under which the store file is to be stored. The store file
      *                     will be at <storeBaseDir>/wifi/WifiConfigStore.xml.
      * @param fileId Identifier for the file. See {@link StoreFileId}.
+     * @param shouldEncryptCredentials Whether to encrypt credentials or not.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId) {
+    private static @Nullable StoreFile createFile(File storeBaseDir, @StoreFileId int fileId,
+            boolean shouldEncryptCredentials) {
         File storeDir = new File(storeBaseDir, STORE_DIRECTORY_NAME);
         if (!storeDir.exists()) {
             if (!storeDir.mkdir()) {
@@ -298,18 +301,22 @@ public class WifiConfigStore {
             }
         }
         File file = new File(storeDir, STORE_ID_TO_FILE_NAME.get(fileId));
-        WifiConfigStoreEncryptionUtil encryptionUtil =
-                new WifiConfigStoreEncryptionUtil(file.getName());
+        WifiConfigStoreEncryptionUtil encryptionUtil = null;
+        if (shouldEncryptCredentials) {
+            encryptionUtil = new WifiConfigStoreEncryptionUtil(file.getName());
+        }
         return new StoreFile(file, fileId, encryptionUtil);
     }
 
     /**
      * Create a new instance of the shared store file.
      *
+     * @param shouldEncryptCredentials Whether to encrypt credentials or not.
      * @return new instance of the store file or null if the directory cannot be created.
      */
-    public static @Nullable StoreFile createSharedFile() {
-        return createFile(Environment.getDataMiscDirectory(), STORE_FILE_SHARED_GENERAL);
+    public static @Nullable StoreFile createSharedFile(boolean shouldEncryptCredentials) {
+        return createFile(Environment.getDataMiscDirectory(), STORE_FILE_SHARED_GENERAL,
+                shouldEncryptCredentials);
     }
 
     /**
@@ -317,14 +324,18 @@ public class WifiConfigStore {
      * The user store file is inside the user's encrypted data directory.
      *
      * @param userId userId corresponding to the currently logged-in user.
+     * @param shouldEncryptCredentials Whether to encrypt credentials or not.
      * @return List of new instances of the store files created or null if the directory cannot be
      * created.
      */
-    public static @Nullable List<StoreFile> createUserFiles(int userId) {
+    public static @Nullable List<StoreFile> createUserFiles(int userId,
+            boolean shouldEncryptCredentials) {
         List<StoreFile> storeFiles = new ArrayList<>();
         for (int fileId : Arrays.asList(
                 STORE_FILE_USER_GENERAL, STORE_FILE_USER_NETWORK_SUGGESTIONS)) {
-            StoreFile storeFile = createFile(Environment.getDataMiscCeDirectory(userId), fileId);
+            StoreFile storeFile =
+                    createFile(Environment.getDataMiscCeDirectory(userId), fileId,
+                            shouldEncryptCredentials);
             if (storeFile == null) {
                 return null;
             }
@@ -669,6 +680,13 @@ public class WifiConfigStore {
      */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of WifiConfigStore");
+        pw.println("WifiConfigStore - Store File Begin ----");
+        Stream.of(Arrays.asList(mSharedStore), mUserStores)
+                .flatMap(List::stream)
+                .forEach((storeFile) -> {
+                    pw.print("Name: " + storeFile.mFileName);
+                    pw.println(", Credentials encrypted: " + storeFile.getEncryptionUtil() != null);
+                });
         pw.println("WifiConfigStore - Store Data Begin ----");
         for (StoreData storeData : mStoreDataList) {
             pw.print("StoreData =>");
@@ -716,7 +734,7 @@ public class WifiConfigStore {
         private final WifiConfigStoreEncryptionUtil mEncryptionUtil;
 
         public StoreFile(File file, @StoreFileId int fileId,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil) {
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil) {
             mAtomicFile = new AtomicFile(file);
             mFileName = file.getAbsolutePath();
             mFileId = fileId;
@@ -735,7 +753,7 @@ public class WifiConfigStore {
         /**
          * @return Returns the encryption util used for this store file.
          */
-        public @NonNull WifiConfigStoreEncryptionUtil getEncryptionUtil() {
+        public @Nullable WifiConfigStoreEncryptionUtil getEncryptionUtil() {
             return mEncryptionUtil;
         }
 
@@ -813,7 +831,8 @@ public class WifiConfigStore {
          * @param out The output stream to serialize the data to
          * @param encryptionUtil Utility to help encrypt any credential data.
          */
-        void serializeData(XmlSerializer out, @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+        void serializeData(XmlSerializer out,
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException;
 
         /**
@@ -829,7 +848,7 @@ public class WifiConfigStore {
          *                      in the store for them.
          */
         void deserializeData(@Nullable XmlPullParser in, int outerTagDepth, @Version int version,
-                @NonNull WifiConfigStoreEncryptionUtil encryptionUtil)
+                @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException;
 
         /**
