@@ -126,11 +126,6 @@
           <item type="string" name="wifi_connect_alert_title" />
           <item type="string" name="wifi_connect_alert_message" />
           <item type="string" name="wifi_connect_default_application" />
-          <item type="string" name="wifi_p2p_dialog_title" />
-          <item type="string" name="wifi_p2p_turnon_message" />
-          <item type="string" name="wifi_p2p_failed_message" />
-          <item type="string" name="wifi_p2p_enabled_notification_title" />
-          <item type="string" name="wifi_p2p_enabled_notification_message" />
           <item type="string" name="accept" />
           <item type="string" name="decline" />
           <item type="string" name="ok" />
