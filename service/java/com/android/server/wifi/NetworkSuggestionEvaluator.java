@@ -28,7 +28,6 @@ import com.android.server.wifi.util.ScanResultUtil;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,20 +38,11 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * Evaluator to pick the best network to connect to from the list of active network suggestions
- * provided by apps.
+ * Evaluator nominate the highest available suggestion candidates.
  * Note:
  * <li> This class is not thread safe and meant to be used only from {@link WifiNetworkSelector}.
  * </li>
  *
- * This is a non-optimal implementation which picks any network suggestion which matches
- * the scan result with the highest RSSI.
- * TODO: More advanced implementation will follow!
- * Params to consider for evaluating network suggestions:
- *  - Regular network evaluator params like security, band, RSSI, etc.
- *  - Priority of suggestions provided by a single app.
- *  - Whether the network suggestions requires user/app interaction or if it is metered.
- *  - Historical quality of suggestions provided by the corresponding app.
  */
 @NotThreadSafe
 public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEvaluator {
@@ -75,7 +65,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
     }
 
     @Override
-    public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
+    public void evaluateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
@@ -133,17 +123,9 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
         // Return early on no match.
         if (matchMetaInfo.isEmpty()) {
             mLocalLog.log("did not see any matching network suggestions.");
-            return null;
+            return;
         }
-        // Note: These matched sets should be very small & hence these additional manipulations that
-        // follow should not be very expensive.
-        PerNetworkSuggestionMatchMetaInfo candidate =
-                matchMetaInfo.findConnectableNetworksAndPickBest(onConnectableListener);
-        if (candidate == null) { // should never happen.
-            Log.wtf(TAG, "Unexepectedly got null");
-            return null;
-        }
-        return candidate.wCmConfiguredNetwork;
+        matchMetaInfo.findConnectableNetworksAndHighestPriority(onConnectableListener);
     }
 
     // Add and enable this network to the central database (i.e WifiConfigManager).
@@ -263,16 +245,11 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
         }
 
         /**
-         * Find all the connectable networks and pick the best network among the current match info
-         * candidates.
-         *
-         * Among the highest priority suggestions from different packages, choose the suggestion
-         * with the highest RSSI.
-         * Note: This should need to be replaced by a more sophisticated algorithm.
+         * Run through all connectable suggestions and nominate highest priority networks from each
+         * app as candidates to {@link WifiNetworkSelector}.
          */
-        public PerNetworkSuggestionMatchMetaInfo findConnectableNetworksAndPickBest(
+        public void findConnectableNetworksAndHighestPriority(
                 @NonNull OnConnectableListener onConnectableListener) {
-            List<PerNetworkSuggestionMatchMetaInfo> allMatchedNetworkInfos = new ArrayList<>();
             for (PerAppMatchMetaInfo appInfo : mAppInfos.values()) {
                 List<PerNetworkSuggestionMatchMetaInfo> matchedNetworkInfos =
                         appInfo.getHighestPriorityNetworks();
@@ -292,23 +269,11 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                                 WifiNetworkSelector.toNetworkString(
                                         matchedNetworkInfo.wCmConfiguredNetwork)));
                     }
-                    allMatchedNetworkInfos.add(matchedNetworkInfo);
-                    // Invoke onConnectable for the best networks from each app.
                     onConnectableListener.onConnectable(
                             matchedNetworkInfo.matchingScanDetail,
-                            matchedNetworkInfo.wCmConfiguredNetwork,
-                            0);
+                            matchedNetworkInfo.wCmConfiguredNetwork);
                 }
             }
-            PerNetworkSuggestionMatchMetaInfo networkInfo = allMatchedNetworkInfos
-                    .stream()
-                    .max(Comparator.comparing(e -> e.matchingScanDetail.getScanResult().level))
-                    .orElse(null);
-            if (networkInfo == null) { // should never happen.
-                Log.wtf(TAG, "Unexepectedly got null");
-                return null;
-            }
-            return networkInfo;
         }
     }
 

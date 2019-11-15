@@ -288,9 +288,8 @@ public class WifiInjector {
         ThroughputScorer throughputScorer = new ThroughputScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(throughputScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
-        mSavedNetworkEvaluator = new SavedNetworkEvaluator(mContext, mScoringParams,
-                mWifiConfigManager, mClock, mConnectivityLocalLog, mWifiConnectivityHelper,
-                mTelephonyUtil);
+        mSavedNetworkEvaluator = new SavedNetworkEvaluator(
+                mWifiConfigManager, mConnectivityLocalLog, mTelephonyUtil);
         mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, wifiHandler,
                 this, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore, mWifiMetrics,
                 mTelephonyUtil);

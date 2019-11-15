@@ -29,7 +29,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.text.TextUtils;
 import android.util.ArrayMap;
-import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
@@ -125,8 +124,7 @@ public class WifiNetworkSelector {
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
-     * has an evaluator to choose the best WiFi network to connect to. Evaluators
-     * should be registered in order, by decreasing importance.
+     * has an evaluator to choose the best WiFi network to connect to.
      * Wifi Network Selector iterates through the registered scorers in registration order
      * before making a final selection from among the candidates.
      */
@@ -134,8 +132,7 @@ public class WifiNetworkSelector {
     /**
      * Interface for WiFi Network Evaluator
      *
-     * A network evaluator examines the scan results and recommends the
-     * best network in its category to connect to; it also reports the
+     * A network evaluator examines the scan results reports the
      * connectable candidates in its category for further consideration.
      */
     public interface NetworkEvaluator {
@@ -189,11 +186,8 @@ public class WifiNetworkSelector {
          *                                ephemeral networks are allowed
          * @param onConnectableListener callback to record all of the connectable networks
          *
-         * @return configuration of the chosen network;
-         *         null if no network in this category is available.
          */
-        @Nullable
-        WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
+        @Nullable void evaluateNetworks(List<ScanDetail> scanDetails,
                         WifiConfiguration currentNetwork, String currentBssid,
                         boolean connected, boolean untrustedNetworkAllowed,
                         OnConnectableListener onConnectableListener);
@@ -207,9 +201,8 @@ public class WifiNetworkSelector {
              *
              * @param scanDetail describes the specific access point
              * @param config is the WifiConfiguration for the network
-             * @param score is the score assigned by the evaluator
              */
-            void onConnectable(ScanDetail scanDetail, WifiConfiguration config, int score);
+            void onConnectable(ScanDetail scanDetail, WifiConfiguration config);
         }
     }
 
@@ -380,8 +373,8 @@ public class WifiNetworkSelector {
 
     private List<ScanDetail> filterScanResults(List<ScanDetail> scanDetails,
                 Set<String> bssidBlacklist, boolean isConnected, String currentBssid) {
-        ArrayList<NetworkKey> unscoredNetworks = new ArrayList<NetworkKey>();
-        List<ScanDetail> validScanDetails = new ArrayList<ScanDetail>();
+        ArrayList<NetworkKey> unscoredNetworks = new ArrayList<>();
+        List<ScanDetail> validScanDetails = new ArrayList<>();
         StringBuffer noValidSsid = new StringBuffer();
         StringBuffer blacklistedBssid = new StringBuffer();
         StringBuffer lowRssi = new StringBuffer();
@@ -730,26 +723,22 @@ public class WifiNetworkSelector {
         // Determine the weight for the last user selection
         final int lastUserSelectedNetworkId = mWifiConfigManager.getLastSelectedNetwork();
         final double lastSelectionWeight = calculateLastSelectionWeight();
-        final ArraySet<Integer> mNetworkIds = new ArraySet<>();
 
-        // Go through the registered network evaluators in order
-        WifiConfiguration selectedNetwork = null;
         WifiCandidates wifiCandidates = new WifiCandidates(mWifiScoreCard);
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
         }
         for (NetworkEvaluator registeredEvaluator : mEvaluators) {
             localLog("About to run " + registeredEvaluator.getName() + " :");
-            WifiConfiguration choice = registeredEvaluator.evaluateNetworks(
+            registeredEvaluator.evaluateNetworks(
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
                     untrustedNetworkAllowed,
-                    (scanDetail, config, score) -> {
+                    (scanDetail, config) -> {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
-                            mNetworkIds.add(config.networkId);
                             wifiCandidates.add(scanDetail, config,
                                     registeredEvaluator.getId(),
-                                    score,
+                                    0,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
                                     WifiConfiguration.isMetered(config, wifiInfo),
@@ -758,15 +747,6 @@ public class WifiNetworkSelector {
                                     evaluatorIdToNominatorId(registeredEvaluator.getId()));
                         }
                     });
-            if (choice != null && !mNetworkIds.contains(choice.networkId)) {
-                Log.wtf(TAG, registeredEvaluator.getName()
-                        + " failed to report choice with noConnectibleListener");
-            }
-            if (selectedNetwork == null && choice != null) {
-                selectedNetwork = choice; // First one wins
-                localLog(registeredEvaluator.getName() + " selects "
-                        + WifiNetworkSelector.toNetworkString(selectedNetwork));
-            }
         }
 
         if (mConnectableNetworks.size() != wifiCandidates.size()) {
@@ -802,11 +782,7 @@ public class WifiNetworkSelector {
 
         ArrayMap<Integer, Integer> experimentNetworkSelections = new ArrayMap<>(); // for metrics
 
-        final int legacySelectedNetworkId = selectedNetwork == null
-                ? WifiConfiguration.INVALID_NETWORK_ID
-                : selectedNetwork.networkId;
-
-        int selectedNetworkId = legacySelectedNetworkId;
+        int selectedNetworkId = WifiConfiguration.INVALID_NETWORK_ID;
 
         // Run all the CandidateScorers
         boolean legacyOverrideWanted = true;
@@ -837,9 +813,7 @@ public class WifiNetworkSelector {
         }
 
         // Update metrics about differences in the selections made by various methods
-        final int activeExperimentId = activeScorer == null ? LEGACY_CANDIDATE_SCORER_EXP_ID
-                : experimentIdFromIdentifier(activeScorer.getIdentifier());
-        experimentNetworkSelections.put(LEGACY_CANDIDATE_SCORER_EXP_ID, legacySelectedNetworkId);
+        final int activeExperimentId = experimentIdFromIdentifier(activeScorer.getIdentifier());
         for (Map.Entry<Integer, Integer> entry :
                 experimentNetworkSelections.entrySet()) {
             int experimentId = entry.getKey();
@@ -851,7 +825,8 @@ public class WifiNetworkSelector {
         }
 
         // Get a fresh copy of WifiConfiguration reflecting any scan result updates
-        selectedNetwork = mWifiConfigManager.getConfiguredNetwork(selectedNetworkId);
+        WifiConfiguration selectedNetwork =
+                mWifiConfigManager.getConfiguredNetwork(selectedNetworkId);
         if (selectedNetwork != null && legacyOverrideWanted) {
             selectedNetwork = overrideCandidateWithUserConnectChoice(selectedNetwork);
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();

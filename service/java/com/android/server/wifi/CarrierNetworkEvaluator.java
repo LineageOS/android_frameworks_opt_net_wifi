@@ -37,10 +37,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * 1. Filtering: figure out which of the networks is a Carrier Wi-Fi network (using the
  * {@link CarrierNetworkConfig} APIs).
- * 2. Evaluation: current evaluator API has 2 outputs (effectively):
- *   - Connectable networks: all networks which match #1 will be fed to this API
- *   - Selected network: a single network 'selected' by the evaluator. A simple max(RSSI) will be
- *                       used to pick one network from among the connectable networks.
+ * 2. Nominating: Connectable networks: all networks which match #1 will be fed to this API
  *
  * Note: This class is not thread safe and meant to be used only from {@link WifiNetworkSelector}.
  */
@@ -86,15 +83,13 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     }
 
     @Override
-    public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
+    public void evaluateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed, OnConnectableListener onConnectableListener) {
         if (!mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {
-            return null;
+            return;
         }
 
-        int currentMaxRssi = Integer.MIN_VALUE;
-        WifiConfiguration configWithMaxRssi = null;
         for (ScanDetail scanDetail : scanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
 
@@ -168,13 +163,7 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
                 mWifiConfigManager.updateScanDetailForNetwork(result.getNetworkId(), scanDetail);
             }
 
-            onConnectableListener.onConnectable(scanDetail, config, 0);
-            if (scanResult.level > currentMaxRssi) {
-                configWithMaxRssi = config;
-                currentMaxRssi = scanResult.level;
-            }
+            onConnectableListener.onConnectable(scanDetail, config);
         }
-
-        return configWithMaxRssi;
     }
 }

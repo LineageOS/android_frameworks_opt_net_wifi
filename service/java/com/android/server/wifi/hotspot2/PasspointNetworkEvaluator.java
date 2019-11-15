@@ -21,7 +21,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Process;
 import android.telephony.SubscriptionManager;
-import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Pair;
 
@@ -32,7 +31,6 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiNetworkSelector;
 import com.android.server.wifi.util.ScanResultUtil;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -88,7 +86,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     public void update(List<ScanDetail> scanDetails) {}
 
     @Override
-    public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
+    public void evaluateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid,
                     boolean connected, boolean untrustedNetworkAllowed,
                     @NonNull OnConnectableListener onConnectableListener) {
@@ -109,7 +107,6 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
                 }).collect(Collectors.toList());
 
         // Go through each ScanDetail and find the best provider for each ScanDetail.
-        List<PasspointNetworkCandidate> candidateList = new ArrayList<>();
         for (ScanDetail scanDetail : filteredScanDetails) {
             ScanResult scanResult = scanDetail.getScanResult();
 
@@ -117,41 +114,13 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
             Pair<PasspointProvider, PasspointMatch> bestProvider =
                     mPasspointManager.matchProvider(scanResult);
             if (bestProvider != null) {
-                candidateList.add(new PasspointNetworkCandidate(
-                        bestProvider.first, bestProvider.second, scanDetail));
+                WifiConfiguration candidate = createWifiConfigForProvider(bestProvider, scanDetail);
+                if (candidate == null) {
+                    continue;
+                }
+                onConnectableListener.onConnectable(scanDetail, candidate);
             }
         }
-
-        // Done if no candidate is found.
-        if (candidateList.isEmpty()) {
-            localLog("No suitable Passpoint network found");
-            return null;
-        }
-
-        // Find the best Passpoint network among all candidates.
-        PasspointNetworkCandidate bestNetwork =
-                findBestNetwork(candidateList, currentNetwork == null ? null : currentNetwork.SSID);
-
-        // Return the configuration for the current connected network if it is the best network.
-        if (currentNetwork != null && TextUtils.equals(currentNetwork.SSID,
-                ScanResultUtil.createQuotedSSID(bestNetwork.mScanDetail.getSSID()))) {
-            localLog("Staying with current Passpoint network " + currentNetwork.SSID);
-
-            // Update current network with the latest scan info. TODO - pull into common code
-            mWifiConfigManager.setNetworkCandidateScanResult(currentNetwork.networkId,
-                    bestNetwork.mScanDetail.getScanResult(), 0);
-            mWifiConfigManager.updateScanDetailForNetwork(currentNetwork.networkId,
-                    bestNetwork.mScanDetail);
-            onConnectableListener.onConnectable(bestNetwork.mScanDetail, currentNetwork, 0);
-            return currentNetwork;
-        }
-
-        WifiConfiguration config = createWifiConfigForProvider(bestNetwork);
-        if (config != null) {
-            onConnectableListener.onConnectable(bestNetwork.mScanDetail, config, 0);
-            localLog("Passpoint network to connect to: " + config.SSID);
-        }
-        return config;
     }
 
     /**
@@ -161,10 +130,11 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
      * @param networkInfo Contained information for the Passpoint network to connect to
      * @return {@link WifiConfiguration}
      */
-    private WifiConfiguration createWifiConfigForProvider(PasspointNetworkCandidate networkInfo) {
-        WifiConfiguration config = networkInfo.mProvider.getWifiConfig();
-        config.SSID = ScanResultUtil.createQuotedSSID(networkInfo.mScanDetail.getSSID());
-        if (networkInfo.mMatchStatus == PasspointMatch.HomeProvider) {
+    private WifiConfiguration createWifiConfigForProvider(
+            Pair<PasspointProvider, PasspointMatch> bestProvider, ScanDetail scanDetail) {
+        WifiConfiguration config = bestProvider.first.getWifiConfig();
+        config.SSID = ScanResultUtil.createQuotedSSID(scanDetail.getSSID());
+        if (bestProvider.second == PasspointMatch.HomeProvider) {
             config.isHomeProviderNetwork = true;
         }
 
@@ -196,43 +166,10 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
 
         mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID, null);
         mWifiConfigManager.setNetworkCandidateScanResult(result.getNetworkId(),
-                networkInfo.mScanDetail.getScanResult(), 0);
+                scanDetail.getScanResult(), 0);
         mWifiConfigManager.updateScanDetailForNetwork(
-                result.getNetworkId(), networkInfo.mScanDetail);
+                result.getNetworkId(), scanDetail);
         return mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
-    }
-
-    /**
-     * Given a list of Passpoint networks (with both provider and scan info), find and return
-     * the one with highest score.  The score is calculated using
-     * {@link PasspointNetworkScore#calculateScore}.
-     *
-     * @param networkList List of Passpoint networks
-     * @param currentNetworkSsid The SSID of the currently connected network, null if not connected
-     * @return {@link PasspointNetworkCandidate}
-     */
-    private PasspointNetworkCandidate findBestNetwork(
-            List<PasspointNetworkCandidate> networkList, String currentNetworkSsid) {
-        PasspointNetworkCandidate bestCandidate = null;
-        int bestScore = Integer.MIN_VALUE;
-        for (PasspointNetworkCandidate candidate : networkList) {
-            ScanDetail scanDetail = candidate.mScanDetail;
-            PasspointMatch match = candidate.mMatchStatus;
-
-            boolean isActiveNetwork = TextUtils.equals(currentNetworkSsid,
-                    ScanResultUtil.createQuotedSSID(scanDetail.getSSID()));
-            int score = PasspointNetworkScore.calculateScore(match == PasspointMatch.HomeProvider,
-                    scanDetail, mPasspointManager.getANQPElements(scanDetail.getScanResult()),
-                    isActiveNetwork);
-
-            if (score > bestScore) {
-                bestCandidate = candidate;
-                bestScore = score;
-            }
-        }
-        localLog("Best Passpoint network " + bestCandidate.mScanDetail.getSSID() + " provided by "
-                + bestCandidate.mProvider.getConfig().getHomeSp().getFqdn());
-        return bestCandidate;
     }
 
     private void localLog(String log) {

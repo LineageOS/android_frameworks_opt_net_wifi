@@ -131,13 +131,13 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     }
 
     @Override
-    public WifiConfiguration evaluateNetworks(List<ScanDetail> scanDetails,
+    public void evaluateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
         if (!mNetworkRecommendationsEnabled) {
             mLocalLog.log("Skipping evaluateNetworks; Network recommendations disabled.");
-            return null;
+            return;
         }
 
         final ScoreTracker scoreTracker = new ScoreTracker();
@@ -188,11 +188,9 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
                 scoreTracker.trackExternallyScoredCandidate(
                         scanResult, configuredNetwork, isCurrentNetwork);
             }
-            onConnectableListener.onConnectable(scanDetail, configuredNetwork, 0);
+            onConnectableListener.onConnectable(scanDetail, configuredNetwork);
         }
-
-
-        return scoreTracker.getCandidateConfiguration(onConnectableListener);
+        scoreTracker.getCandidateConfiguration(onConnectableListener);
     }
 
     /** Used to track the network with the highest score. */
@@ -347,7 +345,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
                     candidateNetworkId);
             if (ans != null && mScanDetailCandidate != null) {
                 // This is a newly created config, so we need to call onConnectable.
-                onConnectableListener.onConnectable(mScanDetailCandidate, ans, 0);
+                onConnectableListener.onConnectable(mScanDetailCandidate, ans);
             }
             return ans;
         }
