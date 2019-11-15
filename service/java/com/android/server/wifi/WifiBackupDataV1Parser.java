@@ -491,12 +491,12 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         ipConfiguration.setIpAssignment(ipAssignment);
         switch (ipAssignment) {
             case STATIC:
-                StaticIpConfiguration staticIpConfiguration = new StaticIpConfiguration();
+                StaticIpConfiguration.Builder builder = new StaticIpConfiguration.Builder();
                 if (linkAddressString != null && linkPrefixLength != null) {
                     LinkAddress linkAddress = new LinkAddress(
                             NetworkUtils.numericToInetAddress(linkAddressString), linkPrefixLength);
                     if (linkAddress.getAddress() instanceof Inet4Address) {
-                        staticIpConfiguration.ipAddress = linkAddress;
+                        builder.setIpAddress(linkAddress);
                     } else {
                         Log.w(TAG, "Non-IPv4 address: " + linkAddress);
                     }
@@ -505,19 +505,21 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     InetAddress gateway = NetworkUtils.numericToInetAddress(gatewayAddressString);
                     RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
                     if (route.isIPv4Default()) {
-                        staticIpConfiguration.gateway = gateway;
+                        builder.setGateway(gateway);
                     } else {
                         Log.w(TAG, "Non-IPv4 default route: " + route);
                     }
                 }
                 if (dnsServerAddressesString != null) {
+                    List<InetAddress> dnsServerAddresses = new ArrayList<>();
                     for (String dnsServerAddressString : dnsServerAddressesString) {
                         InetAddress dnsServerAddress =
                                 NetworkUtils.numericToInetAddress(dnsServerAddressString);
-                        staticIpConfiguration.dnsServers.add(dnsServerAddress);
+                        dnsServerAddresses.add(dnsServerAddress);
                     }
+                    builder.setDnsServers(dnsServerAddresses);
                 }
-                ipConfiguration.setStaticIpConfiguration(staticIpConfiguration);
+                ipConfiguration.setStaticIpConfiguration(builder.build());
                 break;
             case DHCP:
             case UNASSIGNED:
