@@ -150,11 +150,15 @@ public class WifiVendorHalTest extends WifiBaseTest {
     @Mock
     private android.hardware.wifi.V1_3.IWifiChip mIWifiChipV13;
     @Mock
+    private android.hardware.wifi.V1_4.IWifiChip mIWifiChipV14;
+    @Mock
     private IWifiStaIface mIWifiStaIface;
     @Mock
     private android.hardware.wifi.V1_2.IWifiStaIface mIWifiStaIfaceV12;
     @Mock
     private android.hardware.wifi.V1_3.IWifiStaIface mIWifiStaIfaceV13;
+    @Mock
+    private android.hardware.wifi.V1_4.IWifiStaIface mIWifiStaIfaceV14;
     private IWifiStaIfaceEventCallback mIWifiStaIfaceEventCallback;
     private IWifiChipEventCallback mIWifiChipEventCallback;
     private android.hardware.wifi.V1_2.IWifiChipEventCallback mIWifiChipEventCallbackV12;
@@ -188,6 +192,11 @@ public class WifiVendorHalTest extends WifiBaseTest {
         }
 
         @Override
+        protected android.hardware.wifi.V1_4.IWifiChip getWifiChipForV1_4Mockable() {
+            return null;
+        }
+
+        @Override
         protected android.hardware.wifi.V1_2.IWifiStaIface getWifiStaIfaceForV1_2Mockable(
                 String ifaceName) {
             return null;
@@ -195,6 +204,12 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         @Override
         protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
+                String ifaceName) {
+            return null;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
                 String ifaceName) {
             return null;
         }
@@ -211,7 +226,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         @Override
         protected android.hardware.wifi.V1_1.IWifiChip getWifiChipForV1_1Mockable() {
-            return null;
+            return mIWifiChipV11;
         }
 
         @Override
@@ -225,6 +240,11 @@ public class WifiVendorHalTest extends WifiBaseTest {
         }
 
         @Override
+        protected android.hardware.wifi.V1_4.IWifiChip getWifiChipForV1_4Mockable() {
+            return null;
+        }
+
+        @Override
         protected android.hardware.wifi.V1_2.IWifiStaIface getWifiStaIfaceForV1_2Mockable(
                 String ifaceName) {
             return mIWifiStaIfaceV12;
@@ -232,6 +252,12 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         @Override
         protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
+                String ifaceName) {
+            return null;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
                 String ifaceName) {
             return null;
         }
@@ -248,17 +274,22 @@ public class WifiVendorHalTest extends WifiBaseTest {
 
         @Override
         protected android.hardware.wifi.V1_1.IWifiChip getWifiChipForV1_1Mockable() {
-            return null;
+            return mIWifiChipV11;
         }
 
         @Override
         protected android.hardware.wifi.V1_2.IWifiChip getWifiChipForV1_2Mockable() {
-            return null;
+            return mIWifiChipV12;
         }
 
         @Override
         protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
             return mIWifiChipV13;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiChip getWifiChipForV1_4Mockable() {
+            return null;
         }
 
         @Override
@@ -271,6 +302,60 @@ public class WifiVendorHalTest extends WifiBaseTest {
         protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
                 String ifaceName) {
             return mIWifiStaIfaceV13;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
+                String ifaceName) {
+            return null;
+        }
+    }
+
+    /**
+     * Spy used to return the V1_4 IWifiChip and V1_4 IWifiStaIface mock objects to simulate
+     * the 1.4 HAL running on the device.
+     */
+    private class WifiVendorHalSpyV1_4 extends WifiVendorHal {
+        WifiVendorHalSpyV1_4(HalDeviceManager halDeviceManager, Handler handler) {
+            super(halDeviceManager, handler);
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_1.IWifiChip getWifiChipForV1_1Mockable() {
+            return mIWifiChipV11;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_2.IWifiChip getWifiChipForV1_2Mockable() {
+            return mIWifiChipV12;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_3.IWifiChip getWifiChipForV1_3Mockable() {
+            return mIWifiChipV13;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiChip getWifiChipForV1_4Mockable() {
+            return mIWifiChipV14;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_2.IWifiStaIface getWifiStaIfaceForV1_2Mockable(
+                String ifaceName) {
+            return mIWifiStaIfaceV12;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_3.IWifiStaIface getWifiStaIfaceForV1_3Mockable(
+                String ifaceName) {
+            return mIWifiStaIfaceV13;
+        }
+
+        @Override
+        protected android.hardware.wifi.V1_4.IWifiStaIface getWifiStaIfaceForV1_4Mockable(
+                String ifaceName) {
+            return mIWifiStaIfaceV14;
         }
     }
 
@@ -820,6 +905,60 @@ public class WifiVendorHalTest extends WifiBaseTest {
     }
 
     /**
+     * Test get supported features on HAL V1_4.
+     * Tests whether we coalesce information from different sources
+     * (IWifiStaIface, IWifiChip and HalDeviceManager) into the bitmask of supported features
+     * correctly.
+     */
+    @Test
+    public void testGetSupportedFeaturesV1_4() throws Exception {
+        mWifiVendorHal = new WifiVendorHalSpyV1_4(mHalDeviceManager, mHandler);
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+
+        int staIfaceHidlCaps = (
+                IWifiStaIface.StaIfaceCapabilityMask.BACKGROUND_SCAN
+                        | IWifiStaIface.StaIfaceCapabilityMask.LINK_LAYER_STATS
+                        | android.hardware.wifi.V1_4.IWifiStaIface.StaIfaceCapabilityMask.STA_6G
+        );
+        int chipHidlCaps =
+                android.hardware.wifi.V1_1.IWifiChip.ChipCapabilityMask.SET_TX_POWER_LIMIT;
+        Set<Integer>  halDeviceManagerSupportedIfaces = new HashSet<Integer>() {{
+                add(IfaceType.STA);
+                add(IfaceType.P2P);
+            }};
+        long expectedFeatureSet = (
+                WifiManager.WIFI_FEATURE_SCANNER
+                        | WifiManager.WIFI_FEATURE_LINK_LAYER_STATS
+                        | WifiManager.WIFI_FEATURE_TX_POWER_LIMIT
+                        | WifiManager.WIFI_FEATURE_INFRA
+                        | WifiManager.WIFI_FEATURE_P2P
+                        | WifiManager.WIFI_FEATURE_INFRA_6G
+        );
+
+        doAnswer(new AnswerWithArguments() {
+            public void answer(
+                    android.hardware.wifi.V1_4.IWifiStaIface.getCapabilities_1_4Callback cb)
+                    throws RemoteException {
+                cb.onValues(mWifiStatusSuccess, staIfaceHidlCaps);
+            }
+        }).when(mIWifiStaIfaceV14).getCapabilities_1_4(
+                any(android.hardware.wifi.V1_4.IWifiStaIface.getCapabilities_1_4Callback.class));
+
+        doAnswer(new AnswerWithArguments() {
+            public void answer(android.hardware.wifi.V1_3.IWifiChip.getCapabilities_1_3Callback cb)
+                    throws RemoteException {
+                cb.onValues(mWifiStatusSuccess, chipHidlCaps);
+            }
+        }).when(mIWifiChipV13).getCapabilities_1_3(
+                any(android.hardware.wifi.V1_3.IWifiChip.getCapabilities_1_3Callback.class));
+
+        when(mHalDeviceManager.getSupportedIfaceTypes())
+                .thenReturn(halDeviceManagerSupportedIfaces);
+
+        assertEquals(expectedFeatureSet, mWifiVendorHal.getSupportedFeatureSet(TEST_IFACE_NAME));
+    }
+
+   /**
      * Test |getFactoryMacAddress| gets called when the hal version is V1_3
      * @throws Exception
      */
