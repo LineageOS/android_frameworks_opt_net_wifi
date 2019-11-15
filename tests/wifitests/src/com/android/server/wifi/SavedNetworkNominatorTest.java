@@ -25,7 +25,7 @@ import android.net.wifi.WifiConfiguration;
 import android.test.suitebuilder.annotation.SmallTest;
 import android.util.LocalLog;
 
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
+import com.android.server.wifi.WifiNetworkSelector.NetworkNominator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 import com.android.server.wifi.util.TelephonyUtil;
 
@@ -39,10 +39,10 @@ import org.mockito.MockitoAnnotations;
 import java.util.List;
 
 /**
- * Unit tests for {@link com.android.server.wifi.SavedNetworkEvaluator}.
+ * Unit tests for {@link SavedNetworkNominator}.
  */
 @SmallTest
-public class SavedNetworkEvaluatorTest extends WifiBaseTest {
+public class SavedNetworkNominatorTest extends WifiBaseTest {
 
     /** Sets up test. */
     @Before
@@ -50,7 +50,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
         MockitoAnnotations.initMocks(this);
         mLocalLog = new LocalLog(512);
 
-        mSavedNetworkEvaluator = new SavedNetworkEvaluator(mWifiConfigManager, mLocalLog,
+        mSavedNetworkEvaluator = new SavedNetworkNominator(mWifiConfigManager, mLocalLog,
                 mTelephonyUtil);
     }
 
@@ -66,7 +66,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
     private static final int TEST_CARRIER_ID = 100;
     private static final int RSSI_LEVEL = -50;
 
-    private SavedNetworkEvaluator mSavedNetworkEvaluator;
+    private SavedNetworkNominator mSavedNetworkEvaluator;
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private Clock mClock;
     @Mock private OnConnectableListener mOnConnectableListener;
@@ -94,7 +94,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
             wifiConfiguration.useExternalScores = true;
         }
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
@@ -121,7 +121,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
                 .thenReturn(INVALID_SUBID);
         when(mTelephonyUtil.isSimPresent(eq(INVALID_SUBID))).thenReturn(false);
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
@@ -148,7 +148,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
             wifiConfiguration.ephemeral = true;
         }
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
@@ -173,13 +173,13 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
         List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
         WifiConfiguration[] savedConfigs = scanDetailsAndConfigs.getWifiConfigs();
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener, times(2)).onConnectable(any(), any());
         reset(mOnConnectableListener);
         savedConfigs[1].allowAutojoin = false;
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
         verify(mOnConnectableListener).onConnectable(any(),
                 mWifiConfigurationArgumentCaptor.capture());
@@ -208,7 +208,7 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
             wifiConfiguration.allowAutojoin = false;
         }
 
-        mSavedNetworkEvaluator.evaluateNetworks(scanDetails,
+        mSavedNetworkEvaluator.nominateNetworks(scanDetails,
                 null, null, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener, never()).onConnectable(any(), any());

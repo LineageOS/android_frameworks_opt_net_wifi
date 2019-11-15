@@ -38,21 +38,21 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * Evaluator nominate the highest available suggestion candidates.
+ * Nominator nominate the highest available suggestion candidates.
  * Note:
  * <li> This class is not thread safe and meant to be used only from {@link WifiNetworkSelector}.
  * </li>
  *
  */
 @NotThreadSafe
-public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEvaluator {
-    private static final String TAG = "NetworkSuggestionEvaluator";
+public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNominator {
+    private static final String TAG = "NetworkSuggestionNominator";
 
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
 
-    NetworkSuggestionEvaluator(WifiNetworkSuggestionsManager networkSuggestionsManager,
+    NetworkSuggestionNominator(WifiNetworkSuggestionsManager networkSuggestionsManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog) {
         mWifiNetworkSuggestionsManager = networkSuggestionsManager;
         mWifiConfigManager = wifiConfigManager;
@@ -65,7 +65,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
     }
 
     @Override
-    public void evaluateNetworks(List<ScanDetail> scanDetails,
+    public void nominateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
@@ -152,8 +152,8 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
     }
 
     @Override
-    public @EvaluatorId int getId() {
-        return EVALUATOR_ID_SUGGESTION;
+    public @NominatorId int getId() {
+        return NOMINATOR_ID_SUGGESTION;
     }
 
     @Override

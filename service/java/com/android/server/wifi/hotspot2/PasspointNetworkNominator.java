@@ -35,11 +35,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * This class is the WifiNetworkSelector.NetworkEvaluator implementation for
+ * This class is the WifiNetworkSelector.NetworkNominator implementation for
  * Passpoint networks.
  */
-public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluator {
-    private static final String NAME = "PasspointNetworkEvaluator";
+public class PasspointNetworkNominator implements WifiNetworkSelector.NetworkNominator {
+    private static final String NAME = "PasspointNetworkNominator";
 
     private final PasspointManager mPasspointManager;
     private final WifiConfigManager mWifiConfigManager;
@@ -61,7 +61,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         ScanDetail mScanDetail;
     }
 
-    public PasspointNetworkEvaluator(PasspointManager passpointManager,
+    public PasspointNetworkNominator(PasspointManager passpointManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
             WifiInjector wifiInjector,
             SubscriptionManager subscriptionManager) {
@@ -73,8 +73,8 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     }
 
     @Override
-    public @EvaluatorId int getId() {
-        return EVALUATOR_ID_PASSPOINT;
+    public @NominatorId int getId() {
+        return NOMINATOR_ID_PASSPOINT;
     }
 
     @Override
@@ -86,7 +86,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
     public void update(List<ScanDetail> scanDetails) {}
 
     @Override
-    public void evaluateNetworks(List<ScanDetail> scanDetails,
+    public void nominateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid,
                     boolean connected, boolean untrustedNetworkAllowed,
                     @NonNull OnConnectableListener onConnectableListener) {
@@ -127,7 +127,6 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
      * Create and return a WifiConfiguration for the given ScanDetail and PasspointProvider.
      * The newly created WifiConfiguration will also be added to WifiConfigManager.
      *
-     * @param networkInfo Contained information for the Passpoint network to connect to
      * @return {@link WifiConfiguration}
      */
     private WifiConfiguration createWifiConfigForProvider(

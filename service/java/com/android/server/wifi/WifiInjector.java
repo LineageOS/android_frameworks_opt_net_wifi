@@ -48,7 +48,7 @@ import android.util.Log;
 
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
-import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
+import com.android.server.wifi.hotspot2.PasspointNetworkNominator;
 import com.android.server.wifi.hotspot2.PasspointObjectFactory;
 import com.android.server.wifi.p2p.SupplicantP2pIfaceHal;
 import com.android.server.wifi.p2p.WifiP2pMetrics;
@@ -123,11 +123,11 @@ public class WifiInjector {
     private final WifiConnectivityHelper mWifiConnectivityHelper;
     private final LocalLog mConnectivityLocalLog;
     private final WifiNetworkSelector mWifiNetworkSelector;
-    private final SavedNetworkEvaluator mSavedNetworkEvaluator;
-    private final NetworkSuggestionEvaluator mNetworkSuggestionEvaluator;
-    private final PasspointNetworkEvaluator mPasspointNetworkEvaluator;
-    private final ScoredNetworkEvaluator mScoredNetworkEvaluator;
-    private final CarrierNetworkEvaluator mCarrierNetworkEvaluator;
+    private final SavedNetworkNominator mSavedNetworkNominator;
+    private final NetworkSuggestionNominator mNetworkSuggestionNominator;
+    private final PasspointNetworkNominator mPasspointNetworkNominator;
+    private final ScoredNetworkNominator mScoredNetworkNominator;
+    private final CarrierNetworkNominator mCarrierNetworkNominator;
     private final WifiNetworkScoreCache mWifiNetworkScoreCache;
     private final NetworkScoreManager mNetworkScoreManager;
     private WifiScanner mWifiScanner;
@@ -288,24 +288,24 @@ public class WifiInjector {
         ThroughputScorer throughputScorer = new ThroughputScorer(mScoringParams);
         mWifiNetworkSelector.registerCandidateScorer(throughputScorer);
         mWifiMetrics.setWifiNetworkSelector(mWifiNetworkSelector);
-        mSavedNetworkEvaluator = new SavedNetworkEvaluator(
+        mSavedNetworkNominator = new SavedNetworkNominator(
                 mWifiConfigManager, mConnectivityLocalLog, mTelephonyUtil);
         mWifiNetworkSuggestionsManager = new WifiNetworkSuggestionsManager(mContext, wifiHandler,
                 this, mWifiPermissionsUtil, mWifiConfigManager, mWifiConfigStore, mWifiMetrics,
                 mTelephonyUtil);
-        mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
+        mNetworkSuggestionNominator = new NetworkSuggestionNominator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
-        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext, wifiHandler,
+        mScoredNetworkNominator = new ScoredNetworkNominator(mContext, wifiHandler,
                 mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
                 mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
-        mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
+        mCarrierNetworkNominator = new CarrierNetworkNominator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
         mPasspointManager = new PasspointManager(mContext, this,
                 wifiHandler, mWifiNative, mWifiKeyStore, mClock,
                 new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
                 mWifiMetrics, mTelephonyUtil);
-        mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
+        mPasspointNetworkNominator = new PasspointNetworkNominator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 this, subscriptionManager);
         mWifiMetrics.setPasspointManager(mPasspointManager);
@@ -353,12 +353,12 @@ public class WifiInjector {
         mDppManager = new DppManager(wifiHandler, mWifiNative,
                 mWifiConfigManager, mContext, mDppMetrics);
 
-        // Register the various network evaluators with the network selector.
-        mWifiNetworkSelector.registerNetworkEvaluator(mSavedNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mNetworkSuggestionEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mPasspointNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mCarrierNetworkEvaluator);
-        mWifiNetworkSelector.registerNetworkEvaluator(mScoredNetworkEvaluator);
+        // Register the various network Nominators with the network selector.
+        mWifiNetworkSelector.registerNetworkNominator(mSavedNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mNetworkSuggestionNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mPasspointNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mCarrierNetworkNominator);
+        mWifiNetworkSelector.registerNetworkNominator(mScoredNetworkNominator);
 
         mClientModeImpl.start();
     }

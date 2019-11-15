@@ -39,11 +39,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@link WifiNetworkSelector.NetworkEvaluator} implementation that uses scores obtained by
+ * {@link WifiNetworkSelector.NetworkNominator} implementation that uses scores obtained by
  * {@link NetworkScoreManager#requestScores(NetworkKey[])} to make network connection decisions.
  */
-public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluator {
-    private static final String TAG = "ScoredNetworkEvaluator";
+public class ScoredNetworkNominator implements WifiNetworkSelector.NetworkNominator {
+    private static final String TAG = "ScoredNetworkNominator";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private final NetworkScoreManager mNetworkScoreManager;
@@ -55,7 +55,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     private boolean mNetworkRecommendationsEnabled;
     private WifiNetworkScoreCache mScoreCache;
 
-    ScoredNetworkEvaluator(final Context context, Handler handler,
+    ScoredNetworkNominator(final Context context, Handler handler,
             final FrameworkFacade frameworkFacade, NetworkScoreManager networkScoreManager,
             PackageManager packageManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
@@ -78,7 +78,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
                 Settings.Global.getUriFor(Settings.Global.NETWORK_RECOMMENDATIONS_ENABLED),
                 false /* notifyForDescendents */, mContentObserver);
         mContentObserver.onChange(false /* unused */);
-        mLocalLog.log("ScoredNetworkEvaluator constructed. mNetworkRecommendationsEnabled: "
+        mLocalLog.log("ScoredNetworkNominator constructed. mNetworkRecommendationsEnabled: "
                 + mNetworkRecommendationsEnabled);
     }
 
@@ -131,12 +131,12 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     }
 
     @Override
-    public void evaluateNetworks(List<ScanDetail> scanDetails,
+    public void nominateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed,
             @NonNull OnConnectableListener onConnectableListener) {
         if (!mNetworkRecommendationsEnabled) {
-            mLocalLog.log("Skipping evaluateNetworks; Network recommendations disabled.");
+            mLocalLog.log("Skipping nominateNetworks; Network recommendations disabled.");
             return;
         }
 
@@ -338,7 +338,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
                     break;
                 case ScoreTracker.EXTERNAL_SCORED_NONE:
                 default:
-                    mLocalLog.log("ScoredNetworkEvaluator did not see any good candidates.");
+                    mLocalLog.log("ScoredNetworkNominator did not see any good candidates.");
                     break;
             }
             WifiConfiguration ans = mWifiConfigManager.getConfiguredNetwork(
@@ -358,8 +358,8 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     }
 
     @Override
-    public @EvaluatorId int getId() {
-        return EVALUATOR_ID_SCORED;
+    public @NominatorId int getId() {
+        return NOMINATOR_ID_SCORED;
     }
 
     @Override

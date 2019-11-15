@@ -124,49 +124,49 @@ public class WifiNetworkSelector {
 
     /**
      * WiFi Network Selector supports various categories of networks. Each category
-     * has an evaluator to choose the best WiFi network to connect to.
+     * has an nominator to choose the best WiFi network to connect to.
      * Wifi Network Selector iterates through the registered scorers in registration order
      * before making a final selection from among the candidates.
      */
 
     /**
-     * Interface for WiFi Network Evaluator
+     * Interface for WiFi Network Nominator
      *
-     * A network evaluator examines the scan results reports the
+     * A network nominator examines the scan results reports the
      * connectable candidates in its category for further consideration.
      */
-    public interface NetworkEvaluator {
-        /** Type of evaluators */
-        int EVALUATOR_ID_SAVED = 0;
-        int EVALUATOR_ID_SUGGESTION = 1;
-        int EVALUATOR_ID_PASSPOINT = 2;
-        int EVALUATOR_ID_CARRIER = 3;
-        int EVALUATOR_ID_SCORED = 4;
+    public interface NetworkNominator {
+        /** Type of nominators */
+        int NOMINATOR_ID_SAVED = 0;
+        int NOMINATOR_ID_SUGGESTION = 1;
+        int NOMINATOR_ID_PASSPOINT = 2;
+        int NOMINATOR_ID_CARRIER = 3;
+        int NOMINATOR_ID_SCORED = 4;
 
-        @IntDef(prefix = { "EVALUATOR_ID_" }, value = {
-                EVALUATOR_ID_SAVED,
-                EVALUATOR_ID_SUGGESTION,
-                EVALUATOR_ID_PASSPOINT,
-                EVALUATOR_ID_CARRIER,
-                EVALUATOR_ID_SCORED})
+        @IntDef(prefix = { "NOMINATOR_ID_" }, value = {
+                NOMINATOR_ID_SAVED,
+                NOMINATOR_ID_SUGGESTION,
+                NOMINATOR_ID_PASSPOINT,
+                NOMINATOR_ID_CARRIER,
+                NOMINATOR_ID_SCORED})
         @Retention(RetentionPolicy.SOURCE)
-        public @interface EvaluatorId {}
+        public @interface NominatorId {}
 
         /**
-         * Get the evaluator type.
+         * Get the nominator type.
          */
-        @EvaluatorId int getId();
+        @NominatorId int getId();
 
         /**
-         * Get the evaluator name.
+         * Get the nominator name.
          */
         String getName();
 
         /**
-         * Update the evaluator.
+         * Update the nominator.
          *
-         * Certain evaluators have to be updated with the new scan results. For example
-         * the ScoredNetworkEvaluator needs to refresh its Score Cache.
+         * Certain nominators have to be updated with the new scan results. For example
+         * the ScoredNetworkNominator needs to refresh its Score Cache.
          *
          * @param scanDetails    a list of scan details constructed from the scan results
          */
@@ -187,10 +187,10 @@ public class WifiNetworkSelector {
          * @param onConnectableListener callback to record all of the connectable networks
          *
          */
-        @Nullable void evaluateNetworks(List<ScanDetail> scanDetails,
-                        WifiConfiguration currentNetwork, String currentBssid,
-                        boolean connected, boolean untrustedNetworkAllowed,
-                        OnConnectableListener onConnectableListener);
+        void nominateNetworks(List<ScanDetail> scanDetails,
+                WifiConfiguration currentNetwork, String currentBssid,
+                boolean connected, boolean untrustedNetworkAllowed,
+                OnConnectableListener onConnectableListener);
 
         /**
          * Callback for recording connectable candidates
@@ -206,7 +206,7 @@ public class WifiNetworkSelector {
         }
     }
 
-    private final List<NetworkEvaluator> mEvaluators = new ArrayList<>(3);
+    private final List<NetworkNominator> mNominators = new ArrayList<>(3);
 
     // A helper to log debugging information in the local log buffer, which can
     // be retrieved in bugreport.
@@ -633,7 +633,7 @@ public class WifiNetworkSelector {
     }
 
     /**
-     * Overrides the {@code candidate} chosen by the {@link #mEvaluators} with the user chosen
+     * Overrides the {@code candidate} chosen by the {@link #mNominators} with the user chosen
      * {@link WifiConfiguration} if one exists.
      *
      * @return the user chosen {@link WifiConfiguration} if one exists, {@code candidate} otherwise
@@ -708,9 +708,9 @@ public class WifiNetworkSelector {
         // Update all configured networks before initiating network selection.
         updateConfiguredNetworks();
 
-        // Update the registered network evaluators.
-        for (NetworkEvaluator registeredEvaluator : mEvaluators) {
-            registeredEvaluator.update(scanDetails);
+        // Update the registered network nominators.
+        for (NetworkNominator registeredNominator : mNominators) {
+            registeredNominator.update(scanDetails);
         }
 
         // Filter out unwanted networks.
@@ -728,23 +728,23 @@ public class WifiNetworkSelector {
         if (currentNetwork != null) {
             wifiCandidates.setCurrent(currentNetwork.networkId, currentBssid);
         }
-        for (NetworkEvaluator registeredEvaluator : mEvaluators) {
-            localLog("About to run " + registeredEvaluator.getName() + " :");
-            registeredEvaluator.evaluateNetworks(
+        for (NetworkNominator registeredNominator : mNominators) {
+            localLog("About to run " + registeredNominator.getName() + " :");
+            registeredNominator.nominateNetworks(
                     new ArrayList<>(mFilteredNetworks), currentNetwork, currentBssid, connected,
                     untrustedNetworkAllowed,
                     (scanDetail, config) -> {
                         if (config != null) {
                             mConnectableNetworks.add(Pair.create(scanDetail, config));
                             wifiCandidates.add(scanDetail, config,
-                                    registeredEvaluator.getId(),
+                                    registeredNominator.getId(),
                                     0,
                                     (config.networkId == lastUserSelectedNetworkId)
                                             ? lastSelectionWeight : 0.0,
                                     WifiConfiguration.isMetered(config, wifiInfo),
                                     predictThroughput(scanDetail));
                             mWifiMetrics.setNominatorForNetwork(config.networkId,
-                                    evaluatorIdToNominatorId(registeredEvaluator.getId()));
+                                    toProtoNominatorId(registeredNominator.getId()));
                         }
                     });
         }
@@ -762,12 +762,12 @@ public class WifiNetworkSelector {
             WifiCandidates.Candidate best = null;
             for (WifiCandidates.Candidate candidate: group) {
                 // Of all the candidates with the same networkId, choose the
-                // one with the smallest evaluatorId, and break ties by
+                // one with the smallest nominatorId, and break ties by
                 // picking the one with the highest score.
                 if (best == null
-                        || candidate.getEvaluatorId() < best.getEvaluatorId()
-                        || (candidate.getEvaluatorId() == best.getEvaluatorId()
-                            && candidate.getEvaluatorScore() > best.getEvaluatorScore())) {
+                        || candidate.getNominatorId() < best.getNominatorId()
+                        || (candidate.getNominatorId() == best.getNominatorId()
+                            && candidate.getNominatorScore() > best.getNominatorScore())) {
                     best = candidate;
                 }
             }
@@ -775,7 +775,7 @@ public class WifiNetworkSelector {
                 ScanDetail scanDetail = best.getScanDetail();
                 if (scanDetail != null) {
                     mWifiConfigManager.setNetworkCandidateScanResult(best.getNetworkConfigId(),
-                            scanDetail.getScanResult(), best.getEvaluatorScore());
+                            scanDetail.getScanResult(), best.getNominatorScore());
                 }
             }
         }
@@ -834,20 +834,20 @@ public class WifiNetworkSelector {
         return selectedNetwork;
     }
 
-    private static int evaluatorIdToNominatorId(@NetworkEvaluator.EvaluatorId int evaluatorId) {
-        switch (evaluatorId) {
-            case NetworkEvaluator.EVALUATOR_ID_SAVED:
+    private static int toProtoNominatorId(@NetworkNominator.NominatorId int nominatorId) {
+        switch (nominatorId) {
+            case NetworkNominator.NOMINATOR_ID_SAVED:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_SAVED;
-            case NetworkEvaluator.EVALUATOR_ID_SUGGESTION:
+            case NetworkNominator.NOMINATOR_ID_SUGGESTION:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_SUGGESTION;
-            case NetworkEvaluator.EVALUATOR_ID_PASSPOINT:
+            case NetworkNominator.NOMINATOR_ID_PASSPOINT:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_PASSPOINT;
-            case NetworkEvaluator.EVALUATOR_ID_CARRIER:
+            case NetworkNominator.NOMINATOR_ID_CARRIER:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_CARRIER;
-            case NetworkEvaluator.EVALUATOR_ID_SCORED:
+            case NetworkNominator.NOMINATOR_ID_SCORED:
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_EXTERNAL_SCORED;
             default:
-                Log.e(TAG, "UnrecognizedEvaluatorId" + evaluatorId);
+                Log.e(TAG, "UnrecognizedNominatorId" + nominatorId);
                 return WifiMetricsProto.ConnectionEvent.NOMINATOR_UNKNOWN;
         }
     }
@@ -907,13 +907,13 @@ public class WifiNetworkSelector {
     }
 
     /**
-     * Register a network evaluator
+     * Register a network nominator
      *
-     * @param evaluator the network evaluator to be registered
+     * @param nominator the network nominator to be registered
      *
      */
-    public void registerNetworkEvaluator(@NonNull NetworkEvaluator evaluator) {
-        mEvaluators.add(Preconditions.checkNotNull(evaluator));
+    public void registerNetworkNominator(@NonNull NetworkNominator nominator) {
+        mNominators.add(Preconditions.checkNotNull(nominator));
     }
 
     /**

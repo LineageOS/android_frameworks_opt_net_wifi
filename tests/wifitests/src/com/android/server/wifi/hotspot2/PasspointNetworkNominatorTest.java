@@ -49,7 +49,7 @@ import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.WifiInjector;
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
+import com.android.server.wifi.WifiNetworkSelector.NetworkNominator.OnConnectableListener;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 
@@ -63,10 +63,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Unit tests for {@link com.android.server.wifi.hotspot2.PasspointNetworkEvaluator}.
+ * Unit tests for {@link PasspointNetworkNominator}.
  */
 @SmallTest
-public class PasspointNetworkEvaluatorTest {
+public class PasspointNetworkNominatorTest {
     // TODO(b/140763176): should extend WifiBaseTest, but if it does then it fails with NPE
     private static final int TEST_NETWORK_ID = 1;
     private static final String TEST_SSID1 = "ssid1";
@@ -90,7 +90,7 @@ public class PasspointNetworkEvaluatorTest {
     @Mock CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock WifiInjector mWifiInjector;
     LocalLog mLocalLog;
-    PasspointNetworkEvaluator mEvaluator;
+    PasspointNetworkNominator mEvaluator;
 
     /**
      * Helper function for generating {@link WifiConfiguration} for testing.
@@ -151,7 +151,7 @@ public class PasspointNetworkEvaluatorTest {
     public void setUp() throws Exception {
         initMocks(this);
         mLocalLog = new LocalLog(512);
-        mEvaluator = new PasspointNetworkEvaluator(mPasspointManager, mWifiConfigManager, mLocalLog,
+        mEvaluator = new PasspointNetworkNominator(mPasspointManager, mWifiConfigManager, mLocalLog,
                 mWifiInjector, mSubscriptionManager);
         // SIM is present
         when(mSubscriptionManager.getActiveSubscriptionInfoList())
@@ -168,7 +168,7 @@ public class PasspointNetworkEvaluatorTest {
                 generateScanDetail(TEST_SSID1, TEST_BSSID1),
                 generateScanDetail(TEST_SSID2, TEST_BSSID2)});
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(null);
-        mEvaluator.evaluateNetworks(
+        mEvaluator.nominateNetworks(
                 scanDetails, null, null, false, false, mOnConnectableListener);
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
     }
@@ -187,7 +187,7 @@ public class PasspointNetworkEvaluatorTest {
         when(scanDetail.getNetworkDetail()).thenReturn(networkDetail);
 
         List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {scanDetail});
-        mEvaluator.evaluateNetworks(
+        mEvaluator.nominateNetworks(
                 scanDetails, null, null, false, false, mOnConnectableListener);
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
         // Verify that no provider matching is performed.
@@ -217,7 +217,7 @@ public class PasspointNetworkEvaluatorTest {
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
-        mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
         verify(mOnConnectableListener).onConnectable(any(), any());
 
@@ -259,7 +259,7 @@ public class PasspointNetworkEvaluatorTest {
         when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
-        mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
         verify(mOnConnectableListener).onConnectable(any(), any());
 
@@ -308,7 +308,7 @@ public class PasspointNetworkEvaluatorTest {
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID + 1))
                 .thenReturn(TEST_CONFIG2);
-        mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
         verify(mOnConnectableListener, times(2)).onConnectable(any(), any());
 
@@ -343,7 +343,7 @@ public class PasspointNetworkEvaluatorTest {
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(config);
 
-        mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
         verify(mOnConnectableListener).onConnectable(any(),
                 mWifiConfigurationArgumentCaptor.capture());
@@ -379,7 +379,7 @@ public class PasspointNetworkEvaluatorTest {
                 .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(currentNetwork);
 
-        mEvaluator.evaluateNetworks(scanDetails, currentNetwork,
+        mEvaluator.nominateNetworks(scanDetails, currentNetwork,
                 currentBssid, true, false, mOnConnectableListener);
 
         verify(mOnConnectableListener).onConnectable(any(), any());
@@ -428,7 +428,7 @@ public class PasspointNetworkEvaluatorTest {
                 .thenReturn(null);
         when(mWifiConfigManager.getConfiguredNetwork(anyString())).thenReturn(disableConfig);
 
-        mEvaluator.evaluateNetworks(scanDetails, null, null, false,
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
                 false, mOnConnectableListener);
         verify(mWifiConfigManager, never()).addOrUpdateNetwork(any(WifiConfiguration.class),
                 anyInt());
@@ -455,7 +455,7 @@ public class PasspointNetworkEvaluatorTest {
         when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
         when(mWifiConfigManager.wasEphemeralNetworkDeleted("\"" + TEST_SSID1 + "\""))
                 .thenReturn(true);
-        mEvaluator.evaluateNetworks(
+        mEvaluator.nominateNetworks(
                 scanDetails, null, null, false, false, mOnConnectableListener);
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
     }

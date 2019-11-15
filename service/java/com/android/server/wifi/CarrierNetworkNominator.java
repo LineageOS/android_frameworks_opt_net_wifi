@@ -23,7 +23,7 @@ import android.os.Process;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 
-import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator;
+import com.android.server.wifi.WifiNetworkSelector.NetworkNominator;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 
@@ -32,7 +32,7 @@ import java.util.List;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * Evaluator to select a Carrier Wi-Fi network which can be connected to. The evaluator performs
+ * Nominator to select a Carrier Wi-Fi network which can be connected to. The Nominator performs
  * two functions:
  *
  * 1. Filtering: figure out which of the networks is a Carrier Wi-Fi network (using the
@@ -42,8 +42,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * Note: This class is not thread safe and meant to be used only from {@link WifiNetworkSelector}.
  */
 @NotThreadSafe
-public class CarrierNetworkEvaluator implements NetworkEvaluator {
-    private static final String TAG = "CarrierNetworkEvaluator";
+public class CarrierNetworkNominator implements NetworkNominator {
+    private static final String TAG = "CarrierNetworkNominator";
 
     private final WifiConfigManager mWifiConfigManager;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
@@ -51,7 +51,7 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     private final WifiInjector mWifiInjector;
     private TelephonyManager mTelephonyManager;
 
-    public CarrierNetworkEvaluator(WifiConfigManager wifiConfigManager,
+    public CarrierNetworkNominator(WifiConfigManager wifiConfigManager,
             CarrierNetworkConfig carrierNetworkConfig, LocalLog localLog,
             WifiInjector wifiInjector) {
         mWifiConfigManager = wifiConfigManager;
@@ -68,8 +68,8 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     }
 
     @Override
-    public @EvaluatorId int getId() {
-        return EVALUATOR_ID_CARRIER;
+    public @NominatorId int getId() {
+        return NOMINATOR_ID_CARRIER;
     }
 
     @Override
@@ -83,7 +83,7 @@ public class CarrierNetworkEvaluator implements NetworkEvaluator {
     }
 
     @Override
-    public void evaluateNetworks(List<ScanDetail> scanDetails,
+    public void nominateNetworks(List<ScanDetail> scanDetails,
             WifiConfiguration currentNetwork, String currentBssid, boolean connected,
             boolean untrustedNetworkAllowed, OnConnectableListener onConnectableListener) {
         if (!mCarrierNetworkConfig.isCarrierEncryptionInfoAvailable()) {

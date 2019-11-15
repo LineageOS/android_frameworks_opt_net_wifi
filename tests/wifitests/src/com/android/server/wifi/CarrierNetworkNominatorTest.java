@@ -57,7 +57,7 @@ import java.util.Map;
  * Unit tests for CarrierNeteworkEvaluator
  */
 @SmallTest
-public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
+public class CarrierNetworkNominatorTest extends WifiBaseTest {
     private static final String CARRIER1_SSID = "\"carrier1\"";
     private static final String CARRIER2_SSID = "\"carrier2\"";
     private static final String CARRIER_SAVED_SSID = "\"carrier3-saved\"";
@@ -71,13 +71,13 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     private static final int CARRIER_SAVED_EPH_NET_ID = 4;
     private static final int NON_CARRIER_NET_ID = 5;
 
-    private CarrierNetworkEvaluator mDut;
+    private CarrierNetworkNominator mDut;
 
     @Mock private WifiConfigManager mWifiConfigManager;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private LocalLog mLocalLog;
     @Mock private Clock mClock;
-    @Mock private WifiNetworkSelector.NetworkEvaluator.OnConnectableListener mConnectableListener;
+    @Mock private WifiNetworkSelector.NetworkNominator.OnConnectableListener mConnectableListener;
     @Mock private WifiInjector mWifiInjector;
     @Mock private TelephonyManager mTelephonyManager;
     @Mock private TelephonyManager mDataTelephonyManager;
@@ -155,7 +155,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
-        mDut = new CarrierNetworkEvaluator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog,
+        mDut = new CarrierNetworkNominator(mWifiConfigManager, mCarrierNetworkConfig, mLocalLog,
                 mWifiInjector);
 
         when(mWifiInjector.makeTelephonyManager()).thenReturn(mTelephonyManager);
@@ -220,7 +220,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         configureNewSsid(CARRIER_SAVED_EPH_NET_ID, scanDetails.get(3), true, false);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(4), false, true);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener, times(4)).onConnectable(mScanDetailCaptor.capture(),
@@ -273,7 +273,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
                 freqs, caps, levels, mClock);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(0), false, true);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener, never()).onConnectable(any(), any());
@@ -305,7 +305,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         configureNewSsid(CARRIER_SAVED_EPH_NET_ID, scanDetails.get(3), true, false);
         configureNewSsid(NON_CARRIER_NET_ID, scanDetails.get(4), false, true);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener, never()).onConnectable(any(), any());
@@ -333,7 +333,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
                 freqs, caps, levels, mClock);
         configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0), true, false);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener, never()).onConnectable(any(), any());
@@ -367,7 +367,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         when(mWifiConfigManager.tryEnableNetwork(CARRIER1_NET_ID))
                 .thenReturn(false);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
         verify(mWifiConfigManager).getConfiguredNetwork(eq(blacklisted.getKey()));
 
@@ -395,7 +395,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         WifiConfiguration carrierConfig = configureNewSsid(CARRIER1_NET_ID, scanDetails.get(0),
                 true, false);
 
-        mDut.evaluateNetworks(scanDetails, null, null, false, false,
+        mDut.nominateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
         verify(mConnectableListener).onConnectable(any(), mWifiConfigCaptor.capture());

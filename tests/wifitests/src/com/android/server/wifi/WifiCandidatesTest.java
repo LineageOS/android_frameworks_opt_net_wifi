@@ -279,7 +279,7 @@ public class WifiCandidatesTest extends WifiBaseTest {
         // Make sure we kept the one with a higher evaluatorScore
         WifiCandidates.Candidate c;
         c = mWifiCandidates.getGroupedCandidates().iterator().next().iterator().next();
-        assertEquals(15, c.getEvaluatorScore());
         assertEquals(90, c.getPredictedThroughputMbps());
+        assertEquals(15, c.getNominatorScore());
     }
 }

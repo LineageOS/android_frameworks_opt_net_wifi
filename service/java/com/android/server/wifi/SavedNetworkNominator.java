@@ -26,16 +26,16 @@ import com.android.server.wifi.util.TelephonyUtil;
 import java.util.List;
 
 /**
- * This class is the WifiNetworkSelector.NetworkEvaluator implementation for
+ * This class is the WifiNetworkSelector.NetworkNominator implementation for
  * saved networks.
  */
-public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluator {
-    private static final String NAME = "SavedNetworkEvaluator";
+public class SavedNetworkNominator implements WifiNetworkSelector.NetworkNominator {
+    private static final String NAME = "SavedNetworkNominator";
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
     private final TelephonyUtil mTelephonyUtil;
 
-    SavedNetworkEvaluator(WifiConfigManager configManager, LocalLog localLog,
+    SavedNetworkNominator(WifiConfigManager configManager, LocalLog localLog,
             TelephonyUtil telephonyUtil) {
         mWifiConfigManager = configManager;
         mLocalLog = localLog;
@@ -47,15 +47,15 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     }
 
     /**
-     * Get the evaluator type.
+     * Get the Nominator type.
      */
     @Override
-    public @EvaluatorId int getId() {
-        return EVALUATOR_ID_SAVED;
+    public @NominatorId int getId() {
+        return NOMINATOR_ID_SAVED;
     }
 
     /**
-     * Get the evaluator name.
+     * Get the Nominator name.
      */
     @Override
     public String getName() {
@@ -63,7 +63,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
     }
 
     /**
-     * Update the evaluator.
+     * Update the Nominator.
      */
     @Override
     public void update(List<ScanDetail> scanDetails) { }
@@ -73,7 +73,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
      *
      */
     @Override
-    public void evaluateNetworks(List<ScanDetail> scanDetails,
+    public void nominateNetworks(List<ScanDetail> scanDetails,
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
                     @NonNull OnConnectableListener onConnectableListener) {
@@ -83,7 +83,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
             // One ScanResult can be associated with more than one network, hence we calculate all
             // the scores and use the highest one as the ScanResult's score.
-            // TODO(b/112196799): this has side effects, rather not do that in an evaluator
+            // TODO(b/112196799): this has side effects, rather not do that in a nominator
             WifiConfiguration network =
                     mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
 
@@ -98,8 +98,8 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
             /**
              * Ignore Passpoint and Ephemeral networks. They are configured networks,
-             * but without being persisted to the storage. They are evaluated by
-             * {@link PasspointNetworkEvaluator} and {@link ScoredNetworkEvaluator}
+             * but without being persisted to the storage. They are nominated by
+             * {@link PasspointNetworkNominator} and {@link ScoredNetworkNominator}
              * respectively.
              */
             if (network.isPasspoint() || network.isEphemeral()) {
