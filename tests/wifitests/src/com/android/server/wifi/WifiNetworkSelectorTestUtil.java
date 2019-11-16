@@ -48,7 +48,7 @@ import java.util.Set;
  * Helper for WifiNetworkSelector unit tests.
  */
 public class WifiNetworkSelectorTestUtil {
-
+    private static final String TAG = "WifiNetworkSelectorTestUtil";
     /**
      * A class that holds a list of scanDetail and their associated WifiConfiguration.
      */

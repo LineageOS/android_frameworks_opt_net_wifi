@@ -205,6 +205,15 @@
     <!-- Indicates that wifi link probing is supported on this device -->
     <bool translatable="false" name="config_wifi_link_probing_supported">false</bool>
 
+    <!-- Indicates that 11ax mode is supported on this device -->
+    <bool translatable="false" name="config_wifi_11ax_supported">false</bool>
+
+    <!-- Indicates that contiguous 160MHz mode is supported on this device -->
+    <bool translatable="false" name="config_wifi_contiguous_160mhz_supported">false</bool>
+
+    <!-- Integer indicating the max number of spatial streams supported on this device -->
+    <integer translatable="false" name="config_wifi_max_num_spatial_stream_supported">2</integer>
+
     <!-- Configure wifi tcp buffersizes in the form:
          rmem_min,rmem_def,rmem_max,wmem_min,wmem_def,wmem_max -->
     <string name="config_wifi_tcp_buffers" translatable="false">524288,1048576,2097152,262144,524288,1048576</string>

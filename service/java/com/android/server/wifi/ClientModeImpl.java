@@ -3103,6 +3103,7 @@ public class ClientModeImpl extends StateMachine {
                 case CMD_BLUETOOTH_ADAPTER_STATE_CHANGE:
                     mBluetoothConnectionActive =
                             (message.arg1 != BluetoothAdapter.STATE_DISCONNECTED);
+                    mWifiConnectivityManager.setBluetoothConnected(mBluetoothConnectionActive);
                     break;
                 case CMD_ENABLE_RSSI_POLL:
                     mEnableRssiPolling = (message.arg1 == 1);
@@ -3947,6 +3948,7 @@ public class ClientModeImpl extends StateMachine {
                             != BluetoothAdapter.STATE_DISCONNECTED);
                     mWifiNative.setBluetoothCoexistenceScanMode(
                             mInterfaceName, mBluetoothConnectionActive);
+                    mWifiConnectivityManager.setBluetoothConnected(mBluetoothConnectionActive);
                     break;
                 case CMD_SET_SUSPEND_OPT_ENABLED:
                     if (message.arg1 == 1) {
