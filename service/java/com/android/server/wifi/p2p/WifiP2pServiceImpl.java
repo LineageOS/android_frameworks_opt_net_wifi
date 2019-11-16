@@ -2492,7 +2492,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
             private void notifyFrequencyConflict() {
                 logd("Notify frequency conflict");
-                Resources r = Resources.getSystem();
+                Resources r = mContext.getResources();
 
                 AlertDialog dialog = new AlertDialog.Builder(mContext)
                         .setMessage(r.getString(R.string.wifi_p2p_frequency_conflict_message,
@@ -3096,22 +3096,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
         }
 
-        private void notifyP2pEnableFailure() {
-            Resources r = Resources.getSystem();
-            AlertDialog dialog = new AlertDialog.Builder(mContext)
-                    .setTitle(r.getString(R.string.wifi_p2p_dialog_title))
-                    .setMessage(r.getString(R.string.wifi_p2p_failed_message))
-                    .setPositiveButton(r.getString(R.string.ok), null)
-                    .create();
-            dialog.setCanceledOnTouchOutside(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.getWindow().addSystemFlags(
-                    WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS);
-            dialog.show();
-        }
-
         private void addRowToDialog(ViewGroup group, int stringId, String value) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             View row = LayoutInflater.from(mContext).inflate(R.layout.wifi_p2p_dialog_row,
                     group, false);
             ((TextView) row.findViewById(R.id.name)).setText(r.getString(stringId));
@@ -3120,7 +3106,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyInvitationSent(String pin, String peerAddress) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
 
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
@@ -3142,7 +3128,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyP2pProvDiscShowPinRequest(String pin, String peerAddress) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
@@ -3167,7 +3153,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyInvitationReceived() {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             final WpsInfo wps = mSavedPeerConfig.wps;
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
