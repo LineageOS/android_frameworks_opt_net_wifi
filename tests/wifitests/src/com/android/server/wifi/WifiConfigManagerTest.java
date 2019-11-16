@@ -222,8 +222,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .thenReturn(false);
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getMacAddressUtil()).thenReturn(mMacAddressUtil);
-        when(mMacAddressUtil.calculatePersistentMacForConfiguration(any(), any()))
-                .thenReturn(TEST_RANDOMIZED_MAC);
+        when(mMacAddressUtil.calculatePersistentMac(any(), any())).thenReturn(TEST_RANDOMIZED_MAC);
 
         mTelephonyUtil = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
         createWifiConfigManager();
