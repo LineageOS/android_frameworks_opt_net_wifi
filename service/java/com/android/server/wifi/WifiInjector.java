@@ -302,9 +302,8 @@ public class WifiInjector {
         mCarrierNetworkNominator = new CarrierNetworkNominator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
         mPasspointManager = new PasspointManager(mContext, this,
-                wifiHandler, mWifiNative, mWifiKeyStore, mClock,
-                new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics, mTelephonyUtil);
+                wifiHandler, mWifiNative, mWifiKeyStore, mClock, new PasspointObjectFactory(),
+                mWifiConfigManager, mWifiConfigStore, mWifiMetrics, mTelephonyUtil);
         mPasspointNetworkNominator = new PasspointNetworkNominator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 this, subscriptionManager);

@@ -17,7 +17,6 @@
 package com.android.server.wifi.hotspot2;
 
 import android.annotation.NonNull;
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.os.Process;
 import android.telephony.SubscriptionManager;
@@ -29,9 +28,15 @@ import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiNetworkSelector;
+import com.android.server.wifi.hotspot2.anqp.ANQPElement;
+import com.android.server.wifi.hotspot2.anqp.Constants;
+import com.android.server.wifi.hotspot2.anqp.HSWanMetricsElement;
 import com.android.server.wifi.util.ScanResultUtil;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -92,35 +97,97 @@ public class PasspointNetworkNominator implements WifiNetworkSelector.NetworkNom
                     @NonNull OnConnectableListener onConnectableListener) {
         // Sweep the ANQP cache to remove any expired ANQP entries.
         mPasspointManager.sweepCache();
-        List<ScanDetail> filteredScanDetails = scanDetails.stream()
-                .filter(s -> s.getNetworkDetail().isInterworking())
-                .filter(s -> {
-                    if (!mWifiConfigManager.wasEphemeralNetworkDeleted(
-                            ScanResultUtil.createQuotedSSID(s.getScanResult().SSID))) {
-                        return true;
-                    } else {
-                        // If the user previously disconnects this network, don't select it.
-                        mLocalLog.log("Ignoring disabled the SSID of Passpoint AP: "
-                                + WifiNetworkSelector.toScanId(s.getScanResult()));
-                        return false;
-                    }
-                }).collect(Collectors.toList());
+        List<ScanDetail> filteredScanDetails = new ArrayList<>();
+        // Filter out all invalid scanDetail
+        for (ScanDetail scanDetail : scanDetails) {
+            if (scanDetail.getNetworkDetail() == null
+                    || !scanDetail.getNetworkDetail().isInterworking()) {
+                // If scanDetail is not passpoint network, ignore.
+                continue;
+            }
 
-        // Go through each ScanDetail and find the best provider for each ScanDetail.
-        for (ScanDetail scanDetail : filteredScanDetails) {
-            ScanResult scanResult = scanDetail.getScanResult();
+            if (!scanDetail.getNetworkDetail().isInternet()
+                    || isApWanLinkStatusDown(scanDetail)) {
+                // If scanDetail has no internet connection, ignore.
+                mLocalLog.log("Ignoring no internet connection Passpoint AP: "
+                        + WifiNetworkSelector.toScanId(scanDetail.getScanResult()));
+                continue;
+            }
 
-            // Find the best provider for this ScanDetail.
-            Pair<PasspointProvider, PasspointMatch> bestProvider =
-                    mPasspointManager.matchProvider(scanResult);
-            if (bestProvider != null) {
-                WifiConfiguration candidate = createWifiConfigForProvider(bestProvider, scanDetail);
-                if (candidate == null) {
-                    continue;
-                }
-                onConnectableListener.onConnectable(scanDetail, candidate);
+            if (mWifiConfigManager.wasEphemeralNetworkDeleted(
+                    ScanResultUtil.createQuotedSSID(scanDetail.getScanResult().SSID))) {
+                // If the user previously disconnects this network, don't select it.
+                mLocalLog.log("Ignoring disabled the SSID of Passpoint AP: "
+                        + WifiNetworkSelector.toScanId(scanDetail.getScanResult()));
+                continue;
+            }
+            filteredScanDetails.add(scanDetail);
+        }
+
+        List<Pair<ScanDetail, WifiConfiguration>> matchedCandidates =
+                findBestMatchScanDetailForProviders(filteredScanDetails);
+        for (Pair<ScanDetail, WifiConfiguration> candidate : matchedCandidates) {
+            onConnectableListener.onConnectable(candidate.first, candidate.second);
+        }
+    }
+
+    /**
+     * Check if ANQP element inside that scanDetail indicate AP WAN port link status is down.
+     *
+     * @param scanDetail contains ANQP element to check.
+     * @return return true is link status is down, otherwise return false.
+     */
+    private boolean isApWanLinkStatusDown(ScanDetail scanDetail) {
+        Map<Constants.ANQPElementType, ANQPElement> anqpElements =
+                mPasspointManager.getANQPElements(scanDetail.getScanResult());
+        if (anqpElements == null) {
+            return false;
+        }
+        HSWanMetricsElement wm = (HSWanMetricsElement) anqpElements.get(
+                Constants.ANQPElementType.HSWANMetrics);
+        if (wm == null) {
+            return false;
+        }
+        return wm.getStatus() != HSWanMetricsElement.LINK_STATUS_UP || wm.isCapped();
+    }
+
+    /**
+     * Match available providers for each scan detail. Then for each available provider, find the
+     * best scan detail for it.
+     * @param scanDetails all details for this scan.
+     * @return List of pair of WifiConfig from available provider and matched scanDetail.
+     */
+    private @NonNull List<Pair<ScanDetail, WifiConfiguration>> findBestMatchScanDetailForProviders(
+            List<ScanDetail> scanDetails) {
+        List<Pair<ScanDetail, WifiConfiguration>> results = new ArrayList<>();
+        Map<PasspointProvider, List<PasspointNetworkCandidate>> candidatesPerProvider =
+                new HashMap<>();
+        // Match each scanDetail with best provider (home > roaming), and grouped by FQDN.
+        for (ScanDetail scanDetail : scanDetails) {
+            List<Pair<PasspointProvider, PasspointMatch>> matchedProviders =
+                    mPasspointManager.matchProvider(scanDetail.getScanResult());
+            if (matchedProviders == null) {
+                continue;
+            }
+            for (Pair<PasspointProvider, PasspointMatch> matchedProvider : matchedProviders) {
+                List<PasspointNetworkCandidate> candidates = candidatesPerProvider
+                        .computeIfAbsent(matchedProvider.first, k -> new ArrayList<>());
+                candidates.add(new PasspointNetworkCandidate(matchedProvider.first,
+                        matchedProvider.second, scanDetail));
             }
         }
+        // For each provider find the best scanDetail for it and create selection candidate pair.
+        for (List<PasspointNetworkCandidate> candidates : candidatesPerProvider.values()) {
+            List<PasspointNetworkCandidate> bestCandidates = findHomeNetworksIfPossible(candidates);
+            for (PasspointNetworkCandidate candidate : bestCandidates) {
+                WifiConfiguration config = createWifiConfigForProvider(candidate);
+                if (config == null) {
+                    continue;
+                }
+                results.add(Pair.create(candidate.mScanDetail, config));
+            }
+        }
+        return results;
     }
 
     /**
@@ -130,10 +197,10 @@ public class PasspointNetworkNominator implements WifiNetworkSelector.NetworkNom
      * @return {@link WifiConfiguration}
      */
     private WifiConfiguration createWifiConfigForProvider(
-            Pair<PasspointProvider, PasspointMatch> bestProvider, ScanDetail scanDetail) {
-        WifiConfiguration config = bestProvider.first.getWifiConfig();
-        config.SSID = ScanResultUtil.createQuotedSSID(scanDetail.getSSID());
-        if (bestProvider.second == PasspointMatch.HomeProvider) {
+            PasspointNetworkCandidate candidate) {
+        WifiConfiguration config = candidate.mProvider.getWifiConfig();
+        config.SSID = ScanResultUtil.createQuotedSSID(candidate.mScanDetail.getSSID());
+        if (candidate.mMatchStatus == PasspointMatch.HomeProvider) {
             config.isHomeProviderNetwork = true;
         }
 
@@ -144,7 +211,7 @@ public class PasspointNetworkNominator implements WifiNetworkSelector.NetworkNom
                     existingNetwork.getNetworkSelectionStatus();
             if (!(status.isNetworkEnabled()
                     || mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId))) {
-                localLog("Current configuration for the Passpoint AP " + config.SSID
+                mLocalLog.log("Current configuration for the Passpoint AP " + config.SSID
                         + " is disabled, skip this candidate");
                 return null;
             }
@@ -159,19 +226,34 @@ public class PasspointNetworkNominator implements WifiNetworkSelector.NetworkNom
             result = mWifiConfigManager.addOrUpdateNetwork(config, Process.WIFI_UID);
         }
         if (!result.isSuccess()) {
-            localLog("Failed to add passpoint network");
+            mLocalLog.log("Failed to add passpoint network");
             return existingNetwork;
         }
 
         mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID, null);
         mWifiConfigManager.setNetworkCandidateScanResult(result.getNetworkId(),
-                scanDetail.getScanResult(), 0);
+                candidate.mScanDetail.getScanResult(), 0);
         mWifiConfigManager.updateScanDetailForNetwork(
-                result.getNetworkId(), scanDetail);
+                result.getNetworkId(), candidate.mScanDetail);
         return mWifiConfigManager.getConfiguredNetwork(result.getNetworkId());
     }
 
-    private void localLog(String log) {
-        mLocalLog.log(log);
+    /**
+     * Given a list of Passpoint networks (with both provider and scan info), return all
+     * homeProvider matching networks if there is any, otherwise return all roamingProvider matching
+     * networks.
+     *
+     * @param networkList List of Passpoint networks
+     * @return List of {@link PasspointNetworkCandidate}
+     */
+    private @NonNull List<PasspointNetworkCandidate> findHomeNetworksIfPossible(
+            @NonNull List<PasspointNetworkCandidate> networkList) {
+        List<PasspointNetworkCandidate> homeProviderCandidates = networkList.stream()
+                .filter(candidate -> candidate.mMatchStatus == PasspointMatch.HomeProvider)
+                .collect(Collectors.toList());
+        if (homeProviderCandidates.isEmpty()) {
+            return networkList;
+        }
+        return homeProviderCandidates;
     }
 }

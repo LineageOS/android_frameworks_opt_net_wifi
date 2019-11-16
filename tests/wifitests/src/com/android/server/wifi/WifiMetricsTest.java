@@ -461,9 +461,10 @@ public class WifiMetricsTest extends WifiBaseTest {
         }
         if (isProvider) {
             PasspointProvider provider = mock(PasspointProvider.class);
-            Pair<PasspointProvider, PasspointMatch> providerMatch = Pair.create(provider, null);
+            List<Pair<PasspointProvider, PasspointMatch>> matchedProviders = new ArrayList<>();
+            matchedProviders.add(Pair.create(provider, null));
             when(mockNetworkDetail.isInterworking()).thenReturn(true);
-            when(mPpm.matchProvider(eq(scanResult))).thenReturn(providerMatch);
+            when(mPpm.matchProvider(eq(scanResult))).thenReturn(matchedProviders);
         }
         return mockScanDetail;
     }

@@ -50,6 +50,9 @@ import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigurationTestUtil;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiNetworkSelector.NetworkNominator.OnConnectableListener;
+import com.android.server.wifi.hotspot2.anqp.ANQPElement;
+import com.android.server.wifi.hotspot2.anqp.Constants.ANQPElementType;
+import com.android.server.wifi.hotspot2.anqp.HSWanMetricsElement;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 
@@ -58,9 +61,12 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Unit tests for {@link PasspointNetworkNominator}.
@@ -69,6 +75,7 @@ import java.util.List;
 public class PasspointNetworkNominatorTest {
     // TODO(b/140763176): should extend WifiBaseTest, but if it does then it fails with NPE
     private static final int TEST_NETWORK_ID = 1;
+    private static final int TEST_NETWORK_ID2 = 2;
     private static final String TEST_SSID1 = "ssid1";
     private static final String TEST_SSID2 = "ssid2";
     private static final String TEST_BSSID1 = "01:23:45:56:78:9a";
@@ -132,6 +139,7 @@ public class PasspointNetworkNominatorTest {
         NetworkDetail networkDetail = mock(NetworkDetail.class);
         when(networkDetail.isInterworking()).thenReturn(true);
         when(networkDetail.getAnt()).thenReturn(NetworkDetail.Ant.FreePublic);
+        when(networkDetail.isInternet()).thenReturn(true);
 
         ScanDetail scanDetail = mock(ScanDetail.class);
         ScanResult scanResult = new ScanResult();
@@ -207,8 +215,8 @@ public class PasspointNetworkNominatorTest {
                 generateScanDetail(TEST_SSID2, TEST_BSSID2)});
 
         // Setup matching providers for ScanDetail with TEST_SSID1.
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
 
         // Return homeProvider for the first ScanDetail (TEST_SSID1) and a null (no match) for
         // for the second (TEST_SSID2);
@@ -249,8 +257,8 @@ public class PasspointNetworkNominatorTest {
                 generateScanDetail(TEST_SSID2, TEST_BSSID2)});
 
         // Setup matching providers for ScanDetail with TEST_SSID1.
-        Pair<PasspointProvider, PasspointMatch> roamingProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.RoamingProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> roamingProvider = new ArrayList<>();
+        roamingProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.RoamingProvider));
 
         // Return roamingProvider for the first ScanDetail (TEST_SSID1) and a null (no match) for
         // for the second (TEST_SSID2);
@@ -287,16 +295,16 @@ public class PasspointNetworkNominatorTest {
      * @throws Exception
      */
     @Test
-    public void evaluateScansWithHomeProviderNewtorkAndRoamingProviderNetwork() throws Exception {
+    public void evaluateScansWithHomeProviderNetworkAndRoamingProviderNetwork() throws Exception {
         List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
                 generateScanDetail(TEST_SSID1, TEST_BSSID1),
                 generateScanDetail(TEST_SSID2, TEST_BSSID2)});
 
         // Setup matching providers for ScanDetail with TEST_SSID1.
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.HomeProvider);
-        Pair<PasspointProvider, PasspointMatch> roamingProvider = Pair.create(
-                TEST_PROVIDER2, PasspointMatch.RoamingProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
+        List<Pair<PasspointProvider, PasspointMatch>> roamingProvider = new ArrayList<>();
+        roamingProvider.add(Pair.create(TEST_PROVIDER2, PasspointMatch.RoamingProvider));
 
         // Return homeProvider for the first ScanDetail (TEST_SSID1) and
         // roamingProvider for the second (TEST_SSID2);
@@ -331,8 +339,8 @@ public class PasspointNetworkNominatorTest {
                 WifiEnterpriseConfig.Eap.SIM, WifiEnterpriseConfig.Phase2.NONE);
         config.networkId = TEST_NETWORK_ID;
         PasspointProvider testProvider = generateProvider(config);
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                testProvider, PasspointMatch.HomeProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(testProvider, PasspointMatch.HomeProvider));
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
         when(testProvider.isSimCredential()).thenReturn(true);
         // SIM is present
@@ -364,8 +372,8 @@ public class PasspointNetworkNominatorTest {
         List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
                 generateScanDetail(TEST_SSID1, TEST_BSSID2)});
         // Setup matching provider.
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
 
         // Setup currently connected network.
         WifiConfiguration currentNetwork = new WifiConfiguration();
@@ -419,8 +427,8 @@ public class PasspointNetworkNominatorTest {
         TEST_CONFIG1.networkId = TEST_NETWORK_ID;
 
         // Setup matching providers for ScanDetail with TEST_SSID1.
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
 
         // Return homeProvider for the first ScanDetail (TEST_SSID1) and a null (no match) for
         // for the second (TEST_SSID2);
@@ -445,8 +453,8 @@ public class PasspointNetworkNominatorTest {
                 generateScanDetail(TEST_SSID1, TEST_BSSID1)});
 
         // Setup matching providers for ScanDetail with TEST_SSID1.
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                TEST_PROVIDER1, PasspointMatch.HomeProvider);
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
 
         // Return homeProvider for the first ScanDetail (TEST_SSID1).
         when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
@@ -458,5 +466,111 @@ public class PasspointNetworkNominatorTest {
         mEvaluator.nominateNetworks(
                 scanDetails, null, null, false, false, mOnConnectableListener);
         verify(mOnConnectableListener, never()).onConnectable(any(), any());
+    }
+
+    /**
+     * Verify that when the WAN metrics status is 'LINK_STATUS_DOWN', it should be ignored.
+     * @throws Exception
+     */
+    @Test
+    public void evaluateScansWithNetworkMatchingHomeProviderWithAnqpLinkDown() throws Exception {
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[]{
+                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
+        // Setup matching providers for ScanDetail with TEST_SSID1.
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
+
+        when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
+        // Setup WAN metrics status is 'LINK_STATUS_DOWN'
+        HSWanMetricsElement wm = mock(HSWanMetricsElement.class);
+        Map<ANQPElementType, ANQPElement> anqpElements = new HashMap<>();
+        anqpElements.put(ANQPElementType.HSWANMetrics, wm);
+        when(mPasspointManager.getANQPElements(any(ScanResult.class)))
+                .thenReturn(anqpElements);
+        when(wm.getStatus()).thenReturn(HSWanMetricsElement.LINK_STATUS_DOWN);
+
+        mEvaluator.nominateNetworks(
+                scanDetails, null, null, false, false, mOnConnectableListener);
+        verify(mOnConnectableListener, never()).onConnectable(any(), any());
+    }
+
+    /**
+     * Verify that when same provider is match home and roaming for different scanDetail,
+     * the home provider matched scanDetail will be chosen.
+     */
+
+    @Test
+    public void evaluateScansWithNetworkMatchingBothHomeAndRoamingForSameProvider() {
+        ArgumentCaptor<WifiConfiguration> configurationArgumentCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
+                generateScanDetail(TEST_SSID1, TEST_BSSID1),
+                generateScanDetail(TEST_SSID2, TEST_BSSID2)});
+
+        // Setup matching providers for ScanDetail.
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
+        List<Pair<PasspointProvider, PasspointMatch>> roamingProvider = new ArrayList<>();
+        roamingProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.RoamingProvider));
+        // Return homeProvider for the first ScanDetail (TEST_SSID1) and
+        // roamingProvider for the second (TEST_SSID2);
+        when(mPasspointManager.matchProvider(any(ScanResult.class)))
+                .thenReturn(roamingProvider).thenReturn(homeProvider);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID));
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
+
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
+                false, mOnConnectableListener);
+        // verify Only home provider matched candidate will by chosen
+        verify(mOnConnectableListener).onConnectable(any(), configurationArgumentCaptor.capture());
+        assertTrue(configurationArgumentCaptor.getValue().isHomeProviderNetwork);
+        assertEquals(ScanResultUtil.createQuotedSSID(TEST_SSID2),
+                configurationArgumentCaptor.getValue().SSID);
+    }
+
+    /**
+     * For multiple scanDetails with matched providers, for each scanDetail nominate the best
+     * providers: if home available, return all home providers; otherwise return all roaming
+     * providers.
+     * ScanDetail1 matches home providerA, scanDetail2 matches roaming providerB, will nominate both
+     * matched pairs.
+     */
+    @Test
+    public void evaluateScansWithNetworkMatchingBothHomeAndRoamingForDifferentProvider() {
+        ArgumentCaptor<WifiConfiguration> configurationArgumentCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
+                generateScanDetail(TEST_SSID1, TEST_BSSID1),
+                generateScanDetail(TEST_SSID2, TEST_BSSID2)});
+        // Setup matching providers for ScanDetail.
+        List<Pair<PasspointProvider, PasspointMatch>> homeProvider = new ArrayList<>();
+        homeProvider.add(Pair.create(TEST_PROVIDER1, PasspointMatch.HomeProvider));
+        List<Pair<PasspointProvider, PasspointMatch>> roamingProvider = new ArrayList<>();
+        roamingProvider.add(Pair.create(TEST_PROVIDER2, PasspointMatch.RoamingProvider));
+        // Return homeProvider for the first ScanDetail (TEST_SSID1) and
+        // roamingProvider for the second (TEST_SSID2);
+        when(mPasspointManager.matchProvider(any(ScanResult.class)))
+                .thenReturn(homeProvider).thenReturn(roamingProvider);
+        when(mWifiConfigManager.addOrUpdateNetwork(any(WifiConfiguration.class), anyInt()))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID))
+                .thenReturn(new NetworkUpdateResult(TEST_NETWORK_ID2));
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID)).thenReturn(TEST_CONFIG1);
+        when(mWifiConfigManager.getConfiguredNetwork(TEST_NETWORK_ID2)).thenReturn(TEST_CONFIG2);
+
+        mEvaluator.nominateNetworks(scanDetails, null, null, false,
+                false, mOnConnectableListener);
+        // Nominate matched home provider for first ScanDetail (TEST_SSID1) and roaming provider for
+        // the second (TEST_SSID2).
+        verify(mOnConnectableListener, times(2))
+                .onConnectable(any(), configurationArgumentCaptor.capture());
+        List<WifiConfiguration> candidates = configurationArgumentCaptor.getAllValues();
+        assertTrue(candidates.stream().anyMatch(config -> config.isHomeProviderNetwork
+                && config.SSID.equals(ScanResultUtil.createQuotedSSID(TEST_SSID1))));
+        assertTrue(candidates.stream().anyMatch(config -> !config.isHomeProviderNetwork
+                && config.SSID.equals(ScanResultUtil.createQuotedSSID(TEST_SSID2))));
     }
 }
