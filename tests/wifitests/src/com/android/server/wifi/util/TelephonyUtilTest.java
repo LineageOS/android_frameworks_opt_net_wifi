@@ -49,6 +49,7 @@ import org.mockito.quality.Strictness;
 
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -652,8 +653,12 @@ public class TelephonyUtilTest extends WifiBaseTest {
      */
     @Test
     public void isSimPresentWithValidSubscriptionIdList() {
-        when(mSubscriptionManager.getActiveSubscriptionIdList())
-                .thenReturn(new int[] {DATA_SUBID, NON_DATA_SUBID});
+        SubscriptionInfo subInfo1 = mock(SubscriptionInfo.class);
+        when(subInfo1.getSubscriptionId()).thenReturn(DATA_SUBID);
+        SubscriptionInfo subInfo2 = mock(SubscriptionInfo.class);
+        when(subInfo2.getSubscriptionId()).thenReturn(NON_DATA_SUBID);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(subInfo1, subInfo2));
 
         assertTrue(mTelephonyUtil.isSimPresent(DATA_SUBID));
     }
@@ -663,13 +668,15 @@ public class TelephonyUtilTest extends WifiBaseTest {
      */
     @Test
     public void isSimPresentWithInvalidOrEmptySubscriptionIdList() {
-        when(mSubscriptionManager.getActiveSubscriptionIdList())
-                .thenReturn(new int[]{});
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
 
         assertFalse(mTelephonyUtil.isSimPresent(DATA_SUBID));
 
-        when(mSubscriptionManager.getActiveSubscriptionIdList())
-                .thenReturn(new int[]{NON_DATA_SUBID});
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        when(subInfo.getSubscriptionId()).thenReturn(NON_DATA_SUBID);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Arrays.asList(subInfo));
 
         assertFalse(mTelephonyUtil.isSimPresent(DATA_SUBID));
     }

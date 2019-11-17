@@ -515,7 +515,7 @@ public class WifiConfigurationUtil {
                 Log.e(TAG, "validateIpConfiguration failed: null StaticIpConfiguration");
                 return false;
             }
-            if (staticIpConfig.ipAddress == null) {
+            if (staticIpConfig.getIpAddress() == null) {
                 Log.e(TAG, "validateIpConfiguration failed: null static ip Address");
                 return false;
             }

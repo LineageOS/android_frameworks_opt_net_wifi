@@ -2492,7 +2492,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
             private void notifyFrequencyConflict() {
                 logd("Notify frequency conflict");
-                Resources r = Resources.getSystem();
+                Resources r = mContext.getResources();
 
                 AlertDialog dialog = new AlertDialog.Builder(mContext)
                         .setMessage(r.getString(R.string.wifi_p2p_frequency_conflict_message,
@@ -3003,21 +3003,24 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
         }
 
+        private void sendBroadcastMultiplePermissions(Intent intent) {
+            Context context = mContext.createContextAsUser(UserHandle.ALL, 0);
+            context.sendBroadcastMultiplePermissions(intent, RECEIVER_PERMISSIONS_FOR_BROADCAST);
+        }
+
         private void sendThisDeviceChangedBroadcast() {
             final Intent intent = new Intent(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE,
                     eraseOwnDeviceAddress(mThisDevice));
-            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
-                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
+            sendBroadcastMultiplePermissions(intent);
         }
 
         private void sendPeersChangedBroadcast() {
             final Intent intent = new Intent(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
             intent.putExtra(WifiP2pManager.EXTRA_P2P_DEVICE_LIST, new WifiP2pDeviceList(mPeers));
             intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
-                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
+            sendBroadcastMultiplePermissions(intent);
         }
 
         private void sendP2pConnectionChangedBroadcast() {
@@ -3028,8 +3031,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO, new WifiP2pInfo(mWifiP2pInfo));
             intent.putExtra(WifiP2pManager.EXTRA_NETWORK_INFO, new NetworkInfo(mNetworkInfo));
             intent.putExtra(WifiP2pManager.EXTRA_WIFI_P2P_GROUP, eraseOwnDeviceAddress(mGroup));
-            mContext.sendBroadcastAsUserMultiplePermissions(intent, UserHandle.ALL,
-                    RECEIVER_PERMISSIONS_FOR_BROADCAST);
+            sendBroadcastMultiplePermissions(intent);
             if (mWifiChannel != null) {
                 mWifiChannel.sendMessage(WifiP2pServiceImpl.P2P_CONNECTION_CHANGED,
                         new NetworkInfo(mNetworkInfo));
@@ -3094,22 +3096,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             }
         }
 
-        private void notifyP2pEnableFailure() {
-            Resources r = Resources.getSystem();
-            AlertDialog dialog = new AlertDialog.Builder(mContext)
-                    .setTitle(r.getString(R.string.wifi_p2p_dialog_title))
-                    .setMessage(r.getString(R.string.wifi_p2p_failed_message))
-                    .setPositiveButton(r.getString(R.string.ok), null)
-                    .create();
-            dialog.setCanceledOnTouchOutside(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.getWindow().addSystemFlags(
-                    WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS);
-            dialog.show();
-        }
-
         private void addRowToDialog(ViewGroup group, int stringId, String value) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             View row = LayoutInflater.from(mContext).inflate(R.layout.wifi_p2p_dialog_row,
                     group, false);
             ((TextView) row.findViewById(R.id.name)).setText(r.getString(stringId));
@@ -3118,7 +3106,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyInvitationSent(String pin, String peerAddress) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
 
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
@@ -3140,7 +3128,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyP2pProvDiscShowPinRequest(String pin, String peerAddress) {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
@@ -3165,7 +3153,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         }
 
         private void notifyInvitationReceived() {
-            Resources r = Resources.getSystem();
+            Resources r = mContext.getResources();
             final WpsInfo wps = mSavedPeerConfig.wps;
             final View textEntryView = LayoutInflater.from(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);

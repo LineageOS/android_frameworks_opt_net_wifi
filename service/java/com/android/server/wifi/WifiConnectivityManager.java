@@ -274,6 +274,13 @@ public class WifiConnectivityManager {
         }
     }
 
+    /**
+     * Set whether bluetooth is in the connected state
+     */
+    public void setBluetoothConnected(boolean isBlueToothConnected) {
+        mNetworkSelector.setBluetoothConnected(isBlueToothConnected);
+    }
+
     // All single scan results listener.
     //
     // Note: This is the listener for all the available single scan results,
@@ -613,6 +620,7 @@ public class WifiConnectivityManager {
         mConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
         mWifiChannelUtilization = mWifiInjector.getWifiChannelUtilization();
+        mNetworkSelector.setWifiChannelUtilization(mWifiChannelUtilization);
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */

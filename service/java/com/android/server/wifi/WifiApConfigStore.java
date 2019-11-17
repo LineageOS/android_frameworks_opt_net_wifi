@@ -30,12 +30,12 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Process;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.internal.notification.SystemNotificationChannels;
 import com.android.wifi.R;
 
 import java.io.BufferedInputStream;
@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import javax.annotation.Nullable;
+import javax.crypto.Mac;
 
 /**
  * Provides API for reading/writing soft access point configuration.
@@ -93,6 +94,8 @@ public class WifiApConfigStore {
     private final String mApConfigFile;
     private final BackupManagerProxy mBackupManagerProxy;
     private final FrameworkFacade mFrameworkFacade;
+    private final MacAddressUtil mMacAddressUtil;
+    private final Mac mMac;
     private boolean mRequiresApBandConversion = false;
 
     WifiApConfigStore(Context context, WifiInjector wifiInjector, Handler handler,
@@ -144,6 +147,12 @@ public class WifiApConfigStore {
         filter.addAction(ACTION_HOTSPOT_CONFIG_USER_TAPPED_CONTENT);
         mContext.registerReceiver(
                 mBroadcastReceiver, filter, null /* broadcastPermission */, mHandler);
+        mMacAddressUtil = mWifiInjector.getMacAddressUtil();
+        mMac = mMacAddressUtil.obtainMacRandHashFunctionForSap(Process.WIFI_UID);
+        if (mMac == null) {
+            Log.wtf(TAG, "Failed to obtain secret for SAP MAC randomization."
+                    + " All randomized MAC addresses are lost!");
+        }
     }
 
     private final BroadcastReceiver mBroadcastReceiver =
@@ -219,7 +228,7 @@ public class WifiApConfigStore {
                 mContext.getResources().getColor(
                         android.R.color.system_notification_accent_color, mContext.getTheme());
 
-        return new Notification.Builder(mContext, SystemNotificationChannels.NETWORK_STATUS)
+        return new Notification.Builder(mContext, WifiStackService.NOTIFICATION_NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setCategory(Notification.CATEGORY_SYSTEM)
@@ -414,7 +423,13 @@ public class WifiApConfigStore {
         config = new WifiConfiguration(config);
         if (config.BSSID == null && context.getResources().getBoolean(
                 R.bool.config_wifi_ap_mac_randomization_supported)) {
-            config.BSSID = MacAddress.createRandomUnicastAddress().toString();
+            MacAddress macAddress = mMacAddressUtil.calculatePersistentMac(config.SSID, mMac);
+            if (macAddress == null) {
+                Log.e(TAG, "Failed to calculate MAC from SSID. "
+                        + "Generating new random MAC instead.");
+                macAddress = MacAddress.createRandomUnicastAddress();
+            }
+            config.BSSID = macAddress.toString();
         }
         return config;
     }

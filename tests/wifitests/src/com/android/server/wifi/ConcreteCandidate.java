@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.net.MacAddress;
 import android.util.ArrayMap;
 
 import com.android.server.wifi.proto.WifiScoreCardProto;
@@ -23,7 +24,8 @@ import com.android.server.wifi.proto.WifiScoreCardProto;
 import java.util.Map;
 
 public final class ConcreteCandidate implements WifiCandidates.Candidate {
-    private WifiCandidates.Key mKey;
+    private WifiCandidates.Key mKey = new WifiCandidates.Key(new ScanResultMatchInfo(),
+            MacAddress.fromString("14:59:c0:51:0e:1b"), 0);
     private ScanDetail mScanDetail;
     private int mNetworkConfigId = -1;
     private boolean mIsOpenNetwork;
@@ -38,6 +40,8 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     private double mLastSelectionWeight;
     private int mScanRssi = -127;
     private int mFrequency = -1;
+    private int mPredictedThroughputMbps = 0;
+
     private final Map<WifiScoreCardProto.Event, WifiScoreCardProto.Signal>
             mEventStatisticsMap = new ArrayMap<>();
 
@@ -60,6 +64,7 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
         mLastSelectionWeight = candidate.getLastSelectionWeight();
         mScanRssi = candidate.getScanRssi();
         mFrequency = candidate.getFrequency();
+        mPredictedThroughputMbps = candidate.getPredictedThroughputMbps();
         for (WifiScoreCardProto.Event event : WifiScoreCardProto.Event.values()) {
             WifiScoreCardProto.Signal signal = candidate.getEventStatistics(event);
             if (signal != null) {
@@ -216,6 +221,16 @@ public final class ConcreteCandidate implements WifiCandidates.Candidate {
     @Override
     public int getFrequency() {
         return mFrequency;
+    }
+
+    public ConcreteCandidate setPredictedThroughputMbps(int predictedThroughputMbps) {
+        mPredictedThroughputMbps = predictedThroughputMbps;
+        return this;
+    }
+
+    @Override
+    public int getPredictedThroughputMbps() {
+        return mPredictedThroughputMbps;
     }
 
     public ConcreteCandidate setEventStatistics(

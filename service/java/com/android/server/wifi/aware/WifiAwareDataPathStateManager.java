@@ -18,9 +18,7 @@ package com.android.server.wifi.aware;
 
 import static android.net.RouteInfo.RTN_UNICAST;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.hardware.wifi.V1_0.NanDataPathChannelCfg;
 import android.hardware.wifi.V1_0.NanStatusType;
 import android.hardware.wifi.V1_2.NanDataPathChannelInfo;
@@ -1367,16 +1365,6 @@ public class WifiAwareDataPathStateManager {
                 Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
                         + " -- UID mismatch to clientId's uid=" + uid);
                 return null;
-            }
-
-            // validate permission if PMK is used (SystemApi)
-            if (ns.pmk != null && ns.pmk.length != 0) {
-                if (permissionWrapper.getUidPermission(Manifest.permission.CONNECTIVITY_INTERNAL,
-                        ns.requestorUid) != PackageManager.PERMISSION_GRANTED) {
-                    Log.e(TAG, "processNetworkSpecifier: networkSpecifier=" + ns.toString()
-                            + " -- UID doesn't have permission to use PMK API");
-                    return null;
-                }
             }
 
             // validate passphrase & PMK (if provided)

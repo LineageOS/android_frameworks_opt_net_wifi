@@ -28,8 +28,6 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.notification.SystemNotificationChannels;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Answers;
@@ -73,7 +71,7 @@ public class WrongPasswordNotifierTest extends WifiBaseTest {
     @Test
     public void onWrongPasswordError() throws Exception {
         when(mFrameworkFacade.makeNotificationBuilder(any(),
-                eq(SystemNotificationChannels.NETWORK_ALERTS))).thenReturn(mNotificationBuilder);
+                eq(WifiStackService.NOTIFICATION_NETWORK_ALERTS))).thenReturn(mNotificationBuilder);
         mWrongPassNotifier.onWrongPasswordError(TEST_SSID);
         verify(mNotificationManager).notify(eq(WrongPasswordNotifier.NOTIFICATION_ID), any());
         ArgumentCaptor<Intent> intent = ArgumentCaptor.forClass(Intent.class);

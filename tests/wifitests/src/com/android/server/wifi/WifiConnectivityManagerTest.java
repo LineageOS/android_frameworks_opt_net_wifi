@@ -2012,7 +2012,7 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
     }
 
     /**
-     *  Verify that WifiChannelUtilization is updated after a scan
+     *  Verify that WifiChannelUtilization is updated
      */
     @Test
     public void verifyWifiChannelUtilizationRefreshedAfterScanResults() {
@@ -2055,5 +2055,16 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
         verify(mWifiChannelUtilization).setDeviceMobilityState(
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+    }
+
+    /**
+     *  Verify that WifiNetworkSelector sets bluetoothConnected correctly
+     */
+    @Test
+    public void verifyWifiNetworkSelectorSetBluetoothConnected() {
+        mWifiConnectivityManager.setBluetoothConnected(true);
+        verify(mWifiNS).setBluetoothConnected(true);
+        mWifiConnectivityManager.setBluetoothConnected(false);
+        verify(mWifiNS).setBluetoothConnected(false);
     }
 }

@@ -181,9 +181,6 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mMockPowerManager.isInteractive()).thenReturn(true);
 
-        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
-                anyInt())).thenReturn(PackageManager.PERMISSION_GRANTED);
-
         mDut.mDataPathMgr.mNwService = mMockNwMgt;
         mDut.mDataPathMgr.mNiWrapper = mMockNetworkInterface;
     }
@@ -274,43 +271,6 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         }
 
         verifyNoMoreInteractions(mMockNative, mMockNwMgt);
-    }
-
-    /**
-     * Validate that trying to specify a PMK without permission results in failure.
-     */
-    @Test
-    public void testDataPathPmkWithoutPermission() throws Exception {
-        final int clientId = 123;
-        final byte pubSubId = 55;
-        final byte[] pmk = "01234567890123456789012345678901".getBytes();
-        final int requestorId = 1341234;
-        final byte[] peerDiscoveryMac = HexEncoding.decode("000102030405".toCharArray(), false);
-
-        InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback);
-        InOrder inOrderM = inOrder(mAwareMetricsMock);
-
-        when(mPermissionsWrapperMock.getUidPermission(eq(Manifest.permission.CONNECTIVITY_INTERNAL),
-                anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
-
-        // (0) initialize
-        DataPathEndPointInfo res = initDataPathEndPoint(true, clientId, pubSubId, requestorId,
-                peerDiscoveryMac, inOrder, inOrderM, false);
-
-        // (1) request network
-        NetworkRequest nr = getSessionNetworkRequest(clientId, res.mSessionId, res.mPeerHandle, pmk,
-                null, false, 0);
-
-        Message reqNetworkMsg = Message.obtain();
-        reqNetworkMsg.what = NetworkFactory.CMD_REQUEST_NETWORK;
-        reqNetworkMsg.obj = nr;
-        reqNetworkMsg.arg1 = 0;
-        res.mMessenger.send(reqNetworkMsg);
-        mMockLooper.dispatchAll();
-
-        // failure: no interactions with native manager
-        verifyUnfullfillableDispatched(res.mReverseMessenger);
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
     }
 
     /**
