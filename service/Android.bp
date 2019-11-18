@@ -120,6 +120,7 @@ java_library {
         "services.net",
         "wifi_proto_scorecard",
         "wifi_proto_metrics",
+	"PlatformProperties"
     ],
 
     required: [

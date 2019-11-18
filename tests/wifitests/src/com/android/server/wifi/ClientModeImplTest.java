@@ -1915,39 +1915,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .count());
     }
 
-    /** Verifies that enabling verbose logging sets the hal log property in eng builds. */
-    @Test
-    public void enablingVerboseLoggingSetsHalLogPropertyInEngBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isEngBuild()).thenReturn(true);
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
-        when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService).set("log.tag.WifiHAL", "V");
-    }
-
-    /** Verifies that enabling verbose logging sets the hal log property in userdebug builds. */
-    @Test
-    public void enablingVerboseLoggingSetsHalLogPropertyInUserdebugBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(true);
-        when(mBuildProperties.isEngBuild()).thenReturn(false);
-        when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService).set("log.tag.WifiHAL", "V");
-    }
-
-    /** Verifies that enabling verbose logging does NOT set the hal log property in user builds. */
-    @Test
-    public void enablingVerboseLoggingDoeNotSetHalLogPropertyInUserBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isUserBuild()).thenReturn(true);
-        when(mBuildProperties.isEngBuild()).thenReturn(false);
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService, never()).set(anyString(), anyString());
-    }
-
     private long testGetSupportedFeaturesCaseForRtt(long supportedFeatures, boolean rttDisabled) {
         AsyncChannel channel = mock(AsyncChannel.class);
         Message reply = Message.obtain();
