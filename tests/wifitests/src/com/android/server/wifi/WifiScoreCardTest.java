@@ -144,6 +144,10 @@ public class WifiScoreCardTest extends WifiBaseTest {
         Pair<String, String> p3 = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
         assertNull(p3.first);
         assertNull(p3.second);
+        mWifiInfo.setBSSID("02:00:00:00:00:00");
+        Pair<String, String> p4 = mWifiScoreCard.getL2KeyAndGroupHint(mWifiInfo);
+        assertNull(p4.first);
+        assertNull(p4.second);
     }
 
     /**
