@@ -99,6 +99,7 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStats;
+import com.android.server.wifi.util.RssiUtilTest;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -483,6 +484,8 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         mResources = getMockResources();
         mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, true);
+        mResources.setIntArray(R.array.config_wifiRssiLevelThresholds,
+                RssiUtilTest.RSSI_THRESHOLDS);
         when(mContext.getResources()).thenReturn(mResources);
 
         when(mFrameworkFacade.getIntegerSetting(mContext,

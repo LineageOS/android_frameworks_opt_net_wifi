@@ -77,6 +77,7 @@
           <item type="string" name="wifi_localhotspot_configure_ssid_default" />
           <item type="bool" name="config_wifi_diagnostics_bugreport_enabled" />
           <item type="bool" name="config_wifi_watchdog_enabled" />
+          <item type="array" name="config_wifiRssiLevelThresholds" />
           <!-- Params from config.xml that can be overlayed -->
 
           <!-- Params from strings.xml that can be overlayed -->

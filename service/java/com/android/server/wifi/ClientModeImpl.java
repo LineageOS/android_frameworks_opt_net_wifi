@@ -113,6 +113,7 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStats;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.NativeUtil;
+import com.android.server.wifi.util.RssiUtil;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
@@ -2293,7 +2294,7 @@ public class ClientModeImpl extends StateMachine {
              * interested in RSSI of all the changes in signal
              * level.
              */
-            int newSignalLevel = WifiManager.calculateSignalLevel(newRssi, WifiManager.RSSI_LEVELS);
+            int newSignalLevel = RssiUtil.calculateSignalLevel(mContext, newRssi);
             if (newSignalLevel != mLastSignalLevel) {
                 updateCapabilities();
                 sendRssiChangeBroadcast(newRssi);
@@ -2386,7 +2387,7 @@ public class ClientModeImpl extends StateMachine {
     private void sendRssiChangeBroadcast(final int newRssi) {
         mBatteryStatsManager.noteWifiRssiChanged(newRssi);
         StatsLog.write(StatsLog.WIFI_SIGNAL_STRENGTH_CHANGED,
-                WifiManager.calculateSignalLevel(newRssi, WifiManager.RSSI_LEVELS));
+                RssiUtil.calculateSignalLevel(mContext, newRssi));
 
         Intent intent = new Intent(WifiManager.RSSI_CHANGED_ACTION);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
