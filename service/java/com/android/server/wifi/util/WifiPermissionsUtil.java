@@ -476,6 +476,15 @@ public class WifiPermissionsUtil {
     }
 
     /**
+     * Returns true if the |uid| holds READ_WIFI_CREDENTIAL permission.
+     */
+    public boolean checkReadWifiCredentialPermission(int uid) {
+        return mWifiPermissionsWrapper.getUidPermission(
+                android.Manifest.permission.READ_WIFI_CREDENTIAL, uid)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
      * Returns true if the |callingUid|/\callingPackage| holds SYSTEM_ALERT_WINDOW permission.
      */
     public boolean checkSystemAlertWindowPermission(int callingUid, String callingPackage) {
