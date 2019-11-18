@@ -225,4 +225,7 @@
 
     <!-- Indicates that a full bugreport should be triggered when wifi diagnostics detects an error on non-user (i.e debug) builds -->
     <bool translatable="false" name="config_wifi_diagnostics_bugreport_enabled">false</bool>
+
+    <!-- Indicates that wifi watchdog is enabled on this device -->
+    <bool translatable="false" name="config_wifi_watchdog_enabled">true</bool>
 </resources>
