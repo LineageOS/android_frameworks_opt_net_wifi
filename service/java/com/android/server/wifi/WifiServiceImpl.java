@@ -3017,8 +3017,8 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * see {@link android.net.wifi.WifiManager#registerTrafficStateCallback(
-     * WifiManager.TrafficStateCallback, Handler)}
+     * See
+     * {@link WifiManager#registerTrafficStateCallback(Executor, WifiManager.TrafficStateCallback)}
      *
      * @param binder IBinder instance to allow cleanup if the app dies
      * @param callback Traffic State callback to register
@@ -3086,8 +3086,9 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * see {@link android.net.wifi.WifiManager#registerNetworkRequestMatchCallback(
-     * WifiManager.NetworkRequestMatchCallback, Handler)} (
+     * See
+     * {@link WifiManager#registerNetworkRequestMatchCallback(
+     * Executor, WifiManager.NetworkRequestMatchCallback)}
      *
      * @param binder IBinder instance to allow cleanup if the app dies
      * @param callback Network Request Match callback to register
@@ -3216,7 +3217,7 @@ public class WifiServiceImpl extends BaseWifiService {
     /**
      * Gets the factory Wi-Fi MAC addresses.
      * @throws SecurityException if the caller does not have permission.
-     * @return Array of String representing Wi-Fi MAC addresses, or null if failed.
+     * @return Array of String representing Wi-Fi MAC addresses, or empty array if failed.
      */
     @Override
     public String[] getFactoryMacAddresses() {
@@ -3226,11 +3227,11 @@ public class WifiServiceImpl extends BaseWifiService {
                     + "(uid = " + uid + ")");
         }
         String result = mWifiThreadRunner.call(mClientModeImpl::getFactoryMacAddress, null);
-        // result can be null if either: WifiThreadRunner.call() timed out, or
+        // result can be empty array if either: WifiThreadRunner.call() timed out, or
         // ClientModeImpl.getFactoryMacAddress() returned null.
         // In this particular instance, we don't differentiate the two types of nulls.
         if (result == null) {
-            return null;
+            return new String[0];
         }
         return new String[]{result};
     }

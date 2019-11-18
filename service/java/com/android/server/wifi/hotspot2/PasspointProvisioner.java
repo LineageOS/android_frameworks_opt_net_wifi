@@ -74,6 +74,8 @@ public class PasspointProvisioner {
 
     // TLS version to be used for HTTPS connection with OSU server
     private static final String TLS_VERSION = "TLSv1";
+
+    // TODO(143967693): create an overlay for this instead of hardcoding
     private static final String OSU_APP_PACKAGE = "com.android.hotspot2";
 
     private final Context mContext;
