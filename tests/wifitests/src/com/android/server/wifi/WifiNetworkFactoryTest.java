@@ -32,6 +32,7 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
 import android.app.AppOpsManager;
+import android.companion.CompanionDeviceManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -124,6 +125,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
     @Mock ActivityManager mActivityManager;
     @Mock AlarmManager mAlarmManager;
     @Mock AppOpsManager mAppOpsManager;
+    @Mock CompanionDeviceManager mCompanionDeviceManager;
     @Mock Clock mClock;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
@@ -194,9 +196,9 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         when(mWifiScanner.getSingleScanResults()).thenReturn(Collections.emptyList());
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
-                mNetworkCapabilities, mActivityManager, mAlarmManager, mAppOpsManager, mClock,
-                mWifiInjector, mWifiConnectivityManager, mWifiConfigManager, mWifiConfigStore,
-                mWifiPermissionsUtil, mWifiMetrics);
+                mNetworkCapabilities, mActivityManager, mAlarmManager, mAppOpsManager,
+                mCompanionDeviceManager, mClock, mWifiInjector, mWifiConnectivityManager,
+                mWifiConfigManager, mWifiConfigStore, mWifiPermissionsUtil, mWifiMetrics);
 
         ArgumentCaptor<NetworkRequestStoreData.DataSource> dataSourceArgumentCaptor =
                 ArgumentCaptor.forClass(NetworkRequestStoreData.DataSource.class);
@@ -2500,6 +2502,57 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         // Verify we did not trigger the UI for the second request.
         verify(mContext, times(1)).startActivityAsUser(any(), any());
+        // Verify we did not trigger a scan.
+        verify(mWifiScanner, never()).startScan(any(), any(), any());
+        // Verify we did not trigger the match callback.
+        verify(mNetworkRequestMatchCallback, never()).onMatch(anyList());
+        // Verify that we sent a connection attempt to ClientModeImpl
+        verify(mClientModeImpl).connect(eq(null), anyInt(),
+                any(Binder.class), mConnectListenerArgumentCaptor.capture(), anyInt(), anyInt());
+
+        verify(mWifiMetrics).incrementNetworkRequestApiNumUserApprovalBypass();
+    }
+
+    /**
+     * Verify the user approval bypass for a specific request for an access point that was already
+     * approved previously via CDM and the scan result is present in the cached scan results.
+     */
+    @Test
+    public void
+            testNetworkSpecifierMatchSuccessUsingLiteralSsidAndBssidMatchApprovedViaCDMWithCache()
+            throws Exception {
+        // Setup scan data for WPA-PSK networks.
+        setupScanData(SCAN_RESULT_TYPE_WPA_PSK,
+                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
+
+        // Choose the matching scan result.
+        ScanResult matchingScanResult = mTestScanDatas[0].getResults()[0];
+
+        // Setup CDM approval for the scan result.
+        when(mCompanionDeviceManager.isDeviceAssociated(
+                TEST_PACKAGE_NAME_1,
+                MacAddress.fromString(matchingScanResult.BSSID),
+                UserHandle.getUserHandleForUid(TEST_UID_1))).thenReturn(true);
+
+        // simulate no cache expiry
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(0L);
+        // Simulate the cached results matching.
+        when(mWifiScanner.getSingleScanResults())
+                .thenReturn(Arrays.asList(mTestScanDatas[0].getResults()));
+
+        PatternMatcher ssidPatternMatch =
+                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
+        Pair<MacAddress, MacAddress> bssidPatternMatch =
+                Pair.create(MacAddress.fromString(matchingScanResult.BSSID),
+                        MacAddress.BROADCAST_ADDRESS);
+        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
+                ssidPatternMatch, bssidPatternMatch,
+                WifiConfigurationTestUtil.createPskNetwork(), TEST_UID_1, TEST_PACKAGE_NAME_1);
+        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
+        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
+
+        // Verify we did not trigger the UI for the second request.
+        verify(mContext, never()).startActivityAsUser(any(), any());
         // Verify we did not trigger a scan.
         verify(mWifiScanner, never()).startScan(any(), any(), any());
         // Verify we did not trigger the match callback.
