@@ -75,7 +75,7 @@ public abstract class BaseWifiTracker implements LifecycleObserver {
         /**
          * TODO (b/70983952): Add the rest of the broadcast handling.
          *      WifiManager.CONFIGURED_NETWORKS_CHANGED_ACTION);
-         *      WifiManager.LINK_CONFIGURATION_CHANGED_ACTION);
+         *      WifiManager.ACTION_LINK_CONFIGURATION_CHANGED);
          *      WifiManager.NETWORK_STATE_CHANGED_ACTION);
          *      WifiManager.RSSI_CHANGED_ACTION);
          */

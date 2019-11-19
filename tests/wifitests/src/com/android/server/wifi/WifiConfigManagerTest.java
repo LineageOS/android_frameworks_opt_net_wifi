@@ -190,6 +190,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                     return TEST_NO_PERM_NAME;
                 } else if (uid == Process.WIFI_UID) {
                     return TEST_WIFI_NAME;
+                } else if (uid == Process.SYSTEM_UID) {
+                    return TEST_WIFI_NAME;
                 }
                 fail("Unexpected UID: " + uid);
                 return "";
@@ -211,7 +213,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .updateNetworkKeys(any(WifiConfiguration.class), any()))
                 .thenReturn(true);
 
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(true);
         setupStoreDataForRead(new ArrayList<>(), new ArrayList<>(), new HashMap<>());
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
@@ -3756,8 +3757,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testFreshInstallLoadFromStore() throws Exception {
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
-
         assertTrue(mWifiConfigManager.loadFromStore());
 
         verify(mWifiConfigStore).read();
@@ -3772,8 +3771,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testFreshInstallLoadFromStoreAfterUserUnlock() throws Exception {
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
-
         int user1 = TEST_DEFAULT_USER;
 
         // Unlock the user1 (default user) for the first time and ensure that we don't read the
@@ -3795,7 +3792,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Test
     public void testHandleUserSwitchAfterFreshInstall() throws Exception {
         int user2 = TEST_DEFAULT_USER + 1;
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();
@@ -5589,5 +5585,140 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         assertFalse(mWifiConfigManager.getConfiguredNetwork(networkId)
                     .getNetworkSelectionStatus().isNetworkTemporaryDisabled());
+    }
+
+    /**
+     * Verifies that when scanning a WPA3 in transition mode AP, and there is a matching WPA2 saved
+     * network, {@link WifiConfigManager#getConfiguredNetworkForScanDetailAndCache(ScanDetail)}
+     * clones a new WPA3 saved network that will be used to connect to it.
+     *
+     * The test also verifies that the new network is marked as cloned.
+     */
+    @Test
+    public void testCloningPskNetworkForTransitionMode() {
+        final String wpa2Wpa3TransitionSsid = "\"WPA3-Transition\"";
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil
+                .createSaeNetwork(wpa2Wpa3TransitionSsid);
+        WifiConfiguration pskNetwork = WifiConfigurationTestUtil
+                .createPskNetwork(wpa2Wpa3TransitionSsid);
+
+        // First add the WPA2 saved network.
+        verifyAddNetworkToWifiConfigManager(pskNetwork);
+
+        // Now create a dummy scan detail for WPA3-Transition.
+        ScanDetail scanDetail = WifiConfigurationTestUtil
+                .createScanDetailForWpa2Wpa3TransitionModeNetwork(saeNetwork,
+                        "AA:BB:CC:DD:CC:BB", -40, 2402, 0, 1);
+
+
+        WifiConfiguration retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
+        // Retrieve the network with password data for comparison.
+        retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkWithPassword(retrievedNetwork.networkId);
+
+        // Verify cloned network matches the expected WPA3 network
+        assertEquals(saeNetwork.SSID, retrievedNetwork.SSID);
+        assertEquals(saeNetwork.BSSID, retrievedNetwork.BSSID);
+        assertEquals(saeNetwork.preSharedKey, retrievedNetwork.preSharedKey);
+        assertEquals(saeNetwork.requirePMF, retrievedNetwork.requirePMF);
+        assertEquals(saeNetwork.allowedKeyManagement, retrievedNetwork.allowedKeyManagement);
+        assertNotNull(retrievedNetwork.clonedNetworkConfigKey);
+        assertEquals(retrievedNetwork.clonedNetworkConfigKey, pskNetwork.configKey());
+    }
+
+    /**
+     * Verifies that when scanning a WPA3 in transition mode AP, and there is a matching WPA2 saved
+     * network, {@link WifiConfigManager#getConfiguredNetworkForScanDetailAndCache(ScanDetail)}
+     * clones a new WPA3 saved network that will be used to connect to it.
+     *
+     * The test also verifies that the new network is marked as cloned.
+     */
+    @Test
+    public void testCloningOweNetworkForTransitionMode() {
+        final String oweTransitionSsid = "\"OWE-Transition\"";
+        WifiConfiguration oweNetwork = WifiConfigurationTestUtil
+                .createOweNetwork(oweTransitionSsid);
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil
+                .createOpenNetwork(oweTransitionSsid);
+
+        // First add the Open saved network.
+        verifyAddNetworkToWifiConfigManager(openNetwork);
+
+        // Now create a dummy scan detail for OWE-Transition.
+        ScanDetail scanDetail = WifiConfigurationTestUtil
+                .createScanDetailForOweTransitionModeNetwork(oweNetwork,
+                        "AA:BB:CC:DD:CC:BB", -40, 2402, 0, 1);
+
+
+        WifiConfiguration retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
+        // Retrieve the network with password data for comparison.
+        retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkWithPassword(retrievedNetwork.networkId);
+
+        // Verify cloned network matches the expected OWE network
+        assertEquals(oweNetwork.SSID, retrievedNetwork.SSID);
+        assertEquals(oweNetwork.BSSID, retrievedNetwork.BSSID);
+        assertEquals(oweNetwork.preSharedKey, retrievedNetwork.preSharedKey);
+        assertEquals(oweNetwork.requirePMF, retrievedNetwork.requirePMF);
+        assertEquals(oweNetwork.allowedKeyManagement, retrievedNetwork.allowedKeyManagement);
+        assertNotNull(retrievedNetwork.clonedNetworkConfigKey);
+        assertEquals(retrievedNetwork.clonedNetworkConfigKey, openNetwork.configKey());
+    }
+
+    /**
+     * Verifies that when a cloned network is removed, its original pair is removed as well
+     * {@link WifiConfigManager#removeNetwork(int)}
+     */
+    @Test
+    public void testRemoveClonedSaeNetwork() {
+        final String wpa2Wpa3TransitionSsid = "\"WPA3-Transition\"";
+        WifiConfiguration saeNetwork = WifiConfigurationTestUtil
+                .createSaeNetwork(wpa2Wpa3TransitionSsid);
+        WifiConfiguration pskNetwork = WifiConfigurationTestUtil
+                .createPskNetwork(wpa2Wpa3TransitionSsid);
+        ArgumentCaptor<WifiConfiguration> wifiConfigCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+
+        // First add the WPA2 saved network.
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(pskNetwork);
+        verify(mWcmListener).onNetworkAdded(wifiConfigCaptor.capture());
+        assertEquals(pskNetwork.networkId, wifiConfigCaptor.getValue().networkId);
+        reset(mWcmListener);
+
+        // Now create a dummy scan detail for WPA3-Transition.
+        ScanDetail scanDetail = WifiConfigurationTestUtil
+                .createScanDetailForWpa2Wpa3TransitionModeNetwork(saeNetwork,
+                        "AA:BB:CC:DD:CC:BB", -40, 2402, 0, 1);
+
+        WifiConfiguration retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkForScanDetailAndCache(scanDetail);
+        // Retrieve the network with password data for comparison.
+        retrievedNetwork =
+                mWifiConfigManager.getConfiguredNetworkWithPassword(retrievedNetwork.networkId);
+
+        // Verify cloned network matches the expected WPA3 network
+        assertEquals(saeNetwork.SSID, retrievedNetwork.SSID);
+        assertEquals(saeNetwork.BSSID, retrievedNetwork.BSSID);
+        assertEquals(saeNetwork.preSharedKey, retrievedNetwork.preSharedKey);
+        assertEquals(saeNetwork.requirePMF, retrievedNetwork.requirePMF);
+        assertEquals(saeNetwork.allowedKeyManagement, retrievedNetwork.allowedKeyManagement);
+        assertNotNull(retrievedNetwork.clonedNetworkConfigKey);
+        assertEquals(retrievedNetwork.clonedNetworkConfigKey, pskNetwork.configKey());
+
+        // Ensure that configured network list is not empty.
+        assertTrue(mWifiConfigManager.getConfiguredNetworks().size() == 2);
+        verify(mWcmListener).onNetworkAdded(wifiConfigCaptor.capture());
+        assertEquals(retrievedNetwork.networkId, wifiConfigCaptor.getValue().networkId);
+        reset(mWcmListener);
+
+        assertTrue(mWifiConfigManager.removeNetwork(retrievedNetwork.networkId, TEST_CREATOR_UID,
+                TEST_CREATOR_NAME));
+
+        // Ensure that configured network list is empty now.
+        assertTrue(mWifiConfigManager.getConfiguredNetworks().isEmpty());
+        verify(mWcmListener).onNetworkRemoved(wifiConfigCaptor.capture());
+        assertEquals(retrievedNetwork.networkId, wifiConfigCaptor.getValue().networkId);
     }
 }

@@ -749,49 +749,6 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
     }
 
     /**
-     * Verify network specifier matching for a specifier containing a specific SSID match using
-     * 4 WPA_PSK + SAE transition scan results, each with unique SSID.
-     */
-    @Test
-    public void testNetworkSpecifierMatchSuccessUsingLiteralSsidMatchForSaeTransitionScanResult()
-            throws Exception {
-        setupScanData(SCAN_RESULT_TYPE_WPA_PSK_SAE_TRANSITION,
-                TEST_SSID_1, TEST_SSID_2, TEST_SSID_3, TEST_SSID_4);
-
-        // Setup network specifier for open networks.
-        PatternMatcher ssidPatternMatch =
-                new PatternMatcher(TEST_SSID_1, PatternMatcher.PATTERN_LITERAL);
-        Pair<MacAddress, MacAddress> bssidPatternMatch =
-                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS);
-        WifiConfiguration wifiConfiguration = new WifiConfiguration();
-        wifiConfiguration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-        WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
-                ssidPatternMatch, bssidPatternMatch, wifiConfiguration, TEST_UID_1,
-                TEST_PACKAGE_NAME_1);
-
-        mNetworkRequest.networkCapabilities.setNetworkSpecifier(specifier);
-        mWifiNetworkFactory.needNetworkFor(mNetworkRequest, 0);
-
-        validateUiStartParams(true);
-
-        mWifiNetworkFactory.addCallback(mAppBinder, mNetworkRequestMatchCallback,
-                TEST_CALLBACK_IDENTIFIER);
-
-        verifyPeriodicScans(0, PERIODIC_SCAN_INTERVAL_MS);
-
-        ArgumentCaptor<List<ScanResult>> matchedScanResultsCaptor =
-                ArgumentCaptor.forClass(List.class);
-        verify(mNetworkRequestMatchCallback).onMatch(matchedScanResultsCaptor.capture());
-
-        assertNotNull(matchedScanResultsCaptor.getValue());
-        // We only expect 1 network match in this case.
-        validateScanResults(matchedScanResultsCaptor.getValue(), mTestScanDatas[0].getResults()[0]);
-
-        verify(mWifiMetrics).incrementNetworkRequestApiMatchSizeHistogram(
-                matchedScanResultsCaptor.getValue().size());
-    }
-
-    /**
      * Verify network specifier matching for a specifier containing a Prefix SSID match using
      * 4 open scan results, each with unique SSID.
      */
@@ -2766,7 +2723,6 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
     private static final int SCAN_RESULT_TYPE_OPEN = 0;
     private static final int SCAN_RESULT_TYPE_WPA_PSK = 1;
     private static final int SCAN_RESULT_TYPE_WPA_EAP = 2;
-    private static final int SCAN_RESULT_TYPE_WPA_PSK_SAE_TRANSITION = 3;
 
     private String getScanResultCapsForType(int scanResultType) {
         switch (scanResultType) {
@@ -2779,8 +2735,6 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
             case SCAN_RESULT_TYPE_WPA_EAP:
                 return WifiConfigurationTestUtil.getScanResultCapsForNetwork(
                         WifiConfigurationTestUtil.createEapNetwork());
-            case SCAN_RESULT_TYPE_WPA_PSK_SAE_TRANSITION:
-                return WifiConfigurationTestUtil.getScanResultCapsForWpa2Wpa3TransitionNetwork();
         }
         fail("Invalid scan result type " + scanResultType);
         return "";
