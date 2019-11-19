@@ -213,7 +213,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 .updateNetworkKeys(any(WifiConfiguration.class), any()))
                 .thenReturn(true);
 
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(true);
         setupStoreDataForRead(new ArrayList<>(), new ArrayList<>(), new HashMap<>());
 
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
@@ -3758,8 +3757,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testFreshInstallLoadFromStore() throws Exception {
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
-
         assertTrue(mWifiConfigManager.loadFromStore());
 
         verify(mWifiConfigStore).read();
@@ -3774,8 +3771,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
      */
     @Test
     public void testFreshInstallLoadFromStoreAfterUserUnlock() throws Exception {
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
-
         int user1 = TEST_DEFAULT_USER;
 
         // Unlock the user1 (default user) for the first time and ensure that we don't read the
@@ -3797,7 +3792,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     @Test
     public void testHandleUserSwitchAfterFreshInstall() throws Exception {
         int user2 = TEST_DEFAULT_USER + 1;
-        when(mWifiConfigStore.areStoresPresent()).thenReturn(false);
 
         assertTrue(mWifiConfigManager.loadFromStore());
         verify(mWifiConfigStore).read();

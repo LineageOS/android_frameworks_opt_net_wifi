@@ -19,6 +19,7 @@
 on post-fs-data
    chown system system /data/misc/wifi
    chown system system /data/misc/wifi/WifiConfigStore.xml
+   chown system system /data/misc/wifi/WifiConfigStoreSoftAp.xml
    chown system system /data/misc/wifi/softap.conf
 
 on property:sys.user.0.ce_available=true

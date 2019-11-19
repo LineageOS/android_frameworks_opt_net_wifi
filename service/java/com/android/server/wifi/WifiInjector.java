@@ -241,9 +241,6 @@ public class WifiInjector {
                 SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE),
                 mContext.getResources()
                         .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss));
-        mWifiApConfigStore = new WifiApConfigStore(
-                mContext,this, wifiHandler, mBackupManagerProxy, mFrameworkFacade);
-
         // WifiConfigManager/Store objects and their dependencies.
         KeyStore keyStore = null;
         try {
@@ -254,7 +251,7 @@ public class WifiInjector {
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
         // New config store
         mWifiConfigStore = new WifiConfigStore(mContext, wifiHandler, mClock, mWifiMetrics,
-                WifiConfigStore.createSharedFile(mFrameworkFacade.isNiapModeOn(mContext)));
+                WifiConfigStore.createSharedFiles(mFrameworkFacade.isNiapModeOn(mContext)));
         SubscriptionManager subscriptionManager =
                 mContext.getSystemService(SubscriptionManager.class);
         mTelephonyUtil = new TelephonyUtil(makeTelephonyManager(), subscriptionManager);
@@ -267,6 +264,11 @@ public class WifiInjector {
                 new DeletedEphemeralSsidsStoreData(mClock), new RandomizedMacStoreData(),
                 mFrameworkFacade, wifiHandler, mDeviceConfigFacade);
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
+
+        mWifiApConfigStore = new WifiApConfigStore(
+                mContext, this, wifiHandler, mBackupManagerProxy, mFrameworkFacade,
+                mWifiConfigStore, mWifiConfigManager);
+
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);
         mConnectivityLocalLog = new LocalLog(
                 mContext.getSystemService(ActivityManager.class).isLowRamDevice() ? 256 : 512);
@@ -652,6 +654,14 @@ public class WifiInjector {
     public NetworkSuggestionStoreData makeNetworkSuggestionStoreData(
             NetworkSuggestionStoreData.DataSource dataSource) {
         return new NetworkSuggestionStoreData(dataSource);
+    }
+
+    /**
+     * Construct an instance of {@link SoftApStoreData}.
+     */
+    public SoftApStoreData makeSoftApStoreData(
+            SoftApStoreData.DataSource dataSource) {
+        return new SoftApStoreData(dataSource);
     }
 
     public WifiPermissionsUtil getWifiPermissionsUtil() {
