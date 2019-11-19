@@ -16,31 +16,50 @@
 
 package com.android.server.wifi;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
-import android.os.Binder;
 import android.util.Log;
 
+import com.android.server.SystemService;
 import com.android.server.wifi.util.WifiAsyncChannel;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Manages the wifi service instance.
+ * Service implementing Wi-Fi functionality. Delegates actual interface
+ * implementation to WifiServiceImpl.
  */
-public final class WifiService implements WifiServiceBase {
+public final class WifiService extends SystemService {
 
     private static final String TAG = "WifiService";
+    // Notification channels used by the wifi service.
+    public static final String NOTIFICATION_NETWORK_STATUS = "NETWORK_STATUS";
+    public static final String NOTIFICATION_NETWORK_ALERTS = "NETWORK_ALERTS";
+    public static final String NOTIFICATION_NETWORK_AVAILABLE = "NETWORK_AVAILABLE";
+
     final WifiServiceImpl mImpl;
 
     public WifiService(Context context) {
-        mImpl = new WifiServiceImpl(context, WifiInjector.getInstance(), new WifiAsyncChannel(TAG));
+        super(context);
+        mImpl = new WifiServiceImpl(context, new WifiInjector(context), new WifiAsyncChannel(TAG));
     }
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Starting " + Context.WIFI_SERVICE);
-        mImpl.checkAndStartWifi();
+        Log.i(TAG, "Registering " + Context.WIFI_SERVICE);
+        publishBinderService(Context.WIFI_SERVICE, mImpl);
+    }
 
-        // Trigger all the necessary boot completed actions, since we are starting late now.
-        mImpl.handleBootCompleted();
+    @Override
+    public void onBootPhase(int phase) {
+        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
+            createNotificationChannels(getContext());
+            mImpl.checkAndStartWifi();
+        } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
+            mImpl.handleBootCompleted();
+        }
     }
 
     @Override
@@ -58,8 +77,33 @@ public final class WifiService implements WifiServiceBase {
         mImpl.handleUserStop(userId);
     }
 
-    @Override
-    public Binder retrieveImpl() {
-        return mImpl;
+    // Create notification channels used by wifi.
+    private static void createNotificationChannels(Context ctx) {
+        final NotificationManager nm = ctx.getSystemService(NotificationManager.class);
+        List<NotificationChannel> channelsList = new ArrayList<>();
+        final NotificationChannel networkStatusChannel = new NotificationChannel(
+                NOTIFICATION_NETWORK_STATUS,
+                ctx.getResources().getString(
+                        android.R.string.notification_channel_network_status),
+                NotificationManager.IMPORTANCE_LOW);
+        channelsList.add(networkStatusChannel);
+
+        final NotificationChannel networkAlertsChannel = new NotificationChannel(
+                NOTIFICATION_NETWORK_ALERTS,
+                ctx.getResources().getString(
+                        android.R.string.notification_channel_network_alerts),
+                NotificationManager.IMPORTANCE_HIGH);
+        networkAlertsChannel.setBlockableSystem(true);
+        channelsList.add(networkAlertsChannel);
+
+        final NotificationChannel networkAvailable = new NotificationChannel(
+                NOTIFICATION_NETWORK_AVAILABLE,
+                ctx.getResources().getString(
+                        android.R.string.notification_channel_network_available),
+                NotificationManager.IMPORTANCE_LOW);
+        networkAvailable.setBlockableSystem(true);
+        channelsList.add(networkAvailable);
+
+        nm.createNotificationChannels(channelsList);
     }
 }

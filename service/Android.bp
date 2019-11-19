@@ -71,6 +71,11 @@ cc_library_shared {
     },
 }
 
+filegroup {
+    name: "wifi-jarjar-rules",
+    srcs: [ "jarjar-rules-shared.txt"]
+}
+
 // Build the wifi-service static library
 // ============================================================
 android_library {
@@ -89,7 +94,10 @@ android_library {
         "services",
     ],
 
-    manifest: "AndroidManifestBase.xml",
+    jarjar_rules: ":wifi-jarjar-rules",
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
 
     static_libs: [
         "android.hardware.wifi-V1.0-java",
@@ -114,64 +122,17 @@ android_library {
         "libprotobuf-java-lite",
         "libnanohttpd",
         "services.net",
-        "services.wifi",
+        "services.core",
         "libwificond_aidl-java",
         "wifi_proto_scorecard",
         "wifi_proto_metrics",
     ],
-}
-
-filegroup {
-    name: "wifi-jarjar-rules",
-    srcs: [ "jarjar-rules-shared.txt"]
-}
-
-java_defaults {
-    name: "WifiStackAppCommon",
-    defaults: ["WifiStackCommon"],
-    static_libs: [
-        "wifi-service",
-    ],
-    jni_libs: [
-        "libwifi-jni",
-    ],
-    // Resources already included in wifi-service
-    resource_dirs: [],
-    jarjar_rules: ":wifi-jarjar-rules",
-    optimize: {
-        proguard_flags_files: ["proguard.flags"],
-    },
 
     required: [
         "libwifi-jni",
         "services",
         "cacerts_wfa",
     ],
-}
 
-// Updatable stack packaged as an application
-android_app {
-    name: "WifiStack",
-    defaults: ["WifiStackAppCommon"],
-    certificate: "networkstack",
-    manifest: "AndroidManifest.xml",
-    use_embedded_native_libs: true,
-    // The permission configuration *must* be included to ensure security of the device
-    required: ["WifiStackPermissionConfig"],
     init_rc: ["wifi.rc"],
 }
-
-// Non-updatable wifi stack running in the system server process for devices not using the module
-// TODO (b/135753701): Test this path.
-android_app {
-    name: "InProcessWifiStack",
-    defaults: ["WifiStackAppCommon"],
-    certificate: "platform",
-    manifest: "AndroidManifest_InProcess.xml",
-    // InProcessWifiStack is a replacement for WifiStack
-    overrides: ["WifiStack"],
-    // The permission configuration *must* be included to ensure security of the device
-    required: ["PlatformWifiStackPermissionConfig"],
-    init_rc: ["wifi_inprocess.rc"],
-}
-

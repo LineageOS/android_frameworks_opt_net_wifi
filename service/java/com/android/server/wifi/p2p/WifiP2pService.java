@@ -17,34 +17,36 @@
 package com.android.server.wifi.p2p;
 
 import android.content.Context;
-import android.os.Binder;
 import android.util.Log;
 
+import com.android.server.SystemService;
 import com.android.server.wifi.WifiInjector;
-import com.android.server.wifi.WifiServiceBase;
 
 /**
  * Wifi P2p Service class, instantiates P2p service
- * Overrides onStart() and onBootCompleted() methods in
+ * Overrides onStart() and onBootPhase() methods in
  * the super class.
  */
-public final class WifiP2pService implements WifiServiceBase {
+public final class WifiP2pService extends SystemService {
 
     private static final String TAG = "WifiP2pService";
     final WifiP2pServiceImpl mImpl;
 
     public WifiP2pService(Context context) {
+        super(context);
         mImpl = new WifiP2pServiceImpl(context, WifiInjector.getInstance());
     }
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Starting " + Context.WIFI_P2P_SERVICE);
-        mImpl.connectivityServiceReady();
+        Log.i(TAG, "Registering " + Context.WIFI_P2P_SERVICE);
+        publishBinderService(Context.WIFI_P2P_SERVICE, mImpl);
     }
 
     @Override
-    public Binder retrieveImpl() {
-        return mImpl;
+    public void onBootPhase(int phase) {
+        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
+            mImpl.connectivityServiceReady();
+        }
     }
 }

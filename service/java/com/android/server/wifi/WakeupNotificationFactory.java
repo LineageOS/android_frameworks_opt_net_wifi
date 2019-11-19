@@ -66,7 +66,7 @@ public class WakeupNotificationFactory {
                 .build();
 
         return mFrameworkFacade.makeNotificationBuilder(mContext,
-                WifiStackService.NOTIFICATION_NETWORK_STATUS)
+                WifiService.NOTIFICATION_NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
                 .setTicker(title)
                 .setContentTitle(title)

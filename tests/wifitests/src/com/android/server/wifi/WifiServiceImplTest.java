@@ -114,7 +114,6 @@ import android.net.wifi.WifiManager.SoftApCallback;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
-import android.net.wifi.WifiStackClient;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -360,8 +359,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(true);
         when(mLohsCallback.asBinder()).thenReturn(mock(IBinder.class));

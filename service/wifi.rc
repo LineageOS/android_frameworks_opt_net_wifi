@@ -14,26 +14,6 @@
 # limitations under the License.
 #
 
-# These are needed for migration of data from "system" user to "network_stack" user
-# since wifi is no longer running in "system_server".
-on post-fs-data
-   chown network_stack network_stack /data/misc/wifi
-   chown network_stack network_stack /data/misc/wifi/WifiConfigStore.xml
-   chown network_stack network_stack /data/misc/wifi/WifiConfigStoreSoftAp.xml
-   chown network_stack network_stack /data/misc/wifi/softap.conf
-
-on property:sys.user.0.ce_available=true
-   mkdir /data/misc_ce/0/wifi 0770 network_stack network_stack
-   # For devices upgrading, we need to change permission.
-   chown network_stack network_stack /data/misc_ce/0/wifi
-   chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStore.xml
-   chown network_stack network_stack /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml
-
-   # Load the new sepolicy file context labels (these files were relabeled in R).
-   restorecon /data/misc_ce/0/wifi
-   restorecon /data/misc_ce/0/wifi/WifiConfigStore.xml
-   restorecon /data/misc_ce/0/wifi/WifiConfigStoreNetworkSuggestions.xml
-
 # Below are for kernel tracing related stuff.
 on fs
    setprop sys.wifitracing.started 0
@@ -70,11 +50,11 @@ on property:sys.boot_completed=1 && property:sys.wifitracing.started=0
    write /sys/kernel/debug/tracing/instances/wifi/events/net/netif_rx/enable 1
    write /sys/kernel/debug/tracing/instances/wifi/events/net/netif_receive_skb/enable 1
 
-   # Set DAC to allow network_stack to enable/disable, and read wifi trace
+   # Set DAC to allow system to enable/disable, and read wifi trace
    # events.
-   chown network_stack network_stack /sys/kernel/debug/tracing/instances/wifi/tracing_on
-   chown network_stack network_stack /sys/kernel/debug/tracing/instances/wifi/free_buffer
-   chown network_stack network_stack /sys/kernel/debug/tracing/instances/wifi/trace
+   chown system /sys/kernel/debug/tracing/instances/wifi/tracing_on
+   chown system /sys/kernel/debug/tracing/instances/wifi/free_buffer
+   chown system /sys/kernel/debug/tracing/instances/wifi/trace
    chmod 200 /sys/kernel/debug/tracing/instances/wifi/tracing_on
    chmod 400 /sys/kernel/debug/tracing/instances/wifi/free_buffer
    chmod 600 /sys/kernel/debug/tracing/instances/wifi/trace

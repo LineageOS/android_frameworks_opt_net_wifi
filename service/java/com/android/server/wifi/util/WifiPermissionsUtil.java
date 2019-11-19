@@ -408,8 +408,13 @@ public class WifiPermissionsUtil {
      */
     public boolean isLocationModeEnabled() {
         if (!retrieveLocationManagerIfNecessary()) return false;
-        return mLocationManager.isLocationEnabledForUser(UserHandle.of(
-                mWifiPermissionsWrapper.getCurrentUser()));
+        try {
+            return mLocationManager.isLocationEnabledForUser(UserHandle.of(
+                    mWifiPermissionsWrapper.getCurrentUser()));
+        } catch (Exception e) {
+            Log.e(TAG, "Failure to get location mode", e);
+            return false;
+        }
     }
 
     /**

@@ -159,7 +159,7 @@ public class ConnectToNetworkNotificationBuilder {
     private Notification.Builder createNotificationBuilder(
             CharSequence title, CharSequence content, String extraData) {
         return mFrameworkFacade.makeNotificationBuilder(mContext,
-                WifiStackService.NOTIFICATION_NETWORK_AVAILABLE)
+                WifiService.NOTIFICATION_NETWORK_AVAILABLE)
                 .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setTicker(title)
                 .setContentTitle(title)
