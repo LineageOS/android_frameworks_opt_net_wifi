@@ -248,8 +248,11 @@ public class WifiConfigurationTestUtil {
     }
 
     public static WifiConfiguration createOweNetwork(String ssid) {
-        return generateWifiConfig(TEST_NETWORK_ID, TEST_UID, ssid, true, true, null,
-                null, SECURITY_OWE);
+        WifiConfiguration configuration =  generateWifiConfig(TEST_NETWORK_ID, TEST_UID, ssid,
+                true, true, null, null, SECURITY_OWE);
+
+        configuration.requirePMF = true;
+        return configuration;
     }
 
     public static WifiConfiguration createOpenNetwork() {
@@ -274,14 +277,7 @@ public class WifiConfigurationTestUtil {
     }
 
     public static WifiConfiguration createSaeNetwork() {
-        WifiConfiguration configuration =
-                generateWifiConfig(TEST_NETWORK_ID, TEST_UID, createNewSSID(), true, true, null,
-                        null, SECURITY_SAE);
-
-        // SAE password uses the same member.
-        configuration.preSharedKey = TEST_PSK;
-        configuration.requirePMF = true;
-        return configuration;
+        return createSaeNetwork(createNewSSID());
     }
 
     public static WifiConfiguration createPskNetwork() {
@@ -304,6 +300,10 @@ public class WifiConfigurationTestUtil {
         WifiConfiguration configuration =
                 generateWifiConfig(TEST_NETWORK_ID, TEST_UID, ssid, true, true, null,
                         null, SECURITY_SAE);
+
+        // SAE password uses the same member.
+        configuration.preSharedKey = TEST_PSK;
+        configuration.requirePMF = true;
         return configuration;
     }
 
@@ -515,6 +515,15 @@ public class WifiConfigurationTestUtil {
     }
 
     /**
+     * Gets scan result capabilities for a WPA2/WPA3-Transition mode network configuration
+     */
+    private static String
+            getScanResultCapsForOweTransitionNetwork(WifiConfiguration configuration) {
+        String caps = "[OWE_TRANSITION-CCMP]";
+        return caps;
+    }
+
+    /**
      * Creates a scan detail corresponding to the provided network and given BSSID, etc.
      */
     public static ScanDetail createScanDetailForNetwork(
@@ -537,6 +546,17 @@ public class WifiConfigurationTestUtil {
         return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
     }
 
+    /**
+     * Creates a scan detail corresponding to the provided network and given BSSID, but sets
+     * the capabilities to OWE-Transition mode network.
+     */
+    public static ScanDetail createScanDetailForOweTransitionModeNetwork(
+            WifiConfiguration configuration, String bssid, int level, int frequency,
+            long tsf, long seen) {
+        String caps = getScanResultCapsForOweTransitionNetwork(configuration);
+        WifiSsid ssid = WifiSsid.createFromAsciiEncoded(configuration.getPrintableSsid());
+        return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
+    }
 
     /**
      * Asserts that the 2 WifiConfigurations are equal in the elements saved for both backup/restore
