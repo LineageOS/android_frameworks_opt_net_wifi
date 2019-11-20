@@ -204,4 +204,20 @@
         <item>-55</item> <!-- [-66, -55)                   3 -->
                          <!-- [-55, +infinity)             4 -->
     </integer-array>
+
+    <!-- Array describing scanning schedule in seconds when device is disconnected and screen is on -->
+    <integer-array translatable="false" name="config_wifiDisconnectedScanIntervalScheduleSec">
+        <item>20</item>
+        <item>40</item>
+        <item>80</item>
+        <item>160</item>
+    </integer-array>
+
+    <!-- Array describing scanning schedule in seconds when device is connected and screen is on -->
+    <integer-array translatable="false" name="config_wifiConnectedScanIntervalScheduleSec">
+        <item>20</item>
+        <item>40</item>
+        <item>80</item>
+        <item>160</item>
+    </integer-array>
 </resources>
