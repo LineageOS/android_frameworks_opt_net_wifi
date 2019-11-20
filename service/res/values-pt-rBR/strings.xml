@@ -16,8 +16,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <!-- no translation found for wifiAppLabel (6877485722596193996) -->
-    <skip />
+    <string name="wifiAppLabel" product="default" msgid="6877485722596193996">"Wi-Fi do sistema"</string>
     <plurals name="wifi_available" formatted="false" msgid="3426297841129358421">
       <item quantity="one">Redes Wi-Fi disponíveis</item>
       <item quantity="other">Redes Wi-Fi disponíveis</item>
@@ -50,11 +49,6 @@
     <string name="wifi_connect_alert_title" msgid="6144470472092017636">"Permitir conexão?"</string>
     <string name="wifi_connect_alert_message" msgid="3123801378559831220">"O app %1$s deseja se conectar à rede Wi-Fi %2$s"</string>
     <string name="wifi_connect_default_application" msgid="6164721692891325243">"Um app"</string>
-    <string name="wifi_p2p_dialog_title" msgid="5241179009534993267">"Wi-Fi Direct"</string>
-    <string name="wifi_p2p_turnon_message" msgid="1913312569911955507">"Iniciar o Wi-Fi Direct. Isso desativará o ponto de acesso/cliente Wi-Fi."</string>
-    <string name="wifi_p2p_failed_message" msgid="891756863555089693">"Não foi possível iniciar o Wi-Fi Direct."</string>
-    <string name="wifi_p2p_enabled_notification_title" msgid="1370672816157426391">"Wi-Fi Direct ativado"</string>
-    <string name="wifi_p2p_enabled_notification_message" msgid="4796109304869784386">"Toque para ver as configurações"</string>
     <string name="accept" msgid="5931271886782610829">"Aceitar"</string>
     <string name="decline" msgid="6874256900873707640">"Recusar"</string>
     <string name="ok" msgid="4215387532539340948">"OK"</string>
