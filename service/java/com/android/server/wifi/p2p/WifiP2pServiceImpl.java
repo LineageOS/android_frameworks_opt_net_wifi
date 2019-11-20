@@ -3005,7 +3005,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void sendBroadcastMultiplePermissions(Intent intent) {
             Context context = mContext.createContextAsUser(UserHandle.ALL, 0);
-            context.sendBroadcastMultiplePermissions(intent, RECEIVER_PERMISSIONS_FOR_BROADCAST);
+            context.sendBroadcastWithMultiplePermissions(
+                    intent, RECEIVER_PERMISSIONS_FOR_BROADCAST);
         }
 
         private void sendThisDeviceChangedBroadcast() {
