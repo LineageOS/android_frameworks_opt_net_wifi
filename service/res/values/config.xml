@@ -44,9 +44,6 @@
          capability can provide power savings when wifi needs to be always kept on. -->
     <bool translatable="false" name="config_wifi_background_scan_support">false</bool>
 
-    <!-- Boolean indicating we re-try re-associating once upon disconnection and RSSI is high failure  -->
-    <bool translatable="true" name="config_wifi_enable_disconnection_debounce">true</bool>
-
     <!-- Boolean indicating whether or not to revert to default country code when cellular
          radio is unable to find any MCC information to infer wifi country code from -->
     <bool translatable="false" name="config_wifi_revert_country_code_on_cellular_loss">false</bool>
@@ -70,17 +67,12 @@
     <bool translatable="false" name="config_wifi_turn_off_during_emergency_call">false</bool>
 
     <!-- Integer specifying the basic autojoin parameters -->
-    <integer translatable="false" name="config_wifi_framework_5GHz_preference_boost_threshold">-65</integer>
     <integer translatable="false" name="config_wifi_framework_5GHz_preference_boost_factor">40</integer>
-    <integer translatable="false" name="config_wifi_framework_5GHz_preference_penalty_threshold">-75</integer>
     <integer translatable="false" name="config_wifi_framework_RSSI_SCORE_OFFSET">85</integer>
     <integer translatable="false" name="config_wifi_framework_RSSI_SCORE_SLOPE">4</integer>
     <integer translatable="false" name="config_wifi_framework_SAME_BSSID_AWARD">24</integer>
     <integer translatable="false" name="config_wifi_framework_LAST_SELECTION_AWARD">480</integer>
-    <integer translatable="false" name="config_wifi_framework_PASSPOINT_SECURITY_AWARD">40</integer>
     <integer translatable="false" name="config_wifi_framework_SECURITY_AWARD">80</integer>
-    <!-- Integer specifying the base interval in seconds for the exponential backoff scan for autojoin -->
-    <integer translatable="false" name="config_wifi_framework_exponential_backoff_scan_base_interval">20</integer>
     <!-- Integers specifying the max packet Tx/Rx rates for full scan -->
     <integer translatable="false" name="config_wifi_framework_max_tx_rate_for_full_scan">8</integer>
     <integer translatable="false" name="config_wifi_framework_max_rx_rate_for_full_scan">16</integer>
@@ -109,41 +101,6 @@
     <string  translatable="false" name="config_wifi_random_mac_oui">DA-A1-19</string>
     <string  translatable="false" name="config_wifi_framework_sap_2G_channel_list">1,6,11</string>
 
-    <bool translatable="false" name="config_wifi_framework_cellular_handover_enable_user_triggered_adjustment">true</bool>
-
-    <!-- Integer packet threshold used to allow scan while associated -->
-    <integer translatable="false" name="config_wifi_framework_associated_full_scan_tx_packet_threshold">5</integer>
-    <integer translatable="false" name="config_wifi_framework_associated_full_scan_rx_packet_threshold">10</integer>
-    <integer translatable="false" name="config_wifi_framework_associated_partial_scan_tx_packet_threshold">40</integer>
-    <integer translatable="false" name="config_wifi_framework_associated_partial_scan_rx_packet_threshold">80</integer>
-    <integer translatable="false" name="config_wifi_framework_network_switch_tx_packet_threshold">2</integer>
-    <integer translatable="false" name="config_wifi_framework_network_switch_rx_packet_threshold">20</integer>
-
-    <!-- Integer indicating wpa_supplicant scan interval in milliseconds -->
-    <integer translatable="false" name="config_wifi_supplicant_scan_interval">15000</integer>
-
-    <!-- Integer indicating amount of time failed networks areblacklisted for the purpose
-         of network switching in milliseconds -->
-    <integer translatable="false" name="config_wifi_network_switching_blacklist_time">172800000</integer>
-
-    <!-- Integer indicating wpa_supplicant scan interval when p2p is connected in milliseconds -->
-    <integer translatable="false" name="config_wifi_scan_interval_p2p_connected">60000</integer>
-
-    <!-- Integer indicating disconnect mode short scan interval in milliseconds -->
-    <integer translatable="false" name="config_wifi_disconnected_short_scan_interval">15000</integer>
-
-    <!-- Integer indicating associated partial scan short interval in milliseconds -->
-    <integer translatable="false" name="config_wifi_associated_short_scan_interval">20000</integer>
-
-    <!-- Integer indicating associated full scan backoff, representing a fraction: xx/8 -->
-    <integer translatable="false" name="config_wifi_framework_associated_full_scan_backoff">12</integer>
-
-    <!-- Integer indicating associated full scan max interval in milliseconds -->
-    <integer translatable="false" name="config_wifi_framework_associated_full_scan_max_interval">300000</integer>
-
-    <!-- Integer indicating associated full scan max total dwell time in milliseconds -->
-    <integer translatable="false" name="config_wifi_framework_associated_full_scan_max_total_dwell_time">500</integer>
-
     <!-- Integer indicating associated full scan max num active channels -->
     <integer translatable="false" name="config_wifi_framework_associated_partial_scan_max_num_active_channels">6</integer>
 
@@ -152,9 +109,6 @@
 
     <!-- Integer delay in milliseconds before set wlan interface up during watchdog recovery -->
     <integer translatable="false" name="config_wifi_framework_recovery_timeout_delay">2000</integer>
-
-    <!-- Integer indicating how to handle beacons with uninitialized RSSI value of 0 -->
-    <integer translatable="false" name="config_wifi_framework_scan_result_rssi_level_patchup_value">-85</integer>
 
     <!-- Boolean indicating associated network selection is allowed -->
     <bool translatable="false" name="config_wifi_framework_enable_associated_network_selection">true</bool>
@@ -171,9 +125,6 @@
     <!-- Boolean indicating whether framework should use detection of softAP mode to set the tx
          power limit for meeting SAR requirements -->
     <bool translatable="false" name="config_wifi_framework_enable_soft_ap_sar_tx_power_limit">false</bool>
-
-    <!-- Wifi driver supports batched scan -->
-    <bool translatable="false" name="config_wifi_batched_scan_supported">false</bool>
 
     <!-- Wifi driver supports Automatic channel selection (ACS) for softap -->
     <bool translatable="false" name="config_wifi_softap_acs_supported">false</bool>
