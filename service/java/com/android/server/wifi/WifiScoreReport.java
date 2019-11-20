@@ -114,14 +114,15 @@ public class WifiScoreReport {
 
         score = s2;
 
-        if (wifiInfo.score > ConnectedScore.WIFI_TRANSITION_SCORE
+        if (wifiInfo.getScore() > ConnectedScore.WIFI_TRANSITION_SCORE
                  && score <= ConnectedScore.WIFI_TRANSITION_SCORE
-                 && wifiInfo.txSuccessRate >= mScoringParams.getYippeeSkippyPacketsPerSecond()
-                 && wifiInfo.rxSuccessRate >= mScoringParams.getYippeeSkippyPacketsPerSecond()) {
+                 && wifiInfo.getTxSuccessRate() >= mScoringParams.getYippeeSkippyPacketsPerSecond()
+                 && wifiInfo.getRxSuccessRate() >= mScoringParams.getYippeeSkippyPacketsPerSecond()
+        ) {
             score = ConnectedScore.WIFI_TRANSITION_SCORE + 1;
         }
 
-        if (wifiInfo.score > ConnectedScore.WIFI_TRANSITION_SCORE
+        if (wifiInfo.getScore() > ConnectedScore.WIFI_TRANSITION_SCORE
                  && score <= ConnectedScore.WIFI_TRANSITION_SCORE) {
             // We don't want to trigger a downward breach unless the rssi is
             // below the entry threshold.  There is noise in the measured rssi, and
@@ -135,16 +136,16 @@ public class WifiScoreReport {
             }
         }
 
-        if (wifiInfo.score >= ConnectedScore.WIFI_TRANSITION_SCORE
+        if (wifiInfo.getScore() >= ConnectedScore.WIFI_TRANSITION_SCORE
                  && score < ConnectedScore.WIFI_TRANSITION_SCORE) {
             mLastDownwardBreachTimeMillis = millis;
-        } else if (wifiInfo.score < ConnectedScore.WIFI_TRANSITION_SCORE
+        } else if (wifiInfo.getScore() < ConnectedScore.WIFI_TRANSITION_SCORE
                  && score >= ConnectedScore.WIFI_TRANSITION_SCORE) {
             // Staying at below transition score for a certain period of time
             // to prevent going back to wifi network again in a short time.
             long elapsedMillis = millis - mLastDownwardBreachTimeMillis;
             if (elapsedMillis < MIN_TIME_TO_KEEP_BELOW_TRANSITION_SCORE_MILLIS) {
-                score = wifiInfo.score;
+                score = wifiInfo.getScore();
             }
         }
 
@@ -159,11 +160,11 @@ public class WifiScoreReport {
         logLinkMetrics(wifiInfo, millis, netId, s1, s2, score);
 
         //report score
-        if (score != wifiInfo.score) {
+        if (score != wifiInfo.getScore()) {
             if (mVerboseLoggingEnabled) {
                 Log.d(TAG, "report new wifi score " + score);
             }
-            wifiInfo.score = score;
+            wifiInfo.setScore(score);
             if (networkAgent != null) {
                 networkAgent.sendNetworkScore(score);
             }
@@ -251,10 +252,10 @@ public class WifiScoreReport {
         int freq = wifiInfo.getFrequency();
         int txLinkSpeed = wifiInfo.getLinkSpeed();
         int rxLinkSpeed = wifiInfo.getRxLinkSpeedMbps();
-        double txSuccessRate = wifiInfo.txSuccessRate;
-        double txRetriesRate = wifiInfo.txRetriesRate;
-        double txBadRate = wifiInfo.txBadRate;
-        double rxSuccessRate = wifiInfo.rxSuccessRate;
+        double txSuccessRate = wifiInfo.getTxSuccessRate();
+        double txRetriesRate = wifiInfo.getTxRetriesRate();
+        double txBadRate = wifiInfo.getTxBadRate();
+        double rxSuccessRate = wifiInfo.getRxSuccessRate();
         String s;
         try {
             String timestamp = new SimpleDateFormat("MM-dd HH:mm:ss.SSS").format(new Date(now));

@@ -235,8 +235,8 @@ public class WifiNetworkSelector {
         int currentRssi = wifiInfo.getRssi();
         boolean hasQualifiedRssi = currentRssi
                 > mScoringParams.getSufficientRssi(wifiInfo.getFrequency());
-        boolean hasActiveStream = (wifiInfo.txSuccessRate > mStayOnNetworkMinimumTxRate)
-                || (wifiInfo.rxSuccessRate > mStayOnNetworkMinimumRxRate);
+        boolean hasActiveStream = (wifiInfo.getTxSuccessRate() > mStayOnNetworkMinimumTxRate)
+                || (wifiInfo.getRxSuccessRate() > mStayOnNetworkMinimumRxRate);
         if (hasQualifiedRssi && hasActiveStream) {
             localLog("Stay on current network because of good RSSI and ongoing traffic");
             return true;
@@ -700,7 +700,7 @@ public class WifiNetworkSelector {
 
         // Filter out unwanted networks.
         mFilteredNetworks = filterScanResults(scanDetails, bssidBlacklist,
-                connected && wifiInfo.score >= WIFI_POOR_SCORE, currentBssid);
+                connected && wifiInfo.getScore() >= WIFI_POOR_SCORE, currentBssid);
         if (mFilteredNetworks.size() == 0) {
             return null;
         }

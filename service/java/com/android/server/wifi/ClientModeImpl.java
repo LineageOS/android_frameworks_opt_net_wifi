@@ -69,7 +69,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiNetworkAgentSpecifier;
-import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.p2p.IWifiP2pManager;
@@ -1911,18 +1910,18 @@ public class ClientModeImpl extends StateMachine {
                 }
                 sb.append(" rssi=").append(mWifiInfo.getRssi());
                 sb.append(" f=").append(mWifiInfo.getFrequency());
-                sb.append(" sc=").append(mWifiInfo.score);
+                sb.append(" sc=").append(mWifiInfo.getScore());
                 sb.append(" link=").append(mWifiInfo.getLinkSpeed());
-                sb.append(String.format(" tx=%.1f,", mWifiInfo.txSuccessRate));
-                sb.append(String.format(" %.1f,", mWifiInfo.txRetriesRate));
-                sb.append(String.format(" %.1f ", mWifiInfo.txBadRate));
-                sb.append(String.format(" rx=%.1f", mWifiInfo.rxSuccessRate));
+                sb.append(String.format(" tx=%.1f,", mWifiInfo.getTxSuccessRate()));
+                sb.append(String.format(" %.1f,", mWifiInfo.getTxRetriesRate()));
+                sb.append(String.format(" %.1f ", mWifiInfo.getTxBadRate()));
+                sb.append(String.format(" rx=%.1f", mWifiInfo.getRxSuccessRate()));
                 sb.append(String.format(" bcn=%d", mRunningBeaconCount));
                 report = reportOnTime();
                 if (report != null) {
                     sb.append(" ").append(report);
                 }
-                sb.append(String.format(" score=%d", mWifiInfo.score));
+                sb.append(String.format(" score=%d", mWifiInfo.getScore()));
                 break;
             case CMD_START_CONNECT:
                 sb.append(" ");
@@ -2329,10 +2328,10 @@ public class ClientModeImpl extends StateMachine {
 
     // Polling has completed, hence we won't have a score anymore
     private void cleanWifiScore() {
-        mWifiInfo.txBadRate = 0;
-        mWifiInfo.txSuccessRate = 0;
-        mWifiInfo.txRetriesRate = 0;
-        mWifiInfo.rxSuccessRate = 0;
+        mWifiInfo.setTxBadRate(0);
+        mWifiInfo.setTxSuccessRate(0);
+        mWifiInfo.setTxRetriesRate(0);
+        mWifiInfo.setRxSuccessRate(0);
         mWifiScoreReport.reset();
         mLastLinkLayerStats = null;
     }
@@ -2507,7 +2506,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setTrusted(config.trusted);
             mWifiInfo.setOsuAp(config.osu);
             if (config.fromWifiNetworkSpecifier || config.fromWifiNetworkSuggestion) {
-                mWifiInfo.setNetworkSuggestionOrSpecifierPackageName(config.creatorName);
+                mWifiInfo.setAppPackageName(config.creatorName);
             }
 
             // Set meteredHint if scan result says network is expensive
@@ -2737,7 +2736,7 @@ public class ClientModeImpl extends StateMachine {
                     level2FailureCode, connectivityFailureCode);
             String bssid = mLastBssid == null ? mTargetRoamBSSID : mLastBssid;
             String ssid = mWifiInfo.getSSID();
-            if (WifiSsid.NONE.equals(ssid)) {
+            if (WifiManager.UNKNOWN_SSID.equals(ssid)) {
                 ssid = getTargetSsid();
             }
             int bssidBlocklistMonitorReason = convertToBssidBlocklistMonitorFailureReason(
@@ -4056,7 +4055,7 @@ public class ClientModeImpl extends StateMachine {
             result.removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
         }
 
-        if (!mWifiInfo.getSSID().equals(WifiSsid.NONE)) {
+        if (!mWifiInfo.getSSID().equals(WifiManager.UNKNOWN_SSID)) {
             result.setSSID(mWifiInfo.getSSID());
         } else {
             result.setSSID(null);
@@ -4123,7 +4122,8 @@ public class ClientModeImpl extends StateMachine {
             // Ignore if we're not the current networkAgent.
             if (this != mNetworkAgent) return;
             if (mVerboseLoggingEnabled) {
-                log("WifiNetworkAgent -> Wifi unwanted score " + Integer.toString(mWifiInfo.score));
+                log("WifiNetworkAgent -> Wifi unwanted score " + Integer.toString(
+                        mWifiInfo.getScore()));
             }
             unwantedNetwork(NETWORK_STATUS_UNWANTED_DISCONNECT);
         }
@@ -4136,13 +4136,13 @@ public class ClientModeImpl extends StateMachine {
             if (status == NetworkAgent.INVALID_NETWORK) {
                 if (mVerboseLoggingEnabled) {
                     log("WifiNetworkAgent -> Wifi networkStatus invalid, score="
-                            + Integer.toString(mWifiInfo.score));
+                            + Integer.toString(mWifiInfo.getScore()));
                 }
                 unwantedNetwork(NETWORK_STATUS_UNWANTED_VALIDATION_FAILED);
             } else if (status == NetworkAgent.VALID_NETWORK) {
                 if (mVerboseLoggingEnabled) {
                     log("WifiNetworkAgent -> Wifi networkStatus valid, score= "
-                            + Integer.toString(mWifiInfo.score));
+                            + Integer.toString(mWifiInfo.getScore()));
                 }
                 mWifiMetrics.logStaEvent(StaEvent.TYPE_NETWORK_AGENT_VALID_NETWORK);
                 doNetworkStatus(status);

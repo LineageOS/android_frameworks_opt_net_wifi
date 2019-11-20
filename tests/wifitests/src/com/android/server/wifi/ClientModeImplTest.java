@@ -2203,7 +2203,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         wifiInfo = mCmi.getWifiInfo();
         assertNull(wifiInfo.getBSSID());
-        assertEquals(WifiSsid.NONE, wifiInfo.getSSID());
+        assertEquals(WifiManager.UNKNOWN_SSID, wifiInfo.getSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, wifiInfo.getNetworkId());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
     }
@@ -3767,7 +3767,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+                mCmi.getWifiInfo().getAppPackageName());
     }
 
     /**
@@ -3784,7 +3784,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+                mCmi.getWifiInfo().getAppPackageName());
     }
 
     /**

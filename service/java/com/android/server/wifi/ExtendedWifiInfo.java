@@ -78,23 +78,23 @@ public class ExtendedWifiInfo extends WifiInfo {
             double lastSampleWeight = Math.exp(-1.0 * timeDelta / FILTER_TIME_CONSTANT);
             double currentSampleWeight = 1.0 - lastSampleWeight;
 
-            txBadRate = txBadRate * lastSampleWeight
+            setTxBadRate(getTxBadRate() * lastSampleWeight
                     + (txbad - txBad) * 1000.0 / timeDelta
-                    * currentSampleWeight;
-            txSuccessRate = txSuccessRate * lastSampleWeight
+                    * currentSampleWeight);
+            setTxSuccessRate(getTxSuccessRate() * lastSampleWeight
                     + (txgood - txSuccess) * 1000.0 / timeDelta
-                    * currentSampleWeight;
-            rxSuccessRate = rxSuccessRate * lastSampleWeight
+                    * currentSampleWeight);
+            setRxSuccessRate(getRxSuccessRate() * lastSampleWeight
                     + (rxgood - rxSuccess) * 1000.0 / timeDelta
-                    * currentSampleWeight;
-            txRetriesRate = txRetriesRate * lastSampleWeight
+                    * currentSampleWeight);
+            setTxRetriesRate(getTxRetriesRate() * lastSampleWeight
                     + (txretries - txRetries) * 1000.0 / timeDelta
-                    * currentSampleWeight;
+                    * currentSampleWeight);
         } else {
-            txBadRate = 0;
-            txSuccessRate = 0;
-            rxSuccessRate = 0;
-            txRetriesRate = 0;
+            setTxBadRate(0);
+            setTxSuccessRate(0);
+            setRxSuccessRate(0);
+            setTxRetriesRate(0);
             mLastSource = source;
         }
         txBad = txbad;

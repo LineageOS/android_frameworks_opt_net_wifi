@@ -100,10 +100,10 @@ public class WifiLinkLayerStatsTest extends WifiBaseTest {
             mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
         }
         // assertEquals(double, double, double) takes a tolerance as the third argument
-        assertEquals((double) txg, mWifiInfo.txSuccessRate, txg * 0.02);
-        assertEquals((double) txr, mWifiInfo.txRetriesRate, txr * 0.02);
-        assertEquals((double) txb, mWifiInfo.txBadRate, txb * 0.02);
-        assertEquals((double) rxg, mWifiInfo.rxSuccessRate, rxg * 0.02);
+        assertEquals((double) txg, mWifiInfo.getTxSuccessRate(), txg * 0.02);
+        assertEquals((double) txr, mWifiInfo.getTxRetriesRate(), txr * 0.02);
+        assertEquals((double) txb, mWifiInfo.getTxBadRate(), txb * 0.02);
+        assertEquals((double) rxg, mWifiInfo.getRxSuccessRate(), rxg * 0.02);
 
         assertEquals(mWifiInfo.txSuccess, n * txg);
         assertEquals(mWifiInfo.txRetries, n * txr);
@@ -119,11 +119,11 @@ public class WifiLinkLayerStatsTest extends WifiBaseTest {
         bumpCounters(mWifiLinkLayerStats, 999999999, 999999999, 999999999, 99999999);
         mWifiLinkLayerStats.timeStampInMs = 999999999;
         mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
-        assertEquals(0.0, mWifiInfo.txSuccessRate, 0.0001);
+        assertEquals(0.0, mWifiInfo.getTxSuccessRate(), 0.0001);
         bumpCounters(mWifiLinkLayerStats, 1, 1, 1, 1);
         mWifiLinkLayerStats.timeStampInMs += 1;
         mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
-        assertEquals(0.33, mWifiInfo.txSuccessRate, 0.01);
+        assertEquals(0.33, mWifiInfo.getTxSuccessRate(), 0.01);
     }
 
     /**
@@ -135,33 +135,35 @@ public class WifiLinkLayerStatsTest extends WifiBaseTest {
         bumpCounters(mWifiLinkLayerStats, 999, 999, 999, 999);
         mWifiLinkLayerStats.timeStampInMs = 999999999;
         mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
-        assertEquals(0.0, mWifiInfo.txSuccessRate, 0.0001);
-        assertEquals(0.0, mWifiInfo.rxSuccessRate, 0.0001);
+        assertEquals(0.0, mWifiInfo.getTxSuccessRate(), 0.0001);
+        assertEquals(0.0, mWifiInfo.getRxSuccessRate(), 0.0001);
         bumpCounters(mWifiLinkLayerStats, 1_000_000_000, 777000, 66600, 1_000_100_000);
         mWifiLinkLayerStats.timeStampInMs += 10_000;
         mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
-        assertTrue("" + mWifiInfo + " " + mWifiLinkLayerStats, mWifiInfo.txSuccessRate > 0.95e+8);
-        assertTrue("" + mWifiInfo + " " + mWifiLinkLayerStats, mWifiInfo.rxSuccessRate > 0.95e+8);
+        assertTrue("" + mWifiInfo + " " + mWifiLinkLayerStats,
+                mWifiInfo.getTxSuccessRate() > 0.95e+8);
+        assertTrue("" + mWifiInfo + " " + mWifiLinkLayerStats,
+                mWifiInfo.getRxSuccessRate() > 0.95e+8);
         // Now update with traffic counters
         mWifiLinkLayerStats.timeStampInMs += 10_000;
         mWifiInfo.updatePacketRates(2_000_000_000L, 2_000_000_000L,
                 mWifiLinkLayerStats.timeStampInMs);
         // Despite the increase, the rates should be zero after the change in source
-        assertEquals(0.0, mWifiInfo.txSuccessRate, 0.0001);
-        assertEquals(0.0, mWifiInfo.rxSuccessRate, 0.0001);
+        assertEquals(0.0, mWifiInfo.getTxSuccessRate(), 0.0001);
+        assertEquals(0.0, mWifiInfo.getRxSuccessRate(), 0.0001);
         assertEquals(0, mWifiInfo.txBad);
         assertEquals(0, mWifiInfo.txRetries);
         // Make sure that updates from this source work, too
         mWifiLinkLayerStats.timeStampInMs += 10_000;
         mWifiInfo.updatePacketRates(3_000_000_000L, 3_000_000_000L,
                 mWifiLinkLayerStats.timeStampInMs);
-        assertTrue(mWifiInfo.txSuccessRate > 0.95e+8);
-        assertTrue(mWifiInfo.rxSuccessRate > 0.95e+8);
+        assertTrue(mWifiInfo.getTxSuccessRate() > 0.95e+8);
+        assertTrue(mWifiInfo.getRxSuccessRate() > 0.95e+8);
         // Switch back to using link layer stats
         mWifiLinkLayerStats.timeStampInMs += 10_000;
         bumpCounters(mWifiLinkLayerStats, 1_000_000_000, 777000, 66600, 1_000_100_000);
         mWifiInfo.updatePacketRates(mWifiLinkLayerStats, mWifiLinkLayerStats.timeStampInMs);
-        assertEquals(0.0, mWifiInfo.txSuccessRate, 0.0001);
-        assertEquals(0.0, mWifiInfo.rxSuccessRate, 0.0001);
+        assertEquals(0.0, mWifiInfo.getTxSuccessRate(), 0.0001);
+        assertEquals(0.0, mWifiInfo.getRxSuccessRate(), 0.0001);
     }
 }

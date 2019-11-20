@@ -1217,7 +1217,7 @@ public class PasspointManagerTest extends WifiBaseTest {
                 friendlyNames.forEach(e -> friendlyNameMap.put(e.getLanguage(), e.getText()));
 
                 expectedOsuProvidersForDomainId.add(new OsuProvider(
-                        null, friendlyNameMap, serviceDescription,
+                        (WifiSsid) null, friendlyNameMap, serviceDescription,
                         serverUri, nai, methodList, null));
 
                 // add All OSU Providers for AP1.
@@ -1229,7 +1229,7 @@ public class PasspointManagerTest extends WifiBaseTest {
                     providerInfoListOfAp2.add(new OsuProviderInfo(
                             friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
                     expectedOsuProvidersForDomainId2.add(new OsuProvider(
-                            null, friendlyNameMap, serviceDescription,
+                            (WifiSsid) null, friendlyNameMap, serviceDescription,
                             serverUri, nai, methodList,
                             null));
                 }

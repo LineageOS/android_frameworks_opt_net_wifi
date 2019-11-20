@@ -629,7 +629,7 @@ public class WificondControlTest extends WifiBaseTest {
 
     /**
      * Verifies that scan result's carrier network info {@link ScanResult#isCarrierAp} and
-     * {@link ScanResult#getCarrierApEapType} is set appropriated based on the carrier network
+     * {@link ScanResult#carrierApEapType} is set appropriated based on the carrier network
      * config.
      *
      * @throws Exception
