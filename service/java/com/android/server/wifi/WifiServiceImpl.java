@@ -53,7 +53,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
-import android.net.wifi.IScanResultsListener;
+import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
@@ -81,7 +81,6 @@ import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -3495,41 +3494,35 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     /**
-     * See {@link WifiManager#addScanResultsListener(Executor, WifiManager.ScanResultsListener)}
+     * See {@link WifiManager#registerScanResultsCallback(WifiManager.ScanResultsCallback)}
      */
-    public void registerScanResultsListener(IBinder binder, @NonNull IScanResultsListener listener,
-            int listenerIdentifier) {
-        if (binder == null) {
-            throw new IllegalArgumentException("Binder must not be null");
-        }
-        if (listener == null) {
-            throw new IllegalArgumentException("listener must not be null");
+    public void registerScanResultsCallback(@NonNull IScanResultsCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("callback must not be null");
         }
         enforceAccessPermission();
 
         if (mVerboseLoggingEnabled) {
-            mLog.info("registerScanResultListener uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("registerScanResultsCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         mWifiThreadRunner.post(() -> {
-            if (!mWifiInjector.getScanRequestProxy().registerScanResultsListener(binder, listener,
-                    listenerIdentifier)) {
-                Log.e(TAG, "registerScanResultListener: Failed to add callback");
+            if (!mWifiInjector.getScanRequestProxy().registerScanResultsCallback(callback)) {
+                Log.e(TAG, "registerScanResultsCallback: Failed to register callback");
             }
         });
     }
 
     /**
-     * See {@link WifiManager#removeScanResultsListener(WifiManager.ScanResultsListener)}
+     * See {@link WifiManager#registerScanResultsCallback(WifiManager.ScanResultsCallback)}
      */
-    public void unregisterScanResultsListener(int listenerIdentifier) {
+    public void unregisterScanResultsCallback(@NonNull IScanResultsCallback callback) {
         if (mVerboseLoggingEnabled) {
             mLog.info("unregisterScanResultCallback uid=%").c(Binder.getCallingUid()).flush();
         }
         enforceAccessPermission();
         // post operation to handler thread
-        mWifiThreadRunner.post(() ->
-                mWifiInjector.getScanRequestProxy()
-                        .unregisterScanResultsListener(listenerIdentifier));
+        mWifiThreadRunner.post(() -> mWifiInjector.getScanRequestProxy()
+                        .unregisterScanResultsCallback(callback));
 
     }
 
