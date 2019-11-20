@@ -30,7 +30,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 import android.app.AppOpsManager;
@@ -889,7 +888,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
      * {@link WifiNetworkSuggestion#isAppInteractionRequired} flag set.
      * b) The app holds location permission.
      * This should trigger a broadcast to the app.
-     * This should trigger not a connection failure callback to the app.
+     * This should not trigger a connection failure callback to the app.
      */
     @Test
     public void testOnNetworkConnectionSuccessWithOneMatch() throws Exception {
@@ -913,7 +912,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 new WifiConfiguration(networkSuggestion.wifiConfiguration);
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
-        connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorName = TEST_PACKAGE_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
 
@@ -958,6 +958,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
                 connectNetwork, TEST_BSSID);
@@ -1002,6 +1003,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP, connectNetwork, TEST_BSSID);
@@ -1057,7 +1059,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 new WifiConfiguration(networkSuggestion1.wifiConfiguration);
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
-        connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorName = TEST_PACKAGE_1;
+        connectNetwork.creatorUid = TEST_UID_1;
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
@@ -1065,25 +1068,16 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
         verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
 
-        // Verify that the correct broadcasts were sent out.
-        for (int i = 0; i < 2; i++) {
-            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
-            mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                    packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
-                    nullable(String.class));
-            assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
-            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
-                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
-                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
-            } else {
-                fail();
-            }
-        }
+        ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+        mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
+                nullable(String.class));
+        assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
+        assertEquals(packageNameCaptor.getValue(), TEST_PACKAGE_1);
+        assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
 
         // Verify no more broadcast were sent out.
         mInorder.verifyNoMoreInteractions();
@@ -1127,7 +1121,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 new WifiConfiguration(networkSuggestion1.wifiConfiguration);
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
-        connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorName = TEST_PACKAGE_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
@@ -1135,24 +1130,16 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
 
         // Verify that the correct broadcasts were sent out.
-        for (int i = 0; i < 2; i++) {
-            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
-            mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                    packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
-                    nullable(String.class));
-            assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
-            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
-                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
-                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
-            } else {
-                fail();
-            }
-        }
+        ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+        mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
+                nullable(String.class));
+        assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
+        assertEquals(packageNameCaptor.getValue(), TEST_PACKAGE_1);
+        assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
 
         // Verify no more broadcast were sent out.
         mInorder.verifyNoMoreInteractions();
@@ -1198,7 +1185,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 new WifiConfiguration(networkSuggestion1.wifiConfiguration);
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
-        connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorName = TEST_PACKAGE_1;
+        connectNetwork.creatorUid = TEST_UID_1;
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
@@ -1207,24 +1195,16 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         verify(mWifiMetrics).incrementNetworkSuggestionApiNumConnectSuccess();
 
         // Verify that the correct broadcasts were sent out.
-        for (int i = 0; i < 2; i++) {
-            ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
-            ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
-            mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
-                    packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
-                    nullable(String.class));
-            assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
-            if (packageNameCaptor.getValue().equals(TEST_PACKAGE_1)) {
-                assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
-            } else if (packageNameCaptor.getValue().equals(TEST_PACKAGE_2)) {
-                assertEquals(Integer.valueOf(TEST_UID_2), uidCaptor.getValue());
-                validatePostConnectionBroadcastSent(TEST_PACKAGE_2, networkSuggestion2);
-            } else {
-                fail();
-            }
-        }
+        ArgumentCaptor<String> packageNameCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> featureIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Integer> uidCaptor = ArgumentCaptor.forClass(Integer.class);
+        mInorder.verify(mWifiPermissionsUtil).enforceCanAccessScanResults(
+                packageNameCaptor.capture(), featureIdCaptor.capture(), uidCaptor.capture(),
+                nullable(String.class));
+        assertEquals(TEST_FEATURE, featureIdCaptor.getValue());
+        assertEquals(packageNameCaptor.getValue(), TEST_PACKAGE_1);
+        assertEquals(Integer.valueOf(TEST_UID_1), uidCaptor.getValue());
+        validatePostConnectionBroadcastSent(TEST_PACKAGE_1, networkSuggestion1);
 
         // Verify no more broadcast were sent out.
         mInorder.verifyNoMoreInteractions();
@@ -1259,6 +1239,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
@@ -1299,6 +1280,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
@@ -1342,6 +1324,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
 
         // Simulate connecting to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
@@ -1569,6 +1552,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
 
@@ -1604,6 +1588,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
 
@@ -1617,8 +1602,9 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
 
 
     /**
-     * Verify that we do not disconnect from the network if there are network suggestion from
-     * multiple apps matching the connected network when one of the apps is removed.
+     * Verify that we do not disconnect from the network if removed suggestions is not currently
+     * connected. Verify that we do disconnect from the network is removed suggestions is currently
+     * connected.
      */
     @Test
     public void testRemoveAppMatchingConnectionSuccessWithMultipleMatch() {
@@ -1653,17 +1639,18 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
 
-        // Now remove one of the apps and ensure we did not trigger a disconnect.
+        // Now remove the current connected app and ensure we did trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
-        verify(mWifiConfigManager, never()).removeSuggestionConfiguredNetwork(anyString());
-
-        // Now remove the other app and ensure we trigger a disconnect.
-        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
         verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
-                networkSuggestion2.wifiConfiguration.configKey());
+                networkSuggestion1.wifiConfiguration.configKey());
+
+        // Now remove the other app and ensure we did not trigger a disconnect.
+        mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);
+        verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(anyString());
     }
 
     /**
@@ -1716,6 +1703,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         // Simulate failing connection to the network.
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_DHCP, connectNetwork, TEST_BSSID);
@@ -2444,6 +2432,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         connectNetwork.fromWifiNetworkSuggestion = true;
         connectNetwork.ephemeral = true;
         connectNetwork.creatorName = TEST_APP_NAME_1;
+        connectNetwork.creatorUid = TEST_UID_1;
         mWifiNetworkSuggestionsManager.handleConnectionAttemptEnded(
                 WifiMetrics.ConnectionEvent.FAILURE_NONE, connectNetwork, TEST_BSSID);
 
