@@ -347,6 +347,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock WifiConfigManager mWifiConfigManager;
     @Mock WifiNative mWifiNative;
     @Mock WifiScoreCard mWifiScoreCard;
+    @Mock WifiHealthMonitor mWifiHealthMonitor;
     @Mock WifiTrafficPoller mWifiTrafficPoller;
     @Mock WifiConnectivityManager mWifiConnectivityManager;
     @Mock WifiStateTracker mWifiStateTracker;
@@ -430,6 +431,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiNetworkSuggestionsManager())
                 .thenReturn(mWifiNetworkSuggestionsManager);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
+        when(mWifiInjector.getWifiHealthMonitor()).thenReturn(mWifiHealthMonitor);
         when(mWifiInjector.getWifiLockManager()).thenReturn(mWifiLockManager);
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
@@ -3143,9 +3145,10 @@ public class ClientModeImplTest extends WifiBaseTest {
     public void testScoreCardNoteConnectionAttemptAfterCmdStartConnect() throws Exception {
         initializeAndAddNetworkAndVerifySuccess();
         mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
-        verify(mWifiScoreCard, never()).noteConnectionAttempt(any());
+        verify(mWifiScoreCard, never()).noteConnectionAttempt(any(), anyInt(), anyString());
         mLooper.dispatchAll();
-        verify(mWifiScoreCard).noteConnectionAttempt(any());
+        verify(mWifiScoreCard).noteConnectionAttempt(any(), anyInt(), anyString());
+        verify(mWifiConfigManager).findScanRssi(anyInt(), anyInt());
         // But don't expect to see connection success yet
         verify(mWifiScoreCard, never()).noteIpConfiguration(any());
         // And certainly not validation success
@@ -3167,24 +3170,28 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify that score card is notified when wifi is disabled while disconnected
+     * Verify that score card/health monitor are notified when wifi is disabled while disconnected
      */
     @Test
     public void testScoreCardNoteWifiDisabledWhileDisconnected() throws Exception {
         // connecting and disconnecting shouldn't note wifi disabled
         disconnect();
         mLooper.dispatchAll();
+
+        verify(mWifiScoreCard).resetConnectionState();
         verify(mWifiScoreCard, never()).noteWifiDisabled(any());
+        verify(mWifiHealthMonitor, never()).setWifiEnabled(false);
 
         // disabling while disconnected should note wifi disabled
         mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
         mCmi.setOperationalMode(ClientModeImpl.DISABLED_MODE, null);
         mLooper.dispatchAll();
-        verify(mWifiScoreCard).noteWifiDisabled(any());
+        verify(mWifiScoreCard).resetConnectionState();
+        verify(mWifiHealthMonitor).setWifiEnabled(false);
     }
 
     /**
-     * Verify that score card is notified when wifi is disabled while connected
+     * Verify that score card/health monitor are notified when wifi is disabled while connected
      */
     @Test
     public void testScoreCardNoteWifiDisabledWhileConnected() throws Exception {
@@ -3192,6 +3199,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         connect();
         mLooper.dispatchAll();
         verify(mWifiScoreCard, never()).noteWifiDisabled(any());
+        verify(mWifiHealthMonitor, never()).setWifiEnabled(false);
 
         // disabling while connected should note wifi disabled
         mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
@@ -3199,6 +3207,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mWifiScoreCard).noteWifiDisabled(any());
+        verify(mWifiScoreCard).resetConnectionState();
+        verify(mWifiHealthMonitor).setWifiEnabled(false);
     }
 
     /**
@@ -3348,6 +3358,7 @@ public class ClientModeImplTest extends WifiBaseTest {
                 FRAMEWORK_NETWORK_ID, DISABLED_NO_INTERNET_TEMPORARY);
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE);
+        verify(mWifiScoreCard).noteValidationFailure(any());
     }
 
     /**
@@ -3717,6 +3728,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     public void testSetDeviceMobilityState() {
         mCmi.setDeviceMobilityState(WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
         verify(mWifiConnectivityManager).setDeviceMobilityState(
+                WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
+        verify(mWifiHealthMonitor).setDeviceMobilityState(
                 WifiManager.DEVICE_MOBILITY_STATE_STATIONARY);
     }
 

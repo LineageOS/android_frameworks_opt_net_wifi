@@ -41,6 +41,7 @@ message Network {
   repeated AccessPoint access_points = 3;  // The list of related APs
   optional int32 network_config_id = 4;    // The networkId of WifiConfiguration
   optional int32 network_agent_id = 5;     // Latest NetworkAgent netId
+  optional NetworkStats network_stats = 6; // Network stats of current SSID
 };
 
 // Describes an access point (single BSSID)
@@ -123,4 +124,66 @@ enum Event {
   ROAM_FAILURE = 11;
   LAST_POLL_BEFORE_SWITCH = 12;
   VALIDATION_SUCCESS = 13;
+  DISCONNECTION = 14;
+  CONNECTION_ATTEMPT = 15;
+  VALIDATION_FAILURE = 16;
 };
+
+message SystemInfoStats {
+  // Current software build information
+  optional SoftwareBuildInfo curr_software_build_info = 1;
+  // Previous software build information
+  optional SoftwareBuildInfo prev_software_build_info = 2;
+  // Most recent WiFi scan time
+  optional int64 last_scan_time_ms = 3;
+  // Number of access points found in most recent WiFi scan at 2G
+  optional int32 num_bssid_last_scan_2g = 4;
+  // Number of access points found in most recent WiFi scan above 2G
+  optional int32 num_bssid_last_scan_above_2g = 5;
+}
+
+message SoftwareBuildInfo {
+  // Android OS build version
+  optional string os_build_version = 1;
+  // WiFi stack APK version, 0 means not available.
+  optional int32 wifi_stack_version = 2;
+  // WiFi driver version
+  optional string wifi_driver_version = 3;
+  // WiFi firmware version
+  optional string wifi_firmware_version = 4;
+}
+
+message NetworkStats {
+  optional int32 id = 1;    // Concise id
+  // The most recent connection stats with current SW build that may be collected over days
+  optional ConnectionStats recent_stats = 2;
+  // Accumulated connection stats with current SW build
+  optional ConnectionStats stats_curr_build = 3;
+  // Accumulated connection stats with previous SW build
+  optional ConnectionStats stats_prev_build = 4;
+
+};
+
+message ConnectionStats {
+  // Number of connection attempts at high RSSI
+  optional int32 num_connection_attempt = 1;
+  // Number of connection failures at high RSSI
+  // Does not include wrong password but does include DHCP
+  optional int32 num_connection_failure = 2;
+  // Total connection duration in seconds
+  optional int32 connection_duration_sec = 3;
+  // Number of association rejections at high RSSI
+  optional int32 num_association_rejection = 4;
+  // Number of association timeouts at high RSSI
+  optional int32 num_association_timeout = 5;
+  // Number of authentication failures (excluding wrong password) at high RSSI
+  optional int32 num_authentication_failure = 6;
+  // Number of short connections caused by nonlocal disconnection at high RSSI
+  // or at high Tx speed with a recent RSSI poll
+  optional int32 num_short_connection_nonlocal = 7;
+  // Number of non-locally generated disconnections at high RSSI or Tx speed
+  // with a recent RSSI poll
+  optional int32 num_disconnection_nonlocal = 8;
+  // Number of disconnections with a recent RSSI poll
+  optional int32 num_disconnection = 9;
+}

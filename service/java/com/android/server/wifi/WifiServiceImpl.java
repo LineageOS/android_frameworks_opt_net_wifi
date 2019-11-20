@@ -283,6 +283,8 @@ public class WifiServiceImpl extends BaseWifiService {
     private final DppManager mDppManager;
     private final WifiApConfigStore mWifiApConfigStore;
     private final WifiThreadRunner mWifiThreadRunner;
+    private final MemoryStoreImpl mMemoryStoreImpl;
+    private final WifiScoreCard mWifiScoreCard;
 
     public WifiServiceImpl(Context context, WifiInjector wifiInjector, AsyncChannel asyncChannel) {
         mContext = context;
@@ -321,6 +323,9 @@ public class WifiServiceImpl extends BaseWifiService {
         mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
         mWifiConfigManager = mWifiInjector.getWifiConfigManager();
         mPasspointManager = mWifiInjector.getPasspointManager();
+        mWifiScoreCard = mWifiInjector.getWifiScoreCard();
+        mMemoryStoreImpl = new MemoryStoreImpl(mContext, mWifiInjector,
+                mWifiScoreCard,  mWifiInjector.getWifiHealthMonitor());
     }
 
     /**
@@ -390,14 +395,14 @@ public class WifiServiceImpl extends BaseWifiService {
             intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
             intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
+            intentFilter.addAction(Intent.ACTION_SHUTDOWN);
             boolean trackEmergencyCallState = mContext.getResources().getBoolean(
                     R.bool.config_wifi_turn_off_during_emergency_call);
             if (trackEmergencyCallState) {
                 intentFilter.addAction(TelephonyManager.ACTION_EMERGENCY_CALL_STATE_CHANGED);
             }
             mContext.registerReceiver(mReceiver, intentFilter);
-
-            new MemoryStoreImpl(mContext, mWifiInjector, mWifiInjector.getWifiScoreCard()).start();
+            mMemoryStoreImpl.start();
             if (!mWifiConfigManager.loadFromStore()) {
                 Log.e(TAG, "Failed to load from config store");
             }
@@ -527,6 +532,14 @@ public class WifiServiceImpl extends BaseWifiService {
             // Binder. Now we'll pass the current process's identity to startScan().
             startScan(mContext.getOpPackageName(), mContext.getFeatureId());
         }
+    }
+
+    private void handleShutDown() {
+        // There is no explicit disconnection event in clientModeImpl during shutdown.
+        // Call resetConnectionState() so that connection duration is calculated correctly
+        // before memory store write triggered by mMemoryStoreImpl.stop().
+        mWifiScoreCard.resetConnectionState();
+        mMemoryStoreImpl.stop();
     }
 
     private boolean checkNetworkSettingsPermission(int pid, int uid) {
@@ -2760,6 +2773,8 @@ public class WifiServiceImpl extends BaseWifiService {
                 mActiveModeWarden.emergencyCallStateChanged(inCall);
             } else if (action.equals(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)) {
                 handleIdleModeChanged();
+            } else if (action.equals(Intent.ACTION_SHUTDOWN)) {
+                handleShutDown();
             }
         }
     };
@@ -3084,6 +3099,7 @@ public class WifiServiceImpl extends BaseWifiService {
             mClientModeImpl.clearNetworkRequestUserApprovedAccessPoints();
             mWifiNetworkSuggestionsManager.clear();
             mWifiInjector.getWifiScoreCard().clear();
+            mWifiInjector.getWifiHealthMonitor().clear();
             notifyFactoryReset();
         });
     }

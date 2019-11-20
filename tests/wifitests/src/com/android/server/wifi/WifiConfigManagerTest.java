@@ -1688,7 +1688,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that ScanDetail added for a network is cached correctly.
+     * Verifies that ScanDetail added for a network is cached correctly with network ID
      */
     @Test
     public void testUpdateScanDetailForNetwork() {
@@ -1701,6 +1701,30 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         ScanResult scanResult = scanDetail.getScanResult();
 
         mWifiConfigManager.updateScanDetailForNetwork(result.getNetworkId(), scanDetail);
+
+        // Now retrieve the scan detail cache and ensure that the new scan detail is in cache.
+        ScanDetailCache retrievedScanDetailCache =
+                mWifiConfigManager.getScanDetailCacheForNetwork(result.getNetworkId());
+        assertEquals(1, retrievedScanDetailCache.size());
+        ScanResult retrievedScanResult = retrievedScanDetailCache.getScanResult(scanResult.BSSID);
+
+        ScanTestUtil.assertScanResultEquals(scanResult, retrievedScanResult);
+    }
+
+    /**
+     * Verifies that ScanDetail added for a network is cached correctly without network ID
+     */
+    @Test
+    public void testUpdateScanDetailCacheFromScanDetail() {
+        // First add the provided network.
+        WifiConfiguration testNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(testNetwork);
+
+        // Now create a dummy scan detail corresponding to the network.
+        ScanDetail scanDetail = createScanDetailForNetwork(testNetwork);
+        ScanResult scanResult = scanDetail.getScanResult();
+
+        mWifiConfigManager.updateScanDetailCacheFromScanDetail(scanDetail);
 
         // Now retrieve the scan detail cache and ensure that the new scan detail is in cache.
         ScanDetailCache retrievedScanDetailCache =
@@ -5670,5 +5694,44 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         NetworkUpdateResult networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
         assertNotEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
         assertFalse(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+    }
+
+    /**
+     * Verifies that findScanRssi returns valid RSSI when scan was done recently
+     */
+    @Test
+    public void testFindScanRssiRecentScan() {
+        // First add the provided network.
+        WifiConfiguration testNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(testNetwork);
+
+        when(mClock.getWallClockMillis()).thenReturn(TEST_WALLCLOCK_CREATION_TIME_MILLIS);
+        ScanDetail scanDetail = createScanDetailForNetwork(testNetwork, TEST_BSSID,
+                TEST_RSSI, TEST_FREQUENCY_1);
+        ScanResult scanResult = scanDetail.getScanResult();
+
+        mWifiConfigManager.updateScanDetailCacheFromScanDetail(scanDetail);
+        when(mClock.getWallClockMillis()).thenReturn(TEST_WALLCLOCK_CREATION_TIME_MILLIS + 2000);
+        assertEquals(mWifiConfigManager.findScanRssi(result.getNetworkId(), 5000), TEST_RSSI);
+    }
+
+    /**
+     * Verifies that findScanRssi returns INVALID_RSSI when scan was done a long time ago
+     */
+    @Test
+    public void testFindScanRssiOldScan() {
+        // First add the provided network.
+        WifiConfiguration testNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(testNetwork);
+
+        when(mClock.getWallClockMillis()).thenReturn(TEST_WALLCLOCK_CREATION_TIME_MILLIS);
+        ScanDetail scanDetail = createScanDetailForNetwork(testNetwork, TEST_BSSID,
+                TEST_RSSI, TEST_FREQUENCY_1);
+        ScanResult scanResult = scanDetail.getScanResult();
+
+        mWifiConfigManager.updateScanDetailCacheFromScanDetail(scanDetail);
+        when(mClock.getWallClockMillis()).thenReturn(TEST_WALLCLOCK_CREATION_TIME_MILLIS + 15000);
+        assertEquals(mWifiConfigManager.findScanRssi(result.getNetworkId(), 5000),
+                WifiInfo.INVALID_RSSI);
     }
 }

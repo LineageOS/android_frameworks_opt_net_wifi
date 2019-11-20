@@ -24,6 +24,8 @@ import static android.net.wifi.WifiManager.WIFI_STATE_ENABLED;
 import static android.net.wifi.WifiManager.WIFI_STATE_ENABLING;
 import static android.net.wifi.WifiManager.WIFI_STATE_UNKNOWN;
 
+import static com.android.server.wifi.WifiHealthMonitor.SCAN_RSSI_VALID_TIME_MS;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -213,6 +215,7 @@ public class ClientModeImpl extends StateMachine {
     private final BuildProperties mBuildProperties;
     private final WifiCountryCode mCountryCode;
     private final WifiScoreCard mWifiScoreCard;
+    private final WifiHealthMonitor mWifiHealthMonitor;
     private final WifiScoreReport mWifiScoreReport;
     private final SarManager mSarManager;
     private final WifiTrafficPoller mWifiTrafficPoller;
@@ -790,6 +793,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mProcessingActionListeners = new ExternalCallbackTracker<>(getHandler());
         mProcessingTxPacketCountListeners = new ExternalCallbackTracker<>(getHandler());
+        mWifiHealthMonitor = mWifiInjector.getWifiHealthMonitor();
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -1118,6 +1122,8 @@ public class ClientModeImpl extends StateMachine {
         mNetworkFactory.enableVerboseLogging(verbose);
         mLinkProbeManager.enableVerboseLogging(mVerboseLoggingEnabled);
         mMboOceController.enableVerboseLogging(mVerboseLoggingEnabled);
+        mWifiScoreCard.enableVerboseLogging(mVerboseLoggingEnabled);
+        mWifiHealthMonitor.enableVerboseLogging(mVerboseLoggingEnabled);
     }
 
     private boolean setRandomMacOui() {
@@ -2567,7 +2573,6 @@ public class ClientModeImpl extends StateMachine {
             mWifiInjector.getWakeupController().setLastDisconnectInfo(matchInfo);
             mWifiNetworkSuggestionsManager.handleDisconnect(wifiConfig, getCurrentBSSID());
         }
-
         stopRssiMonitoringOffload();
 
         clearTargetBssid("handleNetworkDisconnect");
@@ -2591,7 +2596,7 @@ public class ClientModeImpl extends StateMachine {
         /* Clear network properties */
         clearLinkProperties();
 
-        /* Cend event to CM & network change broadcast */
+        /* Send event to CM & network change broadcast */
         sendNetworkStateChangeBroadcast(mLastBssid);
 
         mLastBssid = null;
@@ -2734,21 +2739,37 @@ public class ClientModeImpl extends StateMachine {
      */
     private void reportConnectionAttemptEnd(int level2FailureCode, int connectivityFailureCode,
             int level2FailureReason) {
+        // if connected, this should be non-null.
+        WifiConfiguration configuration = getCurrentWifiConfiguration();
+        if (configuration == null) {
+            // If not connected, this should be non-null.
+            configuration = getTargetWifiConfiguration();
+        }
+
         if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NONE) {
-            mWifiScoreCard.noteConnectionFailure(mWifiInfo,
-                    level2FailureCode, connectivityFailureCode);
+
+            int bssidBlocklistMonitorReason = convertToBssidBlocklistMonitorFailureReason(
+                    level2FailureCode, level2FailureReason);
+
             String bssid = mLastBssid == null ? mTargetRoamBSSID : mLastBssid;
             String ssid = mWifiInfo.getSSID();
             if (WifiManager.UNKNOWN_SSID.equals(ssid)) {
                 ssid = getTargetSsid();
             }
-            int bssidBlocklistMonitorReason = convertToBssidBlocklistMonitorFailureReason(
-                    level2FailureCode, level2FailureReason);
+
+            if (level2FailureCode != WifiMetrics.ConnectionEvent.FAILURE_NETWORK_DISCONNECTION) {
+                int networkId = (configuration == null) ? WifiConfiguration.INVALID_NETWORK_ID
+                        : configuration.networkId;
+                int scanRssi = mWifiConfigManager.findScanRssi(networkId, SCAN_RSSI_VALID_TIME_MS);
+                mWifiScoreCard.noteConnectionFailure(mWifiInfo, scanRssi, ssid,
+                        bssidBlocklistMonitorReason);
+            }
             if (bssidBlocklistMonitorReason != -1) {
                 mBssidBlocklistMonitor.handleBssidConnectionFailure(bssid, ssid,
                         bssidBlocklistMonitorReason);
             }
         }
+
         boolean isAssociationRejection = level2FailureCode
                 == WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION;
         boolean isAuthenticationFailure = level2FailureCode
@@ -2759,12 +2780,7 @@ public class ClientModeImpl extends StateMachine {
             mConnectionFailureNotifier
                     .showFailedToConnectDueToNoRandomizedMacSupportNotification(mTargetNetworkId);
         }
-        // if connected, this should be non-null.
-        WifiConfiguration configuration = getCurrentWifiConfiguration();
-        if (configuration == null) {
-            // If not connected, this should be non-null.
-            configuration = getTargetWifiConfiguration();
-        }
+
         mWifiMetrics.endConnectionEvent(level2FailureCode, connectivityFailureCode,
                 level2FailureReason);
         mWifiConnectivityManager.handleConnectionAttemptEnded(level2FailureCode);
@@ -3471,6 +3487,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_DISCONNECTED);
             mWifiMetrics.logStaEvent(StaEvent.TYPE_WIFI_ENABLED);
             mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
+            mWifiHealthMonitor.setWifiEnabled(true);
         }
 
         @Override
@@ -3495,6 +3512,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.reset();
             mWifiInfo.setSupplicantState(SupplicantState.DISCONNECTED);
             mWifiScoreCard.noteSupplicantStateChanged(mWifiInfo);
+            mWifiHealthMonitor.setWifiEnabled(false);
             stopClientMode();
         }
 
@@ -3753,7 +3771,8 @@ public class ClientModeImpl extends StateMachine {
                         break;
                     }
                     // Update scorecard while there is still state from existing connection
-                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+                    int scanRssi = mWifiConfigManager.findScanRssi(netId, SCAN_RSSI_VALID_TIME_MS);
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo, scanRssi, config.SSID);
                     mTargetNetworkId = netId;
                     setTargetBssid(config, bssid);
                     mBssidBlocklistMonitor.updateFirmwareRoamingConfiguration(config.SSID);
@@ -5046,6 +5065,7 @@ public class ClientModeImpl extends StateMachine {
                                         mLastBssid, config.SSID,
                                         BssidBlocklistMonitor
                                                 .REASON_NETWORK_VALIDATION_FAILURE);
+                                mWifiScoreCard.noteValidationFailure(mWifiInfo);
                             }
                         }
                     }
@@ -5097,7 +5117,8 @@ public class ClientModeImpl extends StateMachine {
                                 WifiDiagnostics.REPORT_REASON_UNEXPECTED_DISCONNECT);
                     }
                     boolean localGen = message.arg1 == 1;
-                    if (!localGen) { // ignore disconnects initiatied by wpa_supplicant.
+                    if (!localGen) { // ignore disconnects initiated by wpa_supplicant.
+                        mWifiScoreCard.noteNonlocalDisconnect(message.arg2);
                         mBssidBlocklistMonitor.handleBssidConnectionFailure(mWifiInfo.getBSSID(),
                                 mWifiInfo.getSSID(),
                                 BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
@@ -5130,7 +5151,8 @@ public class ClientModeImpl extends StateMachine {
                         loge("CMD_START_ROAM and no config, bail out...");
                         break;
                     }
-                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo);
+                    int scanRssi = mWifiConfigManager.findScanRssi(netId, SCAN_RSSI_VALID_TIME_MS);
+                    mWifiScoreCard.noteConnectionAttempt(mWifiInfo, scanRssi, config.SSID);
                     setTargetBssid(config, bssid);
                     mTargetNetworkId = netId;
 
@@ -5664,6 +5686,7 @@ public class ClientModeImpl extends StateMachine {
      */
     public void setDeviceMobilityState(@DeviceMobilityState int state) {
         mWifiConnectivityManager.setDeviceMobilityState(state);
+        mWifiHealthMonitor.setDeviceMobilityState(state);
     }
 
     /**
