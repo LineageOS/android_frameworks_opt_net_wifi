@@ -31,6 +31,8 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.wifi.R;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -44,7 +46,6 @@ import java.util.List;
  */
 @SmallTest
 public class WifiLastResortWatchdogTest extends WifiBaseTest {
-    WifiLastResortWatchdog mLastResortWatchdog;
     @Mock WifiInjector mWifiInjector;
     @Mock WifiMetrics mWifiMetrics;
     @Mock SelfRecovery mSelfRecovery;
@@ -54,6 +55,8 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
     @Mock Context mContext;
     @Mock DeviceConfigFacade mDeviceConfigFacade;
 
+    private WifiLastResortWatchdog mLastResortWatchdog;
+    private MockResources mResources;
     private String[] mSsids = {"\"test1\"", "\"test2\"", "\"test3\"", "\"test4\""};
     private String[] mBssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4", "de:ad:ba:b1:e5:55",
             "c0:ff:ee:ee:e3:ee"};
@@ -75,13 +78,20 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
         when(mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled()).thenReturn(true);
         when(mDeviceConfigFacade.getAbnormalConnectionDurationMs()).thenReturn(
                         DEFAULT_ABNORMAL_CONNECTION_DURATION_MS);
+        mResources = new MockResources();
+        mResources.setBoolean(R.bool.config_wifi_watchdog_enabled, true);
+        when(mContext.getResources()).thenReturn(mResources);
+        createWifiLastResortWatchdog();
+        when(mClientModeImpl.getWifiInfo()).thenReturn(mWifiInfo);
+        when(mWifiInfo.getSSID()).thenReturn(TEST_NETWORK_SSID);
+    }
+
+    private void createWifiLastResortWatchdog() {
         WifiThreadRunner wifiThreadRunner = new WifiThreadRunner(new Handler(mLooper.getLooper()));
         mLastResortWatchdog = new WifiLastResortWatchdog(mWifiInjector, mContext, mClock,
                 mWifiMetrics, mClientModeImpl, mLooper.getLooper(), mDeviceConfigFacade,
                 wifiThreadRunner);
         mLastResortWatchdog.setBugReportProbability(1);
-        when(mClientModeImpl.getWifiInfo()).thenReturn(mWifiInfo);
-        when(mWifiInfo.getSSID()).thenReturn(TEST_NETWORK_SSID);
     }
 
     private List<Pair<ScanDetail, WifiConfiguration>> createFilteredQnsCandidates(String[] ssids,
@@ -2303,5 +2313,44 @@ public class WifiLastResortWatchdogTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mWifiMetrics, never()).incrementNumLastResortWatchdogSuccesses();
         verify(mClientModeImpl, never()).takeBugReport(anyString(), anyString());
+    }
+
+    /**
+     * Test recovery won't be triggered when feature is not enabled.
+     */
+    @Test
+    public void testWatchdogFeatureNotEnabled() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] frequencies = {2437};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {-60};
+        boolean[] isEphemeral = {false};
+        boolean[] hasEverConnected = {true};
+
+        // Set watchdog feature disabled
+        mResources.setBoolean(R.bool.config_wifi_watchdog_enabled, false);
+        createWifiLastResortWatchdog();
+
+        List<Pair<ScanDetail, WifiConfiguration>> candidates = createFilteredQnsCandidates(ssids,
+                bssids, frequencies, caps, levels, isEphemeral, hasEverConnected);
+        mLastResortWatchdog.updateAvailableNetworks(candidates);
+
+        // Ensure new networks have zero'ed failure counts
+        for (int i = 0; i < ssids.length; i++) {
+            assertFailureCountEquals(bssids[i], 0, 0, 0);
+        }
+
+        // Increment failure counts
+        for (int i = 0; i < WifiLastResortWatchdog.FAILURE_THRESHOLD; i++) {
+            mLastResortWatchdog.noteConnectionFailureAndTriggerIfNeeded(
+                    ssids[0], bssids[0], WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+        }
+
+        // Verify watchdog never trigger recovery
+        verify(mWifiMetrics, never()).incrementNumLastResortWatchdogTriggers();
+        // Verify watchdog still trigger bugreport
+        mLooper.dispatchAll();
+        verify(mClientModeImpl, times(1)).takeBugReport(anyString(), anyString());
     }
 }
