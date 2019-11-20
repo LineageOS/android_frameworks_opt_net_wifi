@@ -1675,6 +1675,19 @@ public class WifiConfigManager {
     }
 
     /**
+     * Check whether a network belong to a known list of networks that may not support randomized
+     * MAC.
+     * @param networkId
+     * @return true if the network is in the hotlist and MAC randomization is enabled.
+     */
+    public boolean isInFlakyRandomizationSsidHotlist(int networkId) {
+        WifiConfiguration config = getConfiguredNetwork(networkId);
+        return config != null
+                && config.macRandomizationSetting == WifiConfiguration.RANDOMIZATION_PERSISTENT
+                && mDeviceConfigFacade.getRandomizationFlakySsidHotlist().contains(config.SSID);
+    }
+
+    /**
      * Helper method to mark a network enabled for network selection.
      */
     private void setNetworkSelectionEnabled(WifiConfiguration config) {

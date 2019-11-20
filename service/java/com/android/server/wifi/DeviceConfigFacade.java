@@ -19,10 +19,13 @@ package com.android.server.wifi;
 import android.content.Context;
 import android.os.Handler;
 import android.provider.DeviceConfig;
+import android.util.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.wifi.R;
 
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,6 +63,7 @@ public class DeviceConfigFacade {
     private int mDataStallRxTputThrKbps;
     private int mDataStallTxPerThr;
     private int mDataStallCcaLevelThr;
+    private Set<String> mRandomizationFlakySsidHotlist;
 
     public DeviceConfigFacade(Context context, Handler handler, WifiMetrics wifiMetrics) {
         mContext = context;
@@ -101,6 +105,25 @@ public class DeviceConfigFacade {
         mWifiMetrics.setDataStallRxTputThrKbps(mDataStallRxTputThrKbps);
         mWifiMetrics.setDataStallTxPerThr(mDataStallTxPerThr);
         mWifiMetrics.setDataStallCcaLevelThr(mDataStallCcaLevelThr);
+
+        createUnmodifiableRandomizationFlakySsidHotlist();
+    }
+
+    private void createUnmodifiableRandomizationFlakySsidHotlist() {
+        String ssidHotlist = DeviceConfig.getString(NAMESPACE,
+                "randomization_flaky_ssid_hotlist", "");
+        mRandomizationFlakySsidHotlist = new ArraySet<String>();
+        String[] ssidHotlistArray = ssidHotlist.split(",");
+        for (int i = 0; i < ssidHotlistArray.length; i++) {
+            String cur = ssidHotlistArray[i];
+            if (cur.length() == 0) {
+                continue;
+            }
+            // Make sure the SSIDs are quoted. Server side should not quote ssids.
+            mRandomizationFlakySsidHotlist.add("\"" + cur + "\"");
+        }
+        mRandomizationFlakySsidHotlist =
+                Collections.unmodifiableSet(mRandomizationFlakySsidHotlist);
     }
 
     /**
@@ -157,5 +180,12 @@ public class DeviceConfigFacade {
      */
     public int getDataStallCcaLevelThr() {
         return mDataStallCcaLevelThr;
+    }
+
+    /**
+     * Gets the Set of SSIDs in the flaky SSID hotlist.
+     */
+    public Set<String> getRandomizationFlakySsidHotlist() {
+        return mRandomizationFlakySsidHotlist;
     }
 }
