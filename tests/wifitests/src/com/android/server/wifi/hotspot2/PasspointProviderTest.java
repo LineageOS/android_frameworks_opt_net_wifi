@@ -19,6 +19,7 @@ package com.android.server.wifi.hotspot2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -32,13 +33,12 @@ import android.net.wifi.hotspot2.pps.HomeSp;
 import android.net.wifi.hotspot2.pps.UpdateParameter;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.FakeKeys;
-import com.android.server.wifi.IMSIParameter;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
@@ -53,6 +53,7 @@ import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
 import com.android.server.wifi.hotspot2.anqp.eap.EAPMethod;
 import com.android.server.wifi.hotspot2.anqp.eap.NonEAPInnerAuth;
 import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -107,6 +108,7 @@ public class PasspointProviderTest extends WifiBaseTest {
     private static final int TEST_EAP_TYPE = WifiEnterpriseConfig.Eap.SIM;
     private static final int TEST_SIM_CREDENTIAL_TYPE = EAPConstants.EAP_SIM;
     private static final String TEST_IMSI = "1234567890";
+    private static final int VALID_CARRIER_ID = 1;
 
     private enum CredentialType {
         USER,
@@ -115,7 +117,7 @@ public class PasspointProviderTest extends WifiBaseTest {
     }
 
     @Mock WifiKeyStore mKeyStore;
-    @Mock SIMAccessor mSimAccessor;
+    @Mock TelephonyUtil mTelephonyUtil;
     @Mock RoamingConsortium mRoamingConsortium;
     PasspointProvider mProvider;
     X509Certificate mRemediationCaCertificate;
@@ -149,7 +151,7 @@ public class PasspointProviderTest extends WifiBaseTest {
      * @return {@link com.android.server.wifi.hotspot2.PasspointProvider}
      */
     private PasspointProvider createProvider(PasspointConfiguration config) {
-        return new PasspointProvider(config, mKeyStore, mSimAccessor, PROVIDER_ID, CREATOR_UID,
+        return new PasspointProvider(config, mKeyStore, mTelephonyUtil, PROVIDER_ID, CREATOR_UID,
                 CREATOR_PACKAGE, false);
     }
 
@@ -691,8 +693,8 @@ public class PasspointProviderTest extends WifiBaseTest {
         // Setup test provider.
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.SIM, false);
-        when(mSimAccessor.getMatchingImsis(new IMSIParameter(TEST_IMSI, false)))
-                .thenReturn(Arrays.asList(new String[] {TEST_IMSI}));
+        when(mTelephonyUtil.getMatchingImsiCarrierId(TEST_IMSI))
+                .thenReturn(new Pair<String, Integer>(TEST_IMSI, VALID_CARRIER_ID));
         mProvider = createProvider(config);
 
         // Setup Domain Name ANQP element.
@@ -716,8 +718,8 @@ public class PasspointProviderTest extends WifiBaseTest {
         // Setup test provider.
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.SIM, false);
-        when(mSimAccessor.getMatchingImsis(new IMSIParameter(TEST_IMSI, false)))
-                .thenReturn(Arrays.asList(new String[] {TEST_IMSI}));
+        when(mTelephonyUtil.getMatchingImsiCarrierId(TEST_IMSI))
+                .thenReturn(new Pair<String, Integer>(TEST_IMSI, VALID_CARRIER_ID));
         mProvider = createProvider(config);
 
         // Setup ANQP elements.
@@ -745,6 +747,9 @@ public class PasspointProviderTest extends WifiBaseTest {
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.SIM, false);
         mProvider = createProvider(config);
+        when(mTelephonyUtil.getMatchingImsiCarrierId(
+                eq(config.getCredential().getSimCredential().getImsi())))
+                .thenReturn(new Pair<String, Integer>(TEST_IMSI, VALID_CARRIER_ID));
 
         // Setup Roaming Consortium ANQP element.
         Map<ANQPElementType, ANQPElement> anqpElementMap = new HashMap<>();
@@ -919,8 +924,8 @@ public class PasspointProviderTest extends WifiBaseTest {
         // Setup test provider.
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.SIM, false);
-        when(mSimAccessor.getMatchingImsis(new IMSIParameter(TEST_IMSI, false)))
-                .thenReturn(Arrays.asList(new String[] {TEST_IMSI}));
+        when(mTelephonyUtil.getMatchingImsiCarrierId(TEST_IMSI))
+                .thenReturn(new Pair<String, Integer>(TEST_IMSI, VALID_CARRIER_ID));
         mProvider = createProvider(config);
 
         // Setup 3GPP Network ANQP element.
@@ -949,8 +954,8 @@ public class PasspointProviderTest extends WifiBaseTest {
         // Setup test provider.
         PasspointConfiguration config = generateTestPasspointConfiguration(
                 CredentialType.SIM, false);
-        when(mSimAccessor.getMatchingImsis(new IMSIParameter(TEST_IMSI, false)))
-                .thenReturn(Arrays.asList(new String[] {TEST_IMSI}));
+        when(mTelephonyUtil.getMatchingImsiCarrierId(TEST_IMSI))
+                .thenReturn(new Pair<String, Integer>(TEST_IMSI, VALID_CARRIER_ID));
         mProvider = createProvider(config);
 
         // Setup 3GPP Network ANQP element.
@@ -963,6 +968,64 @@ public class PasspointProviderTest extends WifiBaseTest {
                 createNAIRealmElement(TEST_REALM, EAPConstants.EAP_AKA, null));
 
         assertEquals(PasspointMatch.RoamingProvider,
+                mProvider.match(anqpElementMap, mRoamingConsortium));
+        assertEquals(VALID_CARRIER_ID, mProvider.getWifiConfig().carrierId);
+    }
+
+    /**
+     * Verify that when the SIM card matched by carrier ID of profile is absent, it shouldn't
+     * be matched even the profile and ANQP elements are matched.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void matchNothingIfSimMatchedByCarrierIdIsAbsent() throws Exception {
+        // Setup test provider.
+        PasspointConfiguration config = generateTestPasspointConfiguration(
+                CredentialType.SIM, false);
+        config.setCarrierId(VALID_CARRIER_ID);
+        when(mTelephonyUtil.getMatchingImsi(eq(VALID_CARRIER_ID)))
+                .thenReturn(null);
+        mProvider = createProvider(config);
+
+        // Setup 3GPP Network ANQP element.
+        Map<ANQPElementType, ANQPElement> anqpElementMap = new HashMap<>();
+        anqpElementMap.put(ANQPElementType.ANQP3GPPNetwork,
+                createThreeGPPNetworkElement(new String[] {"123456"}));
+
+        // Setup NAI Realm ANQP element with same realm.
+        anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
+                createNAIRealmElement(TEST_REALM, EAPConstants.EAP_AKA, null));
+
+        assertEquals(PasspointMatch.None,
+                mProvider.match(anqpElementMap, mRoamingConsortium));
+    }
+
+    /**
+     * Verify that when the SIM card matched by IMSI of profile is absent, it shouldn't be
+     * matched even the profile and ANQP elements are matched.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void matchNothingIfSimMatchedByImsiIsAbsent() throws Exception {
+        // Setup test provider.
+        PasspointConfiguration config = generateTestPasspointConfiguration(
+                CredentialType.SIM, false);
+        when(mTelephonyUtil.getMatchingImsiCarrierId(eq(TEST_IMSI)))
+                .thenReturn(null);
+        mProvider = createProvider(config);
+
+        // Setup 3GPP Network ANQP element.
+        Map<ANQPElementType, ANQPElement> anqpElementMap = new HashMap<>();
+        anqpElementMap.put(ANQPElementType.ANQP3GPPNetwork,
+                createThreeGPPNetworkElement(new String[] {"123456"}));
+
+        // Setup NAI Realm ANQP element with same realm.
+        anqpElementMap.put(ANQPElementType.ANQPNAIRealm,
+                createNAIRealmElement(TEST_REALM, EAPConstants.EAP_AKA, null));
+
+        assertEquals(PasspointMatch.None,
                 mProvider.match(anqpElementMap, mRoamingConsortium));
     }
 

@@ -16,6 +16,8 @@
 
 package com.android.server.wifi.hotspot2;
 
+import android.text.TextUtils;
+
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.hotspot2.anqp.CellularNetwork;
 import com.android.server.wifi.hotspot2.anqp.DomainNameElement;
@@ -43,12 +45,12 @@ public class ANQPMatcher {
      * @param element The Domain Name ANQP element
      * @param fqdn The FQDN to compare against
      * @param imsiParam The IMSI parameter of the provider
-     * @param simImsiList The list of IMSI from the installed SIM cards that matched provider's
+     * @param simImsi The IMSI from the installed SIM cards that best matched provider's
      *                    IMSI parameter
      * @return true if a match is found
      */
     public static boolean matchDomainName(DomainNameElement element, String fqdn,
-            IMSIParameter imsiParam, List<String> simImsiList) {
+            IMSIParameter imsiParam, String simImsi) {
         if (element == null) {
             return false;
         }
@@ -60,7 +62,7 @@ public class ANQPMatcher {
 
             // Try to retrieve the MCC-MNC string from the domain (for 3GPP network domain) and
             // match against the provider's SIM credential.
-            if (matchMccMnc(Utils.getMccMnc(Utils.splitDomain(domain)), imsiParam, simImsiList)) {
+            if (matchMccMnc(Utils.getMccMnc(Utils.splitDomain(domain)), imsiParam, simImsi)) {
                 return true;
             }
         }
@@ -126,17 +128,17 @@ public class ANQPMatcher {
      *
      * @param element 3GPP Network ANQP element
      * @param imsiParam The IMSI parameter of the provider's SIM credential
-     * @param simImsiList The list of IMSI from the installed SIM cards that matched provider's
+     * @param simImsi The IMSI from the installed SIM cards that best matched provider's
      *                    IMSI parameter
      * @return true if a matched is found
      */
     public static  boolean matchThreeGPPNetwork(ThreeGPPNetworkElement element,
-            IMSIParameter imsiParam, List<String> simImsiList) {
+            IMSIParameter imsiParam, String simImsi) {
         if (element == null) {
             return false;
         }
         for (CellularNetwork network : element.getNetworks()) {
-            if (matchCellularNetwork(network, imsiParam, simImsiList)) {
+            if (matchCellularNetwork(network, imsiParam, simImsi)) {
                 return true;
             }
         }
@@ -220,17 +222,18 @@ public class ANQPMatcher {
      *
      * @param network The cellular network that contained list of PLMNs
      * @param imsiParam IMSI parameter of the provider
-     * @param simImsiList The list of IMSI from the installed SIM cards that matched provider's
+     * @param simImsi The IMSI from the installed SIM cards that best matched provider's
      *                    IMSI parameter
      * @return true if a match is found
      */
     private static boolean matchCellularNetwork(CellularNetwork network, IMSIParameter imsiParam,
-            List<String> simImsiList) {
+            String simImsi) {
         for (String plmn : network.getPlmns()) {
-            if (matchMccMnc(plmn, imsiParam, simImsiList)) {
+            if (matchMccMnc(plmn, imsiParam, simImsi)) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -239,27 +242,22 @@ public class ANQPMatcher {
      *
      * @param mccMnc The string containing MCC-MNC
      * @param imsiParam The IMSI parameter of the provider
-     * @param simImsiList The list of IMSI from the installed SIM cards that matched provider's
+     * @param simImsi The IMSI from the installed SIM cards that best matched provider's
      *                    IMSI parameter
      * @return true if a match is found
      */
     private static boolean matchMccMnc(String mccMnc, IMSIParameter imsiParam,
-            List<String> simImsiList) {
-        if (imsiParam == null || simImsiList == null || mccMnc == null) {
+            String simImsi) {
+        if (imsiParam == null || TextUtils.isEmpty(simImsi) || mccMnc == null) {
             return false;
         }
         // Match against the IMSI parameter in the provider.
         if (!imsiParam.matchesMccMnc(mccMnc)) {
             return false;
         }
-        // Additional check for verifying the match with IMSIs from the SIM cards, since the IMSI
+        // Additional check for verifying the match with IMSI from the SIM card, since the IMSI
         // parameter might not contain the full 6-digit MCC MNC (e.g. IMSI parameter is an IMSI
         // prefix that contained less than 6-digit of numbers "12345*").
-        for (String imsi : simImsiList) {
-            if (imsi.startsWith(mccMnc)) {
-                return true;
-            }
-        }
-        return false;
+        return simImsi.startsWith(mccMnc);
     }
 }

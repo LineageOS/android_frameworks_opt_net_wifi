@@ -43,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -85,11 +84,11 @@ public class ANQPMatcherTest extends WifiBaseTest {
     @Test
     public void matchDomainNameUsingIMSI() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123457890", "123498723"});
+        String simImsi = "123457890";
         // 3GPP network domain with MCC=123 and MNC=456.
         String[] domains = new String[] {"wlan.mnc457.mcc123.3gppnetwork.org"};
         DomainNameElement element = new DomainNameElement(Arrays.asList(domains));
-        assertTrue(ANQPMatcher.matchDomainName(element, null, imsiParam, simImsiList));
+        assertTrue(ANQPMatcher.matchDomainName(element, null, imsiParam, simImsi));
     }
 
     /**
@@ -304,46 +303,46 @@ public class ANQPMatcherTest extends WifiBaseTest {
     @Test
     public void matchThreeGPPNetworkWithNullElement() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123456789", "123498723"});
-        assertFalse(ANQPMatcher.matchThreeGPPNetwork(null, imsiParam, simImsiList));
+        String simImsi = "123456789";
+        assertFalse(ANQPMatcher.matchThreeGPPNetwork(null, imsiParam, simImsi));
     }
 
     /**
      * Verify that 3GPP network will succeed when the given 3GPP Network ANQP element contained
-     * a MCC-MNC that matches the both IMSI parameter and an IMSI from the IMSI list.
+     * a MCC-MNC that matches the both IMSI parameter and a SIM IMSI.
      *
      * @throws Exception
      */
     @Test
     public void matchThreeGPPNetwork() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123456789", "123498723"});
+        String simImsi = "123456789";
 
         CellularNetwork network = new CellularNetwork(Arrays.asList(new String[] {"123456"}));
         ThreeGPPNetworkElement element =
                 new ThreeGPPNetworkElement(Arrays.asList(new CellularNetwork[] {network}));
         // The MCC-MNC provided in 3GPP Network ANQP element matches both IMSI parameter
         // and an IMSI from the installed SIM card.
-        assertTrue(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsiList));
+        assertTrue(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsi));
     }
 
     /**
      * Verify that 3GPP network will failed when the given 3GPP Network ANQP element contained
-     * a MCC-MNC that match the IMSI parameter but not the IMSI list.
+     * a MCC-MNC that match the IMSI parameter but not the SIM IMSI.
      *
      * @throws Exception
      */
     @Test
     public void matchThreeGPPNetworkWithoutSimImsiMatch() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123457890", "123498723"});
+        String simImsi = "123457890";
 
         CellularNetwork network = new CellularNetwork(Arrays.asList(new String[] {"123456"}));
         ThreeGPPNetworkElement element =
                 new ThreeGPPNetworkElement(Arrays.asList(new CellularNetwork[] {network}));
         // The MCC-MNC provided in 3GPP Network ANQP element doesn't match any of the IMSIs
         // from the installed SIM card.
-        assertFalse(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsiList));
+        assertFalse(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsi));
     }
 
     /**
@@ -355,13 +354,13 @@ public class ANQPMatcherTest extends WifiBaseTest {
     @Test
     public void matchThreeGPPNetworkWithImsiParamMismatch() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123457890", "123498723"});
+        String simImsi = "123457890";
 
         CellularNetwork network = new CellularNetwork(Arrays.asList(new String[] {"123356"}));
         ThreeGPPNetworkElement element =
                 new ThreeGPPNetworkElement(Arrays.asList(new CellularNetwork[] {network}));
         // The MCC-MNC provided in 3GPP Network ANQP element doesn't match the IMSI parameter.
-        assertFalse(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsiList));
+        assertFalse(ANQPMatcher.matchThreeGPPNetwork(element, imsiParam, simImsi));
     }
 
     /**
@@ -372,10 +371,10 @@ public class ANQPMatcherTest extends WifiBaseTest {
     @Test
     public void verifyInvalidDomain() throws Exception {
         IMSIParameter imsiParam = new IMSIParameter("1234", true);
-        List<String> simImsiList = Arrays.asList(new String[] {"123457890", "123498723"});
+        String simImsi = "123457890";
         // 3GPP network domain with MCC=123 and MNC=456.
         String[] domains = new String[] {"wlan.mnc457.mccI23.3gppnetwork.org"};
         DomainNameElement element = new DomainNameElement(Arrays.asList(domains));
-        assertFalse(ANQPMatcher.matchDomainName(element, null, imsiParam, simImsiList));
+        assertFalse(ANQPMatcher.matchDomainName(element, null, imsiParam, simImsi));
     }
 }

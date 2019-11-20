@@ -246,7 +246,6 @@ android_test {
                 "com.android.server.wifi.ScoringParams.*",
                 "com.android.server.wifi.SelfRecovery",
                 "com.android.server.wifi.SelfRecovery.*",
-                "com.android.server.wifi.SIMAccessor",
                 "com.android.server.wifi.SoftApManager",
                 "com.android.server.wifi.SoftApManager.*",
                 "com.android.server.wifi.SoftApModeConfiguration",

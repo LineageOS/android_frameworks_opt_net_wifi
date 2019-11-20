@@ -44,13 +44,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
-import android.telephony.SubscriptionManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
 import com.android.server.wifi.Clock;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiConfigManager;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiInjector;
@@ -62,6 +60,7 @@ import com.android.server.wifi.hotspot2.anqp.Constants;
 import com.android.server.wifi.hotspot2.anqp.HSOsuProvidersElement;
 import com.android.server.wifi.hotspot2.anqp.OsuProviderInfo;
 import com.android.server.wifi.util.InformationElementUtil;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.io.PrintWriter;
 import java.security.cert.X509Certificate;
@@ -106,7 +105,6 @@ public class PasspointManager {
     private final PasspointEventHandler mPasspointEventHandler;
     private final WifiInjector mWifiInjector;
     private final Handler mHandler;
-    private final SIMAccessor mSimAccessor;
     private final WifiKeyStore mKeyStore;
     private final PasspointObjectFactory mObjectFactory;
 
@@ -118,7 +116,7 @@ public class PasspointManager {
     private final WifiMetrics mWifiMetrics;
     private final PasspointProvisioner mPasspointProvisioner;
     private final AppOpsManager mAppOps;
-    private final SubscriptionManager mSubscriptionManager;
+    private final TelephonyUtil mTelephonyUtil;
 
     /**
      * Map of package name of an app to the app ops changed listener for the app.
@@ -321,17 +319,16 @@ public class PasspointManager {
     }
 
     public PasspointManager(Context context, WifiInjector wifiInjector, Handler handler,
-            WifiNative wifiNative, WifiKeyStore keyStore, Clock clock, SIMAccessor simAccessor,
+            WifiNative wifiNative, WifiKeyStore keyStore, Clock clock,
             PasspointObjectFactory objectFactory, WifiConfigManager wifiConfigManager,
             WifiConfigStore wifiConfigStore,
             WifiMetrics wifiMetrics,
-            SubscriptionManager subscriptionManager) {
+            TelephonyUtil telephonyUtil) {
         mPasspointEventHandler = objectFactory.makePasspointEventHandler(wifiNative,
                 new CallbackHandler(context));
         mWifiInjector = wifiInjector;
         mHandler = handler;
         mKeyStore = keyStore;
-        mSimAccessor = simAccessor;
         mObjectFactory = objectFactory;
         mProviders = new HashMap<>();
         mAnqpCache = objectFactory.makeAnqpCache(clock);
@@ -340,9 +337,9 @@ public class PasspointManager {
         mWifiConfigManager = wifiConfigManager;
         mWifiMetrics = wifiMetrics;
         mProviderIndex = 0;
-        mSubscriptionManager = subscriptionManager;
+        mTelephonyUtil = telephonyUtil;
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigUserStoreData(
-                mKeyStore, mSimAccessor, new UserDataSourceHandler()));
+                mKeyStore, mTelephonyUtil, new UserDataSourceHandler()));
         wifiConfigStore.registerStoreData(objectFactory.makePasspointConfigSharedStoreData(
                 new SharedDataSourceHandler()));
         mPasspointProvisioner = objectFactory.makePasspointProvisioner(context, wifiNative,
@@ -409,9 +406,10 @@ public class PasspointManager {
             }
         }
 
+        mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config);
         // Create a provider and install the necessary certificates and keys.
         PasspointProvider newProvider = mObjectFactory.makePasspointProvider(config, mKeyStore,
-                mSimAccessor, mProviderIndex++, uid, packageName, isFromSuggestion);
+                mTelephonyUtil, mProviderIndex++, uid, packageName, isFromSuggestion);
 
         if (!newProvider.installCertsAndKeys()) {
             Log.e(TAG, "Failed to install certificates and keys to keystore");
@@ -588,8 +586,12 @@ public class PasspointManager {
             Log.d(TAG, "ANQP entry not found for: " + anqpKey);
             return allMatches;
         }
+        boolean anyProviderUpdated = false;
         for (Map.Entry<String, PasspointProvider> entry : mProviders.entrySet()) {
             PasspointProvider provider = entry.getValue();
+            if (provider.tryUpdateCarrierId()) {
+                anyProviderUpdated = true;
+            }
             PasspointMatch matchStatus = provider.match(anqpEntry.getElements(),
                     roamingConsortium);
             if (matchStatus == PasspointMatch.HomeProvider
@@ -605,6 +607,9 @@ public class PasspointManager {
                 }
                 allMatches.add(Pair.create(provider, matchStatus));
             }
+        }
+        if (anyProviderUpdated) {
+            mWifiConfigManager.saveToStore(true);
         }
         if (allMatches.size() != 0) {
             for (Pair<PasspointProvider, PasspointMatch> match : allMatches) {
@@ -955,7 +960,8 @@ public class PasspointManager {
         // Note that for legacy configuration, the alias for client private key is the same as the
         // alias for the client certificate.
         PasspointProvider provider = new PasspointProvider(passpointConfig, mKeyStore,
-                mSimAccessor, mProviderIndex++, wifiConfig.creatorUid, null, false,
+                mTelephonyUtil,
+                mProviderIndex++, wifiConfig.creatorUid, null, false,
                 Arrays.asList(enterpriseConfig.getCaCertificateAlias()),
                 enterpriseConfig.getClientCertificateAlias(), null, false, false);
         mProviders.put(passpointConfig.getHomeSp().getFqdn(), provider);

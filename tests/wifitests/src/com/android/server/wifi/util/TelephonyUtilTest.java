@@ -24,6 +24,8 @@ import static org.mockito.Mockito.*;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -67,8 +69,18 @@ public class TelephonyUtilTest extends WifiBaseTest {
     private static final int NON_DATA_SUBID = 2;
     private static final int INVALID_SUBID = -1;
     private static final int DATA_CARRIER_ID = 10;
+    private static final int PARENT_DATA_CARRIER_ID = 11;
     private static final int NON_DATA_CARRIER_ID = 20;
+    private static final int PARENT_NON_DATA_CARRIER_ID = 21;
     private static final int DEACTIVE_CARRIER_ID = 30;
+    private static final String MATCH_PREFIX_IMSI = "123456*";
+    private static final String DATA_FULL_IMSI = "123456789123456";
+    private static final String NON_DATA_FULL_IMSI = "123456987654321";
+    private static final String NO_MATCH_FULL_IMSI = "654321123456789";
+    private static final String NO_MATCH_PREFIX_IMSI = "654321*";
+    private static final String DATA_OPERATOR_NUMERIC = "123456";
+    private static final String NON_DATA_OPERATOR_NUMERIC = "123456";
+    private static final String NO_MATCH_OPERATOR_NUMERIC = "654321";
 
     private List<SubscriptionInfo> mSubInfoList;
 
@@ -109,10 +121,21 @@ public class TelephonyUtilTest extends WifiBaseTest {
         doReturn(true).when(
                 () -> SubscriptionManager.isValidSubscriptionId(NON_DATA_SUBID));
 
+        when(mTelephonyManager.getSubscriberId(eq(DATA_SUBID))).thenReturn(DATA_FULL_IMSI);
+        when(mTelephonyManager.getSubscriberId(eq(NON_DATA_SUBID))).thenReturn(NON_DATA_FULL_IMSI);
         when(mDataSubscriptionInfo.getCarrierId()).thenReturn(DATA_CARRIER_ID);
         when(mDataSubscriptionInfo.getSubscriptionId()).thenReturn(DATA_SUBID);
         when(mNonDataSubscriptionInfo.getCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataSubscriptionInfo.getSubscriptionId()).thenReturn(NON_DATA_SUBID);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(DATA_FULL_IMSI);
+        when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NON_DATA_FULL_IMSI);
+        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(DATA_OPERATOR_NUMERIC);
+        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+                .thenReturn(NON_DATA_OPERATOR_NUMERIC);
+        when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mNonDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{DATA_SUBID, NON_DATA_SUBID});
     }
 
     @After
@@ -689,6 +712,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
         WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+        when(mSubscriptionManager.getActiveSubscriptionIdList()).thenReturn(new int[0]);
 
         assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
 
@@ -702,7 +726,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
      * The matched Subscription ID should be that of data SIM when carrier ID is not specified.
      */
     @Test
-    public void getBestMatchSubscriptionIdWithoutCarrierIdFieldForSimConfig() {
+    public void getBestMatchSubscriptionIdForEnterpriseWithoutCarrierIdFieldForSimConfig() {
         WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
 
@@ -714,7 +738,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
      * SIM card and the carrier ID is not specified.
      */
     @Test
-    public void getBestMatchSubscriptionIdWithoutCarrierIdFieldForNonSimConfig() {
+    public void getBestMatchSubscriptionIdForEnterpriseWithoutCarrierIdFieldForNonSimConfig() {
         WifiConfiguration config = new WifiConfiguration();
 
         assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
@@ -725,7 +749,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
      * should be returned.
      */
     @Test
-    public void getBestMatchSubscriptionIdWithNonDataCarrierId() {
+    public void getBestMatchSubscriptionIdForEnterpriseWithNonDataCarrierId() {
         WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
                 WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
         config.carrierId = NON_DATA_CARRIER_ID;
@@ -734,6 +758,33 @@ public class TelephonyUtilTest extends WifiBaseTest {
 
         config.carrierId = DATA_CARRIER_ID;
         assertEquals(DATA_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * If the passpoint profile have valid carrier ID, the matching sub ID should be returned.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdForPasspointWithValidCarrierId() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        config.carrierId = DATA_CARRIER_ID;
+        WifiConfiguration spyConfig = spy(config);
+        doReturn(true).when(spyConfig).isPasspoint();
+
+        assertEquals(DATA_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(spyConfig));
+    }
+
+    /**
+     * If there is no matching SIM card, the matching sub ID should be invalid.
+     */
+    @Test
+    public void getBestMatchSubscriptionIdForPasspointInvalidCarrierId() {
+        WifiConfiguration config = WifiConfigurationTestUtil.createEapNetwork(
+                WifiEnterpriseConfig.Eap.AKA, WifiEnterpriseConfig.Phase2.NONE);
+        WifiConfiguration spyConfig = spy(config);
+        doReturn(true).when(spyConfig).isPasspoint();
+
+        assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(spyConfig));
     }
 
     /**
@@ -747,5 +798,257 @@ public class TelephonyUtilTest extends WifiBaseTest {
         config.carrierId = DEACTIVE_CARRIER_ID;
 
         assertEquals(INVALID_SUBID, mTelephonyUtil.getBestMatchSubscriptionId(config));
+    }
+
+    /**
+     * Verify that the result is null if no active SIM is matched.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdWithDeactiveCarrierId() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
+
+        assertNull(mTelephonyUtil.getMatchingImsi(DEACTIVE_CARRIER_ID));
+    }
+
+    /**
+     * Verify that if there is SIM card whose carrier ID is the same as the input, the correct IMSI
+     * and carrier ID would be returned.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdWithValidCarrierId() {
+        assertEquals(DATA_FULL_IMSI,
+                mTelephonyUtil.getMatchingImsi(DATA_CARRIER_ID));
+    }
+
+    /**
+     * Verify that if there is no SIM, it should match nothing.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdWithEmptyActiveSubscriptionInfoList() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+
+        assertNull(mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
+
+        assertNull(mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if there is no matching SIM, it should match nothing.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdWithNoMatchImsi() {
+        // data SIM is MNO.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        // non data SIM is MNO.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+        assertNull(mTelephonyUtil.getMatchingImsiCarrierId(NO_MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if the matched SIM is the default data SIM and a MNO SIM, the information of it
+     * should be returned.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdForDataAndMnoSimMatch() {
+        // data SIM is MNO.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        // non data SIM is MNO.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+        Pair<String, Integer> ic = mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI);
+
+        assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID), ic);
+
+        // non data SIM is MVNO
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc())
+                .thenReturn(PARENT_NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+        assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID),
+                mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+
+        // non data SIM doesn't match.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
+        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+                .thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+
+        assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID),
+                mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if the matched SIM is the default data SIM and a MVNO SIM, and no MNO SIM was
+     * matched, the information of it should be returned.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdForDataAndMvnoSimMatch() {
+        // data SIM is MVNO.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(PARENT_DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        // non data SIM is MVNO.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc())
+                .thenReturn(PARENT_NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+        Pair<String, Integer> ic = mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI);
+
+        assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID), ic);
+
+        // non data SIM doesn't match.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
+        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+                .thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+
+        assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID),
+                mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if the matched SIM is a MNO SIM, even the default data SIM is matched as a MVNO
+     * SIM, the information of MNO SIM still should be returned.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdForNonDataAndMnoSimMatch() {
+        // data SIM is MVNO.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(PARENT_DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        // non data SIM is MNO.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+
+        Pair<String, Integer> ic = mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI);
+
+        assertEquals(new Pair<>(NON_DATA_FULL_IMSI, NON_DATA_CARRIER_ID), ic);
+
+        // data SIM doesn't match
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
+        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+
+        assertEquals(new Pair<>(NON_DATA_FULL_IMSI, NON_DATA_CARRIER_ID),
+                mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if only a MVNO SIM is matched, the information of it should be returned.
+     */
+    @Test
+    public void getMatchingImsiCarrierIdForMvnoSimMatch() {
+        // data SIM is MNO, but IMSI doesn't match.
+        when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
+        when(mDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
+        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+        // non data SIM is MVNO.
+        when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc())
+                .thenReturn(PARENT_NON_DATA_CARRIER_ID);
+        when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
+
+        assertEquals(new Pair<>(NON_DATA_FULL_IMSI, NON_DATA_CARRIER_ID),
+                mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
+    }
+
+    /**
+     * Verify that if there is no any SIM card, the carrier ID should be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithEmptyActiveSubscriptionList() {
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
+        when(config.getCarrierId()).thenReturn(DATA_CARRIER_ID);
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config));
+
+        when(mSubscriptionManager.getActiveSubscriptionInfoList())
+                .thenReturn(Collections.emptyList());
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config));
+    }
+
+    /**
+     * Verify that if the carrier ID has been assigned, it shouldn't be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithValidCarrieId() {
+        PasspointConfiguration config = mock(PasspointConfiguration.class);
+        when(config.getCarrierId()).thenReturn(DATA_CARRIER_ID);
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(config));
+    }
+
+    /**
+     * Verify that if the passpoint profile doesn't have SIM credential, it shouldn't be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithNonSimCredential() {
+        Credential credential = mock(Credential.class);
+        PasspointConfiguration spyConfig = spy(new PasspointConfiguration());
+        doReturn(credential).when(spyConfig).getCredential();
+        when(credential.getSimCredential()).thenReturn(null);
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(spyConfig));
+    }
+
+    /**
+     * Verify that if the passpoint profile only have IMSI prefix(mccmnc*) parameter,
+     * it shouldn't be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithPrefixImsi() {
+        Credential credential = mock(Credential.class);
+        PasspointConfiguration spyConfig = spy(new PasspointConfiguration());
+        doReturn(credential).when(spyConfig).getCredential();
+        Credential.SimCredential simCredential = mock(Credential.SimCredential.class);
+        when(credential.getSimCredential()).thenReturn(simCredential);
+        when(simCredential.getImsi()).thenReturn(MATCH_PREFIX_IMSI);
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(spyConfig));
+    }
+
+    /**
+     * Verify that if the passpoint profile has the full IMSI and wasn't assigned valid
+     * carrier ID, it should be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithFullImsiAndActiveSim() {
+        Credential credential = mock(Credential.class);
+        PasspointConfiguration spyConfig = spy(new PasspointConfiguration());
+        doReturn(credential).when(spyConfig).getCredential();
+        Credential.SimCredential simCredential = mock(Credential.SimCredential.class);
+        when(credential.getSimCredential()).thenReturn(simCredential);
+        when(simCredential.getImsi()).thenReturn(DATA_FULL_IMSI);
+
+        assertTrue(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(spyConfig));
+        assertEquals(DATA_CARRIER_ID, spyConfig.getCarrierId());
+    }
+
+    /**
+     * Verify that if there is no SIM card matching the given IMSI, it shouldn't be updated.
+     */
+    @Test
+    public void tryUpdateCarrierIdForPasspointWithFullImsiAndInactiveSim() {
+        Credential credential = mock(Credential.class);
+        PasspointConfiguration spyConfig = spy(new PasspointConfiguration());
+        doReturn(credential).when(spyConfig).getCredential();
+        Credential.SimCredential simCredential = mock(Credential.SimCredential.class);
+        when(credential.getSimCredential()).thenReturn(simCredential);
+        when(simCredential.getImsi()).thenReturn(NO_MATCH_PREFIX_IMSI);
+
+        assertFalse(mTelephonyUtil.tryUpdateCarrierIdForPasspoint(spyConfig));
     }
 }

@@ -22,9 +22,9 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.util.XmlUtils;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiConfigStore;
 import com.android.server.wifi.WifiKeyStore;
+import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 import com.android.server.wifi.util.XmlUtil;
 
@@ -77,7 +77,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_IS_FROM_SUGGESTION = "IsFromSuggestion";
 
     private final WifiKeyStore mKeyStore;
-    private final SIMAccessor mSimAccessor;
+    private final TelephonyUtil mTelephonyUtil;
     private final DataSource mDataSource;
 
     /**
@@ -99,10 +99,10 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         void setProviders(List<PasspointProvider> providers);
     }
 
-    PasspointConfigUserStoreData(WifiKeyStore keyStore, SIMAccessor simAccessor,
+    PasspointConfigUserStoreData(WifiKeyStore keyStore, TelephonyUtil telephonyUtil,
             DataSource dataSource) {
         mKeyStore = keyStore;
-        mSimAccessor = simAccessor;
+        mTelephonyUtil = telephonyUtil;
         mDataSource = dataSource;
     }
 
@@ -343,7 +343,7 @@ public class PasspointConfigUserStoreData implements WifiConfigStore.StoreData {
         if (config == null) {
             throw new XmlPullParserException("Missing Passpoint configuration");
         }
-        return new PasspointProvider(config, mKeyStore, mSimAccessor, providerId, creatorUid,
+        return new PasspointProvider(config, mKeyStore, mTelephonyUtil, providerId, creatorUid,
                 packageName, isFromSuggestion, caCertificateAliases,
                 clientPrivateKeyAndCertificateAlias, remediationCaCertificateAlias,
                 hasEverConnected, shared);
