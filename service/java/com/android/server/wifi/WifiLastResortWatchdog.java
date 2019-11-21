@@ -28,6 +28,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.wifi.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -119,7 +120,7 @@ public class WifiLastResortWatchdog {
     private final Handler mHandler;
     private final WifiThreadRunner mWifiThreadRunner;
 
-    private boolean mWatchdogFeatureEnabled = true;
+    private boolean mWatchdogFeatureEnabled;
 
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
@@ -142,6 +143,8 @@ public class WifiLastResortWatchdog {
                 processMessage(msg);
             }
         };
+        mWatchdogFeatureEnabled = mContext.getResources()
+                .getBoolean(R.bool.config_wifi_watchdog_enabled);
     }
 
     /**

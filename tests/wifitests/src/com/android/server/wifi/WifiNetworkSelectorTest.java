@@ -848,8 +848,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         // Do not perform selection on 2GHz if current network is good and no 5GHz available
         testStayOrTryToSwitch(
@@ -875,8 +875,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         // When on 2GHz, even with "good" signal strength, run selection if 5GHz available
         testStayOrTryToSwitch(
@@ -905,8 +905,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G - 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         // Run Selection when the current 5Ghz network has low RSSI.
         testStayOrTryToSwitch(
@@ -930,8 +930,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G + 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         // Connected to a high quality 5Ghz network, so the other result is irrelevant
         testStayOrTryToSwitch(
@@ -954,8 +954,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         testStayOrTryToSwitch(
                 // Parameters for network1:
@@ -987,8 +987,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         testStayOrTryToSwitch(
                 // Parameters for network1:
@@ -1015,8 +1015,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G - 1);
         // No streaming traffic.
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = 0.0;
+        mWifiInfo.setTxSuccessRate(0.0);
+        mWifiInfo.setRxSuccessRate(0.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi2G + 1 /* rssi before connected */,
@@ -1037,8 +1037,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // Streaming traffic
-        mWifiInfo.txSuccessRate = ((double) (mStayOnNetworkMinimumTxRate + 1));
-        mWifiInfo.rxSuccessRate = 0.0;
+        when(mWifiInfo.getTxSuccessRate()).thenReturn(mStayOnNetworkMinimumTxRate + 1.0);
+        when(mWifiInfo.getRxSuccessRate()).thenReturn(0.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi2G + 1 /* rssi before connected */,
@@ -1059,8 +1059,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi2G + 1);
         // Streaming traffic
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = ((double) (mStayOnNetworkMinimumRxRate + 1));
+        when(mWifiInfo.getTxSuccessRate()).thenReturn(0.0);
+        when(mWifiInfo.getRxSuccessRate()).thenReturn(mStayOnNetworkMinimumRxRate + 1.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi2G + 1 /* rssi before connected */,
@@ -1081,8 +1081,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G + 1);
         // Streaming traffic
-        mWifiInfo.txSuccessRate = ((double) (mStayOnNetworkMinimumTxRate + 1));
-        mWifiInfo.rxSuccessRate = 0.0;
+        when(mWifiInfo.getTxSuccessRate()).thenReturn(mStayOnNetworkMinimumTxRate + 1.0);
+        when(mWifiInfo.getRxSuccessRate()).thenReturn(0.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi5G + 1 /* rssi before connected */,
@@ -1103,8 +1103,8 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // Rssi after connected.
         when(mWifiInfo.getRssi()).thenReturn(mThresholdQualifiedRssi5G + 1);
         // Streaming traffic
-        mWifiInfo.txSuccessRate = 0.0;
-        mWifiInfo.rxSuccessRate = ((double) (mStayOnNetworkMinimumRxRate + 1));
+        when(mWifiInfo.getTxSuccessRate()).thenReturn(0.0);
+        when(mWifiInfo.getRxSuccessRate()).thenReturn(mStayOnNetworkMinimumRxRate + 1.0);
 
         testStayOrTryToSwitch(
                 mThresholdQualifiedRssi5G + 1 /* rssi before connected */,

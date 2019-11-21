@@ -501,6 +501,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 add(mock(SubscriptionInfo.class));
             }};
         when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(subList);
+        when(mSubscriptionManager.getActiveSubscriptionIdList())
+                .thenReturn(new int[]{DATA_SUBID});
 
         TelephonyUtil tu = new TelephonyUtil(mTelephonyManager, mSubscriptionManager);
         mTelephonyUtil = spy(tu);
@@ -1029,7 +1031,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
     /**
      * When the SIM card was removed, if the current wifi connection is using it, the connection
-     * should be disconnected.
+     * should be disconnected, otherwise, the connection shouldn't be impacted.
      */
     @Test
     public void testResetSimWhenConnectedSimRemoved() throws Exception {
@@ -2201,7 +2203,7 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         wifiInfo = mCmi.getWifiInfo();
         assertNull(wifiInfo.getBSSID());
-        assertEquals(WifiSsid.NONE, wifiInfo.getSSID());
+        assertEquals(WifiManager.UNKNOWN_SSID, wifiInfo.getSSID());
         assertEquals(WifiConfiguration.INVALID_NETWORK_ID, wifiInfo.getNetworkId());
         assertEquals(SupplicantState.DISCONNECTED, wifiInfo.getSupplicantState());
     }
@@ -3765,7 +3767,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+                mCmi.getWifiInfo().getAppPackageName());
     }
 
     /**
@@ -3782,7 +3784,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertTrue(mCmi.getWifiInfo().isEphemeral());
         assertTrue(mCmi.getWifiInfo().isTrusted());
         assertEquals(OP_PACKAGE_NAME,
-                mCmi.getWifiInfo().getNetworkSuggestionOrSpecifierPackageName());
+                mCmi.getWifiInfo().getAppPackageName());
     }
 
     /**

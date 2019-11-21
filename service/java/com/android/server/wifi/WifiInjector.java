@@ -134,7 +134,6 @@ public class WifiInjector {
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiPermissionsUtil mWifiPermissionsUtil;
     private final PasspointManager mPasspointManager;
-    private final SIMAccessor mSimAccessor;
     private HandlerThread mWifiAwareHandlerThread;
     private HandlerThread mRttHandlerThread;
     private HalDeviceManager mHalDeviceManager;
@@ -300,11 +299,10 @@ public class WifiInjector {
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
         mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
-        mSimAccessor = new SIMAccessor(mContext);
         mPasspointManager = new PasspointManager(mContext, this,
                 wifiHandler, mWifiNative, mWifiKeyStore, mClock,
-                mSimAccessor, new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
-                mWifiMetrics, subscriptionManager);
+                new PasspointObjectFactory(), mWifiConfigManager, mWifiConfigStore,
+                mWifiMetrics, mTelephonyUtil);
         mPasspointNetworkEvaluator = new PasspointNetworkEvaluator(
                 mPasspointManager, mWifiConfigManager, mConnectivityLocalLog,
                 this, subscriptionManager);

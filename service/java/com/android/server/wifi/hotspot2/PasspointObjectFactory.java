@@ -21,10 +21,10 @@ import android.net.wifi.hotspot2.PasspointConfiguration;
 
 import com.android.org.conscrypt.TrustManagerImpl;
 import com.android.server.wifi.Clock;
-import com.android.server.wifi.SIMAccessor;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.WifiMetrics;
 import com.android.server.wifi.WifiNative;
+import com.android.server.wifi.util.TelephonyUtil;
 
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
@@ -58,9 +58,9 @@ public class PasspointObjectFactory{
      * @return {@link PasspointProvider}
      */
     public PasspointProvider makePasspointProvider(PasspointConfiguration config,
-            WifiKeyStore keyStore, SIMAccessor simAccessor, long providerId, int creatorUid,
+            WifiKeyStore keyStore, TelephonyUtil telephonyUtil, long providerId, int creatorUid,
             String packageName, boolean isFromSuggestion) {
-        return new PasspointProvider(config, keyStore, simAccessor, providerId, creatorUid,
+        return new PasspointProvider(config, keyStore, telephonyUtil, providerId, creatorUid,
                 packageName, isFromSuggestion);
     }
 
@@ -68,13 +68,13 @@ public class PasspointObjectFactory{
      * Create a {@link PasspointConfigUserStoreData} instance.
      *
      * @param keyStore Instance of {@link WifiKeyStore}
-     * @param simAccessor Instance of {@link SIMAccessor}
+     * @param telephonyUtil Instance of {@link TelephonyUtil}
      * @param dataSource Passpoint configuration data source
      * @return {@link PasspointConfigUserStoreData}
      */
     public PasspointConfigUserStoreData makePasspointConfigUserStoreData(WifiKeyStore keyStore,
-            SIMAccessor simAccessor, PasspointConfigUserStoreData.DataSource dataSource) {
-        return new PasspointConfigUserStoreData(keyStore, simAccessor, dataSource);
+            TelephonyUtil telephonyUtil, PasspointConfigUserStoreData.DataSource dataSource) {
+        return new PasspointConfigUserStoreData(keyStore, telephonyUtil, dataSource);
     }
 
     /**

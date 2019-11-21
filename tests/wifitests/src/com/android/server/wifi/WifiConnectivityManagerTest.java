@@ -1029,8 +1029,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkSingleScanSettingsWhenConnectedWithLowDataRate() {
-        mWifiInfo.txSuccessRate = 0;
-        mWifiInfo.rxSuccessRate = 0;
+        mWifiInfo.setTxSuccessRate(0);
+        mWifiInfo.setRxSuccessRate(0);
 
         final HashSet<Integer> channelList = new HashSet<>();
         channelList.add(1);
@@ -1069,8 +1069,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkPartialScanRequestedWithHighDataRateWithoutFwRoaming() {
-        mWifiInfo.txSuccessRate = mFullScanMaxTxPacketRate * 2;
-        mWifiInfo.rxSuccessRate = mFullScanMaxRxPacketRate * 2;
+        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
+        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
 
         final HashSet<Integer> channelList = new HashSet<>();
         channelList.add(1);
@@ -1114,8 +1114,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkPartialScanSkippedWithHighDataRateWithFwRoaming() {
-        mWifiInfo.txSuccessRate = mFullScanMaxTxPacketRate * 2;
-        mWifiInfo.rxSuccessRate = mFullScanMaxRxPacketRate * 2;
+        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
+        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
 
         long currentTimeStamp = CURRENT_SYSTEM_TIME_MS;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(currentTimeStamp);
@@ -1158,8 +1158,8 @@ public class WifiConnectivityManagerTest extends WifiBaseTest {
      */
     @Test
     public void checkSingleScanSettingsWhenConnectedWithHighDataRateNotInCache() {
-        mWifiInfo.txSuccessRate = mFullScanMaxTxPacketRate * 2;
-        mWifiInfo.rxSuccessRate = mFullScanMaxRxPacketRate * 2;
+        mWifiInfo.setTxSuccessRate(mFullScanMaxTxPacketRate * 2);
+        mWifiInfo.setRxSuccessRate(mFullScanMaxRxPacketRate * 2);
 
         final HashSet<Integer> channelList = new HashSet<>();
 

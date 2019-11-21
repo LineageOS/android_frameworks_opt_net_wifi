@@ -28,6 +28,7 @@ import android.os.Handler;
 import android.os.test.TestLooper;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfig.OnPropertiesChangedListener;
+import android.util.ArraySet;
 
 import androidx.test.filters.SmallTest;
 
@@ -41,6 +42,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
+
+import java.util.Collections;
+import java.util.Set;
 
 
 /**
@@ -88,6 +92,12 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                         return def;
                     }
                 });
+        when(DeviceConfig.getString(anyString(), anyString(), anyString()))
+                .then(new AnswerWithArguments() {
+                    public String answer(String namespace, String field, String def) {
+                        return def;
+                    }
+                });
 
         mDeviceConfigFacade = new DeviceConfigFacade(mContext, new Handler(mLooper.getLooper()),
                 mWifiMetrics);
@@ -125,6 +135,8 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 mDeviceConfigFacade.getDataStallTxPerThr());
         assertEquals(DeviceConfigFacade.DEFAULT_DATA_STALL_CCA_LEVEL_THR,
                 mDeviceConfigFacade.getDataStallCcaLevelThr());
+        assertEquals(Collections.emptySet(),
+                mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
 
         // Simulate updating the fields
         when(DeviceConfig.getBoolean(anyString(), eq("abnormal_connection_bugreport_enabled"),
@@ -144,9 +156,14 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
                 anyInt())).thenReturn(95);
         when(DeviceConfig.getInt(anyString(), eq("data_stall_cca_level_thr"),
                 anyInt())).thenReturn(80);
+        when(DeviceConfig.getString(anyString(), eq("randomization_flaky_ssid_hotlist"),
+                anyString())).thenReturn("ssid_1,ssid_2");
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
 
         // Verifying fields are updated to the new values
+        Set<String> randomizationFlakySsidSet = new ArraySet<>();
+        randomizationFlakySsidSet.add("\"ssid_1\"");
+        randomizationFlakySsidSet.add("\"ssid_2\"");
         assertEquals(true, mDeviceConfigFacade.isAbnormalConnectionBugreportEnabled());
         assertEquals(100, mDeviceConfigFacade.getAbnormalConnectionDurationMs());
         assertEquals(true, mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled());
@@ -155,5 +172,7 @@ public class DeviceConfigFacadeTest extends WifiBaseTest {
         assertEquals(1500, mDeviceConfigFacade.getDataStallRxTputThrKbps());
         assertEquals(95, mDeviceConfigFacade.getDataStallTxPerThr());
         assertEquals(80, mDeviceConfigFacade.getDataStallCcaLevelThr());
+        assertEquals(randomizationFlakySsidSet,
+                mDeviceConfigFacade.getRandomizationFlakySsidHotlist());
     }
 }

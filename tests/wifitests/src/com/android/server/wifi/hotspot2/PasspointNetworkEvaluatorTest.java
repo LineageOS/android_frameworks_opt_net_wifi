@@ -368,34 +368,6 @@ public class PasspointNetworkEvaluatorTest {
     }
 
     /**
-     * Verify that null will be returned when matching a SIM credential provider without SIM
-     * card installed.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void evaluateScanMatchingSIMProviderWithoutSIMCard() throws Exception {
-        // Setup ScanDetail and match providers.
-        List<ScanDetail> scanDetails = Arrays.asList(new ScanDetail[] {
-                generateScanDetail(TEST_SSID1, TEST_BSSID1)});
-        PasspointProvider testProvider = mock(PasspointProvider.class);
-        Pair<PasspointProvider, PasspointMatch> homeProvider = Pair.create(
-                testProvider, PasspointMatch.HomeProvider);
-
-        when(mPasspointManager.matchProvider(any(ScanResult.class))).thenReturn(homeProvider);
-        when(testProvider.isSimCredential()).thenReturn(true);
-        // SIM is absent
-        when(mSubscriptionManager.getActiveSubscriptionInfoList())
-                .thenReturn(Collections.emptyList());
-
-        assertEquals(null, mEvaluator.evaluateNetworks(
-                scanDetails, null, null, false, false, mOnConnectableListener));
-
-        verify(mOnConnectableListener, never()).onConnectable(any(), any(), anyInt());
-        verify(testProvider, never()).getWifiConfig();
-    }
-
-    /**
      * Verify that anonymous identity is empty when matching a SIM credential provider with a
      * network that supports encrypted IMSI and anonymous identity. The anonymous identity will be
      * populated with {@code anonymous@<realm>} by ClientModeImpl's handling of the

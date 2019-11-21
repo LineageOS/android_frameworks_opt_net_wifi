@@ -821,8 +821,8 @@ public class WifiConnectivityManager {
 
         boolean isScanNeeded = true;
         boolean isFullBandScan = true;
-        boolean isTrafficOverThreshold = mWifiInfo.txSuccessRate > mFullScanMaxTxRate
-                || mWifiInfo.rxSuccessRate > mFullScanMaxRxRate;
+        boolean isTrafficOverThreshold = mWifiInfo.getTxSuccessRate() > mFullScanMaxTxRate
+                || mWifiInfo.getRxSuccessRate() > mFullScanMaxRxRate;
 
         // If the WiFi traffic is heavy, only partial scan is proposed.
         if (mWifiState == WIFI_STATE_CONNECTED && isTrafficOverThreshold) {

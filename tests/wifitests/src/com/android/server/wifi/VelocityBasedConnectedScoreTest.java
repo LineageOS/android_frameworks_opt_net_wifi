@@ -114,9 +114,9 @@ public class VelocityBasedConnectedScoreTest extends WifiBaseTest {
     public void allowLowRssiIfErrorRateIsLowAndSomeDataIsMoving() throws Exception {
         mWifiInfo.setRssi(mRssiExitThreshold2GHz - 2);
         mWifiInfo.setLinkSpeed(6); // Mbps
-        mWifiInfo.txSuccessRate = 2.1; // proportional to pps
-        mWifiInfo.txBadRate = .5;
-        mWifiInfo.rxSuccessRate = 2.1;
+        mWifiInfo.setTxSuccessRate(2.1); // proportional to pps
+        mWifiInfo.setTxBadRate(.5);
+        mWifiInfo.setRxSuccessRate(2.1);
         for (int i = 0; i < 10; i++) {
             mVelocityBasedConnectedScore.updateUsingWifiInfo(mWifiInfo,
                     mClock.getWallClockMillis());
@@ -140,9 +140,9 @@ public class VelocityBasedConnectedScoreTest extends WifiBaseTest {
     public void disallowLowRssiIfDataIsNotMoving() throws Exception {
         mWifiInfo.setRssi(mRssiExitThreshold2GHz - 1);
         mWifiInfo.setLinkSpeed(6); // Mbps
-        mWifiInfo.txSuccessRate = .1; // proportional to pps
-        mWifiInfo.txBadRate = 0;
-        mWifiInfo.rxSuccessRate = .1;
+        mWifiInfo.setTxSuccessRate(.1); // proportional to pps
+        mWifiInfo.setTxBadRate(0);
+        mWifiInfo.setRxSuccessRate(.1);
         for (int i = 0; i < 10; i++) {
             mVelocityBasedConnectedScore.updateUsingWifiInfo(mWifiInfo,
                     mClock.getWallClockMillis());
