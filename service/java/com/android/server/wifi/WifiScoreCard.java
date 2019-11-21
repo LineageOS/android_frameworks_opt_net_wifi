@@ -380,6 +380,24 @@ public class WifiScoreCard {
     }
 
     /**
+     * Records the last successful L2 connection timestamp for a BSSID.
+     * @return the previous BSSID connection time.
+     */
+    public long setBssidConnectionTimestampMs(String ssid, String bssid, long timeMs) {
+        PerBssid perBssid = lookupBssid(ssid, bssid);
+        long prev = perBssid.lastConnectionTimestampMs;
+        perBssid.lastConnectionTimestampMs = timeMs;
+        return prev;
+    }
+
+    /**
+     * Returns the last successful L2 connection time for this BSSID.
+     */
+    public long getBssidConnectionTimestampMs(String ssid, String bssid) {
+        return lookupBssid(ssid, bssid).lastConnectionTimestampMs;
+    }
+
+    /**
      * Increment the blocklist streak count for a failure reason on an AP.
      * @return the updated count
      */
@@ -429,6 +447,8 @@ public class WifiScoreCard {
         public final MacAddress bssid;
         public final int[] blocklistStreakCount =
                 new int[BssidBlocklistMonitor.NUMBER_REASON_CODES];
+        // The wall clock time in milliseconds for the last successful l2 connection.
+        public long lastConnectionTimestampMs;
         public boolean changed;
         public boolean referenced;
 

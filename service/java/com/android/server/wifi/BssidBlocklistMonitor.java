@@ -220,6 +220,7 @@ public class BssidBlocklistMonitor {
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ASSOCIATION_REJECTION);
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ASSOCIATION_TIMEOUT);
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_AUTHENTICATION_FAILURE);
+        mWifiScoreCard.setBssidConnectionTimeMs(ssid, bssid, mClock.getWallClockMillis());
 
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null) {

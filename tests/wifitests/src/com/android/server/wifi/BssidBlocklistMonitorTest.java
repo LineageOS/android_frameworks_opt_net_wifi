@@ -249,10 +249,12 @@ public class BssidBlocklistMonitorTest {
     }
 
     /**
-     * Verify that handleBssidConnectionSuccess resets appropriate blocklist streak counts.
+     * Verify that handleBssidConnectionSuccess resets appropriate blocklist streak counts, and
+     * notifies WifiScorecard of the successful connection.
      */
     @Test
     public void testNetworkConnectionResetsBlocklistStreak() {
+        when(mClock.getWallClockMillis()).thenReturn(100L);
         mBssidBlocklistMonitor.handleBssidConnectionSuccess(TEST_BSSID_1, TEST_SSID_1);
         verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
                 BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
@@ -266,6 +268,7 @@ public class BssidBlocklistMonitorTest {
                 BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT);
         verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
                 BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
+        verify(mWifiScoreCard).setBssidConnectionTimeMs(TEST_SSID_1, TEST_BSSID_1, 100L);
     }
 
     /**

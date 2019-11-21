@@ -194,6 +194,22 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
+     * Test the update and retrieval of the last connection time to a BSSID.
+     */
+    @Test
+    public void testSetBssidConnectionTimestampMs() {
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+
+        String ssid = mWifiInfo.getSSID();
+        String bssid = mWifiInfo.getBSSID();
+        assertEquals(0L, mWifiScoreCard.getBssidConnectionTimestampMs(ssid, bssid));
+        assertEquals(0L, mWifiScoreCard.setBssidConnectionTimestampMs(ssid, bssid, 100L));
+        assertEquals(100L, mWifiScoreCard.getBssidConnectionTimestampMs(ssid, bssid));
+    }
+
+    /**
      * Test identifiers.
      */
     @Test
