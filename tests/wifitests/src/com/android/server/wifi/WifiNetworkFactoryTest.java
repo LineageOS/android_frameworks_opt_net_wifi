@@ -2869,7 +2869,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         }
         WorkSource workSource = mWorkSourceArgumentCaptor.getValue();
         assertNotNull(workSource);
-        assertEquals(TEST_UID_1, workSource.get(0));
+        assertEquals(TEST_UID_1, workSource.getUid(0));
     }
 
     class WifiConfigMatcher implements ArgumentMatcher<WifiConfiguration> {
