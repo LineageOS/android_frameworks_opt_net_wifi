@@ -266,7 +266,7 @@ public class WifiInjector {
         mWifiMetrics.setWifiConfigManager(mWifiConfigManager);
 
         mWifiApConfigStore = new WifiApConfigStore(
-                mContext, this, wifiHandler, mBackupManagerProxy, mFrameworkFacade,
+                mContext, this, wifiHandler, mBackupManagerProxy,
                 mWifiConfigStore, mWifiConfigManager);
 
         mWifiConnectivityHelper = new WifiConnectivityHelper(mWifiNative);

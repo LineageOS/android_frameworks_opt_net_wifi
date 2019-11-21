@@ -81,7 +81,6 @@ import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -1561,21 +1560,6 @@ public class WifiServiceImpl extends BaseWifiService {
             Log.e(TAG, "Invalid WifiConfiguration");
             return false;
         }
-    }
-
-    /**
-     * Method used to inform user of Ap Configuration conversion due to hardware.
-     */
-    @Override
-    public void notifyUserOfApBandConversion(String packageName) {
-        enforceNetworkSettingsPermission();
-
-        if (mVerboseLoggingEnabled) {
-            mLog.info("notifyUserOfApBandConversion uid=% packageName=%")
-                    .c(Binder.getCallingUid()).c(packageName).flush();
-        }
-
-        mWifiApConfigStore.notifyUserOfApBandConversion(packageName);
     }
 
     /**
