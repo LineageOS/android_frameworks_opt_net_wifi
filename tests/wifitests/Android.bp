@@ -390,6 +390,8 @@ android_test {
 
     dxflags: ["--multi-dex"],
 
+    java_version: "1.9",
+
     // wifi-service and services must be included here so that the latest changes
     // will be used when tests. Otherwise the tests would run against the installed
     // system.
