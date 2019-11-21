@@ -220,4 +220,7 @@
         <item>80</item>
         <item>160</item>
     </integer-array>
+
+    <!-- Indicates that hidden networks are to be scanned during scan only mode -->
+    <bool translatable="false" name="config_wifiScanHiddenNetworksScanOnlyMode">false</bool>
 </resources>
