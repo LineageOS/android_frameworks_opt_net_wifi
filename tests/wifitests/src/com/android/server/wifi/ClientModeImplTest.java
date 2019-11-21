@@ -958,6 +958,10 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mScanDetailCache.getScanResult(sBSSID)).thenReturn(
                 getGoogleGuestScanDetail(TEST_RSSI, sBSSID, sFreq).getScanResult());
 
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.ASSOCIATED));
+        mLooper.dispatchAll();
+
         mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
         mLooper.dispatchAll();
 
@@ -1550,10 +1554,14 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         verify(mWifiConfigManager).enableNetwork(eq(0), eq(true), anyInt(), any());
 
-        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.ASSOCIATED));
         mLooper.dispatchAll();
 
-        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID);
+        mCmi.sendMessage(WifiMonitor.NETWORK_CONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID, sSSID);
+
         mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
                 new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
         mLooper.dispatchAll();
@@ -1571,8 +1579,8 @@ public class ClientModeImplTest extends WifiBaseTest {
                 sSSID, BssidBlocklistMonitor.REASON_DHCP_FAILURE);
         verify(mBssidBlocklistMonitor, times(2)).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_DHCP_FAILURE);
-        verify(mBssidBlocklistMonitor, never()).handleDhcpProvisioningSuccess(sBSSID);
-        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor, never()).handleDhcpProvisioningSuccess(sBSSID, sSSID);
+        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID, sSSID);
     }
 
     /**
@@ -3402,9 +3410,9 @@ public class ClientModeImplTest extends WifiBaseTest {
     public void verifyNetworkSelectionEnableOnInternetValidation() throws Exception {
         // Simulate the first connection.
         connect();
-        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID);
-        verify(mBssidBlocklistMonitor).handleDhcpProvisioningSuccess(sBSSID);
-        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor).handleBssidConnectionSuccess(sBSSID, sSSID);
+        verify(mBssidBlocklistMonitor).handleDhcpProvisioningSuccess(sBSSID, sSSID);
+        verify(mBssidBlocklistMonitor, never()).handleNetworkValidationSuccess(sBSSID, sSSID);
 
         ArgumentCaptor<Messenger> messengerCaptor = ArgumentCaptor.forClass(Messenger.class);
         verify(mConnectivityManager).registerNetworkAgent(messengerCaptor.capture(),
@@ -3425,7 +3433,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         verify(mWifiConfigManager).updateNetworkSelectionStatus(
                 FRAMEWORK_NETWORK_ID, NETWORK_SELECTION_ENABLE);
         verify(mWifiScoreCard).noteValidationSuccess(any());
-        verify(mBssidBlocklistMonitor).handleNetworkValidationSuccess(sBSSID);
+        verify(mBssidBlocklistMonitor).handleNetworkValidationSuccess(sBSSID, sSSID);
     }
 
     /**

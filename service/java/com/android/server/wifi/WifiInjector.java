@@ -603,7 +603,7 @@ public class WifiInjector {
                 mWifiMetrics, clientModeImpl, mWifiHandlerThread.getLooper(), mDeviceConfigFacade,
                 mWifiThreadRunner);
         mBssidBlocklistMonitor = new BssidBlocklistMonitor(mWifiConnectivityHelper,
-                mWifiLastResortWatchdog, mClock, mConnectivityLocalLog);
+                mWifiLastResortWatchdog, mClock, mConnectivityLocalLog, mWifiScoreCard);
         mWifiChannelUtilization = new WifiChannelUtilization(mClock);
         return new WifiConnectivityManager(mContext, getScoringParams(),
                 clientModeImpl, this,

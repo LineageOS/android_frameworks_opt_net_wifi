@@ -2818,7 +2818,7 @@ public class ClientModeImpl extends StateMachine {
             mWifiInfo.setTrusted(config.trusted);
             mWifiConfigManager.updateRandomizedMacExpireTime(config,
                     dhcpResults.getLeaseDuration());
-            mBssidBlocklistMonitor.handleDhcpProvisioningSuccess(mLastBssid);
+            mBssidBlocklistMonitor.handleDhcpProvisioningSuccess(mLastBssid, mWifiInfo.getSSID());
         }
 
         // Set meteredHint if DHCP result says network is metered
@@ -4275,7 +4275,7 @@ public class ClientModeImpl extends StateMachine {
             mCountryCode.setReadyForChange(false);
             mWifiMetrics.setWifiState(WifiMetricsProto.WifiLog.WIFI_ASSOCIATED);
             mWifiScoreCard.noteNetworkAgentCreated(mWifiInfo, mNetworkAgent.netId);
-            mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid);
+            mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid, mWifiInfo.getSSID());
         }
 
         @Override
@@ -4868,7 +4868,8 @@ public class ClientModeImpl extends StateMachine {
                         sendNetworkStateChangeBroadcast(mLastBssid);
 
                         // Successful framework roam! (probably)
-                        mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid);
+                        mBssidBlocklistMonitor.handleBssidConnectionSuccess(mLastBssid,
+                                mWifiInfo.getSSID());
                         reportConnectionAttemptEnd(
                                 WifiMetrics.ConnectionEvent.FAILURE_NONE,
                                 WifiMetricsProto.ConnectionEvent.HLF_NONE,
@@ -5014,7 +5015,8 @@ public class ClientModeImpl extends StateMachine {
                         mWifiDiagnostics.reportConnectionEvent(
                                 WifiDiagnostics.CONNECTION_EVENT_SUCCEEDED);
                         mWifiScoreCard.noteValidationSuccess(mWifiInfo);
-                        mBssidBlocklistMonitor.handleNetworkValidationSuccess(mLastBssid);
+                        mBssidBlocklistMonitor.handleNetworkValidationSuccess(mLastBssid,
+                                mWifiInfo.getSSID());
                         config = getCurrentWifiConfiguration();
                         if (config != null) {
                             // re-enable autojoin
