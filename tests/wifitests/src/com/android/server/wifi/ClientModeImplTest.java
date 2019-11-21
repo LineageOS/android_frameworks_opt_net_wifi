@@ -2972,6 +2972,19 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that if a NETWORK_DISCONNECTION_EVENT is received in ConnectedState, then an
+     * abnormal disconnect is reported to BssidBlocklistMonitor.
+     */
+    @Test
+    public void testAbnormalDisconnectNotifiesBssidBlocklistMonitor() throws Exception {
+        connect();
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+    }
+
+    /**
      * Verifies that WifiLastResortWatchdog and BssidBlocklistMonitor is notified of
      * association rejection of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
      * @throws Exception

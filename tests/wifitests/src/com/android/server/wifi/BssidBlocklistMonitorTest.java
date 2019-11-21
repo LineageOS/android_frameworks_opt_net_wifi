@@ -48,6 +48,8 @@ public class BssidBlocklistMonitorTest {
     private static final int TEST_DHCP_FAILURE = BssidBlocklistMonitor.REASON_DHCP_FAILURE;
     private static final long BASE_BLOCKLIST_DURATION = TimeUnit.MINUTES.toMillis(5); // 5 minutes
     private static final long MAX_BLOCKLIST_DURATION = TimeUnit.HOURS.toMillis(18); // 18 hours
+    private static final long ABNORMAL_DISCONNECT_TIME_WINDOW_MS = TimeUnit.SECONDS.toMillis(30);
+    private static final long ABNORMAL_DISCONNECT_RESET_TIME_MS = TimeUnit.HOURS.toMillis(3);
     private static final int FAILURE_STREAK_CAP = 7;
     private static final int NUM_FAILURES_TO_BLOCKLIST = 3;
 
@@ -192,6 +194,34 @@ public class BssidBlocklistMonitorTest {
     }
 
     /**
+     * Verify that only abnormal disconnects that happened in a window of time right after
+     * connection gets counted in the BssidBlocklistMonitor.
+     */
+    @Test
+    public void testAbnormalDisconnectRecencyCheck() {
+        // does some setup so that 1 failure is enough to add the BSSID to blocklist.
+        when(mWifiScoreCard.getBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT)).thenReturn(1);
+
+        // simulate an abnormal disconnect coming in after the allowed window of time
+        when(mWifiScoreCard.getBssidConnectionTimestampMs(TEST_SSID_1, TEST_BSSID_1))
+                .thenReturn(0L);
+        when(mClock.getWallClockMillis()).thenReturn(ABNORMAL_DISCONNECT_TIME_WINDOW_MS + 1);
+        assertFalse(mBssidBlocklistMonitor.handleBssidConnectionFailure(TEST_BSSID_1, TEST_SSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT));
+        verify(mWifiScoreCard, never()).incrementBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+
+        // simulate another abnormal disconnect within the time window and verify the BSSID is
+        // added to blocklist.
+        when(mClock.getWallClockMillis()).thenReturn(ABNORMAL_DISCONNECT_TIME_WINDOW_MS);
+        assertTrue(mBssidBlocklistMonitor.handleBssidConnectionFailure(TEST_BSSID_1, TEST_SSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT));
+        verify(mWifiScoreCard).incrementBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+    }
+
+    /**
      * Verify that when the BSSID blocklist streak is greater or equal to 1, then we block a
      * BSSID on a single failure regardless of failure type.
      */
@@ -254,7 +284,7 @@ public class BssidBlocklistMonitorTest {
      */
     @Test
     public void testNetworkConnectionResetsBlocklistStreak() {
-        when(mClock.getWallClockMillis()).thenReturn(100L);
+        when(mClock.getWallClockMillis()).thenReturn(ABNORMAL_DISCONNECT_RESET_TIME_MS + 1);
         mBssidBlocklistMonitor.handleBssidConnectionSuccess(TEST_BSSID_1, TEST_SSID_1);
         verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
                 BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
@@ -268,7 +298,23 @@ public class BssidBlocklistMonitorTest {
                 BssidBlocklistMonitor.REASON_ASSOCIATION_TIMEOUT);
         verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
                 BssidBlocklistMonitor.REASON_AUTHENTICATION_FAILURE);
-        verify(mWifiScoreCard).setBssidConnectionTimeMs(TEST_SSID_1, TEST_BSSID_1, 100L);
+        verify(mWifiScoreCard).setBssidConnectionTimestampMs(TEST_SSID_1, TEST_BSSID_1,
+                ABNORMAL_DISCONNECT_RESET_TIME_MS + 1);
+        verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+    }
+
+    /**
+     * Verify that the abnormal disconnect streak is not reset if insufficient time has passed.
+     */
+    @Test
+    public void testNetworkConnectionNotResetAbnormalDisconnectStreak() {
+        when(mClock.getWallClockMillis()).thenReturn(ABNORMAL_DISCONNECT_RESET_TIME_MS);
+        mBssidBlocklistMonitor.handleBssidConnectionSuccess(TEST_BSSID_1, TEST_SSID_1);
+        verify(mWifiScoreCard).setBssidConnectionTimestampMs(TEST_SSID_1, TEST_BSSID_1,
+                ABNORMAL_DISCONNECT_RESET_TIME_MS);
+        verify(mWifiScoreCard, never()).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
     }
 
     /**
