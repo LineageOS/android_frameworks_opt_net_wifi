@@ -645,7 +645,7 @@ public class WifiP2pServiceImplTest extends WifiBaseTest {
         String[] permission_gold = new String[] {android.Manifest.permission.ACCESS_FINE_LOCATION,
                                                  android.Manifest.permission.ACCESS_WIFI_STATE};
         ArgumentCaptor<String []> permissionCaptor = ArgumentCaptor.forClass(String[].class);
-        verify(mContext, atLeastOnce()).sendBroadcastMultiplePermissions(
+        verify(mContext, atLeastOnce()).sendBroadcastWithMultiplePermissions(
                 intentCaptor.capture(), permissionCaptor.capture());
         String [] permission = permissionCaptor.getValue();
         Arrays.sort(permission);
