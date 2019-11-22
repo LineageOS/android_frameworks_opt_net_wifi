@@ -1101,11 +1101,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         if (!bssid.matches(matchBaseAddress, matchMask)) {
             return false;
         }
-        if (ScanResultMatchInfo.getNetworkType(wns.wifiConfiguration)
-                != ScanResultMatchInfo.getNetworkType(scanResult)) {
-            return false;
-        }
-        return true;
+        ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
+        ScanResultMatchInfo fromWifiConfiguration =
+                ScanResultMatchInfo.fromWifiConfiguration(wns.wifiConfiguration);
+        return fromScanResult.networkTypeEquals(fromWifiConfiguration);
     }
 
     // Loops through the scan results and finds scan results matching the active network
