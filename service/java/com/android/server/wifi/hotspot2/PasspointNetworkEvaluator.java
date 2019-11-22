@@ -173,19 +173,15 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         if (existingNetwork != null) {
             WifiConfiguration.NetworkSelectionStatus status =
                     existingNetwork.getNetworkSelectionStatus();
-            if (!status.isNetworkEnabled()) {
-                boolean isSuccess = mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId);
-                if (isSuccess) {
-                    return existingNetwork;
-                }
+            if (!(status.isNetworkEnabled()
+                    || mWifiConfigManager.tryEnableNetwork(existingNetwork.networkId))) {
                 localLog("Current configuration for the Passpoint AP " + config.SSID
                         + " is disabled, skip this candidate");
                 return null;
             }
-            return existingNetwork;
         }
 
-        // Add the newly created WifiConfiguration to WifiConfigManager.
+        // Add or update with the newly created WifiConfiguration to WifiConfigManager.
         NetworkUpdateResult result;
         if (config.fromWifiNetworkSuggestion) {
             result = mWifiConfigManager.addOrUpdateNetwork(
@@ -195,8 +191,9 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         }
         if (!result.isSuccess()) {
             localLog("Failed to add passpoint network");
-            return null;
+            return existingNetwork;
         }
+
         mWifiConfigManager.enableNetwork(result.getNetworkId(), false, Process.WIFI_UID, null);
         mWifiConfigManager.setNetworkCandidateScanResult(result.getNetworkId(),
                 networkInfo.mScanDetail.getScanResult(), 0);
