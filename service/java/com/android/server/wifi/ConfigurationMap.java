@@ -126,30 +126,6 @@ public class ConfigurationMap {
                 ScanResultMatchInfo.fromScanResult(scanResult));
     }
 
-    /**
-     * Retrieves a |WifiConfiguration| object with PSK key management, that is matching the provided
-     * |scanResult| SSID from the internal map.
-     * Used for upgrading WPA2-Personal networks to WPA3-Personal, when AP is in transition mode.
-     */
-    public WifiConfiguration getPskNetworkByScanResultForCurrentUser(ScanResult scanResult) {
-        // Check if WPA2-Personal saved network is available
-        ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(scanResult);
-        matchInfo.networkType = WifiConfiguration.SECURITY_TYPE_PSK;
-        return mScanResultMatchInfoMapForCurrentUser.get(matchInfo);
-    }
-
-    /**
-     * Retrieves a |WifiConfiguration| object with no security, that is matching the provided
-     * |scanResult| SSID from the internal map.
-     * Used for upgrading Open networks to OWE, when AP is in transition mode.
-     */
-    public WifiConfiguration getOpenNetworkByScanResultForCurrentUser(ScanResult scanResult) {
-        // Check if Open saved network is available
-        ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(scanResult);
-        matchInfo.networkType = WifiConfiguration.SECURITY_TYPE_OPEN;
-        return mScanResultMatchInfoMapForCurrentUser.get(matchInfo);
-    }
-
     public Collection<WifiConfiguration> valuesForAllUsers() {
         return mPerID.values();
     }
