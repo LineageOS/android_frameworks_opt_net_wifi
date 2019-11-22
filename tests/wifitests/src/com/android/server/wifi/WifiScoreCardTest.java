@@ -154,6 +154,46 @@ public class WifiScoreCardTest extends WifiBaseTest {
     }
 
     /**
+     * Test clearing the blocklist streak for all APs belonging to a SSID.
+     */
+    @Test
+    public void testClearBssidBlocklistStreakForSsid() {
+        // Increment and verify the blocklist streak for SSID_1, BSSID_1
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, mWifiScoreCard.incrementBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+            assertEquals(i, mWifiScoreCard.getBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+        }
+
+        // Increment and verify the blocklist streak for SSID_2, BSSID_2
+        mWifiInfo.setSSID(TEST_SSID_2);
+        mWifiInfo.setBSSID(TEST_BSSID_2.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, mWifiScoreCard.incrementBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+            assertEquals(i, mWifiScoreCard.getBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+        }
+
+        // Clear the blocklist streak for SSID_2
+        mWifiScoreCard.resetBssidBlocklistStreakForSsid(mWifiInfo.getSSID());
+        // Verify that the blocklist streak for SSID_2 is cleared.
+        assertEquals(0, mWifiScoreCard.getBssidBlocklistStreak(
+                mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+
+        // verify that the blocklist streak for SSID_1 is not cleared.
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        assertEquals(2, mWifiScoreCard.getBssidBlocklistStreak(
+                mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+    }
+
+    /**
      * Test identifiers.
      */
     @Test

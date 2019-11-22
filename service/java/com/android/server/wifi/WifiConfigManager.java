@@ -1487,6 +1487,7 @@ public class WifiConfigManager {
         mScanDetailCaches.remove(config.networkId);
         // Stage the backup of the SettingsProvider package which backs this up.
         mBackupManagerProxy.notifyDataChanged();
+        mWifiInjector.getBssidBlocklistMonitor().handleNetworkRemoved(config.SSID);
 
         localLog("removeNetworkInternal: removed config."
                 + " netId=" + config.networkId
