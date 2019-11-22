@@ -52,8 +52,8 @@ public class WifiDataStall {
     private int mMinTxBad;
     private int mMinTxSuccessWithoutRx;
     private int mDataStallDurationMs;
-    private int mDataStallTxTputThrKbps;
-    private int mDataStallRxTputThrKbps;
+    private int mDataStallTxTputThrMbps;
+    private int mDataStallRxTputThrMbps;
     private int mDataStallTxPerThr;
     private int mDataStallCcaLevelThr;
     private int mLastFrequency = -1;
@@ -156,12 +156,12 @@ public class WifiDataStall {
             boolean isTxTputLow = false;
             boolean isRxTputLow = false;
             if (txLinkSpeed > 0) {
-                int txTputKbps = txLinkSpeed * 1000 * (100 - txPer) * (100 - ccaLevel);
-                isTxTputLow = txTputKbps < mDataStallTxTputThrKbps * 100 * 100;
+                int txTput = txLinkSpeed * (100 - txPer) * (100 - ccaLevel);
+                isTxTputLow = txTput < mDataStallTxTputThrMbps * 100 * 100;
             }
             if (rxLinkSpeed > 0) {
-                int rxTputKbps = rxLinkSpeed * 1000 * (100 - ccaLevel);
-                isRxTputLow = rxTputKbps < mDataStallRxTputThrKbps * 100;
+                int rxTput = rxLinkSpeed * (100 - ccaLevel);
+                isRxTputLow = rxTput < mDataStallRxTputThrMbps * 100;
             }
 
             boolean dataStallTx = isTxTputLow || ccaLevel >= mDataStallCcaLevelThr
@@ -255,14 +255,14 @@ public class WifiDataStall {
 
     private void updateUsabilityDataCollectionFlags() {
         mDataStallDurationMs = mDeviceConfigFacade.getDataStallDurationMs();
-        mDataStallTxTputThrKbps = mDeviceConfigFacade.getDataStallTxTputThrKbps();
-        mDataStallRxTputThrKbps = mDeviceConfigFacade.getDataStallRxTputThrKbps();
+        mDataStallTxTputThrMbps = mDeviceConfigFacade.getDataStallTxTputThrMbps();
+        mDataStallRxTputThrMbps = mDeviceConfigFacade.getDataStallRxTputThrMbps();
         mDataStallTxPerThr = mDeviceConfigFacade.getDataStallTxPerThr();
         mDataStallCcaLevelThr = mDeviceConfigFacade.getDataStallCcaLevelThr();
 
         mWifiMetrics.setDataStallDurationMs(mDataStallDurationMs);
-        mWifiMetrics.setDataStallTxTputThrKbps(mDataStallTxTputThrKbps);
-        mWifiMetrics.setDataStallRxTputThrKbps(mDataStallRxTputThrKbps);
+        mWifiMetrics.setDataStallTxTputThrMbps(mDataStallTxTputThrMbps);
+        mWifiMetrics.setDataStallRxTputThrMbps(mDataStallRxTputThrMbps);
         mWifiMetrics.setDataStallTxPerThr(mDataStallTxPerThr);
         mWifiMetrics.setDataStallCcaLevelThr(mDataStallCcaLevelThr);
     }
