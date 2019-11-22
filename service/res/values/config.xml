@@ -179,4 +179,29 @@
 
     <!-- Indicates that wifi watchdog is enabled on this device -->
     <bool translatable="false" name="config_wifi_watchdog_enabled">true</bool>
+
+    <!--
+    Controls the mapping between RSSI and RSSI levels.
+
+    RSSI                                    RSSI Level
+    (-infinity, thresholds[0])                       0
+    [threshold[0], threshold[1])                     1
+    [threshold[1], threshold[2])                     2
+    ...                                            ...
+    [threshold[len-2], threshold[len-1])         len-1
+    [threshold[len-1], +infinity)                  len
+
+    where:
+        [a, b) is the range of integers `n` such that a <= n < b
+        `threshold[i]` represents the i'th element of the config_wifiRssiLevelThresholds array
+        and `len` is the length of the config_wifiRssiLevelThresholds array.
+    -->
+    <integer-array translatable="false" name="config_wifiRssiLevelThresholds">
+                         <!-- RSSI                RSSI Level -->
+        <item>-88</item> <!-- (-infinity, -88)             0 -->
+        <item>-77</item> <!-- [-88, -77)                   1 -->
+        <item>-66</item> <!-- [-77, -66)                   2 -->
+        <item>-55</item> <!-- [-66, -55)                   3 -->
+                         <!-- [-55, +infinity)             4 -->
+    </integer-array>
 </resources>

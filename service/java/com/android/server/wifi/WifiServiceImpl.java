@@ -108,6 +108,7 @@ import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
 import com.android.server.wifi.util.ExternalCallbackTracker;
+import com.android.server.wifi.util.RssiUtil;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.wifi.R;
@@ -3557,5 +3558,10 @@ public class WifiServiceImpl extends BaseWifiService {
                 mWifiNetworkSuggestionsManager
                         .unregisterSuggestionConnectionStatusListener(listenerIdentifier,
                                 packageName));
+    }
+
+    @Override
+    public int calculateSignalLevel(int rssi) {
+        return RssiUtil.calculateSignalLevel(mContext, rssi);
     }
 }
