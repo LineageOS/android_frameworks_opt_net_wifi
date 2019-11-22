@@ -71,15 +71,6 @@ public class WifiConnectivityManager {
     // it should comply to the minimum scan interval rule.
     private static final boolean SCAN_IMMEDIATELY = true;
     private static final boolean SCAN_ON_SCHEDULE = false;
-    // Periodic scan interval in milli-seconds. This is the scan
-    // performed when screen is on.
-    @VisibleForTesting
-    public static final int PERIODIC_SCAN_INTERVAL_MS = 20 * 1000; // 20 seconds
-    // When screen is on and WiFi traffic is heavy, exponential backoff
-    // connectivity scans are scheduled. This constant defines the maximum
-    // scan interval in this scenario.
-    @VisibleForTesting
-    public static final int MAX_PERIODIC_SCAN_INTERVAL_MS = 160 * 1000; // 160 seconds
     // Initial PNO scan interval in milliseconds when the device is moving. The scan interval backs
     // off from this initial interval on subsequent scans. This scan is performed when screen is
     // off and disconnected.
@@ -160,7 +151,6 @@ public class WifiConnectivityManager {
     private int mSingleScanRestartCount = 0;
     private int mTotalConnectivityAttemptsRateLimited = 0;
     private String mLastConnectionAttemptBssid = null;
-    private int mPeriodicSingleScanInterval = PERIODIC_SCAN_INTERVAL_MS;
     private long mLastPeriodicSingleScanTimeStamp = RESET_TIME_STAMP;
     private boolean mPnoScanStarted = false;
     private boolean mPeriodicScanTimerSet = false;
@@ -179,6 +169,14 @@ public class WifiConnectivityManager {
     private int mRssiScoreOffset;
     private int mRssiScoreSlope;
     private int mPnoScanIntervalMs;
+
+    // Scanning Schedules
+    // Default schedule used in case of invalid configuration
+    private static final int[] DEFAULT_SCANNING_SCHEDULE = {20, 40, 80, 160};
+    private final int[] mConnectedSingleScanSchedule;
+    private final int[] mDisconnectedSingleScanSchedule;
+    private int[] mCurrentSingleScanSchedule;
+    private int mCurrentSingleScanScheduleIndex;
 
     private WifiChannelUtilization mWifiChannelUtilization;
 
@@ -600,11 +598,14 @@ public class WifiConnectivityManager {
         mUseSingleRadioChainScanResults = context.getResources().getBoolean(
                 R.bool.config_wifi_framework_use_single_radio_chain_scan_results_network_selection);
 
-
         mFullScanMaxTxRate = context.getResources().getInteger(
                 R.integer.config_wifi_framework_max_tx_rate_for_full_scan);
         mFullScanMaxRxRate = context.getResources().getInteger(
                 R.integer.config_wifi_framework_max_rx_rate_for_full_scan);
+
+        mConnectedSingleScanSchedule = initializeScanningSchedule(context, WIFI_STATE_CONNECTED);
+        mDisconnectedSingleScanSchedule = initializeScanningSchedule(context,
+                WIFI_STATE_DISCONNECTED);
 
         mPnoScanIntervalMs = MOVING_PNO_SCAN_INTERVAL_MS;
 
@@ -621,6 +622,40 @@ public class WifiConnectivityManager {
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
         mWifiChannelUtilization = mWifiInjector.getWifiChannelUtilization();
         mNetworkSelector.setWifiChannelUtilization(mWifiChannelUtilization);
+    }
+
+    /** Initialize single scanning schedules, and validate them */
+    private int[] initializeScanningSchedule(Context context, int state) {
+        int[] schedule;
+
+        if (state == WIFI_STATE_CONNECTED) {
+            schedule = context.getResources().getIntArray(
+                    R.array.config_wifiConnectedScanIntervalScheduleSec);
+        } else if (state == WIFI_STATE_DISCONNECTED) {
+            schedule = context.getResources().getIntArray(
+                    R.array.config_wifiDisconnectedScanIntervalScheduleSec);
+        } else {
+            schedule = null;
+        }
+
+        boolean invalidConfig = false;
+        if (schedule == null || schedule.length == 0) {
+            invalidConfig = true;
+        } else {
+            for (int val : schedule) {
+                if (val <= 0) {
+                    invalidConfig = true;
+                    break;
+                }
+            }
+        }
+        if (!invalidConfig) {
+            return schedule;
+        }
+
+        Log.e(TAG, "Configuration for wifi scanning schedule is mis-configured,"
+                + "using default schedule");
+        return DEFAULT_SCANNING_SCHEDULE;
     }
 
     /** Returns maximum PNO score, before any awards/bonuses. */
@@ -811,10 +846,11 @@ public class WifiConnectivityManager {
 
         if (mLastPeriodicSingleScanTimeStamp != RESET_TIME_STAMP) {
             long msSinceLastScan = currentTimeStamp - mLastPeriodicSingleScanTimeStamp;
-            if (msSinceLastScan < PERIODIC_SCAN_INTERVAL_MS) {
+            if (msSinceLastScan < getScheduledSingleScanInterval(0)) {
                 localLog("Last periodic single scan started " + msSinceLastScan
                         + "ms ago, defer this new scan request.");
-                schedulePeriodicScanTimer(PERIODIC_SCAN_INTERVAL_MS - (int) msSinceLastScan);
+                schedulePeriodicScanTimer(
+                        getScheduledSingleScanInterval(0) - (int) msSinceLastScan);
                 return;
             }
         }
@@ -841,16 +877,35 @@ public class WifiConnectivityManager {
         if (isScanNeeded) {
             mLastPeriodicSingleScanTimeStamp = currentTimeStamp;
             startSingleScan(isFullBandScan, WIFI_WORK_SOURCE);
-            schedulePeriodicScanTimer(mPeriodicSingleScanInterval);
+            schedulePeriodicScanTimer(
+                    getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
 
             // Set up the next scan interval in an exponential backoff fashion.
-            mPeriodicSingleScanInterval *= 2;
-            if (mPeriodicSingleScanInterval >  MAX_PERIODIC_SCAN_INTERVAL_MS) {
-                mPeriodicSingleScanInterval = MAX_PERIODIC_SCAN_INTERVAL_MS;
-            }
+            incrementSingleScanningIndex();
         } else {
             // Since we already skipped this scan, keep the same scan interval for next scan.
-            schedulePeriodicScanTimer(mPeriodicSingleScanInterval);
+            schedulePeriodicScanTimer(
+                    getScheduledSingleScanInterval(mCurrentSingleScanScheduleIndex));
+        }
+    }
+
+    // Retrieve a value from single scanning schedule in ms
+    private int getScheduledSingleScanInterval(int index) {
+        if (mCurrentSingleScanSchedule != null && mCurrentSingleScanSchedule.length > index) {
+            return mCurrentSingleScanSchedule[index] * 1000;
+        } else {
+            Log.e(TAG, "Invalid attempt to get schedule interval value, "
+                    + ((mCurrentSingleScanSchedule == null) ? "Schedule array is null"
+                            : "invalid index"));
+            // Use a default value
+            return DEFAULT_SCANNING_SCHEDULE[0];
+        }
+    }
+
+    // Step up index for single scanning
+    private void incrementSingleScanningIndex() {
+        if (mCurrentSingleScanScheduleIndex < (mCurrentSingleScanSchedule.length - 1)) {
+            mCurrentSingleScanScheduleIndex++;
         }
     }
 
@@ -918,7 +973,7 @@ public class WifiConnectivityManager {
         if (scanImmediately) {
             resetLastPeriodicSingleScanTimeStamp();
         }
-        mPeriodicSingleScanInterval = PERIODIC_SCAN_INTERVAL_MS;
+        mCurrentSingleScanScheduleIndex = 0;
         startPeriodicSingleScan();
     }
 
@@ -1154,8 +1209,16 @@ public class WifiConnectivityManager {
         if (mWifiState == WIFI_STATE_DISCONNECTED) {
             mLastConnectionAttemptBssid = null;
             scheduleWatchdogTimer();
+            // Switch to the disconnected scanning schedule
+            mCurrentSingleScanSchedule = mDisconnectedSingleScanSchedule;
             startConnectivityScan(SCAN_IMMEDIATELY);
+        } else if (mWifiState == WIFI_STATE_CONNECTED) {
+            // Switch to connected single scanning schedule
+            mCurrentSingleScanSchedule = mConnectedSingleScanSchedule;
+            startConnectivityScan(SCAN_ON_SCHEDULE);
         } else {
+            // Intermediate state, no applicable single scanning schedule
+            mCurrentSingleScanSchedule = null;
             startConnectivityScan(SCAN_ON_SCHEDULE);
         }
     }
