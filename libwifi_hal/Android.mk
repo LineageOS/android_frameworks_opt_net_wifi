@@ -105,9 +105,9 @@ else ifeq ($(BOARD_WLAN_DEVICE), mrvl)
 else ifeq ($(BOARD_WLAN_DEVICE), MediaTek)
   # support MTK WIFI HAL
   LIB_WIFI_HAL := libwifi-hal-mt66xx
-else ifeq ($(BOARD_WLAN_DEVICE), rtl)
+else ifeq ($(BOARD_WLAN_DEVICE), realtek)
   # support Realtek WIFI HAL
-  LIB_WIFI_HAL := libwifi-hal-rtl
+  LIB_WIFI_HAL := libwifi-hal-rtk
 else ifeq ($(BOARD_WLAN_DEVICE), emulator)
   LIB_WIFI_HAL := libwifi-hal-emu
 endif
