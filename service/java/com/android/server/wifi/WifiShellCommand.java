@@ -16,8 +16,11 @@
 
 package com.android.server.wifi;
 
+import android.content.Context;
+import android.net.wifi.IWifiManager;
 import android.net.wifi.WifiScanner;
 import android.os.Binder;
+import android.os.ServiceManager;
 import android.os.ShellCommand;
 
 import com.android.server.wifi.util.ApConfigUtil;
@@ -38,10 +41,8 @@ import java.util.concurrent.TimeUnit;
  * If additional state objects are necessary add them to the
  * constructor.
  *
- * Permissions: currently root permission is required for all
- * commands. If the requirement needs to be relaxed then modify
- * the onCommand method to check for specific permissions on
- * individual commands.
+ * Permissions: currently root permission is required for most
+ * commands, which is checked using {@link #checkRootPermission()}.
  */
 public class WifiShellCommand extends ShellCommand {
     private final ClientModeImpl mClientModeImpl;
@@ -66,7 +67,12 @@ public class WifiShellCommand extends ShellCommand {
 
     @Override
     public int onCommand(String cmd) {
-        checkRootPermission();
+        // Explicit exclusion from root permission
+        // Do not require root permission to maintain backwards compatibility with
+        // `svc wifi [enable|disable]`.
+        if (!"set-wifi-enabled".equals(cmd)) {
+            checkRootPermission();
+        }
 
         final PrintWriter pw = getOutPrintWriter();
         try {
@@ -264,6 +270,30 @@ public class WifiShellCommand extends ShellCommand {
                             + mWifiLastResortWatchdog.getWifiWatchdogFeature());
                     return 0;
                 }
+                case "set-wifi-enabled": {
+                    // This command is explicitly exempted from checkRootPermission() (see beginning
+                    // of this method).
+                    // Do not require root permission to maintain backwards compatibility with
+                    // `svc wifi [enable|disable]`.
+                    // However, setWifiEnabled() does perform its own check for the
+                    // android.Manifest.permission.CHANGE_WIFI_STATE permission.
+                    boolean enabled;
+                    String nextArg = getNextArgRequired();
+                    if ("enabled".equals(nextArg)) {
+                        enabled = true;
+                    } else if ("disabled".equals(nextArg)) {
+                        enabled = false;
+                    } else {
+                        pw.println(
+                                "Invalid argument to 'set-wifi-enabled' - must be 'enabled'"
+                                        + " or 'disabled'");
+                        return -1;
+                    }
+                    IWifiManager wifiManager = IWifiManager.Stub.asInterface(
+                            ServiceManager.getService(Context.WIFI_SERVICE));
+                    wifiManager.setWifiEnabled("com.android.shell", enabled);
+                    return 0;
+                }
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -367,6 +397,8 @@ public class WifiShellCommand extends ShellCommand {
         pw.println("    Sets whether wifi watchdog should trigger recovery");
         pw.println("  get-wifi-watchdog");
         pw.println("    Gets setting of wifi watchdog trigger recovery.");
+        pw.println("  set-wifi-enabled enabled|disabled");
+        pw.println("    Enables/disables Wifi on this device.");
         pw.println();
     }
 }

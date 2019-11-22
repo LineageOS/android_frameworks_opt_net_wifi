@@ -729,7 +729,6 @@ public class ClientModeImpl extends StateMachine {
         mNetworkInfo = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, NETWORKTYPE, "");
         mBatteryStatsManager = batteryStatsManager;
         mWifiStateTracker = wifiInjector.getWifiStateTracker();
-        IBinder b = mFacade.getService(Context.NETWORKMANAGEMENT_SERVICE);
 
         mP2pSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_DIRECT);
