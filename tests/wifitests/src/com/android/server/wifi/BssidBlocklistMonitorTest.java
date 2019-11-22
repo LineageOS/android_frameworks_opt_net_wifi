@@ -108,6 +108,16 @@ public class BssidBlocklistMonitorTest {
     }
 
     /**
+     * Verify getNumBlockedBssidsForSsid returns the correct number of blocked BSSIDs.
+     */
+    @Test
+    public void testGetNumBlockedBssidsForSsid() {
+        verifyAddMultipleBssidsToBlocklist();
+        assertEquals(2, mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(TEST_SSID_1));
+        assertEquals(1, mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(TEST_SSID_2));
+    }
+
+    /**
      * Verify that updateAndGetBssidBlocklist removes expired blocklist entries and clears
      * all failure counters for those networks.
      */

@@ -219,6 +219,12 @@ public class WifiConfigManager {
     private static final int SCAN_RESULT_MAXIMUM_AGE_MS = 40000;
 
     /**
+     * Maximum number of blocked BSSIDs per SSID used for calcualting the duration of temporarily
+     * disabling a network.
+     */
+    private static final int MAX_BLOCKED_BSSID_PER_NETWORK = 10;
+
+    /**
      * Maximum age of frequencies last seen to be included in pno scans. (30 days)
      */
     @VisibleForTesting
@@ -1870,7 +1876,16 @@ public class WifiConfigManager {
             long timeDifferenceMs =
                     mClock.getElapsedSinceBootMillis() - networkStatus.getDisableTime();
             int disableReason = networkStatus.getNetworkSelectionDisableReason();
-            long disableTimeoutMs = NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason];
+            int blockedBssids = Math.min(MAX_BLOCKED_BSSID_PER_NETWORK,
+                    mWifiInjector.getBssidBlocklistMonitor()
+                            .getNumBlockedBssidsForSsid(config.SSID));
+            // if no BSSIDs are blocked then we should keep trying to connect to something
+            long disableTimeoutMs = 0;
+            if (blockedBssids > 0) {
+                double multiplier = Math.pow(2.0, blockedBssids - 1.0);
+                disableTimeoutMs = (long) (NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+                        * multiplier);
+            }
             if (timeDifferenceMs >= disableTimeoutMs) {
                 return updateNetworkSelectionStatus(
                         config, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);

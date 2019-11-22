@@ -283,6 +283,15 @@ public class BssidBlocklistMonitor {
     }
 
     /**
+     * @param ssid
+     * @return the number of BSSIDs currently in the blocklist for the |ssid|.
+     */
+    public int getNumBlockedBssidsForSsid(@NonNull String ssid) {
+        return (int) updateAndGetBssidBlocklistInternal()
+                .filter(entry -> ssid.equals(entry.ssid)).count();
+    }
+
+    /**
      * Gets the BSSIDs that are currently in the blocklist.
      * @return Set of BSSIDs currently in the blocklist
      */
