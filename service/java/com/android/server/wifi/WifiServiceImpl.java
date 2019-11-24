@@ -2678,6 +2678,11 @@ public class WifiServiceImpl extends BaseWifiService {
             SarManager sarManager = mWifiInjector.getSarManager();
             sarManager.dump(fd, pw, args);
             pw.println();
+            mWifiThreadRunner.run(() -> {
+                mWifiInjector.getWifiNetworkScoreCache().dumpWithLatestScanResults(
+                        fd, pw, args, mScanRequestProxy.getScanResults());
+            });
+            pw.println();
         }
     }
 

@@ -19,10 +19,10 @@ package com.android.server.wifi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
-import android.net.NetworkScorerAppData;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiNetworkScoreCache;
@@ -48,6 +48,7 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private final NetworkScoreManager mNetworkScoreManager;
+    private final PackageManager mPackageManager;
     private final WifiConfigManager mWifiConfigManager;
     private final LocalLog mLocalLog;
     private final ContentObserver mContentObserver;
@@ -57,12 +58,14 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
 
     ScoredNetworkEvaluator(final Context context, Handler handler,
             final FrameworkFacade frameworkFacade, NetworkScoreManager networkScoreManager,
+            PackageManager packageManager,
             WifiConfigManager wifiConfigManager, LocalLog localLog,
             WifiNetworkScoreCache wifiNetworkScoreCache,
             WifiPermissionsUtil wifiPermissionsUtil) {
         mScoreCache = wifiNetworkScoreCache;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mNetworkScoreManager = networkScoreManager;
+        mPackageManager = packageManager;
         mWifiConfigManager = wifiConfigManager;
         mLocalLog = localLog;
         mContentObserver = new ContentObserver(handler) {
@@ -109,10 +112,15 @@ public class ScoredNetworkEvaluator implements WifiNetworkSelector.NetworkEvalua
     }
 
     private boolean activeScorerAllowedtoSeeScanResults() {
-        NetworkScorerAppData networkScorerAppData = mNetworkScoreManager.getActiveScorer();
         String packageName = mNetworkScoreManager.getActiveScorerPackage();
-        if (networkScorerAppData == null || packageName == null) return false;
-        int uid = networkScorerAppData.packageUid;
+        if (packageName == null) return false;
+        int uid = -1;
+        try {
+            uid = mPackageManager.getApplicationInfo(packageName, 0).uid;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Failed to retrieve package uid", e);
+            return false;
+        }
         try {
             // TODO moltmann: Can we set a featureID here instead of null?
             mWifiPermissionsUtil.enforceCanAccessScanResults(packageName, null, uid,

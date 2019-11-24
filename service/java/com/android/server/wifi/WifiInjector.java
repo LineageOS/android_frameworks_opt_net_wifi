@@ -32,6 +32,7 @@ import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.INetworkManagementService;
@@ -173,6 +174,14 @@ public class WifiInjector {
 
         sWifiInjector = this;
 
+        // Now create and start handler threads
+        mAsyncChannelHandlerThread = new HandlerThread("AsyncChannelHandlerThread");
+        mAsyncChannelHandlerThread.start();
+        mWifiHandlerThread = new HandlerThread("WifiHandlerThread");
+        mWifiHandlerThread.start();
+        Looper wifiLooper = mWifiHandlerThread.getLooper();
+        Handler wifiHandler = new Handler(wifiLooper);
+
         mFrameworkFacade = new FrameworkFacade();
         mMacAddressUtil = new MacAddressUtil();
         mContext = context;
@@ -183,20 +192,14 @@ public class WifiInjector {
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
         mWifiNetworkScoreCache = new WifiNetworkScoreCache(mContext);
-        mNetworkScoreManager.registerNetworkScoreCache(NetworkKey.TYPE_WIFI,
-                mWifiNetworkScoreCache, NetworkScoreManager.CACHE_FILTER_NONE);
+        mNetworkScoreManager.registerNetworkScoreCallback(NetworkKey.TYPE_WIFI,
+                NetworkScoreManager.CACHE_FILTER_NONE,
+                new HandlerExecutor(wifiHandler), mWifiNetworkScoreCache);
         mUserManager = mContext.getSystemService(UserManager.class);
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
                 mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
         mWifiStateTracker = new WifiStateTracker(mBatteryStats);
-        // Now create and start handler threads
-        mAsyncChannelHandlerThread = new HandlerThread("AsyncChannelHandlerThread");
-        mAsyncChannelHandlerThread.start();
-        mWifiHandlerThread = new HandlerThread("WifiHandlerThread");
-        mWifiHandlerThread.start();
-        Looper wifiLooper = mWifiHandlerThread.getLooper();
-        Handler wifiHandler = new Handler(wifiLooper);
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
@@ -295,7 +298,8 @@ public class WifiInjector {
         mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
         mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, wifiHandler,
-                mFrameworkFacade, mNetworkScoreManager, mWifiConfigManager, mConnectivityLocalLog,
+                mFrameworkFacade, mNetworkScoreManager, context.getPackageManager(),
+                mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
         mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
@@ -772,5 +776,9 @@ public class WifiInjector {
 
     public WifiChannelUtilization getWifiChannelUtilization() {
         return mWifiChannelUtilization;
+    }
+
+    public WifiNetworkScoreCache getWifiNetworkScoreCache() {
+        return mWifiNetworkScoreCache;
     }
 }
