@@ -129,6 +129,30 @@ public class WificondControl implements IBinder.DeathRecipient {
         }
     }
 
+    /**
+     * Result of a signal poll.
+     */
+    public static class SignalPollResult {
+        // RSSI value in dBM.
+        public int currentRssi;
+        //Transmission bit rate in Mbps.
+        public int txBitrate;
+        // Association frequency in MHz.
+        public int associationFrequency;
+        //Last received packet bit rate in Mbps.
+        public int rxBitrate;
+    }
+
+    /**
+     * WiFi interface transimission counters.
+     */
+    public static class TxPacketCounters {
+        // Number of successfully transmitted packets.
+        public int txSucceeded;
+        // Number of tramsmission failures.
+        public int txFailed;
+    }
+
     WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor,
             CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Handler handler,
             Clock clock) {
@@ -505,7 +529,7 @@ public class WificondControl implements IBinder.DeathRecipient {
      * Returns an SignalPollResult object.
      * Returns null on failure.
      */
-    public WifiNative.SignalPollResult signalPoll(@NonNull String ifaceName) {
+    public SignalPollResult signalPoll(@NonNull String ifaceName) {
         IClientInterface iface = getClientInterface(ifaceName);
         if (iface == null) {
             Log.e(TAG, "No valid wificond client interface handler");
@@ -523,7 +547,7 @@ public class WificondControl implements IBinder.DeathRecipient {
             Log.e(TAG, "Failed to do signal polling due to remote exception");
             return null;
         }
-        WifiNative.SignalPollResult pollResult = new WifiNative.SignalPollResult();
+        SignalPollResult pollResult = new SignalPollResult();
         pollResult.currentRssi = resultArray[0];
         pollResult.txBitrate = resultArray[1];
         pollResult.associationFrequency = resultArray[2];
@@ -537,7 +561,7 @@ public class WificondControl implements IBinder.DeathRecipient {
      * Returns an TxPacketCounters object.
      * Returns null on failure.
      */
-    public WifiNative.TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
+    public TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
         IClientInterface iface = getClientInterface(ifaceName);
         if (iface == null) {
             Log.e(TAG, "No valid wificond client interface handler");
@@ -555,7 +579,7 @@ public class WificondControl implements IBinder.DeathRecipient {
             Log.e(TAG, "Failed to do signal polling due to remote exception");
             return null;
         }
-        WifiNative.TxPacketCounters counters = new WifiNative.TxPacketCounters();
+        TxPacketCounters counters = new TxPacketCounters();
         counters.txSucceeded = resultArray[0];
         counters.txFailed = resultArray[1];
         return counters;

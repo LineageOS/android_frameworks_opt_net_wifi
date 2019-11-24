@@ -1310,29 +1310,6 @@ public class WifiNative {
     /********************************************************
      * Wificond operations
      ********************************************************/
-    /**
-     * Result of a signal poll.
-     */
-    public static class SignalPollResult {
-        // RSSI value in dBM.
-        public int currentRssi;
-        //Transmission bit rate in Mbps.
-        public int txBitrate;
-        // Association frequency in MHz.
-        public int associationFrequency;
-        //Last received packet bit rate in Mbps.
-        public int rxBitrate;
-    }
-
-    /**
-     * WiFi interface transimission counters.
-     */
-    public static class TxPacketCounters {
-        // Number of successfully transmitted packets.
-        public int txSucceeded;
-        // Number of tramsmission failures.
-        public int txFailed;
-    }
 
     /**
      * Callback to notify wificond death.
@@ -1351,7 +1328,7 @@ public class WifiNative {
      * Returns an SignalPollResult object.
      * Returns null on failure.
      */
-    public SignalPollResult signalPoll(@NonNull String ifaceName) {
+    public WificondControl.SignalPollResult signalPoll(@NonNull String ifaceName) {
         return mWificondControl.signalPoll(ifaceName);
     }
 
@@ -1361,7 +1338,7 @@ public class WifiNative {
      * Returns an TxPacketCounters object.
      * Returns null on failure.
      */
-    public TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
+    public WificondControl.TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
         return mWificondControl.getTxPacketCounters(ifaceName);
     }
 

@@ -2233,7 +2233,7 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
+        WificondControl.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
@@ -4460,7 +4460,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_PKT_CNT_FETCH:
                     callbackIdentifier = message.arg2;
-                    WifiNative.TxPacketCounters counters =
+                    WificondControl.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
                         sendTxPacketCountListenerSuccess(

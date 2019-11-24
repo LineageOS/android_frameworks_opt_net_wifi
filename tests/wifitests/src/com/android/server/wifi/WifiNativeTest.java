@@ -114,15 +114,15 @@ public class WifiNativeTest extends WifiBaseTest {
             new FateMapping(WifiLoggerHal.RX_PKT_FATE_DRV_DROP_OTHER, "driver dropped (other)"),
             new FateMapping((byte) 42, "42")
     };
-    private static final WifiNative.SignalPollResult SIGNAL_POLL_RESULT =
-            new WifiNative.SignalPollResult() {{
+    private static final WificondControl.SignalPollResult SIGNAL_POLL_RESULT =
+            new WificondControl.SignalPollResult() {{
                 currentRssi = -60;
                 txBitrate = 12;
                 associationFrequency = 5240;
                 rxBitrate = 6;
             }};
-    private static final WifiNative.TxPacketCounters PACKET_COUNTERS_RESULT =
-            new WifiNative.TxPacketCounters() {{
+    private static final WificondControl.TxPacketCounters PACKET_COUNTERS_RESULT =
+            new WificondControl.TxPacketCounters() {{
                 txSucceeded = 2000;
                 txFailed = 120;
             }};
@@ -518,7 +518,7 @@ public class WifiNativeTest extends WifiBaseTest {
         when(mWificondControl.signalPoll(WIFI_IFACE_NAME))
                 .thenReturn(SIGNAL_POLL_RESULT);
 
-        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
+        WificondControl.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
         assertEquals(SIGNAL_POLL_RESULT.currentRssi, pollResult.currentRssi);
         assertEquals(SIGNAL_POLL_RESULT.txBitrate, pollResult.txBitrate);
         assertEquals(SIGNAL_POLL_RESULT.associationFrequency, pollResult.associationFrequency);
