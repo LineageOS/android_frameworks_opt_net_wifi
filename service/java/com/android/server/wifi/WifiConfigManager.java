@@ -219,6 +219,12 @@ public class WifiConfigManager {
     private static final int SCAN_RESULT_MAXIMUM_AGE_MS = 40000;
 
     /**
+     * Maximum number of blocked BSSIDs per SSID used for calcualting the duration of temporarily
+     * disabling a network.
+     */
+    private static final int MAX_BLOCKED_BSSID_PER_NETWORK = 10;
+
+    /**
      * Maximum age of frequencies last seen to be included in pno scans. (30 days)
      */
     @VisibleForTesting
@@ -1227,7 +1233,6 @@ public class WifiConfigManager {
         newInternalConfig.creationTime = newInternalConfig.updateTime =
                 createDebugTimeStampString(mClock.getWallClockMillis());
         initRandomizedMacForInternalConfig(newInternalConfig);
-        newInternalConfig.clonedNetworkConfigKey = externalConfig.clonedNetworkConfigKey;
         return newInternalConfig;
     }
 
@@ -1482,6 +1487,7 @@ public class WifiConfigManager {
         mScanDetailCaches.remove(config.networkId);
         // Stage the backup of the SettingsProvider package which backs this up.
         mBackupManagerProxy.notifyDataChanged();
+        mWifiInjector.getBssidBlocklistMonitor().handleNetworkRemoved(config.SSID);
 
         localLog("removeNetworkInternal: removed config."
                 + " netId=" + config.networkId
@@ -1516,27 +1522,6 @@ public class WifiConfigManager {
             Log.e(TAG, "Failed to remove network " + config.getPrintableSsid());
             return false;
         }
-
-        // Remove any cloned networks
-        if (config.clonedNetworkConfigKey != null) {
-            WifiConfiguration clonedConfig = getConfiguredNetwork(config.clonedNetworkConfigKey);
-
-            if (clonedConfig != null) {
-                Log.d(TAG, "Removing cloned network " + clonedConfig.getPrintableSsid());
-                if (!removeNetworkInternal(clonedConfig, uid)) {
-                    Log.e(TAG, "Failed to remove network " + clonedConfig.getPrintableSsid());
-                    return false;
-                }
-
-                if (clonedConfig.networkId == mLastSelectedNetworkId) {
-                    clearLastSelectedNetwork();
-                }
-            } else {
-                Log.w(TAG, "Could not find a cloned network with key "
-                        + config.clonedNetworkConfigKey);
-            }
-        }
-
         if (networkId == mLastSelectedNetworkId) {
             clearLastSelectedNetwork();
         }
@@ -1892,7 +1877,16 @@ public class WifiConfigManager {
             long timeDifferenceMs =
                     mClock.getElapsedSinceBootMillis() - networkStatus.getDisableTime();
             int disableReason = networkStatus.getNetworkSelectionDisableReason();
-            long disableTimeoutMs = NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason];
+            int blockedBssids = Math.min(MAX_BLOCKED_BSSID_PER_NETWORK,
+                    mWifiInjector.getBssidBlocklistMonitor()
+                            .getNumBlockedBssidsForSsid(config.SSID));
+            // if no BSSIDs are blocked then we should keep trying to connect to something
+            long disableTimeoutMs = 0;
+            if (blockedBssids > 0) {
+                double multiplier = Math.pow(2.0, blockedBssids - 1.0);
+                disableTimeoutMs = (long) (NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+                        * multiplier);
+            }
             if (timeDifferenceMs >= disableTimeoutMs) {
                 return updateNetworkSelectionStatus(
                         config, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
@@ -2442,24 +2436,6 @@ public class WifiConfigManager {
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to lookup network from config map", e);
         }
-        if (config == null) {
-            /**
-             * Special case for WPA3-Personal and OWE in transition mode.
-             * These networks will be treated as WPA3/OWE with a special flag that indicates
-             * transition mode enabled. If we have a matching WPA2/Open saved network, create a new
-             * upgraded WPA3/OWE network and use it to connect.
-             */
-            ScanResultMatchInfo matchInfo = ScanResultMatchInfo.fromScanResult(scanResult);
-            if (matchInfo.pskSaeInTransitionMode || matchInfo.oweInTransitionMode) {
-                if (handleTransitionNetwork(scanResult, matchInfo.pskSaeInTransitionMode)) {
-                    try {
-                        config = mConfiguredNetworks.getByScanResultForCurrentUser(scanResult);
-                    } catch (IllegalArgumentException e) {
-                        Log.e(TAG, "Failed to lookup network from config map", e);
-                    }
-                }
-            }
-        }
         if (config != null) {
             if (mVerboseLoggingEnabled) {
                 Log.v(TAG, "getSavedNetworkFromScanDetail Found " + config.configKey()
@@ -2467,41 +2443,6 @@ public class WifiConfigManager {
             }
         }
         return config;
-    }
-
-    private boolean handleTransitionNetwork(ScanResult scanResult, boolean isPskSae) {
-        WifiConfiguration config;
-
-        if (isPskSae) {
-            config = mConfiguredNetworks.getPskNetworkByScanResultForCurrentUser(scanResult);
-        } else {
-            config = mConfiguredNetworks.getOpenNetworkByScanResultForCurrentUser(scanResult);
-        }
-
-        if (config != null) {
-            // Create a new WPA3-Personal or OWE connection
-            WifiConfiguration newConfig = new WifiConfiguration(config);
-            newConfig.networkId = WifiConfiguration.INVALID_NETWORK_ID;
-            newConfig.clonedNetworkConfigKey = config.configKey();
-            if (isPskSae) {
-                newConfig.setSecurityParams(WifiConfiguration.SECURITY_TYPE_SAE);
-            } else {
-                newConfig.setSecurityParams(WifiConfiguration.SECURITY_TYPE_OWE);
-            }
-            NetworkUpdateResult res = addOrUpdateNetwork(newConfig, config.creatorUid,
-                    config.creatorName);
-
-            if (!res.isSuccess()) {
-                Log.e(TAG, "Failed to add new configuration for " + newConfig.SSID);
-                return false;
-            }
-            config.clonedNetworkConfigKey = newConfig.configKey();
-            addOrUpdateNetwork(config, config.creatorUid);
-            enableNetwork(res.netId, false, config.creatorUid, null);
-            return true;
-        }
-
-        return false;
     }
 
     /**

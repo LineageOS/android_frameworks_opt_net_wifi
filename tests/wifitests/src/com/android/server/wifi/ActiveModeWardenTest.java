@@ -141,6 +141,8 @@ public class ActiveModeWardenTest extends WifiBaseTest {
                 .thenReturn("AndroidShare");
         when(mResources.getInteger(R.integer.config_wifi_framework_recovery_timeout_delay))
                 .thenReturn(TEST_WIFI_RECOVERY_DELAY_MS);
+        when(mResources.getBoolean(R.bool.config_wifiScanHiddenNetworksScanOnlyMode))
+                .thenReturn(false);
 
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
         when(mSettingsStore.isAirplaneModeOn()).thenReturn(false);
@@ -446,6 +448,33 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     @Test
     public void testEnterScanOnlyModeFromDisabled() throws Exception {
         enterScanOnlyModeActiveState();
+    }
+
+    /**
+     * Test that ActiveModeWarden enables hidden network scanning in scan-only-mode
+     * if configured to do.
+     */
+    @Test
+    public void testScanOnlyModeScanHiddenNetworks() throws Exception {
+        when(mResources.getBoolean(R.bool.config_wifiScanHiddenNetworksScanOnlyMode))
+                .thenReturn(true);
+
+        mActiveModeWarden = createActiveModeWarden();
+        mActiveModeWarden.start();
+        mLooper.dispatchAll();
+
+        when(mClientModeManager.getRole()).thenReturn(ROLE_CLIENT_SCAN_ONLY);
+        when(mSettingsStore.isScanAlwaysAvailable()).thenReturn(true);
+        when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        mActiveModeWarden.wifiToggled();
+        mLooper.dispatchAll();
+        mClientListener.onStarted();
+        mLooper.dispatchAll();
+
+        assertInEnabledState();
+        verify(mClientModeManager).start();
+        verify(mClientModeManager).setRole(ROLE_CLIENT_SCAN_ONLY);
+        verify(mScanRequestProxy).enableScanning(true, true);
     }
 
     /**

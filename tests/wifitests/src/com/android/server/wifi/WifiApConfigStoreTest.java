@@ -23,17 +23,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
@@ -45,7 +40,6 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.wifi.R;
 
 import org.junit.Before;
@@ -74,13 +68,8 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     private static final String TEST_AP_CONFIG_FILE_PREFIX = "APConfig_";
     private static final String TEST_DEFAULT_2G_CHANNEL_LIST = "1,2,3,4,5,6";
     private static final String TEST_DEFAULT_AP_SSID = "TestAP";
-    private static final String TEST_CONFIGURED_AP_SSID = "ConfiguredAP";
     private static final String TEST_DEFAULT_HOTSPOT_SSID = "TestShare";
     private static final String TEST_DEFAULT_HOTSPOT_PSK = "TestPassword";
-    private static final String TEST_APCONFIG_CHANGE_NOTIFICATION_TITLE = "Notification title";
-    private static final String TEST_APCONFIG_CHANGE_NOTIFICATION_SUMMARY = "Notification summary";
-    private static final String TEST_APCONFIG_CHANGE_NOTIFICATION_DETAILED =
-            "Notification detailed";
     private static final int RAND_SSID_INT_MIN = 1000;
     private static final int RAND_SSID_INT_MAX = 9999;
     private static final String TEST_CHAR_SET_AS_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -96,15 +85,12 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
     private TestLooper mLooper;
     private Handler mHandler;
     @Mock private BackupManagerProxy mBackupManagerProxy;
-    @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private WifiConfigStore mWifiConfigStore;
     @Mock private WifiConfigManager mWifiConfigManager;
     private File mLegacyApConfigFile;
     private Random mRandom;
     private MockResources mResources;
     @Mock private ApplicationInfo mMockApplInfo;
-    private BroadcastReceiver mBroadcastReceiver;
-    @Mock private NotificationManager mNotificationManager;
     @Mock private MacAddressUtil mMacAddressUtil;
     private SoftApStoreData.DataSource mDataStoreSource;
     private ArrayList<Integer> mKnownGood2GChannelList;
@@ -114,8 +100,6 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         mLooper = new TestLooper();
         mHandler = new Handler(mLooper.getLooper());
         MockitoAnnotations.initMocks(this);
-        when(mContext.getSystemService(Context.NOTIFICATION_SERVICE))
-                .thenReturn(mNotificationManager);
         mMockApplInfo.targetSdkVersion = Build.VERSION_CODES.P;
         when(mContext.getApplicationInfo()).thenReturn(mMockApplInfo);
 
@@ -129,12 +113,6 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
                              TEST_DEFAULT_HOTSPOT_SSID);
         /* Default to device that does not require ap band conversion */
         mResources.setBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any, false);
-        mResources.setText(R.string.wifi_softap_config_change,
-                           TEST_APCONFIG_CHANGE_NOTIFICATION_TITLE);
-        mResources.setText(R.string.wifi_softap_config_change_summary,
-                           TEST_APCONFIG_CHANGE_NOTIFICATION_SUMMARY);
-        mResources.setText(R.string.wifi_softap_config_change_detailed,
-                           TEST_APCONFIG_CHANGE_NOTIFICATION_DETAILED);
         when(mContext.getResources()).thenReturn(mResources);
 
         // build the known good 2G channel list: TEST_DEFAULT_2G_CHANNEL_LIST
@@ -152,18 +130,13 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         WifiApConfigStore store;
         if (legacyFilePath == null) {
             store = new WifiApConfigStore(
-                    mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
+                    mContext, mWifiInjector, mHandler, mBackupManagerProxy,
                     mWifiConfigStore, mWifiConfigManager);
         } else {
             store = new WifiApConfigStore(
-                    mContext, mWifiInjector, mHandler, mBackupManagerProxy, mFrameworkFacade,
+                    mContext, mWifiInjector, mHandler, mBackupManagerProxy,
                     mWifiConfigStore, mWifiConfigManager, legacyFilePath);
         }
-
-        ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
-                ArgumentCaptor.forClass(BroadcastReceiver.class);
-        verify(mContext).registerReceiver(broadcastReceiverCaptor.capture(), any(), any(), any());
-        mBroadcastReceiver = broadcastReceiverCaptor.getValue();
 
         verify(mWifiConfigStore).registerStoreData(any());
         ArgumentCaptor<SoftApStoreData.DataSource> dataStoreSourceArgumentCaptor =
@@ -839,37 +812,5 @@ public class WifiApConfigStoreTest extends WifiBaseTest {
         for (int channel : channels) {
             assertTrue(mKnownGood2GChannelList.contains(channel));
         }
-    }
-
-    /**
-     * Verify a notification is posted when triggered when the ap config was converted.
-     */
-    @Test
-    public void testNotifyUserOfApBandConversion() throws Exception {
-        WifiApConfigStore store = createWifiApConfigStore();
-        store.notifyUserOfApBandConversion(TAG);
-        // verify the notification is posted
-        ArgumentCaptor<Notification> notificationCaptor =
-                ArgumentCaptor.forClass(Notification.class);
-        verify(mNotificationManager).notify(eq(SystemMessage.NOTE_SOFTAP_CONFIG_CHANGED),
-                                            notificationCaptor.capture());
-        Notification notification = notificationCaptor.getValue();
-        assertEquals(TEST_APCONFIG_CHANGE_NOTIFICATION_TITLE,
-                     notification.extras.getCharSequence(Notification.EXTRA_TITLE));
-        assertEquals(TEST_APCONFIG_CHANGE_NOTIFICATION_DETAILED,
-                     notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT));
-        assertEquals(TEST_APCONFIG_CHANGE_NOTIFICATION_SUMMARY,
-                     notification.extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT));
-    }
-
-    /**
-     * Verify the posted notification is cleared when the user interacts with it.
-     */
-    @Test
-    public void testNotificationClearedWhenContentIsTapped() throws Exception {
-        WifiApConfigStore store = createWifiApConfigStore();
-        Intent intent = new Intent(WifiApConfigStore.ACTION_HOTSPOT_CONFIG_USER_TAPPED_CONTENT);
-        mBroadcastReceiver.onReceive(mContext, intent);
-        verify(mNotificationManager).cancel(eq(SystemMessage.NOTE_SOFTAP_CONFIG_CHANGED));
     }
 }

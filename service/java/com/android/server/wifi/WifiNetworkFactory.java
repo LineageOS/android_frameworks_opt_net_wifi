@@ -24,6 +24,7 @@ import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
+import android.companion.CompanionDeviceManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -55,6 +56,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.ScanResultUtil;
@@ -107,6 +109,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final ActivityManager mActivityManager;
     private final AlarmManager mAlarmManager;
     private final AppOpsManager mAppOpsManager;
+    private final CompanionDeviceManager mCompanionDeviceManager;
     private final Clock mClock;
     private final Handler mHandler;
     private final WifiInjector mWifiInjector;
@@ -343,6 +346,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
                               AppOpsManager appOpsManager,
+                              CompanionDeviceManager companionDeviceManager,
                               Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager,
                               WifiConfigManager configManager,
@@ -354,6 +358,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mActivityManager = activityManager;
         mAlarmManager = alarmManager;
         mAppOpsManager = appOpsManager;
+        mCompanionDeviceManager = companionDeviceManager;
         mClock = clock;
         mHandler = new Handler(looper);
         mWifiInjector = wifiInjector;
@@ -1096,11 +1101,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         if (!bssid.matches(matchBaseAddress, matchMask)) {
             return false;
         }
-        if (ScanResultMatchInfo.getNetworkType(wns.wifiConfiguration)
-                != ScanResultMatchInfo.getNetworkType(scanResult)) {
-            return false;
-        }
-        return true;
+        ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
+        ScanResultMatchInfo fromWifiConfiguration =
+                ScanResultMatchInfo.fromWifiConfiguration(wns.wifiConfiguration);
+        return fromScanResult.networkTypeEquals(fromWifiConfiguration);
     }
 
     // Loops through the scan results and finds scan results matching the active network
@@ -1245,30 +1249,61 @@ public class WifiNetworkFactory extends NetworkFactory {
         return selectedScanResult.BSSID;
     }
 
+    private boolean isAccessPointApprovedInInternalApprovalList(
+            @NonNull ScanResult scanResult, @NonNull String requestorPackageName) {
+        Set<AccessPoint> approvedAccessPoints =
+                mUserApprovedAccessPointMap.get(requestorPackageName);
+        if (approvedAccessPoints == null) return false;
+        ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
+        AccessPoint accessPoint =
+                new AccessPoint(scanResult.SSID,
+                        MacAddress.fromString(scanResult.BSSID), fromScanResult.networkType);
+        if (!approvedAccessPoints.contains(accessPoint)) return false;
+        // keep the most recently used AP in the end
+        approvedAccessPoints.remove(accessPoint);
+        approvedAccessPoints.add(accessPoint);
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Found " + scanResult
+                    + " in internal user approved access point for " + requestorPackageName);
+        }
+        return true;
+    }
+
+    private boolean isAccessPointApprovedInCompanionDeviceManager(
+            @NonNull ScanResult scanResult, @NonNull UserHandle requestorUserHandle,
+            @NonNull String requestorPackageName) {
+        boolean approved = mCompanionDeviceManager.isDeviceAssociated(
+                requestorPackageName, MacAddress.fromString(scanResult.BSSID), requestorUserHandle);
+        if (!approved) return false;
+        if (mVerboseLoggingEnabled) {
+            Log.v(TAG, "Found " + scanResult
+                    + " in CDM user approved access point for " + requestorPackageName);
+        }
+        return true;
+    }
+
     private @Nullable ScanResult
             findUserApprovedAccessPointForActiveRequestFromActiveMatchedScanResults() {
         if (mActiveSpecificNetworkRequestSpecifier == null
-                || mActiveMatchedScanResults == null) return null;
-        String requestorPackageName = mActiveSpecificNetworkRequestSpecifier.requestorPackageName;
-        Set<AccessPoint> approvedAccessPoints =
-                mUserApprovedAccessPointMap.get(requestorPackageName);
-        if (approvedAccessPoints == null) return null;
-        for (ScanResult scanResult : mActiveMatchedScanResults) {
-            ScanResultMatchInfo fromScanResult = ScanResultMatchInfo.fromScanResult(scanResult);
-            AccessPoint accessPoint =
-                    new AccessPoint(scanResult.SSID,
-                            MacAddress.fromString(scanResult.BSSID), fromScanResult.networkType);
-            if (approvedAccessPoints.contains(accessPoint)) {
-                // keep the most recently used AP in the end
-                approvedAccessPoints.remove(accessPoint);
-                approvedAccessPoints.add(accessPoint);
-                if (mVerboseLoggingEnabled) {
-                    Log.v(TAG, "Found " + accessPoint
-                            + " in user approved access point for " + requestorPackageName);
-                }
-                return scanResult;
-            }
+                || ArrayUtils.size(mActiveMatchedScanResults) != 1) {
+            return null;
         }
+        // There should only 1 matched scan result since the request contains a specific
+        // SSID + BSSID mentioned.
+        ScanResult scanResult = mActiveMatchedScanResults.get(0);
+        String requestorPackageName = mActiveSpecificNetworkRequestSpecifier.requestorPackageName;
+        UserHandle requestorUserHandle =
+                UserHandle.getUserHandleForUid(mActiveSpecificNetworkRequestSpecifier.requestorUid);
+        // Check if access point is approved via CDM first.
+        if (isAccessPointApprovedInCompanionDeviceManager(
+                scanResult, requestorUserHandle, requestorPackageName)) {
+            return scanResult;
+        }
+        // Check if access point is approved in internal approval list next.
+        if (isAccessPointApprovedInInternalApprovalList(scanResult, requestorPackageName)) {
+            return scanResult;
+        }
+        // no bypass approvals, show UI.
         return null;
     }
 

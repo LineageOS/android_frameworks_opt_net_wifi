@@ -379,11 +379,56 @@ public class WifiScoreCard {
         doWrites();
     }
 
+    /**
+     * Increment the blocklist streak count for a failure reason on an AP.
+     * @return the updated count
+     */
+    public int incrementBssidBlocklistStreak(String ssid, String bssid,
+            @BssidBlocklistMonitor.FailureReason int reason) {
+        PerBssid perBssid = lookupBssid(ssid, bssid);
+        return ++perBssid.blocklistStreakCount[reason];
+    }
+
+    /**
+     * Get the blocklist streak count for a failure reason on an AP.
+     * @return the blocklist streak count
+     */
+    public int getBssidBlocklistStreak(String ssid, String bssid,
+            @BssidBlocklistMonitor.FailureReason int reason) {
+        return lookupBssid(ssid, bssid).blocklistStreakCount[reason];
+    }
+
+    /**
+     * Clear the blocklist streak count for a failure reason on an AP.
+     */
+    public void resetBssidBlocklistStreak(String ssid, String bssid,
+            @BssidBlocklistMonitor.FailureReason int reason) {
+        lookupBssid(ssid, bssid).blocklistStreakCount[reason] = 0;
+    }
+
+    /**
+     * Clear the blocklist streak count for all APs that belong to this SSID.
+     */
+    public void resetBssidBlocklistStreakForSsid(@NonNull String ssid) {
+        Iterator<Map.Entry<MacAddress, PerBssid>> it = mApForBssid.entrySet().iterator();
+        while (it.hasNext()) {
+            PerBssid perBssid = it.next().getValue();
+            if (!ssid.equals(perBssid.ssid)) {
+                continue;
+            }
+            for (int i = 0; i < perBssid.blocklistStreakCount.length; i++) {
+                perBssid.blocklistStreakCount[i] = 0;
+            }
+        }
+    }
+
     final class PerBssid {
         public int id;
         public final String l2Key;
         public final String ssid;
         public final MacAddress bssid;
+        public final int[] blocklistStreakCount =
+                new int[BssidBlocklistMonitor.NUMBER_REASON_CODES];
         public boolean changed;
         public boolean referenced;
 

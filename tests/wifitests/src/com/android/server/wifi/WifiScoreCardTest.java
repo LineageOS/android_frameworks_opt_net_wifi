@@ -61,6 +61,9 @@ public class WifiScoreCardTest extends WifiBaseTest {
 
     static final double TOL = 1e-6; // for assertEquals(double, double, tolerance)
 
+    static final int TEST_BSSID_FAILURE_REASON =
+            BssidBlocklistMonitor.REASON_ASSOCIATION_REJECTION;
+
     WifiScoreCard mWifiScoreCard;
 
     @Mock Clock mClock;
@@ -124,6 +127,70 @@ public class WifiScoreCardTest extends WifiBaseTest {
         assertEquals(perBssid, mWifiScoreCard.fetchByBssid(TEST_BSSID_1));
         assertNotEquals(perBssid.id, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).id);
         assertNotEquals(perBssid.l2Key, mWifiScoreCard.fetchByBssid(TEST_BSSID_2).l2Key);
+    }
+
+    /**
+     * Test the get, increment, and removal of Bssid blocklist streak counts.
+     */
+    @Test
+    public void testBssidBlocklistStreakOperations() {
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+
+        String ssid = mWifiInfo.getSSID();
+        String bssid = mWifiInfo.getBSSID();
+        assertEquals(0, mWifiScoreCard.getBssidBlocklistStreak(
+                ssid, bssid, TEST_BSSID_FAILURE_REASON));
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, mWifiScoreCard.incrementBssidBlocklistStreak(
+                    ssid, bssid, TEST_BSSID_FAILURE_REASON));
+            assertEquals(i, mWifiScoreCard.getBssidBlocklistStreak(
+                    ssid, bssid, TEST_BSSID_FAILURE_REASON));
+        }
+        mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, TEST_BSSID_FAILURE_REASON);
+        assertEquals(0, mWifiScoreCard.getBssidBlocklistStreak(
+                ssid, bssid, TEST_BSSID_FAILURE_REASON));
+    }
+
+    /**
+     * Test clearing the blocklist streak for all APs belonging to a SSID.
+     */
+    @Test
+    public void testClearBssidBlocklistStreakForSsid() {
+        // Increment and verify the blocklist streak for SSID_1, BSSID_1
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, mWifiScoreCard.incrementBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+            assertEquals(i, mWifiScoreCard.getBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+        }
+
+        // Increment and verify the blocklist streak for SSID_2, BSSID_2
+        mWifiInfo.setSSID(TEST_SSID_2);
+        mWifiInfo.setBSSID(TEST_BSSID_2.toString());
+        mWifiScoreCard.noteIpConfiguration(mWifiInfo);
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, mWifiScoreCard.incrementBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+            assertEquals(i, mWifiScoreCard.getBssidBlocklistStreak(
+                    mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+        }
+
+        // Clear the blocklist streak for SSID_2
+        mWifiScoreCard.resetBssidBlocklistStreakForSsid(mWifiInfo.getSSID());
+        // Verify that the blocklist streak for SSID_2 is cleared.
+        assertEquals(0, mWifiScoreCard.getBssidBlocklistStreak(
+                mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
+
+        // verify that the blocklist streak for SSID_1 is not cleared.
+        mWifiInfo.setSSID(TEST_SSID_1);
+        mWifiInfo.setBSSID(TEST_BSSID_1.toString());
+        assertEquals(2, mWifiScoreCard.getBssidBlocklistStreak(
+                mWifiInfo.getSSID(), mWifiInfo.getBSSID(), TEST_BSSID_FAILURE_REASON));
     }
 
     /**
