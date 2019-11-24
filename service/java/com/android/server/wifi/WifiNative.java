@@ -39,7 +39,6 @@ import com.android.internal.util.HexDump;
 import com.android.server.net.BaseNetworkObserver;
 import com.android.server.wifi.util.FrameParser;
 import com.android.server.wifi.util.NativeUtil;
-import com.android.server.wifi.wificond.NativeWifiClient;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -113,6 +112,13 @@ public class WifiNative {
         mWificondControl.enableVerboseLogging(mVerboseLoggingEnabled);
         mSupplicantStaIfaceHal.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiVendorHal.enableVerboseLogging(mVerboseLoggingEnabled);
+    }
+
+    /**
+     * Callbacks for SoftAp interface.
+     */
+    public interface SoftApListener extends WificondControl.SoftApListener {
+        // dummy for now - provide a shell so that clients don't use a WificondControl-specific API.
     }
 
     /********************************************************
@@ -1522,26 +1528,6 @@ public class WifiNative {
         return frame.array();
     }
 
-    /**
-     * Callbacks for SoftAp interface.
-     */
-    public interface SoftApListener {
-        /**
-         * Invoked when there is some fatal failure in the lower layers.
-         */
-        void onFailure();
-
-        /**
-         * Invoked when the associated stations changes.
-         */
-        void onConnectedClientsChanged(List<NativeWifiClient> clients);
-
-        /**
-         * Invoked when the channel switch event happens.
-         */
-        void onSoftApChannelSwitched(int frequency, int bandwidth);
-    }
-
     private static final int CONNECT_TO_HOSTAPD_RETRY_INTERVAL_MS = 100;
     private static final int CONNECT_TO_HOSTAPD_RETRY_TIMES = 50;
     /**
@@ -1589,7 +1575,7 @@ public class WifiNative {
             Log.e(TAG, "Failed to register ap listener");
             return false;
         }
-        if (!mHostapdHal.addAccessPoint(ifaceName, config, listener)) {
+        if (!mHostapdHal.addAccessPoint(ifaceName, config, () -> listener.onFailure())) {
             Log.e(TAG, "Failed to add acccess point");
             mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
             return false;

@@ -99,7 +99,7 @@ public class WificondControlTest extends WifiBaseTest {
     @Mock private IWifiScannerImpl mWifiScannerImpl;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private IApInterface mApInterface;
-    @Mock private WifiNative.SoftApListener mSoftApListener;
+    @Mock private WificondControl.SoftApListener mSoftApListener;
     @Mock private AlarmManager mAlarmManager;
     @Mock private Clock mClock;
     @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;

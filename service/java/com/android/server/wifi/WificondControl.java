@@ -38,7 +38,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
@@ -153,6 +152,26 @@ public class WificondControl implements IBinder.DeathRecipient {
         public int txSucceeded;
         // Number of tramsmission failures.
         public int txFailed;
+    }
+
+    /**
+     * Callbacks for SoftAp interface.
+     */
+    public interface SoftApListener {
+        /**
+         * Invoked when there is some fatal failure in the lower layers.
+         */
+        void onFailure();
+
+        /**
+         * Invoked when the associated stations changes.
+         */
+        void onConnectedClientsChanged(List<NativeWifiClient> clients);
+
+        /**
+         * Invoked when the channel switch event happens.
+         */
+        void onSoftApChannelSwitched(int frequency, int bandwidth);
     }
 
     /**
