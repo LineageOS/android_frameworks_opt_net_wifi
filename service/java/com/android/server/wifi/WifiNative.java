@@ -602,9 +602,9 @@ public class WifiNative {
     /**
      * Death handler for the wificond daemon.
      */
-    private class WificondDeathHandlerInternal implements WificondDeathEventHandler {
+    private class WificondDeathHandlerInternal implements Runnable {
         @Override
-        public void onDeath() {
+        public void run() {
             synchronized (mLock) {
                 Log.i(TAG, "wificond died. Cleaning up internal state.");
                 onNativeDaemonDeath();
@@ -1316,16 +1316,6 @@ public class WifiNative {
     /********************************************************
      * Wificond operations
      ********************************************************/
-
-    /**
-     * Callback to notify wificond death.
-     */
-    public interface WificondDeathEventHandler {
-        /**
-         * Invoked when the wificond dies.
-         */
-        void onDeath();
-    }
 
     /**
      * Request signal polling to wificond.

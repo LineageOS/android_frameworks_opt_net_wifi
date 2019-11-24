@@ -101,7 +101,7 @@ public class WificondControl implements IBinder.DeathRecipient {
     private HashMap<String, IScanEvent> mScanEventHandlers = new HashMap<>();
     private HashMap<String, IPnoScanEvent> mPnoScanEventHandlers = new HashMap<>();
     private HashMap<String, IApInterfaceEventCallback> mApInterfaceListeners = new HashMap<>();
-    private WifiNative.WificondDeathEventHandler mDeathEventHandler;
+    private Runnable mDeathEventHandler;
     /**
      * Ensures that no more than one sendMgmtFrame operation runs concurrently.
      */
@@ -370,7 +370,7 @@ public class WificondControl implements IBinder.DeathRecipient {
             // on the next setup call.
             mWificond = null;
             if (mDeathEventHandler != null) {
-                mDeathEventHandler.onDeath();
+                mDeathEventHandler.run();
             }
         });
     }
@@ -388,11 +388,11 @@ public class WificondControl implements IBinder.DeathRecipient {
      *
      * @return Returns true on success.
      */
-    public boolean initialize(@NonNull WifiNative.WificondDeathEventHandler handler) {
+    public boolean initialize(@NonNull Runnable deathEventHandler) {
         if (mDeathEventHandler != null) {
             Log.e(TAG, "Death handler already present");
         }
-        mDeathEventHandler = handler;
+        mDeathEventHandler = deathEventHandler;
         tearDownInterfaces();
         return true;
     }
