@@ -1423,7 +1423,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
                 ScanResults.create(0, WifiScanner.WIFI_BAND_UNSPECIFIED, 5150, 5150, 5150, 5150);
 
         WifiNative.ScanSettings nativeSettings2and3 = createSingleScanNativeSettingsForChannels(
-                WifiNative.SCAN_TYPE_HIGH_ACCURACY, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN,
+                WifiScanner.SCAN_TYPE_HIGH_ACCURACY, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN,
                 channelsToSpec(2450, 5175, 5150));
         ScanResults results2and3 =
                 ScanResults.merge(WifiScanner.WIFI_BAND_UNSPECIFIED, results2, results3);

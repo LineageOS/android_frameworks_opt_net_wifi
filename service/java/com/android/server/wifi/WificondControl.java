@@ -656,13 +656,13 @@ public class WificondControl implements IBinder.DeathRecipient {
     /**
      * Return scan type for the parcelable {@link SingleScanSettings}
      */
-    private static int getScanType(int scanType) {
+    private static int getScanType(@WifiScanner.ScanType int scanType) {
         switch (scanType) {
-            case WifiNative.SCAN_TYPE_LOW_LATENCY:
+            case WifiScanner.SCAN_TYPE_LOW_LATENCY:
                 return IWifiScannerImpl.SCAN_TYPE_LOW_SPAN;
-            case WifiNative.SCAN_TYPE_LOW_POWER:
+            case WifiScanner.SCAN_TYPE_LOW_POWER:
                 return IWifiScannerImpl.SCAN_TYPE_LOW_POWER;
-            case WifiNative.SCAN_TYPE_HIGH_ACCURACY:
+            case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                 return IWifiScannerImpl.SCAN_TYPE_HIGH_ACCURACY;
             default:
                 throw new IllegalArgumentException("Invalid scan type " + scanType);
@@ -677,10 +677,8 @@ public class WificondControl implements IBinder.DeathRecipient {
      * @param hiddenNetworkSSIDs List of hidden networks to be scanned for.
      * @return Returns true on success.
      */
-    public boolean scan(@NonNull String ifaceName,
-                        int scanType,
-                        Set<Integer> freqs,
-                        List<String> hiddenNetworkSSIDs) {
+    public boolean scan(@NonNull String ifaceName, @WifiScanner.ScanType int scanType,
+            Set<Integer> freqs, List<String> hiddenNetworkSSIDs) {
         IWifiScannerImpl scannerImpl = getScannerImpl(ifaceName);
         if (scannerImpl == null) {
             Log.e(TAG, "No valid wificond scanner interface handler");

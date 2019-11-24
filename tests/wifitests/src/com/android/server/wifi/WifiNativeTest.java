@@ -26,6 +26,7 @@ import static org.mockito.Mockito.*;
 
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.INetworkManagementService;
 
@@ -543,10 +544,10 @@ public class WifiNativeTest extends WifiBaseTest {
      */
     @Test
     public void testScan() throws Exception {
-        mWifiNative.scan(WIFI_IFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY, SCAN_FREQ_SET,
+        mWifiNative.scan(WIFI_IFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY, SCAN_FREQ_SET,
                 SCAN_HIDDEN_NETWORK_SSID_SET);
         verify(mWificondControl).scan(
-                WIFI_IFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY,
+                WIFI_IFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_SET);
     }
 

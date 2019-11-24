@@ -341,7 +341,7 @@ public class WificondControlTest extends WifiBaseTest {
         verify(mClientInterface, never()).signalPoll();
 
         assertFalse(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_LATENCY,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_LATENCY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl, never()).scan(any());
     }
@@ -727,7 +727,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScan() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(true);
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_POWER,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_POWER,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
                 IWifiScannerImpl.SCAN_TYPE_LOW_POWER,
@@ -747,7 +747,7 @@ public class WificondControlTest extends WifiBaseTest {
                 hiddenSsidWithDup.get(hiddenSsidWithDup.size() - 1));
         // Pass the List with duplicate elements into scan()
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_POWER,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_POWER,
                 SCAN_FREQ_SET, hiddenSsidWithDup));
         // But the argument passed down should have the duplicate removed.
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
@@ -762,7 +762,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScanNullParameters() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(true);
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY, null, null));
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY, null, null));
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
                 IWifiScannerImpl.SCAN_TYPE_HIGH_ACCURACY, null, null)));
     }
@@ -774,7 +774,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScanFailure() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(false);
         assertFalse(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_LATENCY,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_LATENCY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl).scan(any(SingleScanSettings.class));
     }
