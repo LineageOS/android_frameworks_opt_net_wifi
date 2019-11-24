@@ -5626,7 +5626,7 @@ public class ClientModeImpl extends StateMachine {
      * Sends a link probe.
      */
     @VisibleForTesting
-    public void probeLink(WifiNative.SendMgmtFrameCallback callback, int mcs) {
+    public void probeLink(WificondControl.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
     }

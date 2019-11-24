@@ -32,7 +32,7 @@ import android.os.INetworkManagementService;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
+import com.android.server.wifi.WificondControl.SendMgmtFrameCallback;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -740,7 +740,7 @@ public class WifiNativeTest extends WifiBaseTest {
         mWifiNative.probeLink(WIFI_IFACE_NAME, MacAddress.fromString(TEST_BSSID_STR),
                 mSendMgmtFrameCallback, TEST_MCS_RATE);
 
-        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
     }
 
@@ -753,7 +753,7 @@ public class WifiNativeTest extends WifiBaseTest {
 
         mWifiNative.probeLink(WIFI_IFACE_NAME, null, mSendMgmtFrameCallback, TEST_MCS_RATE);
 
-        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
     }
 }

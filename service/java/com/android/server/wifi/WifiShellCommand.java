@@ -306,7 +306,7 @@ public class WifiShellCommand extends ShellCommand {
 
     private int sendLinkProbe(PrintWriter pw) throws InterruptedException {
         ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(1);
-        mClientModeImpl.probeLink(new WifiNative.SendMgmtFrameCallback() {
+        mClientModeImpl.probeLink(new WificondControl.SendMgmtFrameCallback() {
             @Override
             public void onAck(int elapsedTimeMs) {
                 queue.offer("Link probe succeeded after " + elapsedTimeMs + " ms");

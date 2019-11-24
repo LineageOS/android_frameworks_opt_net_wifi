@@ -3392,15 +3392,16 @@ public class WifiMetrics {
         }
     }
 
-    private static int linkProbeFailureReasonToProto(@WifiNative.SendMgmtFrameError int reason) {
+    private static int linkProbeFailureReasonToProto(
+            @WificondControl.SendMgmtFrameError int reason) {
         switch (reason) {
-            case WifiNative.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
+            case WificondControl.SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_MCS_UNSUPPORTED;
-            case WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK:
+            case WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_NO_ACK;
-            case WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT:
+            case WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_TIMEOUT;
-            case WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
+            case WificondControl.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_ALREADY_STARTED;
             default:
                 return LinkProbeStats.LINK_PROBE_FAILURE_REASON_UNKNOWN;
@@ -4733,10 +4734,10 @@ public class WifiMetrics {
      *                                 {@link WifiInfo#txSuccess}).
      * @param rssi The Rx RSSI at {@code startTimestampMs}.
      * @param linkSpeed The Tx link speed in Mbps at {@code startTimestampMs}.
-     * @param reason The error code for the failure. See {@link WifiNative.SendMgmtFrameError}.
+     * @param reason The error code for the failure. See {@link WificondControl.SendMgmtFrameError}.
      */
     public void logLinkProbeFailure(long timeSinceLastTxSuccessMs,
-            int rssi, int linkSpeed, @WifiNative.SendMgmtFrameError int reason) {
+            int rssi, int linkSpeed, @WificondControl.SendMgmtFrameError int reason) {
         synchronized (mLock) {
             mProbeStatusSinceLastUpdate =
                     android.net.wifi.WifiUsabilityStatsEntry.PROBE_STATUS_FAILURE;

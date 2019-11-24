@@ -18,6 +18,7 @@ package com.android.server.wifi;
 
 import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.app.AlarmManager;
 import android.net.wifi.IApInterface;
@@ -37,7 +38,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
 import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.InformationElementUtil;
@@ -52,6 +52,8 @@ import com.android.server.wifi.wificond.PnoSettings;
 import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -71,7 +73,7 @@ public class WificondControl implements IBinder.DeathRecipient {
      * The {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
      * timeout, in milliseconds, after which
      * {@link SendMgmtFrameCallback#onFailure(int)} will be called with reason
-     * {@link WifiNative#SEND_MGMT_FRAME_ERROR_TIMEOUT}.
+     * {@link #SEND_MGMT_FRAME_ERROR_TIMEOUT}.
      */
     public static final int SEND_MGMT_FRAME_TIMEOUT_MS = 1000;
 
@@ -152,6 +154,74 @@ public class WificondControl implements IBinder.DeathRecipient {
         // Number of tramsmission failures.
         public int txFailed;
     }
+
+    /**
+     * Callback to notify the results of a
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()} call.
+     * Note: no callbacks will be triggered if the iface dies while sending a frame.
+     */
+    public interface SendMgmtFrameCallback {
+        /**
+         * Called when the management frame was successfully sent and ACKed by the recipient.
+         * @param elapsedTimeMs The elapsed time between when the management frame was sent and when
+         *                      the ACK was processed, in milliseconds, as measured by wificond.
+         *                      This includes the time that the send frame spent queuing before it
+         *                      was sent, any firmware retries, and the time the received ACK spent
+         *                      queuing before it was processed.
+         */
+        void onAck(int elapsedTimeMs);
+
+        /**
+         * Called when the send failed.
+         * @param reason The error code for the failure.
+         */
+        void onFailure(@SendMgmtFrameError int reason);
+    }
+
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(prefix = {"SEND_MGMT_FRAME_ERROR_"},
+            value = {SEND_MGMT_FRAME_ERROR_UNKNOWN,
+                    SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED,
+                    SEND_MGMT_FRAME_ERROR_NO_ACK,
+                    SEND_MGMT_FRAME_ERROR_TIMEOUT,
+                    SEND_MGMT_FRAME_ERROR_ALREADY_STARTED})
+    public @interface SendMgmtFrameError {}
+
+    // Send management frame error codes
+
+    /**
+     * Unknown error occurred during call to
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}.
+     */
+    public static final int SEND_MGMT_FRAME_ERROR_UNKNOWN = 1;
+
+    /**
+     * Specifying the MCS rate in
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()} is not
+     * supported by this device.
+     */
+    public static final int SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED = 2;
+
+    /**
+     * Driver reported that no ACK was received for the frame transmitted using
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}.
+     */
+    public static final int SEND_MGMT_FRAME_ERROR_NO_ACK = 3;
+
+    /**
+     * Error code for when the driver fails to report on the status of the frame sent by
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
+     * after {@link WificondControl#SEND_MGMT_FRAME_TIMEOUT_MS} milliseconds.
+     */
+    public static final int SEND_MGMT_FRAME_ERROR_TIMEOUT = 4;
+
+    /**
+     * An existing call to
+     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
+     * is in progress. Another frame cannot be sent until the first call completes.
+     */
+    public static final int SEND_MGMT_FRAME_ERROR_ALREADY_STARTED = 5;
+
 
     WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor,
             CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Handler handler,
@@ -239,7 +309,7 @@ public class WificondControl implements IBinder.DeathRecipient {
                 if (mVerboseLoggingEnabled) {
                     Log.e(TAG, "Timed out waiting for ACK");
                 }
-                mCallback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+                mCallback.onFailure(SEND_MGMT_FRAME_ERROR_TIMEOUT);
             });
             mWasCalled = false;
 
@@ -905,7 +975,7 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     /**
-     * See {@link WifiNative#sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int)}
+     * See {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int)}
      */
     public void sendMgmtFrame(@NonNull String ifaceName, @NonNull byte[] frame,
             @NonNull SendMgmtFrameCallback callback, int mcs) {
@@ -917,7 +987,7 @@ public class WificondControl implements IBinder.DeathRecipient {
 
         if (frame == null) {
             Log.e(TAG, "frame cannot be null!");
-            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            callback.onFailure(SEND_MGMT_FRAME_ERROR_UNKNOWN);
             return;
         }
 
@@ -925,13 +995,13 @@ public class WificondControl implements IBinder.DeathRecipient {
         IClientInterface clientInterface = getClientInterface(ifaceName);
         if (clientInterface == null) {
             Log.e(TAG, "No valid wificond client interface handler");
-            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            callback.onFailure(SEND_MGMT_FRAME_ERROR_UNKNOWN);
             return;
         }
 
         if (!mSendMgmtFrameInProgress.compareAndSet(false, true)) {
             Log.e(TAG, "An existing management frame transmission is in progress!");
-            callback.onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
+            callback.onFailure(SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
             return;
         }
 
@@ -942,7 +1012,7 @@ public class WificondControl implements IBinder.DeathRecipient {
             Log.e(TAG, "Exception while starting link probe: " + e);
             // Call sendMgmtFrameEvent.OnFailure() instead of callback.onFailure() so that
             // sendMgmtFrameEvent can clean up internal state, such as cancelling the timer.
-            sendMgmtFrameEvent.OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            sendMgmtFrameEvent.OnFailure(SEND_MGMT_FRAME_ERROR_UNKNOWN);
         }
     }
 
