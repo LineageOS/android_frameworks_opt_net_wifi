@@ -72,6 +72,8 @@ import java.util.TimeZone;
  */
 public class WifiNative {
     private static final String TAG = "WifiNative";
+    private static final String JNI_LIB = "/apex/com.android.wifi/lib64/libwifi-jni.so";
+
     private final SupplicantStaIfaceHal mSupplicantStaIfaceHal;
     private final HostapdHal mHostapdHal;
     private final WifiVendorHal mWifiVendorHal;
@@ -3365,8 +3367,12 @@ public class WifiNative {
     /* Register native functions */
     static {
         /* Native functions are defined in libwifi-jni.so */
-        System.loadLibrary("wifi-jni");
-        registerNatives();
+        try {
+            System.load(JNI_LIB);
+            registerNatives();
+        } catch (UnsatisfiedLinkError e) {
+            Log.wtf(TAG, "Failed to load jni library", e);
+        }
     }
 
     private static native int registerNatives();
