@@ -24,7 +24,7 @@ import android.util.LocalLog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.TelephonyUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.util.List;
 
@@ -35,21 +35,15 @@ import java.util.List;
 public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluator {
     private static final String NAME = "SavedNetworkEvaluator";
     private final WifiConfigManager mWifiConfigManager;
+    private final Context mContext;
     private final Clock mClock;
     private final LocalLog mLocalLog;
     private final WifiConnectivityHelper mConnectivityHelper;
     private final TelephonyUtil mTelephonyUtil;
-    private final int mRssiScoreSlope;
-    private final int mRssiScoreOffset;
-    private final int mSameBssidAward;
-    private final int mSameNetworkAward;
-    private final int mBand5GHzAward;
-    private final int mLastSelectionAward;
-    private final int mSecurityAward;
     private final ScoringParams mScoringParams;
 
     /**
-     * Time it takes for the mLastSelectionAward to decay by one point, in milliseconds
+     * Time it takes for the lastSelectionAward to decay by one point, in milliseconds
      */
     @VisibleForTesting
     public static final int LAST_SELECTION_AWARD_DECAY_MSEC = 60 * 1000;
@@ -59,6 +53,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
             WifiConfigManager configManager, Clock clock,
             LocalLog localLog, WifiConnectivityHelper connectivityHelper,
             TelephonyUtil telephonyUtil) {
+        mContext = context;
         mScoringParams = scoringParams;
         mWifiConfigManager = configManager;
         mClock = clock;
@@ -66,20 +61,6 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
         mConnectivityHelper = connectivityHelper;
         mTelephonyUtil = telephonyUtil;
 
-        mRssiScoreSlope = context.getResources().getInteger(
-                R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
-        mRssiScoreOffset = context.getResources().getInteger(
-                R.integer.config_wifi_framework_RSSI_SCORE_OFFSET);
-        mSameBssidAward = context.getResources().getInteger(
-                R.integer.config_wifi_framework_SAME_BSSID_AWARD);
-        mSameNetworkAward = context.getResources().getInteger(
-                R.integer.config_wifi_framework_current_network_boost);
-        mLastSelectionAward = context.getResources().getInteger(
-                R.integer.config_wifi_framework_LAST_SELECTION_AWARD);
-        mSecurityAward = context.getResources().getInteger(
-                R.integer.config_wifi_framework_SECURITY_AWARD);
-        mBand5GHzAward = context.getResources().getInteger(
-                R.integer.config_wifi_framework_5GHz_preference_boost_factor);
     }
 
     private void localLog(String log) {
@@ -114,18 +95,33 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
         int score = 0;
         boolean is5GHz = scanResult.is5GHz();
 
+        final int rssiScoreSlope = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
+        final int rssiScoreOffset = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_RSSI_SCORE_OFFSET);
+        final int sameBssidAward = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_SAME_BSSID_AWARD);
+        final int sameNetworkAward = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_current_network_boost);
+        final int lastSelectionAward = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_LAST_SELECTION_AWARD);
+        final int securityAward = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_SECURITY_AWARD);
+        final int band5GHzAward = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_5GHz_preference_boost_factor);
+
         sbuf.append("[ ").append(scanResult.SSID).append(" ").append(scanResult.BSSID)
                 .append(" RSSI:").append(scanResult.level).append(" ] ");
         // Calculate the RSSI score.
         int rssiSaturationThreshold = mScoringParams.getGoodRssi(scanResult.frequency);
         int rssi = Math.min(scanResult.level, rssiSaturationThreshold);
-        score += (rssi + mRssiScoreOffset) * mRssiScoreSlope;
+        score += (rssi + rssiScoreOffset) * rssiScoreSlope;
         sbuf.append(" RSSI score: ").append(score).append(",");
 
         // 5GHz band bonus.
         if (is5GHz) {
-            score += mBand5GHzAward;
-            sbuf.append(" 5GHz bonus: ").append(mBand5GHzAward).append(",");
+            score += band5GHzAward;
+            sbuf.append(" 5GHz bonus: ").append(band5GHzAward).append(",");
         }
 
         // Last user selection award.
@@ -136,7 +132,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                     - mWifiConfigManager.getLastSelectedTimeStamp();
             if (timeDifference > 0) {
                 int decay = (int) (timeDifference / LAST_SELECTION_AWARD_DECAY_MSEC);
-                int bonus = Math.max(mLastSelectionAward - decay, 0);
+                int bonus = Math.max(lastSelectionAward - decay, 0);
                 score += bonus;
                 sbuf.append(" User selection ").append(timeDifference)
                         .append(" ms ago, bonus: ").append(bonus).append(",");
@@ -145,28 +141,28 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
 
         // Same network award.
         if (currentNetwork != null && network.networkId == currentNetwork.networkId) {
-            score += mSameNetworkAward;
-            sbuf.append(" Same network bonus: ").append(mSameNetworkAward).append(",");
+            score += sameNetworkAward;
+            sbuf.append(" Same network bonus: ").append(sameNetworkAward).append(",");
 
             // When firmware roaming is supported, equivalent BSSIDs (the ones under the
             // same network as the currently connected one) get the same BSSID award.
             if (mConnectivityHelper.isFirmwareRoamingSupported()
                     && currentBssid != null && !currentBssid.equals(scanResult.BSSID)) {
-                score += mSameBssidAward;
-                sbuf.append(" Equivalent BSSID bonus: ").append(mSameBssidAward).append(",");
+                score += sameBssidAward;
+                sbuf.append(" Equivalent BSSID bonus: ").append(sameBssidAward).append(",");
             }
         }
 
         // Same BSSID award.
         if (currentBssid != null && currentBssid.equals(scanResult.BSSID)) {
-            score += mSameBssidAward;
-            sbuf.append(" Same BSSID bonus: ").append(mSameBssidAward).append(",");
+            score += sameBssidAward;
+            sbuf.append(" Same BSSID bonus: ").append(sameBssidAward).append(",");
         }
 
         // Security award.
         if (!WifiConfigurationUtil.isConfigForOpenNetwork(network)) {
-            score += mSecurityAward;
-            sbuf.append(" Secure network bonus: ").append(mSecurityAward).append(",");
+            score += securityAward;
+            sbuf.append(" Secure network bonus: ").append(securityAward).append(",");
         }
 
         sbuf.append(" ## Total score: ").append(score).append("\n");

@@ -28,7 +28,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -120,7 +120,7 @@ public class WifiLastResortWatchdog {
     private final Handler mHandler;
     private final WifiThreadRunner mWifiThreadRunner;
 
-    private boolean mWatchdogFeatureEnabled;
+    private Boolean mWatchdogFeatureEnabled = null;
 
     /**
      * Local log used for debugging any WifiLastResortWatchdog issues.
@@ -143,8 +143,6 @@ public class WifiLastResortWatchdog {
                 processMessage(msg);
             }
         };
-        mWatchdogFeatureEnabled = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_watchdog_enabled);
     }
 
     /**
@@ -313,7 +311,7 @@ public class WifiLastResortWatchdog {
             Log.v(TAG, "isRestartNeeded = " + isRestartNeeded);
         }
         if (isRestartNeeded) {
-            if (mWatchdogFeatureEnabled) {
+            if (getWifiWatchdogFeature()) {
                 // Stop the watchdog from triggering until re-enabled
                 localLog("Trigger recovery: setWatchdogTriggerEnabled to false");
                 setWatchdogTriggerEnabled(false);
@@ -347,7 +345,7 @@ public class WifiLastResortWatchdog {
             return;
         }
         if (!mWatchdogAllowedToTrigger && mWatchdogFixedWifi
-                && mWatchdogFeatureEnabled
+                && getWifiWatchdogFeature()
                 && checkIfAtleastOneNetworkHasEverConnected()
                 && checkIfConnectedBackToSameSsid()
                 && checkIfConnectedBssidHasEverFailed()) {
@@ -636,7 +634,7 @@ public class WifiLastResortWatchdog {
      */
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("mWatchdogFeatureEnabled: ").append(mWatchdogFeatureEnabled);
+        sb.append("mWatchdogFeatureEnabled: ").append(getWifiWatchdogFeature());
         sb.append("\nmWatchdogAllowedToTrigger: ").append(mWatchdogAllowedToTrigger);
         sb.append("\nmWifiIsConnected: ").append(mWifiIsConnected);
         sb.append("\nmRecentAvailableNetworks: ").append(mRecentAvailableNetworks.size());
@@ -710,6 +708,10 @@ public class WifiLastResortWatchdog {
      * Returns whether wifi watchdog should trigger recovery.
      */
     public boolean getWifiWatchdogFeature() {
+        if (mWatchdogFeatureEnabled == null) {
+            mWatchdogFeatureEnabled = mContext.getResources().getBoolean(
+                    R.bool.config_wifi_watchdog_enabled);
+        }
         return mWatchdogFeatureEnabled;
     }
 

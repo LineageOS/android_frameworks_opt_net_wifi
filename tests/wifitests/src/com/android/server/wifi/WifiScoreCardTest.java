@@ -21,6 +21,7 @@ import static com.android.server.wifi.util.NativeUtil.hexStringFromByteArray;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import android.content.Context;
 import android.net.MacAddress;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiSsid;
@@ -51,7 +52,7 @@ import java.util.Arrays;
 public class WifiScoreCardTest extends WifiBaseTest {
 
     static final WifiSsid TEST_SSID_1 = WifiSsid.createFromAsciiEncoded("Joe's Place");
-    static final WifiSsid TEST_SSID_2 = WifiSsid.createFromAsciiEncoded("Poe's Raven");
+    static final WifiSsid TEST_SSID_2 = WifiSsid.createFromAsciiEncoded("Poe's Ravn");
 
     static final MacAddress TEST_BSSID_1 = MacAddress.fromString("aa:bb:cc:dd:ee:ff");
     static final MacAddress TEST_BSSID_2 = MacAddress.fromString("1:2:3:4:5:6");
@@ -96,7 +97,7 @@ public class WifiScoreCardTest extends WifiBaseTest {
         mBlobListeners.clear();
         mBlobs.clear();
         mMilliSecondsSinceBoot = 0;
-        mWifiInfo = new ExtendedWifiInfo();
+        mWifiInfo = new ExtendedWifiInfo(mock(Context.class));
         mWifiInfo.setSSID(TEST_SSID_1);
         mWifiInfo.setBSSID(TEST_BSSID_1.toString());
         mWifiInfo.setNetworkId(TEST_NETWORK_CONFIG_ID);

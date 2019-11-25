@@ -110,7 +110,7 @@ import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.RssiUtil;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
@@ -361,6 +361,20 @@ public class WifiServiceImpl extends BaseWifiService {
 
     public void handleBootCompleted() {
         Log.d(TAG, "Handle boot completed");
+
+        // Register for system broadcasts.
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_USER_REMOVED);
+        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
+        intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
+        intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
+        boolean trackEmergencyCallState = mContext.getResources().getBoolean(
+                R.bool.config_wifi_turn_off_during_emergency_call);
+        if (trackEmergencyCallState) {
+            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
+        }
+        mContext.registerReceiver(mReceiver, intentFilter);
+
         mWifiThreadRunner.post(() -> {
             new MemoryStoreImpl(mContext, mWifiInjector, mWifiInjector.getWifiScoreCard()).start();
             if (!mWifiConfigManager.loadFromStore()) {
@@ -2536,20 +2550,6 @@ public class WifiServiceImpl extends BaseWifiService {
 
     private void registerForBroadcasts() {
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(Intent.ACTION_USER_PRESENT);
-        intentFilter.addAction(Intent.ACTION_USER_REMOVED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
-        intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
-        intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
-
-        boolean trackEmergencyCallState = mContext.getResources().getBoolean(
-                R.bool.config_wifi_turn_off_during_emergency_call);
-        if (trackEmergencyCallState) {
-            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
-        }
-        mContext.registerReceiver(mReceiver, intentFilter);
-
-        intentFilter = new IntentFilter();
         intentFilter.addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED);
         intentFilter.addDataScheme("package");
         mContext.registerReceiver(new BroadcastReceiver() {

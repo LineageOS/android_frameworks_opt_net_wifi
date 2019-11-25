@@ -35,7 +35,7 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.android.server.wifi.util.WifiHandler;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -90,7 +90,12 @@ public class SarManager {
         mLooper = looper;
         mHandler = new WifiHandler(TAG, looper);
         mPhoneStateListener = new WifiPhoneStateListener(looper);
+    }
 
+    /**
+     * Handle boot completed, read config flags.
+     */
+    public void handleBootCompleted() {
         readSarConfigs();
         if (mSupportSarTxPowerLimit) {
             mSarInfo = new SarInfo();

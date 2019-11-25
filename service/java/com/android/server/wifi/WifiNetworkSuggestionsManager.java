@@ -53,7 +53,7 @@ import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

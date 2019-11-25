@@ -56,7 +56,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -243,7 +243,6 @@ public class WifiConfigManager {
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
     private final MacAddressUtil mMacAddressUtil;
-    private boolean mConnectedMacRandomzationSupported;
     private final Mac mMac;
     private final TelephonyUtil mTelephonyUtil;
 
@@ -283,15 +282,6 @@ public class WifiConfigManager {
      * Store the network update listeners.
      */
     private final List<OnNetworkUpdateListener> mListeners;
-    /**
-     * Flag to indicate if only networks with the same psk should be linked.
-     * TODO(b/30706406): Remove this flag if unused.
-     */
-    private final boolean mOnlyLinkSameCredentialConfigurations;
-    /**
-     * Number of channels to scan for during partial scans initiated while connected.
-     */
-    private final int mMaxNumActiveChannelsForPartialScans;
 
     private final FrameworkFacade mFrameworkFacade;
     private final DeviceConfigFacade mDeviceConfigFacade;
@@ -394,10 +384,6 @@ public class WifiConfigManager {
         mWifiConfigStore.registerStoreData(mDeletedEphemeralSsidsStoreData);
         mWifiConfigStore.registerStoreData(mRandomizedMacStoreData);
 
-        mOnlyLinkSameCredentialConfigurations = mContext.getResources().getBoolean(
-                R.bool.config_wifi_only_link_same_credential_configurations);
-        mMaxNumActiveChannelsForPartialScans = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels);
         mFrameworkFacade = frameworkFacade;
         mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                 Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED), false,
@@ -417,8 +403,6 @@ public class WifiConfigManager {
                     }
                 });
         updatePnoRecencySortingSetting();
-        mConnectedMacRandomzationSupported = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mDeviceConfigFacade = deviceConfigFacade;
         mAggressiveMacRandomizationWhitelist = new ArraySet<>();
         mAggressiveMacRandomizationBlacklist = new ArraySet<>();
@@ -721,7 +705,8 @@ public class WifiConfigManager {
                 && targetUid != configuration.creatorUid) {
             maskRandomizedMacAddressInWifiConfiguration(network);
         }
-        if (!mConnectedMacRandomzationSupported) {
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
             network.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
         return network;
@@ -2510,7 +2495,8 @@ public class WifiConfigManager {
             ScanDetailCache scanDetailCache1, ScanDetailCache scanDetailCache2) {
         // TODO (b/30706406): Link networks only with same passwords if the
         // |mOnlyLinkSameCredentialConfigurations| flag is set.
-        if (mOnlyLinkSameCredentialConfigurations) {
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_only_link_same_credential_configurations)) {
             if (!TextUtils.equals(network1.preSharedKey, network2.preSharedKey)) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "shouldNetworksBeLinked unlink due to password mismatch");
@@ -2706,6 +2692,8 @@ public class WifiConfigManager {
             Log.i(TAG, "No scan detail and linked configs associated with networkId " + networkId);
             return null;
         }
+        final int maxNumActiveChannelsForPartialScans = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels);
         if (mVerboseLoggingEnabled) {
             StringBuilder dbg = new StringBuilder();
             dbg.append("fetchChannelSetForNetworkForPartialScan ageInMillis ")
@@ -2713,7 +2701,7 @@ public class WifiConfigManager {
                     .append(" for ")
                     .append(config.configKey())
                     .append(" max ")
-                    .append(mMaxNumActiveChannelsForPartialScans);
+                    .append(maxNumActiveChannelsForPartialScans);
             if (scanDetailCache != null) {
                 dbg.append(" bssids " + scanDetailCache.size());
             }
@@ -2727,7 +2715,7 @@ public class WifiConfigManager {
         // First add the currently connected network channel.
         if (homeChannelFreq > 0) {
             channelSet.add(homeChannelFreq);
-            if (channelSet.size() >= mMaxNumActiveChannelsForPartialScans) {
+            if (channelSet.size() >= maxNumActiveChannelsForPartialScans) {
                 return channelSet;
             }
         }
@@ -2737,7 +2725,7 @@ public class WifiConfigManager {
         // Then get channels for the network.
         if (!addToChannelSetForNetworkFromScanDetailCache(
                 channelSet, scanDetailCache, nowInMillis, ageInMillis,
-                mMaxNumActiveChannelsForPartialScans)) {
+                maxNumActiveChannelsForPartialScans)) {
             return channelSet;
         }
 
@@ -2752,7 +2740,7 @@ public class WifiConfigManager {
                         getScanDetailCacheForNetwork(linkedConfig.networkId);
                 if (!addToChannelSetForNetworkFromScanDetailCache(
                         channelSet, linkedScanDetailCache, nowInMillis, ageInMillis,
-                        mMaxNumActiveChannelsForPartialScans)) {
+                        maxNumActiveChannelsForPartialScans)) {
                     break;
                 }
             }

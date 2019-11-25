@@ -38,7 +38,7 @@ import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;

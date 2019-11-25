@@ -87,7 +87,7 @@ public class WrongPasswordNotifier {
                 // TODO(zqiu): consider creating a new icon.
                 .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setContentTitle(mContext.getString(
-                        com.android.wifi.R.string.wifi_available_title_failed_to_connect))
+                        com.android.wifi.resources.R.string.wifi_available_title_failed_to_connect))
                 .setContentText(ssid)
                 .setContentIntent(mFrameworkFacade.getActivity(
                         mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT))

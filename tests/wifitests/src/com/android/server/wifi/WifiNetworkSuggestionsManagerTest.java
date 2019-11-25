@@ -64,7 +64,7 @@ import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;

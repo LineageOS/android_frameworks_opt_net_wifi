@@ -41,9 +41,10 @@ public final class WifiService extends SystemService {
 
     final WifiServiceImpl mImpl;
 
-    public WifiService(Context context) {
-        super(context);
-        mImpl = new WifiServiceImpl(context, new WifiInjector(context), new WifiAsyncChannel(TAG));
+    public WifiService(Context contextBase) {
+        super(new WifiContext(contextBase));
+        mImpl = new WifiServiceImpl(getContext(), new WifiInjector(getContext()),
+                new WifiAsyncChannel(TAG));
     }
 
     @Override

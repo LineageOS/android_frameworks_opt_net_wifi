@@ -45,6 +45,7 @@ import android.security.keystore.AndroidKeyStoreProvider;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.os.PowerProfile;
 import com.android.server.wifi.aware.WifiAwareMetrics;
@@ -60,7 +61,6 @@ import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.server.wifi.wificond.IWificond;
-import com.android.wifi.R;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -76,6 +76,7 @@ import java.util.Random;
  *  an instance of the WifiInjector.
  */
 public class WifiInjector {
+    private static final String TAG = "WifiInjector";
     private static final String BOOT_DEFAULT_WIFI_COUNTRY_CODE = "ro.boot.wificountrycode";
     private static final String WIFICOND_SERVICE_NAME = "wificond";
 
@@ -240,14 +241,13 @@ public class WifiInjector {
         // Now get instances of all the objects that depend on the HandlerThreads
         mWifiTrafficPoller = new WifiTrafficPoller(wifiHandler);
         mCountryCode = new WifiCountryCode(mContext, wifiHandler, mWifiNative,
-                SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE),
-                mContext.getResources()
-                        .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss));
+                SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE));
         // WifiConfigManager/Store objects and their dependencies.
         KeyStore keyStore = null;
         try {
             keyStore = AndroidKeyStoreProvider.getKeyStoreForUid(Process.WIFI_UID);
         } catch (KeyStoreException | NoSuchProviderException e) {
+            Log.wtf(TAG, "Failed to load keystore", e);
         }
         mKeyStore = keyStore;
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
@@ -297,8 +297,8 @@ public class WifiInjector {
                 mTelephonyUtil);
         mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
-        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, wifiHandler,
-                mFrameworkFacade, mNetworkScoreManager, context.getPackageManager(),
+        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext, wifiHandler,
+                mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
                 mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
         mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,

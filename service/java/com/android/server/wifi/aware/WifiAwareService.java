@@ -22,6 +22,7 @@ import android.util.Log;
 
 import com.android.server.SystemService;
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.WifiContext;
 import com.android.server.wifi.WifiInjector;
 
 /**
@@ -32,9 +33,9 @@ public final class WifiAwareService extends SystemService {
     private static final String TAG = "WifiAwareService";
     final WifiAwareServiceImpl mImpl;
 
-    public WifiAwareService(Context context) {
-        super(context);
-        mImpl = new WifiAwareServiceImpl(context);
+    public WifiAwareService(Context contextBase) {
+        super(new WifiContext(contextBase));
+        mImpl = new WifiAwareServiceImpl(getContext());
     }
 
     @Override

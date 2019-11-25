@@ -119,7 +119,7 @@ import com.android.server.wifi.util.TelephonyUtil.SimAuthRequestData;
 import com.android.server.wifi.util.TelephonyUtil.SimAuthResponseData;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
@@ -681,7 +681,6 @@ public class ClientModeImpl extends StateMachine {
 
     private final TelephonyUtil mTelephonyUtil;
 
-    private final String mTcpBufferSizes;
 
     // Used for debug and stats gathering
     private static int sScanAlarmIntentCount = 0;
@@ -691,7 +690,6 @@ public class ClientModeImpl extends StateMachine {
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
-    private boolean mConnectedMacRandomzationSupported;
     // Maximum duration to continue to log Wifi usability stats after a data stall is triggered.
     @VisibleForTesting
     public static final long DURATION_TO_WAIT_ADD_STATS_AFTER_DATA_STALL_MS = 30 * 1000;
@@ -743,7 +741,7 @@ public class ClientModeImpl extends StateMachine {
         mWifiPermissionsWrapper = mWifiInjector.getWifiPermissionsWrapper();
         mWifiDataStall = mWifiInjector.getWifiDataStall();
 
-        mWifiInfo = new ExtendedWifiInfo();
+        mWifiInfo = new ExtendedWifiInfo(context);
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
@@ -821,13 +819,6 @@ public class ClientModeImpl extends StateMachine {
         mSuspendWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WifiSuspend");
         mSuspendWakeLock.setReferenceCounted(false);
 
-        mConnectedMacRandomzationSupported = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
-        mWifiInfo.setEnableConnectedMacRandomization(mConnectedMacRandomzationSupported);
-        mWifiMetrics.setIsMacRandomizationOn(mConnectedMacRandomzationSupported);
-
-        mTcpBufferSizes = mContext.getResources().getString(
-                R.string.config_wifi_tcp_buffers);
         mWifiConfigManager.addOnNetworkUpdateListener(new OnNetworkUpdateListener());
 
         // CHECKSTYLE:OFF IndentationCheck
@@ -3043,7 +3034,8 @@ public class ClientModeImpl extends StateMachine {
      * @return boolean true if Connected MAC randomization is supported, false otherwise
      */
     public boolean isConnectedMacRandomizationEnabled() {
-        return mConnectedMacRandomzationSupported;
+        return mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported);
     }
 
     /**
@@ -3119,6 +3111,7 @@ public class ClientModeImpl extends StateMachine {
                     // get other services that we need to manage
                     getAdditionalWifiServiceInterfaces();
                     registerNetworkFactory();
+                    mSarManager.handleBootCompleted();
                     break;
                 case CMD_SCREEN_STATE_CHANGED:
                     handleScreenStateChanged(message.arg1 != 0);
@@ -3734,7 +3727,7 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetricsProto.ConnectionEvent.ROAM_UNRELATED);
                     if (config.macRandomizationSetting
                             == WifiConfiguration.RANDOMIZATION_PERSISTENT
-                            && mConnectedMacRandomzationSupported) {
+                            && isConnectedMacRandomizationEnabled()) {
                         configureRandomizedMacAddress(config);
                     } else {
                         setCurrentMacToFactoryMac(config);
@@ -4661,8 +4654,10 @@ public class ClientModeImpl extends StateMachine {
 
             if (mIpClient != null) {
                 mIpClient.setHttpProxy(currentConfig.getHttpProxy());
-                if (!TextUtils.isEmpty(mTcpBufferSizes)) {
-                    mIpClient.setTcpBufferSizes(mTcpBufferSizes);
+                if (!TextUtils.isEmpty(mContext.getResources().getString(
+                        R.string.config_wifi_tcp_buffers))) {
+                    mIpClient.setTcpBufferSizes(mContext.getResources().getString(
+                            R.string.config_wifi_tcp_buffers));
                 }
             }
             final ProvisioningConfiguration prov;
@@ -5612,7 +5607,7 @@ public class ClientModeImpl extends StateMachine {
         if (macAddress != null) {
             return macAddress.toString();
         }
-        if (!mConnectedMacRandomzationSupported) {
+        if (!isConnectedMacRandomizationEnabled()) {
             return mWifiNative.getMacAddress(mInterfaceName);
         }
         return null;

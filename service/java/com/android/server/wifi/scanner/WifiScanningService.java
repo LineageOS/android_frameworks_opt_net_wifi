@@ -22,6 +22,7 @@ import android.os.HandlerThread;
 import android.util.Log;
 
 import com.android.server.SystemService;
+import com.android.server.wifi.WifiContext;
 import com.android.server.wifi.WifiInjector;
 
 /**
@@ -34,14 +35,14 @@ public class WifiScanningService extends SystemService {
     private final WifiScanningServiceImpl mImpl;
     private final HandlerThread mHandlerThread;
 
-    public WifiScanningService(Context context) {
-        super(context);
+    public WifiScanningService(Context contextBase) {
+        super(new WifiContext(contextBase));
         Log.i(TAG, "Creating " + Context.WIFI_SCANNING_SERVICE);
         mHandlerThread = new HandlerThread("WifiScanningService");
         mHandlerThread.start();
-        mImpl = new WifiScanningServiceImpl(context, mHandlerThread.getLooper(),
+        mImpl = new WifiScanningServiceImpl(getContext(), mHandlerThread.getLooper(),
                 WifiScannerImpl.DEFAULT_FACTORY,
-                context.getSystemService(BatteryStatsManager.class),
+                getContext().getSystemService(BatteryStatsManager.class),
                 WifiInjector.getInstance());
     }
 

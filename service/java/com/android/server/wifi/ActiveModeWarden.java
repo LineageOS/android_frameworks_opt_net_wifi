@@ -41,7 +41,7 @@ import com.android.internal.util.Protocol;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.server.wifi.util.WifiPermissionsUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -519,8 +519,6 @@ public class ActiveModeWarden {
         // Maximum limit to use for timeout delay if the value from overlay setting is too large.
         private static final int MAX_RECOVERY_TIMEOUT_DELAY_MS = 4000;
 
-        private final int mRecoveryDelayMillis;
-
         private static final int BASE = Protocol.BASE_WIFI_CONTROLLER;
 
         static final int CMD_EMERGENCY_MODE_CHANGED                 = BASE + 1;
@@ -560,7 +558,6 @@ public class ActiveModeWarden {
             setLogRecSize(100);
             setLogOnlyTransitions(false);
 
-            mRecoveryDelayMillis = readWifiRecoveryDelay();
         }
 
         @Override
@@ -748,7 +745,7 @@ public class ActiveModeWarden {
                     case CMD_DEFERRED_RECOVERY_RESTART_WIFI:
                         // wait mRecoveryDelayMillis for letting driver clean reset.
                         sendMessageDelayed(CMD_RECOVERY_RESTART_WIFI_CONTINUE,
-                                mRecoveryDelayMillis);
+                                readWifiRecoveryDelay());
                         break;
                     case CMD_RECOVERY_RESTART_WIFI_CONTINUE:
                         if (shouldEnableSta()) {

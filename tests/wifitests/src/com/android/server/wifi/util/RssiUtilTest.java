@@ -34,7 +34,7 @@ import android.os.Looper;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiBaseTest;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;

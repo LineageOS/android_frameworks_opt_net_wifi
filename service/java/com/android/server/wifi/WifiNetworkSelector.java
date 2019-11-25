@@ -39,7 +39,7 @@ import com.android.internal.util.Preconditions;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
 import com.android.server.wifi.util.ScanResultUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -100,6 +100,7 @@ public class WifiNetworkSelector {
      */
     public static final int LEGACY_CANDIDATE_SCORER_EXP_ID = 0;
 
+    private final Context mContext;
     private final WifiConfigManager mWifiConfigManager;
     private final Clock mClock;
     private final LocalLog mLocalLog;
@@ -112,9 +113,6 @@ public class WifiNetworkSelector {
     private List<ScanDetail> mFilteredNetworks = new ArrayList<>();
     private final WifiScoreCard mWifiScoreCard;
     private final ScoringParams mScoringParams;
-    private final int mStayOnNetworkMinimumTxRate;
-    private final int mStayOnNetworkMinimumRxRate;
-    private final boolean mEnableAutoJoinWhenAssociated;
     private final WifiNative mWifiNative;
 
     private final Map<String, WifiCandidates.CandidateScorer> mCandidateScorers = new ArrayMap<>();
@@ -232,11 +230,15 @@ public class WifiNetworkSelector {
                     + " , ID: " + wifiInfo.getNetworkId());
         }
 
+        final int stayOnNetworkMinimumTxRate = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network);
+        final int stayOnNetworkMinimumRxRate = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
         int currentRssi = wifiInfo.getRssi();
         boolean hasQualifiedRssi = currentRssi
                 > mScoringParams.getSufficientRssi(wifiInfo.getFrequency());
-        boolean hasActiveStream = (wifiInfo.getTxSuccessRate() > mStayOnNetworkMinimumTxRate)
-                || (wifiInfo.getRxSuccessRate() > mStayOnNetworkMinimumRxRate);
+        boolean hasActiveStream = (wifiInfo.getTxSuccessRate() > stayOnNetworkMinimumTxRate)
+                || (wifiInfo.getRxSuccessRate() > stayOnNetworkMinimumRxRate);
         if (hasQualifiedRssi && hasActiveStream) {
             localLog("Stay on current network because of good RSSI and ongoing traffic");
             return true;
@@ -313,7 +315,8 @@ public class WifiNetworkSelector {
 
         if (connected) {
             // Is roaming allowed?
-            if (!mEnableAutoJoinWhenAssociated) {
+            if (!mContext.getResources().getBoolean(
+                    R.bool.config_wifi_framework_enable_associated_network_selection)) {
                 localLog("Switching networks in connected state is not allowed."
                         + " Skip network selection.");
                 return false;
@@ -972,6 +975,7 @@ public class WifiNetworkSelector {
             WifiConfigManager configManager, Clock clock, LocalLog localLog,
             WifiMetrics wifiMetrics, WifiNative wifiNative,
             ThroughputPredictor throughputPredictor) {
+        mContext = context;
         mWifiConfigManager = configManager;
         mClock = clock;
         mWifiScoreCard = wifiScoreCard;
@@ -980,11 +984,5 @@ public class WifiNetworkSelector {
         mWifiMetrics = wifiMetrics;
         mWifiNative = wifiNative;
         mThroughputPredictor = throughputPredictor;
-        mEnableAutoJoinWhenAssociated = context.getResources().getBoolean(
-                R.bool.config_wifi_framework_enable_associated_network_selection);
-        mStayOnNetworkMinimumTxRate = context.getResources().getInteger(
-                R.integer.config_wifi_framework_min_tx_rate_for_staying_on_network);
-        mStayOnNetworkMinimumRxRate = context.getResources().getInteger(
-                R.integer.config_wifi_framework_min_rx_rate_for_staying_on_network);
     }
 }

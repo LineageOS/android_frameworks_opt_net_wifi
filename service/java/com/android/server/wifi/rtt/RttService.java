@@ -24,6 +24,7 @@ import android.util.Log;
 
 import com.android.server.SystemService;
 import com.android.server.wifi.HalDeviceManager;
+import com.android.server.wifi.WifiContext;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 
@@ -32,13 +33,11 @@ import com.android.server.wifi.util.WifiPermissionsUtil;
  */
 public class RttService extends SystemService {
     private static final String TAG = "RttService";
-    private Context mContext;
     private RttServiceImpl mImpl;
 
-    public RttService(Context context) {
-        super(context);
-        mContext = context;
-        mImpl = new RttServiceImpl(context);
+    public RttService(Context contextBase) {
+        super(new WifiContext(contextBase));
+        mImpl = new RttServiceImpl(getContext());
     }
 
     @Override

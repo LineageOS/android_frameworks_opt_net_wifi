@@ -103,7 +103,7 @@ import com.android.server.wifi.util.RssiUtilTest;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -663,10 +663,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         assertEquals("enabled", mCmi.syncGetWifiStateByName());
-
-        // reset the expectations on mContext since we did get an expected broadcast, but we should
-        // not on the next transition
-        reset(mContext);
 
         // now disable wifi and verify the reported wifi state
         mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);

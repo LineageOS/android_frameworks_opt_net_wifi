@@ -25,7 +25,8 @@ import android.provider.Settings;
 import android.util.KeyValueListParser;
 import android.util.Log;
 
-import com.android.wifi.R;
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.wifi.resources.R;
 
 /**
  * Holds parameters used for scoring networks.
@@ -37,6 +38,8 @@ import com.android.wifi.R;
 public class ScoringParams {
     // A long name that describes itself pretty well
     public static final int MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ = 5000;
+
+    private final Context mContext;
 
     private static final String TAG = "WifiScoringParams";
     private static final int EXIT = 0;
@@ -199,21 +202,26 @@ public class ScoringParams {
         }
     }
 
-    @NonNull private Values mVal = new Values();
+    @NonNull private Values mVal = null;
 
+    @VisibleForTesting
     public ScoringParams() {
+        mContext = null;
+        mVal = new Values();
     }
 
     public ScoringParams(Context context) {
-        loadResources(context);
+        mContext = context;
     }
 
     public ScoringParams(Context context, FrameworkFacade facade, Handler handler) {
-        loadResources(context);
+        mContext = context;
         setupContentObserver(context, facade, handler);
     }
 
     private void loadResources(Context context) {
+        if (mVal != null) return;
+        mVal = new Values();
         mVal.rssi2[EXIT] = context.getResources().getInteger(
                 R.integer.config_wifi_framework_wifi_score_bad_rssi_threshold_24GHz);
         mVal.rssi2[ENTRY] = context.getResources().getInteger(
@@ -275,6 +283,7 @@ public class ScoringParams {
         if (!("," + kvList).matches(COMMA_KEY_VAL_STAR)) {
             return false;
         }
+        loadResources(mContext);
         Values v = new Values(mVal);
         try {
             v.parseString(kvList);
@@ -340,6 +349,7 @@ public class ScoringParams {
      * Returns the number of seconds to use for rssi forecast.
      */
     public int getHorizonSeconds() {
+        loadResources(mContext);
         return mVal.horizon;
     }
 
@@ -348,6 +358,7 @@ public class ScoringParams {
      * no matter how bad the RSSI gets (packets per second).
      */
     public int getYippeeSkippyPacketsPerSecond() {
+        loadResources(mContext);
         return mVal.pps[2];
     }
 
@@ -363,6 +374,7 @@ public class ScoringParams {
      *
      */
     public int getNudKnob() {
+        loadResources(mContext);
         return mVal.nud;
     }
 
@@ -372,10 +384,12 @@ public class ScoringParams {
      * This value may be used to tag a set of experimental settings.
      */
     public int getExperimentIdentifier() {
+        loadResources(mContext);
         return mVal.expid;
     }
 
     private int[] getRssiArray(int frequency) {
+        loadResources(mContext);
         if (frequency < MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             return mVal.rssi2;
         } else {
@@ -385,6 +399,7 @@ public class ScoringParams {
 
     @Override
     public String toString() {
+        loadResources(mContext);
         return mVal.toString();
     }
 }

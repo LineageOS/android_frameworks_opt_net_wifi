@@ -16,7 +16,7 @@
 
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Official label of the wifi stack -->
-    <string name="wifiAppLabel" product="default">System Wi-Fi</string>
+    <string name="wifiResourcesAppLabel" product="default">System Wi-Fi Resources</string>
     <!-- A notification is shown when there are open wireless networks nearby.  This is the notification's title. -->
     <plurals name="wifi_available">
         <item quantity="one">Wi-Fi network available</item>

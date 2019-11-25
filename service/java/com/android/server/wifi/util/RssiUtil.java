@@ -18,7 +18,7 @@ package com.android.server.wifi.util;
 import android.annotation.NonNull;
 import android.content.Context;
 
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 /** Utilities for computations involving RSSI. */
 public class RssiUtil {

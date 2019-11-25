@@ -17,12 +17,12 @@
 <!-- Simple app to demonstrate how OEM's can customize the various overlays exposed by
      the wifi stack -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.android.wifi.overlay.sample"
+    package="com.android.wifi.resources.sample"
     android:versionCode="1"
     android:versionName="1.0">
     <application android:hasCode="false" />
     <overlay
-      android:targetPackage="com.android.wifi"
+      android:targetPackage="com.android.wifi.resources"
       android:targetName="WifiCustomization"
       android:isStatic="true"
       android:priority="0"/>

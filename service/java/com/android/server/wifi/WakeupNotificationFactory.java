@@ -22,7 +22,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 
 /** Factory for Wifi Wake notifications. */

@@ -41,7 +41,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;

@@ -143,6 +143,7 @@ import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -1668,7 +1669,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testStartLocalOnlyHotspotAt5Ghz() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_local_only_hotspot_5ghz)))
+                eq(R.bool.config_wifi_local_only_hotspot_5ghz)))
                 .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
@@ -3030,16 +3031,22 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testHandleDelayedScanAfterIdleMode() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat(new IdleModeIntentMatcher()));
 
         // Tell the wifi service that the device became idle.
         when(mPowerManager.isDeviceIdleMode()).thenReturn(true);
         TestUtil.sendIdleModeChanged(mBroadcastReceiverCaptor.getValue(), mContext);
+        mLooper.dispatchAll();
 
         // Send a scan request while the device is idle.
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME, TEST_FEATURE_ID));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         // No scans must be made yet as the device is idle.
         verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
 
@@ -3184,7 +3191,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     @Test
     public void testUserRemovedBroadcastHandling() {
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3201,7 +3211,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     @Test
     public void testUserRemovedBroadcastHandlingWithWrongIntentAction() {
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3222,7 +3235,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedTrue() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(true);
         assertTrue(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
 
@@ -3237,7 +3250,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedFalse() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(false);
 
         assertFalse(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
@@ -4123,7 +4136,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private void setupMaxApInterfaces(int val) {
         when(mResources.getInteger(
-                eq(com.android.wifi.R.integer.config_wifi_max_ap_interfaces)))
+                eq(R.integer.config_wifi_max_ap_interfaces)))
                 .thenReturn(val);
     }
 
