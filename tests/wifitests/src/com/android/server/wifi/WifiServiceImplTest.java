@@ -95,7 +95,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
-import android.net.wifi.IScanResultsListener;
+import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
@@ -279,7 +279,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
-    @Mock IScanResultsListener mClientScanResultsListener;
+    @Mock IScanResultsCallback mScanResultsCallback;
     @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
 
     WifiLog mLog = new LogcatLog(TAG);
@@ -4347,53 +4347,44 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Test register scan result listener without permission.
+     * Test register scan result callback without permission.
      */
     @Test(expected = SecurityException.class)
-    public void testRegisterScanResultListenerWithMissingPermission() throws Exception {
+    public void testRegisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
-                mClientScanResultsListener,
-                listenerIdentifier);
+        mWifiServiceImpl.registerScanResultsCallback(mScanResultsCallback);
     }
 
     /**
-     * Test unregister scan result listener without permission.
+     * Test unregister scan result callback without permission.
      */
     @Test(expected = SecurityException.class)
-    public void testUnregisterScanResultListenerWithMissingPermission() throws Exception {
+    public void testUnregisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        mWifiServiceImpl.unregisterScanResultsCallback(mScanResultsCallback);
     }
 
     /**
-     * Test register scan result listener with illegal argument.
+     * Test register scan result callback with illegal argument.
      */
     @Test(expected = IllegalArgumentException.class)
-    public void testRegisterScanResultListenerWithIllegalArgument() throws Exception {
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder, null, listenerIdentifier);
+    public void testRegisterScanResultCallbackWithIllegalArgument() throws Exception {
+        mWifiServiceImpl.registerScanResultsCallback(null);
     }
 
     /**
-     * Test register and unregister listener will go to ScanRequestProxy;
+     * Test register and unregister callback will go to ScanRequestProxy;
      */
     @Test
-    public void testRegisterUnregisterScanResultListener() throws Exception {
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
-                mClientScanResultsListener,
-                listenerIdentifier);
+    public void testRegisterUnregisterScanResultCallback() throws Exception {
+        mWifiServiceImpl.registerScanResultsCallback(mScanResultsCallback);
         mLooper.dispatchAll();
-        verify(mScanRequestProxy).registerScanResultsListener(eq(mAppBinder),
-                eq(mClientScanResultsListener), eq(listenerIdentifier));
-        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        verify(mScanRequestProxy).registerScanResultsCallback(mScanResultsCallback);
+        mWifiServiceImpl.unregisterScanResultsCallback(mScanResultsCallback);
         mLooper.dispatchAll();
-        verify(mScanRequestProxy).unregisterScanResultsListener(eq(listenerIdentifier));
+        verify(mScanRequestProxy).unregisterScanResultsCallback(mScanResultsCallback);
     }
 
     /**
