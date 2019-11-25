@@ -72,7 +72,7 @@ final class BubbleFunScorer implements WifiCandidates.CandidateScorer {
         double gain = shapeFunction(rssi + 0.5)
                     - shapeFunction(rssi - 0.5);
 
-        // Prefer 5GHz when both are strong, but at the fringes, 2.4 might be better
+        // Prefer 5GHz/6GHz when all are strong, but at the fringes, 2.4 might be better
         // Typically the entry rssi is lower for the 2.4 band, which provides the fringe boost
         if (candidate.getFrequency() < ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             score *= LOW_BAND_FACTOR;

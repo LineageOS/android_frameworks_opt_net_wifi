@@ -32,6 +32,7 @@
           <item type="array" name="config_wifi_fatal_firmware_alert_error_code_list" />
           <item type="bool" name="config_wifi_turn_off_during_emergency_call" />
           <item type="integer" name="config_wifi_framework_5GHz_preference_boost_factor" />
+          <item type="integer" name="config_wifiFramework6ghzPreferenceBoostFactor" />
           <item type="integer" name="config_wifi_framework_RSSI_SCORE_OFFSET" />
           <item type="integer" name="config_wifi_framework_RSSI_SCORE_SLOPE" />
           <item type="integer" name="config_wifi_framework_SAME_BSSID_AWARD" />
@@ -49,6 +50,10 @@
           <item type="integer" name="config_wifi_framework_wifi_score_entry_rssi_threshold_24GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_low_rssi_threshold_24GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_good_rssi_threshold_24GHz" />
+          <item type="integer" name="config_wifiFrameworkScoreBadRssiThreshold6ghz" />
+          <item type="integer" name="config_wifiFrameworkScoreEntryRssiThreshold6ghz" />
+          <item type="integer" name="config_wifiFrameworkScoreLowRssiThreshold6ghz" />
+          <item type="integer" name="config_wifiFrameworkScoreGoodRssiThreshold6ghz" />
           <item type="integer" name="config_wifi_framework_soft_ap_timeout_delay" />
           <item type="string"  name="config_wifi_random_mac_oui" />
           <item type="string"  name="config_wifi_framework_sap_2G_channel_list" />

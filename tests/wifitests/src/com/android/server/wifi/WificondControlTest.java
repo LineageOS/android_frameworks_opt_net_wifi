@@ -1327,7 +1327,8 @@ public class WificondControlTest extends WifiBaseTest {
             }
             if (settings.intervalMs != mExpectedPnoSettings.periodInMs
                     || settings.min2gRssi != mExpectedPnoSettings.min24GHzRssi
-                    || settings.min5gRssi != mExpectedPnoSettings.min5GHzRssi) {
+                    || settings.min5gRssi != mExpectedPnoSettings.min5GHzRssi
+                    || settings.min6gRssi != mExpectedPnoSettings.min6GHzRssi) {
                 return false;
             }
             if (settings.pnoNetworks == null || mExpectedPnoSettings.networkList == null) {

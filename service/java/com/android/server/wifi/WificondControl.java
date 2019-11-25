@@ -745,6 +745,7 @@ public class WificondControl implements IBinder.DeathRecipient {
         settings.intervalMs = pnoSettings.periodInMs;
         settings.min2gRssi = pnoSettings.min24GHzRssi;
         settings.min5gRssi = pnoSettings.min5GHzRssi;
+        settings.min6gRssi = pnoSettings.min6GHzRssi;
         if (pnoSettings.networkList != null) {
             for (WifiNative.PnoNetwork network : pnoSettings.networkList) {
                 PnoNetwork condNetwork = new PnoNetwork();
