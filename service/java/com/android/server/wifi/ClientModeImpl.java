@@ -5054,6 +5054,12 @@ public class ClientModeImpl extends StateMachine {
                         mWifiDiagnostics.captureBugReportData(
                                 WifiDiagnostics.REPORT_REASON_UNEXPECTED_DISCONNECT);
                     }
+                    boolean localGen = message.arg1 == 1;
+                    if (!localGen) { // ignore disconnects initiatied by wpa_supplicant.
+                        mBssidBlocklistMonitor.handleBssidConnectionFailure(mWifiInfo.getBSSID(),
+                                mWifiInfo.getSSID(),
+                                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
+                    }
                     config = getCurrentWifiConfiguration();
 
                     if (mVerboseLoggingEnabled) {

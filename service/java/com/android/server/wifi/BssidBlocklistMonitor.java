@@ -56,8 +56,10 @@ public class BssidBlocklistMonitor {
     public static final int REASON_AUTHENTICATION_FAILURE = 6;
     // DHCP failures
     public static final int REASON_DHCP_FAILURE = 7;
+    // Abnormal disconnect error
+    public static final int REASON_ABNORMAL_DISCONNECT = 8;
     // Constant being used to keep track of how many failure reasons there are.
-    public static final int NUMBER_REASON_CODES = 8;
+    public static final int NUMBER_REASON_CODES = 9;
 
     @IntDef(prefix = { "REASON_" }, value = {
             REASON_AP_UNABLE_TO_HANDLE_NEW_STA,
@@ -80,12 +82,15 @@ public class BssidBlocklistMonitor {
             3,  //  threshold for REASON_ASSOCIATION_REJECTION
             3,  //  threshold for REASON_ASSOCIATION_TIMEOUT
             3,  //  threshold for REASON_AUTHENTICATION_FAILURE
-            3   //  threshold for REASON_DHCP_FAILURE
+            3,  //  threshold for REASON_DHCP_FAILURE
+            3   //  threshold for REASON_ABNORMAL_DISCONNECT
     };
 
     private static final int FAILURE_COUNTER_THRESHOLD = 3;
     private static final long BASE_BLOCKLIST_DURATION = TimeUnit.MINUTES.toMillis(5); // 5 minutes
     private static final long MAX_BLOCKLIST_DURATION = TimeUnit.HOURS.toMillis(18); // 18 hours
+    private static final long ABNORMAL_DISCONNECT_TIME_WINDOW_MS = TimeUnit.SECONDS.toMillis(30);
+    private static final long ABNORMAL_DISCONNECT_RESET_TIME_MS = TimeUnit.HOURS.toMillis(3);
     private static final int FAILURE_STREAK_CAP = 7;
     private static final String TAG = "BssidBlocklistMonitor";
 
@@ -180,11 +185,7 @@ public class BssidBlocklistMonitor {
         return status;
     }
 
-    /**
-     * Note a failure event on a bssid and perform appropriate actions.
-     * @return True if the blocklist has been modified.
-     */
-    public boolean handleBssidConnectionFailure(String bssid, String ssid,
+    private boolean isValidNetworkAndFailureReason(String bssid, String ssid,
             @FailureReason int reasonCode) {
         if (bssid == null || ssid == null || WifiManager.UNKNOWN_SSID.equals(ssid)
                 || bssid.equals(ClientModeImpl.SUPPLICANT_BSSID_ANY)
@@ -193,6 +194,11 @@ public class BssidBlocklistMonitor {
                     + ", reasonCode=" + reasonCode);
             return false;
         }
+        return true;
+    }
+
+    private boolean handleBssidConnectionFailureInternal(String bssid, String ssid,
+            @FailureReason int reasonCode) {
         boolean result = false;
         BssidStatus entry = incrementFailureCountForBssid(bssid, ssid, reasonCode);
 
@@ -203,6 +209,26 @@ public class BssidBlocklistMonitor {
             mWifiScoreCard.incrementBssidBlocklistStreak(ssid, bssid, reasonCode);
         }
         return result;
+    }
+
+    /**
+     * Note a failure event on a bssid and perform appropriate actions.
+     * @return True if the blocklist has been modified.
+     */
+    public boolean handleBssidConnectionFailure(String bssid, String ssid,
+            @FailureReason int reasonCode) {
+        if (!isValidNetworkAndFailureReason(bssid, ssid, reasonCode)) {
+            return false;
+        }
+        if (reasonCode == REASON_ABNORMAL_DISCONNECT) {
+            long connectionTime = mWifiScoreCard.getBssidConnectionTimestampMs(ssid, bssid);
+            // only count disconnects that happen shortly after a connection.
+            if (mClock.getWallClockMillis() - connectionTime
+                    > ABNORMAL_DISCONNECT_TIME_WINDOW_MS) {
+                return false;
+            }
+        }
+        return handleBssidConnectionFailureInternal(bssid, ssid, reasonCode);
     }
 
     /**
@@ -221,6 +247,13 @@ public class BssidBlocklistMonitor {
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ASSOCIATION_TIMEOUT);
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_AUTHENTICATION_FAILURE);
 
+        long connectionTime = mClock.getWallClockMillis();
+        long prevConnectionTime = mWifiScoreCard.setBssidConnectionTimestampMs(
+                ssid, bssid, connectionTime);
+        if (connectionTime - prevConnectionTime > ABNORMAL_DISCONNECT_RESET_TIME_MS) {
+            mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_ABNORMAL_DISCONNECT);
+        }
+
         BssidStatus status = mBssidStatusMap.get(bssid);
         if (status == null) {
             return;
@@ -232,6 +265,9 @@ public class BssidBlocklistMonitor {
         status.failureCount[REASON_ASSOCIATION_REJECTION] = 0;
         status.failureCount[REASON_ASSOCIATION_TIMEOUT] = 0;
         status.failureCount[REASON_AUTHENTICATION_FAILURE] = 0;
+        if (connectionTime - prevConnectionTime > ABNORMAL_DISCONNECT_RESET_TIME_MS) {
+            status.failureCount[REASON_ABNORMAL_DISCONNECT] = 0;
+        }
     }
 
     /**
