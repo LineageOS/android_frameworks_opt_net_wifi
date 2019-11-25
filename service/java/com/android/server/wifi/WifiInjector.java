@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
-import android.companion.CompanionDeviceManager;
 import android.content.Context;
 import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
@@ -627,7 +626,6 @@ public class WifiInjector {
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
-                mContext.getSystemService(CompanionDeviceManager.class),
                 mClock, this, wifiConnectivityManager, mWifiConfigManager,
                 mWifiConfigStore, mWifiPermissionsUtil, mWifiMetrics);
     }

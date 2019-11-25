@@ -109,7 +109,6 @@ public class WifiNetworkFactory extends NetworkFactory {
     private final ActivityManager mActivityManager;
     private final AlarmManager mAlarmManager;
     private final AppOpsManager mAppOpsManager;
-    private final CompanionDeviceManager mCompanionDeviceManager;
     private final Clock mClock;
     private final Handler mHandler;
     private final WifiInjector mWifiInjector;
@@ -127,6 +126,7 @@ public class WifiNetworkFactory extends NetworkFactory {
     @VisibleForTesting
     public final Map<String, LinkedHashSet<AccessPoint>> mUserApprovedAccessPointMap;
     private WifiScanner mWifiScanner;
+    private CompanionDeviceManager mCompanionDeviceManager;
 
     private int mGenericConnectionReqCount = 0;
     // Request that is being actively processed. All new requests start out as an "active" request
@@ -346,7 +346,6 @@ public class WifiNetworkFactory extends NetworkFactory {
     public WifiNetworkFactory(Looper looper, Context context, NetworkCapabilities nc,
                               ActivityManager activityManager, AlarmManager alarmManager,
                               AppOpsManager appOpsManager,
-                              CompanionDeviceManager companionDeviceManager,
                               Clock clock, WifiInjector wifiInjector,
                               WifiConnectivityManager connectivityManager,
                               WifiConfigManager configManager,
@@ -358,7 +357,6 @@ public class WifiNetworkFactory extends NetworkFactory {
         mActivityManager = activityManager;
         mAlarmManager = alarmManager;
         mAppOpsManager = appOpsManager;
-        mCompanionDeviceManager = companionDeviceManager;
         mClock = clock;
         mHandler = new Handler(looper);
         mWifiInjector = wifiInjector;
@@ -1272,6 +1270,9 @@ public class WifiNetworkFactory extends NetworkFactory {
     private boolean isAccessPointApprovedInCompanionDeviceManager(
             @NonNull ScanResult scanResult, @NonNull UserHandle requestorUserHandle,
             @NonNull String requestorPackageName) {
+        if (mCompanionDeviceManager == null) {
+            mCompanionDeviceManager = mContext.getSystemService(CompanionDeviceManager.class);
+        }
         boolean approved = mCompanionDeviceManager.isDeviceAssociated(
                 requestorPackageName, MacAddress.fromString(scanResult.BSSID), requestorUserHandle);
         if (!approved) return false;
