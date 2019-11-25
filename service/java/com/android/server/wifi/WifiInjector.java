@@ -226,7 +226,7 @@ public class WifiInjector {
         mSupplicantStaIfaceHal = new SupplicantStaIfaceHal(
                 mContext, mWifiMonitor, mFrameworkFacade, wifiHandler, mClock);
         mHostapdHal = new HostapdHal(mContext, wifiHandler);
-        mWificondControl = new WificondControl(this, mWifiMonitor, mCarrierNetworkConfig,
+        mWificondControl = new WificondControl(this, mWifiMonitor,
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 wifiHandler, mClock);
         mNwManagementService = INetworkManagementService.Stub.asInterface(
@@ -234,6 +234,7 @@ public class WifiInjector {
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
+                mCarrierNetworkConfig,
                 wifiHandler, new Random());
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);

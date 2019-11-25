@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.net.InterfaceConfiguration;
@@ -26,6 +28,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.WifiSsid;
 import android.os.Handler;
 import android.os.INetworkManagementService;
 import android.os.RemoteException;
@@ -37,8 +40,13 @@ import android.util.Log;
 import com.android.internal.annotations.Immutable;
 import com.android.internal.util.HexDump;
 import com.android.server.net.BaseNetworkObserver;
+import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.FrameParser;
+import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
+import com.android.server.wifi.util.ScanResultUtil;
+import com.android.server.wifi.wificond.NativeScanResult;
+import com.android.server.wifi.wificond.RadioChainInfo;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -82,6 +90,7 @@ public class WifiNative {
     private final INetworkManagementService mNwManagementService;
     private final PropertyService mPropertyService;
     private final WifiMetrics mWifiMetrics;
+    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final Handler mHandler;
     private final Random mRandom;
     private boolean mVerboseLoggingEnabled = false;
@@ -91,7 +100,7 @@ public class WifiNative {
                       WificondControl condControl, WifiMonitor wifiMonitor,
                       INetworkManagementService nwService,
                       PropertyService propertyService, WifiMetrics wifiMetrics,
-                      Handler handler, Random random) {
+                      CarrierNetworkConfig carrierNetworkConfig, Handler handler, Random random) {
         mWifiVendorHal = vendorHal;
         mSupplicantStaIfaceHal = staIfaceHal;
         mHostapdHal = hostapdHal;
@@ -100,6 +109,7 @@ public class WifiNative {
         mNwManagementService = nwService;
         mPropertyService = propertyService;
         mWifiMetrics = wifiMetrics;
+        mCarrierNetworkConfig = carrierNetworkConfig;
         mHandler = handler;
         mRandom = random;
     }
@@ -1377,8 +1387,8 @@ public class WifiNative {
      * Returns an empty ArrayList on failure.
      */
     public ArrayList<ScanDetail> getScanResults(@NonNull String ifaceName) {
-        return mWificondControl.getScanResults(
-                ifaceName, WificondControl.SCAN_TYPE_SINGLE_SCAN);
+        return convertNativeScanResults(mWificondControl.getScanResults(
+                ifaceName, WificondControl.SCAN_TYPE_SINGLE_SCAN));
     }
 
     /**
@@ -1388,7 +1398,98 @@ public class WifiNative {
      * Returns an empty ArrayList on failure.
      */
     public ArrayList<ScanDetail> getPnoScanResults(@NonNull String ifaceName) {
-        return mWificondControl.getScanResults(ifaceName, WificondControl.SCAN_TYPE_PNO_SCAN);
+        return convertNativeScanResults(
+                mWificondControl.getScanResults(ifaceName, WificondControl.SCAN_TYPE_PNO_SCAN));
+    }
+
+    private ArrayList<ScanDetail> convertNativeScanResults(NativeScanResult[] nativeResults) {
+        ArrayList<ScanDetail> results = new ArrayList<>();
+        for (NativeScanResult result : nativeResults) {
+            WifiSsid wifiSsid = WifiSsid.createFromByteArray(result.ssid);
+            String bssid;
+            try {
+                bssid = NativeUtil.macAddressFromByteArray(result.bssid);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Illegal argument " + result.bssid, e);
+                continue;
+            }
+            if (bssid == null) {
+                Log.e(TAG, "Illegal null bssid");
+                continue;
+            }
+            ScanResult.InformationElement[] ies =
+                    InformationElementUtil.parseInformationElements(result.infoElement);
+            InformationElementUtil.Capabilities capabilities =
+                    new InformationElementUtil.Capabilities();
+            capabilities.from(ies, result.capability, isEnhancedOpenSupported());
+            String flags = capabilities.generateCapabilitiesString();
+            NetworkDetail networkDetail;
+            try {
+                networkDetail = new NetworkDetail(bssid, ies, null, result.frequency);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Illegal argument for scan result with bssid: " + bssid, e);
+                continue;
+            }
+
+            ScanDetail scanDetail = new ScanDetail(networkDetail, wifiSsid, bssid, flags,
+                    result.signalMbm / 100, result.frequency, result.tsf, ies, null,
+                    result.infoElement);
+            ScanResult scanResult = scanDetail.getScanResult();
+            scanResult.setWifiStandard(networkDetail.getWifiMode());
+
+            // Update carrier network info if this AP's SSID is associated with a carrier Wi-Fi
+            // network and it uses EAP.
+            if (ScanResultUtil.isScanResultForEapNetwork(scanDetail.getScanResult())
+                    && mCarrierNetworkConfig.isCarrierNetwork(wifiSsid.toString())) {
+                scanResult.isCarrierAp = true;
+                scanResult.carrierApEapType =
+                        mCarrierNetworkConfig.getNetworkEapType(wifiSsid.toString());
+                scanResult.carrierName =
+                        mCarrierNetworkConfig.getCarrierName(wifiSsid.toString());
+            }
+            // Fill up the radio chain info.
+            if (result.radioChainInfos != null) {
+                scanResult.radioChainInfos =
+                        new ScanResult.RadioChainInfo[result.radioChainInfos.size()];
+                int idx = 0;
+                for (RadioChainInfo nativeRadioChainInfo : result.radioChainInfos) {
+                    scanResult.radioChainInfos[idx] = new ScanResult.RadioChainInfo();
+                    scanResult.radioChainInfos[idx].id = nativeRadioChainInfo.chainId;
+                    scanResult.radioChainInfos[idx].level = nativeRadioChainInfo.level;
+                    idx++;
+                }
+            }
+            results.add(scanDetail);
+        }
+        if (mVerboseLoggingEnabled) {
+            Log.d(TAG, "get " + results.size() + " scan results from wificond");
+        }
+
+        return results;
+    }
+
+    private boolean mIsEnhancedOpenSupportedInitialized = false;
+    private boolean mIsEnhancedOpenSupported;
+
+    /**
+     * Check if OWE (Enhanced Open) is supported on the device
+     *
+     * @return true if OWE is supported
+     */
+    private boolean isEnhancedOpenSupported() {
+        if (mIsEnhancedOpenSupportedInitialized) {
+            return mIsEnhancedOpenSupported;
+        }
+
+        String iface = getClientInterfaceName();
+        if (iface == null) {
+            // Client interface might not be initialized during boot or Wi-Fi off
+            return false;
+        }
+
+        mIsEnhancedOpenSupportedInitialized = true;
+        mIsEnhancedOpenSupported = (getSupportedFeatureSet(iface) & WIFI_FEATURE_OWE) != 0;
+        return mIsEnhancedOpenSupported;
     }
 
     /**

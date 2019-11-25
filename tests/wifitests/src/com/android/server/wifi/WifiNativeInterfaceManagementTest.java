@@ -81,6 +81,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
     @Mock private INetworkManagementService mNwManagementService;
     @Mock private PropertyService mPropertyService;
     @Mock private WifiMetrics mWifiMetrics;
+    @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
 
     @Mock private WifiNative.StatusListener mStatusListener;
     @Mock private WifiNative.InterfaceCallback mIfaceCallback0;
@@ -169,7 +170,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
-                new Handler(mLooper.getLooper()), null);
+                mCarrierNetworkConfig, new Handler(mLooper.getLooper()), null);
         mWifiNative.initialize();
         mWifiNative.registerStatusListener(mStatusListener);
 

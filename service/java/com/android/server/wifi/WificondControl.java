@@ -16,8 +16,6 @@
 
 package com.android.server.wifi;
 
-import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
-
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.app.AlarmManager;
@@ -29,25 +27,19 @@ import android.net.wifi.IScanEvent;
 import android.net.wifi.ISendMgmtFrameEvent;
 import android.net.wifi.IWifiScannerImpl;
 import android.net.wifi.IWificond;
-import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.WifiSsid;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.server.wifi.hotspot2.NetworkDetail;
-import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
-import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoSettings;
-import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
 
 import java.lang.annotation.Retention;
@@ -79,19 +71,23 @@ public class WificondControl implements IBinder.DeathRecipient {
 
     private static final String TIMEOUT_ALARM_TAG = TAG + " Send Management Frame Timeout";
 
-    /* Get scan results for a single scan */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(prefix = {"SCAN_TYPE_"},
+            value = {SCAN_TYPE_SINGLE_SCAN,
+                    SCAN_TYPE_PNO_SCAN})
+    public @interface ScanResultType {}
+
+    /** Get scan results for a single scan */
     public static final int SCAN_TYPE_SINGLE_SCAN = 0;
 
-    /* Get scan results for Pno Scan */
+    /** Get scan results for Pno Scan */
     public static final int SCAN_TYPE_PNO_SCAN = 1;
 
     private WifiInjector mWifiInjector;
     private WifiMonitor mWifiMonitor;
-    private final CarrierNetworkConfig mCarrierNetworkConfig;
     private AlarmManager mAlarmManager;
     private Handler mEventHandler;
     private Clock mClock;
-    private WifiNative mWifiNative = null;
 
     // Cached wificond binder handlers.
     private IWificond mWificond;
@@ -106,8 +102,6 @@ public class WificondControl implements IBinder.DeathRecipient {
      * Ensures that no more than one sendMgmtFrame operation runs concurrently.
      */
     private AtomicBoolean mSendMgmtFrameInProgress = new AtomicBoolean(false);
-    private boolean mIsEnhancedOpenSupportedInitialized = false;
-    private boolean mIsEnhancedOpenSupported;
 
     private class ScanEventHandler extends IScanEvent.Stub {
         private String mIfaceName;
@@ -241,12 +235,10 @@ public class WificondControl implements IBinder.DeathRecipient {
     public static final int SEND_MGMT_FRAME_ERROR_ALREADY_STARTED = 5;
 
 
-    WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor,
-            CarrierNetworkConfig carrierNetworkConfig, AlarmManager alarmManager, Handler handler,
-            Clock clock) {
+    WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor, AlarmManager alarmManager,
+            Handler handler, Clock clock) {
         mWifiInjector = wifiInjector;
         mWifiMonitor = wifiMonitor;
-        mCarrierNetworkConfig = carrierNetworkConfig;
         mAlarmManager = alarmManager;
         mEventHandler = handler;
         mClock = clock;
@@ -681,85 +673,27 @@ public class WificondControl implements IBinder.DeathRecipient {
     /**
     * Fetch the latest scan result from kernel via wificond.
     * @param ifaceName Name of the interface.
-    * @return Returns an ArrayList of ScanDetail.
-    * Returns an empty ArrayList on failure.
+    * @return Returns an array of native scan results or an empty array on failure.
     */
-    public ArrayList<ScanDetail> getScanResults(@NonNull String ifaceName, int scanType) {
-        ArrayList<ScanDetail> results = new ArrayList<>();
+    public NativeScanResult[] getScanResults(@NonNull String ifaceName,
+            @ScanResultType int scanType) {
         IWifiScannerImpl scannerImpl = getScannerImpl(ifaceName);
         if (scannerImpl == null) {
             Log.e(TAG, "No valid wificond scanner interface handler");
-            return results;
+            return new NativeScanResult[0];
         }
+        com.android.server.wifi.wificond.NativeScanResult[] results = null;
         try {
-            NativeScanResult[] nativeResults;
             if (scanType == SCAN_TYPE_SINGLE_SCAN) {
-                nativeResults = scannerImpl.getScanResults();
+                results = scannerImpl.getScanResults();
             } else {
-                nativeResults = scannerImpl.getPnoScanResults();
-            }
-            for (NativeScanResult result : nativeResults) {
-                WifiSsid wifiSsid = WifiSsid.createFromByteArray(result.ssid);
-                String bssid;
-                try {
-                    bssid = NativeUtil.macAddressFromByteArray(result.bssid);
-                } catch (IllegalArgumentException e) {
-                    Log.e(TAG, "Illegal argument " + result.bssid, e);
-                    continue;
-                }
-                if (bssid == null) {
-                    Log.e(TAG, "Illegal null bssid");
-                    continue;
-                }
-                ScanResult.InformationElement[] ies =
-                        InformationElementUtil.parseInformationElements(result.infoElement);
-                InformationElementUtil.Capabilities capabilities =
-                        new InformationElementUtil.Capabilities();
-                capabilities.from(ies, result.capability, isEnhancedOpenSupported());
-                String flags = capabilities.generateCapabilitiesString();
-                NetworkDetail networkDetail;
-                try {
-                    networkDetail = new NetworkDetail(bssid, ies, null, result.frequency);
-                } catch (IllegalArgumentException e) {
-                    Log.e(TAG, "Illegal argument for scan result with bssid: " + bssid, e);
-                    continue;
-                }
-
-                ScanDetail scanDetail = new ScanDetail(networkDetail, wifiSsid, bssid, flags,
-                        result.signalMbm / 100, result.frequency, result.tsf, ies, null,
-                        result.infoElement);
-                ScanResult scanResult = scanDetail.getScanResult();
-                scanResult.setWifiStandard(networkDetail.getWifiMode());
-
-                // Update carrier network info if this AP's SSID is associated with a carrier Wi-Fi
-                // network and it uses EAP.
-                if (ScanResultUtil.isScanResultForEapNetwork(scanDetail.getScanResult())
-                        && mCarrierNetworkConfig.isCarrierNetwork(wifiSsid.toString())) {
-                    scanResult.isCarrierAp = true;
-                    scanResult.carrierApEapType =
-                            mCarrierNetworkConfig.getNetworkEapType(wifiSsid.toString());
-                    scanResult.carrierName =
-                            mCarrierNetworkConfig.getCarrierName(wifiSsid.toString());
-                }
-                // Fill up the radio chain info.
-                if (result.radioChainInfos != null) {
-                    scanResult.radioChainInfos =
-                        new ScanResult.RadioChainInfo[result.radioChainInfos.size()];
-                    int idx = 0;
-                    for (RadioChainInfo nativeRadioChainInfo : result.radioChainInfos) {
-                        scanResult.radioChainInfos[idx] = new ScanResult.RadioChainInfo();
-                        scanResult.radioChainInfos[idx].id = nativeRadioChainInfo.chainId;
-                        scanResult.radioChainInfos[idx].level = nativeRadioChainInfo.level;
-                        idx++;
-                    }
-                }
-                results.add(scanDetail);
+                results = scannerImpl.getPnoScanResults();
             }
         } catch (RemoteException e1) {
             Log.e(TAG, "Failed to create ScanDetail ArrayList");
         }
         if (mVerboseLoggingEnabled) {
-            Log.d(TAG, "get " + results.size() + " scan results from wificond");
+            Log.d(TAG, "get " + results.length + " scan results from wificond");
         }
 
         return results;
@@ -1024,35 +958,5 @@ public class WificondControl implements IBinder.DeathRecipient {
         mApInterfaces.clear();
         mApInterfaceListeners.clear();
         mSendMgmtFrameInProgress.set(false);
-    }
-
-    /**
-     * Check if OWE (Enhanced Open) is supported on the device
-     *
-     * @return true if OWE is supported
-     */
-    private boolean isEnhancedOpenSupported() {
-        if (mIsEnhancedOpenSupportedInitialized) {
-            return mIsEnhancedOpenSupported;
-        }
-
-        // WifiNative handle might be null, check this here
-        if (mWifiNative == null) {
-            mWifiNative = mWifiInjector.getWifiNative();
-            if (mWifiNative == null) {
-                return false;
-            }
-        }
-
-        String iface = mWifiNative.getClientInterfaceName();
-        if (iface == null) {
-            // Client interface might not be initialized during boot or Wi-Fi off
-            return false;
-        }
-
-        mIsEnhancedOpenSupportedInitialized = true;
-        mIsEnhancedOpenSupported = (mWifiNative.getSupportedFeatureSet(iface)
-                & WIFI_FEATURE_OWE) != 0;
-        return mIsEnhancedOpenSupported;
     }
 }
