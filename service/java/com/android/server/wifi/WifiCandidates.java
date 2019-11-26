@@ -384,9 +384,13 @@ public class WifiCandidates {
         } catch (RuntimeException e) {
             return failWithException(e);
         }
-        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromWifiConfiguration(config);
-        ScanResultMatchInfo key2 = ScanResultMatchInfo.fromScanResult(scanResult);
-        if (!key1.equals(key2)) return failure(key1, key2);
+        ScanResultMatchInfo key1 = ScanResultMatchInfo.fromScanResult(scanResult);
+        if (!config.isPasspoint()) {
+            ScanResultMatchInfo key2 = ScanResultMatchInfo.fromWifiConfiguration(config);
+            if (!key1.equals(key2)) {
+                return failure(key1, key2);
+            }
+        }
         Key key = new Key(key1, bssid, config.networkId);
         CandidateImpl old = mCandidates.get(key);
         if (old != null) {

@@ -803,6 +803,7 @@ public class WifiNetworkSelector {
                 chooses = " chooses ";
                 legacyOverrideWanted = choice.userConnectChoiceOverride;
                 selectedNetworkId = networkId;
+                updateChosenPasspointNetwork(choice);
             }
             String id = candidateScorer.getIdentifier();
             int expid = experimentIdFromIdentifier(id);
@@ -832,6 +833,18 @@ public class WifiNetworkSelector {
             mLastNetworkSelectionTimeStamp = mClock.getElapsedSinceBootMillis();
         }
         return selectedNetwork;
+    }
+
+    private void updateChosenPasspointNetwork(WifiCandidates.ScoredCandidate choice) {
+        if (choice.candidateKey == null) {
+            return;
+        }
+        WifiConfiguration config =
+                mWifiConfigManager.getConfiguredNetwork(choice.candidateKey.networkId);
+        if (config.isPasspoint()) {
+            config.SSID = choice.candidateKey.matchInfo.networkSsid;
+            mWifiConfigManager.addOrUpdateNetwork(config, config.creatorUid, config.creatorName);
+        }
     }
 
     private static int toProtoNominatorId(@NetworkNominator.NominatorId int nominatorId) {

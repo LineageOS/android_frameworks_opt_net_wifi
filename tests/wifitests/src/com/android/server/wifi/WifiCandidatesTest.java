@@ -282,4 +282,21 @@ public class WifiCandidatesTest extends WifiBaseTest {
         assertEquals(90, c.getPredictedThroughputMbps());
         assertEquals(15, c.getNominatorScore());
     }
+
+    /**
+     * Tests passpiont network from same provider(FQDN) can have multiple candidates with different
+     * scanDetails.
+     */
+    @Test
+    public void testMultiplePasspointCandidatesWithSameFQDN() {
+        // Create a Passpoint WifiConfig
+        WifiConfiguration config1 = WifiConfigurationTestUtil.createPasspointNetwork();
+        mScanResult2.BSSID = mScanResult1.BSSID.replace('1', '2');
+        // Add candidates with different scanDetail for same passpoint WifiConfig.
+        assertTrue(mWifiCandidates.add(mScanDetail1, config1, 2, 0, 0.0, false, 100));
+        assertTrue(mWifiCandidates.add(mScanDetail2, config1, 2, 0, 0.0, false, 100));
+        // Both should survive and no faults.
+        assertEquals(2, mWifiCandidates.size());
+        assertEquals(0, mWifiCandidates.getFaultCount());
+    }
 }

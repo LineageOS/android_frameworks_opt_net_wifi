@@ -116,14 +116,14 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     public class DummyNetworkNominator implements WifiNetworkSelector.NetworkNominator {
         private static final String NAME = "DummyNetworkEvaluator";
 
-        private boolean mEvaluatorShouldSelectCandidate = true;
+        private boolean mNominatorShouldSelectCandidate = true;
 
         private int mNetworkIndexToReturn;
-        private int mEvaluatorIdToReturn;
+        private int mNominatorIdToReturn;
 
-        public DummyNetworkNominator(int networkIndexToReturn, int evaluatorIdToReturn) {
+        public DummyNetworkNominator(int networkIndexToReturn, int nominatorIdToReturn) {
             mNetworkIndexToReturn = networkIndexToReturn;
-            mEvaluatorIdToReturn = evaluatorIdToReturn;
+            mNominatorIdToReturn = nominatorIdToReturn;
         }
 
         public DummyNetworkNominator() {
@@ -140,7 +140,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
 
         @Override
         public @NominatorId int getId() {
-            return mEvaluatorIdToReturn;
+            return mNominatorIdToReturn;
         }
 
         @Override
@@ -152,10 +152,10 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         public void update(List<ScanDetail> scanDetails) {}
 
         /**
-         * Sets whether the evaluator should return a candidate for connection or null.
+         * Sets whether the nominator should return a candidate for connection or null.
          */
         public void setEvaluatorToSelectCandidate(boolean shouldSelectCandidate) {
-            mEvaluatorShouldSelectCandidate = shouldSelectCandidate;
+            mNominatorShouldSelectCandidate = shouldSelectCandidate;
         }
 
         /**
@@ -170,7 +170,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                     WifiConfiguration currentNetwork, String currentBssid, boolean connected,
                     boolean untrustedNetworkAllowed,
                     @NonNull OnConnectableListener onConnectableListener) {
-            if (!mEvaluatorShouldSelectCandidate) {
+            if (!mNominatorShouldSelectCandidate) {
                 return;
             }
             for (ScanDetail scanDetail : scanDetails) {
@@ -198,6 +198,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     @Mock private WifiCandidates.CandidateScorer mCandidateScorer;
     @Mock private WifiMetrics mWifiMetrics;
     @Mock private WifiNative mWifiNative;
+    @Mock private WifiNetworkSelector.NetworkNominator mNetworkNominator;
 
     // For simulating the resources, we use a Spy on a MockResource
     // (which is really more of a stub than a mock, in spite if its name).
@@ -1501,6 +1502,38 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // WifiNetworkSelector.selectNetwork() twice
         verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(throughputExpId,
                 compatibilityExpId, true, 2);
+    }
+
+    /**
+     * Tests that passpoint network candidate will update SSID with the latest scanDetail.
+     */
+    @Test
+    public void testPasspointCandidateUpdateWithLatestScanDetail() {
+        String[] ssids = {"\"test1\"", "\"test2\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3", "6c:f3:7f:ae:8c:f4"};
+        int[] freqs = {2437, 5180};
+        String[] caps = {"[WPA2-EAP-CCMP][ESS]", "[WPA2-EAP-CCMP][ESS]"};
+        int[] levels = {mThresholdMinimumRssi2G + 1, mThresholdMinimumRssi5G + 1};
+        int[] securities = {SECURITY_EAP, SECURITY_EAP};
+        HashSet<String> blackList = new HashSet<>();
+        ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
+                WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
+                        freqs, caps, levels, securities, mWifiConfigManager, mClock);
+        List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
+        WifiConfiguration[] configs = scanDetailsAndConfigs.getWifiConfigs();
+        WifiConfiguration existingConfig = WifiConfigurationTestUtil.createPasspointNetwork();
+        existingConfig.SSID = ssids[1];
+        // Matched wifiConfig is an passpoint network with SSID from last scan.
+        when(mWifiConfigManager.getConfiguredNetwork(configs[0].networkId))
+                .thenReturn(existingConfig);
+        mWifiNetworkSelector.registerNetworkNominator(
+                new DummyNetworkNominator(0, DUMMY_EVALUATOR_ID_2));
+        WifiConfiguration candidate = mWifiNetworkSelector
+                .selectNetwork(scanDetails, blackList, mWifiInfo, false, true, true);
+        // Check if the wifiConfig is updated with the latest
+        verify(mWifiConfigManager).addOrUpdateNetwork(existingConfig,
+                existingConfig.creatorUid, existingConfig.creatorName);
+        assertEquals(ssids[0], candidate.SSID);
     }
 
     /**
