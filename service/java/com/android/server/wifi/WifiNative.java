@@ -3371,7 +3371,7 @@ public class WifiNative {
             System.load(JNI_LIB);
             registerNatives();
         } catch (UnsatisfiedLinkError e) {
-            Log.wtf(TAG, "Failed to load jni library", e);
+            Log.e(TAG, "Failed to load jni library", e);
         }
     }
 
@@ -3383,17 +3383,21 @@ public class WifiNative {
      * Fetches the latest kernel logs.
      */
     public synchronized String readKernelLog() {
-        byte[] bytes = readKernelLogNative();
-        if (bytes != null) {
-            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-            try {
-                CharBuffer decoded = decoder.decode(ByteBuffer.wrap(bytes));
-                return decoded.toString();
-            } catch (CharacterCodingException cce) {
-                return new String(bytes, StandardCharsets.ISO_8859_1);
+        try {
+            byte[] bytes = readKernelLogNative();
+            if (bytes != null) {
+                CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                try {
+                    CharBuffer decoded = decoder.decode(ByteBuffer.wrap(bytes));
+                    return decoded.toString();
+                } catch (CharacterCodingException cce) {
+                    return new String(bytes, StandardCharsets.ISO_8859_1);
+                }
             }
-        } else {
-            return "*** failed to read kernel log ***";
+        } catch (UnsatisfiedLinkError e) {
+            // TODO (b/145196311): Fix this linker error.
+            Log.e(TAG, "Failed to load jni library", e);
         }
+        return "*** failed to read kernel log ***";
     }
 }
