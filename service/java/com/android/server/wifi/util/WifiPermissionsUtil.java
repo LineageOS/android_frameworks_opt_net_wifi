@@ -29,9 +29,11 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.WifiLog;
 
@@ -43,6 +45,7 @@ public class WifiPermissionsUtil {
     private static final String TAG = "WifiPermissionsUtil";
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final Context mContext;
+    private final FrameworkFacade mFrameworkFacade;
     private final AppOpsManager mAppOps;
     private final UserManager mUserManager;
     private final Object mLock = new Object();
@@ -54,6 +57,7 @@ public class WifiPermissionsUtil {
             Context context, UserManager userManager, WifiInjector wifiInjector) {
         mWifiPermissionsWrapper = wifiPermissionsWrapper;
         mContext = context;
+        mFrameworkFacade = wifiInjector.getFrameworkFacade();
         mUserManager = userManager;
         mAppOps = (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE);
         mLog = wifiInjector.makeLog(TAG);
@@ -412,8 +416,10 @@ public class WifiPermissionsUtil {
             return mLocationManager.isLocationEnabledForUser(UserHandle.of(
                     mWifiPermissionsWrapper.getCurrentUser()));
         } catch (Exception e) {
-            Log.e(TAG, "Failure to get location mode", e);
-            return false;
+            Log.e(TAG, "Failure to get location mode via API, falling back to settings", e);
+            return mFrameworkFacade.getIntegerSetting(
+                    mContext, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_OFF)
+                    == Settings.Secure.LOCATION_MODE_ON;
         }
     }
 

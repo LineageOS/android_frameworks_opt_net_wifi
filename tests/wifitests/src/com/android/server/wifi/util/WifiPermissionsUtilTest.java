@@ -27,6 +27,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,11 +44,13 @@ import android.net.NetworkStack;
 import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.BinderUtil;
 import com.android.server.wifi.FakeWifiLog;
+import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiInjector;
 
@@ -72,6 +75,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
     // Mock objects for testing
     @Mock private WifiPermissionsWrapper mMockPermissionsWrapper;
     @Mock private Context mMockContext;
+    @Mock private FrameworkFacade mMockFrameworkFacade;
     @Mock private PackageManager mMockPkgMgr;
     @Mock private ApplicationInfo mMockApplInfo;
     @Mock private AppOpsManager mMockAppOps;
@@ -1207,6 +1211,32 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         }
     }
 
+    /**
+     * Verify that we handle failures when trying to fetch location mode using LocationManager API.
+     * We should use the legacy setting to read the value if we encounter any failure.
+     */
+    @Test
+    public void testIsLocationEnabledFallbackToLegacySetting() throws Exception {
+        mUid = OTHER_USER_UID;  // do not really care about this value
+        setupTestCase();
+        WifiPermissionsUtil codeUnderTest = new WifiPermissionsUtil(mMockPermissionsWrapper,
+                mMockContext, mMockUserManager, mWifiInjector);
+        doThrow(new RuntimeException()).when(mLocationManager).isLocationEnabledForUser(any());
+
+        when(mMockFrameworkFacade.getIntegerSetting(
+                any(), eq(Settings.Secure.LOCATION_MODE), anyInt()))
+                .thenReturn(Settings.Secure.LOCATION_MODE_OFF);
+        assertFalse(codeUnderTest.isLocationModeEnabled());
+
+        when(mMockFrameworkFacade.getIntegerSetting(
+                any(), eq(Settings.Secure.LOCATION_MODE), anyInt()))
+                .thenReturn(Settings.Secure.LOCATION_MODE_ON);
+        assertTrue(codeUnderTest.isLocationModeEnabled());
+
+        verify(mMockFrameworkFacade, times(2)).getIntegerSetting(
+                any(), eq(Settings.Secure.LOCATION_MODE), anyInt());
+    }
+
     private Answer<Integer> createPermissionAnswer() {
         return new Answer<Integer>() {
             @Override
@@ -1250,6 +1280,7 @@ public class WifiPermissionsUtilTest extends WifiBaseTest {
         when(mMockContext.getSystemService(Context.USER_SERVICE))
             .thenReturn(mMockUserManager);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mWifiLog);
+        when(mWifiInjector.getFrameworkFacade()).thenReturn(mMockFrameworkFacade);
         when(mMockContext.getSystemService(Context.LOCATION_SERVICE)).thenReturn(mLocationManager);
         when(mMockContext.getPackageName()).thenReturn(TEST_WIFI_STACK_APK_NAME);
     }
