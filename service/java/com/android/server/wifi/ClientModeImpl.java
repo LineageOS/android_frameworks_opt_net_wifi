@@ -48,7 +48,6 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
 import android.net.NetworkMisc;
-import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.net.SocketKeepalive;
 import android.net.SocketKeepalive.InvalidPacketException;
@@ -57,6 +56,7 @@ import android.net.TcpKeepalivePacketData;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
+import android.net.shared.Inet4AddressUtils;
 import android.net.shared.ProvisioningConfiguration;
 import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -2791,7 +2791,7 @@ public class ClientModeImpl extends StateMachine {
 
         if (mIsAutoRoaming) {
             int previousAddress = mWifiInfo.getIpAddress();
-            int newAddress = NetworkUtils.inetAddressToInt(addr);
+            int newAddress = Inet4AddressUtils.inet4AddressToIntHTL(addr);
             if (previousAddress != newAddress) {
                 logd("handleIPv4Success, roaming and address changed"
                         + mWifiInfo + " got: " + addr);

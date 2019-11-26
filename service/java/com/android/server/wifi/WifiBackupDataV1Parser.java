@@ -17,11 +17,11 @@
 package com.android.server.wifi;
 
 import android.annotation.Nullable;
+import android.net.InetAddresses;
 import android.net.IpConfiguration;
 import android.net.IpConfiguration.IpAssignment;
 import android.net.IpConfiguration.ProxySettings;
 import android.net.LinkAddress;
-import android.net.NetworkUtils;
 import android.net.ProxyInfo;
 import android.net.RouteInfo;
 import android.net.StaticIpConfiguration;
@@ -506,7 +506,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 StaticIpConfiguration.Builder builder = new StaticIpConfiguration.Builder();
                 if (linkAddressString != null && linkPrefixLength != null) {
                     LinkAddress linkAddress = new LinkAddress(
-                            NetworkUtils.numericToInetAddress(linkAddressString), linkPrefixLength);
+                            InetAddresses.parseNumericAddress(linkAddressString), linkPrefixLength);
                     if (linkAddress.getAddress() instanceof Inet4Address) {
                         builder.setIpAddress(linkAddress);
                     } else {
@@ -514,7 +514,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     }
                 }
                 if (gatewayAddressString != null) {
-                    InetAddress gateway = NetworkUtils.numericToInetAddress(gatewayAddressString);
+                    InetAddress gateway = InetAddresses.parseNumericAddress(gatewayAddressString);
                     RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
                     if (route.isDefaultRoute()
                             && route.getDestination().getAddress() instanceof Inet4Address) {
@@ -527,7 +527,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     List<InetAddress> dnsServerAddresses = new ArrayList<>();
                     for (String dnsServerAddressString : dnsServerAddressesString) {
                         InetAddress dnsServerAddress =
-                                NetworkUtils.numericToInetAddress(dnsServerAddressString);
+                                InetAddresses.parseNumericAddress(dnsServerAddressString);
                         dnsServerAddresses.add(dnsServerAddress);
                     }
                     builder.setDnsServers(dnsServerAddresses);
