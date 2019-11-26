@@ -537,14 +537,15 @@ public class ScanRequestProxy {
     }
 
     private void sendScanResultsAvailableToCallbacks() {
-        mRegisteredScanResultsCallbacks.broadcast(
-                iScanResultsCallback -> {
-                    try {
-                        iScanResultsCallback.onScanResultsAvailable();
-                    } catch (RemoteException e) {
-                        Log.e(TAG, "onScanResultsAvailable: remote exception -- " + e);
-                    }
-                });
+        int itemCount = mRegisteredScanResultsCallbacks.beginBroadcast();
+        for (int i = 0; i < itemCount; i++) {
+            try {
+                mRegisteredScanResultsCallbacks.getBroadcastItem(i).onScanResultsAvailable();
+            } catch (RemoteException e) {
+                Log.e(TAG, "onScanResultsAvailable: remote exception -- " + e);
+            }
+        }
+        mRegisteredScanResultsCallbacks.finishBroadcast();
     }
 
     /**
