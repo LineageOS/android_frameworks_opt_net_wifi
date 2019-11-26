@@ -169,7 +169,7 @@ public class PasspointNetworkEvaluator implements WifiNetworkSelector.NetworkEva
         }
 
         WifiConfiguration existingNetwork = mWifiConfigManager.getConfiguredNetwork(
-                config.configKey());
+                config.getKey());
         if (existingNetwork != null) {
             WifiConfiguration.NetworkSelectionStatus status =
                     existingNetwork.getNetworkSelectionStatus();

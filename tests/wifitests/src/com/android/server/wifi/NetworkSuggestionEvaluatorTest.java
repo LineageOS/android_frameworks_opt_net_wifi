@@ -401,7 +401,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
-                suggestions[0].wifiConfiguration.configKey()));
+                suggestions[0].wifiConfiguration.getKey()));
         verify(mWifiConfigManager).addOrUpdateNetwork(any(), anyInt(), anyString());
         // Verify we did not try to add any new networks or other interactions with
         // WifiConfigManager.
@@ -440,7 +440,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         suggestions[0].wifiConfiguration.ephemeral = true;
         setupAddToWifiConfigManager(suggestions[0].wifiConfiguration);
         // Existing saved network matching the credentials.
-        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.configKey()))
+        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.getKey()))
                 .thenReturn(suggestions[0].wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
@@ -458,7 +458,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         // check for any saved networks.
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
-        verify(mWifiConfigManager).getConfiguredNetwork(candidate.configKey());
+        verify(mWifiConfigManager).getConfiguredNetwork(candidate.getKey());
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
                 eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
         verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
@@ -552,7 +552,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         suggestions[0].wifiConfiguration.getNetworkSelectionStatus().setNetworkSelectionStatus(
                 NETWORK_SELECTION_TEMPORARY_DISABLED);
         // Existing network matching the credentials.
-        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.configKey()))
+        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.getKey()))
                 .thenReturn(suggestions[0].wifiConfiguration);
 
         List<Pair<ScanDetail, WifiConfiguration>> connectableNetworks = new ArrayList<>();
@@ -568,7 +568,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
-                suggestions[0].wifiConfiguration.configKey()));
+                suggestions[0].wifiConfiguration.getKey()));
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
                 eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
         verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
@@ -615,7 +615,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         suggestions[0].wifiConfiguration.getNetworkSelectionStatus().setNetworkSelectionStatus(
                 NETWORK_SELECTION_TEMPORARY_DISABLED);
         // Existing network matching the credentials.
-        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.configKey()))
+        when(mWifiConfigManager.getConfiguredNetwork(suggestions[0].wifiConfiguration.getKey()))
                 .thenReturn(suggestions[0].wifiConfiguration);
         when(mWifiConfigManager.tryEnableNetwork(suggestions[0].wifiConfiguration.networkId))
                 .thenReturn(true);
@@ -635,7 +635,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         verify(mWifiConfigManager, times(scanSsids.length))
                 .wasEphemeralNetworkDeleted(anyString());
         verify(mWifiConfigManager).getConfiguredNetwork(eq(
-                suggestions[0].wifiConfiguration.configKey()));
+                suggestions[0].wifiConfiguration.getKey()));
         verify(mWifiConfigManager).addOrUpdateNetwork(eq(suggestions[0].wifiConfiguration),
                 eq(suggestions[0].suggestorUid), eq(suggestions[0].suggestorPackageName));
         verify(mWifiConfigManager).getConfiguredNetwork(suggestions[0].wifiConfiguration.networkId);
@@ -672,7 +672,7 @@ public class NetworkSuggestionEvaluatorTest extends WifiBaseTest {
         @Override
         public boolean matches(WifiConfiguration otherConfig) {
             if (otherConfig == null) return false;
-            return mConfig.configKey().equals(otherConfig.configKey());
+            return mConfig.getKey().equals(otherConfig.getKey());
         }
     }
 

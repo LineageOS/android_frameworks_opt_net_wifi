@@ -2920,7 +2920,7 @@ public class WifiServiceImpl extends BaseWifiService {
                                 mWifiConfigManager.addOrUpdateNetwork(configuration, callingUid)
                                         .getNetworkId();
                         if (networkId == WifiConfiguration.INVALID_NETWORK_ID) {
-                            Log.e(TAG, "Restore network failed: " + configuration.configKey());
+                            Log.e(TAG, "Restore network failed: " + configuration.getKey());
                             continue;
                         }
                         // Enable all networks restored.

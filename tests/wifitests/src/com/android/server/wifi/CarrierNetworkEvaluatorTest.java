@@ -108,13 +108,13 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         private Map<String, Integer> mConfigs = new HashMap<>();
 
         public void addConfig(WifiConfiguration config, int networkId) {
-            mConfigs.put(config.configKey(), networkId);
+            mConfigs.put(config.getKey(), networkId);
         }
 
         @Override
         public NetworkUpdateResult answer(InvocationOnMock invocation) throws Throwable {
             WifiConfiguration config = invocation.getArgument(0);
-            Integer networkId = mConfigs.get(config.configKey());
+            Integer networkId = mConfigs.get(config.getKey());
             if (networkId == null) return null;
 
             when(mWifiConfigManager.getConfiguredNetwork(networkId)).thenReturn(config);
@@ -261,7 +261,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         assertTrue(config4.isEphemeral());
         assertTrue(config4.allowedKeyManagement.get(WifiConfiguration.KeyMgmt.WPA_EAP));
 
-        assertEquals(config2.configKey(), selected.configKey()); // SSID2 has the highest RSSI
+        assertEquals(config2.getKey(), selected.getKey()); // SSID2 has the highest RSSI
         assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
         assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
     }
@@ -375,14 +375,14 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
                 .setNetworkSelectionStatus(
                         WifiConfiguration.NetworkSelectionStatus
                                 .NETWORK_SELECTION_PERMANENTLY_DISABLED);
-        when(mWifiConfigManager.getConfiguredNetwork(eq(blacklisted.configKey())))
+        when(mWifiConfigManager.getConfiguredNetwork(eq(blacklisted.getKey())))
                 .thenReturn(blacklisted);
         when(mWifiConfigManager.tryEnableNetwork(CARRIER1_NET_ID))
                 .thenReturn(false);
 
         WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
-        verify(mWifiConfigManager).getConfiguredNetwork(eq(blacklisted.configKey()));
+        verify(mWifiConfigManager).getConfiguredNetwork(eq(blacklisted.getKey()));
 
         verify(mConnectableListener, never()).onConnectable(any(), any(), anyInt());
         assertNull(selected);
@@ -412,7 +412,7 @@ public class CarrierNetworkEvaluatorTest extends WifiBaseTest {
         WifiConfiguration selected = mDut.evaluateNetworks(scanDetails, null, null, false, false,
                 mConnectableListener);
 
-        assertEquals(carrierConfig.configKey(), selected.configKey());
+        assertEquals(carrierConfig.getKey(), selected.getKey());
         assertEquals("", selected.enterpriseConfig.getAnonymousIdentity());
         assertTrue(TelephonyUtil.isSimEapMethod(selected.enterpriseConfig.getEapMethod()));
     }

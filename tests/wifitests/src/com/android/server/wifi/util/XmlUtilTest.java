@@ -560,7 +560,7 @@ public class XmlUtilTest extends WifiBaseTest {
         retrieved =
                 deserializeWifiConfiguration(
                         serializeWifiConfigurationForBackup(configuration));
-        assertEquals(retrieved.first, retrieved.second.configKey());
+        assertEquals(retrieved.first, retrieved.second.getKey());
         WifiConfigurationTestUtil.assertConfigurationEqualForBackup(
                 configuration, retrieved.second);
     }
@@ -578,7 +578,7 @@ public class XmlUtilTest extends WifiBaseTest {
         retrieved =
                 deserializeWifiConfiguration(
                         serializeWifiConfigurationForConfigStore(configuration));
-        assertEquals(retrieved.first, retrieved.second.configKey());
+        assertEquals(retrieved.first, retrieved.second.getKey());
         WifiConfigurationTestUtil.assertConfigurationEqualForConfigStore(
                 configuration, retrieved.second);
     }

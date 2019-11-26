@@ -410,7 +410,7 @@ public class SupplicantStaNetworkHal {
             if (config.isPasspoint()) {
                 metadata.put(ID_STRING_KEY_FQDN, config.FQDN);
             }
-            metadata.put(ID_STRING_KEY_CONFIG_KEY, config.configKey());
+            metadata.put(ID_STRING_KEY_CONFIG_KEY, config.getKey());
             metadata.put(ID_STRING_KEY_CREATOR_UID, Integer.toString(config.creatorUid));
             if (!setIdStr(createNetworkExtra(metadata))) {
                 Log.e(TAG, "failed to set id string");

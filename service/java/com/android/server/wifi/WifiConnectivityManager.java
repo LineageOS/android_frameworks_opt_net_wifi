@@ -783,7 +783,7 @@ public class WifiConnectivityManager {
             }
             return true;
         } else {
-            localLog("No scan channels for " + config.configKey() + ". Perform full band scan");
+            localLog("No scan channels for " + config.getKey() + ". Perform full band scan");
             return false;
         }
     }

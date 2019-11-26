@@ -1561,7 +1561,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 mWifiNetworkSuggestionsManager.remove(networkSuggestionList, TEST_UID_1,
                         TEST_PACKAGE_1));
         verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
-                networkSuggestion.wifiConfiguration.configKey());
+                networkSuggestion.wifiConfiguration.getKey());
     }
 
     /**
@@ -1597,7 +1597,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 mWifiNetworkSuggestionsManager.remove(new ArrayList<>(), TEST_UID_1,
                         TEST_PACKAGE_1));
         verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
-                networkSuggestion.wifiConfiguration.configKey());
+                networkSuggestion.wifiConfiguration.getKey());
     }
 
 
@@ -1646,7 +1646,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         // Now remove the current connected app and ensure we did trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_1);
         verify(mWifiConfigManager).removeSuggestionConfiguredNetwork(
-                networkSuggestion1.wifiConfiguration.configKey());
+                networkSuggestion1.wifiConfiguration.getKey());
 
         // Now remove the other app and ensure we did not trigger a disconnect.
         mWifiNetworkSuggestionsManager.removeApp(TEST_PACKAGE_2);

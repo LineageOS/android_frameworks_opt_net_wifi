@@ -433,7 +433,7 @@ public class PasspointManager {
             // New profile changes the credential, remove the related WifiConfig.
             if (!old.equals(newProvider)) {
                 mWifiConfigManager.removePasspointConfiguredNetwork(
-                        newProvider.getWifiConfig().configKey());
+                        newProvider.getWifiConfig().getKey());
             }
         }
         mProviders.put(config.getHomeSp().getFqdn(), newProvider);
@@ -471,7 +471,7 @@ public class PasspointManager {
         String packageName = provider.getPackageName();
         // Remove any configs corresponding to the profile in WifiConfigManager.
         mWifiConfigManager.removePasspointConfiguredNetwork(
-                provider.getWifiConfig().configKey());
+                provider.getWifiConfig().getKey());
         mProviders.remove(fqdn);
         mWifiConfigManager.saveToStore(true /* forceWrite */);
 

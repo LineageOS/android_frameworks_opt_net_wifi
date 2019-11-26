@@ -427,7 +427,7 @@ public class XmlUtil {
                 XmlSerializer out, WifiConfiguration configuration,
                 @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
                 throws XmlPullParserException, IOException {
-            XmlUtil.writeNextValue(out, XML_TAG_CONFIG_KEY, configuration.configKey());
+            XmlUtil.writeNextValue(out, XML_TAG_CONFIG_KEY, configuration.getKey());
             XmlUtil.writeNextValue(out, XML_TAG_SSID, configuration.SSID);
             XmlUtil.writeNextValue(out, XML_TAG_BSSID, configuration.BSSID);
             writePreSharedKeyToXml(out, configuration.preSharedKey, encryptionUtil);

@@ -189,7 +189,7 @@ public class WifiBackupRestore {
             }
             if (!mWifiPermissionsUtil.checkConfigOverridePermission(configuration.creatorUid)) {
                 Log.d(TAG, "Ignoring network from an app with no config override permission: "
-                        + configuration.configKey());
+                        + configuration.getKey());
                 continue;
             }
             // Write this configuration data now.
@@ -369,7 +369,7 @@ public class WifiBackupRestore {
                     int id = networks.keyAt(i);
                     for (WifiConfiguration configuration : configurations) {
                         // This is a dangerous lookup, but that's how it is currently written.
-                        if (configuration.configKey().hashCode() == id) {
+                        if (configuration.getKey().hashCode() == id) {
                             configuration.setIpConfiguration(networks.valueAt(i));
                         }
                     }
@@ -666,11 +666,11 @@ public class WifiBackupRestore {
                             Log.e(TAG, "Configuration key was not passed, ignoring network.");
                             return null;
                         }
-                        if (!configKey.equals(configuration.configKey())) {
+                        if (!configKey.equals(configuration.getKey())) {
                             // ConfigKey mismatches are expected for private networks because the
                             // UID is not preserved across backup/restore.
                             Log.w(TAG, "Configuration key does not match. Retrieved: " + configKey
-                                    + ", Calculated: " + configuration.configKey());
+                                    + ", Calculated: " + configuration.getKey());
                         }
                         // For wpa_supplicant backup data, parse out the creatorUid to ensure that
                         // these networks were created by system apps.
@@ -679,7 +679,7 @@ public class WifiBackupRestore {
                                         SupplicantStaNetworkHal.ID_STRING_KEY_CREATOR_UID));
                         if (creatorUid >= Process.FIRST_APPLICATION_UID) {
                             Log.d(TAG, "Ignoring network from non-system app: "
-                                    + configuration.configKey());
+                                    + configuration.getKey());
                             return null;
                         }
                     }
@@ -741,7 +741,7 @@ public class WifiBackupRestore {
                     try {
                         WifiConfiguration wifiConfiguration = net.createWifiConfiguration();
                         if (wifiConfiguration != null) {
-                            Log.v(TAG, "Parsed Configuration: " + wifiConfiguration.configKey());
+                            Log.v(TAG, "Parsed Configuration: " + wifiConfiguration.getKey());
                             wifiConfigurations.add(wifiConfiguration);
                         }
                     } catch (NumberFormatException e) {

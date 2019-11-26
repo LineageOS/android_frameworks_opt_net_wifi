@@ -747,10 +747,10 @@ public class WifiConfigurationTestUtil {
             List<WifiConfiguration> expected, List<WifiConfiguration> actual) {
         assertEquals(expected.size(), actual.size());
         for (WifiConfiguration expectedConfiguration : expected) {
-            String expectedConfigKey = expectedConfiguration.configKey();
+            String expectedConfigKey = expectedConfiguration.getKey();
             boolean didCompare = false;
             for (WifiConfiguration actualConfiguration : actual) {
-                String actualConfigKey = actualConfiguration.configKey();
+                String actualConfigKey = actualConfiguration.getKey();
                 if (actualConfigKey.equals(expectedConfigKey)) {
                     assertConfigurationEqualForBackup(
                             expectedConfiguration, actualConfiguration);
@@ -770,10 +770,10 @@ public class WifiConfigurationTestUtil {
             List<WifiConfiguration> expected, List<WifiConfiguration> actual) {
         assertEquals(expected.size(), actual.size());
         for (WifiConfiguration expectedConfiguration : expected) {
-            String expectedConfigKey = expectedConfiguration.configKey();
+            String expectedConfigKey = expectedConfiguration.getKey();
             boolean didCompare = false;
             for (WifiConfiguration actualConfiguration : actual) {
-                String actualConfigKey = actualConfiguration.configKey();
+                String actualConfigKey = actualConfiguration.getKey();
                 if (actualConfigKey.equals(expectedConfigKey)) {
                     assertConfigurationEqualForConfigManagerAddOrUpdate(
                             expectedConfiguration, actualConfiguration);
@@ -792,10 +792,10 @@ public class WifiConfigurationTestUtil {
             List<WifiConfiguration> expected, List<WifiConfiguration> actual) {
         assertEquals(expected.size(), actual.size());
         for (WifiConfiguration expectedConfiguration : expected) {
-            String expectedConfigKey = expectedConfiguration.configKey();
+            String expectedConfigKey = expectedConfiguration.getKey();
             boolean didCompare = false;
             for (WifiConfiguration actualConfiguration : actual) {
-                String actualConfigKey = actualConfiguration.configKey();
+                String actualConfigKey = actualConfiguration.getKey();
                 if (actualConfigKey.equals(expectedConfigKey)) {
                     assertConfigurationEqualForConfigStore(
                             expectedConfiguration, actualConfiguration);

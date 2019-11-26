@@ -1083,7 +1083,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
             out.write("        " + "wep_tx_keyidx=" + configuration.wepTxKeyIndex + "\n");
         }
         Map<String, String> extras = new HashMap<>();
-        extras.put(SupplicantStaNetworkHal.ID_STRING_KEY_CONFIG_KEY, configuration.configKey());
+        extras.put(SupplicantStaNetworkHal.ID_STRING_KEY_CONFIG_KEY, configuration.getKey());
         extras.put(SupplicantStaNetworkHal.ID_STRING_KEY_CREATOR_UID,
                 Integer.toString(configuration.creatorUid));
         String idString = "\"" + SupplicantStaNetworkHal.createNetworkExtra(extras) + "\"";
@@ -1106,7 +1106,7 @@ public class WifiBackupRestoreTest extends WifiBaseTest {
             out.writeInt(configStoreVersion);
             for (WifiConfiguration configuration : configurations) {
                 // TODO: store configKey as a string instead of calculating its hash
-                IpConfigStore.writeConfig(out, String.valueOf(configuration.configKey().hashCode()),
+                IpConfigStore.writeConfig(out, String.valueOf(configuration.getKey().hashCode()),
                         configuration.getIpConfiguration(), configStoreVersion);
             }
             out.flush();

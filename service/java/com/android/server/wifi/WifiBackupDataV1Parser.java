@@ -153,7 +153,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
             WifiConfiguration configuration =
                     parseNetworkConfigurationFromXml(in, minorVersion, networkListTagDepth);
             if (configuration != null) {
-                Log.v(TAG, "Parsed Configuration: " + configuration.configKey());
+                Log.v(TAG, "Parsed Configuration: " + configuration.getKey());
                 configurations.add(configuration);
             }
         }
@@ -202,7 +202,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         }
         String configKeyParsed = parsedConfig.first;
         WifiConfiguration configuration = parsedConfig.second;
-        String configKeyCalculated = configuration.configKey();
+        String configKeyCalculated = configuration.getKey();
         if (!configKeyParsed.equals(configKeyCalculated)) {
             // configKey is not part of the SDK. So, we can't expect this to be the same
             // across OEM's. Just log a warning & continue.
