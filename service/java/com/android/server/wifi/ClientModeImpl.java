@@ -4523,9 +4523,9 @@ public class ClientModeImpl extends StateMachine {
                             // check if the removed sim card is associated with current config
                             mWifiMetrics.logStaEvent(StaEvent.TYPE_FRAMEWORK_DISCONNECT,
                                     StaEvent.DISCONNECT_RESET_SIM_NETWORKS);
-                            // TODO(b/132385576): STA may immediately connect back to the
-                            // network that we just disconnected from
+
                             mWifiNative.disconnect(mInterfaceName);
+                            mWifiNative.removeNetworkCachedData(mLastNetworkId);
                             transitionTo(mDisconnectingState);
                         }
                     }
