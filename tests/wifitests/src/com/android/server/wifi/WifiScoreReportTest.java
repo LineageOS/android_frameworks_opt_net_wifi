@@ -120,6 +120,9 @@ public class WifiScoreReportTest extends WifiBaseTest {
         when(resources.getInteger(
                 R.integer.config_wifiFrameworkScoreGoodRssiThreshold6ghz))
             .thenReturn(-57);
+        when(resources.getInteger(
+                R.integer.config_wifiFrameworkMinPacketPerSecondHighTraffic))
+                .thenReturn(100);
     }
 
     /**

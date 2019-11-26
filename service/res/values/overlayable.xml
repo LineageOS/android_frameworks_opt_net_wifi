@@ -40,10 +40,8 @@
           <item type="integer" name="config_wifiFrameworkCurrentNetworkBonus" />
           <item type="integer" name="config_wifiFrameworkSecureNetworkBonus" />
           <item type="integer" name="config_wifiFrameworkLastSelectionBonus" />
-          <item type="integer" name="config_wifi_framework_max_tx_rate_for_full_scan" />
-          <item type="integer" name="config_wifi_framework_max_rx_rate_for_full_scan" />
-          <item type="integer" name="config_wifi_framework_min_tx_rate_for_staying_on_network" />
-          <item type="integer" name="config_wifi_framework_min_rx_rate_for_staying_on_network" />
+          <item type="integer" name="config_wifiFrameworkMinPacketPerSecondActiveTraffic" />
+          <item type="integer" name="config_wifiFrameworkMinPacketPerSecondHighTraffic" />
           <item type="integer" name="config_wifi_framework_wifi_score_bad_rssi_threshold_5GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_entry_rssi_threshold_5GHz" />
           <item type="integer" name="config_wifi_framework_wifi_score_low_rssi_threshold_5GHz" />
