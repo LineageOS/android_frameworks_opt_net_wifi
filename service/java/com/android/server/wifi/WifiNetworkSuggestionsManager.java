@@ -1137,14 +1137,20 @@ public class WifiNetworkSuggestionsManager {
     }
 
     /**
-     * Send out the {@link WifiManager#ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION} to all the
-     * network suggestion credentials that match the current connection network.
+     * Send out the {@link WifiManager#ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION} to the
+     * network suggestion that provided credential for the current connection network.
+     * If current connection network is open user saved network, broadcast will be only sent out to
+     * one of the carrier apps that suggested matched network suggestions.
      *
      * @param connectedNetwork {@link WifiConfiguration} representing the network connected to.
      * @param connectedBssid BSSID of the network connected to.
      */
     private void handleConnectionSuccess(
             @NonNull WifiConfiguration connectedNetwork, @NonNull String connectedBssid) {
+        if (!(connectedNetwork.fromWifiNetworkSuggestion || connectedNetwork.isOpenNetwork())) {
+            return;
+        }
+
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                     getNetworkSuggestionsForWifiConfiguration(connectedNetwork, connectedBssid);
 
@@ -1156,16 +1162,30 @@ public class WifiNetworkSuggestionsManager {
                 || matchingExtNetworkSuggestions.isEmpty()) return;
 
         mWifiMetrics.incrementNetworkSuggestionApiNumConnectSuccess();
-
+        if (connectedNetwork.fromWifiNetworkSuggestion) {
+            // Find subset of network suggestions from app suggested the connected network.
+            matchingExtNetworkSuggestions =
+                    matchingExtNetworkSuggestions.stream()
+                            .filter(x -> x.wns.suggestorUid == connectedNetwork.creatorUid)
+                            .collect(Collectors.toSet());
+            if (matchingExtNetworkSuggestions.isEmpty()) {
+                Log.wtf(TAG, "Current connected network suggestion is missing!");
+                return;
+            }
+        } else {
+            //TODO(143173638) open user saved network should only post notification to one of
+            // carrier app.
+        }
         // Store the set of matching network suggestions.
-        mActiveNetworkSuggestionsMatchingConnection = new HashSet<>(matchingExtNetworkSuggestions);
+        mActiveNetworkSuggestionsMatchingConnection =
+                new HashSet<>(matchingExtNetworkSuggestions);
 
-        // Find subset of network suggestions which have set |isAppInteractionRequired|.
+        // Find subset of network suggestions have set |isAppInteractionRequired|.
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsWithReqAppInteraction =
                 matchingExtNetworkSuggestions.stream()
                         .filter(x -> x.wns.isAppInteractionRequired)
                         .collect(Collectors.toSet());
-        if (matchingExtNetworkSuggestionsWithReqAppInteraction.size() == 0) return;
+        if (matchingExtNetworkSuggestionsWithReqAppInteraction.isEmpty()) return;
 
         // Iterate over the matching network suggestions list:
         // a) Ensure that these apps have the necessary location permissions.
@@ -1190,6 +1210,9 @@ public class WifiNetworkSuggestionsManager {
      */
     private void handleConnectionFailure(@NonNull WifiConfiguration network,
                                          @Nullable String bssid, int failureCode) {
+        if (!network.fromWifiNetworkSuggestion) {
+            return;
+        }
         Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                 getNetworkSuggestionsForWifiConfiguration(network, bssid);
         if (mVerboseLoggingEnabled) {
@@ -1203,8 +1226,18 @@ public class WifiNetworkSuggestionsManager {
         // TODO (b/115504887, b/112196799): Blacklist the corresponding network suggestion if
         // the connection failed.
 
+        // Find subset of network suggestions which suggested the connection failure network.
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestionsFromTargetApp =
+                matchingExtNetworkSuggestions.stream()
+                        .filter(x -> x.wns.suggestorUid == network.creatorUid)
+                        .collect(Collectors.toSet());
+        if (matchingExtNetworkSuggestionsFromTargetApp.isEmpty()) {
+            Log.wtf(TAG, "Current connection failure network suggestion is missing!");
+            return;
+        }
+
         for (ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion
-                : matchingExtNetworkSuggestions) {
+                : matchingExtNetworkSuggestionsFromTargetApp) {
             sendConnectionFailureIfAllowed(matchingExtNetworkSuggestion.perAppInfo.packageName,
                     matchingExtNetworkSuggestion.perAppInfo.featureId,
                     matchingExtNetworkSuggestion.wns, failureCode);
