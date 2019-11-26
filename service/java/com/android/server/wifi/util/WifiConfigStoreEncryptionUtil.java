@@ -51,6 +51,7 @@ public class WifiConfigStoreEncryptionUtil {
     private static final String ALIAS_SUFFIX = ".data-encryption-key";
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;
+    private static final int KEY_LENGTH = 256;
     private static final String KEY_STORE = "AndroidKeyStore";
 
     private final String mDataFileName;
@@ -160,6 +161,7 @@ public class WifiConfigStoreEncryptionUtil {
                         KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                         .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setKeySize(KEY_LENGTH)
                         .setUid(Process.WIFI_UID)
                         .build();
 
