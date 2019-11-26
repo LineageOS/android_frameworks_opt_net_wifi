@@ -84,7 +84,6 @@ public class WificondControl implements IBinder.DeathRecipient {
     public static final int SCAN_TYPE_PNO_SCAN = 1;
 
     private WifiInjector mWifiInjector;
-    private WifiMonitor mWifiMonitor;
     private AlarmManager mAlarmManager;
     private Handler mEventHandler;
     private Clock mClock;
@@ -103,23 +102,38 @@ public class WificondControl implements IBinder.DeathRecipient {
      */
     private AtomicBoolean mSendMgmtFrameInProgress = new AtomicBoolean(false);
 
-    private class ScanEventHandler extends IScanEvent.Stub {
-        private String mIfaceName;
+    /**
+     * Interface for a callback to be used to handle scan results.
+     */
+    public interface ScanEventCallback {
+        /**
+         * Called when scan results are available.
+         */
+        void onScanResultReady();
 
-        ScanEventHandler(@NonNull String ifaceName) {
-            mIfaceName = ifaceName;
+        /**
+         * Called when a scan has failed.
+         */
+        void onScanFailed();
+    }
+
+    private class ScanEventHandler extends IScanEvent.Stub {
+        private ScanEventCallback mCallback;
+
+        ScanEventHandler(@NonNull ScanEventCallback callback) {
+            mCallback = callback;
         }
 
         @Override
         public void OnScanResultReady() {
             Log.d(TAG, "Scan result ready event");
-            mWifiMonitor.broadcastScanResultEvent(mIfaceName);
+            mCallback.onScanResultReady();
         }
 
         @Override
         public void OnScanFailed() {
             Log.d(TAG, "Scan failed event");
-            mWifiMonitor.broadcastScanFailedEvent(mIfaceName);
+            mCallback.onScanFailed();
         }
     }
 
@@ -235,33 +249,31 @@ public class WificondControl implements IBinder.DeathRecipient {
     public static final int SEND_MGMT_FRAME_ERROR_ALREADY_STARTED = 5;
 
 
-    WificondControl(WifiInjector wifiInjector, WifiMonitor wifiMonitor, AlarmManager alarmManager,
+    WificondControl(WifiInjector wifiInjector, AlarmManager alarmManager,
             Handler handler, Clock clock) {
         mWifiInjector = wifiInjector;
-        mWifiMonitor = wifiMonitor;
         mAlarmManager = alarmManager;
         mEventHandler = handler;
         mClock = clock;
     }
 
     private class PnoScanEventHandler extends IPnoScanEvent.Stub {
-        private String mIfaceName;
+        private ScanEventCallback mCallback;
 
-        PnoScanEventHandler(@NonNull String ifaceName) {
-            mIfaceName = ifaceName;
+        PnoScanEventHandler(@NonNull ScanEventCallback callback) {
+            mCallback = callback;
         }
 
         @Override
         public void OnPnoNetworkFound() {
             Log.d(TAG, "Pno scan result event");
-            mWifiMonitor.broadcastPnoScanResultEvent(mIfaceName);
-            mWifiInjector.getWifiMetrics().incrementPnoFoundNetworkEventCount();
+            mCallback.onScanResultReady();
         }
 
         @Override
         public void OnPnoScanFailed() {
             Log.d(TAG, "Pno Scan failed event");
-            mWifiInjector.getWifiMetrics().incrementPnoScanFailedCount();
+            mCallback.onScanFailed();
         }
     }
 
@@ -418,13 +430,13 @@ public class WificondControl implements IBinder.DeathRecipient {
 
     /**
     * Setup interface for client mode via wificond.
-    * @return An IClientInterface as wificond client interface binder handler.
-    * Returns null on failure.
+    * @return true on success.
     */
-    public IClientInterface setupInterfaceForClientMode(@NonNull String ifaceName) {
+    public boolean setupInterfaceForClientMode(@NonNull String ifaceName,
+            @NonNull ScanEventCallback scanCallback, @NonNull ScanEventCallback pnoScanCallback) {
         Log.d(TAG, "Setting up interface for client mode");
         if (!retrieveWificondAndRegisterForDeath()) {
-            return null;
+            return false;
         }
 
         IClientInterface clientInterface = null;
@@ -432,12 +444,12 @@ public class WificondControl implements IBinder.DeathRecipient {
             clientInterface = mWificond.createClientInterface(ifaceName);
         } catch (RemoteException e1) {
             Log.e(TAG, "Failed to get IClientInterface due to remote exception");
-            return null;
+            return false;
         }
 
         if (clientInterface == null) {
             Log.e(TAG, "Could not get IClientInterface instance from wificond");
-            return null;
+            return false;
         }
         Binder.allowBlocking(clientInterface.asBinder());
 
@@ -447,21 +459,21 @@ public class WificondControl implements IBinder.DeathRecipient {
             IWifiScannerImpl wificondScanner = clientInterface.getWifiScannerImpl();
             if (wificondScanner == null) {
                 Log.e(TAG, "Failed to get WificondScannerImpl");
-                return null;
+                return false;
             }
             mWificondScanners.put(ifaceName, wificondScanner);
             Binder.allowBlocking(wificondScanner.asBinder());
-            ScanEventHandler scanEventHandler = new ScanEventHandler(ifaceName);
+            ScanEventHandler scanEventHandler = new ScanEventHandler(scanCallback);
             mScanEventHandlers.put(ifaceName,  scanEventHandler);
             wificondScanner.subscribeScanEvents(scanEventHandler);
-            PnoScanEventHandler pnoScanEventHandler = new PnoScanEventHandler(ifaceName);
+            PnoScanEventHandler pnoScanEventHandler = new PnoScanEventHandler(pnoScanCallback);
             mPnoScanEventHandlers.put(ifaceName,  pnoScanEventHandler);
             wificondScanner.subscribePnoScanEvents(pnoScanEventHandler);
         } catch (RemoteException e) {
             Log.e(TAG, "Failed to refresh wificond scanner due to remote exception");
         }
 
-        return clientInterface;
+        return true;
     }
 
     /**
@@ -511,13 +523,12 @@ public class WificondControl implements IBinder.DeathRecipient {
 
     /**
     * Setup interface for softAp mode via wificond.
-    * @return An IApInterface as wificond Ap interface binder handler.
-    * Returns null on failure.
+    * @return true on success.
     */
-    public IApInterface setupInterfaceForSoftApMode(@NonNull String ifaceName) {
+    public boolean setupInterfaceForSoftApMode(@NonNull String ifaceName) {
         Log.d(TAG, "Setting up interface for soft ap mode");
         if (!retrieveWificondAndRegisterForDeath()) {
-            return null;
+            return false;
         }
 
         IApInterface apInterface = null;
@@ -525,18 +536,18 @@ public class WificondControl implements IBinder.DeathRecipient {
             apInterface = mWificond.createApInterface(ifaceName);
         } catch (RemoteException e1) {
             Log.e(TAG, "Failed to get IApInterface due to remote exception");
-            return null;
+            return false;
         }
 
         if (apInterface == null) {
             Log.e(TAG, "Could not get IApInterface instance from wificond");
-            return null;
+            return false;
         }
         Binder.allowBlocking(apInterface.asBinder());
 
         // Refresh Handlers
         mApInterfaces.put(ifaceName, apInterface);
-        return apInterface;
+        return true;
     }
 
     /**
@@ -675,25 +686,28 @@ public class WificondControl implements IBinder.DeathRecipient {
     * @param ifaceName Name of the interface.
     * @return Returns an array of native scan results or an empty array on failure.
     */
-    public NativeScanResult[] getScanResults(@NonNull String ifaceName,
+    @NonNull public List<NativeScanResult> getScanResults(@NonNull String ifaceName,
             @ScanResultType int scanType) {
         IWifiScannerImpl scannerImpl = getScannerImpl(ifaceName);
         if (scannerImpl == null) {
             Log.e(TAG, "No valid wificond scanner interface handler");
-            return new NativeScanResult[0];
+            return new ArrayList<>();
         }
-        com.android.server.wifi.wificond.NativeScanResult[] results = null;
+        List<NativeScanResult> results = null;
         try {
             if (scanType == SCAN_TYPE_SINGLE_SCAN) {
-                results = scannerImpl.getScanResults();
+                results = Arrays.asList(scannerImpl.getScanResults());
             } else {
-                results = scannerImpl.getPnoScanResults();
+                results = Arrays.asList(scannerImpl.getPnoScanResults());
             }
         } catch (RemoteException e1) {
             Log.e(TAG, "Failed to create ScanDetail ArrayList");
         }
+        if (results == null) {
+            results = new ArrayList<>();
+        }
         if (mVerboseLoggingEnabled) {
-            Log.d(TAG, "get " + results.length + " scan results from wificond");
+            Log.d(TAG, "get " + results.size() + " scan results from wificond");
         }
 
         return results;

@@ -226,7 +226,7 @@ public class WifiInjector {
         mSupplicantStaIfaceHal = new SupplicantStaIfaceHal(
                 mContext, mWifiMonitor, mFrameworkFacade, wifiHandler, mClock);
         mHostapdHal = new HostapdHal(mContext, wifiHandler);
-        mWificondControl = new WificondControl(this, mWifiMonitor,
+        mWificondControl = new WificondControl(this,
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 wifiHandler, mClock);
         mNwManagementService = INetworkManagementService.Stub.asInterface(

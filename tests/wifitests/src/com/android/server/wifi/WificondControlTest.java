@@ -105,6 +105,10 @@ public class WificondControlTest extends WifiBaseTest {
     private Clock mClock;
     @Mock
     private SendMgmtFrameCallback mSendMgmtFrameCallback;
+    @Mock
+    private WificondControl.ScanEventCallback mNormalScanCallback;
+    @Mock
+    private WificondControl.ScanEventCallback mPnoScanCallback;
     private TestLooper mLooper;
     private WificondControl mWificondControl;
     private static final String TEST_INTERFACE_NAME = "test_wlan_if";
@@ -174,10 +178,10 @@ public class WificondControlTest extends WifiBaseTest {
         when(mClientInterface.getInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         mLooper = new TestLooper();
-        mWificondControl = new WificondControl(mWifiInjector, mWifiMonitor,
+        mWificondControl = new WificondControl(mWifiInjector,
                 mAlarmManager, new Handler(mLooper.getLooper()), mClock);
-        assertEquals(mClientInterface, mWificondControl.setupInterfaceForClientMode(
-                TEST_INTERFACE_NAME));
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
     }
@@ -210,9 +214,8 @@ public class WificondControlTest extends WifiBaseTest {
         mWificondControl.binderDied();
         mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedClientInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
         verify(mWifiInjector, times(2)).makeWificond();
     }
 
@@ -226,9 +229,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(null);
 
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedClientInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
     }
 
     /**
@@ -308,9 +310,7 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createApInterface(TEST_INTERFACE_NAME)).thenReturn(mApInterface);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-        assertEquals(mApInterface, returnedApInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
         verify(mWificond).createApInterface(TEST_INTERFACE_NAME);
@@ -326,10 +326,7 @@ public class WificondControlTest extends WifiBaseTest {
         mLooper.dispatchAll();
         when(mWifiInjector.makeWificond()).thenReturn(null);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-
-        assertEquals(null, returnedApInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
         verify(mWifiInjector, times(2)).makeWificond();
     }
 
@@ -343,9 +340,7 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createApInterface(TEST_INTERFACE_NAME)).thenReturn(null);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME);
-        assertEquals(null, returnedApInterface);
+        assertEquals(false, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME));
     }
 
     /**
@@ -403,9 +398,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testSetupMulitpleInterfaces() throws Exception {
         when(mWificond.createApInterface(TEST_INTERFACE_NAME1)).thenReturn(mApInterface);
 
-        IApInterface returnedApInterface =
-                mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME1);
-        assertEquals(mApInterface, returnedApInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForSoftApMode(TEST_INTERFACE_NAME1));
         verify(mWifiInjector).makeWificond();
         verify(mWifiCondBinder).linkToDeath(any(IBinder.DeathRecipient.class), anyInt());
 
@@ -467,7 +460,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
-        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
+        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME, mNormalScanCallback,
+                mPnoScanCallback);
         mWificondControl.signalPoll(TEST_INTERFACE_NAME);
         verify(mClientInterface).signalPoll();
     }
@@ -481,9 +475,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -500,7 +493,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWifiInjector.makeWificond()).thenReturn(mWificond);
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
-        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
+        mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME, mNormalScanCallback,
+                mPnoScanCallback);
         mWificondControl.getTxPacketCounters(TEST_INTERFACE_NAME);
         verify(mClientInterface).getPacketCounters();
     }
@@ -515,9 +509,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -536,9 +529,8 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.createClientInterface(TEST_INTERFACE_NAME)).thenReturn(mClientInterface);
 
         // Configure client interface.
-        IClientInterface returnedClientInterface =
-                mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME);
-        assertEquals(mClientInterface, returnedClientInterface);
+        assertEquals(true, mWificondControl.setupInterfaceForClientMode(TEST_INTERFACE_NAME,
+                mNormalScanCallback, mPnoScanCallback));
 
         // Tear down interfaces.
         assertTrue(mWificondControl.tearDownInterfaces());
@@ -546,7 +538,7 @@ public class WificondControlTest extends WifiBaseTest {
         // getScanResults should fail.
         assertEquals(0,
                 mWificondControl.getScanResults(TEST_INTERFACE_NAME,
-                        WificondControl.SCAN_TYPE_SINGLE_SCAN).length);
+                        WificondControl.SCAN_TYPE_SINGLE_SCAN).size());
     }
 
     /**
@@ -663,7 +655,7 @@ public class WificondControlTest extends WifiBaseTest {
         assertNotNull(scanEvent);
         scanEvent.OnScanResultReady();
 
-        verify(mWifiMonitor).broadcastScanResultEvent(any(String.class));
+        verify(mNormalScanCallback).onScanResultReady();
     }
 
     /**
@@ -672,14 +664,13 @@ public class WificondControlTest extends WifiBaseTest {
      */
     @Test
     public void testScanFailedEvent() throws Exception {
-
         ArgumentCaptor<IScanEvent> messageCaptor = ArgumentCaptor.forClass(IScanEvent.class);
         verify(mWifiScannerImpl).subscribeScanEvents(messageCaptor.capture());
         IScanEvent scanEvent = messageCaptor.getValue();
         assertNotNull(scanEvent);
         scanEvent.OnScanFailed();
 
-        verify(mWifiMonitor).broadcastScanFailedEvent(any(String.class));
+        verify(mNormalScanCallback).onScanFailed();
     }
 
     /**
@@ -693,7 +684,7 @@ public class WificondControlTest extends WifiBaseTest {
         IPnoScanEvent pnoScanEvent = messageCaptor.getValue();
         assertNotNull(pnoScanEvent);
         pnoScanEvent.OnPnoNetworkFound();
-        verify(mWifiMonitor).broadcastPnoScanResultEvent(any(String.class));
+        verify(mPnoScanCallback).onScanResultReady();
     }
 
     /**
@@ -707,10 +698,10 @@ public class WificondControlTest extends WifiBaseTest {
         assertNotNull(pnoScanEvent);
 
         pnoScanEvent.OnPnoNetworkFound();
-        verify(mWifiMetrics).incrementPnoFoundNetworkEventCount();
+        verify(mPnoScanCallback).onScanResultReady();
 
         pnoScanEvent.OnPnoScanFailed();
-        verify(mWifiMetrics).incrementPnoScanFailedCount();
+        verify(mPnoScanCallback).onScanFailed();
     }
 
     /**

@@ -49,6 +49,7 @@ import com.android.server.wifi.wificond.RadioChainInfo;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.AdditionalMatchers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -249,14 +250,29 @@ public class WifiNativeTest extends WifiBaseTest {
     @Mock private Handler mHandler;
     @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
     @Mock private Random mRandom;
+
+    ArgumentCaptor<WificondControl.ScanEventCallback> mScanCallbackCaptor =
+            ArgumentCaptor.forClass(WificondControl.ScanEventCallback.class);
+
     private WifiNative mWifiNative;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         when(mWifiVendorHal.isVendorHalSupported()).thenReturn(true);
+        when(mWifiVendorHal.startVendorHal()).thenReturn(true);
         when(mWifiVendorHal.startVendorHalSta()).thenReturn(true);
         when(mWifiVendorHal.startVendorHalAp()).thenReturn(true);
+        when(mWifiVendorHal.createStaIface(anyBoolean(), any())).thenReturn(WIFI_IFACE_NAME);
+
+        when(mWificondControl.setupInterfaceForClientMode(any(), any(), any())).thenReturn(true);
+
+        when(mStaIfaceHal.registerDeathHandler(any())).thenReturn(true);
+        when(mStaIfaceHal.isInitializationComplete()).thenReturn(true);
+        when(mStaIfaceHal.initialize()).thenReturn(true);
+        when(mStaIfaceHal.startDaemon()).thenReturn(true);
+        when(mStaIfaceHal.setupIface(any())).thenReturn(true);
+
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mStaIfaceHal, mHostapdHal, mWificondControl,
                 mWifiMonitor, mNwService, mPropertyService, mWifiMetrics, mCarrierNetworkConfig,
@@ -587,6 +603,113 @@ public class WifiNativeTest extends WifiBaseTest {
     // TODO(b/28005116): Add test for the success case of getDriverStateDump().
 
     /**
+     * Verifies client mode + scan success.
+     */
+    @Test
+    public void testClientModeScanSuccess() {
+        mWifiNative.setupInterfaceForClientInConnectivityMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                mScanCallbackCaptor.capture(), any());
+
+        mScanCallbackCaptor.getValue().onScanResultReady();
+        verify(mWifiMonitor).broadcastScanResultEvent(WIFI_IFACE_NAME);
+    }
+
+    /**
+     * Verifies client mode + scan failure.
+     */
+    @Test
+    public void testClientModeScanFailure() {
+        mWifiNative.setupInterfaceForClientInConnectivityMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                mScanCallbackCaptor.capture(), any());
+
+        mScanCallbackCaptor.getValue().onScanFailed();
+        verify(mWifiMonitor).broadcastScanFailedEvent(WIFI_IFACE_NAME);
+    }
+
+    /**
+     * Verifies client mode + PNO scan success.
+     */
+    @Test
+    public void testClientModePnoScanSuccess() {
+        mWifiNative.setupInterfaceForClientInConnectivityMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                any(), mScanCallbackCaptor.capture());
+
+        mScanCallbackCaptor.getValue().onScanResultReady();
+        verify(mWifiMonitor).broadcastPnoScanResultEvent(WIFI_IFACE_NAME);
+        verify(mWifiMetrics).incrementPnoFoundNetworkEventCount();
+    }
+
+    /**
+     * Verifies client mode + PNO scan failure.
+     */
+    @Test
+    public void testClientModePnoScanFailure() {
+        mWifiNative.setupInterfaceForClientInConnectivityMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                any(), mScanCallbackCaptor.capture());
+
+        mScanCallbackCaptor.getValue().onScanFailed();
+        verify(mWifiMetrics).incrementPnoScanFailedCount();
+    }
+
+    /**
+     * Verifies scan mode + scan success.
+     */
+    @Test
+    public void testScanModeScanSuccess() {
+        mWifiNative.setupInterfaceForClientInScanMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                mScanCallbackCaptor.capture(), any());
+
+        mScanCallbackCaptor.getValue().onScanResultReady();
+        verify(mWifiMonitor).broadcastScanResultEvent(WIFI_IFACE_NAME);
+    }
+
+    /**
+     * Verifies scan mode + scan failure.
+     */
+    @Test
+    public void testScanModeScanFailure() {
+        mWifiNative.setupInterfaceForClientInScanMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                mScanCallbackCaptor.capture(), any());
+
+        mScanCallbackCaptor.getValue().onScanFailed();
+        verify(mWifiMonitor).broadcastScanFailedEvent(WIFI_IFACE_NAME);
+    }
+
+    /**
+     * Verifies scan mode + PNO scan success.
+     */
+    @Test
+    public void testCScanModePnoScanSuccess() {
+        mWifiNative.setupInterfaceForClientInScanMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                any(), mScanCallbackCaptor.capture());
+
+        mScanCallbackCaptor.getValue().onScanResultReady();
+        verify(mWifiMonitor).broadcastPnoScanResultEvent(WIFI_IFACE_NAME);
+        verify(mWifiMetrics).incrementPnoFoundNetworkEventCount();
+    }
+
+    /**
+     * Verifies scan mode + PNO scan failure.
+     */
+    @Test
+    public void testScanModePnoScanFailure() {
+        mWifiNative.setupInterfaceForClientInScanMode(null);
+        verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
+                any(), mScanCallbackCaptor.capture());
+
+        mScanCallbackCaptor.getValue().onScanFailed();
+        verify(mWifiMetrics).incrementPnoScanFailedCount();
+    }
+
+
+    /**
      * Verifies that signalPoll() calls underlying WificondControl.
      */
     @Test
@@ -652,7 +775,7 @@ public class WifiNativeTest extends WifiBaseTest {
     @Test
     public void testGetScanResults() {
         // Mock the returned array of NativeScanResult.
-        NativeScanResult[] mockScanResults = {MOCK_NATIVE_SCAN_RESULT};
+        List<NativeScanResult> mockScanResults = Arrays.asList(MOCK_NATIVE_SCAN_RESULT);
         when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(mockScanResults);
 
         ArrayList<ScanDetail> returnedScanResults = mWifiNative.getScanResults(WIFI_IFACE_NAME);
@@ -660,15 +783,15 @@ public class WifiNativeTest extends WifiBaseTest {
         // AP. So verify carrier network is not checked, since EAP is currently required for a
         // carrier network.
         verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
-        assertEquals(mockScanResults.length, returnedScanResults.size());
+        assertEquals(mockScanResults.size(), returnedScanResults.size());
         // Since NativeScanResult is organized differently from ScanResult, this only checks
         // a few fields.
-        for (int i = 0; i < mockScanResults.length; i++) {
-            assertArrayEquals(mockScanResults[i].ssid,
+        for (int i = 0; i < mockScanResults.size(); i++) {
+            assertArrayEquals(mockScanResults.get(i).ssid,
                     returnedScanResults.get(i).getScanResult().SSID.getBytes());
-            assertEquals(mockScanResults[i].frequency,
+            assertEquals(mockScanResults.get(i).frequency,
                     returnedScanResults.get(i).getScanResult().frequency);
-            assertEquals(mockScanResults[i].tsf,
+            assertEquals(mockScanResults.get(i).tsf,
                     returnedScanResults.get(i).getScanResult().timestamp);
         }
     }
@@ -689,7 +812,7 @@ public class WifiNativeTest extends WifiBaseTest {
         NativeScanResult nativeScanResult = createMockNativeScanResult();
         nativeScanResult.infoElement = out.toByteArray();
         when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(
-                new NativeScanResult[]{nativeScanResult});
+                Arrays.asList(nativeScanResult));
 
         // AP associated with a carrier network.
         int eapType = WifiEnterpriseConfig.Eap.SIM;
@@ -735,7 +858,7 @@ public class WifiNativeTest extends WifiBaseTest {
         List<RadioChainInfo> nativeRadioChainInfos = Arrays.asList(
                 MOCK_NATIVE_RADIO_CHAIN_INFO_1, MOCK_NATIVE_RADIO_CHAIN_INFO_2);
         nativeScanResult.radioChainInfos = nativeRadioChainInfos;
-        NativeScanResult[] mockScanResults = { nativeScanResult };
+        List<NativeScanResult> mockScanResults = Arrays.asList(nativeScanResult);
 
         when(mWificondControl.getScanResults(anyString(), anyInt())).thenReturn(mockScanResults);
 
@@ -744,15 +867,15 @@ public class WifiNativeTest extends WifiBaseTest {
         // AP. So verify carrier network is not checked, since EAP is currently required for a
         // carrier network.
         verify(mCarrierNetworkConfig, never()).isCarrierNetwork(anyString());
-        assertEquals(mockScanResults.length, returnedScanResults.size());
+        assertEquals(mockScanResults.size(), returnedScanResults.size());
         // Since NativeScanResult is organized differently from ScanResult, this only checks
         // a few fields.
-        for (int i = 0; i < mockScanResults.length; i++) {
-            assertArrayEquals(mockScanResults[i].ssid,
+        for (int i = 0; i < mockScanResults.size(); i++) {
+            assertArrayEquals(mockScanResults.get(i).ssid,
                     returnedScanResults.get(i).getScanResult().SSID.getBytes());
-            assertEquals(mockScanResults[i].frequency,
+            assertEquals(mockScanResults.get(i).frequency,
                     returnedScanResults.get(i).getScanResult().frequency);
-            assertEquals(mockScanResults[i].tsf,
+            assertEquals(mockScanResults.get(i).tsf,
                     returnedScanResults.get(i).getScanResult().timestamp);
             ScanResult.RadioChainInfo[] scanRcis = returnedScanResults.get(
                     i).getScanResult().radioChainInfos;

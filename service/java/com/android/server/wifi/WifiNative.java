@@ -330,6 +330,47 @@ public class WifiNative {
         }
     }
 
+    private class NormalScanEventCallback implements WificondControl.ScanEventCallback {
+        private String mIfaceName;
+
+        NormalScanEventCallback(String ifaceName) {
+            mIfaceName = ifaceName;
+        }
+
+        @Override
+        public void onScanResultReady() {
+            Log.d(TAG, "Scan result ready event");
+            mWifiMonitor.broadcastScanResultEvent(mIfaceName);
+        }
+
+        @Override
+        public void onScanFailed() {
+            Log.d(TAG, "Scan failed event");
+            mWifiMonitor.broadcastScanFailedEvent(mIfaceName);
+        }
+    }
+
+    private class PnoScanEventCallback implements WificondControl.ScanEventCallback {
+        private String mIfaceName;
+
+        PnoScanEventCallback(String ifaceName) {
+            mIfaceName = ifaceName;
+        }
+
+        @Override
+        public void onScanResultReady() {
+            Log.d(TAG, "Pno scan result event");
+            mWifiMonitor.broadcastPnoScanResultEvent(mIfaceName);
+            mWifiMetrics.incrementPnoFoundNetworkEventCount();
+        }
+
+        @Override
+        public void onScanFailed() {
+            Log.d(TAG, "Pno Scan failed event");
+            mWifiMetrics.incrementPnoScanFailedCount();
+        }
+    }
+
     private Object mLock = new Object();
     private final IfaceManager mIfaceMgr = new IfaceManager();
     private HashSet<StatusListener> mStatusListeners = new HashSet<>();
@@ -977,7 +1018,9 @@ public class WifiNative {
                 mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToHal();
                 return null;
             }
-            if (mWificondControl.setupInterfaceForClientMode(iface.name) == null) {
+            if (!mWificondControl.setupInterfaceForClientMode(iface.name,
+                    new NormalScanEventCallback(iface.name),
+                    new PnoScanEventCallback(iface.name))) {
                 Log.e(TAG, "Failed to setup iface in wificond on " + iface);
                 teardownInterface(iface.name);
                 mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToWificond();
@@ -1037,7 +1080,9 @@ public class WifiNative {
                 mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToHal();
                 return null;
             }
-            if (mWificondControl.setupInterfaceForClientMode(iface.name) == null) {
+            if (!mWificondControl.setupInterfaceForClientMode(iface.name,
+                    new NormalScanEventCallback(iface.name),
+                    new PnoScanEventCallback(iface.name))) {
                 Log.e(TAG, "Failed to setup iface in wificond=" + iface.name);
                 teardownInterface(iface.name);
                 mWifiMetrics.incrementNumSetupClientInterfaceFailureDueToWificond();
@@ -1094,7 +1139,7 @@ public class WifiNative {
                 mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHal();
                 return null;
             }
-            if (mWificondControl.setupInterfaceForSoftApMode(iface.name) == null) {
+            if (!mWificondControl.setupInterfaceForSoftApMode(iface.name)) {
                 Log.e(TAG, "Failed to setup iface in wificond on " + iface);
                 teardownInterface(iface.name);
                 mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToWificond();
@@ -1402,7 +1447,7 @@ public class WifiNative {
                 mWificondControl.getScanResults(ifaceName, WificondControl.SCAN_TYPE_PNO_SCAN));
     }
 
-    private ArrayList<ScanDetail> convertNativeScanResults(NativeScanResult[] nativeResults) {
+    private ArrayList<ScanDetail> convertNativeScanResults(List<NativeScanResult> nativeResults) {
         ArrayList<ScanDetail> results = new ArrayList<>();
         for (NativeScanResult result : nativeResults) {
             WifiSsid wifiSsid = WifiSsid.createFromByteArray(result.ssid);
