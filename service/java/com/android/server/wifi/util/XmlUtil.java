@@ -902,7 +902,8 @@ public class XmlUtil {
                 InetAddress gateway =
                         NetworkUtils.numericToInetAddress(gatewayAddressString);
                 RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
-                if (route.isIPv4Default()) {
+                if (route.isDefaultRoute()
+                        && route.getDestination().getAddress() instanceof Inet4Address) {
                     builder.setGateway(gateway);
                 } else {
                     Log.w(TAG, "Non-IPv4 default route: " + route);
