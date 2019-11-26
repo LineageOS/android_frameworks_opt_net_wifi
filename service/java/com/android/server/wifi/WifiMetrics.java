@@ -2933,11 +2933,7 @@ public class WifiMetrics {
                         mWifiLogProto.numLegacyPersonalNetworks++;
                     }
                 }
-                if (config.selfAdded) {
-                    mWifiLogProto.numNetworksAddedByUser++;
-                } else {
-                    mWifiLogProto.numNetworksAddedByApps++;
-                }
+                mWifiLogProto.numNetworksAddedByApps++;
                 if (config.hiddenSSID) {
                     mWifiLogProto.numHiddenNetworks++;
                 }

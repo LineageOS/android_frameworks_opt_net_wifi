@@ -99,7 +99,6 @@ public class WifiConfigStoreTest extends WifiBaseTest {
                     + "<null name=\"DefaultGwMacAddress\" />\n"
                     + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
                     + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
-                    + "<int name=\"UserApproved\" value=\"0\" />\n"
                     + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
                     + "<int name=\"MeteredOverride\" value=\"0\" />\n"
                     + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"

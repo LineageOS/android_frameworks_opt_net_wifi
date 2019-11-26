@@ -586,7 +586,6 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.defaultGwMacAddress, actual.defaultGwMacAddress);
         assertEquals(expected.validatedInternetAccess, actual.validatedInternetAccess);
         assertEquals(expected.noInternetAccessExpected, actual.noInternetAccessExpected);
-        assertEquals(expected.userApproved, actual.userApproved);
         assertEquals(expected.meteredHint, actual.meteredHint);
         assertEquals(expected.meteredOverride, actual.meteredOverride);
         assertEquals(expected.useExternalScores, actual.useExternalScores);
