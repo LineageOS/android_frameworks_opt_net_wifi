@@ -759,15 +759,6 @@ public class WifiConfigStore {
         }
 
         /**
-         * Returns whether the store file already exists on disk or not.
-         *
-         * @return true if it exists, false otherwise.
-         */
-        public boolean exists() {
-            return mAtomicFile.exists();
-        }
-
-        /**
          * @return Returns the encryption util used for this store file.
          */
         public @Nullable WifiConfigStoreEncryptionUtil getEncryptionUtil() {
