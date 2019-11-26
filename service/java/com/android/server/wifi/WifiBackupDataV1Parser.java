@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
 import android.net.IpConfiguration;
 import android.net.IpConfiguration.IpAssignment;
 import android.net.IpConfiguration.ProxySettings;
@@ -24,6 +25,7 @@ import android.net.NetworkUtils;
 import android.net.ProxyInfo;
 import android.net.RouteInfo;
 import android.net.StaticIpConfiguration;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.util.Log;
 import android.util.Pair;
@@ -44,6 +46,7 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -399,6 +402,15 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         }
     }
 
+    private static List<String> parseProxyExclusionListString(
+            @Nullable String exclusionListString) {
+        if (exclusionListString == null) {
+            return Collections.emptyList();
+        } else {
+            return Arrays.asList(exclusionListString.toLowerCase(Locale.ROOT).split(","));
+        }
+    }
+
     /**
      * Parses the IP configuration data elements from the provided XML stream to an
      * IpConfiguration object.
@@ -550,14 +562,17 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                             + " IpConfiguration section");
                 }
                 ipConfiguration.setHttpProxy(
-                        new ProxyInfo(proxyHost, proxyPort, proxyExclusionList));
+                        ProxyInfo.buildDirectProxy(
+                                proxyHost, proxyPort,
+                                parseProxyExclusionListString(proxyExclusionList)));
                 break;
             case PAC:
                 if (proxyPacFile == null) {
                     throw new XmlPullParserException("ProxyPac was missing in"
                             + " IpConfiguration section");
                 }
-                ipConfiguration.setHttpProxy(new ProxyInfo(proxyPacFile));
+                ipConfiguration.setHttpProxy(
+                        ProxyInfo.buildPacProxy(Uri.parse(proxyPacFile)));
                 break;
             case NONE:
             case UNASSIGNED:
