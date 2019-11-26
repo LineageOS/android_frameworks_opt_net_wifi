@@ -33,6 +33,7 @@ import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiScanner;
+import android.net.wifi.WifiScanner.ScanSettings.HiddenNetwork;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.UserHandle;
@@ -53,6 +54,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -63,16 +65,16 @@ public class ScanRequestProxyTest extends WifiBaseTest {
     private static final int TEST_UID = 5;
     private static final String TEST_PACKAGE_NAME_1 = "com.test.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.test.2";
-    private static final List<WifiScanner.ScanSettings.HiddenNetwork> TEST_HIDDEN_NETWORKS_LIST =
-            new ArrayList<WifiScanner.ScanSettings.HiddenNetwork>() {{
-                add(new WifiScanner.ScanSettings.HiddenNetwork("test_ssid_1"));
-                add(new WifiScanner.ScanSettings.HiddenNetwork("test_ssid_2"));
+    private static final List<HiddenNetwork> TEST_HIDDEN_NETWORKS_LIST =
+            new ArrayList<HiddenNetwork>() {{
+                add(new HiddenNetwork("test_ssid_1"));
+                add(new HiddenNetwork("test_ssid_2"));
 
             }};
-    private static final List<WifiScanner.ScanSettings.HiddenNetwork> TEST_HIDDEN_NETWORKS_LIST_NS =
-            new ArrayList<WifiScanner.ScanSettings.HiddenNetwork>() {{
-                add(new WifiScanner.ScanSettings.HiddenNetwork("test_ssid_3"));
-                add(new WifiScanner.ScanSettings.HiddenNetwork("test_ssid_4"));
+    private static final List<HiddenNetwork> TEST_HIDDEN_NETWORKS_LIST_NS =
+            new ArrayList<HiddenNetwork>() {{
+                add(new HiddenNetwork("test_ssid_3"));
+                add(new HiddenNetwork("test_ssid_4"));
             }};
 
     @Mock private Context mContext;
@@ -876,31 +878,30 @@ public class ScanRequestProxyTest extends WifiBaseTest {
         assertNotNull(scanSettings);
         assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
         if (expectHighAccuracyType) {
-            assertEquals(WifiScanner.TYPE_HIGH_ACCURACY, scanSettings.type);
+            assertEquals(WifiScanner.SCAN_TYPE_HIGH_ACCURACY, scanSettings.type);
         } else {
-            assertEquals(WifiScanner.TYPE_LOW_LATENCY, scanSettings.type);
+            assertEquals(WifiScanner.SCAN_TYPE_LOW_LATENCY, scanSettings.type);
         }
         assertEquals(WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN
                 | WifiScanner.REPORT_EVENT_FULL_SCAN_RESULT, scanSettings.reportEvents);
-        List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworkList =
+        List<HiddenNetwork> hiddenNetworkList =
                 new ArrayList<>();
         hiddenNetworkList.addAll(TEST_HIDDEN_NETWORKS_LIST);
         hiddenNetworkList.addAll(TEST_HIDDEN_NETWORKS_LIST_NS);
         if (expectHiddenNetworks) {
-            assertNotNull(scanSettings.hiddenNetworks);
-            assertEquals(hiddenNetworkList.size(), scanSettings.hiddenNetworks.length);
-            for (int i = 0; i < scanSettings.hiddenNetworks.length; i++) {
-                validateHiddenNetworkInList(scanSettings.hiddenNetworks[i], hiddenNetworkList);
+            assertEquals(hiddenNetworkList.size(), scanSettings.hiddenNetworks.size());
+            for (HiddenNetwork hiddenNetwork : scanSettings.hiddenNetworks) {
+                validateHiddenNetworkInList(hiddenNetwork, hiddenNetworkList);
             }
         } else {
-            assertNull(scanSettings.hiddenNetworks);
+            assertEquals(Collections.emptyList(), scanSettings.hiddenNetworks);
         }
     }
 
     private void validateHiddenNetworkInList(
-            WifiScanner.ScanSettings.HiddenNetwork expectedHiddenNetwork,
-            List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworkList) {
-        for (WifiScanner.ScanSettings.HiddenNetwork hiddenNetwork : hiddenNetworkList) {
+            HiddenNetwork expectedHiddenNetwork,
+            List<HiddenNetwork> hiddenNetworkList) {
+        for (HiddenNetwork hiddenNetwork : hiddenNetworkList) {
             if (hiddenNetwork.ssid.equals(expectedHiddenNetwork.ssid)) {
                 return;
             }

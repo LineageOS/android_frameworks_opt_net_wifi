@@ -276,7 +276,7 @@ public class WakeupController {
         Log.d(TAG, "stop()");
         mLastDisconnectTimestampMillis = 0;
         mLastDisconnectInfo = null;
-        mWifiInjector.getWifiScanner().deregisterScanListener(mScanListener);
+        mWifiInjector.getWifiScanner().unregisterScanListener(mScanListener);
         mWakeupOnboarding.onStop();
     }
 

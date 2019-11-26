@@ -367,7 +367,7 @@ public class WifiNetworkFactory extends NetworkFactory {
         mWifiMetrics = wifiMetrics;
         // Create the scan settings.
         mScanSettings = new WifiScanner.ScanSettings();
-        mScanSettings.type = WifiScanner.TYPE_HIGH_ACCURACY;
+        mScanSettings.type = WifiScanner.SCAN_TYPE_HIGH_ACCURACY;
         mScanSettings.band = WifiScanner.WIFI_BAND_BOTH_WITH_DFS;
         mScanSettings.reportEvents = WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN;
         mScanListener = new NetworkFactoryScanListener();
@@ -1046,11 +1046,10 @@ public class WifiNetworkFactory extends NetworkFactory {
         WifiNetworkSpecifier wns = mActiveSpecificNetworkRequestSpecifier;
         WifiConfiguration wifiConfiguration = wns.wifiConfiguration;
         if (wifiConfiguration.hiddenSSID) {
-            mScanSettings.hiddenNetworks = new WifiScanner.ScanSettings.HiddenNetwork[1];
             // Can't search for SSID pattern in hidden networks.
-            mScanSettings.hiddenNetworks[0] =
-                    new WifiScanner.ScanSettings.HiddenNetwork(
-                            addEnclosingQuotes(wns.ssidPatternMatcher.getPath()));
+            mScanSettings.hiddenNetworks.clear();
+            mScanSettings.hiddenNetworks.add(new WifiScanner.ScanSettings.HiddenNetwork(
+                    addEnclosingQuotes(wns.ssidPatternMatcher.getPath())));
         }
         startScan();
     }
@@ -1061,7 +1060,7 @@ public class WifiNetworkFactory extends NetworkFactory {
             mPeriodicScanTimerSet = false;
         }
         // Clear the hidden networks field after each request.
-        mScanSettings.hiddenNetworks = null;
+        mScanSettings.hiddenNetworks.clear();
     }
 
     private void scheduleNextPeriodicScan() {

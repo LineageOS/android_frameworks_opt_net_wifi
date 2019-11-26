@@ -292,7 +292,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         initializeWakeupController(true /* enabled */);
         mWakeupController.start();
         mWakeupController.stop();
-        verify(mWifiScanner).deregisterScanListener(any());
+        verify(mWifiScanner).unregisterScanListener(any());
     }
 
     /**

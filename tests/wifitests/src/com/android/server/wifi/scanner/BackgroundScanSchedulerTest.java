@@ -418,8 +418,8 @@ public class BackgroundScanSchedulerTest extends WifiBaseTest {
     @Test
     public void singleExponentialBackOffRequest() {
         Collection<ScanSettings> requests = Collections.singleton(createRequest(
-                WifiScanner.TYPE_LOW_LATENCY, WifiScanner.WIFI_BAND_BOTH, 30000, 160000, 2, 0, 20,
-                WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN
+                WifiScanner.SCAN_TYPE_LOW_LATENCY, WifiScanner.WIFI_BAND_BOTH,
+                30000, 160000, 2, 0, 20, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN
         ));
 
         mScheduler.updateSchedule(requests);
@@ -435,8 +435,8 @@ public class BackgroundScanSchedulerTest extends WifiBaseTest {
     @Test
     public void exponentialBackOffAndRegularRequests() {
         Collection<ScanSettings> requests = new ArrayList<>();
-        requests.add(createRequest(WifiScanner.TYPE_LOW_LATENCY, WifiScanner.WIFI_BAND_BOTH, 30000,
-                200000, 1, 0, 20, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN));
+        requests.add(createRequest(WifiScanner.SCAN_TYPE_LOW_LATENCY, WifiScanner.WIFI_BAND_BOTH,
+                30000, 200000, 1, 0, 20, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN));
         requests.add(createRequest(channelsToSpec(5175), 30000, 0, 20,
                 WifiScanner.REPORT_EVENT_AFTER_BUFFER_FULL));
 
