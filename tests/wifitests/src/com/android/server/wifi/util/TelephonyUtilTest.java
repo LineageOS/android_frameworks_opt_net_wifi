@@ -121,16 +121,14 @@ public class TelephonyUtilTest extends WifiBaseTest {
         doReturn(true).when(
                 () -> SubscriptionManager.isValidSubscriptionId(NON_DATA_SUBID));
 
-        when(mTelephonyManager.getSubscriberId(eq(DATA_SUBID))).thenReturn(DATA_FULL_IMSI);
-        when(mTelephonyManager.getSubscriberId(eq(NON_DATA_SUBID))).thenReturn(NON_DATA_FULL_IMSI);
         when(mDataSubscriptionInfo.getCarrierId()).thenReturn(DATA_CARRIER_ID);
         when(mDataSubscriptionInfo.getSubscriptionId()).thenReturn(DATA_SUBID);
         when(mNonDataSubscriptionInfo.getCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataSubscriptionInfo.getSubscriptionId()).thenReturn(NON_DATA_SUBID);
         when(mDataTelephonyManager.getSubscriberId()).thenReturn(DATA_FULL_IMSI);
         when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NON_DATA_FULL_IMSI);
-        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(DATA_OPERATOR_NUMERIC);
-        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+        when(mDataTelephonyManager.getSimOperator()).thenReturn(DATA_OPERATOR_NUMERIC);
+        when(mNonDataTelephonyManager.getSimOperator())
                 .thenReturn(NON_DATA_OPERATOR_NUMERIC);
         when(mDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
         when(mNonDataTelephonyManager.getSimState()).thenReturn(TelephonyManager.SIM_STATE_READY);
@@ -880,7 +878,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
-        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+        when(mNonDataTelephonyManager.getSimOperator())
                 .thenReturn(NO_MATCH_OPERATOR_NUMERIC);
 
         assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID),
@@ -909,7 +907,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataTelephonyManager.getSimCarrierId()).thenReturn(NON_DATA_CARRIER_ID);
         when(mNonDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
-        when(mNonDataTelephonyManager.getSimOperatorNumeric())
+        when(mNonDataTelephonyManager.getSimOperator())
                 .thenReturn(NO_MATCH_OPERATOR_NUMERIC);
 
         assertEquals(new Pair<>(DATA_FULL_IMSI, DATA_CARRIER_ID),
@@ -938,7 +936,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
         when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
         when(mDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
-        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
 
         assertEquals(new Pair<>(NON_DATA_FULL_IMSI, NON_DATA_CARRIER_ID),
                 mTelephonyUtil.getMatchingImsiCarrierId(MATCH_PREFIX_IMSI));
@@ -953,7 +951,7 @@ public class TelephonyUtilTest extends WifiBaseTest {
         when(mDataTelephonyManager.getCarrierIdFromSimMccMnc()).thenReturn(DATA_CARRIER_ID);
         when(mDataTelephonyManager.getSimCarrierId()).thenReturn(DATA_CARRIER_ID);
         when(mDataTelephonyManager.getSubscriberId()).thenReturn(NO_MATCH_FULL_IMSI);
-        when(mDataTelephonyManager.getSimOperatorNumeric()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
+        when(mDataTelephonyManager.getSimOperator()).thenReturn(NO_MATCH_OPERATOR_NUMERIC);
         // non data SIM is MVNO.
         when(mNonDataTelephonyManager.getCarrierIdFromSimMccMnc())
                 .thenReturn(PARENT_NON_DATA_CARRIER_ID);
