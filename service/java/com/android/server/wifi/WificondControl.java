@@ -20,6 +20,14 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 
 import android.annotation.NonNull;
 import android.app.AlarmManager;
+import android.net.wifi.IApInterface;
+import android.net.wifi.IApInterfaceEventCallback;
+import android.net.wifi.IClientInterface;
+import android.net.wifi.IPnoScanEvent;
+import android.net.wifi.IScanEvent;
+import android.net.wifi.ISendMgmtFrameEvent;
+import android.net.wifi.IWifiScannerImpl;
+import android.net.wifi.IWificond;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
@@ -37,14 +45,6 @@ import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
-import com.android.server.wifi.wificond.IApInterface;
-import com.android.server.wifi.wificond.IApInterfaceEventCallback;
-import com.android.server.wifi.wificond.IClientInterface;
-import com.android.server.wifi.wificond.IPnoScanEvent;
-import com.android.server.wifi.wificond.IScanEvent;
-import com.android.server.wifi.wificond.ISendMgmtFrameEvent;
-import com.android.server.wifi.wificond.IWifiScannerImpl;
-import com.android.server.wifi.wificond.IWificond;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoNetwork;
@@ -53,14 +53,11 @@ import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 /**
  * This class provides methods for WifiNative to send control commands to wificond.
@@ -568,18 +565,6 @@ public class WificondControl implements IBinder.DeathRecipient {
         return mWificondScanners.get(ifaceName);
     }
 
-    private static final int CAPABILITY_SIZE = 16;
-
-    private static BitSet capabilityIntToBitset(int capabilityInt) {
-        BitSet capabilityBitSet = new BitSet(CAPABILITY_SIZE);
-        for (int i = 0; i < CAPABILITY_SIZE; i++) {
-            if ((capabilityInt & (1 << i)) != 0) {
-                capabilityBitSet.set(i);
-            }
-        }
-        return capabilityBitSet;
-    }
-
     /**
     * Fetch the latest scan result from kernel via wificond.
     * @param ifaceName Name of the interface.
@@ -617,8 +602,7 @@ public class WificondControl implements IBinder.DeathRecipient {
                         InformationElementUtil.parseInformationElements(result.infoElement);
                 InformationElementUtil.Capabilities capabilities =
                         new InformationElementUtil.Capabilities();
-                capabilities.from(ies, capabilityIntToBitset(result.capability),
-                        isEnhancedOpenSupported());
+                capabilities.from(ies, result.capability, isEnhancedOpenSupported());
                 String flags = capabilities.generateCapabilitiesString();
                 NetworkDetail networkDetail;
                 try {
@@ -647,7 +631,7 @@ public class WificondControl implements IBinder.DeathRecipient {
                 // Fill up the radio chain info.
                 if (result.radioChainInfos != null) {
                     scanResult.radioChainInfos =
-                        new ScanResult.RadioChainInfo[result.radioChainInfos.length];
+                        new ScanResult.RadioChainInfo[result.radioChainInfos.size()];
                     int idx = 0;
                     for (RadioChainInfo nativeRadioChainInfo : result.radioChainInfos) {
                         scanResult.radioChainInfos[idx] = new ScanResult.RadioChainInfo();
@@ -685,33 +669,6 @@ public class WificondControl implements IBinder.DeathRecipient {
     }
 
     /**
-     * HiddenNetwork is an AIDL generated classes, create a wrapper around it to implement a custom
-     * equals() method.
-     */
-    private static final class HiddenNetworkWrapper {
-        HiddenNetwork mHiddenNetwork;
-
-        HiddenNetworkWrapper(HiddenNetwork hiddenNetwork) {
-            mHiddenNetwork = hiddenNetwork;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o instanceof HiddenNetworkWrapper) {
-                HiddenNetworkWrapper that = (HiddenNetworkWrapper) o;
-                return Arrays.equals(this.mHiddenNetwork.ssid, that.mHiddenNetwork.ssid);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(mHiddenNetwork.ssid);
-        }
-    }
-
-    /**
      * Start a scan using wificond for the given parameters.
      * @param ifaceName Name of the interface.
      * @param scanType Type of scan to perform.
@@ -735,39 +692,31 @@ public class WificondControl implements IBinder.DeathRecipient {
             Log.e(TAG, "Invalid scan type ", e);
             return false;
         }
+        settings.channelSettings  = new ArrayList<>();
+        settings.hiddenNetworks  = new ArrayList<>();
 
-        if (freqs == null) {
-            settings.channelSettings = new ChannelSettings[0];
-        } else {
-            settings.channelSettings = freqs.stream()
-                    .map(freq -> {
-                        ChannelSettings channel = new ChannelSettings();
-                        channel.frequency = freq;
-                        return channel;
-                    })
-                    .toArray(ChannelSettings[]::new);
+        if (freqs != null) {
+            for (Integer freq : freqs) {
+                ChannelSettings channel = new ChannelSettings();
+                channel.frequency = freq;
+                settings.channelSettings.add(channel);
+            }
         }
-
-        if (hiddenNetworkSSIDs == null) {
-            settings.hiddenNetworks = new HiddenNetwork[0];
-        } else {
-            settings.hiddenNetworks = hiddenNetworkSSIDs.stream()
-                    .flatMap(ssid -> {
-                        HiddenNetwork network = new HiddenNetwork();
-                        try {
-                            network.ssid = NativeUtil.byteArrayFromArrayList(
-                                    NativeUtil.decodeSsid(ssid));
-                        } catch (IllegalArgumentException e) {
-                            Log.e(TAG, "Illegal argument " + ssid, e);
-                            return Stream.empty();
-                        }
-                        // wrap so that we can use custom equals() method
-                        HiddenNetworkWrapper wrapper = new HiddenNetworkWrapper(network);
-                        return Stream.of(wrapper);
-                    })
-                    .distinct() // use custom equals() method to dedupe
-                    .map(wrapper -> wrapper.mHiddenNetwork) // unwrap
-                    .toArray(HiddenNetwork[]::new);
+        if (hiddenNetworkSSIDs != null) {
+            for (String ssid : hiddenNetworkSSIDs) {
+                HiddenNetwork network = new HiddenNetwork();
+                try {
+                    network.ssid = NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(ssid));
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Illegal argument " + ssid, e);
+                    continue;
+                }
+                // settings.hiddenNetworks is expected to be very small, so this shouldn't cause
+                // any performance issues.
+                if (!settings.hiddenNetworks.contains(network)) {
+                    settings.hiddenNetworks.add(network);
+                }
+            }
         }
 
         try {
@@ -791,28 +740,25 @@ public class WificondControl implements IBinder.DeathRecipient {
             return false;
         }
         PnoSettings settings = new PnoSettings();
+        settings.pnoNetworks  = new ArrayList<>();
         settings.intervalMs = pnoSettings.periodInMs;
         settings.min2gRssi = pnoSettings.min24GHzRssi;
         settings.min5gRssi = pnoSettings.min5GHzRssi;
-        if (pnoSettings.networkList == null) {
-            settings.pnoNetworks = new PnoNetwork[0];
-        } else {
-            settings.pnoNetworks = Arrays.stream(pnoSettings.networkList)
-                    .flatMap(network -> {
-                        PnoNetwork condNetwork = new PnoNetwork();
-                        condNetwork.isHidden = (network.flags
-                                & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0;
-                        try {
-                            condNetwork.ssid = NativeUtil.byteArrayFromArrayList(
-                                    NativeUtil.decodeSsid(network.ssid));
-                        } catch (IllegalArgumentException e) {
-                            Log.e(TAG, "Illegal argument " + network.ssid, e);
-                            return Stream.empty();
-                        }
-                        condNetwork.frequencies = network.frequencies;
-                        return Stream.of(condNetwork);
-                    })
-                    .toArray(PnoNetwork[]::new);
+        if (pnoSettings.networkList != null) {
+            for (WifiNative.PnoNetwork network : pnoSettings.networkList) {
+                PnoNetwork condNetwork = new PnoNetwork();
+                condNetwork.isHidden = (network.flags
+                        & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0;
+                try {
+                    condNetwork.ssid =
+                            NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(network.ssid));
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Illegal argument " + network.ssid, e);
+                    continue;
+                }
+                condNetwork.frequencies = network.frequencies;
+                settings.pnoNetworks.add(condNetwork);
+            }
         }
 
         try {

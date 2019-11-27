@@ -26,6 +26,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkKey;
 import android.net.NetworkScoreManager;
 import android.net.wifi.IWifiScanner;
+import android.net.wifi.IWificond;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
@@ -59,7 +60,6 @@ import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.server.wifi.wificond.IWificond;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
