@@ -18,9 +18,9 @@ package com.android.server.wifi;
 
 import static org.junit.Assert.*;
 
+import android.net.InetAddresses;
 import android.net.IpConfiguration;
 import android.net.LinkAddress;
-import android.net.NetworkUtils;
 import android.net.ProxyInfo;
 import android.net.StaticIpConfiguration;
 import android.net.wifi.WifiConfiguration;
@@ -195,20 +195,20 @@ public class WifiConfigurationTestUtil {
             if (!TextUtils.isEmpty(linkAddress)) {
                 LinkAddress linkAddr =
                         new LinkAddress(
-                                NetworkUtils.numericToInetAddress(linkAddress), linkPrefixLength);
+                                InetAddresses.parseNumericAddress(linkAddress), linkPrefixLength);
                 staticIpConfiguration.ipAddress = linkAddr;
             }
 
             if (!TextUtils.isEmpty(gatewayAddress)) {
                 InetAddress gatewayAddr =
-                        NetworkUtils.numericToInetAddress(gatewayAddress);
+                        InetAddresses.parseNumericAddress(gatewayAddress);
                 staticIpConfiguration.gateway = gatewayAddr;
             }
             if (dnsServerAddresses != null) {
                 for (String dnsServerAddress : dnsServerAddresses) {
                     if (!TextUtils.isEmpty(dnsServerAddress)) {
                         staticIpConfiguration.dnsServers.add(
-                                NetworkUtils.numericToInetAddress(dnsServerAddress));
+                                InetAddresses.parseNumericAddress(dnsServerAddress));
                     }
 
                 }

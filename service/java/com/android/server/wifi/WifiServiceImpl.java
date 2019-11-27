@@ -45,9 +45,9 @@ import android.net.DhcpInfo;
 import android.net.DhcpResults;
 import android.net.Network;
 import android.net.NetworkStack;
-import android.net.NetworkUtils;
 import android.net.Uri;
 import android.net.ip.IpClientUtil;
+import android.net.shared.Inet4AddressUtils;
 import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
@@ -2375,28 +2375,29 @@ public class WifiServiceImpl extends BaseWifiService {
 
         if (dhcpResults.ipAddress != null &&
                 dhcpResults.ipAddress.getAddress() instanceof Inet4Address) {
-            info.ipAddress = NetworkUtils.inetAddressToInt(
+            info.ipAddress = Inet4AddressUtils.inet4AddressToIntHTL(
                     (Inet4Address) dhcpResults.ipAddress.getAddress());
         }
 
         if (dhcpResults.gateway != null) {
-            info.gateway = NetworkUtils.inetAddressToInt((Inet4Address) dhcpResults.gateway);
+            info.gateway = Inet4AddressUtils.inet4AddressToIntHTL(
+                    (Inet4Address) dhcpResults.gateway);
         }
 
         int dnsFound = 0;
         for (InetAddress dns : dhcpResults.dnsServers) {
             if (dns instanceof Inet4Address) {
                 if (dnsFound == 0) {
-                    info.dns1 = NetworkUtils.inetAddressToInt((Inet4Address)dns);
+                    info.dns1 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
                 } else {
-                    info.dns2 = NetworkUtils.inetAddressToInt((Inet4Address)dns);
+                    info.dns2 = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) dns);
                 }
                 if (++dnsFound > 1) break;
             }
         }
         Inet4Address serverAddress = dhcpResults.serverAddress;
         if (serverAddress != null) {
-            info.serverAddress = NetworkUtils.inetAddressToInt(serverAddress);
+            info.serverAddress = Inet4AddressUtils.inet4AddressToIntHTL(serverAddress);
         }
         info.leaseDuration = dhcpResults.leaseDuration;
 

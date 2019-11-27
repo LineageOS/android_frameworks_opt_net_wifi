@@ -883,11 +883,6 @@ public class WifiConfigStoreTest extends WifiBaseTest {
         }
 
         @Override
-        public boolean exists() {
-            return (mStoreBytes != null);
-        }
-
-        @Override
         public void writeBufferedRawData() {
             if (!ArrayUtils.isEmpty(mStoreBytes)) {
                 mStoreWritten = true;

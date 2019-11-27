@@ -32,11 +32,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.InetAddresses;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkRequest;
-import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -104,10 +104,10 @@ public class OsuNetworkConnectionTest extends WifiBaseTest {
     }
 
     private LinkProperties createProvisionedLinkProperties() {
-        InetAddress addrV4 = NetworkUtils.numericToInetAddress("75.208.6.1");
-        InetAddress dns1 = NetworkUtils.numericToInetAddress("75.208.7.1");
+        InetAddress addrV4 = InetAddresses.parseNumericAddress("75.208.6.1");
+        InetAddress dns1 = InetAddresses.parseNumericAddress("75.208.7.1");
         LinkAddress linkAddrV4 = new LinkAddress(addrV4, 32);
-        InetAddress gateway1 = NetworkUtils.numericToInetAddress("75.208.8.1");
+        InetAddress gateway1 = InetAddresses.parseNumericAddress("75.208.8.1");
         LinkProperties lp4 = new LinkProperties();
         lp4.addLinkAddress(linkAddrV4);
         lp4.addDnsServer(dns1);
