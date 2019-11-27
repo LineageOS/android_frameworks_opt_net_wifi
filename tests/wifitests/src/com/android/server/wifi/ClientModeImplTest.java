@@ -2984,8 +2984,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that WifiLastResortWatchdog and BssidBlocklistMonitor is notified of
-     * association rejection of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
+     * Verifies that the BssidBlocklistMonitor is notified, but the WifiLastResortWatchdog is
+     * not notified of association rejections of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
      * @throws Exception
      */
     @Test
@@ -2996,7 +2996,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
                 ClientModeImpl.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
         mLooper.dispatchAll();
-        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
@@ -3038,6 +3038,27 @@ public class ClientModeImplTest extends WifiBaseTest {
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
+    }
+
+    /**
+     * Verifies that WifiLastResortWatchdog is not notified of authentication failures of type
+     * ERROR_AUTH_FAILURE_EAP_FAILURE.
+     * @throws Exception
+     */
+    @Test
+    public void testEapFailureIsIgnoredByWatchdog() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_EAP_FAILURE);
     }
 
     /**
