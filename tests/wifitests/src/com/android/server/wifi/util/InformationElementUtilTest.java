@@ -26,6 +26,7 @@ import android.net.wifi.ScanResult.InformationElement;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.MboOceConstants;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.InformationElementUtil.HeOperation;
@@ -1451,6 +1452,121 @@ public class InformationElementUtilTest extends WifiBaseTest {
         heCapabilities.from(ie);
         assertEquals(8, heCapabilities.getMaxNumberSpatialStreams());
         assertEquals(true, heCapabilities.isPresent());
+    }
+
+    /**
+     * Verify that the expected MBO-OCE Vendor Specific information
+     * element is parsed and MBO AP Capability Indication is
+     * retrieved.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void parseMboOceIeWithApCapabilityIndicationAttr() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VSA;
+        /**
+         * Vendor Specific MBO-OCE IE Format:
+         * |  OUI  |  OUI Type  |  MBO-OCE attributes  |
+         *     3         1            Variable
+         *
+         * The Format of MBO Attribute:
+         * | Attribute ID | Attribute length | Attribute Body Field
+         *        1                1              Variable
+         *
+         * MBO AP capability indication attribute Body field:
+         * | MBO AP Capability Indication field values |
+         *                       1
+         * |   Reserved   |    Cellular Data aware   |   Reserved
+         * Bits: 0x80(MSB)            0x40               0x20-0x01(LSB)
+         */
+        ie.bytes = new byte[] { (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x16,
+                                (byte) 0x01, (byte) 0x01, (byte) 0x40};
+        InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+        vsa.from(ie);
+        assertEquals(true, vsa.IsMboCapable);
+        assertEquals(true, vsa.IsMboApCellularDataAware);
+        assertEquals(MboOceConstants.MBO_OCE_ATTRIBUTE_NOT_PRESENT,
+                vsa.mboAssociationDisallowedReasonCode);
+        assertEquals(false, vsa.IsOceCapable);
+    }
+
+    /**
+     * Verify that the expected MBO-OCE Vendor Specific information
+     * element is parsed and MBO association disallowed reason code is
+     * retrieved.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void parseMboOceIeWithAssociationDisallowedAttr() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VSA;
+        /**
+         * Vendor Specific MBO-OCE IE Format:
+         * |  OUI  |  OUI Type  |  MBO-OCE attributes  |
+         *     3         1            Variable
+         *
+         * The Format of MBO Attribute:
+         * | Attribute ID | Attribute length | Attribute Body Field
+         *        1                1              Variable
+         *
+         * MBO AP capability indication attribute Body field:
+         * | MBO AP Capability Indication field values |
+         *                       1
+         * |   Reserved   |    Cellular Data aware   |   Reserved
+         * Bits: 0x80(MSB)            0x40               0x20-0x01(LSB)
+         *
+         * MBO association disallowed attribute Body field:
+         * | Reason code |
+         *        1
+         */
+        ie.bytes = new byte[] { (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x16,
+                                (byte) 0x01, (byte) 0x01, (byte) 0x40,
+                                (byte) 0x04, (byte) 0x01, (byte) 0x03};
+        InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+        vsa.from(ie);
+        assertEquals(0x03, vsa.mboAssociationDisallowedReasonCode);
+    }
+
+    /**
+     * Verify that the expected MBO-OCE Vendor Specific information
+     * element is parsed and OCE capability indication attribute is
+     * retrieved.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void parseMboOceIeWithOceCapabilityIndicationAttr() throws Exception {
+        InformationElement ie = new InformationElement();
+        ie.id = InformationElement.EID_VSA;
+        /**
+         * Vendor Specific MBO-OCE IE Format:
+         * |  OUI  |  OUI Type  |  MBO-OCE attributes  |
+         *     3         1            Variable
+         *
+         * The Format of MBO Attribute:
+         * | Attribute ID | Attribute length | Attribute Body Field
+         *        1                1              Variable
+         *
+         * MBO AP capability indication attribute Body field:
+         * | MBO AP Capability Indication field values |
+         *                       1
+         * |   Reserved   |    Cellular Data aware   |   Reserved
+         * Bits: 0x80(MSB)            0x40               0x20-0x01(LSB)
+         *
+         * OCE capability indication attribute Body field:
+         * | OCE Control field |
+         *        1
+         * | OCE ver | STA-CFON | 11b-only AP present | HLP Enabled | Non-OCE AP present | Rsvd |
+         * Bits: B0 B2    B3             B4                 B5               B6             B7
+         */
+        ie.bytes = new byte[] { (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x16,
+                                (byte) 0x01, (byte) 0x01, (byte) 0x40,
+                                (byte) 0x65, (byte) 0x01, (byte) 0x01};
+        InformationElementUtil.Vsa vsa = new InformationElementUtil.Vsa();
+        vsa.from(ie);
+        assertEquals(true, vsa.IsOceCapable);
     }
 
     // TODO: SAE, OWN, SUITE_B

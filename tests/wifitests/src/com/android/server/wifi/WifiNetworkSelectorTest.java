@@ -40,6 +40,7 @@ import android.util.LocalLog;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
+import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.wifi.resources.R;
 
@@ -204,6 +205,7 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
     @Spy private MockResources mResource = new MockResources();
     @Mock private WifiInfo mWifiInfo;
     @Mock private Clock mClock;
+    @Mock private NetworkDetail mNetworkDetail;
     private ScoringParams mScoringParams;
     private LocalLog mLocalLog;
     private int mThresholdMinimumRssi2G;
@@ -1612,5 +1614,41 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
         // WifiNetworkSelector.selectNetwork() twice
         verify(mWifiMetrics, times(2)).logNetworkSelectionDecision(throughputExpId,
                 WifiNetworkSelector.LEGACY_CANDIDATE_SCORER_EXP_ID, true, 2);
+    }
+
+    /**
+     * Test that network which are not accepting new connections(MBO
+     * association disallowed attribute in beacons/probe responses)
+     * are filtered out from network selection.
+     *
+     * NetworkDetail contain the parsed association disallowed
+     * reason code.
+     *
+     * Expected behavior: no network recommended by Network Selector
+     */
+    @Test
+    public void filterMboApAdvertisingAssociationDisallowedAttr() {
+        String[] ssids = {"\"test1\""};
+        String[] bssids = {"6c:f3:7f:ae:8c:f3"};
+        int[] freqs = {5180};
+        String[] caps = {"[WPA2-PSK][ESS]"};
+        int[] levels = {mThresholdQualifiedRssi5G + 8};
+        int[] securities = {SECURITY_PSK};
+        // MBO-OCE IE with association disallowed attribute.
+        byte[][] iesByteStream = {{(byte) 0xdd, (byte) 0x0a,
+                        (byte) 0x50, (byte) 0x6F, (byte) 0x9A, (byte) 0x16,
+                        (byte) 0x01, (byte) 0x01, (byte) 0x40,
+                        (byte) 0x04, (byte) 0x01, (byte) 0x03}};
+        HashSet<String> blacklist = new HashSet<String>();
+
+        ScanDetailsAndWifiConfigs scanDetailsAndConfigs =
+                WifiNetworkSelectorTestUtil.setupScanDetailsAndConfigStore(ssids, bssids,
+                    freqs, caps, levels, securities, mWifiConfigManager, mClock, iesByteStream);
+        List<ScanDetail> scanDetails = scanDetailsAndConfigs.getScanDetails();
+
+        WifiConfiguration candidate = mWifiNetworkSelector.selectNetwork(scanDetails,
+                blacklist, mWifiInfo, false, true, false);
+        assertEquals("Expect null configuration", null, candidate);
+        assertTrue(mWifiNetworkSelector.getConnectableScanDetails().isEmpty());
     }
 }
