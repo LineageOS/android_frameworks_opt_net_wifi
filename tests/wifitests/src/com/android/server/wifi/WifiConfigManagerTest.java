@@ -300,6 +300,16 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies that the Mac randomization secret hashfunction is obtained after |loadFromStore|.
+     */
+    @Test
+    public void testMacHashIsObtainedAfterLoadFromStore() {
+        verify(mMacAddressUtil, never()).obtainMacRandHashFunction(anyInt());
+        assertTrue(mWifiConfigManager.loadFromStore());
+        verify(mMacAddressUtil).obtainMacRandHashFunction(anyInt());
+    }
+
+    /**
      * Verifies the addition of a single network using
      * {@link WifiConfigManager#addOrUpdateNetwork(WifiConfiguration, int)}
      */

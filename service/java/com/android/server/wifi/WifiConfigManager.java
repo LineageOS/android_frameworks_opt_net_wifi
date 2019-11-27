@@ -243,7 +243,7 @@ public class WifiConfigManager {
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
     private final MacAddressUtil mMacAddressUtil;
-    private final Mac mMac;
+    private Mac mMac;
     private final TelephonyUtil mTelephonyUtil;
 
     /**
@@ -420,11 +420,6 @@ public class WifiConfigManager {
             Log.e(TAG, "Unable to resolve SystemUI's UID.");
         }
         mMacAddressUtil = mWifiInjector.getMacAddressUtil();
-        mMac = mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID);
-        if (mMac == null) {
-            Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
-                    + " All randomized MAC addresses are lost!");
-        }
     }
 
     /**
@@ -3277,6 +3272,12 @@ public class WifiConfigManager {
      * @return true on success or not needed (fresh install), false otherwise.
      */
     public boolean loadFromStore() {
+        // Get the hashfunction that is used to generate randomized MACs from the KeyStore
+        mMac = mMacAddressUtil.obtainMacRandHashFunction(Process.WIFI_UID);
+        if (mMac == null) {
+            Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
+                    + " All randomized MAC addresses are lost!");
+        }
         // If the user unlock comes in before we load from store, which means the user store have
         // not been setup yet for the current user. Setup the user store before the read so that
         // configurations for the current user will also being loaded.
