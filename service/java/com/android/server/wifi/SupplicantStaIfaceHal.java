@@ -1032,9 +1032,7 @@ public class SupplicantStaIfaceHal {
     public void removeNetworkCachedData(int networkId) {
         synchronized (mLock) {
             logd("Remove cached HAL data for config id " + networkId);
-            if (mPmkCacheEntries.remove(networkId) != null) {
-                updatePmkCacheExpiration();
-            }
+            removePmkCacheEntry(networkId);
         }
     }
 
@@ -2544,6 +2542,12 @@ public class SupplicantStaIfaceHal {
         mPmkCacheEntries.put(networkId,
                 new PmkCacheStoreData(expirationTimeInSec, serializedEntry));
         updatePmkCacheExpiration();
+    }
+
+    protected void removePmkCacheEntry(int networkId) {
+        if (mPmkCacheEntries.remove(networkId) != null) {
+            updatePmkCacheExpiration();
+        }
     }
 
     private void updatePmkCacheExpiration() {

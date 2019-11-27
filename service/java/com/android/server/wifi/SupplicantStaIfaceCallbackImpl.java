@@ -258,11 +258,16 @@ abstract class SupplicantStaIfaceCallbackImpl extends ISupplicantStaIfaceCallbac
     public void onAssociationRejected(byte[/* 6 */] bssid, int statusCode, boolean timedOut) {
         synchronized (mLock) {
             mStaIfaceHal.logCallback("onAssociationRejected");
+            WifiConfiguration curConfiguration =
+                    mStaIfaceHal.getCurrentNetworkLocalConfig(mIfaceName);
+
+            if (curConfiguration != null && !timedOut) {
+                Log.d(TAG, "flush PMK cache due to association rejection for config id "
+                        + curConfiguration.networkId + ".");
+                mStaIfaceHal.removePmkCacheEntry(curConfiguration.networkId);
+            }
 
             if (statusCode == StatusCode.UNSPECIFIED_FAILURE) {
-                WifiConfiguration curConfiguration =
-                        mStaIfaceHal.getCurrentNetworkLocalConfig(mIfaceName);
-
                 if (curConfiguration != null
                         && curConfiguration.allowedKeyManagement
                                 .get(WifiConfiguration.KeyMgmt.SAE)) {
