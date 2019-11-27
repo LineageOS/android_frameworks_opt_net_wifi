@@ -259,7 +259,7 @@ public class ActiveModeWarden {
      */
     private void startSoftApModeManager(@NonNull SoftApModeConfiguration softApConfig) {
         Log.d(TAG, "Starting SoftApModeManager config = "
-                + softApConfig.getWifiConfiguration());
+                + softApConfig.getSoftApConfiguration());
         Preconditions.checkState(softApConfig.getTargetMode() == IFACE_IP_MODE_LOCAL_ONLY
                 || softApConfig.getTargetMode() == IFACE_IP_MODE_TETHERED);
 

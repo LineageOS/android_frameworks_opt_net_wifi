@@ -30,7 +30,8 @@ import android.hardware.wifi.hostapd.V1_0.IHostapd;
 import android.hardware.wifi.hostapd.V1_1.IHostapdCallback;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
-import android.net.wifi.WifiConfiguration;
+import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApConfiguration.Builder;
 import android.os.Handler;
 import android.os.IHwBinder;
 import android.os.RemoteException;
@@ -220,15 +221,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 6;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -254,14 +255,14 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 18;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = true;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_5GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(true);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -287,15 +288,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 18;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = true;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_5GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(true);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -325,15 +326,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 6;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -363,15 +364,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 6;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -400,15 +401,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 6;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_ANY;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -438,15 +439,15 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         final int apChannel = 6;
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apChannel = apChannel;
-        configuration.apBand = WifiConfiguration.AP_BAND_ANY;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setChannel(apChannel);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -504,14 +505,15 @@ public class HostapdHalTest extends WifiBaseTest {
 
         executeAndValidateInitializationSequenceV1_1(false);
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = false;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA2_PSK);
-        configuration.preSharedKey = NETWORK_PSK;
-        configuration.apBand = WifiConfiguration.AP_BAND_ANY;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(false);
+        configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptorV1_1.getValue().V1_0.ifaceName);
@@ -532,23 +534,6 @@ public class HostapdHalTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies the failure handling in addition of access point with an invalid band.
-     */
-    @Test
-    public void testAddAccessPointInvalidBandFailure() throws Exception {
-        executeAndValidateInitializationSequence();
-
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = true;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-        configuration.apBand = WifiConfiguration.AP_BAND_5GHZ + 1;
-
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
-        verify(mIHostapdMock, never()).addAccessPoint(any(), any());
-    }
-
-    /**
      * Verifies the failure handling in addition of access point.
      */
     @Test
@@ -556,14 +541,14 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         when(mIHostapdMock.addAccessPoint(any(), any())).thenReturn(mStatusFailure);
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = true;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-        configuration.apChannel = 6;
-        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(true);
+        configurationBuilder.setChannel(6);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -575,13 +560,13 @@ public class HostapdHalTest extends WifiBaseTest {
         executeAndValidateInitializationSequence();
         doThrow(new RemoteException()).when(mIHostapdMock).addAccessPoint(any(), any());
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.hiddenSSID = true;
-        configuration.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-        configuration.apChannel = 6;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setHiddenSsid(true);
+        configurationBuilder.setChannel(6);
 
-        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -633,11 +618,12 @@ public class HostapdHalTest extends WifiBaseTest {
                 .thenReturn(mStatusSuccess);
         executeAndValidateInitializationSequenceV1_1(false);
 
-        WifiConfiguration configuration = new WifiConfiguration();
-        configuration.SSID = NETWORK_SSID;
-        configuration.apBand = WifiConfiguration.AP_BAND_2GHZ;
+        Builder configurationBuilder = new SoftApConfiguration.Builder();
+        configurationBuilder.setSsid(NETWORK_SSID);
+        configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
-        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME, configuration, mSoftApListener));
+        assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
+                configurationBuilder.build(), mSoftApListener));
         verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
 
         // Trigger on failure.

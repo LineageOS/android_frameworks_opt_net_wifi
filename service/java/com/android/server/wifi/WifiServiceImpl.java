@@ -106,6 +106,7 @@ import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.RssiUtil;
 import com.android.server.wifi.util.WifiHandler;
@@ -776,9 +777,44 @@ public class WifiServiceImpl extends BaseWifiService {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
-        return startSoftApInternal(new SoftApModeConfiguration(
-                WifiManager.IFACE_IP_MODE_TETHERED, wifiConfig));
+
+        if (wifiConfig != null) {
+            return startSoftApInternal(new SoftApModeConfiguration(
+                    WifiManager.IFACE_IP_MODE_TETHERED,
+                    ApConfigUtil.fromWifiConfiguration(wifiConfig)));
+        } else {
+            return startSoftApInternal(new SoftApModeConfiguration(
+                    WifiManager.IFACE_IP_MODE_TETHERED, null));
+        }
     }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#startTetheredHotspot(SoftApConfiguration)}
+     * @param softApConfig SSID, security and channel details as part of SoftApConfiguration
+     * @return {@code true} if softap start was triggered
+     * @throws SecurityException if the caller does not have permission to start softap
+     */
+    @Override
+    public boolean startTetheredHotspot(@Nullable SoftApConfiguration softApConfig) {
+        // NETWORK_STACK is a signature only permission.
+        enforceNetworkStackPermission();
+
+        mLog.info("startTetheredHotspot uid=%").c(Binder.getCallingUid()).flush();
+
+        if (!mTetheredSoftApTracker.setEnablingIfAllowed()) {
+            mLog.err("Tethering is already active.").flush();
+            return false;
+        }
+
+        if (!isConcurrentLohsAndTetheringSupported()) {
+            // Take down LOHS if it is up.
+            mLohsSoftApTracker.stopAll();
+        }
+
+        return startSoftApInternal(new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, softApConfig));
+    }
+
 
     /**
      * Internal method to start softap mode. Callers of this method should have already checked
@@ -790,9 +826,9 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // null wifiConfig is a meaningful input for CMD_SET_AP; it means to use the persistent
         // AP config.
-        WifiConfiguration wifiConfig = apConfig.getWifiConfiguration();
-        if (wifiConfig != null && !WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
-            Log.e(TAG, "Invalid WifiConfiguration");
+        SoftApConfiguration softApConfig = apConfig.getSoftApConfiguration();
+        if (softApConfig != null && !WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+            Log.e(TAG, "Invalid SoftApConfiguration");
             return false;
         }
 
@@ -1138,7 +1174,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     // current config to the incoming request right away.
                     try {
                         mLog.trace("LOHS already up, trigger onStarted callback").flush();
-                        request.sendHotspotStartedMessage(mActiveConfig.getWifiConfiguration());
+                        request.sendHotspotStartedMessage(mActiveConfig.getSoftApConfiguration());
                     } catch (RemoteException e) {
                         return LocalOnlyHotspotCallback.ERROR_GENERIC;
                     }
@@ -1159,12 +1195,12 @@ public class WifiServiceImpl extends BaseWifiService {
             int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
                     : WifiConfiguration.AP_BAND_2GHZ;
 
-            WifiConfiguration wifiConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
+            SoftApConfiguration softApConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
                     mContext, band, request.getCustomConfig());
 
             mActiveConfig = new SoftApModeConfiguration(
                     WifiManager.IFACE_IP_MODE_LOCAL_ONLY,
-                    wifiConfig);
+                    softApConfig);
             mIsExclusive = (request.getCustomConfig() != null);
 
             startSoftApInternal(mActiveConfig);
@@ -1233,7 +1269,7 @@ public class WifiServiceImpl extends BaseWifiService {
         private void sendHotspotStartedMessageToAllLOHSRequestInfoEntriesLocked() {
             for (LocalOnlyHotspotRequestInfo requestor : mLocalOnlyHotspotRequests.values()) {
                 try {
-                    requestor.sendHotspotStartedMessage(mActiveConfig.getWifiConfiguration());
+                    requestor.sendHotspotStartedMessage(mActiveConfig.getSoftApConfiguration());
                 } catch (RemoteException e) {
                     // This will be cleaned up by binder death handling
                 }
@@ -1519,6 +1555,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * @throws SecurityException if the caller does not have permission to retrieve the softap
      * config
      */
+    @NonNull
     @Override
     public WifiConfiguration getWifiApConfiguration() {
         enforceAccessPermission();
@@ -1536,8 +1573,37 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
+        return ApConfigUtil.convertToWifiConfiguration(
+                mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new SoftApConfiguration.Builder().build()));
+    }
+
+    /**
+     * see {@link WifiManager#getSoftApConfiguration()}
+     * @return soft access point configuration {@link SoftApConfiguration}
+     * @throws SecurityException if the caller does not have permission to retrieve the softap
+     * config
+     */
+    @NonNull
+    @Override
+    public SoftApConfiguration getSoftApConfiguration() {
+        enforceAccessPermission();
+        int uid = Binder.getCallingUid();
+        // only allow Settings UI to get the saved SoftApConfig
+        if (!mWifiPermissionsUtil.checkConfigOverridePermission(uid)) {
+            // random apps should not be allowed to read the user specified config
+            throw new SecurityException("App not allowed to read or update stored WiFi Ap config "
+                    + "(uid = " + uid + ")");
+        }
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getSoftApConfiguration uid=%").c(uid).flush();
+        }
+
+        // hand off work to the ClientModeImpl handler thread to sync work between calls
+        // and SoftApManager starting up softap
         return mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
-                new WifiConfiguration());
+                new SoftApConfiguration.Builder().build());
     }
 
     /**
@@ -1561,11 +1627,35 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("setWifiApConfiguration uid=%").c(uid).flush();
         if (wifiConfig == null)
             return false;
-        if (WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
-            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(wifiConfig));
+        if (WifiApConfigStore.validateApWifiConfiguration(
+                ApConfigUtil.fromWifiConfiguration(wifiConfig))) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(
+                    ApConfigUtil.fromWifiConfiguration(wifiConfig)));
             return true;
         } else {
             Log.e(TAG, "Invalid WifiConfiguration");
+            return false;
+        }
+    }
+
+    /**
+     * see {@link WifiManager#setSoftApConfiguration(SoftApConfiguration)}
+     * @param softApConfig {@link SoftApConfiguration} details for soft access point
+     * @return boolean indicating success or failure of the operation
+     * @throws SecurityException if the caller does not have permission to write the softap config
+     */
+    @Override
+    public boolean setSoftApConfiguration(
+            @NonNull SoftApConfiguration softApConfig, @NonNull String packageName) {
+        enforceNetworkSettingsPermission();
+        int uid = Binder.getCallingUid();
+        mLog.info("setSoftApConfiguration uid=%").c(uid).flush();
+        if (softApConfig == null) return false;
+        if (WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
+            return true;
+        } else {
+            Log.e(TAG, "Invalid SoftAp Configuration");
             return false;
         }
     }

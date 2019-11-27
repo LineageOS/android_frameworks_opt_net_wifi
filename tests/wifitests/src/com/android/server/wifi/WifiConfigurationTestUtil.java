@@ -536,7 +536,6 @@ public class WifiConfigurationTestUtil {
         return new ScanDetail(ssid, bssid, caps, level, frequency, tsf, seen);
     }
 
-
     /**
      * Asserts that the 2 WifiConfigurations are equal in the elements saved for both backup/restore
      * and config store.
@@ -559,6 +558,22 @@ public class WifiConfigurationTestUtil {
         assertEquals(expected.allowedPairwiseCiphers, actual.allowedPairwiseCiphers);
         assertEquals(expected.shared, actual.shared);
         assertEquals(expected.getIpConfiguration(), actual.getIpConfiguration());
+    }
+
+
+   /**
+     * Asserts that the 2 WifiConfigurations are equal. This only compares the elements saved
+     * for softAp used.
+     */
+    public static void assertConfigurationEqualForSoftAp(
+            WifiConfiguration expected, WifiConfiguration actual) {
+        assertEquals(expected.SSID, actual.SSID);
+        assertEquals(expected.BSSID, actual.BSSID);
+        assertEquals(expected.apBand, actual.apBand);
+        assertEquals(expected.apChannel, actual.apChannel);
+        assertEquals(expected.preSharedKey, actual.preSharedKey);
+        assertEquals(expected.getAuthType(), actual.getAuthType());
+        assertEquals(expected.hiddenSSID, actual.hiddenSSID);
     }
 
     /**

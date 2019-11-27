@@ -16,6 +16,9 @@
 
 package com.android.server.wifi.util;
 
+import android.annotation.NonNull;
+import android.net.MacAddress;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.util.Log;
@@ -31,7 +34,7 @@ import java.util.Random;
 public class ApConfigUtil {
     private static final String TAG = "ApConfigUtil";
 
-    public static final int DEFAULT_AP_BAND = WifiConfiguration.AP_BAND_2GHZ;
+    public static final int DEFAULT_AP_BAND = SoftApConfiguration.BAND_2GHZ;
     public static final int DEFAULT_AP_CHANNEL = 6;
     public static final int HIGHEST_2G_AP_CHANNEL = 14;
     /* Return code for updateConfiguration. */
@@ -63,7 +66,7 @@ public class ApConfigUtil {
 
     /**
      * Return a channel number for AP setup based on the frequency band.
-     * @param apBand one of the value of WifiConfiguration.AP_BAND_*.
+     * @param apBand one of the value of SoftApConfiguration.BAND_*.
      * @param allowed2GChannels list of allowed 2GHz channels
      * @param allowed5GFreqList list of allowed 5GHz frequencies
      * @return a valid channel number on success, -1 on failure.
@@ -71,16 +74,16 @@ public class ApConfigUtil {
     public static int chooseApChannel(int apBand,
                                       ArrayList<Integer> allowed2GChannels,
                                       int[] allowed5GFreqList) {
-        if (apBand != WifiConfiguration.AP_BAND_2GHZ
-                && apBand != WifiConfiguration.AP_BAND_5GHZ
-                        && apBand != WifiConfiguration.AP_BAND_ANY) {
+        if (apBand != SoftApConfiguration.BAND_2GHZ
+                && apBand != SoftApConfiguration.BAND_5GHZ
+                        && apBand != SoftApConfiguration.BAND_ANY) {
             Log.e(TAG, "Invalid band: " + apBand);
             return -1;
         }
 
         // TODO(b/72120668): Create channel selection logic for AP_BAND_ANY.
-        if (apBand == WifiConfiguration.AP_BAND_2GHZ
-                || apBand == WifiConfiguration.AP_BAND_ANY)  {
+        if (apBand == SoftApConfiguration.BAND_2GHZ
+                || apBand == SoftApConfiguration.BAND_ANY)  {
             /* Select a channel from 2GHz band. */
             if (allowed2GChannels == null || allowed2GChannels.size() == 0) {
                 Log.d(TAG, "2GHz allowed channel list not specified");
@@ -116,33 +119,106 @@ public class ApConfigUtil {
     public static int updateApChannelConfig(WifiNative wifiNative,
                                             String countryCode,
                                             ArrayList<Integer> allowed2GChannels,
-                                            WifiConfiguration config) {
+                                            SoftApConfiguration.Builder configBuilder,
+                                            SoftApConfiguration config) {
         /* Use default band and channel for device without HAL. */
         if (!wifiNative.isHalStarted()) {
-            config.apBand = DEFAULT_AP_BAND;
-            config.apChannel = DEFAULT_AP_CHANNEL;
+            configBuilder.setBand(DEFAULT_AP_BAND);
+            configBuilder.setChannel(DEFAULT_AP_CHANNEL);
             return SUCCESS;
         }
 
         /* Country code is mandatory for 5GHz band. */
-        if (config.apBand == WifiConfiguration.AP_BAND_5GHZ
+        if (config.getBand() == SoftApConfiguration.BAND_5GHZ
                 && countryCode == null) {
             Log.e(TAG, "5GHz band is not allowed without country code");
             return ERROR_GENERIC;
         }
 
         /* Select a channel if it is not specified. */
-        if (config.apChannel == 0) {
-            config.apChannel = chooseApChannel(
-                    config.apBand, allowed2GChannels,
+        if (config.getChannel() == 0) {
+            int channel = chooseApChannel(config.getBand(), allowed2GChannels,
                     wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ));
-            if (config.apChannel == -1) {
+            if (channel == -1) {
                 /* We're not able to get channel from wificond. */
                 Log.e(TAG, "Failed to get available channel.");
                 return ERROR_NO_CHANNEL;
             }
+            configBuilder.setChannel(channel);
         }
 
         return SUCCESS;
+    }
+
+    /**
+     * Helper function for converting SoftapConfiguration to WifiConfiguration.
+     */
+    @NonNull
+    public static WifiConfiguration convertToWifiConfiguration(
+            @NonNull SoftApConfiguration softApConfig) {
+        WifiConfiguration wifiConfig = new WifiConfiguration();
+
+        wifiConfig.SSID = softApConfig.getSsid();
+        if (softApConfig.getBssid() != null) {
+            wifiConfig.BSSID = softApConfig.getBssid().toString();
+        }
+        wifiConfig.preSharedKey = softApConfig.getWpa2Passphrase();
+        wifiConfig.hiddenSSID = softApConfig.isHiddenSsid();
+        switch (softApConfig.getBand()) {
+            case SoftApConfiguration.BAND_2GHZ:
+                wifiConfig.apBand  = WifiConfiguration.AP_BAND_2GHZ;
+                break;
+            case SoftApConfiguration.BAND_5GHZ:
+                wifiConfig.apBand  = WifiConfiguration.AP_BAND_5GHZ;
+                break;
+            default:
+                wifiConfig.apBand  = WifiConfiguration.AP_BAND_ANY;
+                break;
+        }
+        wifiConfig.apChannel = softApConfig.getChannel();
+        int authType = softApConfig.getSecurityType();
+        switch (authType) {
+            case SoftApConfiguration.SECURITY_TYPE_WPA2_PSK:
+                authType = WifiConfiguration.KeyMgmt.WPA2_PSK;
+                break;
+            default:
+                authType = WifiConfiguration.KeyMgmt.NONE;
+                break;
+        }
+        wifiConfig.allowedKeyManagement.set(authType);
+
+        return wifiConfig;
+    }
+
+    /**
+     * Helper function for converting WifiConfiguration to SoftApConfiguration.
+     *
+     * Only Support None and WPA2 configuration conversion.
+     */
+    @NonNull
+    public static SoftApConfiguration fromWifiConfiguration(
+            @NonNull WifiConfiguration wifiConfig) {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setSsid(wifiConfig.SSID);
+        if (wifiConfig.BSSID != null) {
+            configBuilder.setBssid(MacAddress.fromString(wifiConfig.BSSID));
+        }
+        if (wifiConfig.getAuthType() == WifiConfiguration.KeyMgmt.WPA2_PSK) {
+            configBuilder.setWpa2Passphrase(wifiConfig.preSharedKey);
+        }
+        configBuilder.setHiddenSsid(wifiConfig.hiddenSSID);
+        switch (wifiConfig.apBand) {
+            case WifiConfiguration.AP_BAND_2GHZ:
+                configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+                break;
+            case WifiConfiguration.AP_BAND_5GHZ:
+                configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
+                break;
+            default:
+                configBuilder.setBand(SoftApConfiguration.BAND_ANY);
+                break;
+        }
+        configBuilder.setChannel(wifiConfig.apChannel);
+        return configBuilder.build();
     }
 }

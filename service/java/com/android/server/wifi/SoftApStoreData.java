@@ -17,7 +17,7 @@
 package com.android.server.wifi;
 
 import android.annotation.Nullable;
-import android.net.wifi.WifiConfiguration;
+import android.net.wifi.SoftApConfiguration;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -29,7 +29,6 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
-import java.util.BitSet;
 
 /**
  * Store data for SoftAp
@@ -41,8 +40,8 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     private static final String XML_TAG_BAND = "Band";
     private static final String XML_TAG_CHANNEL = "Channel";
     private static final String XML_TAG_HIDDEN_SSID = "HiddenSSID";
-    private static final String XML_TAG_ALLOWED_KEY_MGMT = "AllowedKeyMgmt";
-    private static final String XML_TAG_PRE_SHARED_KEY = "PreSharedKey";
+    private static final String XML_TAG_SECURITY_TYPE = "SecurityType";
+    private static final String XML_TAG_WPA2_PASSPHRASE = "Wpa2Passphrase";
 
     private final DataSource mDataSource;
 
@@ -53,16 +52,16 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         /**
          * Retrieve the SoftAp configuration from the data source to serialize them to disk.
          *
-         * @return {@link WifiConfiguration} Instance of WifiConfiguration.
+         * @return {@link SoftApConfiguration} Instance of SoftApConfiguration.
          */
-        WifiConfiguration toSerialize();
+        SoftApConfiguration toSerialize();
 
         /**
          * Set the SoftAp configuration in the data source after serializing them from disk.
          *
-         * @param config {@link WifiConfiguration} Instance of WifiConfiguration.
+         * @param config {@link SoftApConfiguration} Instance of SoftApConfiguration.
          */
-        void fromDeserialized(WifiConfiguration config);
+        void fromDeserialized(SoftApConfiguration config);
 
         /**
          * Clear internal data structure in preparation for user switch or initial store read.
@@ -88,16 +87,17 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
     public void serializeData(XmlSerializer out,
             @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
             throws XmlPullParserException, IOException {
-        WifiConfiguration softApConfig = mDataSource.toSerialize();
+        SoftApConfiguration softApConfig = mDataSource.toSerialize();
         if (softApConfig != null) {
-            XmlUtil.writeNextValue(out, XML_TAG_SSID, softApConfig.SSID);
-            XmlUtil.writeNextValue(out, XML_TAG_BAND, softApConfig.apBand);
-            XmlUtil.writeNextValue(out, XML_TAG_CHANNEL, softApConfig.apChannel);
-            XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, softApConfig.hiddenSSID);
-            XmlUtil.writeNextValue(
-                    out, XML_TAG_ALLOWED_KEY_MGMT,
-                    softApConfig.allowedKeyManagement.toByteArray());
-            XmlUtil.writeNextValue(out, XML_TAG_PRE_SHARED_KEY, softApConfig.preSharedKey);
+            XmlUtil.writeNextValue(out, XML_TAG_SSID, softApConfig.getSsid());
+            XmlUtil.writeNextValue(out, XML_TAG_BAND, softApConfig.getBand());
+            XmlUtil.writeNextValue(out, XML_TAG_CHANNEL, softApConfig.getChannel());
+            XmlUtil.writeNextValue(out, XML_TAG_HIDDEN_SSID, softApConfig.isHiddenSsid());
+            XmlUtil.writeNextValue(out, XML_TAG_SECURITY_TYPE, softApConfig.getSecurityType());
+            if (softApConfig.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+                XmlUtil.writeNextValue(out, XML_TAG_WPA2_PASSPHRASE,
+                        softApConfig.getWpa2Passphrase());
+            }
         }
     }
 
@@ -110,7 +110,10 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         if (in == null) {
             return;
         }
-        WifiConfiguration softApConfig = new WifiConfiguration();
+        SoftApConfiguration.Builder softApConfigBuilder = new SoftApConfiguration.Builder();
+        int securityType = SoftApConfiguration.SECURITY_TYPE_OPEN;
+        String wpa2Passphrase = null;
+        String ssid = null;
         while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
             String[] valueName = new String[1];
             Object value = XmlUtil.readCurrentValue(in, valueName);
@@ -119,35 +122,40 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
             }
             switch (valueName[0]) {
                 case XML_TAG_SSID:
-                    softApConfig.SSID = (String) value;
+                    ssid = (String) value;
+                    softApConfigBuilder.setSsid((String) value);
                     break;
                 case XML_TAG_BAND:
-                    softApConfig.apBand = (int) value;
+                    softApConfigBuilder.setBand((int) value);
                     break;
                 case XML_TAG_CHANNEL:
-                    softApConfig.apChannel = (int) value;
+                    softApConfigBuilder.setChannel((int) value);
                     break;
                 case XML_TAG_HIDDEN_SSID:
-                    softApConfig.hiddenSSID = (boolean) value;
+                    softApConfigBuilder.setHiddenSsid((boolean) value);
                     break;
-                case XML_TAG_ALLOWED_KEY_MGMT:
-                    byte[] allowedKeyMgmt = (byte[]) value;
-                    softApConfig.allowedKeyManagement = BitSet.valueOf(allowedKeyMgmt);
+                case XML_TAG_SECURITY_TYPE:
+                    securityType = (int) value;
                     break;
-                case XML_TAG_PRE_SHARED_KEY:
-                    softApConfig.preSharedKey = (String) value;
+                case XML_TAG_WPA2_PASSPHRASE:
+                    wpa2Passphrase = (String) value;
                     break;
                 default:
                     Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
                     break;
             }
         }
+
         // We should at-least have SSID restored from store.
-        if (softApConfig.SSID == null) {
+        if (ssid == null) {
             Log.e(TAG, "Failed to parse SSID");
             return;
         }
-        mDataSource.fromDeserialized(softApConfig);
+        if (securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+            softApConfigBuilder.setWpa2Passphrase(wpa2Passphrase);
+        }
+
+        mDataSource.fromDeserialized(softApConfigBuilder.setSsid(ssid).build());
     }
 
     @Override

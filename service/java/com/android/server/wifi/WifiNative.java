@@ -23,6 +23,7 @@ import android.net.MacAddress;
 import android.net.TrafficStats;
 import android.net.apf.ApfCapabilities;
 import android.net.wifi.ScanResult;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
@@ -1672,7 +1673,7 @@ public class WifiNative {
      * @return true on success, false otherwise.
      */
     public boolean startSoftAp(
-            @NonNull String ifaceName, WifiConfiguration config, SoftApListener listener) {
+            @NonNull String ifaceName, SoftApConfiguration config, SoftApListener listener) {
         if (!mWificondControl.registerApListener(ifaceName, listener)) {
             Log.e(TAG, "Failed to register ap listener");
             return false;
