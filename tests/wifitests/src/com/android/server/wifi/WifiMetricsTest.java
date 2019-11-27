@@ -103,6 +103,7 @@ import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiUsabilityStatsEnt
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WpsMetrics;
 import com.android.server.wifi.rtt.RttMetrics;
 import com.android.server.wifi.util.ExternalCallbackTracker;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -137,6 +138,7 @@ public class WifiMetricsTest extends WifiBaseTest {
     private static final int TEST_WIFI_USABILITY_STATS_LISTENER_IDENTIFIER = 2;
     private static final int TEST_NETWORK_ID = 42;
     @Mock Context mContext;
+    MockResources mResources;
     @Mock FrameworkFacade mFacade;
     @Mock Clock mClock;
     @Mock ScoringParams mScoringParams;
@@ -157,6 +159,8 @@ public class WifiMetricsTest extends WifiBaseTest {
         mDecodedProto = null;
         when(mClock.getElapsedSinceBootMillis()).thenReturn((long) 0);
         mTestLooper = new TestLooper();
+        mResources = new MockResources();
+        when(mContext.getResources()).thenReturn(mResources);
         mWifiMetrics = new WifiMetrics(mContext, mFacade, mClock, mTestLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock), mWifiPowerMetrics,
                 mWifiP2pMetrics, mDppMetrics);
@@ -282,7 +286,7 @@ public class WifiMetricsTest extends WifiBaseTest {
             + NUM_WPA3_PERSONAL_NETWORKS + NUM_WPA3_ENTERPRISE_NETWORKS;
     private static final int NUM_HIDDEN_NETWORKS = NUM_OPEN_NETWORKS;
     private static final int NUM_PASSPOINT_NETWORKS = NUM_LEGACY_ENTERPRISE_NETWORKS;
-    private static final int NUM_NETWORKS_ADDED_BY_USER = 1;
+    private static final int NUM_NETWORKS_ADDED_BY_USER = 0;
     private static final int NUM_NETWORKS_ADDED_BY_APPS = NUM_SAVED_NETWORKS
             - NUM_NETWORKS_ADDED_BY_USER;
     private static final boolean TEST_VAL_IS_LOCATION_ENABLED = true;
@@ -523,7 +527,6 @@ public class WifiMetricsTest extends WifiBaseTest {
         for (int i = 0; i < NUM_WPA3_ENTERPRISE_NETWORKS; i++) {
             testSavedNetworks.add(WifiConfigurationTestUtil.createEapSuiteBNetwork());
         }
-        testSavedNetworks.get(0).selfAdded = true;
         testSavedNetworks.get(0).macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         return testSavedNetworks;
     }
@@ -864,7 +867,8 @@ public class WifiMetricsTest extends WifiBaseTest {
         }
 
         mWifiMetrics.setWatchdogSuccessTimeDurationMs(NUM_WATCHDOG_SUCCESS_DURATION_MS);
-        mWifiMetrics.setIsMacRandomizationOn(IS_MAC_RANDOMIZATION_ON);
+        mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported,
+                IS_MAC_RANDOMIZATION_ON);
 
         addWifiPowerMetrics();
 

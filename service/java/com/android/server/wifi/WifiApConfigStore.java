@@ -30,7 +30,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -82,15 +82,12 @@ public class WifiApConfigStore {
 
     private WifiConfiguration mPersistentWifiApConfig = null;
 
-    private ArrayList<Integer> mAllowed2GChannel = null;
-
     private final Context mContext;
     private final Handler mHandler;
     private final BackupManagerProxy mBackupManagerProxy;
     private final MacAddressUtil mMacAddressUtil;
     private final Mac mMac;
     private final WifiConfigManager mWifiConfigManager;
-    private boolean mRequiresApBandConversion = false;
     private boolean mHasNewDataToSerialize = false;
 
     /**
@@ -141,21 +138,6 @@ public class WifiApConfigStore {
         mHandler = handler;
         mBackupManagerProxy = backupManagerProxy;
         mWifiConfigManager = wifiConfigManager;
-
-        String ap2GChannelListStr = mContext.getResources().getString(
-                R.string.config_wifi_framework_sap_2G_channel_list);
-        Log.d(TAG, "2G band allowed channels are:" + ap2GChannelListStr);
-
-        if (ap2GChannelListStr != null) {
-            mAllowed2GChannel = new ArrayList<Integer>();
-            String channelList[] = ap2GChannelListStr.split(",");
-            for (String tmp : channelList) {
-                mAllowed2GChannel.add(Integer.parseInt(tmp));
-            }
-        }
-
-        mRequiresApBandConversion = mContext.getResources().getBoolean(
-                R.bool.config_wifi_convert_apband_5ghz_to_any);
 
         // One time migration from legacy config store.
         try {
@@ -222,7 +204,18 @@ public class WifiApConfigStore {
     }
 
     public ArrayList<Integer> getAllowed2GChannel() {
-        return mAllowed2GChannel;
+        String ap2GChannelListStr = mContext.getResources().getString(
+                R.string.config_wifi_framework_sap_2G_channel_list);
+        Log.d(TAG, "2G band allowed channels are:" + ap2GChannelListStr);
+
+        ArrayList<Integer> allowed2GChannels = new ArrayList<>();
+        if (ap2GChannelListStr != null) {
+            String[] channelList = ap2GChannelListStr.split(",");
+            for (String tmp : channelList) {
+                allowed2GChannels.add(Integer.parseInt(tmp));
+            }
+        }
+        return allowed2GChannels;
     }
 
     private WifiConfiguration sanitizePersistentApConfig(WifiConfiguration config) {
@@ -234,7 +227,7 @@ public class WifiApConfigStore {
             convertedConfig.BSSID = null;
         }
 
-        if (mRequiresApBandConversion) {
+        if (mContext.getResources().getBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any)) {
             // some devices are unable to support 5GHz only operation, check for 5GHz and
             // move to ANY if apBand conversion is required.
             if (config.apBand == WifiConfiguration.AP_BAND_5GHZ) {

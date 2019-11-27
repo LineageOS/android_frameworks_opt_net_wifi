@@ -32,7 +32,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.NativeUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -89,15 +89,13 @@ public class SupplicantStaNetworkHal {
             Pattern.compile("^:([0-9a-fA-F]+)$");
 
     private final Object mLock = new Object();
+    private final Context mContext;
     private final String mIfaceName;
     private final WifiMonitor mWifiMonitor;
     private ISupplicantStaNetwork mISupplicantStaNetwork;
     private ISupplicantStaNetworkCallback mISupplicantStaNetworkCallback;
 
     private boolean mVerboseLoggingEnabled = false;
-    // Indicates whether the system is capable of 802.11r fast BSS transition.
-    private boolean mSystemSupportsFastBssTransition = false;
-
     // Network variables read from wpa_supplicant.
     private int mNetworkId;
     private ArrayList<Byte> mSsid;
@@ -136,10 +134,9 @@ public class SupplicantStaNetworkHal {
     SupplicantStaNetworkHal(ISupplicantStaNetwork iSupplicantStaNetwork, String ifaceName,
             Context context, WifiMonitor monitor) {
         mISupplicantStaNetwork = iSupplicantStaNetwork;
+        mContext = context;
         mIfaceName = ifaceName;
         mWifiMonitor = monitor;
-        mSystemSupportsFastBssTransition =
-                context.getResources().getBoolean(R.bool.config_wifi_fast_bss_transition_enabled);
     }
 
     /**
@@ -3177,7 +3174,8 @@ public class SupplicantStaNetworkHal {
      */
     private BitSet addFastTransitionFlags(BitSet keyManagementFlags) {
         synchronized (mLock) {
-            if (!mSystemSupportsFastBssTransition) {
+            if (!mContext.getResources().getBoolean(
+                    R.bool.config_wifi_fast_bss_transition_enabled)) {
                 return keyManagementFlags;
             }
             BitSet modifiedFlags = (BitSet) keyManagementFlags.clone();

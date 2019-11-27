@@ -95,7 +95,7 @@ import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiHandler;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -451,9 +451,6 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         mP2pSupported = mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_WIFI_DIRECT);
-
-        mThisDevice.primaryDeviceType = mContext.getResources().getString(
-                R.string.config_wifi_p2p_device_type);
 
         HandlerThread wifiP2pThread = mWifiInjector.getWifiP2pServiceHandlerThread();
         mClientHandler = new ClientHandler(TAG, wifiP2pThread.getLooper());
@@ -3716,6 +3713,9 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void initializeP2pSettings() {
             mThisDevice.deviceName = getPersistedDeviceName();
+            mThisDevice.primaryDeviceType = mContext.getResources().getString(
+                    R.string.config_wifi_p2p_device_type);
+
             mWifiNative.setP2pDeviceName(mThisDevice.deviceName);
             // DIRECT-XY-DEVICENAME (XY is randomly generated)
             mWifiNative.setP2pSsidPostfix("-" + mThisDevice.deviceName);

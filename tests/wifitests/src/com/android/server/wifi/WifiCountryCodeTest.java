@@ -33,6 +33,8 @@ import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.wifi.resources.R;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,6 +56,7 @@ public class WifiCountryCodeTest extends WifiBaseTest {
     private String mTelephonyCountryCode = "JP";
     private boolean mRevertCountryCodeOnCellularLoss = true;
     @Mock Context mContext;
+    MockResources mResources = new MockResources();
     @Mock TelephonyManager mTelephonyManager;
     @Mock Handler mHandler;
     @Mock WifiNative mWifiNative;
@@ -76,12 +79,14 @@ public class WifiCountryCodeTest extends WifiBaseTest {
     }
 
     private void createWifiCountryCode() {
+        mResources.setBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss,
+                mRevertCountryCodeOnCellularLoss);
+        when(mContext.getResources()).thenReturn(mResources);
         mWifiCountryCode = new WifiCountryCode(
                 mContext,
                 mHandler,
                 mWifiNative,
-                mDefaultCountryCode,
-                mRevertCountryCodeOnCellularLoss);
+                mDefaultCountryCode);
         verify(mContext, atLeastOnce()).registerReceiver(
                 mBroadcastReceiverCaptor.capture(), any(), any(), any());
     }
@@ -247,12 +252,8 @@ public class WifiCountryCodeTest extends WifiBaseTest {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
 
-        mWifiCountryCode = new WifiCountryCode(
-                mContext,
-                mHandler,
-                mWifiNative,
-                null,
-                false /* config_wifi_revert_country_code_on_cellular_loss */);
+        mRevertCountryCodeOnCellularLoss = false;
+        createWifiCountryCode();
 
         mWifiCountryCode.dump(null, pw, null);
         String dumpCountryCodeStr = sw.toString();

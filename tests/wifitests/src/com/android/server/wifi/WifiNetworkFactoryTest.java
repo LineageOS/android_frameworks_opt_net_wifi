@@ -180,6 +180,8 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mContext.getSystemService(eq(Context.CONNECTIVITY_SERVICE)))
                 .thenReturn(mConnectivityManager);
+        when(mContext.getSystemService(CompanionDeviceManager.class))
+                .thenReturn(mCompanionDeviceManager);
         when(mPackageManager.getNameForUid(TEST_UID_1)).thenReturn(TEST_PACKAGE_NAME_1);
         when(mPackageManager.getNameForUid(TEST_UID_2)).thenReturn(TEST_PACKAGE_NAME_2);
         when(mPackageManager.getApplicationInfoAsUser(any(), anyInt(), any()))
@@ -197,7 +199,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
 
         mWifiNetworkFactory = new WifiNetworkFactory(mLooper.getLooper(), mContext,
                 mNetworkCapabilities, mActivityManager, mAlarmManager, mAppOpsManager,
-                mCompanionDeviceManager, mClock, mWifiInjector, mWifiConnectivityManager,
+                mClock, mWifiInjector, mWifiConnectivityManager,
                 mWifiConfigManager, mWifiConfigStore, mWifiPermissionsUtil, mWifiMetrics);
 
         ArgumentCaptor<NetworkRequestStoreData.DataSource> dataSourceArgumentCaptor =

@@ -71,7 +71,7 @@ public class WrongPasswordNotifierTest extends WifiBaseTest {
     @Test
     public void onWrongPasswordError() throws Exception {
         when(mFrameworkFacade.makeNotificationBuilder(any(),
-                eq(WifiStackService.NOTIFICATION_NETWORK_ALERTS))).thenReturn(mNotificationBuilder);
+                eq(WifiService.NOTIFICATION_NETWORK_ALERTS))).thenReturn(mNotificationBuilder);
         mWrongPassNotifier.onWrongPasswordError(TEST_SSID);
         verify(mNotificationManager).notify(eq(WrongPasswordNotifier.NOTIFICATION_ID), any());
         ArgumentCaptor<Intent> intent = ArgumentCaptor.forClass(Intent.class);

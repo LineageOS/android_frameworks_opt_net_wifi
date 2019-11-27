@@ -16,8 +16,10 @@
 
 package com.android.server.wifi.scanner;
 
+import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AlarmManager;
@@ -30,7 +32,6 @@ import android.net.wifi.WifiScanner.PnoSettings;
 import android.net.wifi.WifiScanner.ScanData;
 import android.net.wifi.WifiScanner.ScanSettings;
 import android.net.wifi.WifiScanner.WifiBand;
-import android.net.wifi.WifiStackClient;
 import android.os.BadParcelableException;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
@@ -128,16 +129,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         return b;
     }
 
-    private void enforceWifiStackPermission(int uid) {
+    private void enforceNetworkStack(int uid) {
         mContext.enforcePermission(
-                WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK,
+                Manifest.permission.NETWORK_STACK,
                 UNKNOWN_PID, uid,
-                "MainlineWifiStack");
-    }
-
-    private boolean checkWifiStackPermission(int uid) {
-        return mContext.checkPermission(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK,
-                UNKNOWN_PID, uid) == PERMISSION_GRANTED;
+                "NetworkStack");
     }
 
     // Helper method to check if the incoming message is for a privileged request.
@@ -214,8 +210,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             boolean isPrivilegedRequest, boolean shouldIgnoreLocationSettings,
             boolean shouldHideFromApps) {
         try {
-            // Wifi stack issued requests.
-            enforceWifiStackPermission(uid);
+            /** Wifi stack issued requests.*/
+            enforceNetworkStack(uid);
         } catch (SecurityException e) {
             // System-app issued requests
             if (isPrivilegedRequest) {
@@ -1033,7 +1029,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 Log.e(TAG, "Invalid scan type " + settings.type);
                 return false;
             }
-            if (!checkWifiStackPermission(ci.getUid())) {
+            if (mContext.checkPermission(
+                    Manifest.permission.NETWORK_STACK, UNKNOWN_PID, ci.getUid())
+                    == PERMISSION_DENIED) {
                 if (!ArrayUtils.isEmpty(settings.hiddenNetworks)) {
                     Log.e(TAG, "Failing single scan because app " + ci.getUid()
                             + " does not have permission to set hidden networks");

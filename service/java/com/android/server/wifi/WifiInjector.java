@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
-import android.companion.CompanionDeviceManager;
 import android.content.Context;
 import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
@@ -32,6 +31,7 @@ import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.INetworkManagementService;
@@ -44,6 +44,7 @@ import android.security.keystore.AndroidKeyStoreProvider;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.os.PowerProfile;
 import com.android.server.wifi.aware.WifiAwareMetrics;
@@ -59,7 +60,6 @@ import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 import com.android.server.wifi.wificond.IWificond;
-import com.android.wifi.R;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -75,6 +75,7 @@ import java.util.Random;
  *  an instance of the WifiInjector.
  */
 public class WifiInjector {
+    private static final String TAG = "WifiInjector";
     private static final String BOOT_DEFAULT_WIFI_COUNTRY_CODE = "ro.boot.wificountrycode";
     private static final String WIFICOND_SERVICE_NAME = "wificond";
 
@@ -173,6 +174,14 @@ public class WifiInjector {
 
         sWifiInjector = this;
 
+        // Now create and start handler threads
+        mAsyncChannelHandlerThread = new HandlerThread("AsyncChannelHandlerThread");
+        mAsyncChannelHandlerThread.start();
+        mWifiHandlerThread = new HandlerThread("WifiHandlerThread");
+        mWifiHandlerThread.start();
+        Looper wifiLooper = mWifiHandlerThread.getLooper();
+        Handler wifiHandler = new Handler(wifiLooper);
+
         mFrameworkFacade = new FrameworkFacade();
         mMacAddressUtil = new MacAddressUtil();
         mContext = context;
@@ -183,20 +192,14 @@ public class WifiInjector {
         mWifiPermissionsWrapper = new WifiPermissionsWrapper(mContext);
         mNetworkScoreManager = mContext.getSystemService(NetworkScoreManager.class);
         mWifiNetworkScoreCache = new WifiNetworkScoreCache(mContext);
-        mNetworkScoreManager.registerNetworkScoreCache(NetworkKey.TYPE_WIFI,
-                mWifiNetworkScoreCache, NetworkScoreManager.CACHE_FILTER_NONE);
+        mNetworkScoreManager.registerNetworkScoreCallback(NetworkKey.TYPE_WIFI,
+                NetworkScoreManager.CACHE_FILTER_NONE,
+                new HandlerExecutor(wifiHandler), mWifiNetworkScoreCache);
         mUserManager = mContext.getSystemService(UserManager.class);
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
                 mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
         mWifiStateTracker = new WifiStateTracker(mBatteryStats);
-        // Now create and start handler threads
-        mAsyncChannelHandlerThread = new HandlerThread("AsyncChannelHandlerThread");
-        mAsyncChannelHandlerThread.start();
-        mWifiHandlerThread = new HandlerThread("WifiHandlerThread");
-        mWifiHandlerThread.start();
-        Looper wifiLooper = mWifiHandlerThread.getLooper();
-        Handler wifiHandler = new Handler(wifiLooper);
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
         mWifiP2pServiceHandlerThread.start();
@@ -237,14 +240,13 @@ public class WifiInjector {
         // Now get instances of all the objects that depend on the HandlerThreads
         mWifiTrafficPoller = new WifiTrafficPoller(wifiHandler);
         mCountryCode = new WifiCountryCode(mContext, wifiHandler, mWifiNative,
-                SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE),
-                mContext.getResources()
-                        .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss));
+                SystemProperties.get(BOOT_DEFAULT_WIFI_COUNTRY_CODE));
         // WifiConfigManager/Store objects and their dependencies.
         KeyStore keyStore = null;
         try {
             keyStore = AndroidKeyStoreProvider.getKeyStoreForUid(Process.WIFI_UID);
         } catch (KeyStoreException | NoSuchProviderException e) {
+            Log.wtf(TAG, "Failed to load keystore", e);
         }
         mKeyStore = keyStore;
         mWifiKeyStore = new WifiKeyStore(mKeyStore);
@@ -294,8 +296,9 @@ public class WifiInjector {
                 mTelephonyUtil);
         mNetworkSuggestionEvaluator = new NetworkSuggestionEvaluator(mWifiNetworkSuggestionsManager,
                 mWifiConfigManager, mConnectivityLocalLog);
-        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(context, wifiHandler,
-                mFrameworkFacade, mNetworkScoreManager, mWifiConfigManager, mConnectivityLocalLog,
+        mScoredNetworkEvaluator = new ScoredNetworkEvaluator(mContext, wifiHandler,
+                mFrameworkFacade, mNetworkScoreManager, mContext.getPackageManager(),
+                mWifiConfigManager, mConnectivityLocalLog,
                 mWifiNetworkScoreCache, mWifiPermissionsUtil);
         mCarrierNetworkEvaluator = new CarrierNetworkEvaluator(mWifiConfigManager,
                 mCarrierNetworkConfig, mConnectivityLocalLog, this);
@@ -623,7 +626,6 @@ public class WifiInjector {
                 (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE),
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 (AppOpsManager) mContext.getSystemService(Context.APP_OPS_SERVICE),
-                mContext.getSystemService(CompanionDeviceManager.class),
                 mClock, this, wifiConnectivityManager, mWifiConfigManager,
                 mWifiConfigStore, mWifiPermissionsUtil, mWifiMetrics);
     }
@@ -772,5 +774,9 @@ public class WifiInjector {
 
     public WifiChannelUtilization getWifiChannelUtilization() {
         return mWifiChannelUtilization;
+    }
+
+    public WifiNetworkScoreCache getWifiNetworkScoreCache() {
+        return mWifiNetworkScoreCache;
     }
 }

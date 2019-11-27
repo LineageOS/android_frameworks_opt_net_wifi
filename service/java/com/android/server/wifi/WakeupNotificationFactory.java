@@ -22,7 +22,7 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 
 /** Factory for Wifi Wake notifications. */
@@ -66,7 +66,7 @@ public class WakeupNotificationFactory {
                 .build();
 
         return mFrameworkFacade.makeNotificationBuilder(mContext,
-                WifiStackService.NOTIFICATION_NETWORK_STATUS)
+                WifiService.NOTIFICATION_NETWORK_STATUS)
                 .setSmallIcon(R.drawable.ic_wifi_settings)
                 .setTicker(title)
                 .setContentTitle(title)

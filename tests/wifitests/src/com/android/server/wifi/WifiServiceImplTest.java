@@ -95,7 +95,7 @@ import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
-import android.net.wifi.IScanResultsListener;
+import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
 import android.net.wifi.ISuggestionConnectionStatusListener;
 import android.net.wifi.ITrafficStateCallback;
@@ -111,9 +111,9 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
+import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
-import android.net.wifi.WifiStackClient;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
@@ -143,6 +143,7 @@ import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
 import com.android.server.wifi.util.WifiAsyncChannel;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -278,7 +279,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock IDppCallback mDppCallback;
     @Mock SarManager mSarManager;
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
-    @Mock IScanResultsListener mClientScanResultsListener;
+    @Mock IScanResultsCallback mScanResultsCallback;
     @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
 
     WifiLog mLog = new LogcatLog(TAG);
@@ -342,6 +343,8 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mClientModeImpl.getWifiScoreReport()).thenReturn(mWifiScoreReport);
         when(mWifiInjector.getWifiScoreCard()).thenReturn(mWifiScoreCard);
         when(mWifiInjector.getSarManager()).thenReturn(mSarManager);
+        when(mWifiInjector.getWifiNetworkScoreCache())
+                .thenReturn(mock(WifiNetworkScoreCache.class));
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
         when(mClientModeImpl.syncStartSubscriptionProvisioning(anyInt(),
@@ -357,8 +360,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mContext.checkPermission(eq(android.Manifest.permission.NETWORK_MANAGED_PROVISIONING),
-                anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
                 anyInt(), anyInt())).thenReturn(PackageManager.PERMISSION_DENIED);
         when(mScanRequestProxy.startScan(anyInt(), anyString())).thenReturn(true);
         when(mLohsCallback.asBinder()).thenReturn(mock(IBinder.class));
@@ -1668,7 +1669,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testStartLocalOnlyHotspotAt5Ghz() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_local_only_hotspot_5ghz)))
+                eq(R.bool.config_wifi_local_only_hotspot_5ghz)))
                 .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)).thenReturn(true);
         when(mClientModeImpl.syncGetSupportedFeatures(any(AsyncChannel.class)))
@@ -3030,16 +3031,22 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testHandleDelayedScanAfterIdleMode() throws Exception {
         when(mSettingsStore.isWifiToggleEnabled()).thenReturn(false);
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 (IntentFilter) argThat(new IdleModeIntentMatcher()));
 
         // Tell the wifi service that the device became idle.
         when(mPowerManager.isDeviceIdleMode()).thenReturn(true);
         TestUtil.sendIdleModeChanged(mBroadcastReceiverCaptor.getValue(), mContext);
+        mLooper.dispatchAll();
 
         // Send a scan request while the device is idle.
+        mLooper.startAutoDispatch();
         assertFalse(mWifiServiceImpl.startScan(SCAN_PACKAGE_NAME, TEST_FEATURE_ID));
+        mLooper.stopAutoDispatchAndIgnoreExceptions();
         // No scans must be made yet as the device is idle.
         verify(mScanRequestProxy, never()).startScan(Process.myUid(), SCAN_PACKAGE_NAME);
 
@@ -3184,7 +3191,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     @Test
     public void testUserRemovedBroadcastHandling() {
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3201,7 +3211,10 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     @Test
     public void testUserRemovedBroadcastHandlingWithWrongIntentAction() {
+        when(mWifiInjector.getPasspointProvisionerHandlerThread())
+                .thenReturn(mock(HandlerThread.class));
         mWifiServiceImpl.checkAndStartWifi();
+        mWifiServiceImpl.handleBootCompleted();
         verify(mContext).registerReceiver(mBroadcastReceiverCaptor.capture(),
                 argThat((IntentFilter filter) ->
                         filter.hasAction(Intent.ACTION_USER_REMOVED)));
@@ -3222,7 +3235,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedTrue() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(true);
         assertTrue(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
 
@@ -3237,7 +3250,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test
     public void testNeeds5GHzToAnyApBandConversionReturnedFalse() {
         when(mResources.getBoolean(
-                eq(com.android.wifi.R.bool.config_wifi_convert_apband_5ghz_to_any)))
+                eq(R.bool.config_wifi_convert_apband_5ghz_to_any)))
                 .thenReturn(false);
 
         assertFalse(mWifiServiceImpl.needs5GHzToAnyApBandConversion());
@@ -4123,7 +4136,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
 
     private void setupMaxApInterfaces(int val) {
         when(mResources.getInteger(
-                eq(com.android.wifi.R.integer.config_wifi_max_ap_interfaces)))
+                eq(R.integer.config_wifi_max_ap_interfaces)))
                 .thenReturn(val);
     }
 
@@ -4344,53 +4357,44 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
-     * Test register scan result listener without permission.
+     * Test register scan result callback without permission.
      */
     @Test(expected = SecurityException.class)
-    public void testRegisterScanResultListenerWithMissingPermission() throws Exception {
+    public void testRegisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
-                mClientScanResultsListener,
-                listenerIdentifier);
+        mWifiServiceImpl.registerScanResultsCallback(mScanResultsCallback);
     }
 
     /**
-     * Test unregister scan result listener without permission.
+     * Test unregister scan result callback without permission.
      */
     @Test(expected = SecurityException.class)
-    public void testUnregisterScanResultListenerWithMissingPermission() throws Exception {
+    public void testUnregisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
                 eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        mWifiServiceImpl.unregisterScanResultsCallback(mScanResultsCallback);
     }
 
     /**
-     * Test register scan result listener with illegal argument.
+     * Test register scan result callback with illegal argument.
      */
     @Test(expected = IllegalArgumentException.class)
-    public void testRegisterScanResultListenerWithIllegalArgument() throws Exception {
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder, null, listenerIdentifier);
+    public void testRegisterScanResultCallbackWithIllegalArgument() throws Exception {
+        mWifiServiceImpl.registerScanResultsCallback(null);
     }
 
     /**
-     * Test register and unregister listener will go to ScanRequestProxy;
+     * Test register and unregister callback will go to ScanRequestProxy;
      */
     @Test
-    public void testRegisterUnregisterScanResultListener() throws Exception {
-        final int listenerIdentifier = 1;
-        mWifiServiceImpl.registerScanResultsListener(mAppBinder,
-                mClientScanResultsListener,
-                listenerIdentifier);
+    public void testRegisterUnregisterScanResultCallback() throws Exception {
+        mWifiServiceImpl.registerScanResultsCallback(mScanResultsCallback);
         mLooper.dispatchAll();
-        verify(mScanRequestProxy).registerScanResultsListener(eq(mAppBinder),
-                eq(mClientScanResultsListener), eq(listenerIdentifier));
-        mWifiServiceImpl.unregisterScanResultsListener(listenerIdentifier);
+        verify(mScanRequestProxy).registerScanResultsCallback(mScanResultsCallback);
+        mWifiServiceImpl.unregisterScanResultsCallback(mScanResultsCallback);
         mLooper.dispatchAll();
-        verify(mScanRequestProxy).unregisterScanResultsListener(eq(listenerIdentifier));
+        verify(mScanRequestProxy).unregisterScanResultsCallback(mScanResultsCallback);
     }
 
     /**

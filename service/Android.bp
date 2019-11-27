@@ -14,13 +14,8 @@
 // limitations under the License.
 //
 java_defaults {
-    name: "WifiStackCommon",
+    name: "wifi-service-common",
     min_sdk_version: "29",
-    platform_apis: true,
-    privileged: true,
-    dex_preopt: {
-        enabled: false,
-    },
     errorprone: {
         javacflags: ["-Xep:CheckReturnValue:ERROR"],
     },
@@ -29,9 +24,6 @@ java_defaults {
             enabled: false,
         },
     },
-    resource_dirs: [
-        "res",
-    ],
 }
 
 // Make the JNI part
@@ -71,25 +63,36 @@ cc_library_shared {
     },
 }
 
-// Build the wifi-service static library
-// ============================================================
-android_library {
-    name: "wifi-service",
-    installable: true,
-    defaults: ["WifiStackCommon"],
+// These filegroups are created for wifi tests.
+filegroup {
+    name: "wifi-service-jarjar-rules",
+    srcs: [ "jarjar-rules-shared.txt"]
+}
+
+filegroup {
+    name: "wifi-service-srcs",
     srcs: [
         "java/**/*.java",
         "java/**/*.logtags",
         ":framework-wifistack-shared-srcs",
     ],
+}
+
+// wifi-service static library
+// ============================================================
+java_library {
+    name: "wifi-service",
+    installable: true,
+    defaults: ["wifi-service-common"],
+    srcs: [ ":wifi-service-srcs" ],
 
     libs: [
         "error_prone_annotations",
         "jsr305",
         "services",
+	// load the resources from the resources APK.
+	"wifi-service-resources"
     ],
-
-    manifest: "AndroidManifestBase.xml",
 
     static_libs: [
         "android.hardware.wifi-V1.0-java",
@@ -113,65 +116,47 @@ android_library {
 	// the necessary core platform APIs.
         "libprotobuf-java-lite",
         "libnanohttpd",
-        "services.net",
-        "services.wifi",
         "libwificond_aidl-java",
+        "services.net",
         "wifi_proto_scorecard",
         "wifi_proto_metrics",
     ],
-}
-
-filegroup {
-    name: "wifi-jarjar-rules",
-    srcs: [ "jarjar-rules-shared.txt"]
-}
-
-java_defaults {
-    name: "WifiStackAppCommon",
-    defaults: ["WifiStackCommon"],
-    static_libs: [
-        "wifi-service",
-    ],
-    jni_libs: [
-        "libwifi-jni",
-    ],
-    // Resources already included in wifi-service
-    resource_dirs: [],
-    jarjar_rules: ":wifi-jarjar-rules",
-    optimize: {
-        proguard_flags_files: ["proguard.flags"],
-    },
 
     required: [
+        "cacerts_wfa",
         "libwifi-jni",
         "services",
-        "cacerts_wfa",
+	"wifi-service-resources",
     ],
-}
 
-// Updatable stack packaged as an application
-android_app {
-    name: "WifiStack",
-    defaults: ["WifiStackAppCommon"],
-    certificate: "networkstack",
-    manifest: "AndroidManifest.xml",
-    use_embedded_native_libs: true,
-    // The permission configuration *must* be included to ensure security of the device
-    required: ["WifiStackPermissionConfig"],
+    jarjar_rules: ":wifi-service-jarjar-rules",
+    optimize: {
+        enabled: true,
+        shrink: true,
+        proguard_flags_files: ["proguard.flags"],
+    },
+    dex_preopt: {
+        enabled: false,
+        app_image: false,
+    },
+
+    // TODO: Remove this once all @hide dependencies are resolved.
+    platform_apis: true,
+
     init_rc: ["wifi.rc"],
 }
 
-// Non-updatable wifi stack running in the system server process for devices not using the module
-// TODO (b/135753701): Test this path.
+// APK to hold all the wifi overlayable resources.
+// TODO: This should be signed by a wifi specific certificate.
+// ============================================================
 android_app {
-    name: "InProcessWifiStack",
-    defaults: ["WifiStackAppCommon"],
-    certificate: "platform",
-    manifest: "AndroidManifest_InProcess.xml",
-    // InProcessWifiStack is a replacement for WifiStack
-    overrides: ["WifiStack"],
-    // The permission configuration *must* be included to ensure security of the device
-    required: ["PlatformWifiStackPermissionConfig"],
-    init_rc: ["wifi_inprocess.rc"],
+    name: "wifi-service-resources",
+    defaults: ["wifi-service-common"],
+    resource_dirs: [
+        "res",
+    ],
+    privileged: true,
+    sdk_version: "system_current",
+    export_package_resources: true,
+    manifest: "AndroidManifest_Resources.xml",
 }
-

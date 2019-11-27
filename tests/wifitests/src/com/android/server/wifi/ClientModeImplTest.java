@@ -103,7 +103,7 @@ import com.android.server.wifi.util.RssiUtilTest;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -663,10 +663,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         assertEquals(ClientModeImpl.CONNECT_MODE, mCmi.getOperationalModeForTest());
         assertEquals(WifiManager.WIFI_STATE_ENABLED, mCmi.syncGetWifiState());
         assertEquals("enabled", mCmi.syncGetWifiStateByName());
-
-        // reset the expectations on mContext since we did get an expected broadcast, but we should
-        // not on the next transition
-        reset(mContext);
 
         // now disable wifi and verify the reported wifi state
         mCmi.setWifiStateForApiCalls(WifiManager.WIFI_STATE_DISABLED);
@@ -2972,6 +2968,19 @@ public class ClientModeImplTest extends WifiBaseTest {
                 eq(WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE),
                 any(WifiConfiguration.class), eq(null));
         verifyConnectionEventTimeoutDoesNotOccur();
+    }
+
+    /**
+     * Verify that if a NETWORK_DISCONNECTION_EVENT is received in ConnectedState, then an
+     * abnormal disconnect is reported to BssidBlocklistMonitor.
+     */
+    @Test
+    public void testAbnormalDisconnectNotifiesBssidBlocklistMonitor() throws Exception {
+        connect();
+        mCmi.sendMessage(WifiMonitor.NETWORK_DISCONNECTION_EVENT, 0, 0, sBSSID);
+        mLooper.dispatchAll();
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_ABNORMAL_DISCONNECT);
     }
 
     /**

@@ -23,16 +23,3 @@ android_app {
     sdk_version: "current",
     product_specific: true
 }
-
-// In process version of the overlay.
-// TODO (b/135938806): Remove this once the overlay tag can support multiple
-// targetPackage attributes.
-android_app {
-    name: "InProcessWifiRROOverlaySampleApp",
-    resource_dirs: [
-        "res",
-    ],
-    sdk_version: "current",
-    manifest: "AndroidManifest_InProcess.xml",
-    product_specific: true
-}

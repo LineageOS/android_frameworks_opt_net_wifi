@@ -77,7 +77,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
     private final SparseIntArray mUidByClientId = new SparseIntArray();
 
     public WifiAwareServiceImpl(Context context) {
-        mContext = context.getApplicationContext();
+        mContext = context;
         mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
     }
 

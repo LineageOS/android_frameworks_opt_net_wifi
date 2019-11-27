@@ -81,13 +81,13 @@ public class WrongPasswordNotifier {
         Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
         intent.putExtra("wifi_start_connect_ssid", NativeUtil.removeEnclosingQuotes(ssid));
         Notification.Builder builder = mFrameworkFacade.makeNotificationBuilder(mContext,
-                WifiStackService.NOTIFICATION_NETWORK_ALERTS)
+                WifiService.NOTIFICATION_NETWORK_ALERTS)
                 .setAutoCancel(true)
                 .setTimeoutAfter(CANCEL_TIMEOUT_MILLISECONDS)
                 // TODO(zqiu): consider creating a new icon.
                 .setSmallIcon(android.R.drawable.stat_notify_wifi_in_range)
                 .setContentTitle(mContext.getString(
-                        com.android.wifi.R.string.wifi_available_title_failed_to_connect))
+                        com.android.wifi.resources.R.string.wifi_available_title_failed_to_connect))
                 .setContentText(ssid)
                 .setContentIntent(mFrameworkFacade.getActivity(
                         mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT))

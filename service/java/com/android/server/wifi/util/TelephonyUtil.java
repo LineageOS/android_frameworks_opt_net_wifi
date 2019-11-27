@@ -878,9 +878,8 @@ public class TelephonyUtil {
         }
         // Find the active matching SIM card with the full IMSI from passpoint profile.
         for (SubscriptionInfo subInfo : infos) {
-            TelephonyManager specifiedTm =
-                    mTelephonyManager.createForSubscriptionId(subInfo.getSubscriptionId());
-            String imsi = specifiedTm.getSubscriberId();
+            String imsi = mTelephonyManager
+                    .createForSubscriptionId(subInfo.getSubscriptionId()).getSubscriberId();
             if (imsiParameter.matchesImsi(imsi)) {
                 config.setCarrierId(subInfo.getCarrierId());
                 return true;
@@ -900,7 +899,7 @@ public class TelephonyUtil {
     public @Nullable String getMatchingImsi(int carrierId) {
         int subId = getMatchingSubId(carrierId);
         if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            return mTelephonyManager.getSubscriberId(subId);
+            return mTelephonyManager.createForSubscriptionId(subId).getSubscriberId();
         }
 
         Log.d(TAG, "no active SIM card to match the carrier ID.");
@@ -938,7 +937,7 @@ public class TelephonyUtil {
         for (SubscriptionInfo subInfo : infos) {
             TelephonyManager specifiedTm = mTelephonyManager.createForSubscriptionId(
                     subInfo.getSubscriptionId());
-            String operatorNumeric = specifiedTm.getSimOperatorNumeric();
+            String operatorNumeric = specifiedTm.getSimOperator();
             if (operatorNumeric != null && imsiParameter.matchesMccMnc(operatorNumeric)) {
                 String curImsi = specifiedTm.getSubscriberId();
                 if (TextUtils.isEmpty(curImsi)) {

@@ -33,7 +33,7 @@ import android.util.LocalLog;
 import com.android.server.wifi.WifiNetworkSelector.NetworkEvaluator.OnConnectableListener;
 import com.android.server.wifi.WifiNetworkSelectorTestUtil.ScanDetailsAndWifiConfigs;
 import com.android.server.wifi.util.TelephonyUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;

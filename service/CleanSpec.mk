@@ -48,6 +48,12 @@
 
 $(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/etc/init/wifi.rc)
 $(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/priv-app/WifiStack)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/etc/init/wifi_inprocess.rc)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/priv-app/InProcessWifiStack)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/framework/wifi-service.jar)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/priv-app/wifi-service-resources)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/lib64/libwifi-jni.so)
+$(call add-clean-step, rm -rf $(PRODUCT_OUT)/system/lib/libwifi-jni.so)
 # ************************************************
 # NEWER CLEAN STEPS MUST BE AT THE END OF THE LIST
 # ************************************************

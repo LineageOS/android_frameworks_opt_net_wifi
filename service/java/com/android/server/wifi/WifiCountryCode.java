@@ -26,6 +26,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -41,16 +42,13 @@ import java.util.Locale;
  */
 public class WifiCountryCode {
     private static final String TAG = "WifiCountryCode";
+    private final Context mContext;
     private final TelephonyManager mTelephonyManager;
     private final WifiNative mWifiNative;
     private boolean DBG = false;
     private boolean mReady = false;
     private static final SimpleDateFormat FORMATTER = new SimpleDateFormat("MM-dd HH:mm:ss.SSS");
 
-    /** config option that indicate whether or not to reset country code to default when
-     * cellular radio indicates country code loss
-     */
-    private boolean mRevertCountryCodeOnCellularLoss;
     private String mDefaultCountryCode = null;
     private String mTelephonyCountryCode = null;
     private String mDriverCountryCode = null;
@@ -63,20 +61,13 @@ public class WifiCountryCode {
             Context context,
             Handler handler,
             WifiNative wifiNative,
-            String oemDefaultCountryCode,
-            boolean revertCountryCodeOnCellularLoss) {
+            String oemDefaultCountryCode) {
+        mContext = context;
         mTelephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         mWifiNative = wifiNative;
-        mRevertCountryCodeOnCellularLoss = revertCountryCodeOnCellularLoss;
 
         if (!TextUtils.isEmpty(oemDefaultCountryCode)) {
             mDefaultCountryCode = oemDefaultCountryCode.toUpperCase(Locale.US);
-        } else {
-            if (mRevertCountryCodeOnCellularLoss) {
-                Log.w(TAG, "config_wifi_revert_country_code_on_cellular_loss is set, "
-                         + "but there is no default country code.");
-                mRevertCountryCodeOnCellularLoss = false;
-            }
         }
         context.registerReceiver(new BroadcastReceiver() {
             @Override
@@ -86,8 +77,7 @@ public class WifiCountryCode {
                 setCountryCodeAndUpdate(countryCode);
             }}, new IntentFilter(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED), null, handler);
 
-        Log.d(TAG, "mDefaultCountryCode " + mDefaultCountryCode
-                + " mRevertCountryCodeOnCellularLoss " + mRevertCountryCodeOnCellularLoss);
+        Log.d(TAG, "mDefaultCountryCode " + mDefaultCountryCode);
     }
 
     /**
@@ -166,7 +156,8 @@ public class WifiCountryCode {
 
         // Empty country code.
         if (TextUtils.isEmpty(countryCode)) {
-            if (mRevertCountryCodeOnCellularLoss) {
+            if (mContext.getResources()
+                        .getBoolean(R.bool.config_wifi_revert_country_code_on_cellular_loss)) {
                 Log.d(TAG, "Received empty country code, reset to default country code");
                 mTelephonyCountryCode = null;
             }
@@ -225,7 +216,9 @@ public class WifiCountryCode {
      * Method to dump the current state of this WifiCounrtyCode object.
      */
     public synchronized void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
-        pw.println("mRevertCountryCodeOnCellularLoss: " + mRevertCountryCodeOnCellularLoss);
+        pw.println("mRevertCountryCodeOnCellularLoss: "
+                + mContext.getResources().getBoolean(
+                        R.bool.config_wifi_revert_country_code_on_cellular_loss));
         pw.println("mDefaultCountryCode: " + mDefaultCountryCode);
         pw.println("mDriverCountryCode: " + mDriverCountryCode);
         pw.println("mTelephonyCountryCode: " + mTelephonyCountryCode);

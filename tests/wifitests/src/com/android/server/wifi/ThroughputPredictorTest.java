@@ -30,7 +30,7 @@ import android.net.wifi.ScanResult;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;

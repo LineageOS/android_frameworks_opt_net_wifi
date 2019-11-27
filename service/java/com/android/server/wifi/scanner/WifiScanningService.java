@@ -18,40 +18,45 @@ package com.android.server.wifi.scanner;
 
 import android.content.Context;
 import android.os.BatteryStatsManager;
-import android.os.Binder;
 import android.os.HandlerThread;
 import android.util.Log;
 
+import com.android.server.SystemService;
+import com.android.server.wifi.WifiContext;
 import com.android.server.wifi.WifiInjector;
-import com.android.server.wifi.WifiServiceBase;
 
 /**
- * Manages the wifi scanner service instance.
+ * Service implementing Wi-Fi scanning functionality. Delegates actual interface
+ * implementation to WifiScanningServiceImpl.
  */
-public class WifiScanningService implements WifiServiceBase {
+public class WifiScanningService extends SystemService {
 
     static final String TAG = "WifiScanningService";
     private final WifiScanningServiceImpl mImpl;
     private final HandlerThread mHandlerThread;
 
-    public WifiScanningService(Context context) {
+    public WifiScanningService(Context contextBase) {
+        super(new WifiContext(contextBase));
         Log.i(TAG, "Creating " + Context.WIFI_SCANNING_SERVICE);
         mHandlerThread = new HandlerThread("WifiScanningService");
         mHandlerThread.start();
-        mImpl = new WifiScanningServiceImpl(context, mHandlerThread.getLooper(),
+        mImpl = new WifiScanningServiceImpl(getContext(), mHandlerThread.getLooper(),
                 WifiScannerImpl.DEFAULT_FACTORY,
-                context.getSystemService(BatteryStatsManager.class),
+                getContext().getSystemService(BatteryStatsManager.class),
                 WifiInjector.getInstance());
     }
 
     @Override
     public void onStart() {
-        Log.i(TAG, "Starting " + Context.WIFI_SCANNING_SERVICE);
-        mImpl.startService();
+        Log.i(TAG, "Publishing " + Context.WIFI_SCANNING_SERVICE);
+        publishBinderService(Context.WIFI_SCANNING_SERVICE, mImpl);
     }
 
     @Override
-    public Binder retrieveImpl() {
-        return mImpl;
+    public void onBootPhase(int phase) {
+        if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
+            Log.i(TAG, "Starting " + Context.WIFI_SCANNING_SERVICE);
+            mImpl.startService();
+        }
     }
 }

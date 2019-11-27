@@ -52,6 +52,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
@@ -60,7 +61,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiScanner;
-import android.net.wifi.WifiStackClient;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
@@ -189,7 +189,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         when(mWifiNative.getClientInterfaceNames())
                 .thenReturn(new ArraySet<>(Arrays.asList(TEST_IFACE_NAME_0)));
         when(mWifiInjector.getWifiNative()).thenReturn(mWifiNative);
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
+        when(mContext.checkPermission(eq(Manifest.permission.NETWORK_STACK),
                 anyInt(), eq(Binder.getCallingUid())))
                 .thenReturn(PERMISSION_GRANTED);
         mWifiScanningServiceImpl = new WifiScanningServiceImpl(mContext, mLooper.getLooper(),
@@ -759,8 +759,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         requestSettings.type = WifiScanner.TYPE_HIGH_ACCURACY;
         WorkSource workSource = new WorkSource(Binder.getCallingUid()); // don't explicitly set
 
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
+        when(mContext.checkPermission(
+                Manifest.permission.NETWORK_STACK, -1, Binder.getCallingUid()))
                 .thenReturn(PERMISSION_DENIED);
 
         startServiceAndLoadDriver();
@@ -811,8 +811,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         };
         WorkSource workSource = new WorkSource(Binder.getCallingUid()); // don't explicitly set
 
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
+        when(mContext.checkPermission(
+                Manifest.permission.NETWORK_STACK, -1, Binder.getCallingUid()))
                 .thenReturn(PERMISSION_DENIED);
 
         startServiceAndLoadDriver();
@@ -898,8 +898,8 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void sendSingleScanRequestWithNoPrivilegedParamsSetFromNonPrivilegedApp()
             throws Exception {
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
+        when(mContext.checkPermission(
+                Manifest.permission.NETWORK_STACK, -1, Binder.getCallingUid()))
                 .thenReturn(PERMISSION_DENIED);
         WifiScanner.ScanSettings requestSettings = createRequest(channelsToSpec(2400, 5150, 5175),
                 0, 0, 20, WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN);
@@ -2623,7 +2623,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that only clients with PERMISSION_MAINLINE_WIFI_STACK permission can issues restricted messages
+     * Verifies that only clients with NETWORK_STACK permission can issues restricted messages
      * (from API's).
      */
     @Test
@@ -2633,10 +2633,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
-        // Client doesn't have PERMISSION_MAINLINE_WIFI_STACK permission.
+        // Client doesn't have NETWORK_STACK permission.
         doThrow(new SecurityException()).when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_ENABLE));
         mLooper.dispatchAll();
@@ -2674,19 +2673,13 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that clients without PERMISSION_MAINLINE_WIFI_STACK permission cannot issue any messages when they
+     * Verifies that clients without NETWORK_STACK permission cannot issue any messages when they
      * don't have the necessary location permissions & location is enabled.
      */
     @Test
     public void rejectAllMessagesFromNonPrivilegedAppsWithoutLocationPermission() throws Exception {
         // Start service & initialize it.
         startServiceAndLoadDriver();
-        doThrow(new SecurityException()).when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
-                .thenReturn(PERMISSION_DENIED);
 
         // Location permission or mode check fail.
         doThrow(new SecurityException()).when(mWifiPermissionsUtil)
@@ -2696,10 +2689,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
-        // Client doesn't have PERMISSION_MAINLINE_WIFI_STACK permission.
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
-                .thenReturn(PERMISSION_DENIED);
+        // Client doesn't have NETWORK_STACK permission.
+        doThrow(new SecurityException()).when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         controlChannel.sendMessage(Message.obtain(null, WifiScanner.CMD_START_SINGLE_SCAN));
         mLooper.dispatchAll();
@@ -2741,13 +2733,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
-        // Client doesn't have PERMISSION_MAINLINE_WIFI_STACK permission.
+        // Client doesn't have NETWORK_STACK permission.
         doThrow(new SecurityException()).when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
-                .thenReturn(PERMISSION_DENIED);
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
@@ -2809,13 +2797,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
-        // Client doesn't have PERMISSION_MAINLINE_WIFI_STACK permission.
+        // Client doesn't have NETWORK_STACK permission.
         doThrow(new SecurityException()).when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
-        when(mContext.checkPermission(eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK),
-                anyInt(), eq(Binder.getCallingUid())))
-                .thenReturn(PERMISSION_DENIED);
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
@@ -2879,10 +2863,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);
 
-        // Client does have WIFI_STACK permission.
+        // Client does have NETWORK_STACK permission.
         doNothing().when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         Bundle bundle = new Bundle();
         bundle.putString(WifiScanner.REQUEST_PACKAGE_NAME_KEY, TEST_PACKAGE_NAME);
@@ -3510,10 +3493,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     public void getAvailableChannels_noPermission_throwsException() throws Exception {
         startServiceAndLoadDriver();
 
-        // no MAINLINE_WIFI_STACK permission
+        // Client doesn't have NETWORK_STACK permission.
         doThrow(new SecurityException()).when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         // Location permission or mode check fail.
         doThrow(new SecurityException())
@@ -3532,10 +3514,9 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     public void getAvailableChannels_hasPermission_returnsSuccessfully() throws Exception {
         startServiceAndLoadDriver();
 
-        // has MAINLINE_WIFI_STACK permission
-        doNothing().when(mContext).enforcePermission(
-                eq(WifiStackClient.PERMISSION_MAINLINE_WIFI_STACK), anyInt(),
-                eq(Binder.getCallingUid()), any());
+        // Client doesn't have NETWORK_STACK permission.
+        doThrow(new SecurityException()).when(mContext).enforcePermission(
+                eq(Manifest.permission.NETWORK_STACK), anyInt(), eq(Binder.getCallingUid()), any());
 
         // has access scan results permission
         doNothing().when(mWifiPermissionsUtil).enforceCanAccessScanResultsForWifiScanner(

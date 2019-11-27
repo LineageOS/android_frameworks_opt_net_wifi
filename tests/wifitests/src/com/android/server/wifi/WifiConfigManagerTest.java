@@ -54,7 +54,7 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -1031,7 +1031,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // disable it 5 times to actually mark it temporarily disabled.
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result.getNetworkId(), assocRejectReason, i);
         }
@@ -1121,45 +1121,13 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                 result.getNetworkId(), NetworkSelectionStatus.DISABLED_AUTHENTICATION_FAILURE, 1);
     }
 
-    /**
-     * Verifies that {@link WifiConfigManager#updateNetworkNotRecommended(int, boolean)} correctly
-     * updates the {@link NetworkSelectionStatus#mNotRecommended} bit.
-     */
-    @Test
-    public void testUpdateNetworkNotRecommended() {
-        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
-
-        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
-
-        // First retrieve the configuration and check this it does not have this bit set
-        WifiConfiguration retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(result.netId);
-
-        assertFalse(retrievedNetwork.getNetworkSelectionStatus().isNotRecommended());
-
-        // Update the network to be not recommended;
-        assertTrue(mWifiConfigManager.updateNetworkNotRecommended(
-                result.netId, true /* notRecommended*/));
-
-        retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(result.netId);
-
-        assertTrue(retrievedNetwork.getNetworkSelectionStatus().isNotRecommended());
-
-        // Update the network to no longer be not recommended
-        assertTrue(mWifiConfigManager.updateNetworkNotRecommended(
-                result.netId, false/* notRecommended*/));
-
-        retrievedNetwork = mWifiConfigManager.getConfiguredNetwork(result.netId);
-
-        assertFalse(retrievedNetwork.getNetworkSelectionStatus().isNotRecommended());
-    }
-
     private void verifyDisableNetwork(NetworkUpdateResult result, int reason) {
         // First set it to enabled.
         verifyUpdateNetworkSelectionStatus(
                 result.getNetworkId(), NetworkSelectionStatus.NETWORK_SELECTION_ENABLE, 0);
 
         int disableThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
         for (int i = 1; i <= disableThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result.getNetworkId(), reason, i);
         }
@@ -1202,7 +1170,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
             int numBssidsInBlocklist = i;
             when(mBssidBlocklistMonitor.getNumBlockedBssidsForSsid(anyString()))
                     .thenReturn(numBssidsInBlocklist);
-            timeout = WifiConfigManager.NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+            timeout = WifiConfigManager.getNetworkSelectionDisableTimeoutMillis(disableReason)
                     * multiplier;
             multiplier *= 2;
             verifyNetworkIsEnabledAfter(result.getNetworkId(),
@@ -2634,7 +2602,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // disable it 5 times to actually mark it temporarily disabled.
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             verifyUpdateNetworkSelectionStatus(result1.getNetworkId(), assocRejectReason, i);
         }
@@ -5449,7 +5417,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         long retrievedDisableTime = retrievedStatus.getDisableTime();
         int retrievedDisableReasonCounter = retrievedStatus.getDisableReasonCounter(reason);
         int disableReasonThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(reason);
 
         if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
             assertEquals(reason, retrievedDisableReason);
@@ -5458,7 +5426,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
                     NetworkSelectionStatus.INVALID_NETWORK_SELECTION_DISABLE_TIMESTAMP,
                     retrievedDisableTime);
             verifyUpdateNetworkStatus(retrievedNetwork, WifiConfiguration.Status.ENABLED);
-        } else if (reason < NetworkSelectionStatus.DISABLED_TLS_VERSION_MISMATCH) {
+        } else if (reason < NetworkSelectionStatus.PERMANENTLY_DISABLED_STARTING_INDEX) {
             // For temporarily disabled networks, we need to ensure that the current status remains
             // until the threshold is crossed.
             assertEquals(temporaryDisableReasonCounter, retrievedDisableReasonCounter);
@@ -5624,7 +5592,7 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
         int assocRejectReason = NetworkSelectionStatus.DISABLED_ASSOCIATION_REJECTION;
         int assocRejectThreshold =
-                WifiConfigManager.NETWORK_SELECTION_DISABLE_THRESHOLD[assocRejectReason];
+                WifiConfigManager.getNetworkSelectionDisableThreshold(assocRejectReason);
         for (int i = 1; i <= assocRejectThreshold; i++) {
             assertFalse(mWifiConfigManager.updateNetworkSelectionStatus(
                         networkId, assocRejectReason));

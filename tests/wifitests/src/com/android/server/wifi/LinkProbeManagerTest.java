@@ -37,7 +37,7 @@ import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -85,6 +85,10 @@ public class LinkProbeManagerTest extends WifiBaseTest {
         mWifiInfo.setBSSID(TEST_BSSID);
         mTimeMs = 1000;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
+
+        // Simulate new connection to trigger check for isSupported resource flag.
+        mLinkProbeManager.resetOnNewConnection();
+        mLinkProbeManager.resetOnScreenTurnedOn();
 
         ArgumentCaptor<ContentObserver> observerCaptor = ArgumentCaptor.forClass(
                 ContentObserver.class);

@@ -22,7 +22,7 @@ import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.util.Log;
 
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 /**
  * A class that predicts network throughput based on RSSI, channel utilization, channel width,
@@ -90,18 +90,11 @@ public class ThroughputPredictor {
     private static final int MAX_NUM_SPATIAL_STREAM_11N = 4;
     private static final int MAX_NUM_SPATIAL_STREAM_LEGACY = 1;
 
-    private final boolean mAxSupported;
-    private final boolean mContiguous160MHzSupported;
-    private final int mMaxNumSpatialStreamSupported;
+    private final Context mContext;
 
+    // TODO: b/144576344 get the resource values form HAL instead.
     ThroughputPredictor(Context context) {
-        // TODO: b/144576344 get the following information from HAL
-        mAxSupported = context.getResources().getBoolean(
-                R.bool.config_wifi_11ax_supported);
-        mContiguous160MHzSupported = context.getResources().getBoolean(
-                R.bool.config_wifi_contiguous_160mhz_supported);
-        mMaxNumSpatialStreamSupported = context.getResources().getInteger(
-                R.integer.config_wifi_max_num_spatial_stream_supported);
+        mContext = context;
     }
 
     /**
@@ -121,16 +114,20 @@ public class ThroughputPredictor {
             int channelUtilizationBssLoad, int channelUtilizationLinkLayerStats,
             boolean isBluetoothConnected) {
 
-        int maxNumSpatialStream = Math.min(mMaxNumSpatialStreamSupported, maxNumSpatialStreamAp);
+        int maxNumSpatialStream = Math.min(mContext.getResources().getInteger(
+                R.integer.config_wifi_max_num_spatial_stream_supported),
+                maxNumSpatialStreamAp);
 
         // Downgrade to AC mode if 11AX AP is found but 11AX mode is not supported by the device
-        if (!mAxSupported && wifiStandard == ScanResult.WIFI_STANDARD_11AX) {
+        if (!mContext.getResources().getBoolean(R.bool.config_wifi_11ax_supported)
+                && wifiStandard == ScanResult.WIFI_STANDARD_11AX) {
             wifiStandard = ScanResult.WIFI_STANDARD_11AC;
         }
 
         int channelWidth = channelWidthAp;
         // Downgrade to 80MHz if 160MHz AP is found but 160MHz mode is not supported by the device
-        if (!mContiguous160MHzSupported && (channelWidth == ScanResult.CHANNEL_WIDTH_160MHZ)) {
+        if (!mContext.getResources().getBoolean(R.bool.config_wifi_contiguous_160mhz_supported)
+                && (channelWidth == ScanResult.CHANNEL_WIDTH_160MHZ)) {
             channelWidth = ScanResult.CHANNEL_WIDTH_80MHZ;
         }
 

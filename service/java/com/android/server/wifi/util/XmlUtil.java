@@ -337,7 +337,6 @@ public class XmlUtil {
         public static final String XML_TAG_DEFAULT_GW_MAC_ADDRESS = "DefaultGwMacAddress";
         public static final String XML_TAG_VALIDATED_INTERNET_ACCESS = "ValidatedInternetAccess";
         public static final String XML_TAG_NO_INTERNET_ACCESS_EXPECTED = "NoInternetAccessExpected";
-        public static final String XML_TAG_USER_APPROVED = "UserApproved";
         public static final String XML_TAG_METERED_HINT = "MeteredHint";
         public static final String XML_TAG_METERED_OVERRIDE = "MeteredOverride";
         public static final String XML_TAG_USE_EXTERNAL_SCORES = "UseExternalScores";
@@ -497,7 +496,6 @@ public class XmlUtil {
             XmlUtil.writeNextValue(
                     out, XML_TAG_NO_INTERNET_ACCESS_EXPECTED,
                     configuration.noInternetAccessExpected);
-            XmlUtil.writeNextValue(out, XML_TAG_USER_APPROVED, configuration.userApproved);
             XmlUtil.writeNextValue(out, XML_TAG_METERED_HINT, configuration.meteredHint);
             XmlUtil.writeNextValue(out, XML_TAG_METERED_OVERRIDE, configuration.meteredOverride);
             XmlUtil.writeNextValue(
@@ -664,9 +662,6 @@ public class XmlUtil {
                             break;
                         case XML_TAG_NO_INTERNET_ACCESS_EXPECTED:
                             configuration.noInternetAccessExpected = (boolean) value;
-                            break;
-                        case XML_TAG_USER_APPROVED:
-                            configuration.userApproved = (int) value;
                             break;
                         case XML_TAG_METERED_HINT:
                             configuration.meteredHint = (boolean) value;
@@ -1055,8 +1050,7 @@ public class XmlUtil {
                     Arrays.asList(NetworkSelectionStatus.QUALITY_NETWORK_SELECTION_STATUS)
                             .indexOf(statusString);
             int disableReason =
-                    Arrays.asList(NetworkSelectionStatus.QUALITY_NETWORK_SELECTION_DISABLE_REASON)
-                            .indexOf(disableReasonString);
+                    NetworkSelectionStatus.getDisableReasonByString(disableReasonString);
 
             // If either of the above codes are invalid or if the network was temporarily disabled
             // (blacklisted), restore the status as enabled. We don't want to persist blacklists

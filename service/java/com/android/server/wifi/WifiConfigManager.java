@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DISABLE_REASON_INFOS;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -32,6 +34,8 @@ import android.net.StaticIpConfiguration;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
+import android.net.wifi.WifiConfiguration.NetworkSelectionStatus.DisableReasonInfo;
+import android.net.wifi.WifiConfiguration.NetworkSelectionStatus.NetworkSelectionDisableReason;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -52,7 +56,7 @@ import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -108,54 +112,7 @@ public class WifiConfigManager {
      */
     @VisibleForTesting
     public static final String SYSUI_PACKAGE_NAME = "com.android.systemui";
-    /**
-     * Network Selection disable reason thresholds. These numbers are used to debounce network
-     * failures before we disable them.
-     * These are indexed using the disable reason constants defined in
-     * {@link android.net.wifi.WifiConfiguration.NetworkSelectionStatus}.
-     */
-    @VisibleForTesting
-    public static final int[] NETWORK_SELECTION_DISABLE_THRESHOLD = {
-            -1, //  threshold for NETWORK_SELECTION_ENABLE
-            1,  //  threshold for DISABLED_BAD_LINK
-            5,  //  threshold for DISABLED_ASSOCIATION_REJECTION
-            5,  //  threshold for DISABLED_AUTHENTICATION_FAILURE
-            5,  //  threshold for DISABLED_DHCP_FAILURE
-            5,  //  threshold for DISABLED_DNS_FAILURE
-            1,  //  threshold for DISABLED_NO_INTERNET_TEMPORARY
-            1,  //  threshold for DISABLED_WPS_START
-            6,  //  threshold for DISABLED_TLS_VERSION_MISMATCH
-            1,  //  threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
-            1,  //  threshold for DISABLED_NO_INTERNET_PERMANENT
-            1,  //  threshold for DISABLED_BY_WIFI_MANAGER
-            1,  //  threshold for DISABLED_BY_USER_SWITCH
-            1,  //  threshold for DISABLED_BY_WRONG_PASSWORD
-            1   //  threshold for DISABLED_AUTHENTICATION_NO_SUBSCRIBED
-    };
-    /**
-     * Network Selection disable timeout for each kind of error. After the timeout milliseconds,
-     * enable the network again.
-     * These are indexed using the disable reason constants defined in
-     * {@link android.net.wifi.WifiConfiguration.NetworkSelectionStatus}.
-     */
-    @VisibleForTesting
-    public static final int[] NETWORK_SELECTION_DISABLE_TIMEOUT_MS = {
-            Integer.MAX_VALUE,  // threshold for NETWORK_SELECTION_ENABLE
-            15 * 60 * 1000,     // threshold for DISABLED_BAD_LINK
-            5 * 60 * 1000,      // threshold for DISABLED_ASSOCIATION_REJECTION
-            5 * 60 * 1000,      // threshold for DISABLED_AUTHENTICATION_FAILURE
-            5 * 60 * 1000,      // threshold for DISABLED_DHCP_FAILURE
-            5 * 60 * 1000,      // threshold for DISABLED_DNS_FAILURE
-            10 * 60 * 1000,     // threshold for DISABLED_NO_INTERNET_TEMPORARY
-            0 * 60 * 1000,      // threshold for DISABLED_WPS_START
-            Integer.MAX_VALUE,  // threshold for DISABLED_TLS_VERSION
-            Integer.MAX_VALUE,  // threshold for DISABLED_AUTHENTICATION_NO_CREDENTIALS
-            Integer.MAX_VALUE,  // threshold for DISABLED_NO_INTERNET_PERMANENT
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_WIFI_MANAGER
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_USER_SWITCH
-            Integer.MAX_VALUE,  // threshold for DISABLED_BY_WRONG_PASSWORD
-            Integer.MAX_VALUE   // threshold for DISABLED_AUTHENTICATION_NO_SUBSCRIBED
-    };
+
     /**
      * Interface for other modules to listen to the network updated
      * events.
@@ -286,7 +243,6 @@ public class WifiConfigManager {
     private final WifiPermissionsWrapper mWifiPermissionsWrapper;
     private final WifiInjector mWifiInjector;
     private final MacAddressUtil mMacAddressUtil;
-    private boolean mConnectedMacRandomzationSupported;
     private final Mac mMac;
     private final TelephonyUtil mTelephonyUtil;
 
@@ -326,15 +282,6 @@ public class WifiConfigManager {
      * Store the network update listeners.
      */
     private final List<OnNetworkUpdateListener> mListeners;
-    /**
-     * Flag to indicate if only networks with the same psk should be linked.
-     * TODO(b/30706406): Remove this flag if unused.
-     */
-    private final boolean mOnlyLinkSameCredentialConfigurations;
-    /**
-     * Number of channels to scan for during partial scans initiated while connected.
-     */
-    private final int mMaxNumActiveChannelsForPartialScans;
 
     private final FrameworkFacade mFrameworkFacade;
     private final DeviceConfigFacade mDeviceConfigFacade;
@@ -437,10 +384,6 @@ public class WifiConfigManager {
         mWifiConfigStore.registerStoreData(mDeletedEphemeralSsidsStoreData);
         mWifiConfigStore.registerStoreData(mRandomizedMacStoreData);
 
-        mOnlyLinkSameCredentialConfigurations = mContext.getResources().getBoolean(
-                R.bool.config_wifi_only_link_same_credential_configurations);
-        mMaxNumActiveChannelsForPartialScans = mContext.getResources().getInteger(
-                R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels);
         mFrameworkFacade = frameworkFacade;
         mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
                 Settings.Global.WIFI_PNO_FREQUENCY_CULLING_ENABLED), false,
@@ -460,8 +403,6 @@ public class WifiConfigManager {
                     }
                 });
         updatePnoRecencySortingSetting();
-        mConnectedMacRandomzationSupported = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_connected_mac_randomization_supported);
         mDeviceConfigFacade = deviceConfigFacade;
         mAggressiveMacRandomizationWhitelist = new ArraySet<>();
         mAggressiveMacRandomizationBlacklist = new ArraySet<>();
@@ -483,6 +424,41 @@ public class WifiConfigManager {
         if (mMac == null) {
             Log.wtf(TAG, "Failed to obtain secret for MAC randomization."
                     + " All randomized MAC addresses are lost!");
+        }
+    }
+
+    /**
+     * Network Selection disable reason thresholds. These numbers are used to debounce network
+     * failures before we disable them.
+     *
+     * @param reason int reason code
+     * @return the disable threshold, or -1 if not found.
+     */
+    @VisibleForTesting
+    public static int getNetworkSelectionDisableThreshold(
+            @NetworkSelectionDisableReason int reason) {
+        DisableReasonInfo info = DISABLE_REASON_INFOS.get(reason);
+        if (info == null) {
+            Log.e(TAG, "Unrecognized network disable reason code for disable threshold: " + reason);
+            return -1;
+        } else {
+            return info.mDisableThreshold;
+        }
+    }
+
+    /**
+     * Network Selection disable timeout for each kind of error. After the timeout in milliseconds,
+     * enable the network again.
+     */
+    @VisibleForTesting
+    public static int getNetworkSelectionDisableTimeoutMillis(
+            @NetworkSelectionDisableReason int reason) {
+        DisableReasonInfo info = DISABLE_REASON_INFOS.get(reason);
+        if (info == null) {
+            Log.e(TAG, "Unrecognized network disable reason code for disable timeout: " + reason);
+            return -1;
+        } else {
+            return info.mDisableTimeoutMillis;
         }
     }
 
@@ -729,7 +705,8 @@ public class WifiConfigManager {
                 && targetUid != configuration.creatorUid) {
             maskRandomizedMacAddressInWifiConfiguration(network);
         }
-        if (!mConnectedMacRandomzationSupported) {
+        if (!mContext.getResources().getBoolean(
+                R.bool.config_wifi_connected_mac_randomization_supported)) {
             network.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
         }
         return network;
@@ -1755,7 +1732,7 @@ public class WifiConfigManager {
         if (reason == NetworkSelectionStatus.NETWORK_SELECTION_ENABLE) {
             setNetworkSelectionEnabled(config);
             setNetworkStatus(config, WifiConfiguration.Status.ENABLED);
-        } else if (reason < NetworkSelectionStatus.DISABLED_TLS_VERSION_MISMATCH) {
+        } else if (reason < NetworkSelectionStatus.PERMANENTLY_DISABLED_STARTING_INDEX) {
             setNetworkSelectionTemporarilyDisabled(config, reason);
         } else {
             setNetworkSelectionPermanentlyDisabled(config, reason);
@@ -1800,7 +1777,7 @@ public class WifiConfigManager {
             // For network disable reasons, we should only update the status if we cross the
             // threshold.
             int disableReasonCounter = networkStatus.getDisableReasonCounter(reason);
-            int disableReasonThreshold = NETWORK_SELECTION_DISABLE_THRESHOLD[reason];
+            int disableReasonThreshold = getNetworkSelectionDisableThreshold(reason);
             if (disableReasonCounter < disableReasonThreshold) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "Disable counter for network " + config.getPrintableSsid()
@@ -1839,28 +1816,6 @@ public class WifiConfigManager {
     }
 
     /**
-     * Update whether a network is currently not recommended by {@link RecommendedNetworkEvaluator}.
-     *
-     * @param networkId network ID of the network to be updated
-     * @param notRecommended whether this network is not recommended
-     * @return true if the network is updated, false otherwise
-     */
-    public boolean updateNetworkNotRecommended(int networkId, boolean notRecommended) {
-        WifiConfiguration config = getInternalConfiguredNetwork(networkId);
-        if (config == null) {
-            return false;
-        }
-
-        config.getNetworkSelectionStatus().setNotRecommended(notRecommended);
-        if (mVerboseLoggingEnabled) {
-            localLog("updateNetworkRecommendation: configKey=" + config.configKey()
-                    + " notRecommended=" + notRecommended);
-        }
-        saveToStore(false);
-        return true;
-    }
-
-    /**
      * Attempt to re-enable a network for network selection, if this network was either:
      * a) Previously temporarily disabled, but its disable timeout has expired, or
      * b) Previously disabled because of a user switch, but is now visible to the current
@@ -1884,17 +1839,13 @@ public class WifiConfigManager {
             long disableTimeoutMs = 0;
             if (blockedBssids > 0) {
                 double multiplier = Math.pow(2.0, blockedBssids - 1.0);
-                disableTimeoutMs = (long) (NETWORK_SELECTION_DISABLE_TIMEOUT_MS[disableReason]
+                disableTimeoutMs = (long) (getNetworkSelectionDisableTimeoutMillis(disableReason)
                         * multiplier);
             }
             if (timeDifferenceMs >= disableTimeoutMs) {
                 return updateNetworkSelectionStatus(
                         config, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
             }
-        } else if (networkStatus.isDisabledByReason(
-                NetworkSelectionStatus.DISABLED_DUE_TO_USER_SWITCH)) {
-            return updateNetworkSelectionStatus(
-                    config, NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
         }
         return false;
     }
@@ -2544,7 +2495,8 @@ public class WifiConfigManager {
             ScanDetailCache scanDetailCache1, ScanDetailCache scanDetailCache2) {
         // TODO (b/30706406): Link networks only with same passwords if the
         // |mOnlyLinkSameCredentialConfigurations| flag is set.
-        if (mOnlyLinkSameCredentialConfigurations) {
+        if (mContext.getResources().getBoolean(
+                R.bool.config_wifi_only_link_same_credential_configurations)) {
             if (!TextUtils.equals(network1.preSharedKey, network2.preSharedKey)) {
                 if (mVerboseLoggingEnabled) {
                     Log.v(TAG, "shouldNetworksBeLinked unlink due to password mismatch");
@@ -2740,6 +2692,8 @@ public class WifiConfigManager {
             Log.i(TAG, "No scan detail and linked configs associated with networkId " + networkId);
             return null;
         }
+        final int maxNumActiveChannelsForPartialScans = mContext.getResources().getInteger(
+                R.integer.config_wifi_framework_associated_partial_scan_max_num_active_channels);
         if (mVerboseLoggingEnabled) {
             StringBuilder dbg = new StringBuilder();
             dbg.append("fetchChannelSetForNetworkForPartialScan ageInMillis ")
@@ -2747,7 +2701,7 @@ public class WifiConfigManager {
                     .append(" for ")
                     .append(config.configKey())
                     .append(" max ")
-                    .append(mMaxNumActiveChannelsForPartialScans);
+                    .append(maxNumActiveChannelsForPartialScans);
             if (scanDetailCache != null) {
                 dbg.append(" bssids " + scanDetailCache.size());
             }
@@ -2761,7 +2715,7 @@ public class WifiConfigManager {
         // First add the currently connected network channel.
         if (homeChannelFreq > 0) {
             channelSet.add(homeChannelFreq);
-            if (channelSet.size() >= mMaxNumActiveChannelsForPartialScans) {
+            if (channelSet.size() >= maxNumActiveChannelsForPartialScans) {
                 return channelSet;
             }
         }
@@ -2771,7 +2725,7 @@ public class WifiConfigManager {
         // Then get channels for the network.
         if (!addToChannelSetForNetworkFromScanDetailCache(
                 channelSet, scanDetailCache, nowInMillis, ageInMillis,
-                mMaxNumActiveChannelsForPartialScans)) {
+                maxNumActiveChannelsForPartialScans)) {
             return channelSet;
         }
 
@@ -2786,7 +2740,7 @@ public class WifiConfigManager {
                         getScanDetailCacheForNetwork(linkedConfig.networkId);
                 if (!addToChannelSetForNetworkFromScanDetailCache(
                         channelSet, linkedScanDetailCache, nowInMillis, ageInMillis,
-                        mMaxNumActiveChannelsForPartialScans)) {
+                        maxNumActiveChannelsForPartialScans)) {
                     break;
                 }
             }

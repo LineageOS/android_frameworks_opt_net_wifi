@@ -50,7 +50,7 @@ import com.android.server.wifi.WifiNative.SoftApListener;
 import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.wificond.IApInterfaceEventCallback;
 import com.android.server.wifi.wificond.NativeWifiClient;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

@@ -34,7 +34,7 @@ import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.After;
 import org.junit.Before;
@@ -122,6 +122,8 @@ public class SarManagerTest extends WifiBaseTest {
 
         mSarMgr = new SarManager(mContext, mTelephonyManager, mLooper.getLooper(),
                 mWifiNative);
+
+        mSarMgr.handleBootCompleted();
 
         if (isSarEnabled) {
             /* Capture the PhoneStateListener */

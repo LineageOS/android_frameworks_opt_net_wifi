@@ -83,7 +83,7 @@ import com.android.server.wifi.WifiInjector;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.P2pConnectionEvent;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import org.junit.Before;
 import org.junit.Test;

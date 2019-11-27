@@ -26,7 +26,7 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.util.TimedQuotaManager;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -69,9 +69,10 @@ public class LinkProbeManager {
     private final WifiNative mWifiNative;
     private final WifiMetrics mWifiMetrics;
     private final FrameworkFacade mFrameworkFacade;
+    private final Handler mHandler;
     private final Context mContext;
 
-    private boolean mLinkProbingSupported;
+    private Boolean mLinkProbingSupported = null;
     private boolean mLinkProbingEnabled = false;
 
     private boolean mVerboseLoggingEnabled = false;
@@ -109,27 +110,33 @@ public class LinkProbeManager {
         mWifiNative = wifiNative;
         mWifiMetrics = wifiMetrics;
         mFrameworkFacade = frameworkFacade;
+        mHandler = handler;
         mContext = context;
-        mLinkProbingSupported = mContext.getResources()
-                .getBoolean(R.bool.config_wifi_link_probing_supported);
         mTimedQuotaManager = new TimedQuotaManager(clock, MAX_PROBE_COUNT_IN_PERIOD, PERIOD_MILLIS);
 
-        if (mLinkProbingSupported) {
-            mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
-                    Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
-                    new ContentObserver(handler) {
-                        @Override
-                        public void onChange(boolean selfChange) {
-                            updateLinkProbeSetting();
-                        }
-                    });
-            updateLinkProbeSetting();
-
-            resetOnNewConnection();
-            resetOnScreenTurnedOn();
-        }
-
         initExperiments();
+    }
+
+    private boolean isLinkProbingSupported() {
+        if (mLinkProbingSupported == null) {
+            mLinkProbingSupported = mContext.getResources()
+                    .getBoolean(R.bool.config_wifi_link_probing_supported);
+            if (mLinkProbingSupported) {
+                mFrameworkFacade.registerContentObserver(mContext, Settings.Global.getUriFor(
+                        Settings.Global.WIFI_LINK_PROBING_ENABLED), false,
+                        new ContentObserver(mHandler) {
+                            @Override
+                            public void onChange(boolean selfChange) {
+                                updateLinkProbeSetting();
+                            }
+                        });
+                updateLinkProbeSetting();
+
+                resetOnNewConnection();
+                resetOnScreenTurnedOn();
+            }
+        }
+        return mLinkProbingSupported;
     }
 
     private void updateLinkProbeSetting() {
@@ -147,7 +154,8 @@ public class LinkProbeManager {
     /** dumps internal state */
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Dump of LinkProbeManager");
-        pw.println("LinkProbeManager - link probing supported by device: " + mLinkProbingSupported);
+        pw.println("LinkProbeManager - link probing supported by device: "
+                + isLinkProbingSupported());
         pw.println("LinkProbeManager - link probing feature flag enabled: " + mLinkProbingEnabled);
         pw.println("LinkProbeManager - mLastLinkProbeTimestampMs: " + mLastLinkProbeTimestampMs);
         pw.println("LinkProbeManager - mLastTxSuccessIncreaseTimestampMs: "
@@ -162,7 +170,7 @@ public class LinkProbeManager {
      */
     public void resetOnNewConnection() {
         mExperiments.forEach(Experiment::resetOnNewConnection);
-        if (!mLinkProbingSupported) return;
+        if (!isLinkProbingSupported()) return;
 
         long now = mClock.getElapsedSinceBootMillis();
         mLastLinkProbeTimestampMs = now;
@@ -176,7 +184,7 @@ public class LinkProbeManager {
      */
     public void resetOnScreenTurnedOn() {
         mExperiments.forEach(Experiment::resetOnScreenTurnedOn);
-        if (!mLinkProbingSupported) return;
+        if (!isLinkProbingSupported()) return;
 
         mLastScreenOnTimestampMs = mClock.getElapsedSinceBootMillis();
     }
@@ -191,7 +199,7 @@ public class LinkProbeManager {
     public void updateConnectionStats(WifiInfo wifiInfo, String interfaceName) {
         mExperiments.forEach(e -> e.updateConnectionStats(wifiInfo));
 
-        if (!mLinkProbingSupported) return;
+        if (!isLinkProbingSupported()) return;
 
         long now = mClock.getElapsedSinceBootMillis();
 

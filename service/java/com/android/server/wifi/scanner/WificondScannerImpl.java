@@ -32,7 +32,7 @@ import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.scanner.ChannelHelper.ChannelCollection;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.ScanResultUtil;
-import com.android.wifi.R;
+import com.android.wifi.resources.R;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -80,8 +80,6 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
     // Settings for the currently running pno scan, null if no scan active
     private LastPnoScanSettings mLastPnoScanSettings = null;
 
-    private final boolean mHwPnoScanSupported;
-
     /**
      * Duration to wait before timing out a scan.
      *
@@ -104,10 +102,6 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
         mAlarmManager = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
         mEventHandler = new Handler(looper, this);
         mClock = clock;
-
-        // Check if the device supports HW PNO scans.
-        mHwPnoScanSupported = mContext.getResources().getBoolean(
-                R.bool.config_wifi_background_scan_support);
 
         wifiMonitor.registerHandler(getIfaceName(),
                 WifiMonitor.SCAN_FAILED_EVENT, mEventHandler);
@@ -432,7 +426,8 @@ public class WificondScannerImpl extends WifiScannerImpl implements Handler.Call
      * @return true if HW PNO scan is required, false otherwise.
      */
     private boolean isHwPnoScanRequired(boolean isConnectedPno) {
-        return (!isConnectedPno && mHwPnoScanSupported);
+        return (!isConnectedPno
+                && mContext.getResources().getBoolean(R.bool.config_wifi_background_scan_support));
     }
 
     @Override

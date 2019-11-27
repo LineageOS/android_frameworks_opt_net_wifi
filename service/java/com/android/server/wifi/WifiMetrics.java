@@ -88,6 +88,7 @@ import com.android.server.wifi.util.IntHistogram;
 import com.android.server.wifi.util.MetricsUtils;
 import com.android.server.wifi.util.ObjectCounter;
 import com.android.server.wifi.util.ScanResultUtil;
+import com.android.wifi.resources.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -381,8 +382,6 @@ public class WifiMetrics {
 
     /** Wifi P2p metrics */
     private final WifiP2pMetrics mWifiP2pMetrics;
-
-    private boolean mIsMacRandomizationOn = false;
 
     /** DPP */
     private final DppMetrics mDppMetrics;
@@ -2289,13 +2288,6 @@ public class WifiMetrics {
         }
     }
 
-    /** Sets if Connected MAC Randomization feature is enabled */
-    public void setIsMacRandomizationOn(boolean enabled) {
-        synchronized (mLock) {
-            mIsMacRandomizationOn = enabled;
-        }
-    }
-
     /** Log firmware alert related metrics */
     public void logFirmwareAlert(int errorCode) {
         incrementAlertReasonCount(errorCode);
@@ -2739,7 +2731,9 @@ public class WifiMetrics {
                 mWifiPowerMetrics.dump(pw);
                 mWifiWakeMetrics.dump(pw);
 
-                pw.println("mWifiLogProto.isMacRandomizationOn=" + mIsMacRandomizationOn);
+                pw.println("mWifiLogProto.isMacRandomizationOn="
+                        + mContext.getResources().getBoolean(
+                                R.bool.config_wifi_connected_mac_randomization_supported));
                 pw.println("mWifiLogProto.scoreExperimentId=" + mWifiLogProto.scoreExperimentId);
                 pw.println("mExperimentValues.wifiIsUnusableLoggingEnabled="
                         + mExperimentValues.wifiIsUnusableLoggingEnabled);
@@ -2905,6 +2899,7 @@ public class WifiMetrics {
     public void updateSavedNetworks(List<WifiConfiguration> networks) {
         synchronized (mLock) {
             mWifiLogProto.numSavedNetworks = networks.size();
+            mWifiLogProto.numSavedNetworksWithMacRandomization = 0;
             mWifiLogProto.numOpenNetworks = 0;
             mWifiLogProto.numLegacyPersonalNetworks = 0;
             mWifiLogProto.numLegacyEnterpriseNetworks = 0;
@@ -2933,11 +2928,7 @@ public class WifiMetrics {
                         mWifiLogProto.numLegacyPersonalNetworks++;
                     }
                 }
-                if (config.selfAdded) {
-                    mWifiLogProto.numNetworksAddedByUser++;
-                } else {
-                    mWifiLogProto.numNetworksAddedByApps++;
-                }
+                mWifiLogProto.numNetworksAddedByApps++;
                 if (config.hiddenSSID) {
                     mWifiLogProto.numHiddenNetworks++;
                 }
@@ -3279,7 +3270,8 @@ public class WifiMetrics {
             mWifiLogProto.wifiPowerStats = mWifiPowerMetrics.buildProto();
             mWifiLogProto.wifiRadioUsage = mWifiPowerMetrics.buildWifiRadioUsageProto();
             mWifiLogProto.wifiWakeStats = mWifiWakeMetrics.buildProto();
-            mWifiLogProto.isMacRandomizationOn = mIsMacRandomizationOn;
+            mWifiLogProto.isMacRandomizationOn = mContext.getResources().getBoolean(
+                    R.bool.config_wifi_connected_mac_randomization_supported);
             mWifiLogProto.experimentValues = mExperimentValues;
             mWifiLogProto.wifiIsUnusableEventList =
                     new WifiIsUnusableEvent[mWifiIsUnusableList.size()];
