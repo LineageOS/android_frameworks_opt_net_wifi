@@ -116,7 +116,6 @@ java_library {
 	// the necessary core platform APIs.
         "libprotobuf-java-lite",
         "libnanohttpd",
-        "libwificond_aidl-java",
         "services.net",
         "wifi_proto_scorecard",
         "wifi_proto_metrics",
