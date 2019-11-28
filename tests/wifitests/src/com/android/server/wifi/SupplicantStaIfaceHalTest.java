@@ -1727,6 +1727,35 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     }
 
     /**
+     * Tests the handling of assoc reject for PMK cache
+     */
+    @Test
+    public void testRemovePmkEntryOnReceivingAssocReject() throws Exception {
+        int testFrameworkNetworkId = 9;
+        long testStartSeconds = PMK_CACHE_EXPIRATION_IN_SEC / 2;
+        WifiConfiguration config = new WifiConfiguration();
+        config.networkId = testFrameworkNetworkId;
+        config.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        PmkCacheStoreData pmkCacheData =
+                new PmkCacheStoreData(PMK_CACHE_EXPIRATION_IN_SEC, new ArrayList<Byte>());
+        mDut.mPmkCacheEntries.put(testFrameworkNetworkId, pmkCacheData);
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(testStartSeconds * 1000L);
+
+        setupMocksForHalV1_3();
+        setupMocksForPmkCache();
+        setupMocksForConnectSequence(false);
+
+        executeAndValidateInitializationSequenceV1_3();
+        assertTrue(mDut.connectToNetwork(WLAN0_IFACE_NAME, config));
+
+        int statusCode = 7;
+        mISupplicantStaIfaceCallbackV13.onAssociationRejected(
+                NativeUtil.macAddressToByteArray(BSSID), statusCode, false);
+
+        assertNull(mDut.mPmkCacheEntries.get(testFrameworkNetworkId));
+    }
+
+    /**
      * Test getWifiStandard
      * Should fail if running HAL lower than V1_3
      */

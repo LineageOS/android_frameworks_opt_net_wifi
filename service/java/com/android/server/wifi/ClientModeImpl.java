@@ -48,7 +48,6 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.DetailedState;
 import android.net.NetworkMisc;
-import android.net.NetworkUtils;
 import android.net.RouteInfo;
 import android.net.SocketKeepalive;
 import android.net.SocketKeepalive.InvalidPacketException;
@@ -57,6 +56,7 @@ import android.net.TcpKeepalivePacketData;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientManager;
+import android.net.shared.Inet4AddressUtils;
 import android.net.shared.ProvisioningConfiguration;
 import android.net.wifi.IActionListener;
 import android.net.wifi.INetworkRequestMatchCallback;
@@ -373,7 +373,7 @@ public class ClientModeImpl extends StateMachine {
             }
         }
         if (mVerboseLoggingEnabled) {
-            logd(dbg + " clearTargetBssid " + bssid + " key=" + config.configKey());
+            logd(dbg + " clearTargetBssid " + bssid + " key=" + config.getKey());
         }
         mTargetRoamBSSID = bssid;
         return mWifiNative.setConfiguredNetworkBSSID(mInterfaceName, bssid);
@@ -397,7 +397,7 @@ public class ClientModeImpl extends StateMachine {
             }
         }
         if (mVerboseLoggingEnabled) {
-            Log.d(TAG, "setTargetBssid set to " + bssid + " key=" + config.configKey());
+            Log.d(TAG, "setTargetBssid set to " + bssid + " key=" + config.getKey());
         }
         mTargetRoamBSSID = bssid;
         config.getNetworkSelectionStatus().setNetworkSelectionBSSID(bssid);
@@ -1807,7 +1807,7 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(Integer.toString(msg.arg2));
                 config = mWifiConfigManager.getConfiguredNetwork(result.netId);
                 if (config != null) {
-                    sb.append(" ").append(config.configKey());
+                    sb.append(" ").append(config.getKey());
                     sb.append(" nid=").append(config.networkId);
                     if (config.hiddenSSID) {
                         sb.append(" hidden");
@@ -1845,7 +1845,7 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(" nid=").append(mLastNetworkId);
                 config = getCurrentWifiConfiguration();
                 if (config != null) {
-                    sb.append(" ").append(config.configKey());
+                    sb.append(" ").append(config.getKey());
                 }
                 key = mWifiConfigManager.getLastSelectedNetworkConfigKey();
                 if (key != null) {
@@ -1918,7 +1918,7 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(Integer.toString(msg.arg2));
                 config = mWifiConfigManager.getConfiguredNetwork(msg.arg1);
                 if (config != null) {
-                    sb.append(" ").append(config.configKey());
+                    sb.append(" ").append(config.getKey());
                 }
                 if (mTargetRoamBSSID != null) {
                     sb.append(" ").append(mTargetRoamBSSID);
@@ -1926,7 +1926,7 @@ public class ClientModeImpl extends StateMachine {
                 sb.append(" roam=").append(Boolean.toString(mIsAutoRoaming));
                 config = getCurrentWifiConfiguration();
                 if (config != null) {
-                    sb.append(config.configKey());
+                    sb.append(config.getKey());
                 }
                 break;
             case CMD_START_ROAM:
@@ -2791,7 +2791,7 @@ public class ClientModeImpl extends StateMachine {
 
         if (mIsAutoRoaming) {
             int previousAddress = mWifiInfo.getIpAddress();
-            int newAddress = NetworkUtils.inetAddressToInt(addr);
+            int newAddress = Inet4AddressUtils.inet4AddressToIntHTL(addr);
             if (previousAddress != newAddress) {
                 logd("handleIPv4Success, roaming and address changed"
                         + mWifiInfo + " got: " + addr);
@@ -4627,7 +4627,7 @@ public class ClientModeImpl extends StateMachine {
             final boolean isUsingStaticIp =
                     (currentConfig.getIpAssignment() == IpConfiguration.IpAssignment.STATIC);
             if (mVerboseLoggingEnabled) {
-                final String key = currentConfig.configKey();
+                final String key = currentConfig.getKey();
                 log("enter ObtainingIpState netId=" + Integer.toString(mLastNetworkId)
                         + " " + key + " "
                         + " roam=" + mIsAutoRoaming
@@ -5087,7 +5087,7 @@ public class ClientModeImpl extends StateMachine {
                     logd("CMD_START_ROAM sup state "
                             + " my state " + getCurrentState().getName()
                             + " nid=" + Integer.toString(netId)
-                            + " config " + config.configKey()
+                            + " config " + config.getKey()
                             + " targetRoamBSSID " + mTargetRoamBSSID);
 
                     reportConnectionAttemptStart(config, mTargetRoamBSSID,

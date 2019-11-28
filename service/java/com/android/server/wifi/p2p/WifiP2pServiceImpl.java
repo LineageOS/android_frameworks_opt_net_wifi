@@ -31,11 +31,11 @@ import android.database.ContentObserver;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
+import android.net.InetAddresses;
 import android.net.InterfaceConfiguration;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.NetworkInfo;
-import android.net.NetworkUtils;
 import android.net.ip.IIpClient;
 import android.net.ip.IpClientCallbacks;
 import android.net.ip.IpClientUtil;
@@ -2633,7 +2633,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 // DHCP server has already been started if I am a group owner
                 if (mGroup.isGroupOwner()) {
                     setWifiP2pInfoOnGroupFormation(
-                            NetworkUtils.numericToInetAddress(SERVER_ADDRESS));
+                            InetAddresses.parseNumericAddress(SERVER_ADDRESS));
                 }
 
                 // In case of a negotiation group, connection changed is sent
@@ -3096,7 +3096,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             InterfaceConfiguration ifcg = null;
             try {
                 ifcg = mNwService.getInterfaceConfig(intf);
-                ifcg.setLinkAddress(new LinkAddress(NetworkUtils.numericToInetAddress(
+                ifcg.setLinkAddress(new LinkAddress(InetAddresses.parseNumericAddress(
                             SERVER_ADDRESS), 24));
                 ifcg.setInterfaceUp();
                 mNwService.setInterfaceConfig(intf, ifcg);

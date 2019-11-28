@@ -1217,7 +1217,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         // Have a saved network with the same configuration.
         WifiConfiguration matchingSavedNetwork = new WifiConfiguration(mSelectedNetwork);
         matchingSavedNetwork.networkId = TEST_NETWORK_ID_1;
-        when(mWifiConfigManager.getConfiguredNetwork(mSelectedNetwork.configKey()))
+        when(mWifiConfigManager.getConfiguredNetwork(mSelectedNetwork.getKey()))
                 .thenReturn(matchingSavedNetwork);
 
         // Now trigger user selection to one of the network.
@@ -1639,7 +1639,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         wcmNetwork.creatorName = TEST_PACKAGE_NAME_1;
         wcmNetwork.fromWifiNetworkSpecifier = true;
         wcmNetwork.ephemeral = true;
-        when(mWifiConfigManager.getConfiguredNetwork(mSelectedNetwork.configKey()))
+        when(mWifiConfigManager.getConfiguredNetwork(mSelectedNetwork.getKey()))
                 .thenReturn(wcmNetwork);
         mWifiNetworkFactory.releaseNetworkFor(mNetworkRequest);
         // Verify that we triggered a disconnect.
@@ -2931,7 +2931,7 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         @Override
         public boolean matches(WifiConfiguration otherConfig) {
             if (otherConfig == null) return false;
-            return mConfig.configKey().equals(otherConfig.configKey());
+            return mConfig.getKey().equals(otherConfig.getKey());
         }
     }
 

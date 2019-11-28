@@ -562,7 +562,7 @@ public class WifiNetworkSuggestionsManager {
                         + "Removing from config manager...");
                 // will trigger a disconnect.
                 mWifiConfigManager.removeSuggestionConfiguredNetwork(
-                        activeWifiConfiguration.configKey());
+                        activeWifiConfiguration.getKey());
             }
         }
     }

@@ -105,7 +105,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             // database.
             WifiConfiguration wCmConfiguredNetwork =
                     mWifiConfigManager.getConfiguredNetwork(
-                            matchingNetworkSuggestion.wifiConfiguration.configKey());
+                            matchingNetworkSuggestion.wifiConfiguration.getKey());
             if (wCmConfiguredNetwork != null) {
                 // If existing network is not from suggestion, ignore.
                 if (!wCmConfiguredNetwork.fromWifiNetworkSuggestion) {

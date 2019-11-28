@@ -63,6 +63,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             "WifiEnterpriseConfiguration";
     private static final String XML_TAG_IS_APP_INTERACTION_REQUIRED = "IsAppInteractionRequired";
     private static final String XML_TAG_IS_USER_INTERACTION_REQUIRED = "IsUserInteractionRequired";
+    private static final String XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT =
+            "IsUserAllowedToManuallyConnect";
     private static final String XML_TAG_SUGGESTOR_UID = "SuggestorUid";
     private static final String XML_TAG_SUGGESTOR_PACKAGE_NAME = "SuggestorPackageName";
     private static final String XML_TAG_SUGGESTOR_FEATURE_ID = "SuggestorFeatureId";
@@ -230,6 +232,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 suggestion.isAppInteractionRequired);
         XmlUtil.writeNextValue(out, XML_TAG_IS_USER_INTERACTION_REQUIRED,
                 suggestion.isUserInteractionRequired);
+        XmlUtil.writeNextValue(out, XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT,
+                suggestion.isUserAllowedToManuallyConnect);
         XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, suggestion.suggestorUid);
         XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME,
                 suggestion.suggestorPackageName);
@@ -319,6 +323,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         PasspointConfiguration passpointConfiguration = null;
         boolean isAppInteractionRequired = false;
         boolean isUserInteractionRequired = false;
+        boolean isUserAllowedToManuallyConnect = false; // Backward compatibility.
         int suggestorUid = Process.INVALID_UID;
         String suggestorPackageName = null;
 
@@ -334,6 +339,9 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         break;
                     case XML_TAG_IS_USER_INTERACTION_REQUIRED:
                         isUserInteractionRequired = (boolean) value;
+                        break;
+                    case XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT:
+                        isUserAllowedToManuallyConnect = (boolean) value;
                         break;
                     case XML_TAG_SUGGESTOR_UID:
                         suggestorUid = (int) value;
@@ -402,7 +410,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         }
         return new WifiNetworkSuggestion(
                 wifiConfiguration, passpointConfiguration, isAppInteractionRequired,
-                isUserInteractionRequired, suggestorUid, suggestorPackageName);
+                isUserInteractionRequired, isUserAllowedToManuallyConnect,
+                suggestorUid, suggestorPackageName);
     }
 }
 

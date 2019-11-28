@@ -255,7 +255,7 @@ public class WifiNetworkSelectorTestUtil {
                 .then(new AnswerWithArguments() {
                     public WifiConfiguration answer(String configKey) {
                         for (WifiConfiguration config : configs) {
-                            if (TextUtils.equals(config.configKey(), configKey)) {
+                            if (TextUtils.equals(config.getKey(), configKey)) {
                                 return new WifiConfiguration(config);
                             }
                         }

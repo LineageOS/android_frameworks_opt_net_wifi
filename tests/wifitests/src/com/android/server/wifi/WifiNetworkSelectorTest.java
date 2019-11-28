@@ -715,9 +715,9 @@ public class WifiNetworkSelectorTest extends WifiBaseTest {
                 NetworkSelectionStatus.NETWORK_SELECTION_ENABLE);
         verify(mWifiConfigManager).clearNetworkConnectChoice(selectedWifiConfig.networkId);
         verify(mWifiConfigManager).setNetworkConnectChoice(configInLastNetworkSelection.networkId,
-                selectedWifiConfig.configKey(), mClock.getWallClockMillis());
+                selectedWifiConfig.getKey(), mClock.getWallClockMillis());
         verify(mWifiConfigManager, never()).setNetworkConnectChoice(
-                configNotInLastNetworkSelection.networkId, selectedWifiConfig.configKey(),
+                configNotInLastNetworkSelection.networkId, selectedWifiConfig.getKey(),
                 mClock.getWallClockMillis());
     }
 

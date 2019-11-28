@@ -16,14 +16,16 @@
 
 package com.android.server.wifi;
 
+import android.annotation.Nullable;
+import android.net.InetAddresses;
 import android.net.IpConfiguration;
 import android.net.IpConfiguration.IpAssignment;
 import android.net.IpConfiguration.ProxySettings;
 import android.net.LinkAddress;
-import android.net.NetworkUtils;
 import android.net.ProxyInfo;
 import android.net.RouteInfo;
 import android.net.StaticIpConfiguration;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.util.Log;
 import android.util.Pair;
@@ -44,6 +46,7 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -150,7 +153,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
             WifiConfiguration configuration =
                     parseNetworkConfigurationFromXml(in, minorVersion, networkListTagDepth);
             if (configuration != null) {
-                Log.v(TAG, "Parsed Configuration: " + configuration.configKey());
+                Log.v(TAG, "Parsed Configuration: " + configuration.getKey());
                 configurations.add(configuration);
             }
         }
@@ -199,7 +202,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         }
         String configKeyParsed = parsedConfig.first;
         WifiConfiguration configuration = parsedConfig.second;
-        String configKeyCalculated = configuration.configKey();
+        String configKeyCalculated = configuration.getKey();
         if (!configKeyParsed.equals(configKeyCalculated)) {
             // configKey is not part of the SDK. So, we can't expect this to be the same
             // across OEM's. Just log a warning & continue.
@@ -399,6 +402,15 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
         }
     }
 
+    private static List<String> parseProxyExclusionListString(
+            @Nullable String exclusionListString) {
+        if (exclusionListString == null) {
+            return Collections.emptyList();
+        } else {
+            return Arrays.asList(exclusionListString.toLowerCase(Locale.ROOT).split(","));
+        }
+    }
+
     /**
      * Parses the IP configuration data elements from the provided XML stream to an
      * IpConfiguration object.
@@ -494,7 +506,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                 StaticIpConfiguration.Builder builder = new StaticIpConfiguration.Builder();
                 if (linkAddressString != null && linkPrefixLength != null) {
                     LinkAddress linkAddress = new LinkAddress(
-                            NetworkUtils.numericToInetAddress(linkAddressString), linkPrefixLength);
+                            InetAddresses.parseNumericAddress(linkAddressString), linkPrefixLength);
                     if (linkAddress.getAddress() instanceof Inet4Address) {
                         builder.setIpAddress(linkAddress);
                     } else {
@@ -502,9 +514,10 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     }
                 }
                 if (gatewayAddressString != null) {
-                    InetAddress gateway = NetworkUtils.numericToInetAddress(gatewayAddressString);
+                    InetAddress gateway = InetAddresses.parseNumericAddress(gatewayAddressString);
                     RouteInfo route = new RouteInfo(null, gateway, null, RouteInfo.RTN_UNICAST);
-                    if (route.isIPv4Default()) {
+                    if (route.isDefaultRoute()
+                            && route.getDestination().getAddress() instanceof Inet4Address) {
                         builder.setGateway(gateway);
                     } else {
                         Log.w(TAG, "Non-IPv4 default route: " + route);
@@ -514,7 +527,7 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                     List<InetAddress> dnsServerAddresses = new ArrayList<>();
                     for (String dnsServerAddressString : dnsServerAddressesString) {
                         InetAddress dnsServerAddress =
-                                NetworkUtils.numericToInetAddress(dnsServerAddressString);
+                                InetAddresses.parseNumericAddress(dnsServerAddressString);
                         dnsServerAddresses.add(dnsServerAddress);
                     }
                     builder.setDnsServers(dnsServerAddresses);
@@ -550,14 +563,17 @@ class WifiBackupDataV1Parser implements WifiBackupDataParser {
                             + " IpConfiguration section");
                 }
                 ipConfiguration.setHttpProxy(
-                        new ProxyInfo(proxyHost, proxyPort, proxyExclusionList));
+                        ProxyInfo.buildDirectProxy(
+                                proxyHost, proxyPort,
+                                parseProxyExclusionListString(proxyExclusionList)));
                 break;
             case PAC:
                 if (proxyPacFile == null) {
                     throw new XmlPullParserException("ProxyPac was missing in"
                             + " IpConfiguration section");
                 }
-                ipConfiguration.setHttpProxy(new ProxyInfo(proxyPacFile));
+                ipConfiguration.setHttpProxy(
+                        ProxyInfo.buildPacProxy(Uri.parse(proxyPacFile)));
                 break;
             case NONE:
             case UNASSIGNED:

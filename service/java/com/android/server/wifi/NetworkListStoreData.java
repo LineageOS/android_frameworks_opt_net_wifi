@@ -280,7 +280,7 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
         }
         String configKeyParsed = parsedConfig.first;
         WifiConfiguration configuration = parsedConfig.second;
-        String configKeyCalculated = configuration.configKey();
+        String configKeyCalculated = configuration.getKey();
         if (!configKeyParsed.equals(configKeyCalculated)) {
             throw new XmlPullParserException(
                     "Configuration key does not match. Retrieved: " + configKeyParsed
@@ -289,13 +289,13 @@ public abstract class NetworkListStoreData implements WifiConfigStore.StoreData 
         // Set creatorUid/creatorName for networks which don't have it set to valid value.
         String creatorName = mContext.getPackageManager().getNameForUid(configuration.creatorUid);
         if (creatorName == null) {
-            Log.e(TAG, "Invalid creatorUid for saved network " + configuration.configKey()
+            Log.e(TAG, "Invalid creatorUid for saved network " + configuration.getKey()
                     + ", creatorUid=" + configuration.creatorUid);
             configuration.creatorUid = Process.SYSTEM_UID;
             configuration.creatorName =
                     mContext.getPackageManager().getNameForUid(Process.SYSTEM_UID);
         } else if (!creatorName.equals(configuration.creatorName)) {
-            Log.w(TAG, "Invalid creatorName for saved network " + configuration.configKey()
+            Log.w(TAG, "Invalid creatorName for saved network " + configuration.getKey()
                     + ", creatorUid=" + configuration.creatorUid
                     + ", creatorName=" + configuration.creatorName);
             configuration.creatorName = creatorName;

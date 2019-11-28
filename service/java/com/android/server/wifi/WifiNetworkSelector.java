@@ -535,7 +535,7 @@ public class WifiNetworkSelector {
      */
     private boolean setLegacyUserConnectChoice(@NonNull final WifiConfiguration selected) {
         boolean change = false;
-        String key = selected.configKey();
+        String key = selected.getKey();
         // This is only used for setting the connect choice timestamp for debugging purposes.
         long currentTime = mClock.getWallClockMillis();
         List<WifiConfiguration> configuredNetworks = mWifiConfigManager.getConfiguredNetworks();
