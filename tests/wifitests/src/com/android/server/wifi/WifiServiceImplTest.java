@@ -247,6 +247,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock WifiMulticastLockManager mWifiMulticastLockManager;
     @Mock WifiLastResortWatchdog mWifiLastResortWatchdog;
     @Mock WifiBackupRestore mWifiBackupRestore;
+    @Mock SoftApBackupRestore mSoftApBackupRestore;
     @Mock WifiMetrics mWifiMetrics;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
@@ -329,6 +330,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiMulticastLockManager()).thenReturn(mWifiMulticastLockManager);
         when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
         when(mWifiInjector.getWifiBackupRestore()).thenReturn(mWifiBackupRestore);
+        when(mWifiInjector.getSoftApBackupRestore()).thenReturn(mSoftApBackupRestore);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getWifiTrafficPoller()).thenReturn(mWifiTrafficPoller);
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
@@ -3053,6 +3055,34 @@ public class WifiServiceImplTest extends WifiBaseTest {
                         eq("WifiService"));
         mWifiServiceImpl.retrieveBackupData();
         verify(mWifiBackupRestore, never()).retrieveBackupDataFromConfigurations(any(List.class));
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#restoreSoftApBackupData(byte[])}
+     * is only allowed from callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRestoreSoftApBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.restoreSoftApBackupData(null);
+        verify(mSoftApBackupRestore, never())
+                .retrieveSoftApConfigurationFromBackupData(any(byte[].class));
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#retrieveSoftApBackupData()} is only allowed from
+     * callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRetrieveSoftApBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.retrieveSoftApBackupData();
+        verify(mSoftApBackupRestore, never())
+                .retrieveBackupDataFromSoftApConfiguration(any(SoftApConfiguration.class));
     }
 
     /**

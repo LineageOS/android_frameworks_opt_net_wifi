@@ -175,6 +175,7 @@ public class WifiServiceImpl extends BaseWifiService {
     private final WifiInjector mWifiInjector;
     /** Backup/Restore Module */
     private final WifiBackupRestore mWifiBackupRestore;
+    private final SoftApBackupRestore mSoftApBackupRestore;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
     private final PasspointManager mPasspointManager;
@@ -290,6 +291,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
                 mWifiInjector.getAsyncChannelHandlerThread().getLooper(), asyncChannel);
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
+        mSoftApBackupRestore = mWifiInjector.getSoftApBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
         mLog = mWifiInjector.makeLog(TAG);
@@ -3039,6 +3041,41 @@ public class WifiServiceImpl extends BaseWifiService {
         restoreNetworks(wifiConfigurations);
         Log.d(TAG, "Restored backup data");
     }
+
+    /*
+     * Retrieve the soft ap config data to be backed to save current config data.
+     *
+     * @return  Raw byte stream of the data to be backed up.
+     */
+    @Override
+    public byte[] retrieveSoftApBackupData() {
+        enforceNetworkSettingsPermission();
+        mLog.info("retrieveSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
+        SoftApConfiguration config = mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new SoftApConfiguration.Builder().build());
+        byte[] backupData =
+                mSoftApBackupRestore.retrieveBackupDataFromSoftApConfiguration(config);
+        Log.d(TAG, "Retrieved soft ap backup data");
+        return backupData;
+    }
+
+    /**
+     * Restore soft ap config from the backed up data.
+     *
+     * @param data Raw byte stream of the backed up data.
+     */
+    @Override
+    public void restoreSoftApBackupData(byte[] data) {
+        enforceNetworkSettingsPermission();
+        mLog.info("restoreSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
+        SoftApConfiguration softApConfig =
+                mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
+        if (softApConfig != null) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
+            Log.d(TAG, "Restored soft ap backup data");
+        }
+    }
+
 
     /**
      * Restore state from the older supplicant back up data.

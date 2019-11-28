@@ -224,6 +224,7 @@ android_test {
                 "com.android.server.wifi.ScanDetail",
                 "com.android.server.wifi.ScanDetailCache",
                 "com.android.server.wifi.ScanDetailCache.*",
+                "com.android.server.wifi.SoftApBackupRestore",
                 "com.android.server.wifi.scanner.BackgroundScanScheduler",
                 "com.android.server.wifi.scanner.BackgroundScanScheduler.*",
                 "com.android.server.wifi.scanner.ChannelHelper",
