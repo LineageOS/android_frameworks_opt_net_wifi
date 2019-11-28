@@ -368,10 +368,10 @@ public class WakeupControllerTest extends WifiBaseTest {
         // suggestions
         WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork(quotedSsid);
         WifiNetworkSuggestion openNetworkSuggestion =
-                new WifiNetworkSuggestion(openNetwork, null, false, false, -1, "");
+                new WifiNetworkSuggestion(openNetwork, null, false, false, true, -1, "");
         WifiConfiguration wepNetwork = WifiConfigurationTestUtil.createWepNetwork();
         WifiNetworkSuggestion wepNetworkSuggestion =
-                new WifiNetworkSuggestion(wepNetwork, null, false, false, -1, "");
+                new WifiNetworkSuggestion(wepNetwork, null, false, false, true, -1, "");
         when(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions())
                 .thenReturn(new HashSet<>(Arrays.asList(
                         openNetworkSuggestion, wepNetworkSuggestion)));
@@ -413,7 +413,7 @@ public class WakeupControllerTest extends WifiBaseTest {
 
         WifiConfiguration oweNetwork = WifiConfigurationTestUtil.createOweNetwork(quotedSsid2);
         WifiNetworkSuggestion oweNetworkSuggestion =
-                new WifiNetworkSuggestion(oweNetwork, null, false, false, -1, "");
+                new WifiNetworkSuggestion(oweNetwork, null, false, false, true, -1, "");
         when(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions())
                 .thenReturn(new HashSet<>(Arrays.asList(oweNetworkSuggestion)));
 
@@ -511,7 +511,7 @@ public class WakeupControllerTest extends WifiBaseTest {
         WifiConfiguration openNetwork = WifiConfigurationTestUtil
                 .createOpenNetwork(ScanResultUtil.createQuotedSSID(SAVED_SSID));
         WifiNetworkSuggestion openNetworkSuggestion =
-                new WifiNetworkSuggestion(openNetwork, null, false, false, -1, "");
+                new WifiNetworkSuggestion(openNetwork, null, false, false, true, -1, "");
         when(mWifiNetworkSuggestionsManager.getAllNetworkSuggestions())
                 .thenReturn(new HashSet<>(Collections.singletonList(openNetworkSuggestion)));
 
