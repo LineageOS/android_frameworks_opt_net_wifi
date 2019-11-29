@@ -1010,8 +1010,9 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         }
 
         boolean validateScanType(int type) {
-            return (type == WifiScanner.TYPE_LOW_LATENCY || type == WifiScanner.TYPE_LOW_POWER
-                    || type == WifiScanner.TYPE_HIGH_ACCURACY);
+            return type == WifiScanner.SCAN_TYPE_LOW_LATENCY
+                    || type == WifiScanner.SCAN_TYPE_LOW_POWER
+                    || type == WifiScanner.SCAN_TYPE_HIGH_ACCURACY;
         }
 
         boolean validateScanRequest(ClientInfo ci, int handler, ScanSettings settings) {
@@ -1037,7 +1038,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                             + " does not have permission to set hidden networks");
                     return false;
                 }
-                if (settings.type != WifiScanner.TYPE_LOW_LATENCY) {
+                if (settings.type != WifiScanner.SCAN_TYPE_LOW_LATENCY) {
                     Log.e(TAG, "Failing single scan because app " + ci.getUid()
                             + " does not have permission to set type");
                     return false;
@@ -1048,11 +1049,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
         int getNativeScanType(int type) {
             switch(type) {
-                case WifiScanner.TYPE_LOW_LATENCY:
+                case WifiScanner.SCAN_TYPE_LOW_LATENCY:
                     return WifiNative.SCAN_TYPE_LOW_LATENCY;
-                case WifiScanner.TYPE_LOW_POWER:
+                case WifiScanner.SCAN_TYPE_LOW_POWER:
                     return WifiNative.SCAN_TYPE_LOW_POWER;
-                case WifiScanner.TYPE_HIGH_ACCURACY:
+                case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                     return WifiNative.SCAN_TYPE_HIGH_ACCURACY;
                 default:
                     // This should never happen becuase we've validated the incoming type in
@@ -1176,12 +1177,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 settings.scanType =
                     mergeScanTypes(settings.scanType, getNativeScanType(entry.settings.type));
                 channels.addChannels(entry.settings);
-                if (entry.settings.hiddenNetworks != null) {
-                    for (int i = 0; i < entry.settings.hiddenNetworks.length; i++) {
-                        WifiNative.HiddenNetwork hiddenNetwork = new WifiNative.HiddenNetwork();
-                        hiddenNetwork.ssid = entry.settings.hiddenNetworks[i].ssid;
-                        hiddenNetworkList.add(hiddenNetwork);
-                    }
+                for (ScanSettings.HiddenNetwork srcNetwork : entry.settings.hiddenNetworks) {
+                    WifiNative.HiddenNetwork hiddenNetwork = new WifiNative.HiddenNetwork();
+                    hiddenNetwork.ssid = srcNetwork.ssid;
+                    hiddenNetworkList.add(hiddenNetwork);
                 }
                 if ((entry.settings.reportEvents & WifiScanner.REPORT_EVENT_FULL_SCAN_RESULT)
                         != 0) {
@@ -2609,11 +2608,11 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
 
     static String getScanTypeString(int type) {
         switch(type) {
-            case WifiScanner.TYPE_LOW_LATENCY:
+            case WifiScanner.SCAN_TYPE_LOW_LATENCY:
                 return "LOW LATENCY";
-            case WifiScanner.TYPE_LOW_POWER:
+            case WifiScanner.SCAN_TYPE_LOW_POWER:
                 return "LOW POWER";
-            case WifiScanner.TYPE_HIGH_ACCURACY:
+            case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                 return "HIGH ACCURACY";
             default:
                 // This should never happen becuase we've validated the incoming type in

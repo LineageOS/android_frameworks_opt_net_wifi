@@ -62,13 +62,13 @@ public class ScanTestUtil {
 
     public static WifiScanner.ScanSettings createRequest(int type, int band, int period, int batch,
             int bssidsPerScan, int reportEvents) {
-        return createRequest(WifiScanner.TYPE_HIGH_ACCURACY, band, period, 0, 0,
+        return createRequest(WifiScanner.SCAN_TYPE_HIGH_ACCURACY, band, period, 0, 0,
                 batch, bssidsPerScan, reportEvents);
     }
 
     public static WifiScanner.ScanSettings createRequest(int band, int period, int batch,
             int bssidsPerScan, int reportEvents) {
-        return createRequest(WifiScanner.TYPE_HIGH_ACCURACY, band, period, 0, 0, batch,
+        return createRequest(WifiScanner.SCAN_TYPE_HIGH_ACCURACY, band, period, 0, 0, batch,
                 bssidsPerScan, reportEvents);
     }
 
@@ -183,11 +183,11 @@ public class ScanTestUtil {
 
     private static int getNativeScanType(int type) {
         switch(type) {
-            case WifiScanner.TYPE_LOW_LATENCY:
+            case WifiScanner.SCAN_TYPE_LOW_LATENCY:
                 return WifiNative.SCAN_TYPE_LOW_LATENCY;
-            case WifiScanner.TYPE_LOW_POWER:
+            case WifiScanner.SCAN_TYPE_LOW_POWER:
                 return WifiNative.SCAN_TYPE_LOW_POWER;
-            case WifiScanner.TYPE_HIGH_ACCURACY:
+            case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                 return WifiNative.SCAN_TYPE_HIGH_ACCURACY;
             default:
                 fail();
