@@ -904,19 +904,17 @@ public class WifiConnectivityManager {
                 isFullBandScan = true;
             }
         }
-        settings.type = WifiScanner.TYPE_HIGH_ACCURACY; // always do high accuracy scans.
+        settings.type = WifiScanner.SCAN_TYPE_HIGH_ACCURACY; // always do high accuracy scans.
         settings.band = getScanBand(isFullBandScan);
         settings.reportEvents = WifiScanner.REPORT_EVENT_FULL_SCAN_RESULT
                             | WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN;
         settings.numBssidsPerScan = 0;
+        settings.hiddenNetworks.clear();
         // retrieve the list of hidden network SSIDs from saved network to scan for
-        List<ScanSettings.HiddenNetwork> hiddenNetworkList =
-                new ArrayList<>(mConfigManager.retrieveHiddenNetworkList());
+        settings.hiddenNetworks.addAll(mConfigManager.retrieveHiddenNetworkList());
         // retrieve the list of hidden network SSIDs from Network suggestion to scan for
-        hiddenNetworkList.addAll(
+        settings.hiddenNetworks.addAll(
                 mWifiInjector.getWifiNetworkSuggestionsManager().retrieveHiddenNetworkList());
-        settings.hiddenNetworks =
-                hiddenNetworkList.toArray(new ScanSettings.HiddenNetwork[0]);
 
         SingleScanListener singleScanListener =
                 new SingleScanListener(isFullBandScan);

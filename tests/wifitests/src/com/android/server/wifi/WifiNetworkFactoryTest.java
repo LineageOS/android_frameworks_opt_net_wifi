@@ -2906,14 +2906,13 @@ public class WifiNetworkFactoryTest extends WifiBaseTest {
         ScanSettings scanSettings = mScanSettingsArgumentCaptor.getValue();
         assertNotNull(scanSettings);
         assertEquals(WifiScanner.WIFI_BAND_BOTH_WITH_DFS, scanSettings.band);
-        assertEquals(WifiScanner.TYPE_HIGH_ACCURACY, scanSettings.type);
+        assertEquals(WifiScanner.SCAN_TYPE_HIGH_ACCURACY, scanSettings.type);
         assertEquals(WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN, scanSettings.reportEvents);
         if (hiddenSsid == null) {
-            assertNull(scanSettings.hiddenNetworks);
+            assertEquals(Collections.emptyList(), scanSettings.hiddenNetworks);
         } else {
-            assertNotNull(scanSettings.hiddenNetworks);
-            assertNotNull(scanSettings.hiddenNetworks[0]);
-            assertEquals(scanSettings.hiddenNetworks[0].ssid, addEnclosingQuotes(hiddenSsid));
+            assertNotNull(scanSettings.hiddenNetworks.get(0));
+            assertEquals(scanSettings.hiddenNetworks.get(0).ssid, addEnclosingQuotes(hiddenSsid));
         }
         WorkSource workSource = mWorkSourceArgumentCaptor.getValue();
         assertNotNull(workSource);

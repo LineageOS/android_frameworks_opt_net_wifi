@@ -484,21 +484,19 @@ public class ScanRequestProxy {
         WifiScanner.ScanSettings settings = new WifiScanner.ScanSettings();
         // Scan requests from apps with network settings will be of high accuracy type.
         if (fromSettingsOrSetupWizard) {
-            settings.type = WifiScanner.TYPE_HIGH_ACCURACY;
+            settings.type = WifiScanner.SCAN_TYPE_HIGH_ACCURACY;
         }
         // always do full scans
         settings.band = WifiScanner.WIFI_BAND_BOTH_WITH_DFS;
         settings.reportEvents = WifiScanner.REPORT_EVENT_AFTER_EACH_SCAN
                 | WifiScanner.REPORT_EVENT_FULL_SCAN_RESULT;
         if (mScanningForHiddenNetworksEnabled) {
+            settings.hiddenNetworks.clear();
             // retrieve the list of hidden network SSIDs from saved network to scan for, if enabled.
-            List<WifiScanner.ScanSettings.HiddenNetwork> hiddenNetworkList =
-                    new ArrayList<>(mWifiConfigManager.retrieveHiddenNetworkList());
+            settings.hiddenNetworks.addAll(mWifiConfigManager.retrieveHiddenNetworkList());
             // retrieve the list of hidden network SSIDs from Network suggestion to scan for.
-            hiddenNetworkList.addAll(
+            settings.hiddenNetworks.addAll(
                     mWifiInjector.getWifiNetworkSuggestionsManager().retrieveHiddenNetworkList());
-            settings.hiddenNetworks = hiddenNetworkList.toArray(
-                    new WifiScanner.ScanSettings.HiddenNetwork[0]);
         }
         mWifiScanner.startScan(settings, new ScanRequestProxyScanListener(), workSource);
         return true;
