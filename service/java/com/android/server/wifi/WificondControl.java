@@ -46,7 +46,6 @@ import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.NativeWifiClient;
-import com.android.server.wifi.wificond.PnoNetwork;
 import com.android.server.wifi.wificond.PnoSettings;
 import com.android.server.wifi.wificond.RadioChainInfo;
 import com.android.server.wifi.wificond.SingleScanSettings;
@@ -845,37 +844,15 @@ public class WificondControl implements IBinder.DeathRecipient {
      * @param pnoSettings Pno scan configuration.
      * @return true on success.
      */
-    public boolean startPnoScan(@NonNull String ifaceName, WifiNative.PnoSettings pnoSettings) {
+    public boolean startPnoScan(@NonNull String ifaceName, PnoSettings pnoSettings) {
         IWifiScannerImpl scannerImpl = getScannerImpl(ifaceName);
         if (scannerImpl == null) {
             Log.e(TAG, "No valid wificond scanner interface handler");
             return false;
         }
-        PnoSettings settings = new PnoSettings();
-        settings.pnoNetworks  = new ArrayList<>();
-        settings.intervalMs = pnoSettings.periodInMs;
-        settings.min2gRssi = pnoSettings.min24GHzRssi;
-        settings.min5gRssi = pnoSettings.min5GHzRssi;
-        settings.min6gRssi = pnoSettings.min6GHzRssi;
-        if (pnoSettings.networkList != null) {
-            for (WifiNative.PnoNetwork network : pnoSettings.networkList) {
-                PnoNetwork condNetwork = new PnoNetwork();
-                condNetwork.isHidden = (network.flags
-                        & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0;
-                try {
-                    condNetwork.ssid =
-                            NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(network.ssid));
-                } catch (IllegalArgumentException e) {
-                    Log.e(TAG, "Illegal argument " + network.ssid, e);
-                    continue;
-                }
-                condNetwork.frequencies = network.frequencies;
-                settings.pnoNetworks.add(condNetwork);
-            }
-        }
 
         try {
-            boolean success = scannerImpl.startPnoScan(settings);
+            boolean success = scannerImpl.startPnoScan(pnoSettings);
             mWifiInjector.getWifiMetrics().incrementPnoScanStartAttempCount();
             if (!success) {
                 mWifiInjector.getWifiMetrics().incrementPnoScanFailedCount();
@@ -928,7 +905,7 @@ public class WificondControl implements IBinder.DeathRecipient {
      * The result depends on the on the country code that has been set.
      *
      * @param band as specified by one of the WifiScanner.WIFI_BAND_* constants.
-     * The following bands are supported {@link WifiBandBasic}:
+     * The following bands are supported {@link @WifiScanner.WifiBandBasic}:
      * WifiScanner.WIFI_BAND_24_GHZ
      * WifiScanner.WIFI_BAND_5_GHZ
      * WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY

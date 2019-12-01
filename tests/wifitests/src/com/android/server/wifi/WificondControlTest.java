@@ -796,7 +796,8 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScan() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(true);
-        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
+        assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings()));
         verify(mWifiScannerImpl).startPnoScan(argThat(new PnoScanMatcher(TEST_PNO_SETTINGS)));
     }
 
@@ -889,7 +890,8 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScanForMetrics() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(false);
-        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME, TEST_PNO_SETTINGS));
+        assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
+                TEST_PNO_SETTINGS.toNativePnoSettings()));
         verify(mWifiMetrics).incrementPnoScanStartAttempCount();
         verify(mWifiMetrics).incrementPnoScanFailedCount();
     }
