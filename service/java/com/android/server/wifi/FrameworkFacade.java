@@ -32,6 +32,7 @@ import android.net.ip.IpClientUtil;
 import android.os.IBinder;
 import android.os.ServiceManager;
 import android.provider.Settings;
+import android.sysprop.WifiProperties;
 import android.telephony.CarrierConfigManager;
 
 import com.android.server.wifi.util.WifiAsyncChannel;
@@ -212,5 +213,19 @@ public class FrameworkFacade {
      */
     public Notification.Builder makeNotificationBuilder(Context context, String channelId) {
         return new Notification.Builder(context, channelId);
+    }
+
+    /**
+     * Starts supplicant
+     */
+    public void startSupplicant() {
+        WifiProperties.start_supplicant(true);
+    }
+
+    /**
+     * Stops supplicant
+     */
+    public void stopSupplicant() {
+        WifiProperties.stop_supplicant(true);
     }
 }

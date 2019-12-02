@@ -136,7 +136,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
             mISupplicantStaIfaceMockV13;
     private @Mock Context mContext;
     private @Mock WifiMonitor mWifiMonitor;
-    private @Mock PropertyService mPropertyService;
+    private @Mock FrameworkFacade mFrameworkFacade;
     private @Mock SupplicantStaNetworkHal mSupplicantStaNetworkMock;
     private @Mock WifiNative.SupplicantDeathEventHandler mSupplicantHalDeathHandler;
     private @Mock Clock mClock;
@@ -170,7 +170,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
 
     private class SupplicantStaIfaceHalSpy extends SupplicantStaIfaceHal {
         SupplicantStaIfaceHalSpy() {
-            super(mContext, mWifiMonitor, mPropertyService,
+            super(mContext, mWifiMonitor, mFrameworkFacade,
                     mHandler, mClock);
         }
 
@@ -1466,8 +1466,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     public void testStartDaemonV1_0() throws Exception {
         executeAndValidateInitializationSequence();
         assertTrue(mDut.startDaemon());
-        verify(mPropertyService).set(
-                SupplicantStaIfaceHal.INIT_START_PROPERTY, SupplicantStaIfaceHal.INIT_SERVICE_NAME);
+        verify(mFrameworkFacade).startSupplicant();
     }
 
     /**
@@ -1479,7 +1478,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
 
         executeAndValidateInitializationSequenceV1_1(false, false);
         assertTrue(mDut.startDaemon());
-        verify(mPropertyService, never()).set(any(), any());
+        verify(mFrameworkFacade, never()).startSupplicant();
     }
 
     /**
@@ -1489,8 +1488,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
     public void testTerminateV1_0() throws Exception {
         executeAndValidateInitializationSequence();
         mDut.terminate();
-        verify(mPropertyService).set(
-                SupplicantStaIfaceHal.INIT_STOP_PROPERTY, SupplicantStaIfaceHal.INIT_SERVICE_NAME);
+        verify(mFrameworkFacade).stopSupplicant();
     }
 
     /**
@@ -1502,7 +1500,7 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
 
         executeAndValidateInitializationSequenceV1_1(false, false);
         mDut.terminate();
-        verify(mPropertyService, never()).set(any(), any());
+        verify(mFrameworkFacade, never()).stopSupplicant();
         verify(mISupplicantMockV1_1).terminate();
     }
 
