@@ -190,12 +190,17 @@ public class WifiConfigManager {
     private static final int WIFI_PNO_FREQUENCY_CULLING_ENABLED_DEFAULT = 1; // 0 = disabled
     private static final int WIFI_PNO_RECENCY_SORTING_ENABLED_DEFAULT = 1; // 0 = disabled:
 
+    /**
+     * Enforce a minimum time to wait after the last disconnect to generate a new randomized MAC,
+     * since IPv6 networks don't provide the DHCP lease duration.
+     * 4 hours.
+     */
+    @VisibleForTesting
+    protected static final long AGGRESSIVE_MAC_WAIT_AFTER_DISCONNECT_MS = 4 * 60 * 60 * 1000;
     @VisibleForTesting
     protected static final long AGGRESSIVE_MAC_REFRESH_MS_MIN = 30 * 60 * 1000; // 30 minutes
     @VisibleForTesting
     protected static final long AGGRESSIVE_MAC_REFRESH_MS_MAX = 24 * 60 * 60 * 1000; // 24 hours
-    @VisibleForTesting
-    protected static final long AGGRESSIVE_MAC_REFRESH_MS_DEFAULT = 3 * 60 * 60 * 1000; // 3 hours
 
     private static final MacAddress DEFAULT_MAC_ADDRESS =
             MacAddress.fromString(WifiInfo.DEFAULT_MAC_ADDRESS);
@@ -582,8 +587,6 @@ public class WifiConfigManager {
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
         internalConfig.setRandomizedMacAddress(persistentMac);
-        internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
-                + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         return persistentMac;
     }
 
@@ -601,8 +604,6 @@ public class WifiConfigManager {
         }
         WifiConfiguration internalConfig = getInternalConfiguredNetwork(config.networkId);
         internalConfig.setRandomizedMacAddress(MacAddress.createRandomUnicastAddress());
-        internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
-                + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         return internalConfig.getRandomizedMacAddress();
     }
 
@@ -2037,6 +2038,8 @@ public class WifiConfigManager {
             return false;
         }
         config.lastDisconnected = mClock.getWallClockMillis();
+        config.randomizedMacExpirationTimeMs = Math.max(config.randomizedMacExpirationTimeMs,
+                config.lastDisconnected + AGGRESSIVE_MAC_WAIT_AFTER_DISCONNECT_MS);
         // If the network hasn't been disabled, mark it back as
         // enabled after disconnection.
         if (config.status == WifiConfiguration.Status.CURRENT) {
@@ -3207,8 +3210,6 @@ public class WifiConfigManager {
                 : getPersistentMacAddress(internalConfig);
         if (randomizedMac != null) {
             internalConfig.setRandomizedMacAddress(randomizedMac);
-            internalConfig.randomizedMacExpirationTimeMs = mClock.getWallClockMillis()
-                    + AGGRESSIVE_MAC_REFRESH_MS_DEFAULT;
         }
     }
 
