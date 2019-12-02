@@ -754,10 +754,31 @@ public class WifiNativeTest extends WifiBaseTest {
      * Verifies that startPnoscan() calls underlying WificondControl.
      */
     @Test
-    public void testStartPnoScan() throws Exception {
+    public void testStartPnoScanOnRequestProcessed() throws Exception {
         mWifiNative.startPnoScan(WIFI_IFACE_NAME, TEST_PNO_SETTINGS);
-        verify(mWificondControl).startPnoScan(
-                WIFI_IFACE_NAME, TEST_PNO_SETTINGS.toNativePnoSettings());
+
+        ArgumentCaptor<WificondControl.PnoScanRequestCallback> captor = ArgumentCaptor.forClass(
+                WificondControl.PnoScanRequestCallback.class);
+        verify(mWificondControl).startPnoScan(eq(WIFI_IFACE_NAME),
+                eq(TEST_PNO_SETTINGS.toNativePnoSettings()), captor.capture());
+        captor.getValue().onPnoRequestSucceeded();
+        verify(mWifiMetrics).incrementPnoScanStartAttemptCount();
+    }
+
+    /**
+     * Verifies that startPnoscan() calls underlying WificondControl.
+     */
+    @Test
+    public void testStartPnoScanOnRequestFailed() throws Exception {
+        mWifiNative.startPnoScan(WIFI_IFACE_NAME, TEST_PNO_SETTINGS);
+
+        ArgumentCaptor<WificondControl.PnoScanRequestCallback> captor = ArgumentCaptor.forClass(
+                WificondControl.PnoScanRequestCallback.class);
+        verify(mWificondControl).startPnoScan(eq(WIFI_IFACE_NAME),
+                eq(TEST_PNO_SETTINGS.toNativePnoSettings()), captor.capture());
+        captor.getValue().onPnoRequestFailed();
+        verify(mWifiMetrics).incrementPnoScanStartAttemptCount();
+        verify(mWifiMetrics).incrementPnoScanFailedCount();
     }
 
     /**

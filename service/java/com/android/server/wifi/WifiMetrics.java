@@ -883,7 +883,7 @@ public class WifiMetrics {
     /**
      * Increment total number of attempts to start a pno scan
      */
-    public void incrementPnoScanStartAttempCount() {
+    public void incrementPnoScanStartAttemptCount() {
         synchronized (mLock) {
             mPnoScanMetrics.numPnoScanAttempts++;
         }

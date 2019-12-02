@@ -84,10 +84,6 @@ public class WificondControlTest extends WifiBaseTest {
     @Mock
     private WifiInjector mWifiInjector;
     @Mock
-    private WifiMonitor mWifiMonitor;
-    @Mock
-    private WifiMetrics mWifiMetrics;
-    @Mock
     private IWificond mWificond;
     @Mock
     private IBinder mWifiCondBinder;
@@ -109,6 +105,8 @@ public class WificondControlTest extends WifiBaseTest {
     private WificondControl.ScanEventCallback mNormalScanCallback;
     @Mock
     private WificondControl.ScanEventCallback mPnoScanCallback;
+    @Mock
+    private WificondControl.PnoScanRequestCallback mPnoScanRequestCallback;
     private TestLooper mLooper;
     private WificondControl mWificondControl;
     private static final String TEST_INTERFACE_NAME = "test_wlan_if";
@@ -176,7 +174,6 @@ public class WificondControlTest extends WifiBaseTest {
         when(mWificond.tearDownApInterface(any())).thenReturn(true);
         when(mClientInterface.getWifiScannerImpl()).thenReturn(mWifiScannerImpl);
         when(mClientInterface.getInterfaceName()).thenReturn(TEST_INTERFACE_NAME);
-        when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
         mLooper = new TestLooper();
         mWificondControl = new WificondControl(mWifiInjector,
                 mAlarmManager, new Handler(mLooper.getLooper()), mClock);
@@ -618,8 +615,9 @@ public class WificondControlTest extends WifiBaseTest {
     public void testStartPnoScan() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(true);
         assertTrue(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
-                TEST_PNO_SETTINGS.toNativePnoSettings()));
+                TEST_PNO_SETTINGS.toNativePnoSettings(), mPnoScanRequestCallback));
         verify(mWifiScannerImpl).startPnoScan(argThat(new PnoScanMatcher(TEST_PNO_SETTINGS)));
+        verify(mPnoScanRequestCallback).onPnoRequestSucceeded();
     }
 
     /**
@@ -710,10 +708,10 @@ public class WificondControlTest extends WifiBaseTest {
     @Test
     public void testStartPnoScanForMetrics() throws Exception {
         when(mWifiScannerImpl.startPnoScan(any(PnoSettings.class))).thenReturn(false);
+
         assertFalse(mWificondControl.startPnoScan(TEST_INTERFACE_NAME,
-                TEST_PNO_SETTINGS.toNativePnoSettings()));
-        verify(mWifiMetrics).incrementPnoScanStartAttempCount();
-        verify(mWifiMetrics).incrementPnoScanFailedCount();
+                TEST_PNO_SETTINGS.toNativePnoSettings(), mPnoScanRequestCallback));
+        verify(mPnoScanRequestCallback).onPnoRequestFailed();
     }
 
     /**

@@ -117,6 +117,21 @@ public class WificondControl implements IBinder.DeathRecipient {
         void onScanFailed();
     }
 
+    /**
+     * Interface for a callback to provide information about PNO scan request.
+     */
+    public interface PnoScanRequestCallback {
+        /**
+         * Called when the PNO scan is requested.
+         */
+        void onPnoRequestSucceeded();
+
+        /**
+         * Called when a PNO scan request fails.
+         */
+        void onPnoRequestFailed();
+    }
+
     private class ScanEventHandler extends IScanEvent.Stub {
         private ScanEventCallback mCallback;
 
@@ -792,7 +807,8 @@ public class WificondControl implements IBinder.DeathRecipient {
      * @param pnoSettings Pno scan configuration.
      * @return true on success.
      */
-    public boolean startPnoScan(@NonNull String ifaceName, PnoSettings pnoSettings) {
+    public boolean startPnoScan(@NonNull String ifaceName, PnoSettings pnoSettings,
+            PnoScanRequestCallback callback) {
         IWifiScannerImpl scannerImpl = getScannerImpl(ifaceName);
         if (scannerImpl == null) {
             Log.e(TAG, "No valid wificond scanner interface handler");
@@ -801,9 +817,10 @@ public class WificondControl implements IBinder.DeathRecipient {
 
         try {
             boolean success = scannerImpl.startPnoScan(pnoSettings);
-            mWifiInjector.getWifiMetrics().incrementPnoScanStartAttempCount();
-            if (!success) {
-                mWifiInjector.getWifiMetrics().incrementPnoScanFailedCount();
+            if (success) {
+                callback.onPnoRequestSucceeded();
+            } else {
+                callback.onPnoRequestFailed();
             }
             return success;
         } catch (RemoteException e1) {

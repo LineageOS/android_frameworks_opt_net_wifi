@@ -1544,7 +1544,19 @@ public class WifiNative {
      * @return true on success.
      */
     public boolean startPnoScan(@NonNull String ifaceName, PnoSettings pnoSettings) {
-        return mWificondControl.startPnoScan(ifaceName, pnoSettings.toNativePnoSettings());
+        return mWificondControl.startPnoScan(ifaceName, pnoSettings.toNativePnoSettings(),
+                new WificondControl.PnoScanRequestCallback() {
+                    @Override
+                    public void onPnoRequestSucceeded() {
+                        mWifiMetrics.incrementPnoScanStartAttemptCount();
+                    }
+
+                    @Override
+                    public void onPnoRequestFailed() {
+                        mWifiMetrics.incrementPnoScanStartAttemptCount();
+                        mWifiMetrics.incrementPnoScanFailedCount();
+                    }
+                });
     }
 
     /**
