@@ -309,7 +309,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getAsyncChannelHandlerThread()).thenReturn(mHandlerThread);
         when(mWifiInjector.getWifiHandlerThread()).thenReturn(mHandlerThread);
         when(mHandlerThread.getThreadHandler()).thenReturn(new Handler(mLooper.getLooper()));
-        when(mWifiInjector.getPowerProfile()).thenReturn(mPowerProfile);
         when(mHandlerThread.getLooper()).thenReturn(mLooper.getLooper());
         when(mContext.getResources()).thenReturn(mResources);
         when(mContext.getContentResolver()).thenReturn(mContentResolver);
@@ -4737,7 +4736,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(2, info.getControllerRxDurationMillis());
         assertEquals(6, info.getControllerScanDurationMillis());
         assertEquals(997, info.getControllerIdleDurationMillis());
-        assertEquals(70040, info.getControllerEnergyUsedMicroJoules());
     }
 
     /**
