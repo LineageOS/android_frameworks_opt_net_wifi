@@ -3502,10 +3502,12 @@ public class ClientModeImpl extends StateMachine {
                                     : WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             level2FailureReason);
-                    mWifiInjector.getWifiLastResortWatchdog()
-                            .noteConnectionFailureAndTriggerIfNeeded(
-                                    getTargetSsid(), bssid,
-                                    WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    if (reasonCode != REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA) {
+                        mWifiInjector.getWifiLastResortWatchdog()
+                                .noteConnectionFailureAndTriggerIfNeeded(
+                                        getTargetSsid(), bssid,
+                                        WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    }
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     mWifiDiagnostics.captureBugReportData(
@@ -3562,7 +3564,8 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             level2FailureReason);
-                    if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD) {
+                    if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD && reasonCode
+                            != WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE) {
                         mWifiInjector.getWifiLastResortWatchdog()
                                 .noteConnectionFailureAndTriggerIfNeeded(
                                         getTargetSsid(),
