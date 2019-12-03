@@ -16,7 +16,7 @@
 
 package com.android.server.wifi;
 
-import android.net.wifi.WifiConfiguration;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiManager;
 
 import com.android.internal.util.Preconditions;
@@ -34,24 +34,24 @@ class SoftApModeConfiguration {
     private final int mTargetMode;
 
     /**
-     * WifiConfiguration for internal use, or null if it hasn't been generated yet.
+     * SoftApConfiguration for internal use, or null if it hasn't been generated yet.
      */
-    private final @Nullable WifiConfiguration mWifiConfig;
+    private final @Nullable SoftApConfiguration mSoftApConfig;
 
-    SoftApModeConfiguration(int targetMode, @Nullable WifiConfiguration config) {
+    SoftApModeConfiguration(int targetMode, @Nullable SoftApConfiguration config) {
         Preconditions.checkArgument(
                 targetMode == WifiManager.IFACE_IP_MODE_TETHERED
                         || targetMode == WifiManager.IFACE_IP_MODE_LOCAL_ONLY);
 
         mTargetMode = targetMode;
-        mWifiConfig = config;
+        mSoftApConfig = config;
     }
 
     public int getTargetMode() {
         return mTargetMode;
     }
 
-    public WifiConfiguration getWifiConfiguration() {
-        return mWifiConfig;
+    public SoftApConfiguration getSoftApConfiguration() {
+        return mSoftApConfig;
     }
 }

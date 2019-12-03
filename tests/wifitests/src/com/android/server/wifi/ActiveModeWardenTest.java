@@ -45,9 +45,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.location.LocationManager;
+import android.net.wifi.SoftApConfiguration;
+import android.net.wifi.SoftApConfiguration.Builder;
 import android.net.wifi.SoftApInfo;
 import android.net.wifi.WifiClient;
-import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.BatteryStats;
 import android.os.BatteryStatsManager;
@@ -725,10 +726,10 @@ public class ActiveModeWardenTest extends WifiBaseTest {
      */
     @Test
     public void testConfigIsPassedToWifiInjector() throws Exception {
-        WifiConfiguration config = new WifiConfiguration();
-        config.SSID = "ThisIsAConfig";
-        SoftApModeConfiguration softApConfig =
-                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, config);
+        Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setSsid("ThisIsAConfig");
+        SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build());
         enterSoftApActiveMode(softApConfig);
     }
 
@@ -751,14 +752,14 @@ public class ActiveModeWardenTest extends WifiBaseTest {
     @Test
     public void testStartSoftApModeTwiceWithTwoConfigs() throws Exception {
         when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
-        WifiConfiguration config1 = new WifiConfiguration();
-        config1.SSID = "ThisIsAConfig";
-        SoftApModeConfiguration softApConfig1 =
-                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, config1);
-        WifiConfiguration config2 = new WifiConfiguration();
-        config2.SSID = "ThisIsASecondConfig";
-        SoftApModeConfiguration softApConfig2 =
-                new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, config2);
+        Builder configBuilder1 = new SoftApConfiguration.Builder();
+        configBuilder1.setSsid("ThisIsAConfig");
+        SoftApModeConfiguration softApConfig1 = new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, configBuilder1.build());
+        Builder configBuilder2 = new SoftApConfiguration.Builder();
+        configBuilder2.setSsid("ThisIsASecondConfig");
+        SoftApModeConfiguration softApConfig2 = new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, configBuilder2.build());
 
         doAnswer(new Answer<SoftApManager>() {
             public SoftApManager answer(InvocationOnMock invocation) {
@@ -924,8 +925,8 @@ public class ActiveModeWardenTest extends WifiBaseTest {
         when(mWifiInjector.getWifiApConfigStore()).thenReturn(mWifiApConfigStore);
         SoftApModeConfiguration tetherConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_TETHERED, null);
-        WifiConfiguration lohsConfigWC = WifiApConfigStore.generateLocalOnlyHotspotConfig(mContext,
-                WifiConfiguration.AP_BAND_2GHZ, null);
+        SoftApConfiguration lohsConfigWC = WifiApConfigStore.generateLocalOnlyHotspotConfig(
+                mContext, SoftApConfiguration.BAND_2GHZ, null);
         SoftApModeConfiguration lohsConfig =
                 new SoftApModeConfiguration(WifiManager.IFACE_IP_MODE_LOCAL_ONLY, lohsConfigWC);
 

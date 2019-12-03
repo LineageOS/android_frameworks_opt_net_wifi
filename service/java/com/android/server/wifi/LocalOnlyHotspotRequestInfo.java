@@ -26,6 +26,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.util.ApConfigUtil;
 
 /**
  * Tracks information about applications requesting use of the LocalOnlyHotspot.
@@ -94,12 +95,14 @@ class LocalOnlyHotspotRequestInfo implements IBinder.DeathRecipient {
     /**
      * Send a HOTSPOT_STARTED message to WifiManager for the calling application with the config.
      *
-     * @param config WifiConfiguration for the callback
+     * @param config SoftApConfiguration for the callback
      *
      * @throws RemoteException
      */
-    public void sendHotspotStartedMessage(WifiConfiguration config) throws RemoteException {
-        mCallback.onHotspotStarted(config);
+    public void sendHotspotStartedMessage(SoftApConfiguration config) throws RemoteException {
+        WifiConfiguration wifiConfig = ApConfigUtil.convertToWifiConfiguration(config);
+        wifiConfig.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
+        mCallback.onHotspotStarted(wifiConfig);
     }
 
     /**

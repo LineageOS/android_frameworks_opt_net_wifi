@@ -39,7 +39,7 @@ import android.app.test.MockAnswerUtil;
 import android.net.InterfaceConfiguration;
 import android.net.wifi.IApInterface;
 import android.net.wifi.IClientInterface;
-import android.net.wifi.WifiConfiguration;
+import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.INetworkManagementService;
@@ -795,7 +795,7 @@ public class WifiNativeInterfaceManagementTest extends WifiBaseTest {
                 mNetworkObserverCaptor0);
 
         // Start softap
-        assertTrue(mWifiNative.startSoftAp(IFACE_NAME_0, new WifiConfiguration(),
+        assertTrue(mWifiNative.startSoftAp(IFACE_NAME_0, new SoftApConfiguration.Builder().build(),
                 mock(WifiNative.SoftApListener.class)));
 
         mInOrder.verify(mWificondControl).registerApListener(any(), any());

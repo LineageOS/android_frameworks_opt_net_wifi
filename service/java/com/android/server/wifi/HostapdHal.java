@@ -23,7 +23,7 @@ import android.hardware.wifi.hostapd.V1_0.HostapdStatusCode;
 import android.hardware.wifi.hostapd.V1_0.IHostapd;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
-import android.net.wifi.WifiConfiguration;
+import android.net.wifi.SoftApConfiguration;
 import android.os.Handler;
 import android.os.HwRemoteBinder;
 import android.os.RemoteException;
@@ -318,7 +318,7 @@ public class HostapdHal {
      * @param listener Callback for AP events.
      * @return true on success, false otherwise.
      */
-    public boolean addAccessPoint(@NonNull String ifaceName, @NonNull WifiConfiguration config,
+    public boolean addAccessPoint(@NonNull String ifaceName, @NonNull SoftApConfiguration config,
                                   @NonNull WifiNative.SoftApListener listener) {
         synchronized (mLock) {
             final String methodStr = "addAccessPoint";
@@ -331,7 +331,7 @@ public class HostapdHal {
             try {
                 ifaceParams.channelParams.band = getBand(config);
             } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Unrecognized apBand " + config.apBand);
+                Log.e(TAG, "Unrecognized apBand " + config.getBand());
                 return false;
             }
             if (mForceApChannel) {
@@ -356,7 +356,7 @@ public class HostapdHal {
                     ifaceParams.channelParams.band = IHostapd.Band.BAND_2_4_GHZ;
                 }
                 ifaceParams.channelParams.enableAcs = false;
-                ifaceParams.channelParams.channel = config.apChannel;
+                ifaceParams.channelParams.channel = config.getChannel();
             }
 
             IHostapd.NetworkParams nwParams = new IHostapd.NetworkParams();
@@ -364,10 +364,11 @@ public class HostapdHal {
             // hex string or "double quoted".
             // However, it seems that whatever is handing us these configurations does not obey
             // this convention.
-            nwParams.ssid.addAll(NativeUtil.stringToByteArrayList(config.SSID));
-            nwParams.isHidden = config.hiddenSSID;
+            nwParams.ssid.addAll(NativeUtil.stringToByteArrayList(config.getSsid()));
+            nwParams.isHidden = config.isHiddenSsid();
             nwParams.encryptionType = getEncryptionType(config);
-            nwParams.pskPassphrase = (config.preSharedKey != null) ? config.preSharedKey : "";
+            nwParams.pskPassphrase = (config.getWpa2Passphrase() != null)
+                    ? config.getWpa2Passphrase() : "";
             if (!checkHostapdAndLogFailure(methodStr)) return false;
             try {
                 HostapdStatus status;
@@ -577,16 +578,13 @@ public class HostapdHal {
         }
     }
 
-    private static int getEncryptionType(WifiConfiguration localConfig) {
+    private static int getEncryptionType(SoftApConfiguration localConfig) {
         int encryptionType;
-        switch (localConfig.getAuthType()) {
-            case WifiConfiguration.KeyMgmt.NONE:
+        switch (localConfig.getSecurityType()) {
+            case SoftApConfiguration.SECURITY_TYPE_OPEN:
                 encryptionType = IHostapd.EncryptionType.NONE;
                 break;
-            case WifiConfiguration.KeyMgmt.WPA_PSK:
-                encryptionType = IHostapd.EncryptionType.WPA;
-                break;
-            case WifiConfiguration.KeyMgmt.WPA2_PSK:
+            case SoftApConfiguration.SECURITY_TYPE_WPA2_PSK:
                 encryptionType = IHostapd.EncryptionType.WPA2;
                 break;
             default:
@@ -598,16 +596,16 @@ public class HostapdHal {
         return encryptionType;
     }
 
-    private static int getBand(WifiConfiguration localConfig) {
+    private static int getBand(SoftApConfiguration localConfig) {
         int bandType;
-        switch (localConfig.apBand) {
-            case WifiConfiguration.AP_BAND_2GHZ:
+        switch (localConfig.getBand()) {
+            case SoftApConfiguration.BAND_2GHZ:
                 bandType = IHostapd.Band.BAND_2_4_GHZ;
                 break;
-            case WifiConfiguration.AP_BAND_5GHZ:
+            case SoftApConfiguration.BAND_5GHZ:
                 bandType = IHostapd.Band.BAND_5_GHZ;
                 break;
-            case WifiConfiguration.AP_BAND_ANY:
+            case SoftApConfiguration.BAND_ANY:
                 bandType = IHostapd.Band.BAND_ANY;
                 break;
             default:
