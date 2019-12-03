@@ -105,7 +105,6 @@ import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
-import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
@@ -132,6 +131,7 @@ import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserManager;
+import android.os.connectivity.WifiActivityEnergyInfo;
 import android.os.test.TestLooper;
 import android.telephony.TelephonyManager;
 
