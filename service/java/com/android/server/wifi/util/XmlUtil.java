@@ -834,43 +834,43 @@ public class XmlUtil {
                 throws XmlPullParserException, IOException {
             // Write IP assignment settings
             XmlUtil.writeNextValue(out, XML_TAG_IP_ASSIGNMENT,
-                    ipConfiguration.ipAssignment.toString());
-            switch (ipConfiguration.ipAssignment) {
+                    ipConfiguration.getIpAssignment().toString());
+            switch (ipConfiguration.getIpAssignment()) {
                 case STATIC:
                     writeStaticIpConfigurationToXml(
                             out, ipConfiguration.getStaticIpConfiguration());
                     break;
                 default:
                     Log.w(TAG, "Ignoring unknown ip assignment type: "
-                            + ipConfiguration.proxySettings);
+                            + ipConfiguration.getIpAssignment());
                     break;
             }
 
             // Write proxy settings
             XmlUtil.writeNextValue(
                     out, XML_TAG_PROXY_SETTINGS,
-                    ipConfiguration.proxySettings.toString());
-            switch (ipConfiguration.proxySettings) {
+                    ipConfiguration.getProxySettings().toString());
+            switch (ipConfiguration.getProxySettings()) {
                 case STATIC:
                     XmlUtil.writeNextValue(
                             out, XML_TAG_PROXY_HOST,
-                            ipConfiguration.httpProxy.getHost());
+                            ipConfiguration.getHttpProxy().getHost());
                     XmlUtil.writeNextValue(
                             out, XML_TAG_PROXY_PORT,
-                            ipConfiguration.httpProxy.getPort());
+                            ipConfiguration.getHttpProxy().getPort());
                     XmlUtil.writeNextValue(
                             out, XML_TAG_PROXY_EXCLUSION_LIST,
                             generateProxyExclusionListString(
-                                    ipConfiguration.httpProxy.getExclusionList()));
+                                    ipConfiguration.getHttpProxy().getExclusionList()));
                     break;
                 case PAC:
                     XmlUtil.writeNextValue(
                             out, XML_TAG_PROXY_PAC_FILE,
-                            ipConfiguration.httpProxy.getPacFileUrl().toString());
+                            ipConfiguration.getHttpProxy().getPacFileUrl().toString());
                     break;
                 default:
                     Log.w(TAG, "Ignoring unknown proxy settings type: "
-                            + ipConfiguration.proxySettings);
+                            + ipConfiguration.getProxySettings());
                     break;
             }
         }
