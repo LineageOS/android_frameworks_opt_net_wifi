@@ -21,6 +21,7 @@ import static android.app.AppOpsManager.OPSTR_CHANGE_WIFI_STATE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -632,12 +633,15 @@ public class WifiNetworkSuggestionsManager {
         }
         Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
                 convertToExtendedWnsSet(networkSuggestions, perAppInfo);
+        boolean isLowRamDevice = mContext.getSystemService(ActivityManager.class).isLowRamDevice();
+        int networkSuggestionsMaxPerApp =
+                WifiManager.getMaxNumberOfNetworkSuggestionsPerApp(isLowRamDevice);
         if (perAppInfo.extNetworkSuggestions.size() + extNetworkSuggestions.size()
-                > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
+                > networkSuggestionsMaxPerApp) {
             Set<ExtendedWifiNetworkSuggestion> savedNetworkSuggestions =
                     new HashSet<>(perAppInfo.extNetworkSuggestions);
             savedNetworkSuggestions.addAll(extNetworkSuggestions);
-            if (savedNetworkSuggestions.size() > WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP) {
+            if (savedNetworkSuggestions.size() > networkSuggestionsMaxPerApp) {
                 Log.e(TAG, "Failed to add network suggestions for " + packageName
                         + ". Exceeds max per app, current list size: "
                         + perAppInfo.extNetworkSuggestions.size()
