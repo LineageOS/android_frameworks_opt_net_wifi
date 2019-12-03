@@ -1148,7 +1148,7 @@ public class WifiPermissionsUtilTest {
     }
 
     private void setupMocks() throws Exception {
-        when(mMockPkgMgr.getApplicationInfo(TEST_PACKAGE_NAME, 0))
+        when(mMockPkgMgr.getApplicationInfoAsUser(eq(TEST_PACKAGE_NAME), eq(0), anyInt()))
             .thenReturn(mMockApplInfo);
         when(mMockContext.getPackageManager()).thenReturn(mMockPkgMgr);
         when(mMockAppOps.noteOp(AppOpsManager.OP_WIFI_SCAN, mUid, TEST_PACKAGE_NAME))
