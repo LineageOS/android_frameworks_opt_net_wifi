@@ -154,6 +154,7 @@ public class WifiInjector {
     private final LinkProbeManager mLinkProbeManager;
     private final IpMemoryStore mIpMemoryStore;
     private final CellularLinkLayerStatsCollector mCellularLinkLayerStatsCollector;
+    private final MacAddressUtil mMacAddressUtil;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -168,6 +169,7 @@ public class WifiInjector {
 
         sWifiInjector = this;
 
+        mMacAddressUtil = new MacAddressUtil();
         mContext = context;
         mDeviceConfigFacade = new DeviceConfigFacade();
         mWifiScoreCard = new WifiScoreCard(mClock,
@@ -693,6 +695,10 @@ public class WifiInjector {
             mRttHandlerThread.start();
         }
         return mRttHandlerThread;
+    }
+
+    public MacAddressUtil getMacAddressUtil() {
+        return mMacAddressUtil;
     }
 
     /**
