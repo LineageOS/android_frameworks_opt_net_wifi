@@ -39,6 +39,14 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.app.AlarmManager;
+import android.net.wifi.IApInterface;
+import android.net.wifi.IApInterfaceEventCallback;
+import android.net.wifi.IClientInterface;
+import android.net.wifi.IPnoScanEvent;
+import android.net.wifi.IScanEvent;
+import android.net.wifi.ISendMgmtFrameEvent;
+import android.net.wifi.IWifiScannerImpl;
+import android.net.wifi.IWificond;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
@@ -54,14 +62,6 @@ import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
-import com.android.server.wifi.wificond.IApInterface;
-import com.android.server.wifi.wificond.IApInterfaceEventCallback;
-import com.android.server.wifi.wificond.IClientInterface;
-import com.android.server.wifi.wificond.IPnoScanEvent;
-import com.android.server.wifi.wificond.IScanEvent;
-import com.android.server.wifi.wificond.ISendMgmtFrameEvent;
-import com.android.server.wifi.wificond.IWifiScannerImpl;
-import com.android.server.wifi.wificond.IWificond;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.NativeWifiClient;
 import com.android.server.wifi.wificond.PnoSettings;
@@ -80,6 +80,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -138,22 +139,19 @@ public class WificondControlTest extends WifiBaseTest {
     private static final int TEST_FREQUENCY = 2456;
     private static final int TEST_SIGNAL_MBM = -4500;
     private static final long TEST_TSF = 34455441;
-    private static final int TEST_CAPABILITY = 0b0000_0000_0010_0100;
+    private static final BitSet TEST_CAPABILITY = new BitSet(16) {{ set(2); set(5); }};
     private static final boolean TEST_ASSOCIATED = true;
-    private static final NativeScanResult MOCK_NATIVE_SCAN_RESULT = createMockNativeScanResult();
-    private static NativeScanResult createMockNativeScanResult() {
-        NativeScanResult result = new NativeScanResult();
-        result.ssid = TEST_SSID;
-        result.bssid = TEST_BSSID;
-        result.infoElement = TEST_INFO_ELEMENT_SSID;
-        result.frequency = TEST_FREQUENCY;
-        result.signalMbm = TEST_SIGNAL_MBM;
-        result.tsf = TEST_TSF;
-        result.capability = TEST_CAPABILITY;
-        result.associated = TEST_ASSOCIATED;
-        result.radioChainInfos = new RadioChainInfo[0];
-        return result;
-    }
+    private static final NativeScanResult MOCK_NATIVE_SCAN_RESULT =
+            new NativeScanResult() {{
+                ssid = TEST_SSID;
+                bssid = TEST_BSSID;
+                infoElement = TEST_INFO_ELEMENT_SSID;
+                frequency = TEST_FREQUENCY;
+                signalMbm = TEST_SIGNAL_MBM;
+                capability = TEST_CAPABILITY;
+                associated = TEST_ASSOCIATED;
+                radioChainInfos = new ArrayList<>();
+            }};
     private static final RadioChainInfo MOCK_NATIVE_RADIO_CHAIN_INFO_1 =
             new RadioChainInfo() {{
                 chainId = 1;
@@ -642,7 +640,7 @@ public class WificondControlTest extends WifiBaseTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(TEST_INFO_ELEMENT_SSID);
         out.write(TEST_INFO_ELEMENT_RSN);
-        NativeScanResult nativeScanResult = createMockNativeScanResult();
+        NativeScanResult nativeScanResult = new NativeScanResult(MOCK_NATIVE_SCAN_RESULT);
         nativeScanResult.infoElement = out.toByteArray();
         when(mWifiScannerImpl.getScanResults()).thenReturn(
                 new NativeScanResult[] {nativeScanResult});
@@ -690,10 +688,12 @@ public class WificondControlTest extends WifiBaseTest {
         assertNotNull(mWifiScannerImpl);
 
         // Mock the returned array of NativeScanResult.
-        NativeScanResult nativeScanResult = createMockNativeScanResult();
+        NativeScanResult nativeScanResult = new NativeScanResult(MOCK_NATIVE_SCAN_RESULT);
         // Add radio chain info
-        RadioChainInfo[] nativeRadioChainInfos =
-                { MOCK_NATIVE_RADIO_CHAIN_INFO_1, MOCK_NATIVE_RADIO_CHAIN_INFO_2 };
+        ArrayList<RadioChainInfo> nativeRadioChainInfos = new ArrayList<RadioChainInfo>() {{
+                add(MOCK_NATIVE_RADIO_CHAIN_INFO_1);
+                add(MOCK_NATIVE_RADIO_CHAIN_INFO_2);
+            }};
         nativeScanResult.radioChainInfos = nativeRadioChainInfos;
         NativeScanResult[] mockScanResults = { nativeScanResult };
 
@@ -1245,16 +1245,13 @@ public class WificondControlTest extends WifiBaseTest {
         verify(mSendMgmtFrameCallback).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
     }
 
-    private void assertRadioChainInfosEqual(RadioChainInfo[] expected,
-            android.net.wifi.ScanResult.RadioChainInfo[] actual) {
-        assertEquals(expected.length, actual.length);
-        for (int i = 0; i < expected.length; i++) {
-            RadioChainInfo expectedInfo = expected[i];
-            android.net.wifi.ScanResult.RadioChainInfo actualInfo = actual[i];
-            assertEquals(String.format("unexpected chainId at index %d", i),
-                    expectedInfo.chainId, actualInfo.id);
-            assertEquals(String.format("unexpected level at index %d", i),
-                    expectedInfo.level, actualInfo.level);
+    private void assertRadioChainInfosEqual(
+            List<RadioChainInfo> expected, android.net.wifi.ScanResult.RadioChainInfo[] actual) {
+        assertEquals(expected.size(), actual.length);
+        for (int i = 0; i < actual.length; i++) {
+            RadioChainInfo nativeRadioChainInfo =
+                    new RadioChainInfo(actual[i].id, actual[i].level);
+            assertTrue(expected.contains(nativeRadioChainInfo));
         }
     }
 
@@ -1275,8 +1272,8 @@ public class WificondControlTest extends WifiBaseTest {
             if (settings.scanType != mExpectedScanType) {
                 return false;
             }
-            ChannelSettings[] channelSettings = settings.channelSettings;
-            HiddenNetwork[] hiddenNetworks = settings.hiddenNetworks;
+            ArrayList<ChannelSettings> channelSettings = settings.channelSettings;
+            ArrayList<HiddenNetwork> hiddenNetworks = settings.hiddenNetworks;
             if (mExpectedFreqs != null) {
                 Set<Integer> freqSet = new HashSet<Integer>();
                 for (ChannelSettings channel : channelSettings) {
@@ -1286,7 +1283,7 @@ public class WificondControlTest extends WifiBaseTest {
                     return false;
                 }
             } else {
-                if (channelSettings != null && channelSettings.length > 0) {
+                if (channelSettings != null && channelSettings.size() > 0) {
                     return false;
                 }
             }
@@ -1302,7 +1299,7 @@ public class WificondControlTest extends WifiBaseTest {
                 }
 
             } else {
-                if (hiddenNetworks != null && hiddenNetworks.length > 0) {
+                if (hiddenNetworks != null && hiddenNetworks.size() > 0) {
                     return false;
                 }
             }
@@ -1336,22 +1333,22 @@ public class WificondControlTest extends WifiBaseTest {
             if (settings.pnoNetworks == null || mExpectedPnoSettings.networkList == null) {
                 return false;
             }
-            if (settings.pnoNetworks.length != mExpectedPnoSettings.networkList.length) {
+            if (settings.pnoNetworks.size() != mExpectedPnoSettings.networkList.length) {
                 return false;
             }
 
-            for (int i = 0; i < settings.pnoNetworks.length; i++) {
+            for (int i = 0; i < settings.pnoNetworks.size(); i++) {
                 if (!mExpectedPnoSettings.networkList[i].ssid.equals(NativeUtil.encodeSsid(
-                         NativeUtil.byteArrayToArrayList(settings.pnoNetworks[i].ssid)))) {
+                         NativeUtil.byteArrayToArrayList(settings.pnoNetworks.get(i).ssid)))) {
                     return false;
                 }
                 boolean isNetworkHidden = (mExpectedPnoSettings.networkList[i].flags
                         & WifiScanner.PnoSettings.PnoNetwork.FLAG_DIRECTED_SCAN) != 0;
-                if (isNetworkHidden != settings.pnoNetworks[i].isHidden) {
+                if (isNetworkHidden != settings.pnoNetworks.get(i).isHidden) {
                     return false;
                 }
                 if (!Arrays.equals(mExpectedPnoSettings.networkList[i].frequencies,
-                        settings.pnoNetworks[i].frequencies)) {
+                        settings.pnoNetworks.get(i).frequencies)) {
                     return false;
                 }
             }

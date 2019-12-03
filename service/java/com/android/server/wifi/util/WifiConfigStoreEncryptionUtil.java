@@ -19,7 +19,6 @@ package com.android.server.wifi.util;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Process;
-import android.os.SystemProperties;
 import android.security.keystore.AndroidKeyStoreProvider;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -51,6 +50,7 @@ public class WifiConfigStoreEncryptionUtil {
     private static final String ALIAS_SUFFIX = ".data-encryption-key";
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;
+    private static final int KEY_LENGTH = 256;
     private static final String KEY_STORE = "AndroidKeyStore";
 
     private final String mDataFileName;
@@ -160,6 +160,7 @@ public class WifiConfigStoreEncryptionUtil {
                         KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                         .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setKeySize(KEY_LENGTH)
                         .setUid(Process.WIFI_UID)
                         .build();
 
@@ -180,14 +181,8 @@ public class WifiConfigStoreEncryptionUtil {
         return secretKey;
     }
 
-    /* TODO(b/128526030): Remove this error reporting code upon resolving the bug. */
-    private static final boolean REQUEST_BUG_REPORT = false;
     private void reportException(Exception exception, String error) {
         Log.wtf(TAG, "An irrecoverable key store error was encountered: " + error, exception);
-        if (REQUEST_BUG_REPORT) {
-            SystemProperties.set("dumpstate.options", "bugreportwifi");
-            SystemProperties.set("ctl.start", "bugreport");
-        }
     }
 
 }

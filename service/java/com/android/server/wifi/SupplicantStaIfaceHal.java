@@ -84,12 +84,6 @@ public class SupplicantStaIfaceHal {
     @VisibleForTesting
     public static final String HAL_INSTANCE_NAME = "default";
     @VisibleForTesting
-    public static final String INIT_START_PROPERTY = "ctl.start";
-    @VisibleForTesting
-    public static final String INIT_STOP_PROPERTY = "ctl.stop";
-    @VisibleForTesting
-    public static final String INIT_SERVICE_NAME = "wpa_supplicant";
-    @VisibleForTesting
     public static final long WAIT_FOR_DEATH_TIMEOUT_MS = 50L;
     @VisibleForTesting
     static final String PMK_CACHE_EXPIRATION_ALARM_TAG = "PMK_CACHE_EXPIRATION_TIMER";
@@ -120,7 +114,7 @@ public class SupplicantStaIfaceHal {
     private long mDeathRecipientCookie = 0;
     private final Context mContext;
     private final WifiMonitor mWifiMonitor;
-    private final PropertyService mPropertyService;
+    private final FrameworkFacade mFrameworkFacade;
     private final Handler mEventHandler;
     private DppEventCallback mDppCallback = null;
     private final Clock mClock;
@@ -178,11 +172,11 @@ public class SupplicantStaIfaceHal {
     }
 
     public SupplicantStaIfaceHal(Context context, WifiMonitor monitor,
-                                 PropertyService propertyService, Handler handler,
+                                 FrameworkFacade frameworkFacade, Handler handler,
                                  Clock clock) {
         mContext = context;
         mWifiMonitor = monitor;
-        mPropertyService = propertyService;
+        mFrameworkFacade = frameworkFacade;
         mEventHandler = handler;
         mClock = clock;
 
@@ -687,7 +681,7 @@ public class SupplicantStaIfaceHal {
                 return startDaemon_V1_1();
             } else {
                 Log.i(TAG, "Starting supplicant using init");
-                mPropertyService.set(INIT_START_PROPERTY, INIT_SERVICE_NAME);
+                mFrameworkFacade.startSupplicant();
                 return true;
             }
         }
@@ -729,7 +723,7 @@ public class SupplicantStaIfaceHal {
                 terminate_V1_1();
             } else {
                 Log.i(TAG, "Terminating supplicant using init");
-                mPropertyService.set(INIT_STOP_PROPERTY, INIT_SERVICE_NAME);
+                mFrameworkFacade.stopSupplicant();
             }
 
             // Now wait for death listener callback to confirm that it's dead.

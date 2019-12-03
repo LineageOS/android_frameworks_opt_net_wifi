@@ -72,7 +72,9 @@ filegroup {
 filegroup {
     name: "wifi-service-srcs",
     srcs: [
+        ":libwificond_ipc_aidl",
         "java/**/*.java",
+        "java/**/I*.aidl",
         "java/**/*.logtags",
         ":framework-wifistack-shared-srcs",
     ],
@@ -84,6 +86,10 @@ java_library {
     name: "wifi-service",
     installable: true,
     defaults: ["wifi-service-common"],
+    aidl: {
+        include_dirs: ["system/connectivity/wificond/aidl"],
+        local_include_dirs: ["java"],
+    },
     srcs: [ ":wifi-service-srcs" ],
 
     libs: [
@@ -116,10 +122,10 @@ java_library {
 	// the necessary core platform APIs.
         "libprotobuf-java-lite",
         "libnanohttpd",
-        "libwificond_aidl-java",
         "services.net",
         "wifi_proto_scorecard",
         "wifi_proto_metrics",
+	"PlatformProperties"
     ],
 
     required: [

@@ -1915,39 +1915,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 .count());
     }
 
-    /** Verifies that enabling verbose logging sets the hal log property in eng builds. */
-    @Test
-    public void enablingVerboseLoggingSetsHalLogPropertyInEngBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isEngBuild()).thenReturn(true);
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
-        when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService).set("log.tag.WifiHAL", "V");
-    }
-
-    /** Verifies that enabling verbose logging sets the hal log property in userdebug builds. */
-    @Test
-    public void enablingVerboseLoggingSetsHalLogPropertyInUserdebugBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(true);
-        when(mBuildProperties.isEngBuild()).thenReturn(false);
-        when(mBuildProperties.isUserBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService).set("log.tag.WifiHAL", "V");
-    }
-
-    /** Verifies that enabling verbose logging does NOT set the hal log property in user builds. */
-    @Test
-    public void enablingVerboseLoggingDoeNotSetHalLogPropertyInUserBuilds() {
-        reset(mPropertyService);  // Ignore calls made in setUp()
-        when(mBuildProperties.isUserBuild()).thenReturn(true);
-        when(mBuildProperties.isEngBuild()).thenReturn(false);
-        when(mBuildProperties.isUserdebugBuild()).thenReturn(false);
-        mCmi.enableVerboseLogging(1);
-        verify(mPropertyService, never()).set(anyString(), anyString());
-    }
-
     private long testGetSupportedFeaturesCaseForRtt(long supportedFeatures, boolean rttDisabled) {
         AsyncChannel channel = mock(AsyncChannel.class);
         Message reply = Message.obtain();
@@ -2984,8 +2951,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that WifiLastResortWatchdog and BssidBlocklistMonitor is notified of
-     * association rejection of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
+     * Verifies that the BssidBlocklistMonitor is notified, but the WifiLastResortWatchdog is
+     * not notified of association rejections of type REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA.
      * @throws Exception
      */
     @Test
@@ -2996,7 +2963,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         mCmi.sendMessage(WifiMonitor.ASSOCIATION_REJECTION_EVENT, 0,
                 ClientModeImpl.REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA, sBSSID);
         mLooper.dispatchAll();
-        verify(mWifiLastResortWatchdog).noteConnectionFailureAndTriggerIfNeeded(
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_AP_UNABLE_TO_HANDLE_NEW_STA);
@@ -3038,6 +3005,27 @@ public class ClientModeImplTest extends WifiBaseTest {
                 anyString(), anyString(), anyInt());
         verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
                 BssidBlocklistMonitor.REASON_WRONG_PASSWORD);
+    }
+
+    /**
+     * Verifies that WifiLastResortWatchdog is not notified of authentication failures of type
+     * ERROR_AUTH_FAILURE_EAP_FAILURE.
+     * @throws Exception
+     */
+    @Test
+    public void testEapFailureIsIgnoredByWatchdog() throws Exception {
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, 0, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.SUPPLICANT_STATE_CHANGE_EVENT, 0, 0,
+                new StateChangeResult(0, sWifiSsid, sBSSID, SupplicantState.COMPLETED));
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE);
+        mLooper.dispatchAll();
+        verify(mWifiLastResortWatchdog, never()).noteConnectionFailureAndTriggerIfNeeded(
+                anyString(), anyString(), anyInt());
+        verify(mBssidBlocklistMonitor).handleBssidConnectionFailure(sBSSID, sSSID,
+                BssidBlocklistMonitor.REASON_EAP_FAILURE);
     }
 
     /**

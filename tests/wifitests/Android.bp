@@ -422,7 +422,6 @@ android_test {
 	// the necessary core platform APIs.
         "libprotobuf-java-lite",
         "libnanohttpd",
-        "libwificond_aidl-java",
         "services.net",
         "services.core",
         "wifi_proto_scorecard",

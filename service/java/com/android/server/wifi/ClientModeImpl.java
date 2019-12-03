@@ -1097,7 +1097,6 @@ public class ClientModeImpl extends StateMachine {
             mVerboseLoggingEnabled = false;
             setLogRecSize(NUM_LOG_RECS_NORMAL);
         }
-        configureVerboseHalLogging(mVerboseLoggingEnabled);
         setSupplicantLogLevel();
         mCountryCode.enableVerboseLogging(verbose);
         mWifiScoreReport.enableVerboseLogging(mVerboseLoggingEnabled);
@@ -1110,17 +1109,6 @@ public class ClientModeImpl extends StateMachine {
         mNetworkFactory.enableVerboseLogging(verbose);
         mLinkProbeManager.enableVerboseLogging(mVerboseLoggingEnabled);
         mMboOceController.enableVerboseLogging(mVerboseLoggingEnabled);
-    }
-
-    private static final String SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL = "log.tag.WifiHAL";
-    private static final String LOGD_LEVEL_DEBUG = "D";
-    private static final String LOGD_LEVEL_VERBOSE = "V";
-    private void configureVerboseHalLogging(boolean enableVerbose) {
-        if (mBuildProperties.isUserBuild()) {  // Verbose HAL logging not supported on user builds.
-            return;
-        }
-        mPropertyService.set(SYSTEM_PROPERTY_LOG_CONTROL_WIFIHAL,
-                enableVerbose ? LOGD_LEVEL_VERBOSE : LOGD_LEVEL_DEBUG);
     }
 
     private boolean setRandomMacOui() {
@@ -3514,10 +3502,12 @@ public class ClientModeImpl extends StateMachine {
                                     : WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             level2FailureReason);
-                    mWifiInjector.getWifiLastResortWatchdog()
-                            .noteConnectionFailureAndTriggerIfNeeded(
-                                    getTargetSsid(), bssid,
-                                    WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    if (reasonCode != REASON_CODE_AP_UNABLE_TO_HANDLE_NEW_STA) {
+                        mWifiInjector.getWifiLastResortWatchdog()
+                                .noteConnectionFailureAndTriggerIfNeeded(
+                                        getTargetSsid(), bssid,
+                                        WifiLastResortWatchdog.FAILURE_CODE_ASSOCIATION);
+                    }
                     break;
                 case WifiMonitor.AUTHENTICATION_FAILURE_EVENT:
                     mWifiDiagnostics.captureBugReportData(
@@ -3574,7 +3564,8 @@ public class ClientModeImpl extends StateMachine {
                             WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE,
                             WifiMetricsProto.ConnectionEvent.HLF_NONE,
                             level2FailureReason);
-                    if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD) {
+                    if (reasonCode != WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD && reasonCode
+                            != WifiManager.ERROR_AUTH_FAILURE_EAP_FAILURE) {
                         mWifiInjector.getWifiLastResortWatchdog()
                                 .noteConnectionFailureAndTriggerIfNeeded(
                                         getTargetSsid(),
