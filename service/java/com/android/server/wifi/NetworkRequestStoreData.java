@@ -29,7 +29,7 @@ import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -213,7 +213,7 @@ public class NetworkRequestStoreData implements WifiConfigStore.StoreData {
      */
     private Set<AccessPoint> parseApprovedAccessPoints(XmlPullParser in, int outerTagDepth)
             throws XmlPullParserException, IOException {
-        Set<AccessPoint> approvedAccessPoints = new HashSet<>();
+        Set<AccessPoint> approvedAccessPoints = new LinkedHashSet<>();
         while (XmlUtil.gotoNextSectionWithNameOrEnd(
                 in, XML_TAG_SECTION_HEADER_ACCESS_POINT, outerTagDepth)) {
             // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are

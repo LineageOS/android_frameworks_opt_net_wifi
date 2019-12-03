@@ -757,10 +757,11 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     // Helper method to check if the entity initiating the binder call is a system app.
-    private boolean isSystem(String packageName) {
+    private boolean isSystem(String packageName, int uid) {
         long ident = Binder.clearCallingIdentity();
         try {
-            ApplicationInfo info = mContext.getPackageManager().getApplicationInfo(packageName, 0);
+            ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
+                    packageName, 0, UserHandle.getUserId(uid));
             return info.isSystemApp() || info.isUpdatedSystemApp();
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume unknown app (more strict checking)
@@ -867,7 +868,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 // DO/PO apps should be able to add/modify saved networks.
                 || isDeviceOrProfileOwner(uid)
                 // TODO: Remove this system app bypass once Q is released.
-                || isSystem(packageName)
+                || isSystem(packageName, uid)
                 || mWifiPermissionsUtil.checkSystemAlertWindowPermission(uid, packageName);
     }
 
@@ -886,7 +887,7 @@ public class WifiServiceImpl extends BaseWifiService {
         if (!isPrivileged && !isDeviceOrProfileOwner(Binder.getCallingUid())
                 && !mWifiPermissionsUtil.isTargetSdkLessThan(packageName, Build.VERSION_CODES.Q,
                   Binder.getCallingUid())
-                && !isSystem(packageName)) {
+                && !isSystem(packageName, Binder.getCallingUid())) {
             mLog.info("setWifiEnabled not allowed for uid=%")
                     .c(Binder.getCallingUid()).flush();
             return false;
@@ -901,6 +902,11 @@ public class WifiServiceImpl extends BaseWifiService {
         boolean apEnabled = mWifiApState == WifiManager.WIFI_AP_STATE_ENABLED;
         if (apEnabled && !isPrivileged) {
             mLog.err("setWifiEnabled SoftAp enabled: only Settings can toggle wifi").flush();
+            return false;
+        }
+
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
             return false;
         }
 
@@ -1056,6 +1062,10 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean startSoftAp(WifiConfiguration wifiConfig) {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
+            return false;
+        }
 
         mLog.info("startSoftAp uid=%").c(Binder.getCallingUid()).flush();
 
@@ -1102,6 +1112,10 @@ public class WifiServiceImpl extends BaseWifiService {
     public boolean stopSoftAp() {
         // NETWORK_STACK is a signature only permission.
         enforceNetworkStackPermission();
+        // If we're in crypt debounce, ignore any wifi state change APIs.
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
+            return false;
+        }
 
         // only permitted callers are allowed to this point - they must have gone through
         // connectivity service since this method is protected with the NETWORK_STACK PERMISSION
@@ -1429,6 +1443,10 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // the app should be in the foreground
         if (!mFrameworkFacade.isAppForeground(uid)) {
+            return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
+        }
+
+        if (mFrameworkFacade.inStorageManagerCryptKeeperBounce()) {
             return LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE;
         }
 
