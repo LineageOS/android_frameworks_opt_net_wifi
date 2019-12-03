@@ -512,7 +512,7 @@ public class PasspointProvisionerTest extends WifiBaseTest {
         mOsuProvider = new OsuProvider((WifiSsid) null, info.getFriendlyNames(),
                 info.getServiceDescription(),
                 info.getServerUri(),
-                info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                info.getNetworkAccessIdentifier(), info.getMethodList());
 
         stopAfterStep(STEP_INIT);
         ArgumentCaptor<WifiSsid> wifiSsidArgumentCaptor = ArgumentCaptor.forClass(WifiSsid.class);

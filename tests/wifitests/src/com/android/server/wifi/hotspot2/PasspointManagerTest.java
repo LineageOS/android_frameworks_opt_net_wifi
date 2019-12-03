@@ -1218,7 +1218,7 @@ public class PasspointManagerTest extends WifiBaseTest {
 
                 expectedOsuProvidersForDomainId.add(new OsuProvider(
                         (WifiSsid) null, friendlyNameMap, serviceDescription,
-                        serverUri, nai, methodList, null));
+                        serverUri, nai, methodList));
 
                 // add All OSU Providers for AP1.
                 providerInfoListOfAp1.add(new OsuProviderInfo(
@@ -1230,8 +1230,7 @@ public class PasspointManagerTest extends WifiBaseTest {
                             friendlyNames, serverUri, methodList, null, nai, serviceDescriptions));
                     expectedOsuProvidersForDomainId2.add(new OsuProvider(
                             (WifiSsid) null, friendlyNameMap, serviceDescription,
-                            serverUri, nai, methodList,
-                            null));
+                            serverUri, nai, methodList));
                 }
             }
             anqpElementMapOfAp1.put(ANQPElementType.HSOSUProviders,

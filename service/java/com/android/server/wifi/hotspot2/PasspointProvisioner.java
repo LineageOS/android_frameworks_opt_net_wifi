@@ -1023,7 +1023,7 @@ public class PasspointProvisioner {
                     OsuProvider candidate = new OsuProvider(
                             (WifiSsid) null, info.getFriendlyNames(),
                             info.getServiceDescription(), info.getServerUri(),
-                            info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                            info.getNetworkAccessIdentifier(), info.getMethodList());
                     if (candidate.equals(osuProvider)) {
                         // Found a matching candidate and then set OSU SSID for the OSU provider.
                         candidate.setOsuSsid(element.getOsuSsid());
