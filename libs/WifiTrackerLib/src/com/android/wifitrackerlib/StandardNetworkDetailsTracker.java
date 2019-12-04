@@ -61,7 +61,7 @@ class StandardNetworkDetailsTracker extends NetworkDetailsTracker {
             String key) {
         super(lifecycle, context, wifiManager, connectivityManager, networkScoreManager,
                 mainHandler, workerHandler, clock, maxScanAgeMillis, scanIntervalMillis, TAG);
-        mChosenEntry = new StandardWifiEntry(mMainHandler, key);
+        mChosenEntry = new StandardWifiEntry(mMainHandler, key, mWifiManager);
     }
 
     @AnyThread

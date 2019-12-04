@@ -240,7 +240,7 @@ public class WifiPickerTracker extends BaseWifiTracker {
         // Create new StandardWifiEntry objects for each leftover group of scan results.
         for (Map.Entry<String, List<ScanResult>> e: scanResultsByKey.entrySet()) {
             mStandardWifiEntryCache.put(e.getKey(),
-                    new StandardWifiEntry(mMainHandler, e.getValue()));
+                    new StandardWifiEntry(mMainHandler, e.getValue(), mWifiManager));
         }
 
         updateStandardWifiEntryConfigs(mWifiManager.getConfiguredNetworks());

@@ -54,9 +54,9 @@ class StandardWifiEntry extends WifiEntry {
 
     private int mLevel = WIFI_LEVEL_UNREACHABLE;
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull List<ScanResult> scanResults)
-            throws IllegalArgumentException {
-        super(callbackHandler, false /* forSavedNetworksPage */);
+    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull List<ScanResult> scanResults,
+            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
+        super(callbackHandler, false /* forSavedNetworksPage */, wifiManager);
 
         checkNotNull(scanResults, "Cannot construct with null ScanResult list!");
         if (scanResults.isEmpty()) {
@@ -69,9 +69,9 @@ class StandardWifiEntry extends WifiEntry {
         updateScanResultInfo(scanResults);
     }
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull WifiConfiguration config)
-            throws IllegalArgumentException {
-        super(callbackHandler, true /* forSavedNetworksPage */);
+    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull WifiConfiguration config,
+            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
+        super(callbackHandler, true /* forSavedNetworksPage */, wifiManager);
 
         checkNotNull(config, "Cannot construct with null config!");
         checkNotNull(config.SSID, "Supplied config must have an SSID!");
@@ -82,9 +82,10 @@ class StandardWifiEntry extends WifiEntry {
         mWifiConfig = config;
     }
 
-    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull String key) {
+    StandardWifiEntry(@NonNull Handler callbackHandler, @NonNull String key,
+            @NonNull WifiManager wifiManager) {
         // TODO: second argument (isSaved = false) is bogus in this context
-        super(callbackHandler, false);
+        super(callbackHandler, false, wifiManager);
 
         if (!key.startsWith(KEY_PREFIX)) {
             throw new IllegalArgumentException("Key does not start with correct prefix!");
@@ -162,7 +163,23 @@ class StandardWifiEntry extends WifiEntry {
 
     @Override
     public void connect() {
-        // TODO(b/70983952): Fill this method in
+        if (mWifiConfig == null) {
+            // Unsaved network
+            if (mSecurity == SECURITY_NONE
+                    || mSecurity == SECURITY_OWE
+                    || mSecurity == SECURITY_OWE_TRANSITION) {
+                // Open network
+                // TODO(b/70983952): Add support for unsaved open networks
+                // Generate open config and connect with it.
+            } else {
+                // Secure network
+                // TODO(b/70983952): Add support for unsaved secure networks
+                // Return bad password failure to prompt user to enter password.
+            }
+        } else {
+            // Saved network
+            mWifiManager.connect(mWifiConfig.networkId, null);
+        }
     }
 
     @Override
