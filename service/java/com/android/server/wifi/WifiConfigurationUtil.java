@@ -16,6 +16,8 @@
 
 package com.android.server.wifi;
 
+import static android.net.wifi.WifiManager.ALL_ZEROS_MAC_ADDRESS;
+
 import static com.android.server.wifi.util.NativeUtil.addEnclosingQuotes;
 
 import android.net.IpConfiguration;
@@ -62,15 +64,14 @@ public class WifiConfigurationUtil {
     private static final int SAE_ASCII_MIN_LEN = 1 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_ASCII_MAX_LEN = 63 + ENCLOSING_QUOTES_LEN;
     private static final int PSK_SAE_HEX_LEN = 64;
-    private static final MacAddress ALL_ZEROS_MAC_ADDRESS =
-            MacAddress.fromString("00:00:00:00:00:00");
+
     @VisibleForTesting
     public static final String PASSWORD_MASK = "*";
     private static final String MATCH_EMPTY_SSID_PATTERN_PATH = "";
     private static final Pair<MacAddress, MacAddress> MATCH_NONE_BSSID_PATTERN =
-            new Pair(MacAddress.BROADCAST_ADDRESS, MacAddress.BROADCAST_ADDRESS);
+            new Pair<>(MacAddress.BROADCAST_ADDRESS, MacAddress.BROADCAST_ADDRESS);
     private static final Pair<MacAddress, MacAddress> MATCH_ALL_BSSID_PATTERN =
-            new Pair(ALL_ZEROS_MAC_ADDRESS, ALL_ZEROS_MAC_ADDRESS);
+            new Pair<>(ALL_ZEROS_MAC_ADDRESS, ALL_ZEROS_MAC_ADDRESS);
 
     /**
      * Checks if the provided |wepKeys| array contains any non-null value;
