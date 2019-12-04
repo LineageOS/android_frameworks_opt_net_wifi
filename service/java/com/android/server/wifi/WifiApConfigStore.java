@@ -21,8 +21,6 @@ import android.content.Context;
 import android.content.IntentFilter;
 import android.net.MacAddress;
 import android.net.wifi.SoftApConfiguration;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Process;
@@ -80,7 +78,7 @@ public class WifiApConfigStore {
     @VisibleForTesting
     static final int AP_CHANNEL_DEFAULT = 0;
 
-    private WifiConfiguration mPersistentWifiApConfig = null;
+    private SoftApConfiguration mPersistentWifiApConfig = null;
 
     private final Context mContext;
     private final Handler mHandler;
@@ -95,13 +93,13 @@ public class WifiApConfigStore {
      */
     private class SoftApStoreDataSource implements SoftApStoreData.DataSource {
 
-        public WifiConfiguration toSerialize() {
+        public SoftApConfiguration toSerialize() {
             mHasNewDataToSerialize = false;
             return mPersistentWifiApConfig;
         }
 
-        public void fromDeserialized(WifiConfiguration config) {
-            mPersistentWifiApConfig = new WifiConfiguration(config);
+        public void fromDeserialized(SoftApConfiguration config) {
+            mPersistentWifiApConfig = new SoftApConfiguration.Builder(config).build();
         }
 
         public void reset() {
@@ -144,7 +142,7 @@ public class WifiApConfigStore {
             File file = new File(apConfigFile);
             FileInputStream fis = new FileInputStream(apConfigFile);
             /* Load AP configuration from persistent storage. */
-            WifiConfiguration config = loadApConfigurationFromLegacyFile(fis);
+            SoftApConfiguration config = loadApConfigurationFromLegacyFile(fis);
             if (config != null) {
                 // Persist in the new store.
                 persistConfigAndTriggerBackupManagerProxy(config);
@@ -173,13 +171,13 @@ public class WifiApConfigStore {
     /**
      * Return the current soft access point configuration.
      */
-    public synchronized WifiConfiguration getApConfiguration() {
+    public synchronized SoftApConfiguration getApConfiguration() {
         if (mPersistentWifiApConfig == null) {
             /* Use default configuration. */
             Log.d(TAG, "Fallback to use default AP configuration");
             persistConfigAndTriggerBackupManagerProxy(getDefaultApConfiguration());
         }
-        WifiConfiguration sanitizedPersistentconfig =
+        SoftApConfiguration sanitizedPersistentconfig =
                 sanitizePersistentApConfig(mPersistentWifiApConfig);
         if (mPersistentWifiApConfig != sanitizedPersistentconfig) {
             Log.d(TAG, "persisted config was converted, need to resave it");
@@ -194,7 +192,7 @@ public class WifiApConfigStore {
      * This can be invoked under context of binder threads (WifiManager.setWifiApConfiguration)
      * and the main Wifi thread (CMD_START_AP).
      */
-    public synchronized void setApConfiguration(WifiConfiguration config) {
+    public synchronized void setApConfiguration(SoftApConfiguration config) {
         if (config == null) {
             config = getDefaultApConfiguration();
         } else {
@@ -218,41 +216,41 @@ public class WifiApConfigStore {
         return allowed2GChannels;
     }
 
-    private WifiConfiguration sanitizePersistentApConfig(WifiConfiguration config) {
-        WifiConfiguration convertedConfig = null;
+    private SoftApConfiguration sanitizePersistentApConfig(SoftApConfiguration config) {
+        SoftApConfiguration.Builder convertedConfigBuilder = null;
 
         // Persistent config may not set BSSID.
-        if (config.BSSID != null) {
-            convertedConfig = new WifiConfiguration(config);
-            convertedConfig.BSSID = null;
+        if (config.getBssid() != null) {
+            convertedConfigBuilder = new SoftApConfiguration.Builder(config);
+            convertedConfigBuilder.setBssid(null);
         }
 
         if (mContext.getResources().getBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any)) {
             // some devices are unable to support 5GHz only operation, check for 5GHz and
             // move to ANY if apBand conversion is required.
-            if (config.apBand == WifiConfiguration.AP_BAND_5GHZ) {
+            if (config.getBand() == SoftApConfiguration.BAND_5GHZ) {
                 Log.w(TAG, "Supplied ap config band was 5GHz only, converting to ANY");
-                if (convertedConfig == null) {
-                    convertedConfig = new WifiConfiguration(config);
+                if (convertedConfigBuilder == null) {
+                    convertedConfigBuilder = new SoftApConfiguration.Builder(config);
                 }
-                convertedConfig.apBand = WifiConfiguration.AP_BAND_ANY;
-                convertedConfig.apChannel = AP_CHANNEL_DEFAULT;
+                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_ANY);
+                convertedConfigBuilder.setChannel(AP_CHANNEL_DEFAULT);
             }
         } else {
             // this is a single mode device, we do not support ANY.  Convert all ANY to 5GHz
-            if (config.apBand == WifiConfiguration.AP_BAND_ANY) {
+            if (config.getBand() == SoftApConfiguration.BAND_ANY) {
                 Log.w(TAG, "Supplied ap config band was ANY, converting to 5GHz");
-                if (convertedConfig == null) {
-                    convertedConfig = new WifiConfiguration(config);
+                if (convertedConfigBuilder == null) {
+                    convertedConfigBuilder = new SoftApConfiguration.Builder(config);
                 }
-                convertedConfig.apBand = WifiConfiguration.AP_BAND_5GHZ;
-                convertedConfig.apChannel = AP_CHANNEL_DEFAULT;
+                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
+                convertedConfigBuilder.setChannel(AP_CHANNEL_DEFAULT);
             }
         }
-        return convertedConfig == null ? config : convertedConfig;
+        return convertedConfigBuilder == null ? config : convertedConfigBuilder.build();
     }
 
-    private void persistConfigAndTriggerBackupManagerProxy(WifiConfiguration config) {
+    private void persistConfigAndTriggerBackupManagerProxy(SoftApConfiguration config) {
         mPersistentWifiApConfig = config;
         mHasNewDataToSerialize = true;
         mWifiConfigManager.saveToStore(true);
@@ -263,11 +261,11 @@ public class WifiApConfigStore {
      * Load AP configuration from legacy persistent storage.
      * Note: This is deprecated and only used for migrating data once on reboot.
      */
-    private static WifiConfiguration loadApConfigurationFromLegacyFile(FileInputStream fis) {
-        WifiConfiguration config = null;
+    private static SoftApConfiguration loadApConfigurationFromLegacyFile(FileInputStream fis) {
+        SoftApConfiguration config = null;
         DataInputStream in = null;
         try {
-            config = new WifiConfiguration();
+            SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
             in = new DataInputStream(new BufferedInputStream(fis));
 
             int version = in.readInt();
@@ -275,22 +273,22 @@ public class WifiApConfigStore {
                 Log.e(TAG, "Bad version on hotspot configuration file");
                 return null;
             }
-            config.SSID = in.readUTF();
+            configBuilder.setSsid(in.readUTF());
 
             if (version >= 2) {
-                config.apBand = in.readInt();
-                config.apChannel = in.readInt();
+                configBuilder.setBand(in.readInt());
+                configBuilder.setChannel(in.readInt());
             }
 
             if (version >= 3) {
-                config.hiddenSSID = in.readBoolean();
+                configBuilder.setHiddenSsid(in.readBoolean());
             }
 
             int authType = in.readInt();
-            config.allowedKeyManagement.set(authType);
-            if (authType != KeyMgmt.NONE) {
-                config.preSharedKey = in.readUTF();
+            if (authType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
+                configBuilder.setWpa2Passphrase(in.readUTF());
             }
+            config = configBuilder.build();
         } catch (IOException e) {
             Log.e(TAG, "Error reading hotspot configuration " + e);
             config = null;
@@ -312,14 +310,13 @@ public class WifiApConfigStore {
      * flat file accessible only by the system. A WPA2 based default configuration
      * will keep the device secure after the update.
      */
-    private WifiConfiguration getDefaultApConfiguration() {
-        WifiConfiguration config = new WifiConfiguration();
-        config.apBand = WifiConfiguration.AP_BAND_2GHZ;
-        config.SSID = mContext.getResources().getString(
-                R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid();
-        config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
-        config.preSharedKey = generatePassword();
-        return config;
+    private SoftApConfiguration getDefaultApConfiguration() {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
+        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
+        configBuilder.setSsid(mContext.getResources().getString(
+                R.string.wifi_tether_configure_ssid_default) + "_" + getRandomIntForDefaultSsid());
+        configBuilder.setWpa2Passphrase(generatePassword());
+        return configBuilder.build();
     }
 
     private static int getRandomIntForDefaultSsid() {
@@ -337,53 +334,44 @@ public class WifiApConfigStore {
      * Generate a temporary WPA2 based configuration for use by the local only hotspot.
      * This config is not persisted and will not be stored by the WifiApConfigStore.
      */
-    public static WifiConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand,
+    public static SoftApConfiguration generateLocalOnlyHotspotConfig(Context context, int apBand,
             @Nullable SoftApConfiguration customConfig) {
-        WifiConfiguration config = new WifiConfiguration();
+        SoftApConfiguration.Builder configBuilder;
+        if (customConfig != null) {
+            configBuilder = new SoftApConfiguration.Builder(customConfig);
+        } else {
+            configBuilder = new SoftApConfiguration.Builder();
+        }
 
-        config.apBand = apBand;
-        config.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
+        configBuilder.setBand(apBand);
 
         if (customConfig == null || customConfig.getSsid() == null) {
-            config.SSID = generateLohsSsid(context);
-        } else {
-            config.SSID = customConfig.getSsid();
+            configBuilder.setSsid(generateLohsSsid(context));
         }
         if (customConfig == null) {
-            config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
-            config.preSharedKey = generatePassword();
-        } else if (customConfig.getWpa2Passphrase() != null) {
-            config.allowedKeyManagement.set(KeyMgmt.WPA2_PSK);
-            config.preSharedKey = customConfig.getWpa2Passphrase();
-        } else {
-            config.allowedKeyManagement.set(KeyMgmt.NONE);
+            configBuilder.setWpa2Passphrase(generatePassword());
         }
-        if (customConfig != null && customConfig.getBssid() != null) {
-            config.BSSID = customConfig.getBssid().toString();
-        } else {
-            // use factory or random BSSID
-            config.BSSID = null;
-        }
-        return config;
+
+        return configBuilder.build();
     }
 
     /**
-     * @return a copy of the given WifiConfig with the BSSID randomized, unless a custom BSSID is
+     * @return a copy of the given SoftApConfig with the BSSID randomized, unless a custom BSSID is
      * already set.
      */
-    WifiConfiguration randomizeBssidIfUnset(Context context, WifiConfiguration config) {
-        config = new WifiConfiguration(config);
-        if (config.BSSID == null && context.getResources().getBoolean(
+    SoftApConfiguration randomizeBssidIfUnset(Context context, SoftApConfiguration config) {
+        SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder(config);
+        if (config.getBssid() == null && context.getResources().getBoolean(
                 R.bool.config_wifi_ap_mac_randomization_supported)) {
-            MacAddress macAddress = mMacAddressUtil.calculatePersistentMac(config.SSID, mMac);
+            MacAddress macAddress = mMacAddressUtil.calculatePersistentMac(config.getSsid(), mMac);
             if (macAddress == null) {
                 Log.e(TAG, "Failed to calculate MAC from SSID. "
                         + "Generating new random MAC instead.");
                 macAddress = MacAddress.createRandomUnicastAddress();
             }
-            config.BSSID = macAddress.toString();
+            configBuilder.setBssid(macAddress);
         }
-        return config;
+        return configBuilder.build();
     }
 
     /**
@@ -433,46 +421,40 @@ public class WifiApConfigStore {
     }
 
     /**
-     * Validate a WifiConfiguration is properly configured for use by SoftApManager.
+     * Validate a SoftApConfiguration is properly configured for use by SoftApManager.
      *
      * This method checks the length of the SSID and for sanity between security settings (if it
      * requires a password, was one provided?).
      *
-     * @param apConfig {@link WifiConfiguration} to use for softap mode
+     * @param apConfig {@link SoftApConfiguration} to use for softap mode
      * @return boolean true if the provided config meets the minimum set of details, false
      * otherwise.
      */
-    static boolean validateApWifiConfiguration(@NonNull WifiConfiguration apConfig) {
+    static boolean validateApWifiConfiguration(@NonNull SoftApConfiguration apConfig) {
         // first check the SSID
-        if (!validateApConfigSsid(apConfig.SSID)) {
+        if (!validateApConfigSsid(apConfig.getSsid())) {
             // failed SSID verificiation checks
             return false;
         }
 
-        // now check security settings: settings app allows open and WPA2 PSK
-        if (apConfig.allowedKeyManagement == null) {
-            Log.d(TAG, "softap config key management bitset was null");
-            return false;
-        }
-
-        String preSharedKey = apConfig.preSharedKey;
+        String preSharedKey = apConfig.getWpa2Passphrase();
         boolean hasPreSharedKey = !TextUtils.isEmpty(preSharedKey);
         int authType;
 
         try {
-            authType = apConfig.getAuthType();
+            authType = apConfig.getSecurityType();
         } catch (IllegalStateException e) {
             Log.d(TAG, "Unable to get AuthType for softap config: " + e.getMessage());
             return false;
         }
 
-        if (authType == KeyMgmt.NONE) {
+        if (authType == SoftApConfiguration.SECURITY_TYPE_OPEN) {
             // open networks should not have a password
             if (hasPreSharedKey) {
                 Log.d(TAG, "open softap network should not have a password");
                 return false;
             }
-        } else if (authType == KeyMgmt.WPA2_PSK) {
+        } else if (authType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
             // this is a config that should have a password - check that first
             if (!hasPreSharedKey) {
                 Log.d(TAG, "softap network password must be set");

@@ -797,7 +797,7 @@ public class PasspointManager {
                 // each hotspot operators.
                 OsuProvider provider = new OsuProvider((WifiSsid) null, info.getFriendlyNames(),
                         info.getServiceDescription(), info.getServerUri(),
-                        info.getNetworkAccessIdentifier(), info.getMethodList(), null);
+                        info.getNetworkAccessIdentifier(), info.getMethodList());
                 List<ScanResult> matchingScanResults = osuProviders.get(provider);
                 if (matchingScanResults == null) {
                     matchingScanResults = new ArrayList<>();

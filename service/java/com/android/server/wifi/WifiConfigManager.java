@@ -485,7 +485,7 @@ public class WifiConfigManager {
      * @return
      */
     private boolean shouldUseAggressiveRandomization(WifiConfiguration config) {
-        if (config.getIpConfiguration().ipAssignment == IpConfiguration.IpAssignment.STATIC) {
+        if (config.getIpConfiguration().getIpAssignment() == IpConfiguration.IpAssignment.STATIC) {
             return false;
         }
         if (mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled()) {

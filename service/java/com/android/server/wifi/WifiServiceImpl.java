@@ -106,6 +106,7 @@ import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvider;
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.server.wifi.util.ExternalCallbackTracker;
 import com.android.server.wifi.util.RssiUtil;
 import com.android.server.wifi.util.WifiHandler;
@@ -776,9 +777,44 @@ public class WifiServiceImpl extends BaseWifiService {
             // Take down LOHS if it is up.
             mLohsSoftApTracker.stopAll();
         }
-        return startSoftApInternal(new SoftApModeConfiguration(
-                WifiManager.IFACE_IP_MODE_TETHERED, wifiConfig));
+
+        if (wifiConfig != null) {
+            return startSoftApInternal(new SoftApModeConfiguration(
+                    WifiManager.IFACE_IP_MODE_TETHERED,
+                    ApConfigUtil.fromWifiConfiguration(wifiConfig)));
+        } else {
+            return startSoftApInternal(new SoftApModeConfiguration(
+                    WifiManager.IFACE_IP_MODE_TETHERED, null));
+        }
     }
+
+    /**
+     * see {@link android.net.wifi.WifiManager#startTetheredHotspot(SoftApConfiguration)}
+     * @param softApConfig SSID, security and channel details as part of SoftApConfiguration
+     * @return {@code true} if softap start was triggered
+     * @throws SecurityException if the caller does not have permission to start softap
+     */
+    @Override
+    public boolean startTetheredHotspot(@Nullable SoftApConfiguration softApConfig) {
+        // NETWORK_STACK is a signature only permission.
+        enforceNetworkStackPermission();
+
+        mLog.info("startTetheredHotspot uid=%").c(Binder.getCallingUid()).flush();
+
+        if (!mTetheredSoftApTracker.setEnablingIfAllowed()) {
+            mLog.err("Tethering is already active.").flush();
+            return false;
+        }
+
+        if (!isConcurrentLohsAndTetheringSupported()) {
+            // Take down LOHS if it is up.
+            mLohsSoftApTracker.stopAll();
+        }
+
+        return startSoftApInternal(new SoftApModeConfiguration(
+                WifiManager.IFACE_IP_MODE_TETHERED, softApConfig));
+    }
+
 
     /**
      * Internal method to start softap mode. Callers of this method should have already checked
@@ -790,9 +826,9 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // null wifiConfig is a meaningful input for CMD_SET_AP; it means to use the persistent
         // AP config.
-        WifiConfiguration wifiConfig = apConfig.getWifiConfiguration();
-        if (wifiConfig != null && !WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
-            Log.e(TAG, "Invalid WifiConfiguration");
+        SoftApConfiguration softApConfig = apConfig.getSoftApConfiguration();
+        if (softApConfig != null && !WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+            Log.e(TAG, "Invalid SoftApConfiguration");
             return false;
         }
 
@@ -1138,7 +1174,7 @@ public class WifiServiceImpl extends BaseWifiService {
                     // current config to the incoming request right away.
                     try {
                         mLog.trace("LOHS already up, trigger onStarted callback").flush();
-                        request.sendHotspotStartedMessage(mActiveConfig.getWifiConfiguration());
+                        request.sendHotspotStartedMessage(mActiveConfig.getSoftApConfiguration());
                     } catch (RemoteException e) {
                         return LocalOnlyHotspotCallback.ERROR_GENERIC;
                     }
@@ -1159,12 +1195,12 @@ public class WifiServiceImpl extends BaseWifiService {
             int band = is5Ghz ? WifiConfiguration.AP_BAND_5GHZ
                     : WifiConfiguration.AP_BAND_2GHZ;
 
-            WifiConfiguration wifiConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
+            SoftApConfiguration softApConfig = WifiApConfigStore.generateLocalOnlyHotspotConfig(
                     mContext, band, request.getCustomConfig());
 
             mActiveConfig = new SoftApModeConfiguration(
                     WifiManager.IFACE_IP_MODE_LOCAL_ONLY,
-                    wifiConfig);
+                    softApConfig);
             mIsExclusive = (request.getCustomConfig() != null);
 
             startSoftApInternal(mActiveConfig);
@@ -1233,7 +1269,7 @@ public class WifiServiceImpl extends BaseWifiService {
         private void sendHotspotStartedMessageToAllLOHSRequestInfoEntriesLocked() {
             for (LocalOnlyHotspotRequestInfo requestor : mLocalOnlyHotspotRequests.values()) {
                 try {
-                    requestor.sendHotspotStartedMessage(mActiveConfig.getWifiConfiguration());
+                    requestor.sendHotspotStartedMessage(mActiveConfig.getSoftApConfiguration());
                 } catch (RemoteException e) {
                     // This will be cleaned up by binder death handling
                 }
@@ -1519,6 +1555,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * @throws SecurityException if the caller does not have permission to retrieve the softap
      * config
      */
+    @NonNull
     @Override
     public WifiConfiguration getWifiApConfiguration() {
         enforceAccessPermission();
@@ -1536,8 +1573,37 @@ public class WifiServiceImpl extends BaseWifiService {
 
         // hand off work to the ClientModeImpl handler thread to sync work between calls
         // and SoftApManager starting up softap
+        return ApConfigUtil.convertToWifiConfiguration(
+                mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new SoftApConfiguration.Builder().build()));
+    }
+
+    /**
+     * see {@link WifiManager#getSoftApConfiguration()}
+     * @return soft access point configuration {@link SoftApConfiguration}
+     * @throws SecurityException if the caller does not have permission to retrieve the softap
+     * config
+     */
+    @NonNull
+    @Override
+    public SoftApConfiguration getSoftApConfiguration() {
+        enforceAccessPermission();
+        int uid = Binder.getCallingUid();
+        // only allow Settings UI to get the saved SoftApConfig
+        if (!mWifiPermissionsUtil.checkConfigOverridePermission(uid)) {
+            // random apps should not be allowed to read the user specified config
+            throw new SecurityException("App not allowed to read or update stored WiFi Ap config "
+                    + "(uid = " + uid + ")");
+        }
+
+        if (mVerboseLoggingEnabled) {
+            mLog.info("getSoftApConfiguration uid=%").c(uid).flush();
+        }
+
+        // hand off work to the ClientModeImpl handler thread to sync work between calls
+        // and SoftApManager starting up softap
         return mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
-                new WifiConfiguration());
+                new SoftApConfiguration.Builder().build());
     }
 
     /**
@@ -1561,11 +1627,35 @@ public class WifiServiceImpl extends BaseWifiService {
         mLog.info("setWifiApConfiguration uid=%").c(uid).flush();
         if (wifiConfig == null)
             return false;
-        if (WifiApConfigStore.validateApWifiConfiguration(wifiConfig)) {
-            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(wifiConfig));
+        if (WifiApConfigStore.validateApWifiConfiguration(
+                ApConfigUtil.fromWifiConfiguration(wifiConfig))) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(
+                    ApConfigUtil.fromWifiConfiguration(wifiConfig)));
             return true;
         } else {
             Log.e(TAG, "Invalid WifiConfiguration");
+            return false;
+        }
+    }
+
+    /**
+     * see {@link WifiManager#setSoftApConfiguration(SoftApConfiguration)}
+     * @param softApConfig {@link SoftApConfiguration} details for soft access point
+     * @return boolean indicating success or failure of the operation
+     * @throws SecurityException if the caller does not have permission to write the softap config
+     */
+    @Override
+    public boolean setSoftApConfiguration(
+            @NonNull SoftApConfiguration softApConfig, @NonNull String packageName) {
+        enforceNetworkSettingsPermission();
+        int uid = Binder.getCallingUid();
+        mLog.info("setSoftApConfiguration uid=%").c(uid).flush();
+        if (softApConfig == null) return false;
+        if (WifiApConfigStore.validateApWifiConfiguration(softApConfig)) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
+            return true;
+        } else {
+            Log.e(TAG, "Invalid SoftAp Configuration");
             return false;
         }
     }
@@ -1653,16 +1743,16 @@ public class WifiServiceImpl extends BaseWifiService {
 
     @Override
     public void requestActivityInfo(ResultReceiver result) {
-        Bundle bundle = new Bundle();
         if (mVerboseLoggingEnabled) {
             mLog.info("requestActivityInfo uid=%").c(Binder.getCallingUid()).flush();
         }
+        Bundle bundle = new Bundle();
         bundle.putParcelable(BatteryStats.RESULT_RECEIVER_CONTROLLER_KEY, reportActivityInfo());
         result.send(0, bundle);
     }
 
     /**
-     * see {@link android.net.wifi.WifiManager#getControllerActivityEnergyInfo(int)}
+     * see {@link android.net.wifi.WifiManager#getControllerActivityEnergyInfo()}
      */
     @Override
     public WifiActivityEnergyInfo reportActivityInfo() {
@@ -1673,64 +1763,71 @@ public class WifiServiceImpl extends BaseWifiService {
         if ((getSupportedFeatures() & WifiManager.WIFI_FEATURE_LINK_LAYER_STATS) == 0) {
             return null;
         }
-        WifiLinkLayerStats stats;
-        WifiActivityEnergyInfo energyInfo = null;
-        if (mClientModeImplChannel != null) {
-            stats = mClientModeImpl.syncGetLinkLayerStats(mClientModeImplChannel);
-            if (stats != null) {
-                final double rxIdleCurrent = mPowerProfile.getAveragePower(
-                    PowerProfile.POWER_WIFI_CONTROLLER_IDLE);
-                final double rxCurrent = mPowerProfile.getAveragePower(
-                    PowerProfile.POWER_WIFI_CONTROLLER_RX);
-                final double txCurrent = mPowerProfile.getAveragePower(
-                    PowerProfile.POWER_WIFI_CONTROLLER_TX);
-                final double voltage = mPowerProfile.getAveragePower(
-                    PowerProfile.POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE) / 1000.0;
-                final long rxIdleTime = stats.on_time - stats.tx_time - stats.rx_time;
-                final long[] txTimePerLevel;
-                if (stats.tx_time_per_level != null) {
-                    txTimePerLevel = new long[stats.tx_time_per_level.length];
-                    for (int i = 0; i < txTimePerLevel.length; i++) {
-                        txTimePerLevel[i] = stats.tx_time_per_level[i];
-                        // TODO(b/27227497): Need to read the power consumed per level from config
-                    }
-                } else {
-                    // This will happen if the HAL get link layer API returned null.
-                    txTimePerLevel = new long[0];
-                }
-                final long energyUsed = (long)((stats.tx_time * txCurrent +
-                        stats.rx_time * rxCurrent +
-                        rxIdleTime * rxIdleCurrent) * voltage);
-                if (VDBG || rxIdleTime < 0 || stats.on_time < 0 || stats.tx_time < 0 ||
-                        stats.rx_time < 0 || stats.on_time_scan < 0 || energyUsed < 0) {
-                    String sb = " rxIdleCur=" + rxIdleCurrent
-                            + " rxCur=" + rxCurrent
-                            + " txCur=" + txCurrent
-                            + " voltage=" + voltage
-                            + " on_time=" + stats.on_time
-                            + " tx_time=" + stats.tx_time
-                            + " tx_time_per_level=" + Arrays.toString(txTimePerLevel)
-                            + " rx_time=" + stats.rx_time
-                            + " rxIdleTime=" + rxIdleTime
-                            + " scan_time=" + stats.on_time_scan
-                            + " energy=" + energyUsed;
-                    Log.d(TAG, " reportActivityInfo: " + sb);
-                }
-
-                // Convert the LinkLayerStats into EnergyActivity
-                energyInfo = new WifiActivityEnergyInfo(mClock.getElapsedSinceBootMillis(),
-                        WifiActivityEnergyInfo.STACK_STATE_STATE_IDLE, stats.tx_time,
-                        txTimePerLevel, stats.rx_time, stats.on_time_scan, rxIdleTime, energyUsed);
-            }
-            if (energyInfo != null && energyInfo.isValid()) {
-                return energyInfo;
-            } else {
-                return null;
-            }
-        } else {
+        if (mClientModeImplChannel == null) {
             Log.e(TAG, "mClientModeImplChannel is not initialized");
             return null;
         }
+        WifiLinkLayerStats stats = mClientModeImpl.syncGetLinkLayerStats(mClientModeImplChannel);
+        if (stats == null) {
+            return null;
+        }
+
+        final double rxIdleCurrentInMilliAmps = mPowerProfile.getAveragePower(
+                PowerProfile.POWER_WIFI_CONTROLLER_IDLE);
+        final double rxCurrentInMilliAmps = mPowerProfile.getAveragePower(
+                PowerProfile.POWER_WIFI_CONTROLLER_RX);
+        final double txCurrentInMilliAmps = mPowerProfile.getAveragePower(
+                PowerProfile.POWER_WIFI_CONTROLLER_TX);
+        // POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE is measured in mV, so convert to V.
+        final double voltageInVolts = mPowerProfile.getAveragePower(
+                PowerProfile.POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE) / 1000.0;
+        final long rxIdleTimeMillis = stats.on_time - stats.tx_time - stats.rx_time;
+        final long[] txTimePerLevelMillis;
+        if (stats.tx_time_per_level == null) {
+            // This will happen if the HAL get link layer API returned null.
+            txTimePerLevelMillis = new long[0];
+        } else {
+            // need to manually copy since we are converting an int[] to a long[]
+            txTimePerLevelMillis = new long[stats.tx_time_per_level.length];
+            for (int i = 0; i < txTimePerLevelMillis.length; i++) {
+                txTimePerLevelMillis[i] = stats.tx_time_per_level[i];
+                // TODO(b/27227497): Need to read the power consumed per level from config
+            }
+        }
+        // times are all in milliseconds, currents are all in milliAmps, voltage is in volts =>
+        // resulting energy is in microjoules.
+        final long energyUsedInMicroJoules = (long) (
+                (stats.tx_time * txCurrentInMilliAmps
+                        + stats.rx_time * rxCurrentInMilliAmps
+                        + rxIdleTimeMillis * rxIdleCurrentInMilliAmps
+                ) * voltageInVolts);
+
+        if (VDBG || rxIdleTimeMillis < 0 || stats.on_time < 0 || stats.tx_time < 0
+                || stats.rx_time < 0 || stats.on_time_scan < 0 || energyUsedInMicroJoules < 0) {
+            Log.d(TAG, " reportActivityInfo: "
+                    + " rxIdleCurrentInMilliAmps=" + rxIdleCurrentInMilliAmps
+                    + " rxCurrentInMilliAmps=" + rxCurrentInMilliAmps
+                    + " txCurrentInMilliAmps=" + txCurrentInMilliAmps
+                    + " voltageInVolts=" + voltageInVolts
+                    + " on_time_millis=" + stats.on_time
+                    + " tx_time_millis=" + stats.tx_time
+                    + " tx_time_per_level_millis=" + Arrays.toString(txTimePerLevelMillis)
+                    + " rx_time_millis=" + stats.rx_time
+                    + " rxIdleTimeMillis=" + rxIdleTimeMillis
+                    + " scan_time_millis=" + stats.on_time_scan
+                    + " energyUsedInMicroJoules=" + energyUsedInMicroJoules);
+        }
+
+        // Convert the LinkLayerStats into WifiActivityEnergyInfo
+        WifiActivityEnergyInfo energyInfo = new WifiActivityEnergyInfo(
+                mClock.getElapsedSinceBootMillis(),
+                WifiActivityEnergyInfo.STACK_STATE_STATE_IDLE,
+                stats.tx_time,
+                stats.rx_time,
+                stats.on_time_scan,
+                rxIdleTimeMillis,
+                energyUsedInMicroJoules);
+        return energyInfo.isValid() ? energyInfo : null;
     }
 
     /**

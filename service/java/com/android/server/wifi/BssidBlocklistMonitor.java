@@ -152,15 +152,9 @@ public class BssidBlocklistMonitor {
     }
 
     private boolean addToBlocklist(@NonNull BssidStatus entry, int failureStreak) {
-        // Call mWifiLastResortWatchdog.shouldIgnoreBssidUpdate to give watchdog a chance to
-        // trigger before blocklisting the bssid.
-        String bssid = entry.bssid;
-        if (mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid)) {
-            return false;
-        }
         long durationMs = getBlocklistDurationWithExponentialBackoff(failureStreak);
         entry.addToBlocklist(durationMs);
-        localLog(TAG + " addToBlocklist: bssid=" + bssid + ", ssid=" + entry.ssid
+        localLog(TAG + " addToBlocklist: bssid=" + entry.bssid + ", ssid=" + entry.ssid
                 + ", durationMs=" + durationMs);
         return true;
     }
@@ -197,6 +191,14 @@ public class BssidBlocklistMonitor {
         return true;
     }
 
+    private boolean shouldWaitForWatchdogToTriggerFirst(String bssid,
+            @FailureReason int reasonCode) {
+        boolean isWatchdogRelatedFailure = reasonCode == REASON_ASSOCIATION_REJECTION
+                || reasonCode == REASON_AUTHENTICATION_FAILURE
+                || reasonCode == REASON_DHCP_FAILURE;
+        return isWatchdogRelatedFailure && mWifiLastResortWatchdog.shouldIgnoreBssidUpdate(bssid);
+    }
+
     private boolean handleBssidConnectionFailureInternal(String bssid, String ssid,
             @FailureReason int reasonCode) {
         boolean result = false;
@@ -205,6 +207,11 @@ public class BssidBlocklistMonitor {
         int currentStreak = mWifiScoreCard.getBssidBlocklistStreak(ssid, bssid, reasonCode);
         if (currentStreak > 0
                 || entry.failureCount[reasonCode] >= FAILURE_COUNT_DISABLE_THRESHOLD[reasonCode]) {
+            // To rule out potential device side issues, don't add to blocklist if
+            // WifiLastResortWatchdog is still not triggered
+            if (shouldWaitForWatchdogToTriggerFirst(bssid, reasonCode)) {
+                return false;
+            }
             result = addToBlocklist(entry, currentStreak);
             mWifiScoreCard.incrementBssidBlocklistStreak(ssid, bssid, reasonCode);
         }

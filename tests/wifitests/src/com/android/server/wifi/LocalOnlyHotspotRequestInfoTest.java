@@ -29,8 +29,11 @@ import android.os.RemoteException;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.util.ApConfigUtil;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -149,9 +152,17 @@ public class LocalOnlyHotspotRequestInfoTest extends WifiBaseTest {
     @Test
     public void verifySendStartedMessage() throws Exception {
         mLOHSRequestInfo = new LocalOnlyHotspotRequestInfo(mCallback, mDeathCallback, null);
-        WifiConfiguration config = mock(WifiConfiguration.class);
+        SoftApConfiguration config = mock(SoftApConfiguration.class);
         mLOHSRequestInfo.sendHotspotStartedMessage(config);
-        verify(mCallback).onHotspotStarted(config);
+        WifiConfiguration expectedConfig = ApConfigUtil.convertToWifiConfiguration(config);
+        expectedConfig.networkId = WifiConfiguration.LOCAL_ONLY_NETWORK_ID;
+        ArgumentCaptor<WifiConfiguration> mWifiConfigCaptor =
+                ArgumentCaptor.forClass(WifiConfiguration.class);
+
+        verify(mCallback).onHotspotStarted(mWifiConfigCaptor.capture());
+        WifiConfigurationTestUtil.assertConfigurationEqualForSoftAp(
+                expectedConfig, mWifiConfigCaptor.getValue());
+
     }
 
     /**

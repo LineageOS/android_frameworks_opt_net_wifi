@@ -32,6 +32,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
+import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -115,6 +116,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     private @Mock PasspointManager mPasspointManager;
     private @Mock ISuggestionConnectionStatusListener mListener;
     private @Mock IBinder mBinder;
+    private @Mock ActivityManager mActivityManager;
     private TestLooper mLooper;
     private ArgumentCaptor<AppOpsManager.OnOpChangedListener> mAppOpChangedListenerCaptor =
             ArgumentCaptor.forClass(AppOpsManager.OnOpChangedListener.class);
@@ -147,6 +149,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         when(mContext.getSystemService(Context.NOTIFICATION_SERVICE))
                 .thenReturn(mNotificationManger);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
+        when(mContext.getSystemService(ActivityManager.class)).thenReturn(mActivityManager);
+        when(mActivityManager.isLowRamDevice()).thenReturn(false);
 
         // setup resource strings for notification.
         when(mResources.getString(eq(R.string.wifi_suggestion_title), anyString()))
@@ -418,7 +422,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
     public void testAddNetworkSuggestionsFailureOnExceedsMaxPerApp() {
         // Add the max per app first.
         List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
-        for (int i = 0; i < WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP; i++) {
+        for (int i = 0; i < WifiManager.NETWORK_SUGGESTIONS_MAX_PER_APP_HIGH_RAM; i++) {
             networkSuggestionList.add(new WifiNetworkSuggestion(
                     WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true,
                     TEST_UID_1, TEST_PACKAGE_1));
