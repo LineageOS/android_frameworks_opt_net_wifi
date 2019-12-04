@@ -2937,7 +2937,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * Notify the Factory Reset Event to application who may installed wifi configurations.
      */
     private void notifyFactoryReset() {
-        Intent intent = new Intent(WifiManager.WIFI_NETWORK_SETTINGS_RESET_ACTION);
+        Intent intent = new Intent(WifiManager.ACTION_NETWORK_SETTINGS_RESET);
         intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
