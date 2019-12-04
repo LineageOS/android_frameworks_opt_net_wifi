@@ -123,9 +123,13 @@ public class SoftApManager implements ActiveModeManager {
         }
 
         @Override
-        public void onConnectedClientsChanged(List<NativeWifiClient> clients) {
-            mStateMachine.sendMessage(SoftApStateMachine.CMD_ASSOCIATED_STATIONS_CHANGED,
-                    clients);
+        public void onConnectedClientsChanged(NativeWifiClient client, boolean isConnected) {
+            if (client != null) {
+                mStateMachine.sendMessage(SoftApStateMachine.CMD_ASSOCIATED_STATIONS_CHANGED,
+                        isConnected ? 1 : 0, 0, client);
+            } else {
+                Log.e(TAG, "onConnectedClientsChanged: Invalid type returned");
+            }
         }
 
         @Override
@@ -546,19 +550,25 @@ public class SoftApManager implements ActiveModeManager {
              * Set stations associated with this soft AP
              * @param clients The connected stations
              */
-            private void setConnectedClients(List<NativeWifiClient> clients) {
-                if (clients == null) {
+            private void updateConnectedClients(WifiClient client, boolean isConnected) {
+                if (client == null) {
                     return;
                 }
 
-                List<WifiClient> convertedClients = createWifiClients(clients);
-                if (mConnectedClients.equals(convertedClients)) {
+                int index = mConnectedClients.indexOf(client);
+                if ((index != -1) == isConnected) {
+                    Log.e(TAG, "Duplicate client updated event, client "
+                            + client + "isConnected: " + isConnected);
                     return;
                 }
+                if (isConnected) {
+                    mConnectedClients.add(client);
+                } else {
+                    mConnectedClients.remove(index);
+                }
 
-                mConnectedClients = new ArrayList<>(convertedClients);
                 Log.d(TAG, "The connected wifi stations have changed with count: "
-                        + clients.size() + ": " + convertedClients);
+                        + mConnectedClients.size() + ": " + mConnectedClients);
 
                 if (mSoftApCallback != null) {
                     mSoftApCallback.onConnectedClientsChanged(mConnectedClients);
@@ -684,7 +694,7 @@ public class SoftApManager implements ActiveModeManager {
                 mSarManager.setSapWifiState(WifiManager.WIFI_AP_STATE_ENABLED);
 
                 Log.d(TAG, "Resetting connected clients on start");
-                mConnectedClients = new ArrayList<>();
+                mConnectedClients.clear();
                 scheduleTimeoutMessage();
             }
 
@@ -698,7 +708,14 @@ public class SoftApManager implements ActiveModeManager {
                     mSettingObserver.unregister();
                 }
                 Log.d(TAG, "Resetting num stations on stop");
-                setConnectedClients(new ArrayList<>());
+                if (mConnectedClients.size() != 0) {
+                    mConnectedClients.clear();
+                    if (mSoftApCallback != null) {
+                        mSoftApCallback.onConnectedClientsChanged(mConnectedClients);
+                    }
+                    mWifiMetrics.addSoftApNumAssociatedStationsChangedEvent(
+                            0, mApConfig.getTargetMode());
+                }
                 cancelTimeoutMessage();
 
                 // Need this here since we are exiting |Started| state and won't handle any
@@ -735,15 +752,22 @@ public class SoftApManager implements ActiveModeManager {
             public boolean processMessage(Message message) {
                 switch (message.what) {
                     case CMD_ASSOCIATED_STATIONS_CHANGED:
-                        if (!(message.obj instanceof List)) {
+                        if (!(message.obj instanceof NativeWifiClient)) {
                             Log.e(TAG, "Invalid type returned for"
                                     + " CMD_ASSOCIATED_STATIONS_CHANGED");
                             break;
                         }
-
-                        Log.d(TAG, "Setting connected stations on"
-                                + " CMD_ASSOCIATED_STATIONS_CHANGED");
-                        setConnectedClients((List<NativeWifiClient>) message.obj);
+                        NativeWifiClient nativeClient = (NativeWifiClient) message.obj;
+                        boolean isConnected = (message.arg1 == 1);
+                        if (nativeClient != null && nativeClient.macAddress != null) {
+                            MacAddress clientMacAddress =
+                                    MacAddress.fromBytes(nativeClient.macAddress);
+                            WifiClient client = new WifiClient(clientMacAddress);
+                            Log.d(TAG, "CMD_ASSOCIATED_STATIONS_CHANGED, Client: "
+                                    + clientMacAddress.toString() + " isConnected: " + isConnected);
+                            // TODO : client check here before call updateConnectedClients
+                            updateConnectedClients(client, isConnected);
+                        }
                         break;
                     case CMD_SOFT_AP_CHANNEL_SWITCHED:
                         if (message.arg1 < 0) {
