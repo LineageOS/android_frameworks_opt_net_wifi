@@ -23,6 +23,7 @@ import android.net.IpConfiguration;
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
+import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiScanner;
 import android.os.PatternMatcher;
@@ -569,7 +570,7 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     public void testValidateNetworkSpecifierPositiveCases_SsidPattern() {
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
-                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
+                Pair.create(WifiManager.ALL_ZEROS_MAC_ADDRESS, WifiManager.ALL_ZEROS_MAC_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
                 TEST_UID, TEST_PACKAGE);
         assertTrue(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
@@ -611,7 +612,7 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     public void testValidateNetworkSpecifierNegativeCases_NoSsidBssid() {
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
                 new PatternMatcher(".*", PatternMatcher.PATTERN_SIMPLE_GLOB),
-                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
+                Pair.create(WifiManager.ALL_ZEROS_MAC_ADDRESS, WifiManager.ALL_ZEROS_MAC_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
                 TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
@@ -625,7 +626,7 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     public void testValidateNetworkSpecifierNegativeCases_MatchNoneSsidPattern() {
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
                 new PatternMatcher("", PatternMatcher.PATTERN_LITERAL),
-                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
+                Pair.create(WifiManager.ALL_ZEROS_MAC_ADDRESS, WifiManager.ALL_ZEROS_MAC_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
                 TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
@@ -653,7 +654,7 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     public void testValidateNetworkSpecifierNegativeCases_InvalidBssidPattern() {
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_LITERAL),
-                Pair.create(MacAddress.fromString(TEST_BSSID), MacAddress.ALL_ZEROS_ADDRESS),
+                Pair.create(MacAddress.fromString(TEST_BSSID), WifiManager.ALL_ZEROS_MAC_ADDRESS),
                 WifiConfigurationTestUtil.createOpenNetwork(),
                 TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
@@ -667,7 +668,7 @@ public class WifiConfigurationUtilTest extends WifiBaseTest {
     public void testValidateNetworkSpecifierNegativeCases_NoSsidPatternForHiddenNetwork() {
         WifiNetworkSpecifier specifier = new WifiNetworkSpecifier(
                 new PatternMatcher(TEST_SSID, PatternMatcher.PATTERN_PREFIX),
-                Pair.create(MacAddress.ALL_ZEROS_ADDRESS, MacAddress.ALL_ZEROS_ADDRESS),
+                Pair.create(WifiManager.ALL_ZEROS_MAC_ADDRESS, WifiManager.ALL_ZEROS_MAC_ADDRESS),
                 WifiConfigurationTestUtil.createOpenHiddenNetwork(),
                 TEST_UID, TEST_PACKAGE);
         assertFalse(WifiConfigurationUtil.validateNetworkSpecifier(specifier));
