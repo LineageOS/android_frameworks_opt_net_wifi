@@ -17,6 +17,7 @@ package com.android.server.wifi;
 
 import android.annotation.NonNull;
 import android.hardware.wifi.supplicant.V1_0.ISupplicantStaIfaceCallback;
+import android.util.Log;
 
 import java.util.ArrayList;
 
@@ -162,5 +163,43 @@ abstract class SupplicantStaIfaceCallbackV1_3Impl extends
         mStaIfaceHal.addPmkCacheEntry(curNetworkId, expirationTimeInSec, serializedEntry);
         mStaIfaceHal.logCallback(
                 "onPmkCacheAdded: update pmk cache for config id " + curNetworkId);
+    }
+
+    @Override
+    public void onDppProgress_1_3(int code) {
+        if (mStaIfaceHal.getDppCallback() != null) {
+            mStaIfaceHal.getDppCallback().onProgress(code);
+        } else {
+            Log.e(TAG, "onDppProgress callback is null");
+        }
+    }
+
+    @Override
+    public void onDppFailure_1_3(int code, String ssid, String channelList,
+            ArrayList<Short> bandList) {
+        if (mStaIfaceHal.getDppCallback() != null) {
+            int[] bandListArray = null;
+
+            // Convert operating class list to a primitive array
+            if (bandList != null) {
+                bandListArray = new int[bandList.size()];
+
+                for (int i = 0; i < bandList.size(); i++) {
+                    bandListArray[i] = bandList.get(i).intValue();
+                }
+            }
+            mStaIfaceHal.getDppCallback().onFailure(code, ssid, channelList, bandListArray);
+        } else {
+            Log.e(TAG, "onDppFailure callback is null");
+        }
+    }
+
+    @Override
+    public void onDppSuccess(int code) {
+        if (mStaIfaceHal.getDppCallback() != null) {
+            mStaIfaceHal.getDppCallback().onSuccess(code);
+        } else {
+            Log.e(TAG, "onDppFailure callback is null");
+        }
     }
 }

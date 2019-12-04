@@ -20,9 +20,10 @@ import static android.net.wifi.WifiManager.EASY_CONNECT_NETWORK_ROLE_AP;
 
 import android.content.Context;
 import android.hardware.wifi.supplicant.V1_2.DppAkm;
-import android.hardware.wifi.supplicant.V1_2.DppFailureCode;
 import android.hardware.wifi.supplicant.V1_2.DppNetRole;
-import android.hardware.wifi.supplicant.V1_2.DppProgressCode;
+import android.hardware.wifi.supplicant.V1_3.DppFailureCode;
+import android.hardware.wifi.supplicant.V1_3.DppProgressCode;
+import android.hardware.wifi.supplicant.V1_3.DppSuccessCode;
 import android.net.wifi.EasyConnectStatusCallback;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.WifiConfiguration;
@@ -66,9 +67,9 @@ public class DppManager {
         }
 
         @Override
-        public void onSuccessConfigSent() {
+        public void onSuccess(int dppStatusCode) {
             mHandler.post(() -> {
-                DppManager.this.onSuccessConfigSent();
+                DppManager.this.onSuccess(dppStatusCode);
             });
         }
 
@@ -80,9 +81,9 @@ public class DppManager {
         }
 
         @Override
-        public void onFailure(int dppStatusCode) {
+        public void onFailure(int dppStatusCode, String ssid, String channelList, int[] bandList) {
             mHandler.post(() -> {
-                DppManager.this.onFailure(dppStatusCode);
+                DppManager.this.onFailure(dppStatusCode, ssid, channelList, bandList);
             });
         }
     };
@@ -161,7 +162,8 @@ public class DppManager {
                 mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                         .EASY_CONNECT_EVENT_FAILURE_BUSY);
                 // On going DPP. Call the failure callback directly
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
+                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY, null,
+                        null, new int[0]);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -175,7 +177,8 @@ public class DppManager {
                 // On going DPP. Call the failure callback directly
                 mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                         .EASY_CONNECT_EVENT_FAILURE_GENERIC);
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC);
+                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC,
+                        null, null, new int[0]);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -192,7 +195,7 @@ public class DppManager {
                 mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                         .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
                 callback.onFailure(EasyConnectStatusCallback
-                        .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+                        .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK, null, null, new int[0]);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -224,7 +227,8 @@ public class DppManager {
                 mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                         .EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
                 callback.onFailure(
-                        EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK);
+                        EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_INVALID_NETWORK, null,
+                        null, new int[0]);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -306,7 +310,8 @@ public class DppManager {
                 mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                         .EASY_CONNECT_EVENT_FAILURE_BUSY);
                 // On going DPP. Call the failure callback directly
-                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY);
+                callback.onFailure(EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_BUSY, null,
+                        null, new int[0]);
             } catch (RemoteException e) {
                 // Empty
             }
@@ -448,7 +453,7 @@ public class DppManager {
                     mDppMetrics.updateDppFailure(EasyConnectStatusCallback
                             .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION);
                     mDppRequestInfo.callback.onFailure(EasyConnectStatusCallback
-                            .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION);
+                            .EASY_CONNECT_EVENT_FAILURE_CONFIGURATION, null, null, new int[0]);
                 }
             } else {
                 Log.e(TAG, "Unexpected null Wi-Fi configuration object");
@@ -461,22 +466,40 @@ public class DppManager {
         cleanupDppResources();
     }
 
-    private void onSuccessConfigSent() {
+    private void onSuccess(int dppStatusCode) {
         try {
             if (mDppRequestInfo == null) {
-                Log.e(TAG, "onDppSuccessConfigSent event without a request information object");
+                Log.e(TAG, "onSuccess event without a request information object");
                 return;
             }
 
-            logd("onSuccessConfigSent");
-
+            logd("onSuccess: " + dppStatusCode);
             long now = mClock.getElapsedSinceBootMillis();
             mDppMetrics.updateDppOperationTime((int) (now - mDppRequestInfo.startTime));
 
-            mDppMetrics.updateDppConfiguratorSuccess(
-                    EasyConnectStatusCallback.EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
-            mDppRequestInfo.callback.onSuccess(
-                    EasyConnectStatusCallback.EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT);
+            int dppSuccessCode;
+
+            // Convert from HAL codes to WifiManager/user codes
+            switch (dppStatusCode) {
+                case DppSuccessCode.CONFIGURATION_SENT:
+                    dppSuccessCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_SENT;
+                    break;
+
+                case DppSuccessCode.CONFIGURATION_APPLIED:
+                    dppSuccessCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_SUCCESS_CONFIGURATION_APPLIED;
+                    break;
+
+                default:
+                    Log.e(TAG, "onSuccess: unknown code " + dppStatusCode);
+                    // Success, DPP is complete. Clear the DPP session automatically
+                    cleanupDppResources();
+                    return;
+            }
+
+            mDppMetrics.updateDppConfiguratorSuccess(dppSuccessCode);
+            mDppRequestInfo.callback.onSuccess(dppSuccessCode);
 
         } catch (RemoteException e) {
             Log.e(TAG, "Callback failure");
@@ -509,6 +532,16 @@ public class DppManager {
                             .EASY_CONNECT_EVENT_PROGRESS_RESPONSE_PENDING;
                     break;
 
+                case DppProgressCode.CONFIGURATION_SENT_WAITING_RESPONSE:
+                    dppProgressCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_PROGRESS_CONFIGURATION_SENT_WAITING_RESPONSE;
+                    break;
+
+                case DppProgressCode.CONFIGURATION_ACCEPTED:
+                    dppProgressCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_PROGRESS_CONFIGURATION_ACCEPTED;
+                    break;
+
                 default:
                     Log.e(TAG, "onProgress: unknown code " + dppStatusCode);
                     return;
@@ -522,6 +555,10 @@ public class DppManager {
     }
 
     private void onFailure(int dppStatusCode) {
+        onFailure(dppStatusCode, null, null, null);
+    }
+
+    private void onFailure(int dppStatusCode, String ssid, String channelList, int[] bandList) {
         try {
             if (mDppRequestInfo == null) {
                 Log.e(TAG, "onFailure event without a request information object");
@@ -570,6 +607,23 @@ public class DppManager {
                             EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_NOT_SUPPORTED;
                     break;
 
+                case DppFailureCode.CANNOT_FIND_NETWORK:
+                    // This is the only case where channel list is populated, according to the
+                    // DPP spec section 6.3.5.2 DPP Connection Status Object
+                    dppFailureCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_FAILURE_CANNOT_FIND_NETWORK;
+                    break;
+
+                case DppFailureCode.ENROLLEE_AUTHENTICATION:
+                    dppFailureCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_FAILURE_ENROLLEE_AUTHENTICATION;
+                    break;
+
+                case DppFailureCode.CONFIGURATION_REJECTED:
+                    dppFailureCode = EasyConnectStatusCallback
+                            .EASY_CONNECT_EVENT_FAILURE_ENROLLEE_REJECTED_CONFIGURATION;
+                    break;
+
                 case DppFailureCode.FAILURE:
                 default:
                     dppFailureCode = EasyConnectStatusCallback.EASY_CONNECT_EVENT_FAILURE_GENERIC;
@@ -577,7 +631,10 @@ public class DppManager {
             }
 
             mDppMetrics.updateDppFailure(dppFailureCode);
-            mDppRequestInfo.callback.onFailure(dppFailureCode);
+            if (bandList == null) {
+                bandList = new int[0];
+            }
+            mDppRequestInfo.callback.onFailure(dppFailureCode, ssid, channelList, bandList);
 
         } catch (RemoteException e) {
             Log.e(TAG, "Callback failure");

@@ -2419,7 +2419,7 @@ public class WifiNative {
      */
     public interface DppEventCallback {
         /**
-         * Called when local DPP Enrollee successfully receives a new Wi-Fi configuratrion from the
+         * Called when local DPP Enrollee successfully receives a new Wi-Fi configuration from the
          * peer DPP configurator.
          *
          * @param newWifiConfiguration New Wi-Fi configuration received from the configurator
@@ -2427,10 +2427,11 @@ public class WifiNative {
         void onSuccessConfigReceived(WifiConfiguration newWifiConfiguration);
 
         /**
-         * Called when local DPP configurator successfully sends Wi-Fi configuration to a remote
-         * Enrollee.
+         * DPP Success event.
+         *
+         * @param dppStatusCode Status code of the success event.
          */
-        void onSuccessConfigSent();
+        void onSuccess(int dppStatusCode);
 
         /**
          * DPP Progress event.
@@ -2443,8 +2444,11 @@ public class WifiNative {
          * DPP Failure event.
          *
          * @param dppStatusCode Status code of the failure event.
+         * @param ssid SSID of the network the Enrollee tried to connect to.
+         * @param channelList List of channels the Enrollee scanned for the network.
+         * @param bandList List of bands the Enrollee supports.
          */
-        void onFailure(int dppStatusCode);
+        void onFailure(int dppStatusCode, String ssid, String channelList, int[] bandList);
     }
 
     /**
