@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.Log;
 
@@ -32,10 +33,35 @@ public class WifiContext extends ContextWrapper {
     private static final String WIFI_OVERLAY_APK_PKG_NAME = "com.android.wifi.resources";
 
     // Cached resources from the resources APK.
+    private AssetManager mWifiAssetsFromApk;
     private Resources mWifiResourcesFromApk;
+    private Resources.Theme mWifiThemeFromApk;
 
     public WifiContext(@NonNull Context contextBase) {
         super(contextBase);
+    }
+
+    private Context getResourcesApkContext() {
+        try {
+            return createPackageContext(WIFI_OVERLAY_APK_PKG_NAME, 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.wtf(TAG, "Failed to load resources", e);
+        }
+        return null;
+    }
+
+    /**
+     * Retrieve assets held in the wifi resources APK.
+     */
+    @Override
+    public AssetManager getAssets() {
+        if (mWifiAssetsFromApk == null) {
+            Context resourcesApkContext = getResourcesApkContext();
+            if (resourcesApkContext != null) {
+                mWifiAssetsFromApk = resourcesApkContext.getAssets();
+            }
+        }
+        return mWifiAssetsFromApk;
     }
 
     /**
@@ -44,14 +70,25 @@ public class WifiContext extends ContextWrapper {
     @Override
     public Resources getResources() {
         if (mWifiResourcesFromApk == null) {
-            try {
-                Context overlayAppContext =
-                        createPackageContext(WIFI_OVERLAY_APK_PKG_NAME, 0);
-                mWifiResourcesFromApk = overlayAppContext.getResources();
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.wtf(TAG, "Failed to load resources", e);
+            Context resourcesApkContext = getResourcesApkContext();
+            if (resourcesApkContext != null) {
+                mWifiResourcesFromApk = resourcesApkContext.getResources();
             }
         }
         return mWifiResourcesFromApk;
+    }
+
+    /**
+     * Retrieve theme held in the wifi resources APK.
+     */
+    @Override
+    public Resources.Theme getTheme() {
+        if (mWifiThemeFromApk == null) {
+            Context resourcesApkContext = getResourcesApkContext();
+            if (resourcesApkContext != null) {
+                mWifiThemeFromApk = resourcesApkContext.getTheme();
+            }
+        }
+        return mWifiThemeFromApk;
     }
 }
