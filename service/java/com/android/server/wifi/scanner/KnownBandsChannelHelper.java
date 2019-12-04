@@ -19,10 +19,12 @@ package com.android.server.wifi.scanner;
 import static android.net.wifi.WifiScanner.WIFI_BAND_24_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_5_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY;
+import static android.net.wifi.WifiScanner.WIFI_BAND_6_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_COUNT;
 import static android.net.wifi.WifiScanner.WIFI_BAND_INDEX_24_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_INDEX_5_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_INDEX_5_GHZ_DFS_ONLY;
+import static android.net.wifi.WifiScanner.WIFI_BAND_INDEX_6_GHZ;
 import static android.net.wifi.WifiScanner.WIFI_BAND_MAX;
 import static android.net.wifi.WifiScanner.WIFI_BAND_UNSPECIFIED;
 
@@ -46,10 +48,13 @@ public class KnownBandsChannelHelper extends ChannelHelper {
     private static final int BAND_24_GHZ_END_FREQ = 2500;
     private static final int BAND_5_GHZ_START_FREQ = 5100;
     private static final int BAND_5_GHZ_END_FREQ = 6000;
+    private static final int BAND_6_GHZ_START_FREQ = 5925;
+    private static final int BAND_6_GHZ_END_FREQ = 7125;
 
     private WifiScanner.ChannelSpec[][] mBandsToChannels;
 
-    protected void setBandChannels(int[] channels2G, int[] channels5G, int[] channelsDfs) {
+    protected void setBandChannels(int[] channels2G, int[] channels5G, int[] channelsDfs,
+            int[] channels6G) {
         mBandsToChannels = new WifiScanner.ChannelSpec[WIFI_BAND_COUNT][];
 
         if (channels2G.length != 0) {
@@ -72,6 +77,16 @@ public class KnownBandsChannelHelper extends ChannelHelper {
             mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY] =
                     new WifiScanner.ChannelSpec[channelsDfs.length];
             copyChannels(mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY], channelsDfs);
+        } else {
+            mBandsToChannels[WIFI_BAND_INDEX_5_GHZ_DFS_ONLY] = NO_CHANNELS;
+        }
+
+        if (channels6G.length != 0) {
+            mBandsToChannels[WIFI_BAND_INDEX_6_GHZ] =
+                    new WifiScanner.ChannelSpec[channels6G.length];
+            copyChannels(mBandsToChannels[WIFI_BAND_INDEX_6_GHZ], channels6G);
+        } else {
+            mBandsToChannels[WIFI_BAND_INDEX_6_GHZ] = NO_CHANNELS;
         }
     }
 
@@ -155,6 +170,8 @@ public class KnownBandsChannelHelper extends ChannelHelper {
             } else {
                 return WIFI_BAND_5_GHZ;
             }
+        } else if (BAND_6_GHZ_START_FREQ <= frequency && frequency < BAND_6_GHZ_END_FREQ) {
+            return WIFI_BAND_6_GHZ;
         } else {
             return WIFI_BAND_UNSPECIFIED;
         }
