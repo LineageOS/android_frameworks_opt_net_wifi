@@ -52,6 +52,7 @@ import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
+import android.net.wifi.IOnWifiActivityEnergyInfoListener;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
@@ -61,7 +62,6 @@ import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
-import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
@@ -76,10 +76,8 @@ import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.AsyncTask;
-import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -91,6 +89,7 @@ import android.os.ShellCallback;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
+import android.os.connectivity.WifiActivityEnergyInfo;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -1744,13 +1743,19 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     @Override
-    public void requestActivityInfo(ResultReceiver result) {
+    public void getWifiActivityEnergyInfoAsync(IOnWifiActivityEnergyInfoListener listener) {
         if (mVerboseLoggingEnabled) {
-            mLog.info("requestActivityInfo uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getWifiActivityEnergyInfoAsync uid=%")
+                    .c(Binder.getCallingUid())
+                    .flush();
         }
-        Bundle bundle = new Bundle();
-        bundle.putParcelable(BatteryStats.RESULT_RECEIVER_CONTROLLER_KEY, reportActivityInfo());
-        result.send(0, bundle);
+        // reportActivityInfo() performs permission checking
+        WifiActivityEnergyInfo info = reportActivityInfo();
+        try {
+            listener.onWifiActivityEnergyInfo(info);
+        } catch (RemoteException e) {
+            Log.e(TAG, "onWifiActivityEnergyInfo: RemoteException -- ", e);
+        }
     }
 
     /**
