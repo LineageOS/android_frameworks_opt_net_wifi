@@ -3791,9 +3791,11 @@ public class WifiMetrics {
         mLastScore = -1;
         mLastWifiUsabilityScore = -1;
         mLastPredictionHorizonSec = -1;
-        mStaEventList.add(new StaEventWithTime(staEvent, mClock.getWallClockMillis()));
-        // Prune StaEventList if it gets too long
-        if (mStaEventList.size() > MAX_STA_EVENTS) mStaEventList.remove();
+        synchronized (mLock) {
+            mStaEventList.add(new StaEventWithTime(staEvent, mClock.getWallClockMillis()));
+            // Prune StaEventList if it gets too long
+            if (mStaEventList.size() > MAX_STA_EVENTS) mStaEventList.remove();
+        }
     }
 
     private ConfigInfo createConfigInfo(WifiConfiguration config) {
