@@ -3157,6 +3157,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
         // - if any request identity change: enable
         // - discovery window: minimum value if specified, 0 (disable) is considered an infinity
         boolean support5gBand = false;
+        boolean support6gBand = false;
         int masterPreference = 0;
         boolean clusterIdValid = false;
         int clusterLow = 0;
@@ -3165,6 +3166,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
                 {ConfigRequest.DW_INTERVAL_NOT_INIT, ConfigRequest.DW_INTERVAL_NOT_INIT};
         if (configRequest != null) {
             support5gBand = configRequest.mSupport5gBand;
+            support6gBand = configRequest.mSupport6gBand;
             masterPreference = configRequest.mMasterPreference;
             clusterIdValid = true;
             clusterLow = configRequest.mClusterLow;
@@ -3177,6 +3179,11 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
             // any request turns on 5G
             if (cr.mSupport5gBand) {
                 support5gBand = true;
+            }
+
+            // any request turns on 5G
+            if (cr.mSupport6gBand) {
+                support6gBand = true;
             }
 
             // maximal master preference
