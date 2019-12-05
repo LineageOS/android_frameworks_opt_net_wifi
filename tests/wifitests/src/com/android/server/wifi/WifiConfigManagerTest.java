@@ -2187,6 +2187,25 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         assertEquals(aggressiveMac, newMac);
     }
 
+    /**
+     * Verifies that aggressive randomization SSID lists from DeviceConfig and overlay are being
+     * combined together properly.
+     */
+    @Test
+    public void testPerDeviceAggressiveRandomizationSsids() {
+        // This will add the SSID to allowlist using DeviceConfig.
+        setUpWifiConfigurationForAggressiveRandomization();
+        WifiConfiguration config = getFirstInternalWifiConfiguration();
+        MacAddress aggressiveMac = config.getRandomizedMacAddress();
+
+        // add to aggressive randomization blocklist using overlay.
+        mResources.setStringArray(R.array.config_wifi_aggressive_randomization_ssid_blocklist,
+                new String[] {config.SSID});
+        MacAddress persistentMac = mWifiConfigManager.getRandomizedMacAndUpdateIfNeeded(config);
+        // verify that now the persistent randomized MAC is used.
+        assertNotEquals(aggressiveMac, persistentMac);
+    }
+
     private WifiConfiguration getFirstInternalWifiConfiguration() {
         List<WifiConfiguration> configs = mWifiConfigManager.getSavedNetworks(Process.WIFI_UID);
         assertEquals(1, configs.size());

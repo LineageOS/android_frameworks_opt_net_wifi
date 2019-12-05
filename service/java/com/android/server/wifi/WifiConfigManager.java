@@ -487,10 +487,16 @@ public class WifiConfigManager {
     }
 
     private boolean isSsidOptInForAggressiveRandomization(String ssid) {
-        if (mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist().contains(ssid)) {
+        Set<String> perDeviceSsidBlocklist = new ArraySet<>(mContext.getResources().getStringArray(
+                R.array.config_wifi_aggressive_randomization_ssid_blocklist));
+        if (mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist().contains(ssid)
+                || perDeviceSsidBlocklist.contains(ssid)) {
             return false;
         }
-        return mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist().contains(ssid);
+        Set<String> perDeviceSsidAllowlist = new ArraySet<>(mContext.getResources().getStringArray(
+                R.array.config_wifi_aggressive_randomization_ssid_allowlist));
+        return mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist().contains(ssid)
+                || perDeviceSsidAllowlist.contains(ssid);
     }
 
     @VisibleForTesting
