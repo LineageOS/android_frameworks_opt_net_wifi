@@ -28,7 +28,6 @@ import android.net.NetworkScoreManager;
 import android.net.wifi.IWifiScanner;
 import android.net.wifi.IWificond;
 import android.net.wifi.WifiManager;
-import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiScanner;
 import android.os.BatteryStatsManager;
 import android.os.Handler;
@@ -117,6 +116,7 @@ public class WifiInjector {
     private final PropertyService mPropertyService = new SystemPropertyService();
     private final BuildProperties mBuildProperties = new SystemBuildProperties();
     private final WifiBackupRestore mWifiBackupRestore;
+    private final SoftApBackupRestore mSoftApBackupRestore;
     private final WifiMulticastLockManager mWifiMulticastLockManager;
     private final WifiConfigStore mWifiConfigStore;
     private final WifiKeyStore mWifiKeyStore;
@@ -199,6 +199,7 @@ public class WifiInjector {
         mWifiPermissionsUtil = new WifiPermissionsUtil(mWifiPermissionsWrapper, mContext,
                 mUserManager, this);
         mWifiBackupRestore = new WifiBackupRestore(mWifiPermissionsUtil);
+        mSoftApBackupRestore = new SoftApBackupRestore();
         mWifiStateTracker = new WifiStateTracker(mBatteryStats);
         mWifiThreadRunner = new WifiThreadRunner(wifiHandler);
         mWifiP2pServiceHandlerThread = new HandlerThread("WifiP2pService");
@@ -484,6 +485,10 @@ public class WifiInjector {
 
     public WifiBackupRestore getWifiBackupRestore() {
         return mWifiBackupRestore;
+    }
+
+    public SoftApBackupRestore getSoftApBackupRestore() {
+        return mSoftApBackupRestore;
     }
 
     public WifiMulticastLockManager getWifiMulticastLockManager() {

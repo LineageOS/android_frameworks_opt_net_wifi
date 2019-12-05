@@ -30,10 +30,11 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.NetworkSelectionStatus;
 import android.net.wifi.WifiEnterpriseConfig;
-import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiSsid;
 import android.text.TextUtils;
 
+import com.android.server.wifi.hotspot2.NetworkDetail;
+import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.util.ScanResultUtil;
 
@@ -88,10 +89,29 @@ public class WifiNetworkSelectorTestUtil {
                 String[] bssids, int[] freqs, String[] caps, int[] levels, int[] securities,
                 WifiConfigManager wifiConfigManager, Clock clock) {
         List<ScanDetail> scanDetails = buildScanDetails(ssids, bssids, freqs, caps, levels, clock);
+
         WifiConfiguration[] savedConfigs = generateWifiConfigurations(ssids, securities);
-        checkConsistencyOfScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
-        prepareConfigStore(wifiConfigManager, savedConfigs);
-        scanResultLinkConfiguration(wifiConfigManager, savedConfigs, scanDetails);
+
+        addWifiConfigAndLinkScanResult(wifiConfigManager, savedConfigs, scanDetails);
+
+        return new ScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
+    }
+
+    public static ScanDetailsAndWifiConfigs setupScanDetailsAndConfigStore(String[] ssids,
+                String[] bssids, int[] freqs, String[] caps, int[] levels,
+                int[] securities, WifiConfigManager wifiConfigManager, Clock clock,
+                byte[][] iesByteStream) {
+
+        if (iesByteStream == null) {
+            throw new IllegalArgumentException("Null ies");
+        }
+
+        List<ScanDetail> scanDetails = buildScanDetailsWithNetworkDetails(ssids, bssids, freqs,
+                caps, levels, iesByteStream, clock);
+
+        WifiConfiguration[] savedConfigs = generateWifiConfigurations(ssids, securities);
+
+        addWifiConfigAndLinkScanResult(wifiConfigManager, savedConfigs, scanDetails);
 
         return new ScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
     }
@@ -130,11 +150,16 @@ public class WifiNetworkSelectorTestUtil {
             savedConfigs[i].networkId = i;
         }
 
-        checkConsistencyOfScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
-        prepareConfigStore(wifiConfigManager, savedConfigs);
-        scanResultLinkConfiguration(wifiConfigManager, savedConfigs, scanDetails);
+        addWifiConfigAndLinkScanResult(wifiConfigManager, savedConfigs, scanDetails);
 
         return new ScanDetailsAndWifiConfigs(scanDetails, savedConfigs);
+    }
+
+    private static void addWifiConfigAndLinkScanResult(WifiConfigManager wifiConfigManager,
+            WifiConfiguration[] configs, List<ScanDetail> scanDetails) {
+        checkConsistencyOfScanDetailsAndWifiConfigs(scanDetails, configs);
+        prepareConfigStore(wifiConfigManager, configs);
+        scanResultLinkConfiguration(wifiConfigManager, configs, scanDetails);
     }
 
     private static void checkConsistencyOfScanDetailsAndWifiConfigs(
@@ -189,6 +214,38 @@ public class WifiNetworkSelectorTestUtil {
         return scanDetailList;
     }
 
+    /**
+     * Build a list of scanDetails along with network details based
+     * on the caller supplied network SSID, BSSID, frequency,
+     * capability, byte stream of IEs and RSSI level information.
+     *
+     * @param ssids an array of SSIDs
+     * @param bssids an array of BSSIDs
+     * @param freqs an array of the network's frequency
+     * @param caps an array of the network's capability
+     * @param levels an array of the network's RSSI levels
+     * @return the constructed list of ScanDetail
+     */
+    public static List<ScanDetail> buildScanDetailsWithNetworkDetails(String[] ssids,
+                String[] bssids, int[] freqs,
+                String[] caps, int[] levels, byte[][] iesByteStream, Clock clock) {
+        List<ScanDetail> scanDetailList = new ArrayList<ScanDetail>();
+
+        long timeStamp = clock.getElapsedSinceBootMillis();
+        for (int index = 0; index < ssids.length; index++) {
+            byte[] ssid = NativeUtil.byteArrayFromArrayList(NativeUtil.decodeSsid(ssids[index]));
+            ScanResult.InformationElement[] ies =
+                InformationElementUtil.parseInformationElements(iesByteStream[index]);
+            NetworkDetail nd = new NetworkDetail(bssids[index], ies, new ArrayList<String>(),
+                    freqs[index]);
+            ScanDetail scanDetail = new ScanDetail(nd, WifiSsid.createFromByteArray(ssid),
+                    bssids[index], caps[index], levels[index], freqs[index], timeStamp,
+                    ies, new ArrayList<String>(),
+                    ScanResults.generateIERawDatafromScanResultIE(ies));
+            scanDetailList.add(scanDetail);
+        }
+        return scanDetailList;
+    }
 
     /**
      * Generate an array of {@link android.net.wifi.WifiConfiguration} based on the caller

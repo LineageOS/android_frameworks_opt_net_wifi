@@ -52,7 +52,8 @@ public class ScanScheduleUtilFilterTest extends WifiBaseTest {
         mChannelHelper = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
-                new int[]{5600, 5650});
+                new int[]{5600, 5650},
+                new int[]{5945, 5985});
     }
 
     @Test

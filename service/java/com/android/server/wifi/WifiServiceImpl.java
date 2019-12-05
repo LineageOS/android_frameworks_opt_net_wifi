@@ -52,6 +52,7 @@ import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
+import android.net.wifi.IOnWifiActivityEnergyInfoListener;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
@@ -61,7 +62,6 @@ import android.net.wifi.ITxPacketCountListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.SoftApInfo;
-import android.net.wifi.WifiActivityEnergyInfo;
 import android.net.wifi.WifiClient;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
@@ -76,10 +76,8 @@ import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
 import android.net.wifi.hotspot2.PasspointConfiguration;
 import android.os.AsyncTask;
-import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -91,6 +89,7 @@ import android.os.ShellCallback;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
+import android.os.connectivity.WifiActivityEnergyInfo;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -175,6 +174,7 @@ public class WifiServiceImpl extends BaseWifiService {
     private final WifiInjector mWifiInjector;
     /** Backup/Restore Module */
     private final WifiBackupRestore mWifiBackupRestore;
+    private final SoftApBackupRestore mSoftApBackupRestore;
     private final WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     private final WifiConfigManager mWifiConfigManager;
     private final PasspointManager mPasspointManager;
@@ -290,6 +290,7 @@ public class WifiServiceImpl extends BaseWifiService {
         mClientModeImplHandler = new ClientModeImplHandler(TAG,
                 mWifiInjector.getAsyncChannelHandlerThread().getLooper(), asyncChannel);
         mWifiBackupRestore = mWifiInjector.getWifiBackupRestore();
+        mSoftApBackupRestore = mWifiInjector.getSoftApBackupRestore();
         mWifiApConfigStore = mWifiInjector.getWifiApConfigStore();
         mWifiPermissionsUtil = mWifiInjector.getWifiPermissionsUtil();
         mLog = mWifiInjector.makeLog(TAG);
@@ -1742,13 +1743,19 @@ public class WifiServiceImpl extends BaseWifiService {
     }
 
     @Override
-    public void requestActivityInfo(ResultReceiver result) {
+    public void getWifiActivityEnergyInfoAsync(IOnWifiActivityEnergyInfoListener listener) {
         if (mVerboseLoggingEnabled) {
-            mLog.info("requestActivityInfo uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getWifiActivityEnergyInfoAsync uid=%")
+                    .c(Binder.getCallingUid())
+                    .flush();
         }
-        Bundle bundle = new Bundle();
-        bundle.putParcelable(BatteryStats.RESULT_RECEIVER_CONTROLLER_KEY, reportActivityInfo());
-        result.send(0, bundle);
+        // reportActivityInfo() performs permission checking
+        WifiActivityEnergyInfo info = reportActivityInfo();
+        try {
+            listener.onWifiActivityEnergyInfo(info);
+        } catch (RemoteException e) {
+            Log.e(TAG, "onWifiActivityEnergyInfo: RemoteException -- ", e);
+        }
     }
 
     /**
@@ -2935,7 +2942,7 @@ public class WifiServiceImpl extends BaseWifiService {
      * Notify the Factory Reset Event to application who may installed wifi configurations.
      */
     private void notifyFactoryReset() {
-        Intent intent = new Intent(WifiManager.WIFI_NETWORK_SETTINGS_RESET_ACTION);
+        Intent intent = new Intent(WifiManager.ACTION_NETWORK_SETTINGS_RESET);
         intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                 android.Manifest.permission.NETWORK_CARRIER_PROVISIONING);
@@ -3046,6 +3053,41 @@ public class WifiServiceImpl extends BaseWifiService {
         restoreNetworks(wifiConfigurations);
         Log.d(TAG, "Restored backup data");
     }
+
+    /*
+     * Retrieve the soft ap config data to be backed to save current config data.
+     *
+     * @return  Raw byte stream of the data to be backed up.
+     */
+    @Override
+    public byte[] retrieveSoftApBackupData() {
+        enforceNetworkSettingsPermission();
+        mLog.info("retrieveSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
+        SoftApConfiguration config = mWifiThreadRunner.call(mWifiApConfigStore::getApConfiguration,
+                new SoftApConfiguration.Builder().build());
+        byte[] backupData =
+                mSoftApBackupRestore.retrieveBackupDataFromSoftApConfiguration(config);
+        Log.d(TAG, "Retrieved soft ap backup data");
+        return backupData;
+    }
+
+    /**
+     * Restore soft ap config from the backed up data.
+     *
+     * @param data Raw byte stream of the backed up data.
+     */
+    @Override
+    public void restoreSoftApBackupData(byte[] data) {
+        enforceNetworkSettingsPermission();
+        mLog.info("restoreSoftApBackupData uid=%").c(Binder.getCallingUid()).flush();
+        SoftApConfiguration softApConfig =
+                mSoftApBackupRestore.retrieveSoftApConfigurationFromBackupData(data);
+        if (softApConfig != null) {
+            mWifiThreadRunner.post(() -> mWifiApConfigStore.setApConfiguration(softApConfig));
+            Log.d(TAG, "Restored soft ap backup data");
+        }
+    }
+
 
     /**
      * Restore state from the older supplicant back up data.

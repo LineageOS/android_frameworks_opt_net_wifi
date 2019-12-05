@@ -53,6 +53,7 @@ public class KnownBandsChannelHelperTest {
     private static final int[] CHANNELS_5_GHZ = new int[]{5150, 5175};
     private static final int[] CHANNELS_DFS = new int[]{5600, 5650, 5660};
     private static final int[] CHANNELS_DFS_OTHER = new int[]{5600, 5650, 5660, 5680};
+    private static final int[] CHANNELS_6_GHZ = new int[]{5945, 5985};
 
     /**
      * Unit tests for
@@ -71,7 +72,8 @@ public class KnownBandsChannelHelperTest {
             mChannelHelper = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
         }
 
         /**
@@ -116,16 +118,24 @@ public class KnownBandsChannelHelperTest {
             mChannelHelper = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
         }
 
         private void testBand(int[] expectedChannels, int band) {
-            WifiScanner.ChannelSpec[] channels =
+            WifiScanner.ChannelSpec[][] channels =
                     mChannelHelper.getAvailableScanChannels(band);
-            assertEquals("nun channels", expectedChannels.length, channels.length);
+            int len = 0;
             for (int i = 0; i < channels.length; ++i) {
-                assertEquals("channels[" + i + "].frequency",
-                        expectedChannels[i], channels[i].frequency);
+                len += channels[i].length;
+            }
+            assertEquals("num channels", expectedChannels.length, len);
+            int index = 0;
+            for (int i = 0; i < channels.length; ++i) {
+                for (int j = 0; j < channels[i].length; ++j) {
+                    assertEquals("channels[" + index + "].frequency",
+                            expectedChannels[index++], channels[i][j].frequency);
+                }
             }
         }
 
@@ -199,7 +209,8 @@ public class KnownBandsChannelHelperTest {
             mChannelHelper = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
         }
 
         /**
@@ -271,11 +282,13 @@ public class KnownBandsChannelHelperTest {
             KnownBandsChannelHelper channelHelper0 = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
             KnownBandsChannelHelper channelHelper1 = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
             assertTrue(channelHelper0.satisfies(channelHelper1));
         }
 
@@ -287,11 +300,13 @@ public class KnownBandsChannelHelperTest {
             KnownBandsChannelHelper channelHelper0 = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
             KnownBandsChannelHelper channelHelper1 = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS_OTHER);
+                    CHANNELS_DFS_OTHER,
+                    CHANNELS_6_GHZ);
             assertFalse(channelHelper0.satisfies(channelHelper1));
         }
     }
@@ -313,7 +328,8 @@ public class KnownBandsChannelHelperTest {
             KnownBandsChannelHelper channelHelper = new PresetKnownBandsChannelHelper(
                     CHANNELS_24_GHZ,
                     CHANNELS_5_GHZ,
-                    CHANNELS_DFS);
+                    CHANNELS_DFS,
+                    CHANNELS_6_GHZ);
             mChannelCollection = channelHelper.createChannelCollection();
         }
 
@@ -464,12 +480,12 @@ public class KnownBandsChannelHelperTest {
          */
         @Test
         public void addChannel_and_addBand_all() {
-            mChannelCollection.addBand(WifiScanner.WIFI_BAND_BOTH_WITH_DFS);
+            mChannelCollection.addBand(WifiScanner.WIFI_BAND_24_5_WITH_DFS_6_GHZ);
             mChannelCollection.addChannel(5150);
 
             WifiNative.BucketSettings bucketSettings = new WifiNative.BucketSettings();
             mChannelCollection.fillBucketSettings(bucketSettings, Integer.MAX_VALUE);
-            assertThat(bucketSettings, bandIs(WifiScanner.WIFI_BAND_BOTH_WITH_DFS));
+            assertThat(bucketSettings, bandIs(WifiScanner.WIFI_BAND_24_5_WITH_DFS_6_GHZ));
 
             assertNull(mChannelCollection.getScanFreqs());
 
@@ -523,10 +539,13 @@ public class KnownBandsChannelHelperTest {
             mChannelCollection.addChannel(5600);
             mChannelCollection.addChannel(5650);
             mChannelCollection.addChannel(5660);
+            mChannelCollection.addChannel(5945);
+            mChannelCollection.addChannel(5985);
 
             WifiNative.BucketSettings bucketSettings = new WifiNative.BucketSettings();
             mChannelCollection.fillBucketSettings(bucketSettings, Integer.MAX_VALUE);
-            assertThat(bucketSettings, channelsAre(2400, 2450, 5150, 5175, 5600, 5650, 5660));
+            assertThat(bucketSettings,
+                    channelsAre(2400, 2450, 5150, 5175, 5600, 5650, 5660, 5945, 5985));
             assertTrue(mChannelCollection.isAllChannels());
         }
     }

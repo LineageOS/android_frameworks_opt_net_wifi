@@ -160,12 +160,13 @@ public class WifiScanningServiceTest extends WifiBaseTest {
         mChannelHelper0 = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
-                new int[]{5600, 5650, 5660});
+                new int[]{5600, 5650, 5660},
+                new int[]{5945, 5985});
         mChannelHelper1 = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
-                new int[]{5600, 5660, 5680});  // 5650 is missing from channelHelper0
-
+                new int[]{5600, 5660, 5680}, // 5650 is missing from channelHelper0
+                new int[]{5945, 5985});
         mLooper = new TestLooper();
         mWifiMetrics = new WifiMetrics(mContext, mFrameworkFacade, mClock, mLooper.getLooper(),
                 new WifiAwareMetrics(mClock), new RttMetrics(mClock),

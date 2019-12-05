@@ -36,6 +36,7 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.util.InformationElementUtil.BssLoad;
 import com.android.server.wifi.util.ScanResultUtil;
@@ -384,6 +385,7 @@ public class WifiNetworkSelector {
         StringBuffer noValidSsid = new StringBuffer();
         StringBuffer blacklistedBssid = new StringBuffer();
         StringBuffer lowRssi = new StringBuffer();
+        StringBuffer mboAssociationDisallowedBssid = new StringBuffer();
         boolean scanResultsHaveCurrentBssid = false;
 
         for (ScanDetail scanDetail : scanDetails) {
@@ -414,6 +416,18 @@ public class WifiNetworkSelector {
                 continue;
             }
 
+            // Skip BSS which is not accepting new connections.
+            NetworkDetail networkDetail = scanDetail.getNetworkDetail();
+            if (networkDetail != null) {
+                if (networkDetail.getMboAssociationDisallowedReasonCode()
+                        != MboOceConstants.MBO_OCE_ATTRIBUTE_NOT_PRESENT) {
+                    mboAssociationDisallowedBssid.append(scanId).append("(")
+                        .append(networkDetail.getMboAssociationDisallowedReasonCode())
+                        .append(")").append(" / ");
+                    continue;
+                }
+            }
+
             validScanDetails.add(scanDetail);
         }
 
@@ -438,6 +452,11 @@ public class WifiNetworkSelector {
 
         if (lowRssi.length() != 0) {
             localLog("Networks filtered out due to low signal strength: " + lowRssi);
+        }
+
+        if (mboAssociationDisallowedBssid.length() != 0) {
+            localLog("Networks filtered out due to mbo association disallowed indication: "
+                    + mboAssociationDisallowedBssid);
         }
 
         return validScanDetails;

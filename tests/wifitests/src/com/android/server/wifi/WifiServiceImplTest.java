@@ -16,6 +16,7 @@
 
 package com.android.server.wifi;
 
+import static android.Manifest.permission.ACCESS_WIFI_STATE;
 import static android.net.wifi.WifiManager.DEVICE_MOBILITY_STATE_STATIONARY;
 import static android.net.wifi.WifiManager.IFACE_IP_MODE_CONFIGURATION_ERROR;
 import static android.net.wifi.WifiManager.IFACE_IP_MODE_LOCAL_ONLY;
@@ -94,6 +95,7 @@ import android.net.wifi.IActionListener;
 import android.net.wifi.IDppCallback;
 import android.net.wifi.ILocalOnlyHotspotCallback;
 import android.net.wifi.INetworkRequestMatchCallback;
+import android.net.wifi.IOnWifiActivityEnergyInfoListener;
 import android.net.wifi.IOnWifiUsabilityStatsListener;
 import android.net.wifi.IScanResultsCallback;
 import android.net.wifi.ISoftApCallback;
@@ -111,7 +113,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.LocalOnlyHotspotCallback;
 import android.net.wifi.WifiManager.SoftApCallback;
-import android.net.wifi.WifiNetworkScoreCache;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
@@ -129,6 +130,7 @@ import android.os.PowerManager;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserManager;
+import android.os.connectivity.WifiActivityEnergyInfo;
 import android.os.test.TestLooper;
 import android.telephony.TelephonyManager;
 
@@ -247,6 +249,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock WifiMulticastLockManager mWifiMulticastLockManager;
     @Mock WifiLastResortWatchdog mWifiLastResortWatchdog;
     @Mock WifiBackupRestore mWifiBackupRestore;
+    @Mock SoftApBackupRestore mSoftApBackupRestore;
     @Mock WifiMetrics mWifiMetrics;
     @Mock WifiPermissionsUtil mWifiPermissionsUtil;
     @Mock WifiPermissionsWrapper mWifiPermissionsWrapper;
@@ -282,6 +285,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Mock ILocalOnlyHotspotCallback mLohsCallback;
     @Mock IScanResultsCallback mScanResultsCallback;
     @Mock ISuggestionConnectionStatusListener mSuggestionConnectionStatusListener;
+    @Mock IOnWifiActivityEnergyInfoListener mOnWifiActivityEnergyInfoListener;
 
     WifiLog mLog = new LogcatLog(TAG);
 
@@ -329,6 +333,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
         when(mWifiInjector.getWifiMulticastLockManager()).thenReturn(mWifiMulticastLockManager);
         when(mWifiInjector.getWifiLastResortWatchdog()).thenReturn(mWifiLastResortWatchdog);
         when(mWifiInjector.getWifiBackupRestore()).thenReturn(mWifiBackupRestore);
+        when(mWifiInjector.getSoftApBackupRestore()).thenReturn(mSoftApBackupRestore);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getWifiTrafficPoller()).thenReturn(mWifiTrafficPoller);
         when(mWifiInjector.getWifiPermissionsUtil()).thenReturn(mWifiPermissionsUtil);
@@ -1146,7 +1151,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     public void testGetWifiApEnabledPermissionDenied() {
         // we should not be able to get the state
         doThrow(new SecurityException()).when(mContext)
-                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.ACCESS_WIFI_STATE),
+                .enforceCallingOrSelfPermission(eq(ACCESS_WIFI_STATE),
                                                 eq("WifiService"));
 
         try {
@@ -3056,6 +3061,34 @@ public class WifiServiceImplTest extends WifiBaseTest {
     }
 
     /**
+     * Verify that a call to {@link WifiServiceImpl#restoreSoftApBackupData(byte[])}
+     * is only allowed from callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRestoreSoftApBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.restoreSoftApBackupData(null);
+        verify(mSoftApBackupRestore, never())
+                .retrieveSoftApConfigurationFromBackupData(any(byte[].class));
+    }
+
+    /**
+     * Verify that a call to {@link WifiServiceImpl#retrieveSoftApBackupData()} is only allowed from
+     * callers with the signature only NETWORK_SETTINGS permission.
+     */
+    @Test(expected = SecurityException.class)
+    public void testRetrieveSoftApBackupDataNotApprovedCaller() {
+        doThrow(new SecurityException()).when(mContext)
+                .enforceCallingOrSelfPermission(eq(android.Manifest.permission.NETWORK_SETTINGS),
+                        eq("WifiService"));
+        mWifiServiceImpl.retrieveSoftApBackupData();
+        verify(mSoftApBackupRestore, never())
+                .retrieveBackupDataFromSoftApConfiguration(any(SoftApConfiguration.class));
+    }
+
+    /**
      * Verify that a call to {@link WifiServiceImpl#enableVerboseLogging(int)} is allowed from
      * callers with the signature only NETWORK_SETTINGS permission.
      */
@@ -4556,7 +4589,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testRegisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+                eq(ACCESS_WIFI_STATE), eq("WifiService"));
         mWifiServiceImpl.registerScanResultsCallback(mScanResultsCallback);
     }
 
@@ -4566,7 +4599,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testUnregisterScanResultCallbackWithMissingPermission() throws Exception {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+                eq(ACCESS_WIFI_STATE), eq("WifiService"));
         mWifiServiceImpl.unregisterScanResultsCallback(mScanResultsCallback);
     }
 
@@ -4597,7 +4630,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testRegisterSuggestionNetworkCallbackWithMissingPermission() {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+                eq(ACCESS_WIFI_STATE), eq("WifiService"));
         mWifiServiceImpl.registerSuggestionConnectionStatusListener(mAppBinder,
                 mSuggestionConnectionStatusListener, NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME,
                 TEST_FEATURE_ID);
@@ -4618,7 +4651,7 @@ public class WifiServiceImplTest extends WifiBaseTest {
     @Test(expected = SecurityException.class)
     public void testUnregisterSuggestionNetworkCallbackWithMissingPermission() {
         doThrow(new SecurityException()).when(mContext).enforceCallingOrSelfPermission(
-                eq(android.Manifest.permission.ACCESS_WIFI_STATE), eq("WifiService"));
+                eq(ACCESS_WIFI_STATE), eq("WifiService"));
         mWifiServiceImpl.unregisterSuggestionConnectionStatusListener(
                 NETWORK_CALLBACK_ID, TEST_PACKAGE_NAME);
     }
@@ -4654,5 +4687,105 @@ public class WifiServiceImplTest extends WifiBaseTest {
         final int wifiLockModeInvalid = -1;
 
         mWifiServiceImpl.acquireWifiLock(mAppBinder, wifiLockModeInvalid, "", null);
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#reportActivityInfo()} throws {@link SecurityException} if
+     * the caller doesn't have the necessary permissions.
+     */
+    @Test(expected = SecurityException.class)
+    public void reportActivityInfoNoPermission() throws Exception {
+        doThrow(SecurityException.class)
+                .when(mContext).enforceCallingOrSelfPermission(eq(ACCESS_WIFI_STATE), any());
+        mWifiServiceImpl.reportActivityInfo();
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#reportActivityInfo()} returns null if link layer stats is
+     * unsupported.
+     */
+    @Test
+    public void reportActivityInfoFeatureUnsupported() throws Exception {
+        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(0L);
+        assertNull(mWifiServiceImpl.reportActivityInfo());
+    }
+
+    private void setupReportActivityInfo() {
+        WifiLinkLayerStats stats = new WifiLinkLayerStats();
+        stats.on_time = 1000;
+        stats.tx_time = 1;
+        stats.rx_time = 2;
+        stats.tx_time_per_level = new int[] {3, 4, 5};
+        stats.on_time_scan = 6;
+        when(mClientModeImpl.syncGetLinkLayerStats(any())).thenReturn(stats);
+        when(mPowerProfile.getAveragePower(PowerProfile.POWER_WIFI_CONTROLLER_IDLE))
+                .thenReturn(7.0);
+        when(mPowerProfile.getAveragePower(PowerProfile.POWER_WIFI_CONTROLLER_RX))
+                .thenReturn(8.0);
+        when(mPowerProfile.getAveragePower(PowerProfile.POWER_WIFI_CONTROLLER_TX))
+                .thenReturn(9.0);
+        when(mPowerProfile.getAveragePower(PowerProfile.POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE))
+                .thenReturn(10000.0);
+        when(mClock.getElapsedSinceBootMillis()).thenReturn(9999L);
+    }
+
+    private void validateWifiActivityEnergyInfo(WifiActivityEnergyInfo info) {
+        assertNotNull(info);
+        assertEquals(9999L, info.getTimeSinceBootMillis());
+        assertEquals(WifiActivityEnergyInfo.STACK_STATE_STATE_IDLE, info.getStackState());
+        assertEquals(1, info.getControllerTxDurationMillis());
+        assertEquals(2, info.getControllerRxDurationMillis());
+        assertEquals(6, info.getControllerScanDurationMillis());
+        assertEquals(997, info.getControllerIdleDurationMillis());
+        assertEquals(70040, info.getControllerEnergyUsedMicroJoules());
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#reportActivityInfo()} returns the expected values on
+     * success.
+     */
+    @Test
+    public void reportActivityInfoSuccess() throws Exception {
+        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(Long.MAX_VALUE);
+        setupReportActivityInfo();
+        WifiActivityEnergyInfo info = mWifiServiceImpl.reportActivityInfo();
+        validateWifiActivityEnergyInfo(info);
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#getWifiActivityEnergyInfoAsync} throws
+     * {@link SecurityException} if the caller doesn't have the necessary permissions.
+     */
+    @Test(expected = SecurityException.class)
+    public void getWifiActivityEnergyInfoAsyncNoPermission() throws Exception {
+        doThrow(SecurityException.class)
+                .when(mContext).enforceCallingOrSelfPermission(eq(ACCESS_WIFI_STATE), any());
+        mWifiServiceImpl.getWifiActivityEnergyInfoAsync(mOnWifiActivityEnergyInfoListener);
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#getWifiActivityEnergyInfoAsync} passes null to the listener
+     * if link layer stats is unsupported.
+     */
+    @Test
+    public void getWifiActivityEnergyInfoAsyncFeatureUnsupported() throws Exception {
+        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(0L);
+        mWifiServiceImpl.getWifiActivityEnergyInfoAsync(mOnWifiActivityEnergyInfoListener);
+        verify(mOnWifiActivityEnergyInfoListener).onWifiActivityEnergyInfo(null);
+    }
+
+    /**
+     * Tests that {@link WifiServiceImpl#getWifiActivityEnergyInfoAsync} passes the expected values
+     * to the listener on success.
+     */
+    @Test
+    public void getWifiActivityEnergyInfoAsyncSuccess() throws Exception {
+        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(Long.MAX_VALUE);
+        setupReportActivityInfo();
+        mWifiServiceImpl.getWifiActivityEnergyInfoAsync(mOnWifiActivityEnergyInfoListener);
+        ArgumentCaptor<WifiActivityEnergyInfo> infoCaptor =
+                ArgumentCaptor.forClass(WifiActivityEnergyInfo.class);
+        verify(mOnWifiActivityEnergyInfoListener).onWifiActivityEnergyInfo(infoCaptor.capture());
+        validateWifiActivityEnergyInfo(infoCaptor.getValue());
     }
 }

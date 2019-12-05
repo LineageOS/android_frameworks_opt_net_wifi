@@ -20,6 +20,7 @@ import android.net.wifi.ScanResult.InformationElement;
 import android.util.Log;
 
 import com.android.server.wifi.ByteBufferReader;
+import com.android.server.wifi.MboOceConstants;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.anqp.Constants;
 
@@ -693,13 +694,65 @@ public class InformationElementUtil {
 
     public static class Vsa {
         private static final int ANQP_DOMID_BIT = 0x04;
+        private static final int OUI_WFA_ALLIANCE = 0x506F9a;
+        private static final int OUI_TYPE_HS20 = 0x10;
+        private static final int OUI_TYPE_MBO_OCE = 0x16;
 
         public NetworkDetail.HSRelease hsRelease = null;
         public int anqpDomainID = 0;    // No domain ID treated the same as a 0; unique info per AP.
 
-        public void from(InformationElement ie) {
+        public boolean IsMboCapable = false;
+        public boolean IsMboApCellularDataAware = false;
+        public boolean IsOceCapable = false;
+        public int mboAssociationDisallowedReasonCode =
+                MboOceConstants.MBO_OCE_ATTRIBUTE_NOT_PRESENT;
+
+        private void parseVsaMboOce(InformationElement ie) {
             ByteBuffer data = ByteBuffer.wrap(ie.bytes).order(ByteOrder.LITTLE_ENDIAN);
-            if (ie.bytes.length >= 5 && data.getInt() == Constants.HS20_FRAME_PREFIX) {
+
+            // skip WFA OUI and type parsing as parseVsaMboOce() is called after identifying
+            // MBO-OCE OUI type.
+            data.getInt();
+
+            while (data.remaining() > 1) {
+                int attrId = data.get() & Constants.BYTE_MASK;
+                int attrLen = data.get() & Constants.BYTE_MASK;
+
+                if ((attrLen == 0) || (attrLen > data.remaining())) {
+                    return;
+                }
+                byte[] attrBytes = new byte[attrLen];
+                data.get(attrBytes);
+                switch (attrId) {
+                    case MboOceConstants.MBO_OCE_AID_MBO_AP_CAPABILITY_INDICATION:
+                        IsMboCapable = true;
+                        IsMboApCellularDataAware = (attrBytes[0]
+                                & MboOceConstants.MBO_AP_CAP_IND_ATTR_CELL_DATA_AWARE) != 0;
+                        break;
+                    case MboOceConstants.MBO_OCE_AID_ASSOCIATION_DISALLOWED:
+                        mboAssociationDisallowedReasonCode = attrBytes[0] & Constants.BYTE_MASK;
+                        break;
+                    case MboOceConstants.MBO_OCE_AID_OCE_AP_CAPABILITY_INDICATION:
+                        IsOceCapable = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            if (DBG) {
+                Log.e(TAG, ":parseMboOce MBO: " + IsMboCapable + " cellDataAware: "
+                        + IsMboApCellularDataAware + " AssocDisAllowRC: "
+                        + mboAssociationDisallowedReasonCode + " :OCE: " + IsOceCapable);
+            }
+        }
+
+        private void parseVsaHs20(InformationElement ie) {
+            ByteBuffer data = ByteBuffer.wrap(ie.bytes).order(ByteOrder.LITTLE_ENDIAN);
+            if (ie.bytes.length >= 5) {
+                // skip WFA OUI and type parsing as parseVsaHs20() is called after identifying
+                // HS20 OUI type.
+                data.getInt();
+
                 int hsConf = data.get() & Constants.BYTE_MASK;
                 switch ((hsConf >> 4) & Constants.NIBBLE_MASK) {
                     case 0:
@@ -718,6 +771,39 @@ public class InformationElementUtil {
                                 "HS20 indication element too short: " + ie.bytes.length);
                     }
                     anqpDomainID = data.getShort() & Constants.SHORT_MASK;
+                }
+            }
+        }
+
+        /**
+         * Parse the vendor specific information element to build
+         * InformationElemmentUtil.vsa object.
+         *
+         * @param ie -- Information Element
+         */
+        public void from(InformationElement ie) {
+            if (ie.bytes.length < 3) {
+                if (DBG) {
+                    Log.w(TAG, "Invalid vendor specific element len: " + ie.bytes.length);
+                }
+                return;
+            }
+
+            int oui = (((ie.bytes[0] & Constants.BYTE_MASK) << 16)
+                       | ((ie.bytes[1] & Constants.BYTE_MASK) << 8)
+                       |  ((ie.bytes[2] & Constants.BYTE_MASK)));
+
+            if (oui == OUI_WFA_ALLIANCE && ie.bytes.length >= 4) {
+                int ouiType = ie.bytes[3];
+                switch (ouiType) {
+                    case OUI_TYPE_HS20:
+                        parseVsaHs20(ie);
+                        break;
+                    case OUI_TYPE_MBO_OCE:
+                        parseVsaMboOce(ie);
+                        break;
+                    default:
+                        break;
                 }
             }
         }

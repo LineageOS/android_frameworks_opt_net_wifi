@@ -39,13 +39,15 @@ import java.util.Set;
 public class ScanTestUtil {
 
     public static void setupMockChannels(WifiNative wifiNative, int[] channels24, int[] channels5,
-            int[] channelsDfs) throws Exception {
+            int[] channelsDfs, int[] channels6) throws Exception {
         when(wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_24_GHZ))
                 .thenReturn(channels24);
         when(wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ))
                 .thenReturn(channels5);
         when(wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_5_GHZ_DFS_ONLY))
                 .thenReturn(channelsDfs);
+        when(wifiNative.getChannelsForBand(WifiScanner.WIFI_BAND_6_GHZ))
+                .thenReturn(channels6);
     }
 
     public static WifiScanner.ScanSettings createRequest(WifiScanner.ChannelSpec[] channels,

@@ -66,7 +66,8 @@ public class BackgroundScanSchedulerTest extends WifiBaseTest {
         mChannelHelper = new PresetKnownBandsChannelHelper(
                 new int[]{2400, 2450},
                 new int[]{5150, 5175},
-                new int[]{5600, 5650, 5660});
+                new int[]{5600, 5650, 5660},
+                new int[]{5945, 5985});
         mScheduler = new BackgroundScanScheduler(mChannelHelper);
         mScheduler.setMaxBuckets(DEFAULT_MAX_BUCKETS);
         mScheduler.setMaxChannelsPerBucket(DEFAULT_MAX_CHANNELS_PER_BUCKET);
