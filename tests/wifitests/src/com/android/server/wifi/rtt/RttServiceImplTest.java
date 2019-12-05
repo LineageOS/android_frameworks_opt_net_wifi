@@ -52,8 +52,8 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.net.MacAddress;
 import android.net.wifi.aware.IWifiAwareMacAddressProvider;
-import android.net.wifi.aware.IWifiAwareManager;
 import android.net.wifi.aware.PeerHandle;
+import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.rtt.IRttCallback;
 import android.net.wifi.rtt.RangingRequest;
 import android.net.wifi.rtt.RangingResult;
@@ -143,7 +143,7 @@ public class RttServiceImplTest extends WifiBaseTest {
     public RttMetrics mockMetrics;
 
     @Mock
-    public IWifiAwareManager mockAwareManagerBinder;
+    public WifiAwareManager mockAwareManager;
 
     @Mock
     public WifiPermissionsUtil mockPermissionUtil;
@@ -224,7 +224,7 @@ public class RttServiceImplTest extends WifiBaseTest {
         doAnswer(mBinderLinkToDeathCounter).when(mockIbinder).linkToDeath(any(), anyInt());
         doAnswer(mBinderUnlinkToDeathCounter).when(mockIbinder).unlinkToDeath(any(), anyInt());
 
-        mDut.start(mMockLooper.getLooper(), mockClock, mockAwareManagerBinder, mockNative,
+        mDut.start(mMockLooper.getLooper(), mockClock, mockAwareManager, mockNative,
                 mockMetrics, mockPermissionUtil, mFrameworkFacade);
         mMockLooper.dispatchAll();
         ArgumentCaptor<BroadcastReceiver> bcastRxCaptor = ArgumentCaptor.forClass(
@@ -324,7 +324,7 @@ public class RttServiceImplTest extends WifiBaseTest {
 
         AwareTranslatePeerHandlesToMac answer = new AwareTranslatePeerHandlesToMac(mDefaultUid,
                 peerHandleToMacMap);
-        doAnswer(answer).when(mockAwareManagerBinder).requestMacAddresses(anyInt(), any(), any());
+        doAnswer(answer).when(mockAwareManager).requestMacAddresses(anyInt(), any(), any());
 
         // issue request
         mDut.startRanging(mockIbinder, mPackageName, mFeatureId, null, request, mockCallback);

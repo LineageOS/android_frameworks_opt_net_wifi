@@ -71,7 +71,7 @@ import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
-import android.net.wifi.p2p.IWifiP2pManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
@@ -2955,14 +2955,12 @@ public class ClientModeImpl extends StateMachine {
     private void getAdditionalWifiServiceInterfaces() {
         // First set up Wifi Direct
         if (mP2pSupported) {
-            IBinder s1 = mFacade.getService(Context.WIFI_P2P_SERVICE);
-            WifiP2pServiceImpl wifiP2pServiceImpl =
-                    (WifiP2pServiceImpl) IWifiP2pManager.Stub.asInterface(s1);
+            WifiP2pManager wifiP2pService = mContext.getSystemService(WifiP2pManager.class);
 
-            if (wifiP2pServiceImpl != null) {
+            if (wifiP2pService != null) {
                 mWifiP2pChannel = new AsyncChannel();
                 mWifiP2pChannel.connect(mContext, getHandler(),
-                        wifiP2pServiceImpl.getP2pStateMachineMessenger());
+                        wifiP2pService.getP2pStateMachineMessenger());
             }
         }
     }

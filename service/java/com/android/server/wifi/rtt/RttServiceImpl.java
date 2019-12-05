@@ -28,7 +28,7 @@ import android.database.ContentObserver;
 import android.location.LocationManager;
 import android.net.MacAddress;
 import android.net.wifi.aware.IWifiAwareMacAddressProvider;
-import android.net.wifi.aware.IWifiAwareManager;
+import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.rtt.IRttCallback;
 import android.net.wifi.rtt.IWifiRttManager;
 import android.net.wifi.rtt.RangingRequest;
@@ -84,7 +84,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
     private final Context mContext;
     private final RttShellCommand mShellCommand;
     private Clock mClock;
-    private IWifiAwareManager mAwareBinder;
+    private WifiAwareManager mAwareManager;
     private RttNative mRttNative;
     private RttMetrics mRttMetrics;
     private WifiPermissionsUtil mWifiPermissionsUtil;
@@ -235,17 +235,17 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
      *
      * @param looper The looper on which to synchronize operations.
      * @param clock A mockable clock.
-     * @param awareBinder The Wi-Fi Aware service (binder) if supported on the system.
+     * @param awareManager The Wi-Fi Aware service (binder) if supported on the system.
      * @param rttNative The Native interface to the HAL.
      * @param rttMetrics The Wi-Fi RTT metrics object.
      * @param wifiPermissionsUtil Utility for permission checks.
      * @param frameworkFacade Facade for framework classes, allows mocking.
      */
-    public void start(Looper looper, Clock clock, IWifiAwareManager awareBinder,
+    public void start(Looper looper, Clock clock, WifiAwareManager awareManager,
             RttNative rttNative, RttMetrics rttMetrics, WifiPermissionsUtil wifiPermissionsUtil,
             FrameworkFacade frameworkFacade) {
         mClock = clock;
-        mAwareBinder = awareBinder;
+        mAwareManager = awareManager;
         mRttNative = rttNative;
         mRttMetrics = rttMetrics;
         mWifiPermissionsUtil = wifiPermissionsUtil;
@@ -429,7 +429,7 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         if (callback == null) {
             throw new IllegalArgumentException("Callback must not be null");
         }
-        request.enforceValidity(mAwareBinder != null);
+        request.enforceValidity(mAwareManager != null);
 
         if (!isAvailable()) {
             try {
@@ -1012,33 +1012,17 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
             }
 
             request.peerHandlesTranslated = true;
-            try {
-                mAwareBinder.requestMacAddresses(request.uid, peerIdsNeedingTranslation,
-                        new IWifiAwareMacAddressProvider.Stub() {
-                            @Override
-                            public void macAddress(Map peerIdToMacMap) {
-                                // ASYNC DOMAIN
-                                mHandler.post(() -> {
-                                    // BACK TO SYNC DOMAIN
-                                    processReceivedAwarePeerMacAddresses(request, peerIdToMacMap);
-                                });
-                            }
-                        });
-            } catch (RemoteException e1) {
-                Log.e(TAG,
-                        "processAwarePeerHandles: exception while calling requestMacAddresses -- "
-                                + e1 + ", aborting request=" + request);
-                try {
-                    mRttMetrics.recordOverallStatus(
-                            WifiMetricsProto.WifiRttLog.OVERALL_AWARE_TRANSLATION_FAILURE);
-                    request.callback.onRangingFailure(RangingResultCallback.STATUS_CODE_FAIL);
-                } catch (RemoteException e2) {
-                    Log.e(TAG, "processAwarePeerHandles: onRangingResults failure -- " + e2);
-                }
-                executeNextRangingRequestIfPossible(true);
-                return true; // an abort because we removed request and are executing next one
-            }
-
+            mAwareManager.requestMacAddresses(request.uid, peerIdsNeedingTranslation,
+                    new IWifiAwareMacAddressProvider.Stub() {
+                        @Override
+                        public void macAddress(Map peerIdToMacMap) {
+                            // ASYNC DOMAIN
+                            mHandler.post(() -> {
+                                // BACK TO SYNC DOMAIN
+                                processReceivedAwarePeerMacAddresses(request, peerIdToMacMap);
+                            });
+                        }
+                    });
             return true; // a deferral
         }
 
