@@ -1742,8 +1742,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid())
                     .flush();
         }
-        // reportActivityInfo() performs permission checking
-        WifiActivityEnergyInfo info = reportActivityInfo();
+        // getWifiActivityEnergyInfo() performs permission checking
+        WifiActivityEnergyInfo info = getWifiActivityEnergyInfo();
         try {
             listener.onWifiActivityEnergyInfo(info);
         } catch (RemoteException e) {
@@ -1751,14 +1751,10 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
-    /**
-     * see {@link android.net.wifi.WifiManager#getControllerActivityEnergyInfo()}
-     */
-    @Override
-    public WifiActivityEnergyInfo reportActivityInfo() {
+    private WifiActivityEnergyInfo getWifiActivityEnergyInfo() {
         enforceAccessPermission();
         if (mVerboseLoggingEnabled) {
-            mLog.info("reportActivityInfo uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getWifiActivityEnergyInfo uid=%").c(Binder.getCallingUid()).flush();
         }
         if ((getSupportedFeatures() & WifiManager.WIFI_FEATURE_LINK_LAYER_STATS) == 0) {
             return null;
@@ -1787,7 +1783,7 @@ public class WifiServiceImpl extends BaseWifiService {
         }
         if (VDBG || rxIdleTimeMillis < 0 || stats.on_time < 0 || stats.tx_time < 0
                 || stats.rx_time < 0 || stats.on_time_scan < 0) {
-            Log.d(TAG, " reportActivityInfo: "
+            Log.d(TAG, " getWifiActivityEnergyInfo: "
                     + " on_time_millis=" + stats.on_time
                     + " tx_time_millis=" + stats.tx_time
                     + " tx_time_per_level_millis=" + Arrays.toString(txTimePerLevelMillis)

@@ -4688,27 +4688,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         mWifiServiceImpl.acquireWifiLock(mAppBinder, wifiLockModeInvalid, "", null);
     }
 
-    /**
-     * Tests that {@link WifiServiceImpl#reportActivityInfo()} throws {@link SecurityException} if
-     * the caller doesn't have the necessary permissions.
-     */
-    @Test(expected = SecurityException.class)
-    public void reportActivityInfoNoPermission() throws Exception {
-        doThrow(SecurityException.class)
-                .when(mContext).enforceCallingOrSelfPermission(eq(ACCESS_WIFI_STATE), any());
-        mWifiServiceImpl.reportActivityInfo();
-    }
-
-    /**
-     * Tests that {@link WifiServiceImpl#reportActivityInfo()} returns null if link layer stats is
-     * unsupported.
-     */
-    @Test
-    public void reportActivityInfoFeatureUnsupported() throws Exception {
-        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(0L);
-        assertNull(mWifiServiceImpl.reportActivityInfo());
-    }
-
     private void setupReportActivityInfo() {
         WifiLinkLayerStats stats = new WifiLinkLayerStats();
         stats.on_time = 1000;
@@ -4736,18 +4715,6 @@ public class WifiServiceImplTest extends WifiBaseTest {
         assertEquals(2, info.getControllerRxDurationMillis());
         assertEquals(6, info.getControllerScanDurationMillis());
         assertEquals(997, info.getControllerIdleDurationMillis());
-    }
-
-    /**
-     * Tests that {@link WifiServiceImpl#reportActivityInfo()} returns the expected values on
-     * success.
-     */
-    @Test
-    public void reportActivityInfoSuccess() throws Exception {
-        when(mClientModeImpl.syncGetSupportedFeatures(any())).thenReturn(Long.MAX_VALUE);
-        setupReportActivityInfo();
-        WifiActivityEnergyInfo info = mWifiServiceImpl.reportActivityInfo();
-        validateWifiActivityEnergyInfo(info);
     }
 
     /**
