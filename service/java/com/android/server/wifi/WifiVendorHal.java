@@ -46,6 +46,7 @@ import android.hardware.wifi.V1_0.WifiDebugTxPacketFateReport;
 import android.hardware.wifi.V1_0.WifiInformationElement;
 import android.hardware.wifi.V1_0.WifiStatus;
 import android.hardware.wifi.V1_0.WifiStatusCode;
+import android.hardware.wifi.V1_2.IWifiChipEventCallback.IfaceInfo;
 import android.net.MacAddress;
 import android.net.apf.ApfCapabilities;
 import android.net.wifi.ScanResult;
@@ -241,6 +242,7 @@ public class WifiVendorHal {
     private final IWifiStaIfaceEventCallback mIWifiStaIfaceEventCallback;
     private final ChipEventCallback mIWifiChipEventCallback;
     private final ChipEventCallbackV12 mIWifiChipEventCallbackV12;
+    private final ChipEventCallbackV14 mIWifiChipEventCallbackV14;
 
     // Plumbing for event handling.
     //
@@ -256,6 +258,7 @@ public class WifiVendorHal {
         mIWifiStaIfaceEventCallback = new StaIfaceEventCallback();
         mIWifiChipEventCallback = new ChipEventCallback();
         mIWifiChipEventCallbackV12 = new ChipEventCallbackV12();
+        mIWifiChipEventCallbackV14 = new ChipEventCallbackV14();
     }
 
     public static final Object sLock = new Object();
@@ -559,8 +562,12 @@ public class WifiVendorHal {
             if (mIWifiChip == null) return boolResult(false);
             try {
                 WifiStatus status;
+                android.hardware.wifi.V1_4.IWifiChip iWifiChipV14 = getWifiChipForV1_4Mockable();
                 android.hardware.wifi.V1_2.IWifiChip iWifiChipV12 = getWifiChipForV1_2Mockable();
-                if (iWifiChipV12 != null) {
+
+                if (iWifiChipV14 != null) {
+                    status = iWifiChipV14.registerEventCallback_1_4(mIWifiChipEventCallbackV14);
+                } else if (iWifiChipV12 != null) {
                     status = iWifiChipV12.registerEventCallback_1_2(mIWifiChipEventCallbackV12);
                 } else {
                     status = mIWifiChip.registerEventCallback(mIWifiChipEventCallback);
@@ -2822,6 +2829,18 @@ public class WifiVendorHal {
         }
     }
 
+    private boolean areSameIfaceNames(List<IfaceInfo> ifaceList1, List<IfaceInfo> ifaceList2) {
+        List<String> ifaceNamesList1 = ifaceList1
+                .stream()
+                .map(i -> i.name)
+                .collect(Collectors.toList());
+        List<String> ifaceNamesList2 = ifaceList2
+                .stream()
+                .map(i -> i.name)
+                .collect(Collectors.toList());
+        return ifaceNamesList1.containsAll(ifaceNamesList2);
+    }
+
     /**
      * Callback for events on the 1.2 chip.
      */
@@ -2857,25 +2876,118 @@ public class WifiVendorHal {
             mIWifiChipEventCallback.onDebugErrorAlert(errorCode, debugData);
         }
 
-        private boolean areSameIfaceNames(List<IfaceInfo> ifaceList1, List<IfaceInfo> ifaceList2) {
-            List<String> ifaceNamesList1 = ifaceList1
-                    .stream()
-                    .map(i -> i.name)
-                    .collect(Collectors.toList());
-            List<String> ifaceNamesList2 = ifaceList2
-                    .stream()
-                    .map(i -> i.name)
-                    .collect(Collectors.toList());
-            return ifaceNamesList1.containsAll(ifaceNamesList2);
-        }
-
-        private boolean areSameIfaces(List<IfaceInfo> ifaceList1, List<IfaceInfo> ifaceList2) {
-            return ifaceList1.containsAll(ifaceList2);
-        }
-
         @Override
         public void onRadioModeChange(ArrayList<RadioModeInfo> radioModeInfoList) {
             mVerboseLog.d("onRadioModeChange " + radioModeInfoList);
+            WifiNative.VendorHalRadioModeChangeEventHandler handler;
+            synchronized (sLock) {
+                if (mRadioModeChangeEventHandler == null || radioModeInfoList == null) return;
+                handler = mRadioModeChangeEventHandler;
+            }
+            // Should only contain 1 or 2 radio infos.
+            if (radioModeInfoList.size() == 0 || radioModeInfoList.size() > 2) {
+                mLog.e("Unexpected number of radio info in list " + radioModeInfoList.size());
+                return;
+            }
+            RadioModeInfo radioModeInfo0 = radioModeInfoList.get(0);
+            RadioModeInfo radioModeInfo1 =
+                    radioModeInfoList.size() == 2 ? radioModeInfoList.get(1) : null;
+            // Number of ifaces on each radio should be equal.
+            if (radioModeInfo1 != null
+                    && radioModeInfo0.ifaceInfos.size() != radioModeInfo1.ifaceInfos.size()) {
+                mLog.e("Unexpected number of iface info in list "
+                        + radioModeInfo0.ifaceInfos.size() + ", "
+                        + radioModeInfo1.ifaceInfos.size());
+                return;
+            }
+            int numIfacesOnEachRadio = radioModeInfo0.ifaceInfos.size();
+            // Only 1 or 2 ifaces should be present on each radio.
+            if (numIfacesOnEachRadio == 0 || numIfacesOnEachRadio > 2) {
+                mLog.e("Unexpected number of iface info in list " + numIfacesOnEachRadio);
+                return;
+            }
+            Runnable runnable = null;
+            // 2 ifaces simultaneous on 2 radios.
+            if (radioModeInfoList.size() == 2 && numIfacesOnEachRadio == 1) {
+                // Iface on radio0 should be different from the iface on radio1 for DBS & SBS.
+                if (areSameIfaceNames(radioModeInfo0.ifaceInfos, radioModeInfo1.ifaceInfos)) {
+                    mLog.e("Unexpected for both radio infos to have same iface");
+                    return;
+                }
+                if (radioModeInfo0.bandInfo != radioModeInfo1.bandInfo) {
+                    runnable = () -> {
+                        handler.onDbs();
+                    };
+                } else {
+                    runnable = () -> {
+                        handler.onSbs(radioModeInfo0.bandInfo);
+                    };
+                }
+            // 2 ifaces time sharing on 1 radio.
+            } else if (radioModeInfoList.size() == 1 && numIfacesOnEachRadio == 2) {
+                IfaceInfo ifaceInfo0 = radioModeInfo0.ifaceInfos.get(0);
+                IfaceInfo ifaceInfo1 = radioModeInfo0.ifaceInfos.get(1);
+                if (ifaceInfo0.channel != ifaceInfo1.channel) {
+                    runnable = () -> {
+                        handler.onMcc(radioModeInfo0.bandInfo);
+                    };
+                } else {
+                    runnable = () -> {
+                        handler.onScc(radioModeInfo0.bandInfo);
+                    };
+                }
+            } else {
+                // Not concurrency scenario, uninteresting...
+            }
+            if (runnable != null) mHalEventHandler.post(runnable);
+        }
+    }
+
+    /**
+     * Callback for events on the 1.4 chip.
+     */
+    private class ChipEventCallbackV14 extends
+            android.hardware.wifi.V1_4.IWifiChipEventCallback.Stub {
+        @Override
+        public void onChipReconfigured(int modeId) {
+            mIWifiChipEventCallback.onChipReconfigured(modeId);
+        }
+
+        @Override
+        public void onChipReconfigureFailure(WifiStatus status) {
+            mIWifiChipEventCallback.onChipReconfigureFailure(status);
+        }
+
+        public void onIfaceAdded(int type, String name) {
+            mIWifiChipEventCallback.onIfaceAdded(type, name);
+        }
+
+        @Override
+        public void onIfaceRemoved(int type, String name) {
+            mIWifiChipEventCallback.onIfaceRemoved(type, name);
+        }
+
+        @Override
+        public void onDebugRingBufferDataAvailable(
+                WifiDebugRingBufferStatus status, java.util.ArrayList<Byte> data) {
+            mIWifiChipEventCallback.onDebugRingBufferDataAvailable(status, data);
+        }
+
+        @Override
+        public void onDebugErrorAlert(int errorCode, java.util.ArrayList<Byte> debugData) {
+            mIWifiChipEventCallback.onDebugErrorAlert(errorCode, debugData);
+        }
+
+        @Override
+        public void onRadioModeChange(
+                ArrayList<android.hardware.wifi.V1_2.IWifiChipEventCallback.RadioModeInfo>
+                radioModeInfoList) {
+            mIWifiChipEventCallbackV12.onRadioModeChange(radioModeInfoList);
+        }
+
+        @Override
+        public void onRadioModeChange_1_4(ArrayList<RadioModeInfo> radioModeInfoList) {
+            mVerboseLog.d("onRadioModeChange_1_4 " + radioModeInfoList);
             WifiNative.VendorHalRadioModeChangeEventHandler handler;
             synchronized (sLock) {
                 if (mRadioModeChangeEventHandler == null || radioModeInfoList == null) return;
