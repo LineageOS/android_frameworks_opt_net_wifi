@@ -621,8 +621,10 @@ public class WifiConnectivityManager {
                 R.integer.config_wifi_framework_RSSI_SCORE_OFFSET);
         final int rssiScoreSlope = mContext.getResources().getInteger(
                 R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
-        return rssiScoreSlope * (Math.max(mScoringParams.getGoodRssi(ScoringParams.BAND2),
-                                           mScoringParams.getGoodRssi(ScoringParams.BAND5))
+
+        return rssiScoreSlope * (Math.max(Math.max(mScoringParams.getGoodRssi(ScoringParams.BAND2),
+                                           mScoringParams.getGoodRssi(ScoringParams.BAND5)),
+                                           mScoringParams.getGoodRssi(ScoringParams.BAND6))
                                   + rssiScoreOffset);
     }
 
@@ -1008,6 +1010,7 @@ public class WifiConnectivityManager {
 
         pnoSettings.networkList = new PnoSettings.PnoNetwork[listSize];
         pnoSettings.networkList = pnoNetworkList.toArray(pnoSettings.networkList);
+        pnoSettings.min6GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND6);
         pnoSettings.min5GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND5);
         pnoSettings.min24GHzRssi = mScoringParams.getEntryRssi(ScoringParams.BAND2);
         pnoSettings.initialScoreMax = initialScoreMax();
@@ -1019,6 +1022,8 @@ public class WifiConnectivityManager {
                 R.integer.config_wifi_framework_SECURITY_AWARD);
         pnoSettings.band5GHzBonus = mContext.getResources().getInteger(
                 R.integer.config_wifi_framework_5GHz_preference_boost_factor);
+        pnoSettings.band6GHzBonus = mContext.getResources().getInteger(
+                R.integer.config_wifiFramework6ghzPreferenceBoostFactor);
 
         // Initialize scan settings
         ScanSettings scanSettings = new ScanSettings();

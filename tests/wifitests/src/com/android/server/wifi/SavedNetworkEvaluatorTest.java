@@ -143,6 +143,9 @@ public class SavedNetworkEvaluatorTest extends WifiBaseTest {
                 R.integer.config_wifi_framework_5GHz_preference_boost_factor))
                 .thenReturn(16);
         when(mResource.getInteger(
+                R.integer.config_wifiFramework6ghzPreferenceBoostFactor))
+                .thenReturn(16);
+        when(mResource.getInteger(
                 R.integer.config_wifi_framework_current_network_boost))
                 .thenReturn(16);
     }

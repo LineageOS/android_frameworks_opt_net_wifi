@@ -45,6 +45,9 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
     // config_wifi_framework_5GHz_preference_boost_factor
     public static final int BAND_5GHZ_AWARD_IS_40 = 40;
 
+    // config_wifiFramework6ghzPreferenceBoostFactor
+    public static final int BAND_6GHZ_AWARD_IS_40 = 40;
+
     // config_wifi_framework_SECURITY_AWARD
     public static final int SECURITY_AWARD_IS_80 = 80;
 
@@ -76,7 +79,10 @@ final class CompatibilityScorer implements WifiCandidates.CandidateScorer {
         int rssi = Math.min(candidate.getScanRssi(), rssiSaturationThreshold);
         int score = (rssi + RSSI_SCORE_OFFSET) * RSSI_SCORE_SLOPE_IS_4;
 
-        if (candidate.getFrequency() >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
+        if (candidate.getFrequency() > ScoringParams.MINIMUM_6GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
+            score += BAND_6GHZ_AWARD_IS_40;
+        } else if (candidate.getFrequency()
+                >= ScoringParams.MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             score += BAND_5GHZ_AWARD_IS_40;
         }
         score += (int) (candidate.getLastSelectionWeight() * LAST_SELECTION_AWARD_IS_480);

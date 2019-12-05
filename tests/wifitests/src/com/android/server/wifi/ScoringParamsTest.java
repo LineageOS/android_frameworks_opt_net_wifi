@@ -51,7 +51,8 @@ import org.mockito.Spy;
 public class ScoringParamsTest extends WifiBaseTest {
 
     private static final String EXPECTED_DEFAULTS =
-            "rssi2=-83:-80:-73:-60,rssi5=-80:-77:-70:-57,pps=0:1:100,horizon=15,nud=8,expid=0";
+            "rssi2=-83:-80:-73:-60,rssi5=-80:-77:-70:-57,rssi6=-80:-77:-70:-57,"
+            + "pps=0:1:100,horizon=15,nud=8,expid=0";
 
     private ScoringParams mScoringParams;
 
@@ -88,6 +89,7 @@ public class ScoringParamsTest extends WifiBaseTest {
         mScoringParams = new ScoringParams();
         checkThresholds(2412);
         checkThresholds(5020);
+        checkThresholds(5935);
         assertEquals(15, mScoringParams.getHorizonSeconds());
     }
 
@@ -144,6 +146,7 @@ public class ScoringParamsTest extends WifiBaseTest {
         assertFalse(mScoringParams.update("rssi2=-86"));
         assertFalse(mScoringParams.update("rssi2=-99:-88:-77:-66:-55"));
         assertFalse(mScoringParams.update("rssi5=one:two:three:four"));
+        assertFalse(mScoringParams.update("rssi6=one:two:three:four"));
         assertFalse(mScoringParams.update("nud=-1"));
         assertFalse(mScoringParams.update("nud=11"));
         assertFalse(mScoringParams.update("pps=1:2:3:4"));
@@ -173,7 +176,7 @@ public class ScoringParamsTest extends WifiBaseTest {
         String before = mScoringParams.toString();
         assertFalse("Must be negative", mScoringParams.update("rssi2=0:1:2:3"));
         assertFalse("Must be ordered", mScoringParams.update("rssi5=-88:-89:-66:-55"));
-        assertFalse("Must be not too negative", mScoringParams.update("rssi5=-128:-77:-66:-55"));
+        assertFalse("Must be not too negative", mScoringParams.update("rssi6=-128:-77:-66:-55"));
         String what = "rssi5=" + WifiInfo.INVALID_RSSI + ":-77:-66:-55";
         assertFalse(what, mScoringParams.update(what));
         assertEquals(before, mScoringParams.toString());
@@ -258,6 +261,7 @@ public class ScoringParamsTest extends WifiBaseTest {
      */
     int mBad2GHz, mEntry2GHz, mSufficient2GHz, mGood2GHz;
     int mBad5GHz, mEntry5GHz, mSufficient5GHz, mGood5GHz;
+    int mBad6GHz, mEntry6GHz, mSufficient6GHz, mGood6GHz;
 
     @Mock Context mContext;
     @Spy private MockResources mResources = new MockResources();
@@ -289,6 +293,14 @@ public class ScoringParamsTest extends WifiBaseTest {
                 R.integer.config_wifi_framework_wifi_score_low_rssi_threshold_5GHz, -60);
         mGood5GHz = setupIntegerResource(
                 R.integer.config_wifi_framework_wifi_score_good_rssi_threshold_5GHz, -50);
+        mBad6GHz = setupIntegerResource(
+                R.integer.config_wifiFrameworkScoreBadRssiThreshold6ghz, -80);
+        mEntry6GHz = setupIntegerResource(
+                R.integer.config_wifiFrameworkScoreEntryRssiThreshold6ghz, -70);
+        mSufficient6GHz = setupIntegerResource(
+                R.integer.config_wifiFrameworkScoreLowRssiThreshold6ghz, -60);
+        mGood6GHz = setupIntegerResource(
+                R.integer.config_wifiFrameworkScoreGoodRssiThreshold6ghz, -50);
     }
 
     /**
@@ -309,6 +321,12 @@ public class ScoringParamsTest extends WifiBaseTest {
         assertEquals(mSufficient5GHz, mScoringParams.getSufficientRssi(5100));
         assertEquals(mGood5GHz, mScoringParams.getGoodRssi(5678));
         assertEquals(mGood5GHz, mScoringParams.getGoodRssi(ScoringParams.BAND5));
+
+        assertEquals(mBad6GHz, mScoringParams.getExitRssi(5935));
+        assertEquals(mEntry6GHz, mScoringParams.getEntryRssi(6095));
+        assertEquals(mSufficient6GHz, mScoringParams.getSufficientRssi(6255));
+        assertEquals(mGood6GHz, mScoringParams.getGoodRssi(6275));
+        assertEquals(mGood6GHz, mScoringParams.getGoodRssi(ScoringParams.BAND6));
     }
 
     /**

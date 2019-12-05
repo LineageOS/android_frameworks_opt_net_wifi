@@ -419,12 +419,14 @@ public class ScanTestUtil {
         assertNotNull("actaul was null", actual);
         assertEquals("min5GHzRssi", expected.min5GHzRssi, actual.min5GHzRssi);
         assertEquals("min24GHzRssi", expected.min24GHzRssi, actual.min24GHzRssi);
+        assertEquals("min6GHzRssi", expected.min6GHzRssi, actual.min6GHzRssi);
         assertEquals("initialScoreMax", expected.initialScoreMax, actual.initialScoreMax);
         assertEquals("currentConnectionBonus", expected.currentConnectionBonus,
                 actual.currentConnectionBonus);
         assertEquals("sameNetworkBonus", expected.sameNetworkBonus, actual.sameNetworkBonus);
         assertEquals("secureBonus", expected.secureBonus, actual.secureBonus);
         assertEquals("band5GHzBonus", expected.band5GHzBonus, actual.band5GHzBonus);
+        assertEquals("band6GHzBonus", expected.band6GHzBonus, actual.band6GHzBonus);
         assertEquals("isConnected", expected.isConnected, actual.isConnected);
         assertNotNull("expected networkList was null", expected.networkList);
         assertNotNull("actual networkList was null", actual.networkList);
