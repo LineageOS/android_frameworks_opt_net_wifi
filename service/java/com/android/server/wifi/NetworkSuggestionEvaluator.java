@@ -19,10 +19,10 @@ package com.android.server.wifi;
 import android.annotation.NonNull;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiNetworkSuggestion;
 import android.util.LocalLog;
 import android.util.Log;
 
+import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.util.ScanResultUtil;
 
 import java.util.ArrayList;
@@ -90,22 +90,22 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                         + WifiNetworkSelector.toScanId(scanResult));
                 continue;
             }
-            Set<WifiNetworkSuggestion> matchingNetworkSuggestions =
+            Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
                     mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
-            if (matchingNetworkSuggestions == null || matchingNetworkSuggestions.isEmpty()) {
+            if (matchingExtNetworkSuggestions == null || matchingExtNetworkSuggestions.isEmpty()) {
                 continue;
             }
             // All matching suggestions have the same network credentials type. So, use any one of
             // them to lookup/add the credentials to WifiConfigManager.
             // Note: Apps could provide different credentials (password, ceritificate) for the same
             // network, need to handle that in the future.
-            WifiNetworkSuggestion matchingNetworkSuggestion =
-                    matchingNetworkSuggestions.stream().findAny().get();
+            ExtendedWifiNetworkSuggestion matchingExtNetworkSuggestion =
+                    matchingExtNetworkSuggestions.stream().findAny().get();
             // Check if we already have a network with the same credentials in WifiConfigManager
             // database.
             WifiConfiguration wCmConfiguredNetwork =
                     mWifiConfigManager.getConfiguredNetwork(
-                            matchingNetworkSuggestion.wifiConfiguration.getKey());
+                            matchingExtNetworkSuggestion.wns.wifiConfiguration.getKey());
             if (wCmConfiguredNetwork != null) {
                 // If existing network is not from suggestion, ignore.
                 if (!wCmConfiguredNetwork.fromWifiNetworkSuggestion) {
@@ -113,9 +113,9 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                 }
                 // Update the WifiConfigManager with the latest WifiConfig
                 NetworkUpdateResult result = mWifiConfigManager.addOrUpdateNetwork(
-                                matchingNetworkSuggestion.wifiConfiguration,
-                                matchingNetworkSuggestion.suggestorUid,
-                                matchingNetworkSuggestion.suggestorPackageName);
+                                matchingExtNetworkSuggestion.wns.wifiConfiguration,
+                                matchingExtNetworkSuggestion.perAppInfo.uid,
+                                matchingExtNetworkSuggestion.perAppInfo.packageName);
                 if (result.isSuccess()) {
                     wCmConfiguredNetwork = mWifiConfigManager.getConfiguredNetwork(
                             result.getNetworkId());
@@ -128,7 +128,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                     continue;
                 }
             }
-            matchMetaInfo.putAll(matchingNetworkSuggestions, wCmConfiguredNetwork, scanDetail);
+            matchMetaInfo.putAll(matchingExtNetworkSuggestions, wCmConfiguredNetwork, scanDetail);
         }
         // Return early on no match.
         if (matchMetaInfo.isEmpty()) {
@@ -181,14 +181,15 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
 
     // Container classes to handle book-keeping while we're iterating through the scan list.
     private class PerNetworkSuggestionMatchMetaInfo {
-        public final WifiNetworkSuggestion wifiNetworkSuggestion;
+        public final ExtendedWifiNetworkSuggestion extWifiNetworkSuggestion;
         public final ScanDetail matchingScanDetail;
         public WifiConfiguration wCmConfiguredNetwork; // Added to WifiConfigManager.
 
-        PerNetworkSuggestionMatchMetaInfo(@NonNull WifiNetworkSuggestion wifiNetworkSuggestion,
-                                          @Nullable WifiConfiguration wCmConfiguredNetwork,
-                                          @NonNull ScanDetail matchingScanDetail) {
-            this.wifiNetworkSuggestion = wifiNetworkSuggestion;
+        PerNetworkSuggestionMatchMetaInfo(
+                @NonNull ExtendedWifiNetworkSuggestion extWifiNetworkSuggestion,
+                @Nullable WifiConfiguration wCmConfiguredNetwork,
+                @NonNull ScanDetail matchingScanDetail) {
+            this.extWifiNetworkSuggestion = extWifiNetworkSuggestion;
             this.wCmConfiguredNetwork = wCmConfiguredNetwork;
             this.matchingScanDetail = matchingScanDetail;
         }
@@ -200,7 +201,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
         /**
          * Add the network suggestion & associated info to this package meta info.
          */
-        public void put(WifiNetworkSuggestion wifiNetworkSuggestion,
+        public void put(ExtendedWifiNetworkSuggestion wifiNetworkSuggestion,
                         WifiConfiguration matchingWifiConfiguration,
                         ScanDetail matchingScanDetail) {
             networkInfos.add(new PerNetworkSuggestionMatchMetaInfo(
@@ -217,7 +218,7 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
             Map<Integer, List<PerNetworkSuggestionMatchMetaInfo>> matchedNetworkInfosPerPriority =
                     networkInfos.stream()
                             .collect(Collectors.toMap(
-                                    e -> e.wifiNetworkSuggestion.wifiConfiguration.priority,
+                                    e -> e.extWifiNetworkSuggestion.wns.wifiConfiguration.priority,
                                     e -> Arrays.asList(e),
                                     (v1, v2) -> { // concatenate networks with the same priority.
                                         List<PerNetworkSuggestionMatchMetaInfo> concatList =
@@ -241,14 +242,15 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
         /**
          * Add all the network suggestion & associated info.
          */
-        public void putAll(Set<WifiNetworkSuggestion> wifiNetworkSuggestions,
+        public void putAll(Set<ExtendedWifiNetworkSuggestion> wifiNetworkSuggestions,
                            WifiConfiguration wCmConfiguredNetwork,
                            ScanDetail matchingScanDetail) {
             // Separate the suggestions into buckets for each app to allow sorting based on
             // priorities set by app.
-            for (WifiNetworkSuggestion wifiNetworkSuggestion : wifiNetworkSuggestions) {
+            for (ExtendedWifiNetworkSuggestion wifiNetworkSuggestion : wifiNetworkSuggestions) {
                 PerAppMatchMetaInfo appInfo = mAppInfos.computeIfAbsent(
-                        wifiNetworkSuggestion.suggestorPackageName, k -> new PerAppMatchMetaInfo());
+                        wifiNetworkSuggestion.perAppInfo.packageName,
+                        k -> new PerAppMatchMetaInfo());
                 appInfo.put(wifiNetworkSuggestion, wCmConfiguredNetwork, matchingScanDetail);
             }
         }
@@ -278,9 +280,9 @@ public class NetworkSuggestionEvaluator implements WifiNetworkSelector.NetworkEv
                     // if the network does not already exist in WifiConfigManager, add now.
                     if (matchedNetworkInfo.wCmConfiguredNetwork == null) {
                         matchedNetworkInfo.wCmConfiguredNetwork = addCandidateToWifiConfigManager(
-                                matchedNetworkInfo.wifiNetworkSuggestion.wifiConfiguration,
-                                matchedNetworkInfo.wifiNetworkSuggestion.suggestorUid,
-                                matchedNetworkInfo.wifiNetworkSuggestion.suggestorPackageName);
+                                matchedNetworkInfo.extWifiNetworkSuggestion.wns.wifiConfiguration,
+                                matchedNetworkInfo.extWifiNetworkSuggestion.perAppInfo.uid,
+                                matchedNetworkInfo.extWifiNetworkSuggestion.perAppInfo.packageName);
                         if (matchedNetworkInfo.wCmConfiguredNetwork == null) continue;
                         mLocalLog.log(String.format("network suggestion candidate %s (new)",
                                 WifiNetworkSelector.toNetworkString(

@@ -41,7 +41,6 @@ import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -162,10 +161,11 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             return;
         }
         for (Entry<String, PerAppInfo> entry : networkSuggestionsMap.entrySet()) {
-            String packageName = entry.getKey();
+            String packageName = entry.getValue().packageName;
             String featureId = entry.getValue().featureId;
             boolean hasUserApproved = entry.getValue().hasUserApproved;
             int maxSize = entry.getValue().maxSize;
+            int uid = entry.getValue().uid;
             Set<ExtendedWifiNetworkSuggestion> networkSuggestions =
                     entry.getValue().extNetworkSuggestions;
             XmlUtil.writeNextSectionStart(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
@@ -173,6 +173,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_FEATURE_ID, featureId);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_HAS_USER_APPROVED, hasUserApproved);
             XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_MAX_SIZE, maxSize);
+            XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, uid);
             serializeExtNetworkSuggestions(out, networkSuggestions, encryptionUtil);
             XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
         }
@@ -234,10 +235,6 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                 suggestion.isUserInteractionRequired);
         XmlUtil.writeNextValue(out, XML_TAG_IS_USER_ALLOWED_TO_MANUALLY_CONNECT,
                 suggestion.isUserAllowedToManuallyConnect);
-        XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_UID, suggestion.suggestorUid);
-        XmlUtil.writeNextValue(out, XML_TAG_SUGGESTOR_PACKAGE_NAME,
-                suggestion.suggestorPackageName);
-
         XmlUtil.writeNextSectionEnd(out, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION);
     }
 
@@ -257,20 +254,74 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
             // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are
             // fatal and should abort the entire loading process.
             try {
-                String packageName =
-                        (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_PACKAGE_NAME);
-                String featureId =
-                        (String) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_FEATURE_ID);
-                boolean hasUserApproved = (boolean) XmlUtil.readNextValueWithName(in,
-                        XML_TAG_SUGGESTOR_HAS_USER_APPROVED);
-                int maxSize = (int) XmlUtil.readNextValueWithName(in, XML_TAG_SUGGESTOR_MAX_SIZE);
-                PerAppInfo perAppInfo = new PerAppInfo(packageName, featureId);
-                Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions =
-                        parseExtNetworkSuggestions(
-                                in, outerTagDepth + 1, version, encryptionUtil, perAppInfo);
-                perAppInfo.hasUserApproved = hasUserApproved;
-                perAppInfo.maxSize = maxSize;
-                perAppInfo.extNetworkSuggestions.addAll(extNetworkSuggestions);
+                PerAppInfo perAppInfo = null;
+                String packageName = null;
+                String featureId = null;
+                boolean hasUserApproved = false;
+                int maxSize = -1;
+                int uid = Process.INVALID_UID;
+                // Loop through and parse out all the elements from the stream within this section.
+                while (XmlUtils.nextElementWithin(in, outerTagDepth + 1)) {
+                    if (in.getAttributeValue(null, "name") != null) {
+                        // Value elements.
+                        String[] valueName = new String[1];
+                        Object value = XmlUtil.readCurrentValue(in, valueName);
+                        switch (valueName[0]) {
+                            case XML_TAG_SUGGESTOR_PACKAGE_NAME:
+                                packageName = (String) value;
+                                break;
+                            case XML_TAG_SUGGESTOR_FEATURE_ID:
+                                featureId = (String) value;
+                                break;
+                            case XML_TAG_SUGGESTOR_HAS_USER_APPROVED:
+                                hasUserApproved = (boolean) value;
+                                break;
+                            case XML_TAG_SUGGESTOR_MAX_SIZE:
+                                maxSize = (int) value;
+                                break;
+                            case XML_TAG_SUGGESTOR_UID:
+                                uid = (int) value;
+                                break;
+                            default:
+                                Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
+                                break;
+                        }
+                    } else {
+                        String tagName = in.getName();
+                        if (tagName == null) {
+                            throw new XmlPullParserException("Unexpected null under "
+                                    + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP);
+                        }
+                        // Create the PerAppInfo struct before parsing individual network
+                        // suggestions in the block.
+                        if (perAppInfo == null) {
+                            if (packageName == null) {
+                                throw new XmlPullParserException(
+                                        "XML parsing of PerAppInfo failed");
+                            }
+                            perAppInfo = new PerAppInfo(uid, packageName, featureId);
+                            perAppInfo.hasUserApproved = hasUserApproved;
+                            perAppInfo.maxSize = maxSize;
+                        }
+                        switch (tagName) {
+                            case XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION:
+                                WifiNetworkSuggestion networkSuggestion =
+                                        parseNetworkSuggestion(
+                                                in, outerTagDepth + 2, version, encryptionUtil,
+                                                perAppInfo);
+                                perAppInfo.extNetworkSuggestions.add(
+                                        ExtendedWifiNetworkSuggestion.fromWns(
+                                                networkSuggestion, perAppInfo));
+                                break;
+                            default:
+                                Log.w(TAG, "Ignoring unknown tag under "
+                                        + XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION_PER_APP + ": "
+                                        + in.getName());
+                                break;
+                        }
+                    }
+                }
+                // Store this app info in the map.
                 networkSuggestionsMap.put(packageName, perAppInfo);
             } catch (RuntimeException e) {
                 // Failed to parse this network, skip it.
@@ -281,34 +332,6 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
     }
 
     /**
-     * Parse a set of network suggestions from an input stream in XML format.
-     *
-     * @throws XmlPullParserException
-     * @throws IOException
-     */
-    private Set<ExtendedWifiNetworkSuggestion> parseExtNetworkSuggestions(
-            XmlPullParser in, int outerTagDepth, @WifiConfigStore.Version int version,
-            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil, PerAppInfo perAppInfo)
-            throws XmlPullParserException, IOException {
-        Set<ExtendedWifiNetworkSuggestion> extNetworkSuggestions = new HashSet<>();
-        while (XmlUtil.gotoNextSectionWithNameOrEnd(
-                in, XML_TAG_SECTION_HEADER_NETWORK_SUGGESTION, outerTagDepth)) {
-            // Try/catch only runtime exceptions (like illegal args), any XML/IO exceptions are
-            // fatal and should abort the entire loading process.
-            try {
-                WifiNetworkSuggestion networkSuggestion =
-                        parseNetworkSuggestion(in, outerTagDepth + 1, version, encryptionUtil);
-                extNetworkSuggestions.add(ExtendedWifiNetworkSuggestion.fromWns(
-                        networkSuggestion, perAppInfo));
-            } catch (RuntimeException e) {
-                // Failed to parse this network, skip it.
-                Log.e(TAG, "Failed to parse network suggestion. Skipping...", e);
-            }
-        }
-        return extNetworkSuggestions;
-    }
-
-    /**
      * Parse a {@link ExtendedWifiNetworkSuggestion} from an input stream in XML format.
      *
      * @throws XmlPullParserException
@@ -316,7 +339,7 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
      */
     private WifiNetworkSuggestion parseNetworkSuggestion(XmlPullParser in, int outerTagDepth,
             @WifiConfigStore.Version int version,
-            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil)
+            @Nullable WifiConfigStoreEncryptionUtil encryptionUtil, PerAppInfo perAppInfo)
             throws XmlPullParserException, IOException {
         Pair<String, WifiConfiguration> parsedConfig = null;
         WifiEnterpriseConfig enterpriseConfig = null;
@@ -325,7 +348,6 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         boolean isUserInteractionRequired = false;
         boolean isUserAllowedToManuallyConnect = false; // Backward compatibility.
         int suggestorUid = Process.INVALID_UID;
-        String suggestorPackageName = null;
 
         // Loop through and parse out all the elements from the stream within this section.
         while (XmlUtils.nextElementWithin(in, outerTagDepth)) {
@@ -344,10 +366,8 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
                         isUserAllowedToManuallyConnect = (boolean) value;
                         break;
                     case XML_TAG_SUGGESTOR_UID:
+                        // Only needed for migration of data from Q to R.
                         suggestorUid = (int) value;
-                        break;
-                    case XML_TAG_SUGGESTOR_PACKAGE_NAME:
-                        suggestorPackageName = (String) value;
                         break;
                     default:
                         Log.w(TAG, "Ignoring unknown value name found: " + valueName[0]);
@@ -398,20 +418,17 @@ public class NetworkSuggestionStoreData implements WifiConfigStore.StoreData {
         if (parsedConfig == null || parsedConfig.second == null) {
             throw new XmlPullParserException("XML parsing of wifi configuration failed");
         }
-        if (suggestorUid == -1) {
-            throw new XmlPullParserException("XML parsing of suggestor uid failed");
-        }
-        if (suggestorPackageName == null) {
-            throw new XmlPullParserException("XML parsing of suggestor package name failed");
-        }
+        // Note: In R, we migrated the uid/package name storage from individual
+        // ExtWifiNetworkSuggestion to the top level PerAppInfo. This block of code helps
+        // with migration of data for devices upgrading from Q to R.
+        perAppInfo.setUid(suggestorUid);
         WifiConfiguration wifiConfiguration =  parsedConfig.second;
         if (enterpriseConfig != null) {
             wifiConfiguration.enterpriseConfig = enterpriseConfig;
         }
         return new WifiNetworkSuggestion(
                 wifiConfiguration, passpointConfiguration, isAppInteractionRequired,
-                isUserInteractionRequired, isUserAllowedToManuallyConnect,
-                suggestorUid, suggestorPackageName);
+                isUserInteractionRequired, isUserAllowedToManuallyConnect);
     }
 }
 
