@@ -119,6 +119,13 @@ public class NetworkDetail {
 
     private final Map<Constants.ANQPElementType, ANQPElement> mANQPElements;
 
+    /*
+     * From Wi-Fi Alliance MBO-OCE Information element.
+     * mMboAssociationDisallowedReasonCode is the reason code for AP not accepting new connections
+     * and is set to -1 if association disallowed attribute is not present in the element.
+     */
+    private final int mMboAssociationDisallowedReasonCode;
+
     public NetworkDetail(String bssid, ScanResult.InformationElement[] infoElements,
             List<String> anqpLines, int freq) {
         if (infoElements == null) {
@@ -279,6 +286,7 @@ public class NetworkDetail {
         mInternet = interworking.internet;
         mHSRelease = vsa.hsRelease;
         mAnqpDomainID = vsa.anqpDomainID;
+        mMboAssociationDisallowedReasonCode = vsa.mboAssociationDisallowedReasonCode;
         mAnqpOICount = roamingConsortium.anqpOICount;
         mRoamingConsortiums = roamingConsortium.getRoamingConsortiums();
         mExtendedCapabilities = extendedCapabilities;
@@ -356,14 +364,16 @@ public class NetworkDetail {
         }
         if (DBG) {
             Log.d(TAG, mSSID + "ChannelWidth is: " + mChannelWidth + " PrimaryFreq: "
-                    + mPrimaryFreq + " mCenterfreq0: " + mCenterfreq0 + " mCenterfreq1: "
+                    + mPrimaryFreq + " Centerfreq0: " + mCenterfreq0 + " Centerfreq1: "
                     + mCenterfreq1 + (extendedCapabilities.is80211McRTTResponder()
                     ? " Support RTT responder" : " Do not support RTT responder")
-                    + " mMaxNumberSpatialStreams: " + mMaxNumberSpatialStreams);
+                    + " MaxNumberSpatialStreams: " + mMaxNumberSpatialStreams
+                    + " MboAssociationDisallowedReasonCode: "
+                    + mMboAssociationDisallowedReasonCode);
             Log.v("WifiMode", mSSID
                     + ", WifiMode: " + InformationElementUtil.WifiMode.toString(mWifiMode)
                     + ", Freq: " + mPrimaryFreq
-                    + ", mMaxRate: " + mMaxRate
+                    + ", MaxRate: " + mMaxRate
                     + ", HE: " + String.valueOf(heOperation.isPresent())
                     + ", VHT: " + String.valueOf(vhtOperation.isPresent())
                     + ", HT: " + String.valueOf(htOperation.isPresent())
@@ -406,6 +416,7 @@ public class NetworkDetail {
         mWifiMode = base.mWifiMode;
         mMaxRate = base.mMaxRate;
         mMaxNumberSpatialStreams = base.mMaxNumberSpatialStreams;
+        mMboAssociationDisallowedReasonCode = base.mMboAssociationDisallowedReasonCode;
     }
 
     public NetworkDetail complete(Map<Constants.ANQPElementType, ANQPElement> anqpElements) {
@@ -608,5 +619,9 @@ public class NetworkDetail {
             sb.append(String.format("%02x", (mac >>> (n * Byte.SIZE)) & BYTE_MASK));
         }
         return sb.toString();
+    }
+
+    public int getMboAssociationDisallowedReasonCode() {
+        return mMboAssociationDisallowedReasonCode;
     }
 }
