@@ -2055,23 +2055,6 @@ public class WifiConfigManagerTest extends WifiBaseTest {
     }
 
     /**
-     * Verifies that when a network which should use aggressive randomization is added, then we
-     * are immediately assigning a non-persistent randomized MAC to it.
-     */
-    public void testInitializingAggressiveRandomMac() {
-        setUpWifiConfigurationForAggressiveRandomization();
-        WifiConfiguration config = getFirstInternalWifiConfiguration();
-        MacAddress randomizedMac = config.getRandomizedMacAddress();
-        assertNotEquals(WifiInfo.DEFAULT_MAC_ADDRESS, randomizedMac);
-
-        // disable aggressive randomization and verify that now the randomized MAC is different.
-        when(mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled())
-                .thenReturn(true);
-        config = getFirstInternalWifiConfiguration();
-        assertNotEquals(randomizedMac, config.getRandomizedMacAddress());
-    }
-
-    /**
      * Verifies that getRandomizedMacAndUpdateIfNeeded updates the randomized MAC address and
      * |randomizedMacExpirationTimeMs| correctly.
      *
@@ -2104,7 +2087,8 @@ public class WifiConfigManagerTest extends WifiBaseTest {
         // the persistent MAC.
         Set<String> blacklist = new HashSet<>();
         blacklist.add(config.SSID);
-        mWifiConfigManager.setAggressiveMacRandomizationBlacklist(blacklist);
+        when(mDeviceConfigFacade.getAggressiveMacRandomizationSsidBlocklist())
+                .thenReturn(blacklist);
         MacAddress persistentMac = mWifiConfigManager.getRandomizedMacAndUpdateIfNeeded(config);
 
         // verify internal WifiConfiguration has MacAddress updated correctly by comparing the
@@ -2211,15 +2195,19 @@ public class WifiConfigManagerTest extends WifiBaseTest {
 
     private void setUpWifiConfigurationForAggressiveRandomization() {
         // sets up a WifiConfiguration for aggressive randomization.
-        when(mDeviceConfigFacade.isAggressiveMacRandomizationSsidWhitelistEnabled())
-                .thenReturn(true);
         WifiConfiguration c = WifiConfigurationTestUtil.createOpenNetwork();
         // Adds the WifiConfiguration to aggressive randomization whitelist.
         Set<String> ssidList = new HashSet<>();
         ssidList.add(c.SSID);
-        mWifiConfigManager.setAggressiveMacRandomizationWhitelist(ssidList);
+        when(mDeviceConfigFacade.getAggressiveMacRandomizationSsidAllowlist())
+                .thenReturn(ssidList);
         NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(c);
         mWifiConfigManager.updateNetworkAfterDisconnect(result.getNetworkId());
+
+        // Verify the MAC address is valid, and is NOT calculated from the (SSID + security type)
+        assertTrue(WifiConfiguration.isValidMacAddressForRandomization(
+                getFirstInternalWifiConfiguration().getRandomizedMacAddress()));
+        verify(mMacAddressUtil, never()).calculatePersistentMac(any(), any());
     }
 
     /**
