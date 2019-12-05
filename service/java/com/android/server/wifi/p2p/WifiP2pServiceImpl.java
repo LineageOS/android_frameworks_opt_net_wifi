@@ -3141,8 +3141,8 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void addRowToDialog(ViewGroup group, int stringId, String value) {
             Resources r = mContext.getResources();
-            View row = LayoutInflater.from(mContext).inflate(R.layout.wifi_p2p_dialog_row,
-                    group, false);
+            View row = LayoutInflater.from(mContext).cloneInContext(mContext)
+                    .inflate(R.layout.wifi_p2p_dialog_row, group, false);
             ((TextView) row.findViewById(R.id.name)).setText(r.getString(stringId));
             ((TextView) row.findViewById(R.id.value)).setText(value);
             group.addView(row);
@@ -3151,7 +3151,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private void notifyInvitationSent(String pin, String peerAddress) {
             Resources r = mContext.getResources();
 
-            final View textEntryView = LayoutInflater.from(mContext)
+            final View textEntryView = LayoutInflater.from(mContext).cloneInContext(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
             ViewGroup group = (ViewGroup) textEntryView.findViewById(R.id.info);
@@ -3172,7 +3172,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
         private void notifyP2pProvDiscShowPinRequest(String pin, String peerAddress) {
             Resources r = mContext.getResources();
-            final View textEntryView = LayoutInflater.from(mContext)
+            final View textEntryView = LayoutInflater.from(mContext).cloneInContext(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
             ViewGroup group = (ViewGroup) textEntryView.findViewById(R.id.info);
@@ -3198,7 +3198,7 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
         private void notifyInvitationReceived() {
             Resources r = mContext.getResources();
             final WpsInfo wps = mSavedPeerConfig.wps;
-            final View textEntryView = LayoutInflater.from(mContext)
+            final View textEntryView = LayoutInflater.from(mContext).cloneInContext(mContext)
                     .inflate(R.layout.wifi_p2p_dialog, null);
 
             ViewGroup group = (ViewGroup) textEntryView.findViewById(R.id.info);

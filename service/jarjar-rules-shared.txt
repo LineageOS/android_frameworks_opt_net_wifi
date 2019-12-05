@@ -11,6 +11,7 @@ rule com.android.internal.util.StateMachine* com.android.server.x.wifi.util.Stat
 rule com.android.internal.util.WakeupMessage* com.android.server.x.wifi.util.WakeupMessage@1
 rule com.android.internal.util.XmlUtils* com.android.server.x.wifi.util.XmlUtils@1
 
+rule android.util.BackupUtils* com.android.server.x.wifi.util.BackupUtils@1
 rule android.util.KeyValueListParser* com.android.server.x.wifi.util.KeyValueListParser@1
 rule android.util.LocalLog* com.android.server.x.wifi.util.LocalLog@1
 rule android.util.Rational* com.android.server.x.wifi.util.Rational@1
