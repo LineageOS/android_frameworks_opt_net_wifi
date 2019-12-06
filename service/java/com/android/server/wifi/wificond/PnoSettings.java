@@ -31,6 +31,7 @@ public class PnoSettings implements Parcelable {
     public int intervalMs;
     public int min2gRssi;
     public int min5gRssi;
+    public int min6gRssi;
     public ArrayList<PnoNetwork> pnoNetworks;
 
     /** public constructor */
@@ -50,13 +51,14 @@ public class PnoSettings implements Parcelable {
         return intervalMs == settings.intervalMs
                 && min2gRssi == settings.min2gRssi
                 && min5gRssi == settings.min5gRssi
+                && min6gRssi == settings.min6gRssi
                 && pnoNetworks.equals(settings.pnoNetworks);
     }
 
     /** override hash code */
     @Override
     public int hashCode() {
-        return Objects.hash(intervalMs, min2gRssi, min5gRssi, pnoNetworks);
+        return Objects.hash(intervalMs, min2gRssi, min5gRssi, min6gRssi, pnoNetworks);
     }
 
     /** implement Parcelable interface */
@@ -74,6 +76,7 @@ public class PnoSettings implements Parcelable {
         out.writeInt(intervalMs);
         out.writeInt(min2gRssi);
         out.writeInt(min5gRssi);
+        out.writeInt(min6gRssi);
         out.writeTypedList(pnoNetworks);
     }
 
@@ -86,6 +89,7 @@ public class PnoSettings implements Parcelable {
             result.intervalMs = in.readInt();
             result.min2gRssi = in.readInt();
             result.min5gRssi = in.readInt();
+            result.min6gRssi = in.readInt();
 
             result.pnoNetworks = new ArrayList<PnoNetwork>();
             in.readTypedList(result.pnoNetworks, PnoNetwork.CREATOR);

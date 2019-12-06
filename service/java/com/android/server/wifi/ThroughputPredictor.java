@@ -40,6 +40,7 @@ public class ThroughputPredictor {
     public static final int CHANNEL_UTILIZATION_DEFAULT_5G = MAX_CHANNEL_UTILIZATION / 16;
     // Channel utilization boost when bluetooth is in the connected mode
     public static final int CHANNEL_UTILIZATION_BOOST_BT_CONNECTED_2G = MAX_CHANNEL_UTILIZATION / 4;
+    //TODO: b/145133625 Need to consider 6GHz
 
     // Number of data tones per OFDM symbol
     private static final int NUM_TONE_PER_SYM_LEGACY = 48;

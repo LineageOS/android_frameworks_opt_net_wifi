@@ -162,6 +162,7 @@ public class WifiVendorHalTest extends WifiBaseTest {
     private IWifiStaIfaceEventCallback mIWifiStaIfaceEventCallback;
     private IWifiChipEventCallback mIWifiChipEventCallback;
     private android.hardware.wifi.V1_2.IWifiChipEventCallback mIWifiChipEventCallbackV12;
+    private android.hardware.wifi.V1_4.IWifiChipEventCallback mIWifiChipEventCallbackV14;
     @Mock
     private WifiNative.VendorHalDeathEventHandler mVendorHalDeathHandler;
     @Mock
@@ -433,6 +434,15 @@ public class WifiVendorHalTest extends WifiBaseTest {
                     Object[] args = invocation.getArguments();
                     mIWifiChipEventCallbackV12 =
                             (android.hardware.wifi.V1_2.IWifiChipEventCallback) args[0];
+                    return (mWifiStatusSuccess);
+                }));
+
+        when(mIWifiChipV14.registerEventCallback_1_4(
+                any(android.hardware.wifi.V1_4.IWifiChipEventCallback.class)))
+                .thenAnswer(answerWifiStatus((invocation) -> {
+                    Object[] args = invocation.getArguments();
+                    mIWifiChipEventCallbackV14 =
+                            (android.hardware.wifi.V1_4.IWifiChipEventCallback) args[0];
                     return (mWifiStatusSuccess);
                 }));
 
@@ -3092,6 +3102,42 @@ public class WifiVendorHalTest extends WifiBaseTest {
     }
 
     /**
+     * Verifies radio mode change callback to indicate DBS mode using V1.4 callback.
+     */
+    @Test
+    public void testRadioModeChangeCallbackToDbsModeV14() throws Exception {
+        startHalInStaModeAndRegisterRadioModeChangeCallback14();
+
+        android.hardware.wifi.V1_4.IWifiChipEventCallback.RadioModeInfo radioModeInfo0 =
+                new android.hardware.wifi.V1_4.IWifiChipEventCallback.RadioModeInfo();
+        radioModeInfo0.bandInfo = WifiScanner.WIFI_BAND_6_GHZ;
+        android.hardware.wifi.V1_4.IWifiChipEventCallback.RadioModeInfo radioModeInfo1 =
+                new android.hardware.wifi.V1_4.IWifiChipEventCallback.RadioModeInfo();
+        radioModeInfo1.bandInfo = WifiScanner.WIFI_BAND_24_GHZ;
+
+        IfaceInfo ifaceInfo0 = new IfaceInfo();
+        ifaceInfo0.name = TEST_IFACE_NAME;
+        ifaceInfo0.channel = 34;
+        IfaceInfo ifaceInfo1 = new IfaceInfo();
+        ifaceInfo1.name = TEST_IFACE_NAME_1;
+        ifaceInfo1.channel = 1;
+
+        radioModeInfo0.ifaceInfos.add(ifaceInfo0);
+        radioModeInfo1.ifaceInfos.add(ifaceInfo1);
+
+        ArrayList<android.hardware.wifi.V1_4.IWifiChipEventCallback.RadioModeInfo> radioModeInfos =
+                new ArrayList<>();
+        radioModeInfos.add(radioModeInfo0);
+        radioModeInfos.add(radioModeInfo1);
+
+        mIWifiChipEventCallbackV14.onRadioModeChange_1_4(radioModeInfos);
+        mLooper.dispatchAll();
+        verify(mVendorHalRadioModeChangeHandler).onDbs();
+
+        verifyNoMoreInteractions(mVendorHalRadioModeChangeHandler);
+    }
+
+    /**
      * Verifies radio mode change callback to indicate SBS mode.
      */
     @Test
@@ -3221,6 +3267,14 @@ public class WifiVendorHalTest extends WifiBaseTest {
         mWifiVendorHal.registerRadioModeChangeHandler(mVendorHalRadioModeChangeHandler);
         assertTrue(mWifiVendorHal.startVendorHalSta());
         assertNotNull(mIWifiChipEventCallbackV12);
+    }
+
+    private void startHalInStaModeAndRegisterRadioModeChangeCallback14() {
+        // Expose the 1.4 IWifiChip.
+        mWifiVendorHal = new WifiVendorHalSpyV1_4(mHalDeviceManager, mHandler);
+        mWifiVendorHal.registerRadioModeChangeHandler(mVendorHalRadioModeChangeHandler);
+        assertTrue(mWifiVendorHal.startVendorHalSta());
+        assertNotNull(mIWifiChipEventCallbackV14);
     }
 
     private void testAlertCallbackUsingProvidedCallback(IWifiChipEventCallback chipCallback)

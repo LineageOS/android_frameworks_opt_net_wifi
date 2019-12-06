@@ -38,6 +38,7 @@ import com.android.wifi.resources.R;
 public class ScoringParams {
     // A long name that describes itself pretty well
     public static final int MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ = 5000;
+    public static final int MINIMUM_6GHZ_BAND_FREQUENCY_IN_MEGAHERTZ = 5925;
 
     private final Context mContext;
 
@@ -60,7 +61,11 @@ public class ScoringParams {
         public static final String KEY_RSSI5 = "rssi5";
         public final int[] rssi5 = {-80, -77, -70, -57};
 
-        /** Guidelines based on packet rates (packets/sec) */
+        /** RSSI thresholds for 6 GHz band (dBm) */
+        public static final String KEY_RSSI6 = "rssi6";
+        public final int[] rssi6 = {-80, -77, -70, -57};
+
+       /** Guidelines based on packet rates (packets/sec) */
         public static final String KEY_PPS = "pps";
         public final int[] pps = {0, 1, 100};
 
@@ -92,6 +97,9 @@ public class ScoringParams {
             for (int i = 0; i < rssi5.length; i++) {
                 rssi5[i] = source.rssi5[i];
             }
+            for (int i = 0; i < rssi6.length; i++) {
+                rssi6[i] = source.rssi6[i];
+            }
             for (int i = 0; i < pps.length; i++) {
                 pps[i] = source.pps[i];
             }
@@ -103,6 +111,7 @@ public class ScoringParams {
         public void validate() throws IllegalArgumentException {
             validateRssiArray(rssi2);
             validateRssiArray(rssi5);
+            validateRssiArray(rssi6);
             validateOrderedNonNegativeArray(pps);
             validateRange(horizon, MIN_HORIZON, MAX_HORIZON);
             validateRange(nud, MIN_NUD, MAX_NUD);
@@ -142,6 +151,7 @@ public class ScoringParams {
             }
             updateIntArray(rssi2, parser, KEY_RSSI2);
             updateIntArray(rssi5, parser, KEY_RSSI5);
+            updateIntArray(rssi6, parser, KEY_RSSI6);
             updateIntArray(pps, parser, KEY_PPS);
             horizon = updateInt(parser, KEY_HORIZON, horizon);
             nud = updateInt(parser, KEY_NUD, nud);
@@ -177,6 +187,8 @@ public class ScoringParams {
             appendInts(sb, rssi2);
             appendKey(sb, KEY_RSSI5);
             appendInts(sb, rssi5);
+            appendKey(sb, KEY_RSSI6);
+            appendInts(sb, rssi6);
             appendKey(sb, KEY_PPS);
             appendInts(sb, pps);
             appendKey(sb, KEY_HORIZON);
@@ -238,6 +250,14 @@ public class ScoringParams {
                 R.integer.config_wifi_framework_wifi_score_low_rssi_threshold_5GHz);
         mVal.rssi5[GOOD] = context.getResources().getInteger(
                 R.integer.config_wifi_framework_wifi_score_good_rssi_threshold_5GHz);
+        mVal.rssi6[EXIT] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkScoreBadRssiThreshold6ghz);
+        mVal.rssi6[ENTRY] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkScoreEntryRssiThreshold6ghz);
+        mVal.rssi6[SUFFICIENT] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkScoreLowRssiThreshold6ghz);
+        mVal.rssi6[GOOD] = context.getResources().getInteger(
+                R.integer.config_wifiFrameworkScoreGoodRssiThreshold6ghz);
         try {
             mVal.validate();
         } catch (IllegalArgumentException e) {
@@ -314,6 +334,9 @@ public class ScoringParams {
 
     /** Constant to denote someplace in the 5 GHz band */
     public static final int BAND5 = 5000;
+
+    /** Constant to denote someplace in the 6 GHz band */
+    public static final int BAND6 = 6000;
 
     /**
      * Returns the RSSI value at which the connection is deemed to be unusable,
@@ -392,8 +415,10 @@ public class ScoringParams {
         loadResources(mContext);
         if (frequency < MINIMUM_5GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             return mVal.rssi2;
-        } else {
+        } else if (frequency < MINIMUM_6GHZ_BAND_FREQUENCY_IN_MEGAHERTZ) {
             return mVal.rssi5;
+        } else {
+            return mVal.rssi6;
         }
     }
 

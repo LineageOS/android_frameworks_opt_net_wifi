@@ -72,7 +72,7 @@ public class WifiScoreCard {
     private static final boolean DBG = false;
 
     @VisibleForTesting
-    boolean mPersistentHistograms = false; // not ready yet
+    boolean mPersistentHistograms = true;
 
     private static final int TARGET_IN_MEMORY_ENTRIES = 50;
 
@@ -81,10 +81,15 @@ public class WifiScoreCard {
     private MemoryStore mMemoryStore;
 
     @VisibleForTesting
-    static final int[] RSSI_BUCKETS =
-            {-99, -88, -87, -86, -85, -84, -83, -82, -81, -80, -79, -78, -77, -76, -75, -74, -73,
-                    -72, -71, -70, -66, -55};
+    static final int[] RSSI_BUCKETS = intsInRange(-100, -20);
 
+    private static int[] intsInRange(int min, int max) {
+        int[] a = new int[max - min + 1];
+        for (int i = 0; i < a.length; i++) {
+            a[i] = min + i;
+        }
+        return a;
+    }
 
     /** Our view of the memory store */
     public interface MemoryStore {
@@ -773,8 +778,16 @@ public class WifiScoreCard {
         PerSignal(Event event, int frequency) {
             this.event = event;
             this.frequency = frequency;
-            // TODO(b/136675430) - histograms not needed for all events?
-            this.rssi = new PerUnivariateStatistic(RSSI_BUCKETS);
+            switch (event) {
+                case SIGNAL_POLL:
+                case IP_CONFIGURATION_SUCCESS:
+                case IP_REACHABILITY_LOST:
+                    this.rssi = new PerUnivariateStatistic(RSSI_BUCKETS);
+                    break;
+                default:
+                    this.rssi = new PerUnivariateStatistic();
+                    break;
+            }
             this.linkspeed = new PerUnivariateStatistic();
             switch (event) {
                 case FIRST_POLL_AFTER_CONNECTION:

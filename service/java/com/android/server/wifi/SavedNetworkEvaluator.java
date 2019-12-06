@@ -94,6 +94,7 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                         StringBuffer sbuf) {
         int score = 0;
         boolean is5GHz = scanResult.is5GHz();
+        boolean is6GHz = scanResult.is6GHz();
 
         final int rssiScoreSlope = mContext.getResources().getInteger(
                 R.integer.config_wifi_framework_RSSI_SCORE_SLOPE);
@@ -109,6 +110,8 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
                 R.integer.config_wifi_framework_SECURITY_AWARD);
         final int band5GHzAward = mContext.getResources().getInteger(
                 R.integer.config_wifi_framework_5GHz_preference_boost_factor);
+        final int band6GHzAward = mContext.getResources().getInteger(
+                R.integer.config_wifiFramework6ghzPreferenceBoostFactor);
 
         sbuf.append("[ ").append(scanResult.SSID).append(" ").append(scanResult.BSSID)
                 .append(" RSSI:").append(scanResult.level).append(" ] ");
@@ -122,6 +125,9 @@ public class SavedNetworkEvaluator implements WifiNetworkSelector.NetworkEvaluat
         if (is5GHz) {
             score += band5GHzAward;
             sbuf.append(" 5GHz bonus: ").append(band5GHzAward).append(",");
+        } else if (is6GHz) {
+            score += band6GHzAward;
+            sbuf.append(" 6GHz bonus: ").append(band6GHzAward).append(",");
         }
 
         // Last user selection award.
