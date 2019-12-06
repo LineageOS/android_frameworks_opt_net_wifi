@@ -76,7 +76,7 @@ filegroup {
         "java/**/*.java",
         "java/**/I*.aidl",
         "java/**/*.logtags",
-        ":framework-wifistack-shared-srcs",
+        ":framework-wifi-service-shared-srcs",
     ],
 }
 

@@ -12,11 +12,8 @@ rule com.android.internal.util.WakeupMessage* com.android.server.x.wifi.util.Wak
 rule com.android.internal.util.XmlUtils* com.android.server.x.wifi.util.XmlUtils@1
 
 rule android.util.BackupUtils* com.android.server.x.wifi.util.BackupUtils@1
-rule android.util.KeyValueListParser* com.android.server.x.wifi.util.KeyValueListParser@1
 rule android.util.LocalLog* com.android.server.x.wifi.util.LocalLog@1
 rule android.util.Rational* com.android.server.x.wifi.util.Rational@1
-rule android.util.proto.ProtoStream* com.android.server.x.wifi.util.proto.ProtoStream@1
-rule android.util.proto.ProtoOutputStream* com.android.server.x.wifi.util.proto.ProtoOutputStream@1
 
 rule android.os.HandlerExecutor* com.android.server.x.wifi.os.HandlerExecutor@1
 
