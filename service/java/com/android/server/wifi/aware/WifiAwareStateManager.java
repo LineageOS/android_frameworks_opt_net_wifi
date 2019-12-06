@@ -34,6 +34,7 @@ import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
 import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
+import android.net.wifi.util.HexEncoding;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
@@ -56,8 +57,6 @@ import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-
-import libcore.util.HexEncoding;
 
 import org.json.JSONException;
 import org.json.JSONObject;
