@@ -51,11 +51,13 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSuggestion;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.hotspot2.PasspointConfiguration;
+import android.net.wifi.hotspot2.pps.Credential;
 import android.net.wifi.hotspot2.pps.HomeSp;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
+import android.telephony.TelephonyManager;
 import android.test.suitebuilder.annotation.SmallTest;
 
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
@@ -174,6 +176,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         when(mPackageManager.getApplicationInfoAsUser(eq(TEST_PACKAGE_2), eq(0), any()))
             .thenReturn(appInfO2);
         when(mPackageManager.getApplicationLabel(appInfO2)).thenReturn(TEST_APP_NAME_2);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(any())).thenReturn(
+                TelephonyManager.UNKNOWN_CARRIER_ID);
 
         mWifiNetworkSuggestionsManager =
                 new WifiNetworkSuggestionsManager(mContext, new Handler(mLooper.getLooper()),
@@ -2494,6 +2498,8 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         HomeSp homeSp = new HomeSp();
         homeSp.setFqdn(TEST_FQDN);
         passpointConfiguration.setHomeSp(homeSp);
+        Credential credential = new Credential();
+        passpointConfiguration.setCredential(credential);
         WifiConfiguration dummyConfiguration = new WifiConfiguration();
         dummyConfiguration.FQDN = TEST_FQDN;
         WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(dummyConfiguration,
@@ -2506,7 +2512,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 TEST_PACKAGE_1, TEST_FEATURE), WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
         mWifiNetworkSuggestionsManager.setHasUserApprovedForApp(true, TEST_PACKAGE_1);
         Set<ExtendedWifiNetworkSuggestion> ewns =
-                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqfn(TEST_FQDN);
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqdn(TEST_FQDN);
         assertEquals(1, ewns.size());
         assertEquals(networkSuggestion, ewns.iterator().next().wns);
     }
@@ -2531,7 +2537,7 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
         assertEquals(mWifiNetworkSuggestionsManager.add(networkSuggestionList, TEST_UID_1,
                 TEST_PACKAGE_1, TEST_FEATURE), WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
         Set<ExtendedWifiNetworkSuggestion> ewns =
-                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqfn(TEST_FQDN);
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForFqdn(TEST_FQDN);
         assertNull(ewns);
     }
 
@@ -2541,5 +2547,179 @@ public class WifiNetworkSuggestionsManagerTest extends WifiBaseTest {
                 .map(ewns -> ewns.wns)
                 .collect(Collectors.toSet());
         assertEquals(expectedSuggestions, actualSuggestions);
+    }
+
+    /**
+     * Verify error code returns when add SIM-based network from app has no carrier privileges.
+     */
+    @Test
+    public void testAddSimCredentialNetworkWithoutCarrierPrivileges() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TelephonyManager.UNKNOWN_CARRIER_ID);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED, status);
+        verify(mNotificationManger, never()).notify(anyInt(), any());
+        assertEquals(0, mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1).size());
+    }
+
+    /**
+     * Verify success when add SIM-based network from app has carrier privileges.
+     */
+    @Test
+    public void testAddSimCredentialNetworkWithCarrierPrivileges() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(VALID_CARRIER_ID);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
+        verify(mNotificationManger, never()).notify(anyInt(), any());
+        assertEquals(1,  mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1).size());
+    }
+
+    /**
+     * Verify success when add SIM-based network from app has carrier provision permission.
+     */
+    @Test
+    public void testAddSimCredentialNetworkWithCarrierProvisionPermission() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(true);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TelephonyManager.UNKNOWN_CARRIER_ID);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(status, WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS);
+        verify(mNotificationManger, never()).notify(anyInt(), any());
+        assertEquals(1,  mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1).size());
+    }
+
+    /**
+     * Verify matched SIM-based network will return when imsi protection is available.
+     */
+    @Test
+    public void testMatchSimBasedNetworkWithImsiProtection() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(VALID_CARRIER_ID);
+        when(mTelephonyUtil.getBestMatchSubscriptionId(config)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.isSimPresent(TEST_SUBID)).thenReturn(true);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(true);
+        when(mTelephonyUtil.isImsiEncryptionInfoAvailable(TEST_SUBID)).thenReturn(true);
+        ScanDetail scanDetail = createScanDetailForNetwork(config);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
+
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        Set<WifiNetworkSuggestion> expectedMatchingNetworkSuggestions =
+                new HashSet<WifiNetworkSuggestion>() {{
+                    add(networkSuggestion);
+                }};
+        verify(mNotificationManger, never()).notify(anyInt(), any());
+        assertSuggestionsEquals(expectedMatchingNetworkSuggestions, matchingExtNetworkSuggestions);
+    }
+
+    /**
+     * Verify matched SIM-based network won't return when imsi protection isn't available.
+     * Todo(142001564): verify user approval notification.
+     */
+    @Test
+    public void testMatchSimBasedNetworkWithoutImsiProtection() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(VALID_CARRIER_ID);
+        when(mTelephonyUtil.getBestMatchSubscriptionId(config)).thenReturn(TEST_SUBID);
+        when(mTelephonyUtil.isSimPresent(TEST_SUBID)).thenReturn(true);
+        when(mTelephonyUtil.requiresImsiEncryption(TEST_SUBID)).thenReturn(false);
+        when(mTelephonyUtil.isImsiEncryptionInfoAvailable(TEST_SUBID)).thenReturn(false);
+        ScanDetail scanDetail = createScanDetailForNetwork(config);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
+
+        Set<ExtendedWifiNetworkSuggestion> matchingExtNetworkSuggestions =
+                mWifiNetworkSuggestionsManager.getNetworkSuggestionsForScanDetail(scanDetail);
+        //Todo(142001564): should send out user notification.
+        assertNull(matchingExtNetworkSuggestions);
+    }
+
+    /**
+     * Verify when SIM changes, the app loses carrier privilege. Suggestions from this app will be
+     * removed. If this app suggests again, it will be considered as normal suggestor.
+     */
+    @Test
+    public void testSimStateChangeWillResetCarrierPrivilegedApp() {
+        WifiConfiguration config =
+                WifiConfigurationTestUtil.createEapNetwork(WifiEnterpriseConfig.Eap.SIM,
+                        WifiEnterpriseConfig.Phase2.NONE);
+        WifiNetworkSuggestion networkSuggestion = new WifiNetworkSuggestion(
+                config, null, true, false, true);
+        List<WifiNetworkSuggestion> networkSuggestionList = new ArrayList<>();
+        networkSuggestionList.add(networkSuggestion);
+        when(mWifiPermissionsUtil.checkNetworkCarrierProvisioningPermission(TEST_UID_1))
+                .thenReturn(false);
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(VALID_CARRIER_ID);
+        int status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
+        verify(mNotificationManger, never()).notify(anyInt(), any());
+        when(mTelephonyUtil.getCarrierIdForPackageWithCarrierPrivileges(TEST_PACKAGE_1))
+                .thenReturn(TelephonyManager.UNKNOWN_CARRIER_ID);
+        mWifiNetworkSuggestionsManager.resetCarrierPrivilegedApps();
+        assertEquals(0,  mWifiNetworkSuggestionsManager.get(TEST_PACKAGE_1).size());
+        verify(mWifiConfigManager, times(2)).saveToStore(true);
+        status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED, status);
+        networkSuggestionList.clear();
+        networkSuggestionList.add(new WifiNetworkSuggestion(
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true));
+        status = mWifiNetworkSuggestionsManager
+                .add(networkSuggestionList, TEST_UID_1, TEST_PACKAGE_1, TEST_FEATURE);
+        assertEquals(WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS, status);
+        verify(mNotificationManger).notify(anyInt(), any());
     }
 }

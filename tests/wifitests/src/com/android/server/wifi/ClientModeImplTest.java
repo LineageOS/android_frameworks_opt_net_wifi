@@ -3734,7 +3734,8 @@ public class ClientModeImplTest extends WifiBaseTest {
     }
 
     /**
-     * Verify removing sim will also remove an ephemeral Passpoint Provider.
+     * Verify removing sim will also remove an ephemeral Passpoint Provider. And reset carrier
+     * privileged suggestor apps.
      */
     @Test
     public void testResetSimNetworkWhenRemovingSim() throws Exception {
@@ -3746,6 +3747,22 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
 
         verify(mWifiConfigManager).resetSimNetworks();
+        verify(mWifiNetworkSuggestionsManager).resetCarrierPrivilegedApps();
+    }
+
+    /**
+     * Verify inserting sim will rest carrier privileged suggestor apps.
+     */
+    @Test
+    public void testResetCarrierPrivilegedAppsWhenInsertingSim() throws Exception {
+        // Switch to connect mode and verify wifi is reported as enabled
+        startSupplicantAndDispatchMessages();
+
+        // Indicate that sim is removed.
+        mCmi.sendMessage(ClientModeImpl.CMD_RESET_SIM_NETWORKS, true);
+        mLooper.dispatchAll();
+
+        verify(mWifiNetworkSuggestionsManager).resetCarrierPrivilegedApps();
     }
 
     /**

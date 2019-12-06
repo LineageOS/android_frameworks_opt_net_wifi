@@ -3966,6 +3966,7 @@ public class ClientModeImpl extends StateMachine {
                     if (!simPresent) {
                         mWifiConfigManager.resetSimNetworks();
                     }
+                    mWifiNetworkSuggestionsManager.resetCarrierPrivilegedApps();
                     break;
                 case CMD_BLUETOOTH_ADAPTER_STATE_CHANGE:
                     // If BT was connected and then turned off, there is no CONNECTION_STATE_CHANGE

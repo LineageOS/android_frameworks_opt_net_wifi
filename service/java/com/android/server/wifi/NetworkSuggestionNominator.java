@@ -98,7 +98,7 @@ public class NetworkSuggestionNominator implements WifiNetworkSelector.NetworkNo
         for (Pair<ScanDetail, WifiConfiguration> candidate : candidates) {
             Set<ExtendedWifiNetworkSuggestion> matchingPasspointExtSuggestions =
                     mWifiNetworkSuggestionsManager
-                            .getNetworkSuggestionsForFqfn(candidate.second.FQDN);
+                            .getNetworkSuggestionsForFqdn(candidate.second.FQDN);
             if (matchingPasspointExtSuggestions == null
                     || matchingPasspointExtSuggestions.isEmpty()) {
                 continue;
