@@ -71,7 +71,6 @@ public class ActiveModeWarden {
     private final BatteryStatsManager mBatteryStatsManager;
     private final ScanRequestProxy mScanRequestProxy;
     private final WifiController mWifiController;
-    private final boolean mScanHiddenNetworksScanOnlyMode;
 
     private WifiManager.SoftApCallback mSoftApCallback;
     private WifiManager.SoftApCallback mLohsCallback;
@@ -115,8 +114,6 @@ public class ActiveModeWarden {
         mBatteryStatsManager = batteryStatsManager;
         mScanRequestProxy = wifiInjector.getScanRequestProxy();
         mWifiController = new WifiController();
-        mScanHiddenNetworksScanOnlyMode = context.getResources().getBoolean(
-                R.bool.config_wifiScanHiddenNetworksScanOnlyMode);
 
         wifiNative.registerStatusListener(isReady -> {
             if (!isReady) {
@@ -473,7 +470,7 @@ public class ActiveModeWarden {
         boolean scanEnabled = hasAnyClientModeManager();
         boolean scanningForHiddenNetworksEnabled;
 
-        if (mScanHiddenNetworksScanOnlyMode) {
+        if (mContext.getResources().getBoolean(R.bool.config_wifiScanHiddenNetworksScanOnlyMode)) {
             scanningForHiddenNetworksEnabled = hasAnyClientModeManager();
         } else {
             scanningForHiddenNetworksEnabled = hasAnyClientModeManagerInConnectivityRole();
