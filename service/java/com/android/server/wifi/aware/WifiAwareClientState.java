@@ -21,13 +21,12 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.net.wifi.aware.ConfigRequest;
 import android.net.wifi.aware.IWifiAwareEventCallback;
+import android.net.wifi.util.HexEncoding;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.SparseArray;
 
 import com.android.server.wifi.util.WifiPermissionsUtil;
-
-import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

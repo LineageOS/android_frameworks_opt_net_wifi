@@ -59,6 +59,7 @@ import android.net.wifi.aware.IWifiAwareMacAddressProvider;
 import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
 import android.net.wifi.aware.WifiAwareManager;
+import android.net.wifi.util.HexEncoding;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.IPowerManager;
@@ -76,8 +77,6 @@ import com.android.server.wifi.Clock;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-
-import libcore.util.HexEncoding;
 
 import org.junit.After;
 import org.junit.Before;

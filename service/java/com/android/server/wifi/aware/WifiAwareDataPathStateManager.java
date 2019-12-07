@@ -41,6 +41,7 @@ import android.net.wifi.aware.WifiAwareManager;
 import android.net.wifi.aware.WifiAwareNetworkInfo;
 import android.net.wifi.aware.WifiAwareNetworkSpecifier;
 import android.net.wifi.aware.WifiAwareUtils;
+import android.net.wifi.util.HexEncoding;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -56,8 +57,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
-
-import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
