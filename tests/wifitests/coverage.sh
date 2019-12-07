@@ -17,15 +17,39 @@ OUTPUT_DIR="$1"
 mkdir -p $OUTPUT_DIR || exit 1
 OUTPUT_DIR="`(cd $OUTPUT_DIR && pwd)`"
 BUILD_OUT_DIR=$OUTPUT_DIR/out
+echo "Output dir: $OUTPUT_DIR"
 
 cd "$(dirname $0)" #cd to directory containing this script
 
-echo "Running tests and generating coverage report"
-echo "Output dir: $OUTPUT_DIR"
+echo "Checking jacoco patterns"
+class_patterns_from_filenames () {
+  sed -e 's/[.]java$//' -e 's@/@.@g' |
+    while read x; do
+      printf '            "%s",\n' "$x"
+      printf '            "%s$*",\n' "$x"
+      printf '            "%s.**",\n' "$x"
+    done
+}
+
+generate_new_bp () (
+  sed -n -e p -e '/include_filter:/q' < Android.bp
+  (cd ../../service/java && find * -name \*.java) |
+    LC_ALL=C sort |
+    class_patterns_from_filenames
+  tail -n 3 Android.bp
+)
+
+generate_new_bp > $OUTPUT_DIR/bp
+
+diff -u Android.bp $OUTPUT_DIR/bp || {
+  mv $OUTPUT_DIR/bp Android.bp
+  echo "Android.bp has been updated. Please review and check in the new version"
+  exit 1
+}
+rm -f $OUTPUT_DIR/bp
 
 REMOTE_COVERAGE_OUTPUT_FILE=/data/data/com.android.server.wifi.test/files/coverage.ec
 COVERAGE_OUTPUT_FILE=$OUTPUT_DIR/wifi_coverage.ec
-
 
 # Note - the $VARs in the following are expanded by the here-file redirection!
 echo "Building for coverage report"
@@ -45,6 +69,8 @@ END_OF_BUILD_SCRIPT
 
 APK_NAME="$(find $BUILD_OUT_DIR/target -name FrameworksWifiTests.apk)"
 REPORTER_JAR="$(find $BUILD_OUT_DIR/host -name jacoco-cli.jar)"
+
+echo "Running tests and generating coverage report"
 
 set -e # fail early
 set -x # print commands
