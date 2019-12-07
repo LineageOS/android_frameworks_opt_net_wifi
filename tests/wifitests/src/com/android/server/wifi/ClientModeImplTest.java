@@ -4009,4 +4009,70 @@ public class ClientModeImplTest extends WifiBaseTest {
         mLooper.dispatchAll();
         verify(mWifiConnectivityManager, times(3)).setBluetoothConnected(true);
     }
+
+    /**
+     * Test that handleBssTransitionRequest() blacklist the BSS when
+     * imminent bit is set.
+     */
+    @Test
+    public void testBtmFrameWithImminentBitBlackListTheBssid() throws Exception {
+        // Connect to network with |sBSSID|, |sFreq|.
+        connect();
+
+        MboOceController.BtmFrameData btmFrmData = new MboOceController.BtmFrameData();
+
+        btmFrmData.mStatus = MboOceConstants.BTM_RESPONSE_STATUS_REJECT_UNSPECIFIED;
+        btmFrmData.mBssTmDataFlagsMask = MboOceConstants.BTM_DATA_FLAG_DISASSOCIATION_IMMINENT;
+        btmFrmData.mBlackListDurationMs = 60000;
+
+        mCmi.sendMessage(WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE, btmFrmData);
+        mLooper.dispatchAll();
+
+        verify(mBssidBlocklistMonitor).blockBssidForDurationMs(sBSSID, sSSID,
+                btmFrmData.mBlackListDurationMs);
+    }
+
+    /**
+     * Test that handleBssTransitionRequest() trigger force scan for
+     * network selection when status code is REJECT.
+     */
+    @Test
+    public void testBTMRequestRejectTriggerNetworkSelction() throws Exception {
+        // Connect to network with |sBSSID|, |sFreq|.
+        connect();
+
+        MboOceController.BtmFrameData btmFrmData = new MboOceController.BtmFrameData();
+
+        btmFrmData.mStatus = MboOceConstants.BTM_RESPONSE_STATUS_REJECT_UNSPECIFIED;
+        btmFrmData.mBssTmDataFlagsMask = MboOceConstants.BTM_DATA_FLAG_DISASSOCIATION_IMMINENT;
+        btmFrmData.mBlackListDurationMs = 0;
+
+        mCmi.sendMessage(WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE, btmFrmData);
+        mLooper.dispatchAll();
+
+        verify(mBssidBlocklistMonitor).blockBssidForDurationMs(sBSSID, sSSID,
+                MboOceConstants.DEFAULT_BLACKLIST_DURATION_MS);
+        verify(mWifiConnectivityManager).forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
+    }
+
+    /**
+     * Test that handleBssTransitionRequest() does not trigger force
+     * scan when status code is accept.
+     */
+    @Test
+    public void testBTMRequestAcceptDoNotTriggerNetworkSelction() throws Exception {
+        // Connect to network with |sBSSID|, |sFreq|.
+        connect();
+
+        MboOceController.BtmFrameData btmFrmData = new MboOceController.BtmFrameData();
+
+        btmFrmData.mStatus = MboOceConstants.BTM_RESPONSE_STATUS_ACCEPT;
+        btmFrmData.mBssTmDataFlagsMask = MboOceConstants.BTM_DATA_FLAG_DISASSOCIATION_IMMINENT;
+
+        mCmi.sendMessage(WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE, btmFrmData);
+        mLooper.dispatchAll();
+
+        verify(mWifiConnectivityManager, never())
+                .forceConnectivityScan(ClientModeImpl.WIFI_WORK_SOURCE);
+    }
 }

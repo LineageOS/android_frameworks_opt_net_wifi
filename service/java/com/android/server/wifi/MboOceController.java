@@ -121,4 +121,28 @@ public class MboOceController {
             mWifiNative.setMboCellularDataStatus(iface, dataAvailable);
         }
     };
+
+    /**
+     * BtmFrameData carries the data retried from received BTM
+     * request frame handled in supplicant.
+     */
+    public static class BtmFrameData {
+        public @MboOceConstants.BtmResponseStatus int mStatus =
+                MboOceConstants.BTM_RESPONSE_STATUS_INVALID;
+        public int mBssTmDataFlagsMask = 0;
+        public long mBlackListDurationMs = 0;
+        public @MboOceConstants.MboTransitionReason int mTransitionReason =
+                MboOceConstants.MBO_TRANSITION_REASON_INVALID;
+        public @MboOceConstants.MboCellularDataConnectionPreference int mCellPreference =
+                MboOceConstants.MBO_CELLULAR_DATA_CONNECTION_INVALID;
+
+        @Override
+        public String toString() {
+            return new StringBuilder("BtmFrameData status=").append(mStatus).append(
+                    ", flags=").append(mBssTmDataFlagsMask).append(
+                    ", assocRetryDelay=").append(mBlackListDurationMs).append(
+                    ", transitionReason=").append(mTransitionReason).append(
+                    ", cellPref=").append(mCellPreference).toString();
+        }
+    }
 }

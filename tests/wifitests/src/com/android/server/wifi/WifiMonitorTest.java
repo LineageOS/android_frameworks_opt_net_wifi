@@ -36,6 +36,7 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.MboOceController.BtmFrameData;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
 import com.android.server.wifi.util.TelephonyUtil;
@@ -586,5 +587,19 @@ public class WifiMonitorTest extends WifiBaseTest {
         verify(mHandlerSpy, times(1)).handleMessage(messageCaptor.capture());
     }
 
+    /**
+     * Broadcast Bss transition request frame handling event test.
+     */
+    @Test
+    public void testBroadcastBssTmHandlingDoneEvent() {
+        mWifiMonitor.registerHandler(
+                WLAN_IFACE_NAME, WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE, mHandlerSpy);
+        mWifiMonitor.broadcastBssTmHandlingDoneEvent(WLAN_IFACE_NAME, new BtmFrameData());
+        mLooper.dispatchAll();
+
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        verify(mHandlerSpy).handleMessage(messageCaptor.capture());
+        assertEquals(WifiMonitor.MBO_OCE_BSS_TM_HANDLING_DONE, messageCaptor.getValue().what);
+    }
 
 }

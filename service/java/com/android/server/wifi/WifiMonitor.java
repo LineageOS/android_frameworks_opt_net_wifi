@@ -28,6 +28,7 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Protocol;
+import com.android.server.wifi.MboOceController.BtmFrameData;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
 import com.android.server.wifi.hotspot2.WnmData;
@@ -95,6 +96,9 @@ public class WifiMonitor {
 
     /* hotspot 2.0 events */
     public static final int HS20_REMEDIATION_EVENT               = BASE + 61;
+
+    /* MBO/OCE events */
+    public static final int MBO_OCE_BSS_TM_HANDLING_DONE         = BASE + 71;
 
     /* WPS config errrors */
     private static final int CONFIG_MULTIPLE_PBC_DETECTED = 12;
@@ -545,5 +549,15 @@ public class WifiMonitor {
      */
     public void broadcastSupplicantDisconnectionEvent(String iface) {
         sendMessage(iface, SUP_DISCONNECTION_EVENT);
+    }
+
+    /**
+     * Broadcast the bss transition management frame handling event
+     * to all the handlers registered for this event.
+     *
+     * @param iface Name of iface on which this occurred.
+     */
+    public void broadcastBssTmHandlingDoneEvent(String iface, BtmFrameData btmFrmData) {
+        sendMessage(iface, MBO_OCE_BSS_TM_HANDLING_DONE, btmFrmData);
     }
 }

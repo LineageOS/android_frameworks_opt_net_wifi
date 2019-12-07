@@ -62,6 +62,7 @@ import android.hardware.wifi.supplicant.V1_0.SupplicantStatus;
 import android.hardware.wifi.supplicant.V1_0.SupplicantStatusCode;
 import android.hardware.wifi.supplicant.V1_0.WpsConfigMethods;
 import android.hardware.wifi.supplicant.V1_3.ConnectionCapabilities;
+import android.hardware.wifi.supplicant.V1_3.ISupplicantStaIfaceCallback.BssTmData;
 import android.hardware.wifi.supplicant.V1_3.WifiTechnology;
 import android.hidl.manager.V1_0.IServiceManager;
 import android.hidl.manager.V1_0.IServiceNotification;
@@ -78,6 +79,7 @@ import android.text.TextUtils;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.wifi.MboOceController.BtmFrameData;
 import com.android.server.wifi.SupplicantStaIfaceHal.PmkCacheStoreData;
 import com.android.server.wifi.hotspot2.AnqpEvent;
 import com.android.server.wifi.hotspot2.IconEvent;
@@ -2486,6 +2488,22 @@ public class SupplicantStaIfaceHalTest extends WifiBaseTest {
 
         assertEquals(WIFI_FEATURE_MBO | WIFI_FEATURE_OCE,
                 mDut.getWpaDriverFeatureSet(WLAN0_IFACE_NAME));
+    }
+
+    /**
+     * Test the handling of BSS transition request callback.
+     */
+    @Test
+    public void testBssTmHandlingDoneCallback() throws Exception {
+        setupMocksForHalV1_3();
+        executeAndValidateInitializationSequenceV1_3();
+        assertNotNull(mISupplicantStaIfaceCallbackV13);
+        mISupplicantStaIfaceCallbackV13.onBssTmHandlingDone(new BssTmData());
+
+        ArgumentCaptor<BtmFrameData> btmFrameDataCaptor =
+                ArgumentCaptor.forClass(BtmFrameData.class);
+        verify(mWifiMonitor).broadcastBssTmHandlingDoneEvent(
+                eq(WLAN0_IFACE_NAME), btmFrameDataCaptor.capture());
     }
 
 }
