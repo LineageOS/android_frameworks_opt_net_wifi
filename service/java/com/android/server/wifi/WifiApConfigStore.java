@@ -28,6 +28,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.ApConfigUtil;
 import com.android.wifi.resources.R;
 
 import java.io.BufferedInputStream;
@@ -74,9 +75,6 @@ public class WifiApConfigStore {
     static final int PSK_MIN_LEN = 8;
     @VisibleForTesting
     static final int PSK_MAX_LEN = 63;
-
-    @VisibleForTesting
-    static final int AP_CHANNEL_DEFAULT = 0;
 
     private SoftApConfiguration mPersistentWifiApConfig = null;
 
@@ -227,24 +225,39 @@ public class WifiApConfigStore {
 
         if (mContext.getResources().getBoolean(R.bool.config_wifi_convert_apband_5ghz_to_any)) {
             // some devices are unable to support 5GHz only operation, check for 5GHz and
-            // move to ANY if apBand conversion is required.
+            // allow for 2GHz if apBand conversion is required.
             if (config.getBand() == SoftApConfiguration.BAND_5GHZ) {
-                Log.w(TAG, "Supplied ap config band was 5GHz only, converting to ANY");
+                Log.w(TAG, "Supplied ap config band was 5GHz only, Allowing for 2.4GHz");
                 if (convertedConfigBuilder == null) {
                     convertedConfigBuilder = new SoftApConfiguration.Builder(config);
                 }
-                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_ANY);
-                convertedConfigBuilder.setChannel(AP_CHANNEL_DEFAULT);
+                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_5GHZ
+                        | SoftApConfiguration.BAND_2GHZ);
             }
         } else {
-            // this is a single mode device, we do not support ANY.  Convert all ANY to 5GHz
-            if (config.getBand() == SoftApConfiguration.BAND_ANY) {
-                Log.w(TAG, "Supplied ap config band was ANY, converting to 5GHz");
+            // this is a single mode device, convert band to 5GHz if allowed
+            int targetBand = 0;
+            int apBand = config.getBand();
+            if (ApConfigUtil.isMultiband(apBand)) {
+                if (ApConfigUtil.containsBand(apBand, SoftApConfiguration.BAND_5GHZ)) {
+                    Log.w(TAG, "Supplied ap config band is multiband , converting to 5GHz");
+                    targetBand = SoftApConfiguration.BAND_5GHZ;
+                } else if (ApConfigUtil.containsBand(apBand,
+                        SoftApConfiguration.BAND_2GHZ)) {
+                    Log.w(TAG, "Supplied ap config band is multiband , converting to 2GHz");
+                    targetBand = SoftApConfiguration.BAND_2GHZ;
+                } else if (ApConfigUtil.containsBand(apBand,
+                        SoftApConfiguration.BAND_6GHZ)) {
+                    Log.w(TAG, "Supplied ap config band is multiband , converting to 6GHz");
+                    targetBand = SoftApConfiguration.BAND_6GHZ;
+                }
+            }
+
+            if (targetBand != 0) {
                 if (convertedConfigBuilder == null) {
                     convertedConfigBuilder = new SoftApConfiguration.Builder(config);
                 }
-                convertedConfigBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
-                convertedConfigBuilder.setChannel(AP_CHANNEL_DEFAULT);
+                convertedConfigBuilder.setBand(targetBand);
             }
         }
         return convertedConfigBuilder == null ? config : convertedConfigBuilder.build();
@@ -276,8 +289,14 @@ public class WifiApConfigStore {
             configBuilder.setSsid(in.readUTF());
 
             if (version >= 2) {
-                configBuilder.setBand(in.readInt());
-                configBuilder.setChannel(in.readInt());
+                int band = in.readInt();
+                int channel = in.readInt();
+
+                if (channel == 0) {
+                    configBuilder.setBand(band);
+                } else {
+                    configBuilder.setChannel(channel, band);
+                }
             }
 
             if (version >= 3) {

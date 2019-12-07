@@ -51,8 +51,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
     public void testSoftApConfigBackupAndRestoreWithWpa2Config() throws Exception {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid("TestAP");
-        configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
-        configBuilder.setChannel(40);
+        configBuilder.setChannel(40, SoftApConfiguration.BAND_5GHZ);
         configBuilder.setWpa2Passphrase("TestPsk");
         configBuilder.setHiddenSsid(true);
         SoftApConfiguration config = configBuilder.build();
@@ -71,8 +70,7 @@ public class SoftApBackupRestoreTest extends WifiBaseTest {
     public void testSoftApConfigBackupAndRestoreWithOpenSecurityConfig() throws Exception {
         SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setSsid("TestAP");
-        configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
-        configBuilder.setChannel(12);
+        configBuilder.setChannel(12, SoftApConfiguration.BAND_2GHZ);
         configBuilder.setHiddenSsid(false);
         SoftApConfiguration config = configBuilder.build();
 

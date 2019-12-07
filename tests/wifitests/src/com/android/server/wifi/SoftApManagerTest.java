@@ -536,7 +536,6 @@ public class SoftApManagerTest extends WifiBaseTest {
     public void startSoftApFailNoChannel() throws Exception {
         Builder configBuilder = new SoftApConfiguration.Builder();
         configBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
-        configBuilder.setChannel(0);
         configBuilder.setSsid(TEST_SSID);
         SoftApModeConfiguration softApConfig = new SoftApModeConfiguration(
                 WifiManager.IFACE_IP_MODE_TETHERED, configBuilder.build());
@@ -1320,13 +1319,11 @@ public class SoftApManagerTest extends WifiBaseTest {
         if (config == null) {
             when(mWifiApConfigStore.getApConfiguration()).thenReturn(mDefaultApConfig);
             expectedConfig = new SoftApConfiguration.Builder(mDefaultApConfig)
-                .setBand(SoftApConfiguration.BAND_2GHZ)
-                .setChannel(DEFAULT_AP_CHANNEL)
+                .setChannel(DEFAULT_AP_CHANNEL, SoftApConfiguration.BAND_2GHZ)
                 .build();
         } else {
             expectedConfig = new SoftApConfiguration.Builder(config)
-                .setBand(SoftApConfiguration.BAND_2GHZ)
-                .setChannel(DEFAULT_AP_CHANNEL)
+                .setChannel(DEFAULT_AP_CHANNEL, SoftApConfiguration.BAND_2GHZ)
                 .build();
         }
 

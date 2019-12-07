@@ -114,6 +114,8 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
         int securityType = SoftApConfiguration.SECURITY_TYPE_OPEN;
         String wpa2Passphrase = null;
         String ssid = null;
+        int band = -1;
+        int channel = -1;
         while (!XmlUtil.isNextSectionEnd(in, outerTagDepth)) {
             String[] valueName = new String[1];
             Object value = XmlUtil.readCurrentValue(in, valueName);
@@ -126,10 +128,10 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
                     softApConfigBuilder.setSsid((String) value);
                     break;
                 case XML_TAG_BAND:
-                    softApConfigBuilder.setBand((int) value);
+                    band = (int) value;
                     break;
                 case XML_TAG_CHANNEL:
-                    softApConfigBuilder.setChannel((int) value);
+                    channel = (int) value;
                     break;
                 case XML_TAG_HIDDEN_SSID:
                     softApConfigBuilder.setHiddenSsid((boolean) value);
@@ -144,6 +146,15 @@ public class SoftApStoreData implements WifiConfigStore.StoreData {
                     Log.w(TAG, "Ignoring unknown value name " + valueName[0]);
                     break;
             }
+        }
+
+        // Set channel and band
+        if (channel == 0) {
+            if (band != -1) {
+                softApConfigBuilder.setBand(band);
+            }
+        } else if ((channel != -1) && (band != -1)) {
+            softApConfigBuilder.setChannel(channel, band);
         }
 
         // We should at-least have SSID restored from store.
