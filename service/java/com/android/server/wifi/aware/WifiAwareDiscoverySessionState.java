@@ -20,11 +20,10 @@ import android.hardware.wifi.V1_0.NanStatusType;
 import android.net.wifi.aware.IWifiAwareDiscoverySessionCallback;
 import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
+import android.net.wifi.util.HexEncoding;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.SparseArray;
-
-import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;

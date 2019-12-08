@@ -28,12 +28,11 @@ import android.hardware.wifi.V1_0.WifiNanStatus;
 import android.hardware.wifi.V1_2.IWifiNanIfaceEventCallback;
 import android.hardware.wifi.V1_2.NanDataPathChannelInfo;
 import android.hardware.wifi.V1_2.NanDataPathScheduleUpdateInd;
+import android.net.wifi.util.HexEncoding;
 import android.os.ShellCommand;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
-
-import libcore.util.HexEncoding;
 
 import org.json.JSONArray;
 import org.json.JSONException;

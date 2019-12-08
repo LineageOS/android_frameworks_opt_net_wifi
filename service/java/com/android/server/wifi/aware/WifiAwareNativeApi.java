@@ -37,6 +37,7 @@ import android.hardware.wifi.V1_2.NanConfigRequestSupplemental;
 import android.net.wifi.aware.ConfigRequest;
 import android.net.wifi.aware.PublishConfig;
 import android.net.wifi.aware.SubscribeConfig;
+import android.net.wifi.util.HexEncoding;
 import android.os.RemoteException;
 import android.os.ShellCommand;
 import android.text.TextUtils;
@@ -44,8 +45,6 @@ import android.util.Log;
 import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
-
-import libcore.util.HexEncoding;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
