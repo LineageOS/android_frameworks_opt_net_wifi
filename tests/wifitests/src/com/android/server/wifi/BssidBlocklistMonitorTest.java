@@ -328,13 +328,16 @@ public class BssidBlocklistMonitorTest {
     }
 
     /**
-     * Verify that handleNetworkValidationSuccess resets appropriate blocklist streak counts.
+     * Verify that handleNetworkValidationSuccess resets appropriate blocklist streak counts
+     * and removes the BSSID from blocklist.
      */
     @Test
     public void testNetworkValidationResetsBlocklistStreak() {
+        verifyAddTestBssidToBlocklist();
         mBssidBlocklistMonitor.handleNetworkValidationSuccess(TEST_BSSID_1, TEST_SSID_1);
         verify(mWifiScoreCard).resetBssidBlocklistStreak(TEST_SSID_1, TEST_BSSID_1,
                 BssidBlocklistMonitor.REASON_NETWORK_VALIDATION_FAILURE);
+        assertEquals(0, mBssidBlocklistMonitor.updateAndGetBssidBlocklist().size());
     }
 
     /**
