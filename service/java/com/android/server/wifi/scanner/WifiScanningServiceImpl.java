@@ -1012,10 +1012,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             }
         }
 
-        boolean validateScanType(int type) {
-            return type == WifiScanner.SCAN_TYPE_LOW_LATENCY
+        boolean validateScanType(@WifiScanner.ScanType int type) {
+            return (type == WifiScanner.SCAN_TYPE_LOW_LATENCY
                     || type == WifiScanner.SCAN_TYPE_LOW_POWER
-                    || type == WifiScanner.SCAN_TYPE_HIGH_ACCURACY;
+                    || type == WifiScanner.SCAN_TYPE_HIGH_ACCURACY);
         }
 
         boolean validateScanRequest(ClientInfo ci, int handler, ScanSettings settings) {
@@ -1050,30 +1050,15 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             return true;
         }
 
-        int getNativeScanType(int type) {
-            switch(type) {
-                case WifiScanner.SCAN_TYPE_LOW_LATENCY:
-                    return WifiNative.SCAN_TYPE_LOW_LATENCY;
-                case WifiScanner.SCAN_TYPE_LOW_POWER:
-                    return WifiNative.SCAN_TYPE_LOW_POWER;
-                case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
-                    return WifiNative.SCAN_TYPE_HIGH_ACCURACY;
-                default:
-                    // This should never happen becuase we've validated the incoming type in
-                    // |validateScanType|.
-                    throw new IllegalArgumentException("Invalid scan type " + type);
-            }
-        }
-
         // We can coalesce a LOW_POWER/LOW_LATENCY scan request into an ongoing HIGH_ACCURACY
         // scan request. But, we can't coalesce a HIGH_ACCURACY scan request into an ongoing
         // LOW_POWER/LOW_LATENCY scan request.
         boolean activeScanTypeSatisfies(int requestScanType) {
             switch(mActiveScanSettings.scanType) {
-                case WifiNative.SCAN_TYPE_LOW_LATENCY:
-                case WifiNative.SCAN_TYPE_LOW_POWER:
-                    return requestScanType != WifiNative.SCAN_TYPE_HIGH_ACCURACY;
-                case WifiNative.SCAN_TYPE_HIGH_ACCURACY:
+                case WifiScanner.SCAN_TYPE_LOW_LATENCY:
+                case WifiScanner.SCAN_TYPE_LOW_POWER:
+                    return requestScanType != WifiScanner.SCAN_TYPE_HIGH_ACCURACY;
+                case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                     return true;
                 default:
                     // This should never happen becuase we've validated the incoming type in
@@ -1087,10 +1072,10 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
         // scan type should be HIGH_ACCURACY.
         int mergeScanTypes(int existingScanType, int newScanType) {
             switch(existingScanType) {
-                case WifiNative.SCAN_TYPE_LOW_LATENCY:
-                case WifiNative.SCAN_TYPE_LOW_POWER:
+                case WifiScanner.SCAN_TYPE_LOW_LATENCY:
+                case WifiScanner.SCAN_TYPE_LOW_POWER:
                     return newScanType;
-                case WifiNative.SCAN_TYPE_HIGH_ACCURACY:
+                case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
                     return existingScanType;
                 default:
                     // This should never happen becuase we've validated the incoming type in
@@ -1104,7 +1089,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
                 return false;
             }
 
-            if (!activeScanTypeSatisfies(getNativeScanType(settings.type))) {
+            if (!activeScanTypeSatisfies(settings.type)) {
                 return false;
             }
 
@@ -1177,8 +1162,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
             ChannelCollection channels = mChannelHelper.createChannelCollection();
             List<WifiNative.HiddenNetwork> hiddenNetworkList = new ArrayList<>();
             for (RequestInfo<ScanSettings> entry : mPendingScans) {
-                settings.scanType =
-                    mergeScanTypes(settings.scanType, getNativeScanType(entry.settings.type));
+                settings.scanType = mergeScanTypes(settings.scanType, entry.settings.type);
                 channels.addChannels(entry.settings);
                 for (ScanSettings.HiddenNetwork srcNetwork : entry.settings.hiddenNetworks) {
                     WifiNative.HiddenNetwork hiddenNetwork = new WifiNative.HiddenNetwork();

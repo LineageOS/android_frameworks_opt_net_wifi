@@ -64,7 +64,7 @@ public class HostapdHalTest extends WifiBaseTest {
     private @Mock IServiceManager mServiceManagerMock;
     private @Mock IHostapd mIHostapdMock;
     private @Mock WifiNative.HostapdDeathEventHandler mHostapdHalDeathHandler;
-    private @Mock WifiNative.SoftApListener mSoftApListener;
+    private @Mock WificondControl.SoftApListener mSoftApListener;
     private android.hardware.wifi.hostapd.V1_1.IHostapd mIHostapdMockV1_1;
     private IHostapdCallback mIHostapdCallback;
     private MockResources mResources;
@@ -229,7 +229,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -262,7 +263,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -296,7 +298,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_5GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -334,7 +337,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -372,7 +376,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -409,7 +414,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -447,7 +453,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptor.getValue().ifaceName);
@@ -511,9 +518,9 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setWpa2Passphrase(NETWORK_PSK);
         configurationBuilder.setBand(SoftApConfiguration.BAND_ANY);
 
-
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
 
         assertEquals(IFACE_NAME, mIfaceParamsCaptorV1_1.getValue().V1_0.ifaceName);
@@ -548,7 +555,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
         assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -566,7 +574,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setChannel(6);
 
         assertFalse(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMock).addAccessPoint(any(), any());
     }
 
@@ -623,7 +632,8 @@ public class HostapdHalTest extends WifiBaseTest {
         configurationBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
 
         assertTrue(mHostapdHal.addAccessPoint(IFACE_NAME,
-                configurationBuilder.build(), mSoftApListener));
+                configurationBuilder.build(),
+                () -> mSoftApListener.onFailure()));
         verify(mIHostapdMockV1_1).addAccessPoint_1_1(any(), any());
 
         // Trigger on failure.

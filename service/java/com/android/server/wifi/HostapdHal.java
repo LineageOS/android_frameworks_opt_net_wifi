@@ -67,7 +67,7 @@ public class HostapdHal {
     // Hostapd HAL interface objects
     private IServiceManager mIServiceManager = null;
     private IHostapd mIHostapd;
-    private HashMap<String, WifiNative.SoftApListener> mSoftApListeners = new HashMap<>();
+    private HashMap<String, Runnable> mSoftApFailureListeners = new HashMap<>();
     private HostapdDeathEventHandler mDeathEventHandler;
     private ServiceManagerDeathRecipient mServiceManagerDeathRecipient;
     private HostapdDeathRecipient mHostapdDeathRecipient;
@@ -315,11 +315,11 @@ public class HostapdHal {
      *
      * @param ifaceName Name of the interface.
      * @param config Configuration to use for the AP.
-     * @param listener Callback for AP events.
+     * @param onFailureListener A runnable to be triggered on failure.
      * @return true on success, false otherwise.
      */
     public boolean addAccessPoint(@NonNull String ifaceName, @NonNull SoftApConfiguration config,
-                                  @NonNull WifiNative.SoftApListener listener) {
+                                  @NonNull Runnable onFailureListener) {
         synchronized (mLock) {
             final String methodStr = "addAccessPoint";
             IHostapd.IfaceParams ifaceParams = new IHostapd.IfaceParams();
@@ -392,7 +392,7 @@ public class HostapdHal {
                 if (!checkStatusAndLogFailure(status, methodStr)) {
                     return false;
                 }
-                mSoftApListeners.put(ifaceName, listener);
+                mSoftApFailureListeners.put(ifaceName, onFailureListener);
                 return true;
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
@@ -416,7 +416,7 @@ public class HostapdHal {
                 if (!checkStatusAndLogFailure(status, methodStr)) {
                     return false;
                 }
-                mSoftApListeners.remove(ifaceName);
+                mSoftApFailureListeners.remove(ifaceName);
                 return true;
             } catch (RemoteException e) {
                 handleRemoteException(e, methodStr);
@@ -699,9 +699,9 @@ public class HostapdHal {
         @Override
         public void onFailure(String ifaceName) {
             Log.w(TAG, "Failure on iface " + ifaceName);
-            WifiNative.SoftApListener listener = mSoftApListeners.get(ifaceName);
-            if (listener != null) {
-                listener.onFailure();
+            Runnable onFailureListener = mSoftApFailureListeners.get(ifaceName);
+            if (onFailureListener != null) {
+                onFailureListener.run();
             }
         }
     }

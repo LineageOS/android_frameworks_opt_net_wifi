@@ -2562,7 +2562,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiLinkLayerStats llStats = new WifiLinkLayerStats();
         llStats.txmpdu_be = 1000;
         llStats.rxmpdu_bk = 2000;
-        WifiNative.SignalPollResult signalPollResult = new WifiNative.SignalPollResult();
+        WificondControl.SignalPollResult signalPollResult = new WificondControl.SignalPollResult();
         signalPollResult.currentRssi = -42;
         signalPollResult.txBitrate = 65;
         signalPollResult.associationFrequency = sFreq;

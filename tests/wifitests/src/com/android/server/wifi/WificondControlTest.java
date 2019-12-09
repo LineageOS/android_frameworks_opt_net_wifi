@@ -58,7 +58,7 @@ import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
+import com.android.server.wifi.WificondControl.SendMgmtFrameCallback;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.server.wifi.wificond.ChannelSettings;
 import com.android.server.wifi.wificond.HiddenNetwork;
@@ -99,7 +99,7 @@ public class WificondControlTest extends WifiBaseTest {
     @Mock private IWifiScannerImpl mWifiScannerImpl;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private IApInterface mApInterface;
-    @Mock private WifiNative.SoftApListener mSoftApListener;
+    @Mock private WificondControl.SoftApListener mSoftApListener;
     @Mock private AlarmManager mAlarmManager;
     @Mock private Clock mClock;
     @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
@@ -341,7 +341,7 @@ public class WificondControlTest extends WifiBaseTest {
         verify(mClientInterface, never()).signalPoll();
 
         assertFalse(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_LATENCY,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_LATENCY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl, never()).scan(any());
     }
@@ -727,7 +727,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScan() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(true);
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_POWER,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_POWER,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
                 IWifiScannerImpl.SCAN_TYPE_LOW_POWER,
@@ -747,7 +747,7 @@ public class WificondControlTest extends WifiBaseTest {
                 hiddenSsidWithDup.get(hiddenSsidWithDup.size() - 1));
         // Pass the List with duplicate elements into scan()
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_POWER,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_POWER,
                 SCAN_FREQ_SET, hiddenSsidWithDup));
         // But the argument passed down should have the duplicate removed.
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
@@ -762,7 +762,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScanNullParameters() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(true);
         assertTrue(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY, null, null));
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY, null, null));
         verify(mWifiScannerImpl).scan(argThat(new ScanMatcher(
                 IWifiScannerImpl.SCAN_TYPE_HIGH_ACCURACY, null, null)));
     }
@@ -774,7 +774,7 @@ public class WificondControlTest extends WifiBaseTest {
     public void testScanFailure() throws Exception {
         when(mWifiScannerImpl.scan(any(SingleScanSettings.class))).thenReturn(false);
         assertFalse(mWificondControl.scan(
-                TEST_INTERFACE_NAME, WifiNative.SCAN_TYPE_LOW_LATENCY,
+                TEST_INTERFACE_NAME, WifiScanner.SCAN_TYPE_LOW_LATENCY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_LIST));
         verify(mWifiScannerImpl).scan(any(SingleScanSettings.class));
     }
@@ -1018,7 +1018,7 @@ public class WificondControlTest extends WifiBaseTest {
                         any(), eq(TEST_MCS_RATE));
 
         mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb2, TEST_MCS_RATE);
-        verify(cb2).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
+        verify(cb2).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_ALREADY_STARTED);
         // verify SendMgmtFrame() still was only called once i.e. not called again
         verify(mClientInterface, times(1))
                 .SendMgmtFrame(any(), any(), anyInt());
@@ -1050,7 +1050,8 @@ public class WificondControlTest extends WifiBaseTest {
         verify(cb).onFailure(anyInt());
         verify(mAlarmManager).cancel(eq(alarmListenerCaptor.getValue()));
 
-        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        sendMgmtFrameEventCaptor.getValue().OnFailure(
+                WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         mLooper.dispatchAll();
 
         handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
@@ -1109,10 +1110,11 @@ public class WificondControlTest extends WifiBaseTest {
                 alarmListenerCaptor.capture(), handlerCaptor.capture());
         mWificondControl.sendMgmtFrame(TEST_INTERFACE_NAME, TEST_PROBE_FRAME, cb, TEST_MCS_RATE);
 
-        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        sendMgmtFrameEventCaptor.getValue().OnFailure(
+                WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         mLooper.dispatchAll();
         verify(cb, never()).onAck(anyInt());
-        verify(cb).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN));
+        verify(cb).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mAlarmManager).cancel(eq(alarmListenerCaptor.getValue()));
 
         // verify that even if timeout is triggered afterwards, SendMgmtFrameCallback is not
@@ -1144,7 +1146,7 @@ public class WificondControlTest extends WifiBaseTest {
         handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
         mLooper.dispatchAll();
         verify(cb, never()).onAck(anyInt());
-        verify(cb).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
+        verify(cb).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         // verify that even if onAck() callback is triggered after timeout,
         // SendMgmtFrameCallback is not triggered again
@@ -1215,7 +1217,7 @@ public class WificondControlTest extends WifiBaseTest {
         sendMgmtFrameEventCaptor.getValue().OnAck(TEST_SEND_MGMT_FRAME_ELAPSED_TIME_MS);
         mLooper.dispatchAll();
         verify(mSendMgmtFrameCallback, never()).onAck(anyInt());
-        verify(mSendMgmtFrameCallback).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
     }
 
     /**
@@ -1240,9 +1242,10 @@ public class WificondControlTest extends WifiBaseTest {
         // triggering onAlarm() ourselves during the test, manually post onto handler
         handlerCaptor.getValue().post(() -> alarmListenerCaptor.getValue().onAlarm());
         // OnFailure posts to the handler
-        sendMgmtFrameEventCaptor.getValue().OnFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        sendMgmtFrameEventCaptor.getValue().OnFailure(
+                WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         mLooper.dispatchAll();
-        verify(mSendMgmtFrameCallback).onFailure(eq(WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT));
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
     }
 
     private void assertRadioChainInfosEqual(

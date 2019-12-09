@@ -39,7 +39,6 @@ import com.android.internal.util.HexDump;
 import com.android.server.net.BaseNetworkObserver;
 import com.android.server.wifi.util.FrameParser;
 import com.android.server.wifi.util.NativeUtil;
-import com.android.server.wifi.wificond.NativeWifiClient;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -113,6 +112,13 @@ public class WifiNative {
         mWificondControl.enableVerboseLogging(mVerboseLoggingEnabled);
         mSupplicantStaIfaceHal.enableVerboseLogging(mVerboseLoggingEnabled);
         mWifiVendorHal.enableVerboseLogging(mVerboseLoggingEnabled);
+    }
+
+    /**
+     * Callbacks for SoftAp interface.
+     */
+    public interface SoftApListener extends WificondControl.SoftApListener {
+        // dummy for now - provide a shell so that clients don't use a WificondControl-specific API.
     }
 
     /********************************************************
@@ -1310,29 +1316,6 @@ public class WifiNative {
     /********************************************************
      * Wificond operations
      ********************************************************/
-    /**
-     * Result of a signal poll.
-     */
-    public static class SignalPollResult {
-        // RSSI value in dBM.
-        public int currentRssi;
-        //Transmission bit rate in Mbps.
-        public int txBitrate;
-        // Association frequency in MHz.
-        public int associationFrequency;
-        //Last received packet bit rate in Mbps.
-        public int rxBitrate;
-    }
-
-    /**
-     * WiFi interface transimission counters.
-     */
-    public static class TxPacketCounters {
-        // Number of successfully transmitted packets.
-        public int txSucceeded;
-        // Number of tramsmission failures.
-        public int txFailed;
-    }
 
     /**
      * Callback to notify wificond death.
@@ -1351,7 +1334,7 @@ public class WifiNative {
      * Returns an SignalPollResult object.
      * Returns null on failure.
      */
-    public SignalPollResult signalPoll(@NonNull String ifaceName) {
+    public WificondControl.SignalPollResult signalPoll(@NonNull String ifaceName) {
         return mWificondControl.signalPoll(ifaceName);
     }
 
@@ -1361,7 +1344,7 @@ public class WifiNative {
      * Returns an TxPacketCounters object.
      * Returns null on failure.
      */
-    public TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
+    public WificondControl.TxPacketCounters getTxPacketCounters(@NonNull String ifaceName) {
         return mWificondControl.getTxPacketCounters(ifaceName);
     }
 
@@ -1385,14 +1368,14 @@ public class WifiNative {
     /**
      * Start a scan using wificond for the given parameters.
      * @param ifaceName Name of the interface.
-     * @param scanType Type of scan to perform. One of {@link ScanSettings#SCAN_TYPE_LOW_LATENCY},
-     * {@link ScanSettings#SCAN_TYPE_LOW_POWER} or {@link ScanSettings#SCAN_TYPE_HIGH_ACCURACY}.
+     * @param scanType Type of scan to perform. One of {@link WifiScanner#SCAN_TYPE_LOW_LATENCY},
+     * {@link WifiScanner#SCAN_TYPE_LOW_POWER} or {@link WifiScanner#SCAN_TYPE_HIGH_ACCURACY}.
      * @param freqs list of frequencies to scan for, if null scan all supported channels.
      * @param hiddenNetworkSSIDs List of hidden networks to be scanned for.
      * @return Returns true on success.
      */
     public boolean scan(
-            @NonNull String ifaceName, int scanType, Set<Integer> freqs,
+            @NonNull String ifaceName, @WifiScanner.ScanType int scanType, Set<Integer> freqs,
             List<String> hiddenNetworkSSIDs) {
         return mWificondControl.scan(ifaceName, scanType, freqs, hiddenNetworkSSIDs);
     }
@@ -1438,73 +1421,6 @@ public class WifiNative {
     }
 
     /**
-     * Callback to notify the results of a
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()} call.
-     * Note: no callbacks will be triggered if the iface dies while sending a frame.
-     */
-    public interface SendMgmtFrameCallback {
-        /**
-         * Called when the management frame was successfully sent and ACKed by the recipient.
-         * @param elapsedTimeMs The elapsed time between when the management frame was sent and when
-         *                      the ACK was processed, in milliseconds, as measured by wificond.
-         *                      This includes the time that the send frame spent queuing before it
-         *                      was sent, any firmware retries, and the time the received ACK spent
-         *                      queuing before it was processed.
-         */
-        void onAck(int elapsedTimeMs);
-
-        /**
-         * Called when the send failed.
-         * @param reason The error code for the failure.
-         */
-        void onFailure(@SendMgmtFrameError int reason);
-    }
-
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef(prefix = {"SEND_MGMT_FRAME_ERROR_"},
-            value = {SEND_MGMT_FRAME_ERROR_UNKNOWN,
-                    SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED,
-                    SEND_MGMT_FRAME_ERROR_NO_ACK,
-                    SEND_MGMT_FRAME_ERROR_TIMEOUT,
-                    SEND_MGMT_FRAME_ERROR_ALREADY_STARTED})
-    public @interface SendMgmtFrameError {}
-
-    // Send management frame error codes
-
-    /**
-     * Unknown error occurred during call to
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}.
-     */
-    public static final int SEND_MGMT_FRAME_ERROR_UNKNOWN = 1;
-
-    /**
-     * Specifying the MCS rate in
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()} is not
-     * supported by this device.
-     */
-    public static final int SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED = 2;
-
-    /**
-     * Driver reported that no ACK was received for the frame transmitted using
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}.
-     */
-    public static final int SEND_MGMT_FRAME_ERROR_NO_ACK = 3;
-
-    /**
-     * Error code for when the driver fails to report on the status of the frame sent by
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
-     * after {@link WificondControl#SEND_MGMT_FRAME_TIMEOUT_MS} milliseconds.
-     */
-    public static final int SEND_MGMT_FRAME_ERROR_TIMEOUT = 4;
-
-    /**
-     * An existing call to
-     * {@link #sendMgmtFrame(String, byte[], SendMgmtFrameCallback, int) sendMgmtFrame()}
-     * is in progress. Another frame cannot be sent until the first call completes.
-     */
-    public static final int SEND_MGMT_FRAME_ERROR_ALREADY_STARTED = 5;
-
-    /**
      * Sends an arbitrary 802.11 management frame on the current channel.
      *
      * @param ifaceName Name of the interface.
@@ -1515,11 +1431,11 @@ public class WifiNative {
      * @param mcs The MCS index that the frame will be sent at. If mcs < 0, the driver will select
      *            the rate automatically. If the device does not support sending the frame at a
      *            specified MCS rate, the transmission will be aborted and
-     *            {@link SendMgmtFrameCallback#onFailure(int)} will be called with reason
-     *            {@link #SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED}.
+     *            {@link WificondControl.SendMgmtFrameCallback#onFailure(int)} will be called
+     *            with reason {@link WificondControl#SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED}.
      */
     public void sendMgmtFrame(@NonNull String ifaceName, @NonNull byte[] frame,
-            @NonNull SendMgmtFrameCallback callback, int mcs) {
+            @NonNull WificondControl.SendMgmtFrameCallback callback, int mcs) {
         mWificondControl.sendMgmtFrame(ifaceName, frame, callback, mcs);
     }
 
@@ -1534,11 +1450,11 @@ public class WifiNative {
      * @param mcs The MCS index that this probe will be sent at. If mcs < 0, the driver will select
      *            the rate automatically. If the device does not support sending the frame at a
      *            specified MCS rate, the transmission will be aborted and
-     *            {@link SendMgmtFrameCallback#onFailure(int)} will be called with reason
-     *            {@link #SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED}.
+     *            {@link WificondControl.SendMgmtFrameCallback#onFailure(int)} will be called
+     *            with reason {@link WificondControl#SEND_MGMT_FRAME_ERROR_MCS_UNSUPPORTED}.
      */
     public void probeLink(@NonNull String ifaceName, @NonNull MacAddress receiverMac,
-            @NonNull SendMgmtFrameCallback callback, int mcs) {
+            @NonNull WificondControl.SendMgmtFrameCallback callback, int mcs) {
         if (callback == null) {
             Log.e(TAG, "callback cannot be null!");
             return;
@@ -1546,14 +1462,14 @@ public class WifiNative {
 
         if (receiverMac == null) {
             Log.e(TAG, "Receiver MAC address cannot be null!");
-            callback.onFailure(SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            callback.onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
             return;
         }
 
         String senderMacStr = getMacAddress(ifaceName);
         if (senderMacStr == null) {
             Log.e(TAG, "Failed to get this device's MAC Address");
-            callback.onFailure(SEND_MGMT_FRAME_ERROR_UNKNOWN);
+            callback.onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
             return;
         }
 
@@ -1612,26 +1528,6 @@ public class WifiNative {
         return frame.array();
     }
 
-    /**
-     * Callbacks for SoftAp interface.
-     */
-    public interface SoftApListener {
-        /**
-         * Invoked when there is some fatal failure in the lower layers.
-         */
-        void onFailure();
-
-        /**
-         * Invoked when the associated stations changes.
-         */
-        void onConnectedClientsChanged(List<NativeWifiClient> clients);
-
-        /**
-         * Invoked when the channel switch event happens.
-         */
-        void onSoftApChannelSwitched(int frequency, int bandwidth);
-    }
-
     private static final int CONNECT_TO_HOSTAPD_RETRY_INTERVAL_MS = 100;
     private static final int CONNECT_TO_HOSTAPD_RETRY_TIMES = 50;
     /**
@@ -1679,7 +1575,7 @@ public class WifiNative {
             Log.e(TAG, "Failed to register ap listener");
             return false;
         }
-        if (!mHostapdHal.addAccessPoint(ifaceName, config, listener)) {
+        if (!mHostapdHal.addAccessPoint(ifaceName, config, () -> listener.onFailure())) {
             Log.e(TAG, "Failed to add acccess point");
             mWifiMetrics.incrementNumSetupSoftApInterfaceFailureDueToHostapd();
             return false;
@@ -2542,16 +2438,12 @@ public class WifiNative {
         }
     }
 
-    public static final int SCAN_TYPE_LOW_LATENCY = 0;
-    public static final int SCAN_TYPE_LOW_POWER = 1;
-    public static final int SCAN_TYPE_HIGH_ACCURACY = 2;
-
     public static class ScanSettings {
         /**
-         * Type of scan to perform. One of {@link ScanSettings#SCAN_TYPE_LOW_LATENCY},
-         * {@link ScanSettings#SCAN_TYPE_LOW_POWER} or {@link ScanSettings#SCAN_TYPE_HIGH_ACCURACY}.
+         * Type of scan to perform. One of {@link WifiScanner#SCAN_TYPE_LOW_LATENCY},
+         * {@link WifiScanner#SCAN_TYPE_LOW_POWER} or {@link WifiScanner#SCAN_TYPE_HIGH_ACCURACY}.
          */
-        public int scanType;
+        public @WifiScanner.ScanType int scanType;
         public int base_period_ms;
         public int max_ap_per_scan;
         public int report_threshold_percent;

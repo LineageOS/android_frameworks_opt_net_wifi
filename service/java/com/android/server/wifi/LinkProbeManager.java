@@ -252,7 +252,7 @@ public class LinkProbeManager {
             mWifiNative.probeLink(
                     interfaceName,
                     MacAddress.fromString(wifiInfo.getBSSID()),
-                    new WifiNative.SendMgmtFrameCallback() {
+                    new WificondControl.SendMgmtFrameCallback() {
                         @Override
                         public void onAck(int elapsedTimeMs) {
                             if (mVerboseLoggingEnabled) {
