@@ -24,8 +24,8 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
-import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.Preconditions;
+import com.android.server.wifi.util.ArrayUtils;
 
 import java.security.Key;
 import java.security.KeyStore;

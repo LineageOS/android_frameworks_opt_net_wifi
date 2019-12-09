@@ -29,7 +29,7 @@ import android.util.Log;
 import android.util.MutableBoolean;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.ArrayUtils;
+import com.android.server.wifi.util.ArrayUtils;
 import com.android.server.wifi.util.GeneralUtil.Mutable;
 import com.android.server.wifi.util.NativeUtil;
 import com.android.wifi.resources.R;

@@ -46,7 +46,6 @@ import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 import android.util.Log;
 
-import com.android.internal.os.PowerProfile;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
@@ -732,10 +731,6 @@ public class WifiInjector {
 
     public SelfRecovery getSelfRecovery() {
         return mSelfRecovery;
-    }
-
-    public PowerProfile getPowerProfile() {
-        return new PowerProfile(mContext, false);
     }
 
     public ScanRequestProxy getScanRequestProxy() {

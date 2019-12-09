@@ -20,7 +20,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.ScanDetail;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 

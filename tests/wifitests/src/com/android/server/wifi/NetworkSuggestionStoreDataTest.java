@@ -28,7 +28,6 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.FastXmlSerializer;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.ExtendedWifiNetworkSuggestion;
 import com.android.server.wifi.WifiNetworkSuggestionsManager.PerAppInfo;
-import com.android.server.wifi.util.WifiConfigStoreEncryptionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -36,7 +35,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.ByteArrayInputStream;
@@ -55,6 +53,119 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     private static final String TEST_PACKAGE_NAME_1 = "com.android.test.1";
     private static final String TEST_PACKAGE_NAME_2 = "com.android.test.2";
     private static final String  TEST_FEATURE_ID = "com.android.feature.1";
+    private static final String TEST_PRE_R_STORE_FORMAT_XML_STRING =
+            "<NetworkSuggestionPerApp>\n"
+                    + "<string name=\"SuggestorPackageName\">%1$s</string>\n"
+                    + "<string name=\"SuggestorFeatureId\">com.android.feature.1</string>\n"
+                    + "<boolean name=\"SuggestorHasUserApproved\" value=\"false\" />\n"
+                    + "<int name=\"SuggestorMaxSize\" value=\"100\" />\n"
+                    + "<NetworkSuggestion>\n"
+                    + "<WifiConfiguration>\n"
+                    + "<string name=\"ConfigKey\">&quot;WifiConfigurationTestSSID0&quot;"
+                    + "WPA_PSK</string>\n"
+                    + "<string name=\"SSID\">&quot;WifiConfigurationTestSSID0&quot;</string>\n"
+                    + "<null name=\"BSSID\" />\n"
+                    + "<string name=\"PreSharedKey\">&quot;WifiConfigurationTestUtilPsk&quot;"
+                    + "</string>\n"
+                    + "<null name=\"SaePasswordId\" />\n"
+                    + "<null name=\"WEPKeys\" />\n"
+                    + "<int name=\"WEPTxKeyIndex\" value=\"0\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"false\" />\n"
+                    + "<boolean name=\"RequirePMF\" value=\"false\" />\n"
+                    + "<byte-array name=\"AllowedKeyMgmt\" num=\"1\">02</byte-array>\n"
+                    + "<byte-array name=\"AllowedProtocols\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedAuthAlgos\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedPairwiseCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupMgmtCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedSuiteBCiphers\" num=\"0\"></byte-array>\n"
+                    + "<boolean name=\"Shared\" value=\"true\" />\n"
+                    + "<int name=\"Status\" value=\"2\" />\n"
+                    + "<null name=\"FQDN\" />\n"
+                    + "<null name=\"ProviderFriendlyName\" />\n"
+                    + "<null name=\"LinkedNetworksList\" />\n"
+                    + "<null name=\"DefaultGwMacAddress\" />\n"
+                    + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
+                    + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
+                    + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
+                    + "<int name=\"MeteredOverride\" value=\"0\" />\n"
+                    + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
+                    + "<int name=\"NumAssociation\" value=\"0\" />\n"
+                    + "<int name=\"CreatorUid\" value=\"5\" />\n"
+                    + "<null name=\"CreatorName\" />\n"
+                    + "<null name=\"CreationTime\" />\n"
+                    + "<int name=\"LastUpdateUid\" value=\"-1\" />\n"
+                    + "<null name=\"LastUpdateName\" />\n"
+                    + "<int name=\"LastConnectUid\" value=\"0\" />\n"
+                    + "<boolean name=\"IsLegacyPasspointConfig\" value=\"false\" />\n"
+                    + "<long-array name=\"RoamingConsortiumOIs\" num=\"0\" />\n"
+                    + "<string name=\"RandomizedMacAddress\">02:00:00:00:00:00</string>\n"
+                    + "<int name=\"MacRandomizationSetting\" value=\"1\" />\n"
+                    + "<int name=\"CarrierId\" value=\"-1\" />\n"
+                    + "</WifiConfiguration>\n"
+                    + "<boolean name=\"IsAppInteractionRequired\" value=\"true\" />\n"
+                    + "<boolean name=\"IsUserInteractionRequired\" value=\"false\" />\n"
+                    + "<boolean name=\"IsUserAllowedToManuallyConnect\" value=\"true\" />\n"
+                    + "<int name=\"SuggestorUid\" value=\"%2$d\" />\n"
+                    + "<string name=\"SuggestorPackageName\">%1$s</string>\n"
+                    + "</NetworkSuggestion>\n"
+                    + "</NetworkSuggestionPerApp>";
+    private static final String TEST_POST_R_STORE_FORMAT_XML_STRING =
+            "<NetworkSuggestionPerApp>\n"
+                    + "<string name=\"SuggestorPackageName\">%1$s</string>\n"
+                    + "<string name=\"SuggestorFeatureId\">com.android.feature.1</string>\n"
+                    + "<boolean name=\"SuggestorHasUserApproved\" value=\"false\" />\n"
+                    + "<int name=\"SuggestorMaxSize\" value=\"100\" />\n"
+                    + "<int name=\"SuggestorUid\" value=\"%2$d\" />\n"
+                    + "<NetworkSuggestion>\n"
+                    + "<WifiConfiguration>\n"
+                    + "<string name=\"ConfigKey\">&quot;WifiConfigurationTestSSID0&quot;"
+                    + "WPA_PSK</string>\n"
+                    + "<string name=\"SSID\">&quot;WifiConfigurationTestSSID0&quot;</string>\n"
+                    + "<null name=\"BSSID\" />\n"
+                    + "<string name=\"PreSharedKey\">&quot;WifiConfigurationTestUtilPsk&quot;"
+                    + "</string>\n"
+                    + "<null name=\"SaePasswordId\" />\n"
+                    + "<null name=\"WEPKeys\" />\n"
+                    + "<int name=\"WEPTxKeyIndex\" value=\"0\" />\n"
+                    + "<boolean name=\"HiddenSSID\" value=\"false\" />\n"
+                    + "<boolean name=\"RequirePMF\" value=\"false\" />\n"
+                    + "<byte-array name=\"AllowedKeyMgmt\" num=\"1\">02</byte-array>\n"
+                    + "<byte-array name=\"AllowedProtocols\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedAuthAlgos\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedPairwiseCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedGroupMgmtCiphers\" num=\"0\"></byte-array>\n"
+                    + "<byte-array name=\"AllowedSuiteBCiphers\" num=\"0\"></byte-array>\n"
+                    + "<boolean name=\"Shared\" value=\"true\" />\n"
+                    + "<int name=\"Status\" value=\"2\" />\n"
+                    + "<null name=\"FQDN\" />\n"
+                    + "<null name=\"ProviderFriendlyName\" />\n"
+                    + "<null name=\"LinkedNetworksList\" />\n"
+                    + "<null name=\"DefaultGwMacAddress\" />\n"
+                    + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
+                    + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
+                    + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
+                    + "<int name=\"MeteredOverride\" value=\"0\" />\n"
+                    + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
+                    + "<int name=\"NumAssociation\" value=\"0\" />\n"
+                    + "<int name=\"CreatorUid\" value=\"5\" />\n"
+                    + "<null name=\"CreatorName\" />\n"
+                    + "<null name=\"CreationTime\" />\n"
+                    + "<int name=\"LastUpdateUid\" value=\"-1\" />\n"
+                    + "<null name=\"LastUpdateName\" />\n"
+                    + "<int name=\"LastConnectUid\" value=\"0\" />\n"
+                    + "<boolean name=\"IsLegacyPasspointConfig\" value=\"false\" />\n"
+                    + "<long-array name=\"RoamingConsortiumOIs\" num=\"0\" />\n"
+                    + "<string name=\"RandomizedMacAddress\">02:00:00:00:00:00</string>\n"
+                    + "<int name=\"MacRandomizationSetting\" value=\"1\" />\n"
+                    + "<int name=\"CarrierId\" value=\"-1\" />\n"
+                    + "</WifiConfiguration>\n"
+                    + "<boolean name=\"IsAppInteractionRequired\" value=\"true\" />\n"
+                    + "<boolean name=\"IsUserInteractionRequired\" value=\"false\" />\n"
+                    + "<boolean name=\"IsUserAllowedToManuallyConnect\" value=\"true\" />\n"
+                    + "</NetworkSuggestion>\n"
+                    + "</NetworkSuggestionPerApp>";
     private static final String TEST_CORRUPT_DATA_INVALID_SSID =
             "<NetworkSuggestionPerApp>\n"
             + "<string name=\"SuggestorPackageName\">com.android.test.1</string>\n"
@@ -84,7 +195,6 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
             + "<null name=\"DefaultGwMacAddress\" />\n"
             + "<boolean name=\"ValidatedInternetAccess\" value=\"false\" />\n"
             + "<boolean name=\"NoInternetAccessExpected\" value=\"false\" />\n"
-            + "<int name=\"UserApproved\" value=\"0\" />\n"
             + "<boolean name=\"MeteredHint\" value=\"false\" />\n"
             + "<int name=\"MeteredOverride\" value=\"0\" />\n"
             + "<boolean name=\"UseExternalScores\" value=\"false\" />\n"
@@ -121,7 +231,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         final XmlSerializer out = new FastXmlSerializer();
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         out.setOutput(outputStream, StandardCharsets.UTF_8.name());
-        mNetworkSuggestionStoreData.serializeData(out, mock(WifiConfigStoreEncryptionUtil.class));
+        mNetworkSuggestionStoreData.serializeData(out, null);
         out.flush();
         return outputStream.toByteArray();
     }
@@ -134,8 +244,7 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         in.setInput(inputStream, StandardCharsets.UTF_8.name());
         mNetworkSuggestionStoreData.deserializeData(in, in.getDepth(),
-                WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION,
-                mock(WifiConfigStoreEncryptionUtil.class));
+                WifiConfigStore.ENCRYPT_CREDENTIALS_CONFIG_STORE_DATA_VERSION, null);
     }
 
     /**
@@ -154,14 +263,13 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeSingleNetworkSuggestionFromSingleApp() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
+        PerAppInfo appInfo = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
 
         WifiConfiguration configuration = WifiConfigurationTestUtil.createEapNetwork();
         configuration.enterpriseConfig =
                 WifiConfigurationTestUtil.createPEAPWifiEnterpriseConfigWithGTCPhase2();
         WifiNetworkSuggestion networkSuggestion =
-                new WifiNetworkSuggestion(configuration, null, false, false, true, TEST_UID_1,
-                TEST_PACKAGE_NAME_1);
+                new WifiNetworkSuggestion(configuration, null, false, false, true);
         appInfo.hasUserApproved = false;
         appInfo.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion, appInfo));
@@ -188,19 +296,17 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeSingleNetworkSuggestionFromMultipleApps() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
+        PerAppInfo appInfo1 = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true, TEST_UID_1,
-                TEST_PACKAGE_NAME_1);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, false, true);
         appInfo1.hasUserApproved = false;
         appInfo1.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
-        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
+        PerAppInfo appInfo2 = new PerAppInfo(TEST_UID_2, TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, TEST_UID_2,
-                TEST_PACKAGE_NAME_2);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo2));
@@ -216,13 +322,11 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
     public void serializeDeserializeMultipleNetworkSuggestionFromMultipleApps() throws Exception {
         Map<String, PerAppInfo> networkSuggestionsMap = new HashMap<>();
 
-        PerAppInfo appInfo1 = new PerAppInfo(TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
+        PerAppInfo appInfo1 = new PerAppInfo(TEST_UID_1, TEST_PACKAGE_NAME_1, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion1 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true, TEST_UID_1,
-                TEST_PACKAGE_NAME_1);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true);
         WifiNetworkSuggestion networkSuggestion2 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, TEST_UID_1,
-                TEST_PACKAGE_NAME_1);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
         appInfo1.hasUserApproved = true;
         appInfo1.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion1, appInfo1));
@@ -230,13 +334,11 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion2, appInfo1));
         networkSuggestionsMap.put(TEST_PACKAGE_NAME_1, appInfo1);
 
-        PerAppInfo appInfo2 = new PerAppInfo(TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
+        PerAppInfo appInfo2 = new PerAppInfo(TEST_UID_2, TEST_PACKAGE_NAME_2, TEST_FEATURE_ID);
         WifiNetworkSuggestion networkSuggestion3 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true, TEST_UID_2,
-                TEST_PACKAGE_NAME_2);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, true, false, true);
         WifiNetworkSuggestion networkSuggestion4 = new WifiNetworkSuggestion(
-                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true, TEST_UID_2,
-                TEST_PACKAGE_NAME_2);
+                WifiConfigurationTestUtil.createOpenNetwork(), null, false, true, true);
         appInfo2.hasUserApproved = true;
         appInfo2.extNetworkSuggestions.add(
                 ExtendedWifiNetworkSuggestion.fromWns(networkSuggestion3, appInfo2));
@@ -249,12 +351,40 @@ public class NetworkSuggestionStoreDataTest extends WifiBaseTest {
 
     /**
      * Deserialize corrupt data and ensure that we gracefully handle any errors in the data.
-     * graceful == throw XmlPullParserException (which is handled in
-     * {@link WifiConfigManager#loadFromStore()}).
      */
-    @Test(expected = XmlPullParserException.class)
+    @Test
     public void deserializeCorruptData() throws Exception {
         deserializeData(TEST_CORRUPT_DATA_INVALID_SSID.getBytes());
+    }
+
+    /**
+     * Deserialize a single network suggestion from a single app using a predefined string
+     * stored in the old/new XML format.
+     */
+    @Test
+    public void deserializeFromPreRAndPostRFormat() throws Exception {
+        ArgumentCaptor<HashMap> deserializedNetworkSuggestionsMap =
+                ArgumentCaptor.forClass(HashMap.class);
+
+        // Old format
+        String preRFormatXml = String.format(
+                TEST_PRE_R_STORE_FORMAT_XML_STRING, TEST_PACKAGE_NAME_1, TEST_UID_1);
+        deserializeData(preRFormatXml.getBytes());
+
+        // New format
+        String postRFormatXml = String.format(
+                TEST_POST_R_STORE_FORMAT_XML_STRING, TEST_PACKAGE_NAME_1, TEST_UID_1);
+        deserializeData(postRFormatXml.getBytes());
+
+        // Capture the deserialized data.
+        verify(mDataSource, times(2)).fromDeserialized(deserializedNetworkSuggestionsMap.capture());
+        Map<String, PerAppInfo> deserializedPerAppInfoMapPreRFormat =
+                deserializedNetworkSuggestionsMap.getAllValues().get(0);
+        Map<String, PerAppInfo> deserializedPerAppInfoMapPostRFormat =
+                deserializedNetworkSuggestionsMap.getAllValues().get(1);
+
+        // Ensure both formats produce the same parsed output.
+        assertEquals(deserializedPerAppInfoMapPreRFormat, deserializedPerAppInfoMapPostRFormat);
     }
 
     private Map<String, PerAppInfo> assertSerializeDeserialize(

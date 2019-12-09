@@ -17,9 +17,8 @@
 package com.android.server.wifi.rtt;
 
 import android.content.Context;
-import android.net.wifi.aware.IWifiAwareManager;
+import android.net.wifi.aware.WifiAwareManager;
 import android.os.HandlerThread;
-import android.os.ServiceManager;
 import android.util.Log;
 
 import com.android.server.SystemService;
@@ -62,11 +61,10 @@ public class RttService extends SystemService {
             WifiPermissionsUtil wifiPermissionsUtil = wifiInjector.getWifiPermissionsUtil();
             RttMetrics rttMetrics = wifiInjector.getWifiMetrics().getRttMetrics();
 
-            IWifiAwareManager awareBinder = (IWifiAwareManager) ServiceManager.getService(
-                    Context.WIFI_AWARE_SERVICE);
+            WifiAwareManager awareManager = getContext().getSystemService(WifiAwareManager.class);
 
             RttNative rttNative = new RttNative(mImpl, halDeviceManager);
-            mImpl.start(handlerThread.getLooper(), wifiInjector.getClock(), awareBinder, rttNative,
+            mImpl.start(handlerThread.getLooper(), wifiInjector.getClock(), awareManager, rttNative,
                     rttMetrics, wifiPermissionsUtil, wifiInjector.getFrameworkFacade());
         }
     }
