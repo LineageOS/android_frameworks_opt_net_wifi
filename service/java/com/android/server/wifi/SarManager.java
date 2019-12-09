@@ -141,7 +141,9 @@ public class SarManager {
     }
 
     private boolean isVoiceCallStreamActive() {
-        return AudioSystem.isStreamActive(AudioManager.STREAM_VOICE_CALL, 0);
+        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+        int mode = audioManager.getMode();
+        return mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL;
     }
 
     private void checkAudioDevice() {
