@@ -19,6 +19,7 @@ package com.android.server.wifi;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
 
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.ContentResolver;
@@ -34,6 +35,7 @@ import android.os.ServiceManager;
 import android.provider.Settings;
 import android.sysprop.WifiProperties;
 import android.telephony.CarrierConfigManager;
+import android.widget.Toast;
 
 import com.android.server.wifi.util.WifiAsyncChannel;
 
@@ -227,5 +229,24 @@ public class FrameworkFacade {
      */
     public void stopSupplicant() {
         WifiProperties.stop_supplicant(true);
+    }
+
+    /**
+     * Create a new instance of {@link AlertDialog.Builder}.
+     * @param context reference to a Context
+     * @return an instance of AlertDialog.Builder
+     */
+    public AlertDialog.Builder makeAlertDialogBuilder(Context context) {
+        return new AlertDialog.Builder(context);
+    }
+
+    /**
+     * Show a toast message
+     * @param context reference to a Context
+     * @param text the message to display
+     */
+    public void showToast(Context context, String text) {
+        Toast toast = Toast.makeText(context, text, Toast.LENGTH_SHORT);
+        toast.show();
     }
 }

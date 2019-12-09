@@ -128,6 +128,14 @@
           <item type="string" name="wifi_p2p_show_pin_message" />
           <item type="string" name="wifi_p2p_frequency_conflict_message" />
           <item type="string" name="dlg_ok" />
+          <item type="string" name="wifi_cannot_connect_with_randomized_mac_title" />
+          <item type="string" name="wifi_cannot_connect_with_randomized_mac_message" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_title" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_message" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_confirm_text" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_success" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_failure" />
+          <item type="string" name="wifi_disable_mac_randomization_dialog_network_not_found" />
           <!-- Params from strings.xml that can be overlayed -->
 
           <!-- Params from styles.xml that can be overlayed -->
