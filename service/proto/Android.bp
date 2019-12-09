@@ -17,6 +17,7 @@ java_library {
     proto: {
         type: "lite",
     },
+    sdk_version: "system_current",
     srcs: ["src/scorecard.proto"],
 }
 
@@ -27,7 +28,7 @@ java_library {
         type: "nano",
     },
     srcs: ["src/metrics.proto"],
-    sdk_version: "9",
+    sdk_version: "system_current",
     // Pin java_version until jarjar is certified to support later versions. http://b/72703434
     java_version: "1.8",
     target: {
