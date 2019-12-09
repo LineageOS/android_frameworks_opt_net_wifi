@@ -46,6 +46,7 @@ import android.util.SparseIntArray;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiInjector;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -99,7 +100,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
             WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionsWrapper,
             FrameworkFacade frameworkFacade, WifiAwareNativeManager wifiAwareNativeManager,
             WifiAwareNativeApi wifiAwareNativeApi,
-            WifiAwareNativeCallback wifiAwareNativeCallback) {
+            WifiAwareNativeCallback wifiAwareNativeCallback, NetdWrapper netdWrapper) {
         Log.i(TAG, "Starting Wi-Fi Aware service");
 
         mWifiPermissionsUtil = wifiPermissionsUtil;
@@ -109,7 +110,7 @@ public class WifiAwareServiceImpl extends IWifiAwareManager.Stub {
 
         mHandler.post(() -> {
             mStateManager.start(mContext, handlerThread.getLooper(), awareMetrics,
-                    wifiPermissionsUtil, permissionsWrapper, new Clock());
+                    wifiPermissionsUtil, permissionsWrapper, new Clock(), netdWrapper);
 
             frameworkFacade.registerContentObserver(mContext,
                     Settings.Global.getUriFor(Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED), true,

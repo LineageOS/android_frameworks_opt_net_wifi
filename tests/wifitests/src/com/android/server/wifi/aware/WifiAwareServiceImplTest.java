@@ -52,6 +52,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.FrameworkFacade;
 import com.android.server.wifi.WifiBaseTest;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -152,10 +153,10 @@ public class WifiAwareServiceImplTest extends WifiBaseTest {
         mDut.start(mHandlerThreadMock, mAwareStateManagerMock, mWifiAwareShellCommandMock,
                 mAwareMetricsMock, mWifiPermissionsUtil, mPermissionsWrapperMock, mFrameworkFacade,
                 mock(WifiAwareNativeManager.class), mock(WifiAwareNativeApi.class),
-                mock(WifiAwareNativeCallback.class));
+                mock(WifiAwareNativeCallback.class), mock(NetdWrapper.class));
         mMockLooper.dispatchAll();
         verify(mAwareStateManagerMock).start(eq(mContextMock), any(), eq(mAwareMetricsMock),
-                eq(mWifiPermissionsUtil), eq(mPermissionsWrapperMock), any());
+                eq(mWifiPermissionsUtil), eq(mPermissionsWrapperMock), any(), any());
     }
 
     /**

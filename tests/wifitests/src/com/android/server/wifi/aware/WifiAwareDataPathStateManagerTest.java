@@ -69,7 +69,6 @@ import android.net.wifi.aware.WifiAwareSession;
 import android.net.wifi.util.HexEncoding;
 import android.os.Build;
 import android.os.Handler;
-import android.os.INetworkManagementService;
 import android.os.IPowerManager;
 import android.os.Message;
 import android.os.Messenger;
@@ -83,6 +82,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.AsyncChannel;
 import com.android.server.wifi.Clock;
 import com.android.server.wifi.WifiBaseTest;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -119,7 +119,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             new TestUtils.MonitoredWifiAwareNativeApi();
     @Mock private Context mMockContext;
     @Mock private ConnectivityManager mMockCm;
-    @Mock private INetworkManagementService mMockNwMgt;
+    @Mock private NetdWrapper mMockNetdWrapper;
     @Mock private WifiAwareDataPathStateManager.NetworkInterfaceWrapper mMockNetworkInterface;
     @Mock private IWifiAwareEventCallback mMockCallback;
     @Mock IWifiAwareDiscoverySessionCallback mMockSessionCallback;
@@ -169,7 +169,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         mDut = new WifiAwareStateManager();
         mDut.setNative(mMockNativeManager, mMockNative);
         mDut.start(mMockContext, mMockLooper.getLooper(), mAwareMetricsMock,
-                mWifiPermissionsUtil, mPermissionsWrapperMock, mClock);
+                mWifiPermissionsUtil, mPermissionsWrapperMock, mClock, mMockNetdWrapper);
         mDut.startLate();
         mMockLooper.dispatchAll();
 
@@ -180,7 +180,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         when(mMockPowerManager.isDeviceIdleMode()).thenReturn(false);
         when(mMockPowerManager.isInteractive()).thenReturn(true);
 
-        mDut.mDataPathMgr.mNwService = mMockNwMgt;
+        mDut.mDataPathMgr.mNetdWrapper = mMockNetdWrapper;
         mDut.mDataPathMgr.mNiWrapper = mMockNetworkInterface;
     }
 
@@ -269,7 +269,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             mMockLooper.dispatchAll();
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockNetdWrapper);
     }
 
     /**
@@ -431,7 +431,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         verifyUnfullfillableDispatched(res.mReverseMessenger);
 
         // failure if there's further activity
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
     }
 
     /**
@@ -462,7 +462,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         ArgumentCaptor<NetworkCapabilities> netCapCaptor = ArgumentCaptor.forClass(
                 NetworkCapabilities.class);
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt);
+                mMockNetdWrapper);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         NetworkRequest[] nrs = new NetworkRequest[3];
@@ -508,8 +508,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     buildTlv(port, transportProtocol, true), null);
             mMockLooper.dispatchAll();
             if (first) {
-                inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
-                inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+                inOrder.verify(mMockNetdWrapper).setInterfaceUp(anyString());
+                inOrder.verify(mMockNetdWrapper).enableIpv6(anyString());
 
                 first = false;
             }
@@ -548,12 +548,12 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             mMockLooper.dispatchAll();
 
             if (index++ == endOrder.length - 1) {
-                inOrder.verify(mMockNwMgt).setInterfaceDown(anyString());
+                inOrder.verify(mMockNetdWrapper).setInterfaceDown(anyString());
             }
             inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
     }
 
     /**
@@ -578,7 +578,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         ArgumentCaptor<NetworkCapabilities> netCapCaptor = ArgumentCaptor.forClass(
                 NetworkCapabilities.class);
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt);
+                mMockNetdWrapper);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         // (1) initialize all clients
@@ -636,8 +636,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         mDut.onDataPathConfirmNotification(ndpId, peerDataPathMac, true, 0, null, null);
         mMockLooper.dispatchAll();
 
-        inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
-        inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+        inOrder.verify(mMockNetdWrapper).setInterfaceUp(anyString());
+        inOrder.verify(mMockNetdWrapper).enableIpv6(anyString());
         inOrder.verify(mMockCm).registerNetworkAgent(agentMessengerCaptor.capture(), any(), any(),
                 netCapCaptor.capture(), anyInt(), any(), anyInt());
         inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.SUCCESS),
@@ -694,11 +694,11 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         mDut.onDataPathEndNotification(ndpId);
         mMockLooper.dispatchAll();
 
-        inOrder.verify(mMockNwMgt).setInterfaceDown(anyString());
+        inOrder.verify(mMockNetdWrapper).setInterfaceDown(anyString());
         inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
 
         verifyNoMoreInteractions(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mAwareMetricsMock, mMockNwMgt);
+                mAwareMetricsMock, mMockNetdWrapper);
     }
 
     /**
@@ -718,7 +718,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 NetworkCapabilities.class);
 
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt);
+                mMockNetdWrapper);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         // (1) initialize all clients
@@ -755,8 +755,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 mDut.onDataPathConfirmNotification(ndpId + i, peerDataPathMac, true, 0, null, null);
                 mMockLooper.dispatchAll();
 
-                inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
-                inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+                inOrder.verify(mMockNetdWrapper).setInterfaceUp(anyString());
+                inOrder.verify(mMockNetdWrapper).enableIpv6(anyString());
                 inOrder.verify(mMockCm).registerNetworkAgent(any(), any(), any(),
                         netCapCaptor.capture(), anyInt(), any(), anyInt());
                 inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.SUCCESS),
@@ -778,7 +778,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         assertEquals("Number of unique interface names", numNdis, interfaces.size());
 
         verifyNoMoreInteractions(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mAwareMetricsMock, mMockNwMgt);
+                mAwareMetricsMock, mMockNetdWrapper);
     }
 
     /*
@@ -1183,7 +1183,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     eq(ndpId), eq(""), eq(null), eq(null), eq(null), anyBoolean(), any());
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
     }
 
     private void testDataPathInitiatorResponderInvalidUidUtility(boolean doPublish,
@@ -1243,7 +1243,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                     eq(ndpId), eq(""), eq(null), eq(null), eq(null), anyBoolean(), any());
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
     }
 
     private void testDataPathInitiatorUtility(boolean useDirect, boolean provideMac,
@@ -1276,7 +1276,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         ArgumentCaptor<NetworkCapabilities> netCapCaptor = ArgumentCaptor.forClass(
                 NetworkCapabilities.class);
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt, mMockNetworkInterface);
+                mMockNetdWrapper, mMockNetworkInterface);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         if (!providePmk) {
@@ -1340,8 +1340,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
 
             mDut.onDataPathConfirmNotification(ndpId, peerDataPathMac, true, 0, peerToken, null);
             mMockLooper.dispatchAll();
-            inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
-            inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+            inOrder.verify(mMockNetdWrapper).setInterfaceUp(anyString());
+            inOrder.verify(mMockNetdWrapper).enableIpv6(anyString());
             inOrder.verify(mMockNetworkInterface).configureAgentProperties(any(), any(), anyInt(),
                     any(), any(), any());
             inOrder.verify(mMockCm).registerNetworkAgent(messengerCaptor.capture(), any(), any(),
@@ -1409,12 +1409,12 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             mDut.onDataPathEndNotification(ndpId);
             mMockLooper.dispatchAll();
 
-            inOrder.verify(mMockNwMgt).setInterfaceDown(anyString());
+            inOrder.verify(mMockNetdWrapper).setInterfaceDown(anyString());
             inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
             inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt,
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper,
                 mMockNetworkInterface);
     }
 
@@ -1435,7 +1435,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
         ArgumentCaptor<NetworkCapabilities> netCapCaptor = ArgumentCaptor.forClass(
                 NetworkCapabilities.class);
         InOrder inOrder = inOrder(mMockNative, mMockCm, mMockCallback, mMockSessionCallback,
-                mMockNwMgt);
+                mMockNetdWrapper);
         InOrder inOrderM = inOrder(mAwareMetricsMock);
 
         boolean isLegacy = mWifiPermissionsUtil.isTargetSdkLessThan("anything",
@@ -1485,8 +1485,8 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             if (getConfirmation) {
                 mDut.onDataPathConfirmNotification(ndpId, peerDataPathMac, true, 0, null, null);
                 mMockLooper.dispatchAll();
-                inOrder.verify(mMockNwMgt).setInterfaceUp(anyString());
-                inOrder.verify(mMockNwMgt).enableIpv6(anyString());
+                inOrder.verify(mMockNetdWrapper).setInterfaceUp(anyString());
+                inOrder.verify(mMockNetdWrapper).enableIpv6(anyString());
                 inOrder.verify(mMockCm).registerNetworkAgent(messengerCaptor.capture(), any(),
                         any(), netCapCaptor.capture(), anyInt(), any(), anyInt());
                 inOrderM.verify(mAwareMetricsMock).recordNdpStatus(eq(NanStatusType.SUCCESS),
@@ -1526,7 +1526,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
                 mDut.onDataPathEndNotification(ndpId);
                 mMockLooper.dispatchAll();
 
-                inOrder.verify(mMockNwMgt).setInterfaceDown(anyString());
+                inOrder.verify(mMockNetdWrapper).setInterfaceDown(anyString());
                 inOrder.verify(mMockNative).endDataPath(transactionId.capture(), eq(ndpId));
                 inOrderM.verify(mAwareMetricsMock).recordNdpSessionDuration(anyLong());
             }
@@ -1538,7 +1538,7 @@ public class WifiAwareDataPathStateManagerTest extends WifiBaseTest {
             mMockLooper.dispatchAll();
         }
 
-        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNwMgt);
+        verifyNoMoreInteractions(mMockNative, mMockCm, mAwareMetricsMock, mMockNetdWrapper);
     }
 
     private NetworkRequest getSessionNetworkRequest(int clientId, int sessionId,

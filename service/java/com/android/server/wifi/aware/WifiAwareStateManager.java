@@ -55,6 +55,7 @@ import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.internal.util.WakeupMessage;
 import com.android.server.wifi.Clock;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
 
@@ -381,7 +382,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
      */
     public void start(Context context, Looper looper, WifiAwareMetrics awareMetrics,
             WifiPermissionsUtil wifiPermissionsUtil, WifiPermissionsWrapper permissionsWrapper,
-            Clock clock) {
+            Clock clock, NetdWrapper netdWrapper) {
         Log.i(TAG, "start()");
 
         mContext = context;
@@ -393,7 +394,7 @@ public class WifiAwareStateManager implements WifiAwareShellCommand.DelegatedShe
 
         mDataPathMgr = new WifiAwareDataPathStateManager(this, clock);
         mDataPathMgr.start(mContext, mSm.getHandler().getLooper(), awareMetrics,
-                wifiPermissionsUtil, permissionsWrapper);
+                wifiPermissionsUtil, permissionsWrapper, netdWrapper);
 
         mPowerManager = mContext.getSystemService(PowerManager.class);
         mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
