@@ -17,6 +17,7 @@
 package com.android.wifitrackerlib;
 
 import static com.android.wifitrackerlib.TestUtils.buildScanResult;
+import static com.android.wifitrackerlib.Utils.filterScanResultsByCapabilities;
 import static com.android.wifitrackerlib.Utils.getBestScanResultByLevel;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -27,6 +28,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class UtilsTest {
 
@@ -50,5 +52,39 @@ public class UtilsTest {
         final ScanResult scan = buildScanResult("ssid", "bssid", 0, -50);
 
         assertThat(getBestScanResultByLevel(Arrays.asList(scan))).isEqualTo(scan);
+    }
+
+    @Test
+    public void testfilterScanResultsByCapabilities_filtersUnsupportedCapabilities() {
+        final ScanResult wpa3SaeScan = new ScanResult();
+        final ScanResult wpa3SuiteBScan = new ScanResult();
+        final ScanResult enhancedOpenScan = new ScanResult();
+        wpa3SaeScan.capabilities = "[SAE]";
+        wpa3SuiteBScan.capabilities = "[EAP_SUITE_B_192]";
+        enhancedOpenScan.capabilities = "[OWE]";
+
+        final List<ScanResult> filteredScans = filterScanResultsByCapabilities(
+                Arrays.asList(wpa3SaeScan, wpa3SuiteBScan, enhancedOpenScan),
+                false /* isWpa3SaeSupported */,
+                false /* isWpa3SuiteBSupported */,
+                false /* isEnhancedOpenSupported */);
+
+        assertThat(filteredScans).isEmpty();
+    }
+
+    @Test
+    public void testfilterScanResultsByCapabilities_keepsTransitionModeScans() {
+        final ScanResult wpa3TransitionScan = new ScanResult();
+        final ScanResult enhancedOpenTransitionScan = new ScanResult();
+        wpa3TransitionScan.capabilities = "[PSK+SAE]";
+        enhancedOpenTransitionScan.capabilities = "[OWE_TRANSITION]";
+
+        final List<ScanResult> filteredScans = filterScanResultsByCapabilities(
+                Arrays.asList(wpa3TransitionScan, enhancedOpenTransitionScan),
+                false /* isWpa3SaeSupported */,
+                false /* isWpa3SuiteBSupported */,
+                false /* isEnhancedOpenSupported */);
+
+        assertThat(filteredScans).containsExactly(wpa3TransitionScan, enhancedOpenTransitionScan);
     }
 }

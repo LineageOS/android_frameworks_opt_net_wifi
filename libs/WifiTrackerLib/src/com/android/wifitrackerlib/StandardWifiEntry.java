@@ -191,8 +191,19 @@ class StandardWifiEntry extends WifiEntry {
                     || mSecurity == SECURITY_OWE
                     || mSecurity == SECURITY_OWE_TRANSITION) {
                 // Open network
-                // TODO(b/70983952): Add support for unsaved open networks
-                // Generate open config and connect with it.
+                final WifiConfiguration connectConfig = new WifiConfiguration();
+                connectConfig.SSID = "\"" + mSsid + "\"";
+
+                if (mSecurity == SECURITY_OWE
+                        || (mSecurity == SECURITY_OWE_TRANSITION
+                        && mWifiManager.isEnhancedOpenSupported())) {
+                    // Use OWE if possible
+                    connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.OWE);
+                    connectConfig.requirePMF = true;
+                } else {
+                    connectConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+                }
+                mWifiManager.connect(connectConfig, new ConnectListener());
             } else {
                 // Secure network
                 // TODO(b/70983952): Add support for unsaved secure networks
@@ -200,7 +211,7 @@ class StandardWifiEntry extends WifiEntry {
             }
         } else {
             // Saved network
-            mWifiManager.connect(mWifiConfig.networkId, null);
+            mWifiManager.connect(mWifiConfig.networkId, new ConnectListener());
         }
     }
 
