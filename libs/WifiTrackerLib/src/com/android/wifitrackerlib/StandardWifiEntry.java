@@ -328,8 +328,7 @@ class StandardWifiEntry extends WifiEntry {
         if (bestScanResult == null) {
             mLevel = WIFI_LEVEL_UNREACHABLE;
         } else {
-            mLevel = WifiManager.calculateSignalLevel(
-                    bestScanResult.level, WifiManager.RSSI_LEVELS);
+            mLevel = mWifiManager.calculateSignalLevel(bestScanResult.level);
         }
 
         notifyOnUpdated();
