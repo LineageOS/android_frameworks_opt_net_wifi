@@ -310,75 +310,77 @@ public class WifiServiceImpl extends BaseWifiService {
      * This function is used only at boot time.
      */
     public void checkAndStartWifi() {
-        // Check if wi-fi needs to be enabled
-        boolean wifiEnabled = mSettingsStore.isWifiToggleEnabled();
-        Log.i(TAG, "WifiService starting up with Wi-Fi " + (wifiEnabled ? "enabled" : "disabled"));
+        mWifiThreadRunner.post(() -> {
+            // Check if wi-fi needs to be enabled
+            boolean wifiEnabled = mSettingsStore.isWifiToggleEnabled();
+            Log.i(TAG,
+                    "WifiService starting up with Wi-Fi " + (wifiEnabled ? "enabled" : "disabled"));
 
-        registerForScanModeChange();
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        if (mSettingsStore.handleAirplaneModeToggled()) {
-                            mActiveModeWarden.airplaneModeToggled();
+            registerForScanModeChange();
+            mContext.registerReceiver(
+                    new BroadcastReceiver() {
+                        @Override
+                        public void onReceive(Context context, Intent intent) {
+                            if (mSettingsStore.handleAirplaneModeToggled()) {
+                                mActiveModeWarden.airplaneModeToggled();
+                            }
                         }
-                    }
-                },
-                new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
+                    },
+                    new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
 
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        String state = intent.getStringExtra(IccCardConstants.INTENT_KEY_ICC_STATE);
-                        if (IccCardConstants.INTENT_VALUE_ICC_ABSENT.equals(state)) {
-                            Log.d(TAG, "resetting networks because SIM was removed");
-                            mClientModeImpl.resetSimAuthNetworks(false);
-                        } else if (IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(state)) {
-                            Log.d(TAG, "resetting networks because SIM was loaded");
-                            mClientModeImpl.resetSimAuthNetworks(true);
+            mContext.registerReceiver(
+                    new BroadcastReceiver() {
+                        @Override
+                        public void onReceive(Context context, Intent intent) {
+                            String state = intent.getStringExtra(
+                                    IccCardConstants.INTENT_KEY_ICC_STATE);
+                            if (IccCardConstants.INTENT_VALUE_ICC_ABSENT.equals(state)) {
+                                Log.d(TAG, "resetting networks because SIM was removed");
+                                mClientModeImpl.resetSimAuthNetworks(false);
+                            } else if (IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(state)) {
+                                Log.d(TAG, "resetting networks because SIM was loaded");
+                                mClientModeImpl.resetSimAuthNetworks(true);
+                            }
                         }
-                    }
-                },
-                new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
+                    },
+                    new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
 
-        // Adding optimizations of only receiving broadcasts when wifi is enabled
-        // can result in race conditions when apps toggle wifi in the background
-        // without active user involvement. Always receive broadcasts.
-        registerForBroadcasts();
-        mInIdleMode = mPowerManager.isDeviceIdleMode();
+            // Adding optimizations of only receiving broadcasts when wifi is enabled
+            // can result in race conditions when apps toggle wifi in the background
+            // without active user involvement. Always receive broadcasts.
+            registerForBroadcasts();
+            mInIdleMode = mPowerManager.isDeviceIdleMode();
 
-        if (!mClientModeImpl.syncInitialize(mClientModeImplChannel)) {
-            Log.wtf(TAG, "Failed to initialize ClientModeImpl");
-        }
-        mActiveModeWarden.start();
+            mClientModeImpl.initialize();
+            mActiveModeWarden.start();
+        });
     }
 
     public void handleBootCompleted() {
-        Log.d(TAG, "Handle boot completed");
-
-        // Register for system broadcasts.
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(Intent.ACTION_USER_REMOVED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
-        intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
-        intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
-        boolean trackEmergencyCallState = mContext.getResources().getBoolean(
-                R.bool.config_wifi_turn_off_during_emergency_call);
-        if (trackEmergencyCallState) {
-            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
-        }
-        mContext.registerReceiver(mReceiver, intentFilter);
-
         mWifiThreadRunner.post(() -> {
+            Log.d(TAG, "Handle boot completed");
+
+            // Register for system broadcasts.
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(Intent.ACTION_USER_REMOVED);
+            intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
+            intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
+            intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
+            boolean trackEmergencyCallState = mContext.getResources().getBoolean(
+                    R.bool.config_wifi_turn_off_during_emergency_call);
+            if (trackEmergencyCallState) {
+                intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED);
+            }
+            mContext.registerReceiver(mReceiver, intentFilter);
+
             new MemoryStoreImpl(mContext, mWifiInjector, mWifiInjector.getWifiScoreCard()).start();
             if (!mWifiConfigManager.loadFromStore()) {
                 Log.e(TAG, "Failed to load from config store");
             }
             mPasspointManager.initializeProvisioner(
                     mWifiInjector.getPasspointProvisionerHandlerThread().getLooper());
+            mClientModeImpl.handleBootCompleted();
         });
-        mClientModeImpl.handleBootCompleted();
     }
 
     public void handleUserSwitch(int userId) {

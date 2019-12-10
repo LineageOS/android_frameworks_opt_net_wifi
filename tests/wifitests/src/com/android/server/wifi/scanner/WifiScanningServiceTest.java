@@ -439,6 +439,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     private static final int MAX_AP_PER_SCAN = 16;
     private void startServiceAndLoadDriver() {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         setupAndLoadDriver(TEST_MAX_SCAN_BUCKETS_IN_CAPABILITIES);
     }
@@ -498,6 +499,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void startService() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         verifyNoMoreInteractions(mWifiScannerImplFactory);
 
@@ -512,6 +514,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void disconnectClientBeforeWifiEnabled() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         BidirectionalAsyncChannel controlChannel = connectChannel(mock(Handler.class));
         mLooper.dispatchAll();
@@ -558,6 +561,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void disconnectClientAfterStartingWifi() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         BidirectionalAsyncChannel controlChannel = connectChannel(mock(Handler.class));
         mLooper.dispatchAll();
@@ -596,6 +600,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void rejectBackgroundScanRequestWhenHalReturnsInvalidCapabilities() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
 
         setupAndLoadDriver(0);
@@ -2633,6 +2638,7 @@ public class WifiScanningServiceTest extends WifiBaseTest {
     @Test
     public void rejectRestrictedMessagesFromNonPrivilegedApps() throws Exception {
         mWifiScanningServiceImpl.startService();
+        mLooper.dispatchAll();
         mWifiScanningServiceImpl.setWifiHandlerLogForTest(mLog);
         Handler handler = mock(Handler.class);
         BidirectionalAsyncChannel controlChannel = connectChannel(handler);

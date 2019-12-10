@@ -20,7 +20,6 @@ import static android.net.wifi.WifiManager.WIFI_FEATURE_OWE;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.net.InterfaceConfiguration;
 import android.net.MacAddress;
 import android.net.TrafficStats;
 import android.net.apf.ApfCapabilities;
@@ -30,8 +29,6 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.os.Handler;
-import android.os.INetworkManagementService;
-import android.os.RemoteException;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.ArraySet;
@@ -39,11 +36,12 @@ import android.util.Log;
 
 import com.android.internal.annotations.Immutable;
 import com.android.internal.util.HexDump;
-import com.android.server.net.BaseNetworkObserver;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.util.FrameParser;
 import com.android.server.wifi.util.InformationElementUtil;
 import com.android.server.wifi.util.NativeUtil;
+import com.android.server.wifi.util.NetdWrapper;
+import com.android.server.wifi.util.NetdWrapper.NetdEventObserver;
 import com.android.server.wifi.util.ScanResultUtil;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.RadioChainInfo;
@@ -87,31 +85,32 @@ public class WifiNative {
     private final WifiVendorHal mWifiVendorHal;
     private final WificondControl mWificondControl;
     private final WifiMonitor mWifiMonitor;
-    private final INetworkManagementService mNwManagementService;
     private final PropertyService mPropertyService;
     private final WifiMetrics mWifiMetrics;
     private final CarrierNetworkConfig mCarrierNetworkConfig;
     private final Handler mHandler;
     private final Random mRandom;
+    private final WifiInjector mWifiInjector;
+    private NetdWrapper mNetdWrapper;
     private boolean mVerboseLoggingEnabled = false;
 
     public WifiNative(WifiVendorHal vendorHal,
                       SupplicantStaIfaceHal staIfaceHal, HostapdHal hostapdHal,
                       WificondControl condControl, WifiMonitor wifiMonitor,
-                      INetworkManagementService nwService,
                       PropertyService propertyService, WifiMetrics wifiMetrics,
-                      CarrierNetworkConfig carrierNetworkConfig, Handler handler, Random random) {
+                      CarrierNetworkConfig carrierNetworkConfig, Handler handler, Random random,
+                      WifiInjector wifiInjector) {
         mWifiVendorHal = vendorHal;
         mSupplicantStaIfaceHal = staIfaceHal;
         mHostapdHal = hostapdHal;
         mWificondControl = condControl;
         mWifiMonitor = wifiMonitor;
-        mNwManagementService = nwService;
         mPropertyService = propertyService;
         mWifiMetrics = wifiMetrics;
         mCarrierNetworkConfig = carrierNetworkConfig;
         mHandler = handler;
         mRandom = random;
+        mWifiInjector = wifiInjector;
     }
 
     /**
@@ -504,24 +503,14 @@ public class WifiNative {
     /** Helper method to register a network observer and return it */
     private boolean registerNetworkObserver(NetworkObserverInternal observer) {
         if (observer == null) return false;
-        try {
-            mNwManagementService.registerObserver(observer);
-        } catch (RemoteException | IllegalStateException e) {
-            Log.e(TAG, "Unable to register observer", e);
-            return false;
-        }
+        mNetdWrapper.registerObserver(observer);
         return true;
     }
 
     /** Helper method to unregister a network observer */
     private boolean unregisterNetworkObserver(NetworkObserverInternal observer) {
         if (observer == null) return false;
-        try {
-            mNwManagementService.unregisterObserver(observer);
-        } catch (RemoteException | IllegalStateException e) {
-            Log.e(TAG, "Unable to unregister observer", e);
-            return false;
-        }
+        mNetdWrapper.unregisterObserver(observer);
         return true;
     }
 
@@ -722,7 +711,7 @@ public class WifiNative {
     /**
      * Network observer to use for all interface up/down notifications.
      */
-    private class NetworkObserverInternal extends BaseNetworkObserver {
+    private class NetworkObserverInternal implements NetdEventObserver {
         /** Identifier allocated for the interface */
         private final int mInterfaceId;
 
@@ -732,7 +721,7 @@ public class WifiNative {
 
         /**
          * Note: We should ideally listen to
-         * {@link BaseNetworkObserver#interfaceStatusChanged(String, boolean)} here. But, that
+         * {@link NetdEventObserver#interfaceStatusChanged(String, boolean)} here. But, that
          * callback is not working currently (broken in netd). So, instead listen to link state
          * change callbacks as triggers to query the real interface state. We should get rid of
          * this workaround if we get the |interfaceStatusChanged| callback to work in netd.
@@ -763,6 +752,11 @@ public class WifiNative {
                     onInterfaceStateChanged(ifaceWithName, isInterfaceUp(ifaceName));
                 }
             });
+        }
+
+        @Override
+        public void interfaceStatusChanged(String ifaceName, boolean unusedIsLinkUp) {
+            // unused currently. Look at note above.
         }
     }
 
@@ -909,6 +903,7 @@ public class WifiNative {
             }
             mWifiVendorHal.registerRadioModeChangeHandler(
                     new VendorHalRadioModeChangeHandlerInternal());
+            mNetdWrapper = mWifiInjector.makeNetdWrapper();
             return true;
         }
     }
@@ -968,17 +963,17 @@ public class WifiNative {
             // IP addresses configured, and this affects
             // connectivity when supplicant starts up.
             // Ensure we have no IP addresses before a supplicant start.
-            mNwManagementService.clearInterfaceAddresses(ifaceName);
+            mNetdWrapper.clearInterfaceAddresses(ifaceName);
 
             // Set privacy extensions
-            mNwManagementService.setInterfaceIpv6PrivacyExtensions(ifaceName, true);
+            mNetdWrapper.setInterfaceIpv6PrivacyExtensions(ifaceName, true);
 
             // IPv6 is enabled only as long as access point is connected since:
             // - IPv6 addresses and routes stick around after disconnection
             // - kernel is unaware when connected and fails to start IPv6 negotiation
             // - kernel can start autoconfiguration when 802.1x is not complete
-            mNwManagementService.disableIpv6(ifaceName);
-        } catch (RemoteException | IllegalStateException e) {
+            mNetdWrapper.disableIpv6(ifaceName);
+        } catch (IllegalStateException e) {
             Log.e(TAG, "Unable to change interface settings", e);
         }
     }
@@ -1248,16 +1243,12 @@ public class WifiNative {
                 Log.e(TAG, "Trying to get iface state on invalid iface=" + ifaceName);
                 return false;
             }
-            InterfaceConfiguration config = null;
             try {
-                config = mNwManagementService.getInterfaceConfig(ifaceName);
-            } catch (RemoteException | IllegalStateException e) {
+                return mNetdWrapper.isInterfaceUp(ifaceName);
+            } catch (IllegalStateException e) {
                 Log.e(TAG, "Unable to get interface config", e);
-            }
-            if (config == null) {
                 return false;
             }
-            return config.isUp();
         }
     }
 

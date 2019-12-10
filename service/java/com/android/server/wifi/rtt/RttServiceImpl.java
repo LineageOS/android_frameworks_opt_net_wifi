@@ -250,67 +250,67 @@ public class RttServiceImpl extends IWifiRttManager.Stub {
         mRttMetrics = rttMetrics;
         mWifiPermissionsUtil = wifiPermissionsUtil;
         mRttServiceSynchronized = new RttServiceSynchronized(looper, rttNative);
-
         mActivityManager = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
         mPowerManager = mContext.getSystemService(PowerManager.class);
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
-        mContext.registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (mDbg) Log.v(TAG, "BroadcastReceiver: action=" + action);
-
-                if (PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED.equals(action)) {
-                    if (mPowerManager.isDeviceIdleMode()) {
-                        disable();
-                    } else {
-                        enableIfPossible();
-                    }
-                }
-            }
-        }, intentFilter);
-
-        frameworkFacade.registerContentObserver(mContext,
-                Settings.Global.getUriFor(Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED), true,
-                new ContentObserver(mRttServiceSynchronized.mHandler) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
-                                Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0));
-                    }
-                });
-
-        enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
-                Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0));
-
-        frameworkFacade.registerContentObserver(mContext,
-                Settings.Global.getUriFor(Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS),
-                true,
-                new ContentObserver(mRttServiceSynchronized.mHandler) {
-                    @Override
-                    public void onChange(boolean selfChange) {
-                        updateBackgroundThrottlingInterval(frameworkFacade);
-                    }
-                });
-
-        updateBackgroundThrottlingInterval(frameworkFacade);
-
-        intentFilter = new IntentFilter();
-        intentFilter.addAction(LocationManager.MODE_CHANGED_ACTION);
-        mContext.registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (mDbg) Log.v(TAG, "onReceive: MODE_CHANGED_ACTION: intent=" + intent);
-                if (mWifiPermissionsUtil.isLocationModeEnabled()) {
-                    enableIfPossible();
-                } else {
-                    disable();
-                }
-            }
-        }, intentFilter);
 
         mRttServiceSynchronized.mHandler.post(() -> {
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
+            mContext.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    if (mDbg) Log.v(TAG, "BroadcastReceiver: action=" + action);
+
+                    if (PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED.equals(action)) {
+                        if (mPowerManager.isDeviceIdleMode()) {
+                            disable();
+                        } else {
+                            enableIfPossible();
+                        }
+                    }
+                }
+            }, intentFilter);
+
+            frameworkFacade.registerContentObserver(mContext,
+                    Settings.Global.getUriFor(Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED), true,
+                    new ContentObserver(mRttServiceSynchronized.mHandler) {
+                        @Override
+                        public void onChange(boolean selfChange) {
+                            enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
+                                    Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0));
+                        }
+                    });
+
+            enableVerboseLogging(frameworkFacade.getIntegerSetting(mContext,
+                    Settings.Global.WIFI_VERBOSE_LOGGING_ENABLED, 0));
+
+            frameworkFacade.registerContentObserver(mContext,
+                    Settings.Global.getUriFor(Settings.Global.WIFI_RTT_BACKGROUND_EXEC_GAP_MS),
+                    true,
+                    new ContentObserver(mRttServiceSynchronized.mHandler) {
+                        @Override
+                        public void onChange(boolean selfChange) {
+                            updateBackgroundThrottlingInterval(frameworkFacade);
+                        }
+                    });
+
+            updateBackgroundThrottlingInterval(frameworkFacade);
+
+            intentFilter = new IntentFilter();
+            intentFilter.addAction(LocationManager.MODE_CHANGED_ACTION);
+            mContext.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (mDbg) Log.v(TAG, "onReceive: MODE_CHANGED_ACTION: intent=" + intent);
+                    if (mWifiPermissionsUtil.isLocationModeEnabled()) {
+                        enableIfPossible();
+                    } else {
+                        disable();
+                    }
+                }
+            }, intentFilter);
+
             rttNative.start(mRttServiceSynchronized.mHandler);
         });
     }

@@ -38,11 +38,11 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiEnterpriseConfig;
 import android.net.wifi.WifiScanner;
 import android.os.Handler;
-import android.os.INetworkManagementService;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wifi.WificondControl.SendMgmtFrameCallback;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.wificond.NativeScanResult;
 import com.android.server.wifi.wificond.RadioChainInfo;
 
@@ -243,13 +243,14 @@ public class WifiNativeTest extends WifiBaseTest {
     @Mock private SupplicantStaIfaceHal mStaIfaceHal;
     @Mock private HostapdHal mHostapdHal;
     @Mock private WifiMonitor mWifiMonitor;
-    @Mock private INetworkManagementService mNwService;
     @Mock private PropertyService mPropertyService;
     @Mock private WifiMetrics mWifiMetrics;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private Handler mHandler;
     @Mock private SendMgmtFrameCallback mSendMgmtFrameCallback;
     @Mock private Random mRandom;
+    @Mock private WifiInjector mWifiInjector;
+    @Mock private NetdWrapper mNetdWrapper;
 
     ArgumentCaptor<WificondControl.ScanEventCallback> mScanCallbackCaptor =
             ArgumentCaptor.forClass(WificondControl.ScanEventCallback.class);
@@ -259,6 +260,9 @@ public class WifiNativeTest extends WifiBaseTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        when(mWificondControl.initialize(any())).thenReturn(true);
+
+        when(mWifiVendorHal.initialize(any())).thenReturn(true);
         when(mWifiVendorHal.isVendorHalSupported()).thenReturn(true);
         when(mWifiVendorHal.startVendorHal()).thenReturn(true);
         when(mWifiVendorHal.startVendorHalSta()).thenReturn(true);
@@ -273,10 +277,13 @@ public class WifiNativeTest extends WifiBaseTest {
         when(mStaIfaceHal.startDaemon()).thenReturn(true);
         when(mStaIfaceHal.setupIface(any())).thenReturn(true);
 
+        when(mWifiInjector.makeNetdWrapper()).thenReturn(mNetdWrapper);
+
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwService, mPropertyService, mWifiMetrics, mCarrierNetworkConfig,
-                mHandler, mRandom);
+                mWifiMonitor, mPropertyService, mWifiMetrics, mCarrierNetworkConfig,
+                mHandler, mRandom, mWifiInjector);
+        mWifiNative.initialize();
     }
 
     /**
@@ -685,7 +692,7 @@ public class WifiNativeTest extends WifiBaseTest {
      * Verifies scan mode + PNO scan success.
      */
     @Test
-    public void testCScanModePnoScanSuccess() {
+    public void testScanModePnoScanSuccess() {
         mWifiNative.setupInterfaceForClientInScanMode(null);
         verify(mWificondControl).setupInterfaceForClientMode(eq(WIFI_IFACE_NAME),
                 any(), mScanCallbackCaptor.capture());

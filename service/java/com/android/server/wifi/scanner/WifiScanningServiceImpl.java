@@ -36,6 +36,7 @@ import android.os.BadParcelableException;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
@@ -404,16 +405,18 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
     }
 
     public void startService() {
-        mBackgroundScanStateMachine = new WifiBackgroundScanStateMachine(mLooper);
-        mSingleScanStateMachine = new WifiSingleScanStateMachine(mLooper);
-        mPnoScanStateMachine = new WifiPnoScanStateMachine(mLooper);
+        new Handler(mLooper).post(() -> {
+            mBackgroundScanStateMachine = new WifiBackgroundScanStateMachine(mLooper);
+            mSingleScanStateMachine = new WifiSingleScanStateMachine(mLooper);
+            mPnoScanStateMachine = new WifiPnoScanStateMachine(mLooper);
 
-        mBackgroundScanStateMachine.start();
-        mSingleScanStateMachine.start();
-        mPnoScanStateMachine.start();
+            mBackgroundScanStateMachine.start();
+            mSingleScanStateMachine.start();
+            mPnoScanStateMachine.start();
 
-        // Create client handler only after StateMachines are ready.
-        mClientHandler = new ClientHandler(TAG, mLooper);
+            // Create client handler only after StateMachines are ready.
+            mClientHandler = new ClientHandler(TAG, mLooper);
+        });
     }
 
     /**

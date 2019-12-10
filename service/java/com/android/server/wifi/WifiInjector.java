@@ -35,7 +35,6 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.Process;
 import android.os.SystemProperties;
@@ -56,6 +55,7 @@ import com.android.server.wifi.p2p.WifiP2pMetrics;
 import com.android.server.wifi.p2p.WifiP2pMonitor;
 import com.android.server.wifi.p2p.WifiP2pNative;
 import com.android.server.wifi.rtt.RttMetrics;
+import com.android.server.wifi.util.NetdWrapper;
 import com.android.server.wifi.util.TelephonyUtil;
 import com.android.server.wifi.util.WifiPermissionsUtil;
 import com.android.server.wifi.util.WifiPermissionsWrapper;
@@ -141,7 +141,6 @@ public class WifiInjector {
     private final WifiStateTracker mWifiStateTracker;
     private final SelfRecovery mSelfRecovery;
     private final WakeupController mWakeupController;
-    private final INetworkManagementService mNwManagementService;
     private final ScanRequestProxy mScanRequestProxy;
     private final SarManager mSarManager;
     private final BaseWifiDiagnostics mWifiDiagnostics;
@@ -161,6 +160,7 @@ public class WifiInjector {
     private final KeyStore mKeyStore;
     private final ConnectionFailureNotificationBuilder mConnectionFailureNotificationBuilder;
     private final ThroughputPredictor mThroughputPredictor;
+    private NetdWrapper mNetdWrapper;
 
     public WifiInjector(Context context) {
         if (context == null) {
@@ -229,13 +229,10 @@ public class WifiInjector {
         mWificondControl = new WificondControl(this,
                 (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE),
                 wifiHandler, mClock);
-        mNwManagementService = INetworkManagementService.Stub.asInterface(
-                mFrameworkFacade.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mWifiNative = new WifiNative(
                 mWifiVendorHal, mSupplicantStaIfaceHal, mHostapdHal, mWificondControl,
-                mWifiMonitor, mNwManagementService, mPropertyService, mWifiMetrics,
-                mCarrierNetworkConfig,
-                wifiHandler, new Random());
+                mWifiMonitor, mPropertyService, mWifiMetrics,
+                mCarrierNetworkConfig, wifiHandler, new Random(), this);
         mWifiP2pMonitor = new WifiP2pMonitor(this);
         mSupplicantP2pIfaceHal = new SupplicantP2pIfaceHal(mWifiP2pMonitor);
         mWifiP2pNative = new WifiP2pNative(
@@ -800,5 +797,12 @@ public class WifiInjector {
 
     public WifiNetworkScoreCache getWifiNetworkScoreCache() {
         return mWifiNetworkScoreCache;
+    }
+
+    public NetdWrapper makeNetdWrapper() {
+        if (mNetdWrapper == null) {
+            mNetdWrapper = new NetdWrapper(mContext, new Handler(mWifiHandlerThread.getLooper()));
+        }
+        return mNetdWrapper;
     }
 }
