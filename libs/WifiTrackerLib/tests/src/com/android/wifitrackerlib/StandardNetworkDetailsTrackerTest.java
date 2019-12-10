@@ -148,6 +148,25 @@ public class StandardNetworkDetailsTrackerTest {
      * Tests that SCAN_RESULTS_AVAILABLE_ACTION updates the level of the entry.
      */
     @Test
+    public void testHandleOnStart_scanResultUpdaterUpdateCorrectly() {
+        final ScanResult chosen = buildScanResult("ssid", "bssid", START_MILLIS);
+        final String key = scanResultToStandardWifiEntryKey(chosen);
+        final StandardNetworkDetailsTracker tracker = createTestStandardNetworkDetailsTracker(key);
+        final ScanResult other = buildScanResult("ssid2", "bssid", START_MILLIS, -50 /* rssi */);
+        when(mMockWifiManager.getScanResults()).thenReturn(Collections.singletonList(other));
+
+        //tracker.onStart();
+        tracker.handleOnStart();
+
+        final long invalidCount = tracker.mScanResultUpdater.getScanResults().stream().filter(
+                scanResult -> !"ssid".equals(scanResult.SSID)).count();
+        assertThat(invalidCount).isEqualTo(0);
+    }
+
+    /**
+     * Tests that SCAN_RESULTS_AVAILABLE_ACTION updates the level of the entry.
+     */
+    @Test
     public void testScanResultsAvailableAction_updates_getLevel() {
         // Starting without any scans available should make level WIFI_LEVEL_UNREACHABLE
         final ScanResult scan = buildScanResult("ssid", "bssid", START_MILLIS, -50 /* rssi */);
