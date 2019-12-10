@@ -42,6 +42,7 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
+import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -70,6 +71,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -136,7 +138,10 @@ public class WifiConfigManagerTest {
     @Mock private FrameworkFacade mFrameworkFacade;
     @Mock private CarrierNetworkConfig mCarrierNetworkConfig;
     @Mock private MacAddressUtil mMacAddressUtil;
+    @Mock DeviceConfigFacade mDeviceConfigFacade;
 
+    final ArgumentCaptor<OnPropertiesChangedListener> mOnPropertiesChangedListenerCaptor =
+            ArgumentCaptor.forClass(OnPropertiesChangedListener.class);
     private MockResources mResources;
     private InOrder mContextConfigStoreMockOrder;
     private InOrder mNetworkListStoreDataMockOrder;
@@ -170,6 +175,8 @@ public class WifiConfigManagerTest {
                 TEST_MAX_NUM_ACTIVE_CHANNELS_FOR_PARTIAL_SCAN);
         mResources.setBoolean(R.bool.config_wifi_connected_mac_randomization_supported, true);
         when(mContext.getResources()).thenReturn(mResources);
+        when(mDeviceConfigFacade.getRandomizationFlakySsidHotlist()).thenReturn(
+                Collections.emptySet());
 
         // Setup UserManager profiles for the default user.
         setupUserProfiles(TEST_DEFAULT_USER);
@@ -240,6 +247,8 @@ public class WifiConfigManagerTest {
                 .startMocking();
         when(WifiConfigStore.createUserFiles(anyInt(), anyBoolean())).thenReturn(mock(List.class));
         when(mTelephonyManager.createForSubscriptionId(anyInt())).thenReturn(mDataTelephonyManager);
+        verify(mDeviceConfigFacade).addOnPropertiesChangedListener(any(),
+                mOnPropertiesChangedListenerCaptor.capture());
     }
 
     /**
@@ -4632,7 +4641,7 @@ public class WifiConfigManagerTest {
                         mWifiPermissionsUtil, mWifiPermissionsWrapper, mWifiInjector,
                         mNetworkListSharedStoreData, mNetworkListUserStoreData,
                         mDeletedEphemeralSsidsStoreData, mRandomizedMacStoreData,
-                        mFrameworkFacade, mLooper.getLooper());
+                        mFrameworkFacade, mLooper.getLooper(), mDeviceConfigFacade);
         mWifiConfigManager.enableVerboseLogging(1);
     }
 
@@ -5360,5 +5369,33 @@ public class WifiConfigManagerTest {
 
         assertFalse(mWifiConfigManager.getConfiguredNetwork(networkId)
                     .getNetworkSelectionStatus().isNetworkTemporaryDisabled());
+    }
+
+    /**
+     * Verifies that isInFlakyRandomizationSsidHotlist returns true if the network's SSID is in
+     * the hotlist and the network is using randomized MAC.
+     */
+    @Test
+    public void testFlakyRandomizationSsidHotlist() {
+        WifiConfiguration openNetwork = WifiConfigurationTestUtil.createOpenNetwork();
+        NetworkUpdateResult result = verifyAddNetworkToWifiConfigManager(openNetwork);
+        int networkId = result.getNetworkId();
+
+        // should return false when there is nothing in the hotlist
+        assertFalse(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+
+        // add the network's SSID to the hotlist and verify the method returns true
+        Set<String> ssidHotlist = new HashSet<>();
+        ssidHotlist.add(openNetwork.SSID);
+        when(mDeviceConfigFacade.getRandomizationFlakySsidHotlist()).thenReturn(ssidHotlist);
+        mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
+        assertTrue(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
+
+        // Now change the macRandomizationSetting to "trusted" and then verify
+        // isInFlakyRandomizationSsidHotlist returns false
+        openNetwork.macRandomizationSetting = WifiConfiguration.RANDOMIZATION_NONE;
+        NetworkUpdateResult networkUpdateResult = updateNetworkToWifiConfigManager(openNetwork);
+        assertNotEquals(WifiConfiguration.INVALID_NETWORK_ID, networkUpdateResult.getNetworkId());
+        assertFalse(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(networkId));
     }
 }
