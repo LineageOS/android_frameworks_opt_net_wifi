@@ -36,8 +36,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.test.MockAnswerUtil.AnswerWithArguments;
 import android.content.Context;
-import android.content.Intent;
-import android.os.UserHandle;
+import android.os.BugreportManager;
 
 import androidx.test.filters.SmallTest;
 
@@ -71,6 +70,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     @Mock Process mExternalProcess;
     @Mock WifiMetrics mWifiMetrics;
     @Mock Clock mClock;
+    @Mock BugreportManager mBugreportManager;
     MockResources mResources;
     WifiDiagnostics mWifiDiagnostics;
 
@@ -128,6 +128,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
                 FATAL_FW_ALERT_LIST);
         mResources.setBoolean(R.bool.config_wifi_diagnostics_bugreport_enabled, true);
         when(mContext.getResources()).thenReturn(mResources);
+        when(mContext.getSystemService(BugreportManager.class)).thenReturn(mBugreportManager);
         when(mWifiInjector.makeLog(anyString())).thenReturn(mLog);
         when(mWifiInjector.getJavaRuntime()).thenReturn(mJavaRuntime);
         when(mWifiInjector.getWifiMetrics()).thenReturn(mWifiMetrics);
@@ -861,26 +862,23 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
     public void takeBugReportCallsActivityManagerOnUserDebug() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mContext, times(1)).sendBroadcastAsUser(
-                any(Intent.class), any(UserHandle.class));
+        verify(mBugreportManager, times(1)).requestBugreport(any(), any(), any());
     }
 
     @Test
     public void takeBugReportSwallowsExceptions() {
         when(mBuildProperties.isUserBuild()).thenReturn(false);
-        doThrow(new RuntimeException()).when(mContext).sendBroadcastAsUser(
-                any(Intent.class), any(UserHandle.class));
+        doThrow(new RuntimeException()).when(mBugreportManager).requestBugreport(
+                any(), any(), any());
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mContext, times(1)).sendBroadcastAsUser(
-                any(Intent.class), any(UserHandle.class));
+        verify(mBugreportManager, times(1)).requestBugreport(any(), any(), any());
     }
 
     @Test
     public void takeBugReportDoesNothingOnUserBuild() {
         when(mBuildProperties.isUserBuild()).thenReturn(true);
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mContext, never()).sendBroadcastAsUser(
-                any(Intent.class), any(UserHandle.class));
+        verify(mBugreportManager, never()).requestBugreport(any(), any(), any());
     }
 
     @Test
@@ -891,8 +889,7 @@ public class WifiDiagnosticsTest extends WifiBaseTest {
                 mContext, mWifiInjector, mWifiNative, mBuildProperties, mLastMileLogger, mClock);
 
         mWifiDiagnostics.takeBugReport("", "");
-        verify(mContext, never()).sendBroadcastAsUser(
-                any(Intent.class), any(UserHandle.class));
+        verify(mBugreportManager, never()).requestBugreport(any(), any(), any());
     }
 
     /** Verifies that we flush HAL ringbuffer when capture bugreport. */

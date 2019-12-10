@@ -22,10 +22,10 @@ import android.database.ContentObserver;
 import android.net.wifi.WifiInfo;
 import android.os.Handler;
 import android.provider.Settings;
-import android.util.KeyValueListParser;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.wifi.util.KeyValueListParser;
 import com.android.wifi.resources.R;
 
 /**

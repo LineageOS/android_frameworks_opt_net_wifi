@@ -26,7 +26,6 @@ import android.net.wifi.WifiScanner;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiNative;
 

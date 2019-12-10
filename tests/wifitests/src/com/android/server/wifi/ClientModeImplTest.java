@@ -59,14 +59,13 @@ import android.net.wifi.WifiScanner;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
-import android.net.wifi.p2p.IWifiP2pManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.IInterface;
 import android.os.INetworkManagementService;
 import android.os.IPowerManager;
 import android.os.Looper;
@@ -94,7 +93,6 @@ import com.android.internal.util.StateMachine;
 import com.android.server.wifi.hotspot2.NetworkDetail;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointProvisioningTestUtil;
-import com.android.server.wifi.p2p.WifiP2pServiceImpl;
 import com.android.server.wifi.proto.nano.WifiMetricsProto;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.StaEvent;
 import com.android.server.wifi.proto.nano.WifiMetricsProto.WifiIsUnusableEvent;
@@ -174,15 +172,6 @@ public class ClientModeImplTest extends WifiBaseTest {
         return mock(class1, withSettings().extraInterfaces(interfaces));
     }
 
-    private static <T, I> IBinder mockService(Class<T> class1, Class<I> iface) {
-        T tImpl = mockWithInterfaces(class1, iface);
-        IBinder binder = mock(IBinder.class);
-        when(((IInterface) tImpl).asBinder()).thenReturn(binder);
-        when(binder.queryLocalInterface(iface.getCanonicalName()))
-                .thenReturn((IInterface) tImpl);
-        return binder;
-    }
-
     private void enableDebugLogs() {
         mCmi.enableVerboseLogging(1);
     }
@@ -192,26 +181,6 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         when(facade.getService(Context.NETWORKMANAGEMENT_SERVICE)).thenReturn(
                 mockWithInterfaces(IBinder.class, INetworkManagementService.class));
-
-        IBinder p2pBinder = mockService(WifiP2pServiceImpl.class, IWifiP2pManager.class);
-        when(facade.getService(Context.WIFI_P2P_SERVICE)).thenReturn(p2pBinder);
-
-        WifiP2pServiceImpl p2pm = (WifiP2pServiceImpl) p2pBinder.queryLocalInterface(
-                IWifiP2pManager.class.getCanonicalName());
-
-        final CountDownLatch untilDone = new CountDownLatch(1);
-        mP2pThread = new HandlerThread("WifiP2pMockThread") {
-            @Override
-            protected void onLooperPrepared() {
-                untilDone.countDown();
-            }
-        };
-
-        mP2pThread.start();
-        untilDone.await();
-
-        Handler handler = new Handler(mP2pThread.getLooper());
-        when(p2pm.getP2pStateMachineMessenger()).thenReturn(new Messenger(handler));
 
         doAnswer(new AnswerWithArguments() {
             public void answer(
@@ -254,6 +223,20 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         when(context.getSystemService(ActivityManager.class)).thenReturn(
                 mock(ActivityManager.class));
+
+        WifiP2pManager p2pm = mock(WifiP2pManager.class);
+        when(context.getSystemService(WifiP2pManager.class)).thenReturn(p2pm);
+        final CountDownLatch untilDone = new CountDownLatch(1);
+        mP2pThread = new HandlerThread("WifiP2pMockThread") {
+            @Override
+            protected void onLooperPrepared() {
+                untilDone.countDown();
+            }
+        };
+        mP2pThread.start();
+        untilDone.await();
+        Handler handler = new Handler(mP2pThread.getLooper());
+        when(p2pm.getP2pStateMachineMessenger()).thenReturn(new Messenger(handler));
 
         return context;
     }
@@ -397,6 +380,7 @@ public class ClientModeImplTest extends WifiBaseTest {
     @Mock BatteryStatsManager mBatteryStatsManager;
     @Mock MboOceController mMboOceController;
     @Mock SubscriptionManager mSubscriptionManager;
+    @Mock ConnectionFailureNotifier mConnectionFailureNotifier;
 
     final ArgumentCaptor<WifiConfigManager.OnNetworkUpdateListener> mConfigUpdateListenerCaptor =
             ArgumentCaptor.forClass(WifiConfigManager.OnNetworkUpdateListener.class);
@@ -453,6 +437,8 @@ public class ClientModeImplTest extends WifiBaseTest {
         when(mWifiInjector.getCarrierNetworkConfig()).thenReturn(mCarrierNetworkConfig);
         when(mWifiInjector.getWifiThreadRunner())
                 .thenReturn(new WifiThreadRunner(new Handler(mLooper.getLooper())));
+        when(mWifiInjector.makeConnectionFailureNotifier(any()))
+                .thenReturn(mConnectionFailureNotifier);
         when(mWifiInjector.getBssidBlocklistMonitor()).thenReturn(mBssidBlocklistMonitor);
         when(mWifiNetworkFactory.getSpecificNetworkRequestUidAndPackageName(any()))
                 .thenReturn(Pair.create(Process.INVALID_UID, ""));
@@ -492,7 +478,6 @@ public class ClientModeImplTest extends WifiBaseTest {
                 Settings.Global.WIFI_FREQUENCY_BAND,
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO)).thenReturn(
                 WifiManager.WIFI_FREQUENCY_BAND_AUTO);
-
         when(mWifiPermissionsUtil.checkNetworkSettingsPermission(anyInt())).thenReturn(true);
         when(mWifiPermissionsWrapper.getLocalMacAddressPermission(anyInt()))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -2579,7 +2564,7 @@ public class ClientModeImplTest extends WifiBaseTest {
         WifiLinkLayerStats llStats = new WifiLinkLayerStats();
         llStats.txmpdu_be = 1000;
         llStats.rxmpdu_bk = 2000;
-        WifiNative.SignalPollResult signalPollResult = new WifiNative.SignalPollResult();
+        WificondControl.SignalPollResult signalPollResult = new WificondControl.SignalPollResult();
         signalPollResult.currentRssi = -42;
         signalPollResult.txBitrate = 65;
         signalPollResult.associationFrequency = sFreq;
@@ -2820,6 +2805,44 @@ public class ClientModeImplTest extends WifiBaseTest {
 
         connect();
         verify(mWifiNative).setMacAddress(WIFI_IFACE_NAME, TEST_LOCAL_MAC_ADDRESS);
+    }
+
+    /**
+     * Verifies that a notification is posted when a connection failure happens on a network
+     * in the hotlist. Then verify that tapping on the notification launches an dialog, which
+     * could be used to set the randomization setting for a network to "Trusted".
+     */
+    @Test
+    public void testConnectionFailureSendRandomizationSettingsNotification() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_TIMEOUT);
+        mLooper.dispatchAll();
+
+        WifiConfiguration config = mCmi.getCurrentWifiConfiguration();
+        verify(mConnectionFailureNotifier)
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(FRAMEWORK_NETWORK_ID);
+    }
+
+    /**
+     * Verifies that a notification is not posted when a wrong password failure happens on a
+     * network in the hotlist.
+     */
+    @Test
+    public void testNotCallingIsInFlakyRandomizationSsidHotlistOnWrongPassword() throws Exception {
+        when(mWifiConfigManager.isInFlakyRandomizationSsidHotlist(anyInt())).thenReturn(true);
+        // Setup CONNECT_MODE & a WifiConfiguration
+        initializeAndAddNetworkAndVerifySuccess();
+        mCmi.sendMessage(ClientModeImpl.CMD_START_CONNECT, FRAMEWORK_NETWORK_ID, 0, sBSSID);
+        mCmi.sendMessage(WifiMonitor.AUTHENTICATION_FAILURE_EVENT,
+                WifiManager.ERROR_AUTH_FAILURE_WRONG_PSWD);
+        mLooper.dispatchAll();
+
+        verify(mConnectionFailureNotifier, never())
+                .showFailedToConnectDueToNoRandomizedMacSupportNotification(anyInt());
     }
 
     /**

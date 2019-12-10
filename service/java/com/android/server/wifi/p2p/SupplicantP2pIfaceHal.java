@@ -41,7 +41,7 @@ import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.android.internal.util.ArrayUtils;
+import com.android.server.wifi.util.ArrayUtils;
 import com.android.server.wifi.util.NativeUtil;
 
 import java.nio.ByteBuffer;

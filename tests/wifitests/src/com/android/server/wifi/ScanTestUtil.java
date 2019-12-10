@@ -98,7 +98,7 @@ public class ScanTestUtil {
     public static class NativeScanSettingsBuilder {
         private final WifiNative.ScanSettings mSettings = new WifiNative.ScanSettings();
         public NativeScanSettingsBuilder() {
-            mSettings.scanType = WifiNative.SCAN_TYPE_LOW_LATENCY;
+            mSettings.scanType = WifiScanner.SCAN_TYPE_LOW_LATENCY;
             mSettings.buckets = new WifiNative.BucketSettings[0];
             mSettings.num_buckets = 0;
             mSettings.report_threshold_percent = 100;
@@ -183,20 +183,6 @@ public class ScanTestUtil {
 
     }
 
-    private static int getNativeScanType(int type) {
-        switch(type) {
-            case WifiScanner.SCAN_TYPE_LOW_LATENCY:
-                return WifiNative.SCAN_TYPE_LOW_LATENCY;
-            case WifiScanner.SCAN_TYPE_LOW_POWER:
-                return WifiNative.SCAN_TYPE_LOW_POWER;
-            case WifiScanner.SCAN_TYPE_HIGH_ACCURACY:
-                return WifiNative.SCAN_TYPE_HIGH_ACCURACY;
-            default:
-                fail();
-                return -1;
-        }
-    }
-
     /**
      * Compute the expected native scan settings that are expected for the given
      * WifiScanner.ScanSettings.
@@ -209,7 +195,7 @@ public class ScanTestUtil {
                 .withMaxApPerScan(0)
                 .withMaxPercentToCache(0)
                 .withMaxScansToCache(0)
-                .withType(getNativeScanType(requestSettings.type));
+                .withType(requestSettings.type);
         if (requestSettings.band == WifiScanner.WIFI_BAND_UNSPECIFIED) {
             builder.addBucketWithChannels(0, reportEvents, requestSettings.channels);
         } else {
@@ -225,7 +211,7 @@ public class ScanTestUtil {
     public static WifiNative.ScanSettings createSingleScanNativeSettingsForChannels(
             int reportEvents, WifiScanner.ChannelSpec... channels) {
         return createSingleScanNativeSettingsForChannels(
-            WifiNative.SCAN_TYPE_LOW_LATENCY, reportEvents, channels);
+            WifiScanner.SCAN_TYPE_LOW_LATENCY, reportEvents, channels);
     }
 
     /**

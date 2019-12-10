@@ -71,7 +71,7 @@ import android.net.wifi.WifiManager.DeviceMobilityState;
 import android.net.wifi.WifiNetworkAgentSpecifier;
 import android.net.wifi.hotspot2.IProvisioningCallback;
 import android.net.wifi.hotspot2.OsuProvider;
-import android.net.wifi.p2p.IWifiP2pManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.BatteryStatsManager;
 import android.os.Bundle;
 import android.os.ConditionVariable;
@@ -689,6 +689,7 @@ public class ClientModeImpl extends StateMachine {
     private WifiStateTracker mWifiStateTracker;
     private final BackupManagerProxy mBackupManagerProxy;
     private final WrongPasswordNotifier mWrongPasswordNotifier;
+    private final ConnectionFailureNotifier mConnectionFailureNotifier;
     private WifiNetworkSuggestionsManager mWifiNetworkSuggestionsManager;
     // Maximum duration to continue to log Wifi usability stats after a data stall is triggered.
     @VisibleForTesting
@@ -745,6 +746,8 @@ public class ClientModeImpl extends StateMachine {
         mSupplicantStateTracker = supplicantStateTracker;
         mWifiConnectivityManager = mWifiInjector.makeWifiConnectivityManager(this);
         mBssidBlocklistMonitor = mWifiInjector.getBssidBlocklistMonitor();
+        mConnectionFailureNotifier = mWifiInjector.makeConnectionFailureNotifier(
+                mWifiConnectivityManager);
 
         mLinkProperties = new LinkProperties();
         mMcastLockManagerFilterController = new McastLockManagerFilterController();
@@ -2233,7 +2236,7 @@ public class ClientModeImpl extends StateMachine {
      * Fetch RSSI, linkspeed, and frequency on current connection
      */
     private void fetchRssiLinkSpeedAndFrequencyNative() {
-        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
+        WificondControl.SignalPollResult pollResult = mWifiNative.signalPoll(mInterfaceName);
         if (pollResult == null) {
             return;
         }
@@ -2722,6 +2725,16 @@ public class ClientModeImpl extends StateMachine {
                         bssidBlocklistMonitorReason);
             }
         }
+        boolean isAssociationRejection = level2FailureCode
+                == WifiMetrics.ConnectionEvent.FAILURE_ASSOCIATION_REJECTION;
+        boolean isAuthenticationFailure = level2FailureCode
+                == WifiMetrics.ConnectionEvent.FAILURE_AUTHENTICATION_FAILURE
+                && level2FailureReason != WifiMetricsProto.ConnectionEvent.AUTH_FAILURE_WRONG_PSWD;
+        if ((isAssociationRejection || isAuthenticationFailure)
+                && mWifiConfigManager.isInFlakyRandomizationSsidHotlist(mTargetNetworkId)) {
+            mConnectionFailureNotifier
+                    .showFailedToConnectDueToNoRandomizedMacSupportNotification(mTargetNetworkId);
+        }
         // if connected, this should be non-null.
         WifiConfiguration configuration = getCurrentWifiConfiguration();
         if (configuration == null) {
@@ -2955,14 +2968,12 @@ public class ClientModeImpl extends StateMachine {
     private void getAdditionalWifiServiceInterfaces() {
         // First set up Wifi Direct
         if (mP2pSupported) {
-            IBinder s1 = mFacade.getService(Context.WIFI_P2P_SERVICE);
-            WifiP2pServiceImpl wifiP2pServiceImpl =
-                    (WifiP2pServiceImpl) IWifiP2pManager.Stub.asInterface(s1);
+            WifiP2pManager wifiP2pService = mContext.getSystemService(WifiP2pManager.class);
 
-            if (wifiP2pServiceImpl != null) {
+            if (wifiP2pService != null) {
                 mWifiP2pChannel = new AsyncChannel();
                 mWifiP2pChannel.connect(mContext, getHandler(),
-                        wifiP2pServiceImpl.getP2pStateMachineMessenger());
+                        wifiP2pService.getP2pStateMachineMessenger());
             }
         }
     }
@@ -4460,7 +4471,7 @@ public class ClientModeImpl extends StateMachine {
                     break;
                 case CMD_PKT_CNT_FETCH:
                     callbackIdentifier = message.arg2;
-                    WifiNative.TxPacketCounters counters =
+                    WificondControl.TxPacketCounters counters =
                             mWifiNative.getTxPacketCounters(mInterfaceName);
                     if (counters != null) {
                         sendTxPacketCountListenerSuccess(
@@ -5626,7 +5637,7 @@ public class ClientModeImpl extends StateMachine {
      * Sends a link probe.
      */
     @VisibleForTesting
-    public void probeLink(WifiNative.SendMgmtFrameCallback callback, int mcs) {
+    public void probeLink(WificondControl.SendMgmtFrameCallback callback, int mcs) {
         mWifiNative.probeLink(mInterfaceName, MacAddress.fromString(mWifiInfo.getBSSID()),
                 callback, mcs);
     }

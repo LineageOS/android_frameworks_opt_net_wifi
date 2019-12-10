@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.net.IpMemoryStore;
 import android.net.NetworkCapabilities;
@@ -46,7 +47,6 @@ import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 import android.util.Log;
 
-import com.android.internal.os.PowerProfile;
 import com.android.server.wifi.aware.WifiAwareMetrics;
 import com.android.server.wifi.hotspot2.PasspointManager;
 import com.android.server.wifi.hotspot2.PasspointNetworkEvaluator;
@@ -159,6 +159,7 @@ public class WifiInjector {
     private final TelephonyUtil mTelephonyUtil;
     private WifiChannelUtilization mWifiChannelUtilization;
     private final KeyStore mKeyStore;
+    private final ConnectionFailureNotificationBuilder mConnectionFailureNotificationBuilder;
     private final ThroughputPredictor mThroughputPredictor;
 
     public WifiInjector(Context context) {
@@ -185,6 +186,8 @@ public class WifiInjector {
         mFrameworkFacade = new FrameworkFacade();
         mMacAddressUtil = new MacAddressUtil();
         mContext = context;
+        mConnectionFailureNotificationBuilder = new ConnectionFailureNotificationBuilder(
+                mContext, getWifiStackPackageName(), mFrameworkFacade);
         mBatteryStats = context.getSystemService(BatteryStatsManager.class);
         mWifiScoreCard = new WifiScoreCard(mClock,
                 Secure.getString(mContext.getContentResolver(), Secure.ANDROID_ID));
@@ -621,6 +624,17 @@ public class WifiInjector {
     }
 
     /**
+     * Construct a new instance of ConnectionFailureNotifier.
+     * @param wifiConnectivityManager
+     * @return the created instance
+     */
+    public ConnectionFailureNotifier makeConnectionFailureNotifier(
+            WifiConnectivityManager wifiConnectivityManager) {
+        return new ConnectionFailureNotifier(mContext, this, mFrameworkFacade, mWifiConfigManager,
+                wifiConnectivityManager, new Handler(mWifiHandlerThread.getLooper()));
+    }
+
+    /**
      * Construct a new instance of {@link WifiNetworkFactory}.
      * TODO(b/116233964): Remove cyclic dependency between WifiConnectivityManager & ClientModeImpl.
      */
@@ -707,6 +721,14 @@ public class WifiInjector {
         return mMacAddressUtil;
     }
 
+    public NotificationManager getNotificationManager() {
+        return (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+    }
+
+    public ConnectionFailureNotificationBuilder getConnectionFailureNotificationBuilder() {
+        return mConnectionFailureNotificationBuilder;
+    }
+
     /**
      * Returns a single instance of HalDeviceManager for injection.
      */
@@ -732,10 +754,6 @@ public class WifiInjector {
 
     public SelfRecovery getSelfRecovery() {
         return mSelfRecovery;
-    }
-
-    public PowerProfile getPowerProfile() {
-        return new PowerProfile(mContext, false);
     }
 
     public ScanRequestProxy getScanRequestProxy() {

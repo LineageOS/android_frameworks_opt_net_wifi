@@ -76,7 +76,8 @@ filegroup {
         "java/**/*.java",
         "java/**/I*.aidl",
         "java/**/*.logtags",
-        ":framework-wifistack-shared-srcs",
+        ":framework-wifi-service-shared-srcs",
+        ":statslog-wifi-java-gen",
     ],
 }
 
@@ -150,6 +151,16 @@ java_library {
     platform_apis: true,
 
     init_rc: ["wifi.rc"],
+}
+
+// Westworld auto-generated code
+// ============================================================
+genrule {
+    name: "statslog-wifi-java-gen",
+    tools: ["stats-log-api-gen"],
+    cmd: "$(location stats-log-api-gen) --java $(out) --module wifi " +
+         " --javaPackage com.android.server.wifi.proto --javaClass WifiStatsLog",
+    out: ["com/android/server/wifi/proto/WifiStatsLog.java"],
 }
 
 // APK to hold all the wifi overlayable resources.

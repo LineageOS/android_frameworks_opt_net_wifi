@@ -18,6 +18,7 @@ package com.android.wifitrackerlib;
 
 import static androidx.core.util.Preconditions.checkNotNull;
 
+import android.net.wifi.WifiManager;
 import android.os.Handler;
 
 import androidx.annotation.AnyThread;
@@ -127,16 +128,19 @@ public abstract class WifiEntry implements Comparable<WifiEntry> {
     public static final int FREQUENCY_UNKNOWN = -1;
 
     protected final boolean mForSavedNetworksPage;
+    protected final WifiManager mWifiManager;
 
     // Callback associated with this WifiEntry. Subclasses should call its methods appropriately.
     private WifiEntryCallback mListener;
     private Handler mCallbackHandler;
 
-    WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage)
-            throws IllegalArgumentException {
+    WifiEntry(@NonNull Handler callbackHandler, boolean forSavedNetworksPage,
+            @NonNull WifiManager wifiManager) throws IllegalArgumentException {
         checkNotNull(callbackHandler, "Cannot construct with null handler!");
+        checkNotNull(wifiManager, "Cannot construct with null WifiManager!");
         mCallbackHandler = callbackHandler;
         mForSavedNetworksPage = forSavedNetworksPage;
+        mWifiManager = wifiManager;
     }
 
     // Info available for all WifiEntries //

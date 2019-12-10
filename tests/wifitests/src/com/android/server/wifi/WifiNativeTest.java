@@ -26,12 +26,13 @@ import static org.mockito.Mockito.*;
 
 import android.net.MacAddress;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiScanner;
 import android.os.Handler;
 import android.os.INetworkManagementService;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.wifi.WifiNative.SendMgmtFrameCallback;
+import com.android.server.wifi.WificondControl.SendMgmtFrameCallback;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -113,15 +114,15 @@ public class WifiNativeTest extends WifiBaseTest {
             new FateMapping(WifiLoggerHal.RX_PKT_FATE_DRV_DROP_OTHER, "driver dropped (other)"),
             new FateMapping((byte) 42, "42")
     };
-    private static final WifiNative.SignalPollResult SIGNAL_POLL_RESULT =
-            new WifiNative.SignalPollResult() {{
+    private static final WificondControl.SignalPollResult SIGNAL_POLL_RESULT =
+            new WificondControl.SignalPollResult() {{
                 currentRssi = -60;
                 txBitrate = 12;
                 associationFrequency = 5240;
                 rxBitrate = 6;
             }};
-    private static final WifiNative.TxPacketCounters PACKET_COUNTERS_RESULT =
-            new WifiNative.TxPacketCounters() {{
+    private static final WificondControl.TxPacketCounters PACKET_COUNTERS_RESULT =
+            new WificondControl.TxPacketCounters() {{
                 txSucceeded = 2000;
                 txFailed = 120;
             }};
@@ -517,7 +518,7 @@ public class WifiNativeTest extends WifiBaseTest {
         when(mWificondControl.signalPoll(WIFI_IFACE_NAME))
                 .thenReturn(SIGNAL_POLL_RESULT);
 
-        WifiNative.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
+        WificondControl.SignalPollResult pollResult = mWifiNative.signalPoll(WIFI_IFACE_NAME);
         assertEquals(SIGNAL_POLL_RESULT.currentRssi, pollResult.currentRssi);
         assertEquals(SIGNAL_POLL_RESULT.txBitrate, pollResult.txBitrate);
         assertEquals(SIGNAL_POLL_RESULT.associationFrequency, pollResult.associationFrequency);
@@ -543,10 +544,10 @@ public class WifiNativeTest extends WifiBaseTest {
      */
     @Test
     public void testScan() throws Exception {
-        mWifiNative.scan(WIFI_IFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY, SCAN_FREQ_SET,
+        mWifiNative.scan(WIFI_IFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY, SCAN_FREQ_SET,
                 SCAN_HIDDEN_NETWORK_SSID_SET);
         verify(mWificondControl).scan(
-                WIFI_IFACE_NAME, WifiNative.SCAN_TYPE_HIGH_ACCURACY,
+                WIFI_IFACE_NAME, WifiScanner.SCAN_TYPE_HIGH_ACCURACY,
                 SCAN_FREQ_SET, SCAN_HIDDEN_NETWORK_SSID_SET);
     }
 
@@ -739,7 +740,7 @@ public class WifiNativeTest extends WifiBaseTest {
         mWifiNative.probeLink(WIFI_IFACE_NAME, MacAddress.fromString(TEST_BSSID_STR),
                 mSendMgmtFrameCallback, TEST_MCS_RATE);
 
-        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
     }
 
@@ -752,7 +753,7 @@ public class WifiNativeTest extends WifiBaseTest {
 
         mWifiNative.probeLink(WIFI_IFACE_NAME, null, mSendMgmtFrameCallback, TEST_MCS_RATE);
 
-        verify(mSendMgmtFrameCallback).onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_UNKNOWN);
+        verify(mSendMgmtFrameCallback).onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_UNKNOWN);
         verify(mWificondControl, never()).sendMgmtFrame(any(), any(), any(), anyInt());
     }
 }

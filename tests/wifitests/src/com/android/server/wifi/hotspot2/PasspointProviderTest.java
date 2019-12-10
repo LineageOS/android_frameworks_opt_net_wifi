@@ -37,7 +37,6 @@ import android.util.Pair;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.FakeKeys;
 import com.android.server.wifi.WifiBaseTest;
 import com.android.server.wifi.WifiKeyStore;
@@ -52,6 +51,7 @@ import com.android.server.wifi.hotspot2.anqp.ThreeGPPNetworkElement;
 import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
 import com.android.server.wifi.hotspot2.anqp.eap.EAPMethod;
 import com.android.server.wifi.hotspot2.anqp.eap.NonEAPInnerAuth;
+import com.android.server.wifi.util.ArrayUtils;
 import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
 import com.android.server.wifi.util.TelephonyUtil;
 

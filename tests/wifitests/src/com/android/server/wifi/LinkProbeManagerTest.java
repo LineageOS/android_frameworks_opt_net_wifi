@@ -134,8 +134,8 @@ public class LinkProbeManagerTest extends WifiBaseTest {
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-        ArgumentCaptor<WifiNative.SendMgmtFrameCallback> callbackCaptor =
-                ArgumentCaptor.forClass(WifiNative.SendMgmtFrameCallback.class);
+        ArgumentCaptor<WificondControl.SendMgmtFrameCallback> callbackCaptor =
+                ArgumentCaptor.forClass(WificondControl.SendMgmtFrameCallback.class);
         verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), callbackCaptor.capture(),
                 anyInt());
         ArgumentCaptor<String> experimentIdCaptor = ArgumentCaptor.forClass(String.class);
@@ -177,14 +177,14 @@ public class LinkProbeManagerTest extends WifiBaseTest {
         mTimeMs += timeDelta;
         when(mClock.getElapsedSinceBootMillis()).thenReturn(mTimeMs);
         mLinkProbeManager.updateConnectionStats(mWifiInfo, TEST_IFACE_NAME);
-        ArgumentCaptor<WifiNative.SendMgmtFrameCallback> callbackCaptor =
-                ArgumentCaptor.forClass(WifiNative.SendMgmtFrameCallback.class);
+        ArgumentCaptor<WificondControl.SendMgmtFrameCallback> callbackCaptor =
+                ArgumentCaptor.forClass(WificondControl.SendMgmtFrameCallback.class);
         verify(mWifiNative).probeLink(eq(TEST_IFACE_NAME), any(), callbackCaptor.capture(),
                 anyInt());
 
-        callbackCaptor.getValue().onFailure(WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+        callbackCaptor.getValue().onFailure(WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
         verify(mWifiMetrics).logLinkProbeFailure(timeDelta, rssi, linkSpeed,
-                WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
     }
 
     /**

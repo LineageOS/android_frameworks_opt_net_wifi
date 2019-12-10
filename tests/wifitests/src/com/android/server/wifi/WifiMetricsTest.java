@@ -3411,13 +3411,13 @@ public class WifiMetricsTest extends WifiBaseTest {
     public void testLogLinkProbeMetrics() throws Exception {
         mWifiMetrics.logLinkProbeSuccess(10000, -75, 50, 5);
         mWifiMetrics.logLinkProbeFailure(30000, -80, 10,
-                WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(3000, -71, 160, 12);
         mWifiMetrics.logLinkProbeFailure(40000, -80, 6,
-                WifiNative.SEND_MGMT_FRAME_ERROR_NO_ACK);
+                WificondControl.SEND_MGMT_FRAME_ERROR_NO_ACK);
         mWifiMetrics.logLinkProbeSuccess(5000, -73, 160, 10);
         mWifiMetrics.logLinkProbeFailure(2000, -78, 6,
-                WifiNative.SEND_MGMT_FRAME_ERROR_TIMEOUT);
+                WificondControl.SEND_MGMT_FRAME_ERROR_TIMEOUT);
 
         dumpProtoAndDeserialize();
 

@@ -98,7 +98,6 @@ import android.util.MutableBoolean;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.os.PowerProfile;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.TelephonyIntents;
@@ -193,11 +192,6 @@ public class WifiServiceImpl extends BaseWifiService {
     private final FrameworkFacade mFrameworkFacade;
 
     private final WifiPermissionsUtil mWifiPermissionsUtil;
-
-    /**
-     * Power profile
-     */
-    private final PowerProfile mPowerProfile;
 
     private final TetheredSoftApTracker mTetheredSoftApTracker;
 
@@ -300,7 +294,6 @@ public class WifiServiceImpl extends BaseWifiService {
         mActiveModeWarden.registerSoftApCallback(mTetheredSoftApTracker);
         mLohsSoftApTracker = new LohsSoftApTracker();
         mActiveModeWarden.registerLohsCallback(mLohsSoftApTracker);
-        mPowerProfile = mWifiInjector.getPowerProfile();
         mWifiNetworkSuggestionsManager = mWifiInjector.getWifiNetworkSuggestionsManager();
         mDppManager = mWifiInjector.getDppManager();
         mWifiThreadRunner = mWifiInjector.getWifiThreadRunner();
@@ -1749,8 +1742,8 @@ public class WifiServiceImpl extends BaseWifiService {
                     .c(Binder.getCallingUid())
                     .flush();
         }
-        // reportActivityInfo() performs permission checking
-        WifiActivityEnergyInfo info = reportActivityInfo();
+        // getWifiActivityEnergyInfo() performs permission checking
+        WifiActivityEnergyInfo info = getWifiActivityEnergyInfo();
         try {
             listener.onWifiActivityEnergyInfo(info);
         } catch (RemoteException e) {
@@ -1758,14 +1751,10 @@ public class WifiServiceImpl extends BaseWifiService {
         }
     }
 
-    /**
-     * see {@link android.net.wifi.WifiManager#getControllerActivityEnergyInfo()}
-     */
-    @Override
-    public WifiActivityEnergyInfo reportActivityInfo() {
+    private WifiActivityEnergyInfo getWifiActivityEnergyInfo() {
         enforceAccessPermission();
         if (mVerboseLoggingEnabled) {
-            mLog.info("reportActivityInfo uid=%").c(Binder.getCallingUid()).flush();
+            mLog.info("getWifiActivityEnergyInfo uid=%").c(Binder.getCallingUid()).flush();
         }
         if ((getSupportedFeatures() & WifiManager.WIFI_FEATURE_LINK_LAYER_STATS) == 0) {
             return null;
@@ -1779,15 +1768,6 @@ public class WifiServiceImpl extends BaseWifiService {
             return null;
         }
 
-        final double rxIdleCurrentInMilliAmps = mPowerProfile.getAveragePower(
-                PowerProfile.POWER_WIFI_CONTROLLER_IDLE);
-        final double rxCurrentInMilliAmps = mPowerProfile.getAveragePower(
-                PowerProfile.POWER_WIFI_CONTROLLER_RX);
-        final double txCurrentInMilliAmps = mPowerProfile.getAveragePower(
-                PowerProfile.POWER_WIFI_CONTROLLER_TX);
-        // POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE is measured in mV, so convert to V.
-        final double voltageInVolts = mPowerProfile.getAveragePower(
-                PowerProfile.POWER_WIFI_CONTROLLER_OPERATING_VOLTAGE) / 1000.0;
         final long rxIdleTimeMillis = stats.on_time - stats.tx_time - stats.rx_time;
         final long[] txTimePerLevelMillis;
         if (stats.tx_time_per_level == null) {
@@ -1801,28 +1781,15 @@ public class WifiServiceImpl extends BaseWifiService {
                 // TODO(b/27227497): Need to read the power consumed per level from config
             }
         }
-        // times are all in milliseconds, currents are all in milliAmps, voltage is in volts =>
-        // resulting energy is in microjoules.
-        final long energyUsedInMicroJoules = (long) (
-                (stats.tx_time * txCurrentInMilliAmps
-                        + stats.rx_time * rxCurrentInMilliAmps
-                        + rxIdleTimeMillis * rxIdleCurrentInMilliAmps
-                ) * voltageInVolts);
-
         if (VDBG || rxIdleTimeMillis < 0 || stats.on_time < 0 || stats.tx_time < 0
-                || stats.rx_time < 0 || stats.on_time_scan < 0 || energyUsedInMicroJoules < 0) {
-            Log.d(TAG, " reportActivityInfo: "
-                    + " rxIdleCurrentInMilliAmps=" + rxIdleCurrentInMilliAmps
-                    + " rxCurrentInMilliAmps=" + rxCurrentInMilliAmps
-                    + " txCurrentInMilliAmps=" + txCurrentInMilliAmps
-                    + " voltageInVolts=" + voltageInVolts
+                || stats.rx_time < 0 || stats.on_time_scan < 0) {
+            Log.d(TAG, " getWifiActivityEnergyInfo: "
                     + " on_time_millis=" + stats.on_time
                     + " tx_time_millis=" + stats.tx_time
                     + " tx_time_per_level_millis=" + Arrays.toString(txTimePerLevelMillis)
                     + " rx_time_millis=" + stats.rx_time
                     + " rxIdleTimeMillis=" + rxIdleTimeMillis
-                    + " scan_time_millis=" + stats.on_time_scan
-                    + " energyUsedInMicroJoules=" + energyUsedInMicroJoules);
+                    + " scan_time_millis=" + stats.on_time_scan);
         }
 
         // Convert the LinkLayerStats into WifiActivityEnergyInfo
@@ -1832,8 +1799,7 @@ public class WifiServiceImpl extends BaseWifiService {
                 stats.tx_time,
                 stats.rx_time,
                 stats.on_time_scan,
-                rxIdleTimeMillis,
-                energyUsedInMicroJoules);
+                rxIdleTimeMillis);
         return energyInfo.isValid() ? energyInfo : null;
     }
 

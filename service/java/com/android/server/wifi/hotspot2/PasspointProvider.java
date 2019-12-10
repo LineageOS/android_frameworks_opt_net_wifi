@@ -31,7 +31,6 @@ import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.util.ArrayUtils;
 import com.android.server.wifi.IMSIParameter;
 import com.android.server.wifi.WifiKeyStore;
 import com.android.server.wifi.hotspot2.anqp.ANQPElement;
@@ -42,6 +41,7 @@ import com.android.server.wifi.hotspot2.anqp.RoamingConsortiumElement;
 import com.android.server.wifi.hotspot2.anqp.ThreeGPPNetworkElement;
 import com.android.server.wifi.hotspot2.anqp.eap.AuthParam;
 import com.android.server.wifi.hotspot2.anqp.eap.NonEAPInnerAuth;
+import com.android.server.wifi.util.ArrayUtils;
 import com.android.server.wifi.util.InformationElementUtil.RoamingConsortium;
 import com.android.server.wifi.util.TelephonyUtil;
 

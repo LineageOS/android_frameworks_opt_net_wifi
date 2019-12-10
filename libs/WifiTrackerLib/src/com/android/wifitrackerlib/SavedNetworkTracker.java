@@ -253,7 +253,8 @@ public class SavedNetworkTracker extends BaseWifiTracker {
             }
         } else {
             if (changeReason != WifiManager.CHANGE_REASON_REMOVED) {
-                mStandardWifiEntryCache.put(key, new StandardWifiEntry(mMainHandler, config));
+                mStandardWifiEntryCache.put(key,
+                        new StandardWifiEntry(mMainHandler, config, mWifiManager));
             }
         }
     }
@@ -280,7 +281,7 @@ public class SavedNetworkTracker extends BaseWifiTracker {
         // Create new entry for each unmatched config
         for (String key : wifiConfigsByKey.keySet()) {
             mStandardWifiEntryCache.put(key,
-                    new StandardWifiEntry(mMainHandler, wifiConfigsByKey.get(key)));
+                    new StandardWifiEntry(mMainHandler, wifiConfigsByKey.get(key), mWifiManager));
         }
     }
 

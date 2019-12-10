@@ -279,6 +279,7 @@ public class BssidBlocklistMonitor {
 
     /**
      * Note a successful network validation on a BSSID and clear appropriate failure counters.
+     * And then remove the BSSID from blocklist.
      */
     public void handleNetworkValidationSuccess(@NonNull String bssid, @NonNull String ssid) {
         mWifiScoreCard.resetBssidBlocklistStreak(ssid, bssid, REASON_NETWORK_VALIDATION_FAILURE);
@@ -287,6 +288,12 @@ public class BssidBlocklistMonitor {
             return;
         }
         status.failureCount[REASON_NETWORK_VALIDATION_FAILURE] = 0;
+        /**
+         * Network validation may take more than 1 tries to succeed.
+         * remove the BSSID from blocklist to make sure we are not accidentally blocking good
+         * BSSIDs.
+         **/
+        status.removeFromBlocklist();
     }
 
     /**
@@ -439,6 +446,14 @@ public class BssidBlocklistMonitor {
         public void addToBlocklist(long durationMs) {
             isInBlocklist = true;
             blocklistEndTimeMs = mClock.getWallClockMillis() + durationMs;
+        }
+
+        /**
+         * Remove this BSSID from the blocklist.
+         */
+        public void removeFromBlocklist() {
+            isInBlocklist = false;
+            blocklistEndTimeMs = 0;
         }
 
         @Override
